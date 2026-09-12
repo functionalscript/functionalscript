@@ -1,4 +1,4 @@
-import { concat, escapes, isProperPrefix, join, normalize, parse, relativize, root, toPosix } from "./module.f.mjs"
+import { concat, escapes, isProperPrefix, join, normalize, parse, relativize, root, toPosix, under } from "./module.f.mjs"
 import { assertEq } from '../asserts/module.f.mjs'
 
 const normalizeTest = [
@@ -418,4 +418,79 @@ const isProperPrefixTest = [
     },
 ]
 
-export const proof = { normalizeTest, escapesTest, rootTest, parseTest, concatTest, joinTest, relativizeTest, toPosixTest, isProperPrefixTest }
+const underTest = [
+    // An ordinary directory takes the separator `join` would give it.
+    () => {
+        assertEq(under('a/b', 'c'), 'a/b/c')
+    },
+    // A directory of no characters is no directory: the name is read
+    // against the caller's own, so no separator is added.
+    () => {
+        assertEq(under('', '.git'), '.git')
+    },
+    // The roots, each of which already ends in a separator. `/` and `//`
+    // are the POSIX and UNC roots and must stay apart, and `C:/` is the
+    // drive root on the host that has drives.
+    () => {
+        assertEq(under('/', 'config'), '/config')
+    },
+    () => {
+        assertEq(under('//', 'config'), '//config')
+    },
+    () => {
+        assertEq(under('C:/', 'config'), 'C:/config')
+    },
+    // Any directory whose spelling ends in a separator, not only a root.
+    () => {
+        assertEq(under('a/b/', 'c'), 'a/b/c')
+    },
+    // Either separator ends a directory, because this module reads both:
+    // `toPosix` makes `\\` the UNC root and `\` the POSIX one, so appending
+    // a `/` to either would move the name to another root. Two backslashes
+    // read as `//` and would have become `///`, the ordinary root; one
+    // reads as `/` and would have become `//`, the UNC root.
+    () => {
+        assertEq(under('\\\\', 'config'), '\\\\config')
+        assertEq(under('\\', 'config'), '\\config')
+        assertEq(under('a\\', 'c'), 'a\\c')
+    },
+    // The property behind all of those, stated as the property rather than
+    // as a spelling: a name joined below a directory stays under the same
+    // root the directory has. The empty directory is in the list because it
+    // has no root and the name below it must not gain one.
+    () => {
+        for (const dir of ['/', '//', '///', '\\', '\\\\', 'C:/', 'a', 'a/', 'a\\', '', 'ZZ:']) {
+            assertEq(root(under(dir, 'config')), root(dir))
+        }
+    },
+    // Two colons that are not a drive: only a single drive letter makes one,
+    // so these are ordinary names and join as ordinary names do.
+    () => {
+        assertEq(under('ZZ:', 'c'), 'ZZ:/c')
+        assertEq(under('C:x', 'c'), 'C:x/c')
+    },
+    // What `join` would have answered for the same three, which is the
+    // fault this exists to avoid: another separator, and so another root.
+    () => {
+        assertEq(join('/', 'config'), '//config')
+    },
+    () => {
+        assertEq(join('//', 'config'), '///config')
+    },
+    () => {
+        assertEq(join('', '.git'), '/.git')
+    },
+]
+
+const underThrowTest = {
+    // A bare drive is no directory to join below: `C:name` and `C:/name` are
+    // each right on one host, so answering either is a plausible path to the
+    // wrong directory. `C:/name` is also what `join` would give, and it moves
+    // the root from none to `C:/` — the move this function exists to prevent.
+    throw: {
+        bareDrive: () => under('C:', 'config'),
+        bareDriveLower: () => under('c:', 'config'),
+    },
+}
+
+export const proof = { normalizeTest, escapesTest, rootTest, parseTest, concatTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }

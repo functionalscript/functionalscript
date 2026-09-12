@@ -1783,21 +1783,27 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a record that swapped the decoder's rule for the reader's goes red.
 - [x] **A reason answers a scope, not always a cell.** Measured before the
       serializer set was written, which is why it is a step of its own: the
-      corpus has 668 classes, a serializer can genuinely carry a vector for
-      about 188 of them, and the rest arrive as empty cells the moment that
-      column gains a set — some 480 records of one sentence rewritten, and the
-      same bill again when `normalize` lands. So
+      corpus holds several times the classes a serializer can carry a vector
+      for, and every one of the rest arrives as an empty cell the moment that
+      column gains a set — hundreds of records of one sentence rewritten, and
+      the same bill again when `normalize` lands. Naming those two figures
+      here is what made this paragraph stale twice, so it names neither and
+      the step below quotes both from the matrix summary. So
       `NotApplicable` carries a **scope**, tagged as `Document` is:
       `['class', c]` for one cell, `['subtree', p]` for every class under a
       prefix by path segment, and `['set', s]` for every class no set but
       that one carries. The last is the widest and the most exact, since no
-      class is carried by two sets — measured, 334 accept-only, 334
-      reject-only, none in both — so one reason covers every reject class by
+      class is carried by two sets — measured, the accept and reject sets
+      share no class at all, which is the part the argument needs; their sizes
+      move with every round and are in the matrix summary — so one reason
+      covers every reject class by
       construction rather than by inspection. A prototype answered all of them
-      with 28 records; what the serializer step below actually lands is 57,
-      answering 529 cells. The most specific reason wins, so a family's reason
-      takes an exception for
-      one class without either being removed. What buys the width is a rule
+      with 28 records; the step below lands the real set, and its own paragraph
+      carries the count — quoted there from the matrix summary, and not
+      repeated here, because this sentence has gone stale twice by naming a
+      figure that moves whenever a vector replaces a reason. The most specific
+      reason wins, so a family's reason takes an exception for one class
+      without either being removed. What buys the width is a rule
       the cell could not enforce, because a cell only ever sees itself: a
       scope that answers a class which **has** vectors is refused, as is one
       answering no class, one naming a set the corpus does not have, and two
@@ -1812,7 +1818,357 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [ ] **Serializer accept and graph equivalence.** Every leaf and container
+- [x] **Serializer accept and graph equivalence.** Landed as 215 records in
+      [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
+      and 16 in
+      [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
+      covering 172 of the 679 classes the corpus holds, with 45 scope
+      records answering the 507 cells the serializer column owes; the normalize
+      set below adds 50 classes and one `['set', 'normalize']` reason answers
+      all of them.
+      `SerializerAccept` lost its `graph` member on the way: with the recipes
+      gone a serializer-side input is an ordinary value of the data model, so
+      a second member carried the same value twice and let the two drift. The
+      matrix now names each reason once beneath the table rather than in every
+      cell it answers, which the bit vector's `maxLengthBytes` forced and
+      readability wanted anyway. Six reader vectors came with it, for classes
+      the serializer set introduced that the reader can and should carry — the
+      generic control escape at both ends with key twins, a const shared
+      across both container kinds, and two equal objects kept apart.
+      **Thirty-four of the 155 arrived in a second round, and every one of them
+      replaced a reason that was false when written.** Review checked the
+      reasons against the set instead of reading them, which is the one thing
+      that catches a reason nobody rechecked: six said the value was already
+      carried when the set held no `/`, no U+0023 and no U+005B anywhere;
+      fourteen said an adjacency was a reader's reading of two escapes when
+      `"\ud800\ud800"` is a distinct value a writer scanning for pairs
+      corrupts; one said sharing was covered when every sharing vector had a
+      single shared node, so a writer keeping only the first identity passed;
+      one said a nested `__proto__` was the nesting coverage above it when a
+      recursive key writer is a different path from the root one; and the two
+      `every-value` aggregates, the vectors whose whole purpose is every leaf
+      inside a container, contained no string at all. The twelve width
+      endpoints this section argues belong to this role — U+007F, U+0080,
+      U+07FF, U+D7FF, U+E000 and U+FFFF with key twins — were simply missing,
+      so the list above was right and the set had not caught up with it; they
+      ride under `string/raw/bmp`, which is where U+0800 already sat.
+      **Two more came from the round after**, both about an occurrence or a
+      walker rather than a value. Every sharing vector used its shared node
+      exactly twice, so a writer that remembers the first identity and forgets
+      it by the third occurrence passed: `const/shared/three-paths` now carries
+      `[a, {"a": a}, {"b": [a]}]`. And all four graph-equivalence inverses put
+      the two equal nodes in an *array*, so a writer that hash-conses only while
+      walking object members passed all of them; two object-parent inverses now
+      rule that out, empty and non-empty. A round after that, the last two raw
+      range endpoints: `!` and `]`, which the rule above requires at both ends
+      of every character class and which four reasons had been closing with
+      other characters. Four vectors, four fewer reasons.
+      And a round after that, three more of the same kind. No array in either
+      writer set began with a negative, so a writer that drops the sign only in
+      the first-element path passed; the mixed key-order input used `2` and
+      `10`, so one sorting every decimal-looking key as an index moved
+      `4294967295` ahead of `z` and passed; and all three sharing inputs used
+      non-empty nodes, so one that always emits an empty container inline
+      expanded a shared empty into two and passed. The first two are vectors.
+      The third is two: a shared empty *object* as a graph-equivalence record,
+      and the *array* in that set's proof, since `const $e = [];` is an
+      evolving `any[]` a data module cannot bind — the same limit the normalize
+      set's proof works around, and the same direction that matters, which is
+      expanding one shared empty rather than merging two distinct ones. **A
+      proof is not a vector**, as review then pointed out: it covers this
+      repository's own reader and writer and gives a third-party harness
+      nothing, since a harness serializes the inputs a set exports. That is a
+      carrier limitation rather than a missing vector, and it has
+      [an issue of its own](../vectors/todo/shared-empty-array.md) with the
+      three routes out of it.
+      One reason was corrected rather than replaced: the deep-nesting classes
+      said depth is the reader's concern, which is false, since a recursive
+      writer has a limit of its own and this repository records
+      `tryStringify` throwing at 2,600 nested arrays. What is true is that the
+      specification states no depth an implementation must support, so no
+      vector can say which depth conforming means; the writer's own limit is
+      tracked as the writer's bug, where it belongs. The draft carried a
+      second clause, that a data module cannot spell a graph deep enough to
+      find a limit, and review measured it false: a chain of 2,600 consts in
+      the spelling the vectors README promises parses, imports at that depth,
+      and makes `tryStringify` throw. So a set *can* spell it, and what a
+      vector there would assert is a refusal at a depth the specification
+      permits.
+      **One reason after that was two thirds right**, which is the harder kind
+      to catch. It closed all three non-interior pair classes at once by
+      calling them the reader's readings of four escapes. Measured, the two
+      corner *values* were in the set already, as the raw astral characters
+      U+10000 and U+10FFFF, which are every bit of both halves at zero and at
+      one, so for them the reason held for a better cause than the one it
+      gave. The mixed pair U+103FF was not in the set at all, under any class,
+      and it is the one that keeps the two halves from moving together. It is a
+      vector now, with its key twin. What survived the check is the other half
+      of the claim, and it is worth stating plainly because it bounds what this
+      role can ever be asked: escaping each half of a pair denotes the same
+      string as emitting the pair raw, so a writer that fails to *detect* a
+      pair is invisible to a role judged on the graph alone. Measured that way
+      too: with the writer's pairing disabled every one of these vectors still
+      passes, and the failure that does show up is arithmetic — a re-encode
+      dropping nine of the low half's ten bits is caught by U+10FFFF and by the
+      mixed pair, and by neither U+10000 nor an interior pair. Detection is the
+      normalize set's to pin, where the corners carry exact raw texts.
+      **Two cells the grid said were filled and were not**, and both came of
+      adding the pair review named rather than the pair it implied. All four
+      graph-equivalence inverses had an array parent, so two object-parent ones
+      were added, and both used equal *objects* as children — leaving a writer
+      that hash-conses equal arrays only while walking object members passing
+      the whole set. The grid is a walker crossed with a kind and now has all
+      four corners. The other cell is the proto key: the normalize set gained a
+      vector for a value shared behind one, and the serializer's reason for the
+      same subtree still said that what the member holds is the ordinary value
+      coverage above it, which sharing is not. Three vectors, and that subtree
+      narrows to the two classes under it that really are ordinary value
+      coverage, as it did one step up.
+      **Then the same two axes again, twice.** A negative in the first array
+      slot had one vector and it began with a number, so a writer whose
+      first-element path preserves an ordinary negative while normalizing `-0`
+      to `0` passed, and `difference` compares leaves with `Object.is`, which
+      sees that. Three vectors put the other negative leaf kinds first: the
+      negative zero, the bigint and the infinity. And the non-index key
+      subtree was closed by one reason saying the set pins observable order
+      once, with a boundary vector carrying no *signed* key at all, so a writer
+      treating a canonical signed decimal as an index moved it ahead of the
+      names and passed. Seven vectors carry the seven classes, and the shape of
+      the input is the whole finding: review's next round showed that pairing
+      the key with a *numerically equal* index makes six of the seven blind,
+      since the misclassifying writer sorts two equal indices stably and leaves
+      the order alone. Only the negative one discriminated. Each vector now
+      carries an ordinary name, the non-index key and a real index, which pins
+      three things at once — indices before names, the key staying in the names
+      group, and insertion order within it — and every one of the seven
+      separates a correct writer from that mutant. The reason is gone.
+      **Sharing inside a shared container**, which no vector in either writer
+      set had: measured, not one had a shared node whose own body reached
+      another shared node. So a writer that keeps references at the root and
+      inlines them inside a hoisted `const` body emitted
+      `const $0=[[0]];export default [$0,$0,[0]];` for a graph whose three
+      references are two nodes, splitting the inner one in two, and passed. A
+      serializer vector and a graph-equivalence record now carry it, the latter
+      with that exact output as a `denotesNot`, and the `const/shared/nested`
+      exemption is gone.
+      **And the reader's corner of the same grid.** Four rounds went into
+      parent kind crossed with child kind for the writer columns, and every
+      equal-container input in the *accept* set still had an array parent, so a
+      reader that hash-conses equal containers only while building object
+      members returned a shared child for
+      `export default {"x":{"a":0},"y":{"a":0}};` and passed every reader
+      vector. The graph-equivalence records do not help, since a reader-only
+      implementation never runs that role. Four accept vectors close it, all
+      four corners at once this time.
+      **And the object twin of the first slot**, which the array round should
+      have taken with it. A first-*member* emitter avoiding a leading comma is
+      the same code shape as a first-element one, and no vector in any of the
+      three sets had a negative leaf as an object's first member — measured,
+      zero in all three. So `{"a":-0,"b":1}` could come out as
+      `{"a":0,"b":1}`, which `difference` sees through `Object.is` and nothing
+      caught. `object/members/negative-first` is a new class, with four
+      vectors per writer set and four in the accept set, so it lands answered
+      in every role that carries it and owes no reason at all. Container kind
+      was the third axis of a cross I had already crossed twice.
+      **The same first-versus-later axis for a key.** Measured, every
+      escape-sensitive key in all three sets is the sole member of its object,
+      57 of them here and 51 in the serializer set, and not one sits after
+      another member. So a writer with separate first-member and later-member
+      key emitters escapes the second key and passes. This role gets a vector
+      with a raw U+2028 key in second position, under the class its
+      sole-member twin already has; the serializer role gets none, and the
+      reason is measurable rather than a judgment — the escaped spelling
+      denotes the same string, so a graph check cannot see it, which is the
+      same bound the surrogate pairs run into. Normalized bytes are what
+      catches this, one step up.
+      **And the correction to that very sentence, one round later.** Saying the
+      serializer role cannot see a later key's spelling was right about
+      U+2028 and wrong as a general claim: escaping is *optional* there, so
+      both spellings denote one string, but for a quote, a backslash or a
+      control it is **required**, and a writer that omits it emits a document
+      the reader refuses outright. Measured, `{"a":0,""":1}` does not parse. That
+      is visible to a role judged on the graph, because no graph can be read
+      out of a document that will not parse. Three vectors in each of the
+      writer and reader sets carry a required escape after a first member.
+      The bound I stated holds only where the rule leaves the spelling free,
+      which is the part I should have written rather than naming the role.
+      **A multi-digit Number never reached the writer.** Two reasons said the
+      spelling of an integer is the reader's branch, which is true of `109`
+      against `1.09e2` and false of `109` against `10`: dropping a digit is a
+      different value, not a different spelling. Measured, the set's only
+      integers past one digit were the max-finite pair, in exponential
+      notation, and `109n` exercises the bigint path instead. Four vectors take
+      `9`, `-9`, `109` and `-109`, and both reasons are gone.
+      Both had been fixed for the normalize column in the step above, which is
+      the rule this file now states twice over and I applied to one column at a
+      time anyway.
+      **The slot, this time as an axis and not as a cell.** Three rounds
+      running, a finding named the cells I had missed and I filled exactly
+      those. So this round measured before writing anything, and the gap was
+      wider than the finding: of the nine escape classes this role owns six
+      were still their object's sole member, and across 187 records here and
+      354 in the reader set **not one escape-sensitive string stood in a
+      container slot at all** — every one was a whole document or a sole key.
+      Such a string has six slots to sit in: an array's first and later
+      element, an object's first and later key, and the value of a first and a
+      later member. Two vectors per class reach all six — `["\b",0,"\b"]` and
+      `[{"\b":"\b","a":1},{"a":0,"\b":"\b"}]` — so every escape class now
+      carries both, nine classes here and sixteen in the reader set, where the
+      extra seven are the optional slash and the six hex cases. A writer
+      chooses the spelling in those seven and a graph check cannot see which it
+      chose, which is the bound two paragraphs up; a reader has to *parse* the
+      escape wherever it sits, and that bound was never about a reader. The
+      three `-after-first` vectors are gone, subsumed.
+      **The same measurement for a leaf kind, and for key order.** Every
+      `every-value` aggregate began with `null`, so `true`, `false`,
+      `undefined`, `NaN`, `Infinity`, `0n`, `""` and a positive bigint had
+      never been any container's first child — eight kinds in the reader set
+      and nine here, the ninth an ordinary non-empty string. That is the
+      `negative-first` finding with the sign taken out of it, and an aggregate
+      of pairs answers it in one vector: `[[null,0],[true,0],…]` and its object
+      twin put every kind in a first slot. `array/elements/every-value-first`
+      and `object/members/every-value-first` are the two new classes; the
+      `negative-first` vectors stay, since a bundle that fails names no kind.
+      Key order was the third of the same shape. **No object below a root** had
+      two non-index keys out of alphabetical order, in any of the three sets,
+      so a writer sorting keys in its recursive or its hoisted-object emitter
+      passed everything while changing an order `difference` compares
+      positionally. `object/key-order/nested` carries
+      `[{"b":0,"a":1},$0,$0]` with `$0={"d":0,"c":1}`, recursive and hoisted at
+      once, in both writer sets and the reader set, and as a `denotesNot` that
+      sorts them in graph equivalence. That one was Codex's finding on the
+      normalize set one step up; it was true of all three.
+      **And the object parent of a nested share.** Both `const/shared/nested`
+      inputs made the shared parent an array, so a writer hoisting only while
+      walking elements printed `const $0={"x":[0]};export default [$0,$0,[0]];`
+      for `[p,p,c]` with `p={"x":c}` and passed. Parent kind again, on the one
+      class where I had crossed it in the shape of the share and never in the
+      shape of the parent. One vector here, one graph-equivalence record.
+      **And the first slot of a hoisted body, which is the cross of two
+      positions the corpus had crossed separately.** Measured, the first child
+      of a node the writer must hoist was a zero, a positive number, a string
+      or a container, and nothing else: 13 of the 16 leaf kinds had never been
+      one in either writer set, so a writer with a first-slot path of its own
+      inside a `const` body could put `null` where `undefined` belongs and pass
+      everything. This one is exhaustible cheaply, since the bodies are the
+      shared nodes: 32 consts per set, `[k,0,k]` and `{"a":k,"b":0,"c":k}` for
+      each of the sixteen kinds, and one vector per container kind referencing
+      each twice. The kind sits in the body's first slot **and** in a later one,
+      because the round after asked the same question of the post-comma path and
+      it was the same shape; all 36 cells of kind by body kind are present in
+      both writer sets and in the reader set, measured. The matrix grows by two
+      ids rather than by 32, which is what makes the exhaustive form affordable
+      here and not in the escape cross.
+      **Then the two cells that cross left over**, reported in the same round
+      and both about a position rather than a value. A shared node's parent
+      kind crossed with the child's emptiness has six spellable cells, not
+      eight, since a shared empty *array* is the one shape this carrier cannot
+      hold: two parent kinds by an array child, an empty object child and a
+      non-empty one. Measured, this set had four of the six and no shared
+      empty object **at all**, the reader set five, graph equivalence five, so
+      a writer that keeps a shared empty object while walking elements and
+      prints `{}` inline while walking members passed every set. Four vectors
+      and one record fill all six in all three.
+      And a lone surrogate had never been inside a container in either set —
+      measured, every one was a whole document or an object's sole key. Here
+      the defect is not the spelling, which no graph check can see, but the
+      *value*: a writer whose container path replaces an unpaired unit with
+      U+FFFD changes the graph, and nothing reached that path. This is the
+      escape axis with the cross left out on purpose, and the reason is the
+      rule again: escaping is required for a quote, a backslash and a control,
+      so each of those spellings needs its own vector in every slot, while a
+      lone surrogate, a ws-like character and an astral pair are spellings the
+      rule leaves free, so what a slot can still break is the value. Both
+      `every-value` aggregates and both first-slot aggregates now carry all
+      four awkward strings, which puts each in a first and a later slot, and
+      `object/keys/every-string` carries them as the keys of a nested object.
+      The `normalize` set has carried three of the four in its aggregates
+      since the whitespace round, which is where its bytes are pinned.
+      **And `__proto__` inside a hoisted body**, which is the const-body
+      position crossed with the one key that has a production of its own.
+      Measured in all four sets: seven records here carry a `__proto__` key
+      and not one of them is a node the writer must hoist, so a writer with a
+      separate emitter for a `const` body writes the key literally there —
+      `const $0={"__proto__":1};export default [$0,$0];` — which sets a
+      prototype and is not a document for that graph at all. One vector in
+      each writer set and one in the reader set, under `const/shared/object`
+      as the other const-body vectors are, since the position is a walker and
+      not a branch of the specification. Graph equivalence gets none, and for
+      once the reason is structural: the defective output does not parse, so
+      it cannot be a `denotesNot`, which needs a document that reads to
+      another graph.
+      **Two more parent paths of the same kind, reported together.** Nested
+      key order was reached only through an array element, since the vector's
+      unsorted objects were elements of the root and a hoisted `const` body, so
+      a writer preserving order through elements and sorting object-valued
+      members passed; the input now carries `{"x":{"b":0,"a":1}}` beside them
+      and graph equivalence carries the half-sorted document as a `denotesNot`.
+      And no shared object in either writer set had a key the rule requires an
+      escape for, so a writer with its own emitter for a hoisted body could
+      omit one there and emit a document the reader refuses. One vector per set
+      carries a shared object whose nine keys are the nine required escapes,
+      each with itself as its value, so the body's key emitter and its value
+      emitter are both reached for every spelling. That is the const-body
+      position crossed with the escaping rule, which is the cross the
+      `__proto__` vector above did for one key only. That vector then took the
+      same correction: its shared object had the computed key **first**, so an
+      emitter using the computed form only for a body's first member passed, and
+      it now shares two objects, `{["__proto__"]:0,"x":1}` and
+      `{"x":0,["__proto__"]:1}`. Inside a hoisted body, first and later are two
+      paths for every one of these questions, which is the shape to assume from
+      here rather than to be told again.
+      **And the same rule for the value side of a hoisted body.** Measured
+      before writing anything this time: the only strings inside a node the
+      writer must hoist were `""` and `"a"` when the body was an array, so
+      **not one of the nine required escapes had ever been an element of a
+      shared array**, and on the object side the quote was a first member's
+      value while the other eight were only later ones, which is the
+      first-versus-later split the keys had already shown. So a writer with a
+      string emitter of its own for a hoisted array spells a newline `\u000a`,
+      which is valid and noncanonical, or omits the escape, which does not
+      parse, and passes every set either way. The const-body families answer it
+      without a new class: nine more kinds in each, which puts every required
+      spelling in a first and a later element and in a first and a later
+      member's value. The key side gets the other half of its own cross with
+      them, eighteen shared objects giving each spelling a first key and a later
+      key alone in a body, since the nine-key body above has the quote first and
+      the other eight after it. Nine spellings by six slots, and the matrix
+      gains no class.
+      **And the other half of the escaping rule in the same six slots**, which
+      the round above left out because it read the rule as being about what a
+      graph check can see. Measured, in both these sets not one string whose
+      escape the rule leaves **free** stood in a hoisted body at all — no
+      ws-like scalar, no lone surrogate, no astral pair, in any of the six
+      slots. The spelling there is invisible to a role judged on the graph, so
+      only the normalize column catches a wrong one; what these two sets catch
+      is the *value*, a writer whose body path replaces an unpaired unit with
+      U+FFFD or reads two adjacent units as a pair. That is the same reason the
+      four awkward strings went into the `every-value` aggregates, applied to
+      the one position that had none. Three kinds join each const-body family
+      and six shared objects the key family, one representative per shape
+      rather than all nineteen ws-like scalars, since a body path that mangles
+      a value mangles it by shape.
+      **And a shared value behind a *later* `__proto__` member.** The one
+      vector under `key/proto/value/shared` put the shared node behind the
+      first member, so a writer whose later computed-member path inlines a
+      reference copied the node and passed, which loses graph identity from a
+      document that parses. One vector per set carries `{"a": a, ["__proto__"]:
+      a}`. First and later inside a hoisted body was the rule stated one round
+      up; a computed key is the same axis one level out.
+      **And the adjacency shapes in the same slots, which the round above
+      claimed and did not deliver.** Its reason said the free spellings catch a
+      body path that reads two adjacent units as a pair, and the three kinds it
+      added were a lone surrogate and a *valid* pair, so nothing in a body was
+      malformed. Review measured that and it is exactly right: a writer whose
+      body path pairs any two adjacent surrogates turns a shared
+      `["\ud800\ud800", 0]` into an astral character that was never in the
+      graph, and the seven adjacency classes reached only a root. All seven join
+      each const-body family and the key family, so each shape sits in a first
+      and a later element, a first and a later member's value and a first and a
+      later key. Writing the reason before checking it is what this file keeps
+      recording; here the reason named the mutant and the vectors did not reach
+      it.
+      Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
       twins, `__proto__` as data; each vector asserting a valid document
@@ -1845,11 +2201,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       table cannot read one way and mean another. A role whose sets have
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
-      refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 668 classes as this step landed, the
-      reader role answering every one; a later set adds classes of its own
-      and one `['set', …]` reason answers the reader for all of them. Prose
-      could not do this job, which four consecutive review rounds showed.
+      refusal arrives with the set, which is where both writer columns stood
+      when this step landed; the serializer's set follows in the step below and
+      `normalize`'s in the one after. 668 classes then,
+      the reader role answering every one; each writer set below brings its
+      own classes, and one `['set', …]` reason answers the reader for them.
+      The generated table is the current count in every case — a figure here
+      is what the corpus held at this step. Prose could not do this job, which
+      four consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.

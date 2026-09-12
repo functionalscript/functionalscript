@@ -61,9 +61,9 @@ nothing about EOF reaches its AST either way. The leaf question is confined to
 grammars written like `[value, eof]`, which is how every whole-input grammar
 in the tree ends.
 
-`fjs/djs/parser` is the evidence that synthesis costs its callers rather than
+`fjs/fsc/parser` is the evidence that synthesis costs its callers rather than
 saving them: `splitEof` in
-[`../../../djs/parser/module.f.mjs`](../../../djs/parser/module.f.mjs)
+[`../../../fsc/parser/module.f.mjs`](../../../fsc/parser/module.f.mjs)
 strips the tokenizer's real `eof` token to avoid a second end marker and then
 keeps that token's metadata in a side channel, because the synthesized symbol
 has none to report a failure at end-of-input from. Both halves of that
@@ -84,9 +84,9 @@ receives a real `Meta<I>` from the caller, so nothing has to invent one.
 - [ ] Update the callers to supply EOF. Under no-leaf every AST is unchanged,
       so no mapping moves — but every reader of a whole input does:
       `fjs/ebnf`'s own proofs; `fjs/media/json` and `fjs/media/datajs`; the
-      `fjs/git` readers; `fjs/djs/tokenizer`, whose one-token grammar never
+      `fjs/git` readers; `fjs/fsc/tokenizer`, whose one-token grammar never
       names `eof` and whose loop ends at the length, so it supplies nothing
-      and stops before the symbol; and `fjs/djs/parser`, which is the
+      and stops before the symbol; and `fjs/fsc/parser`, which is the
       opposite problem and is described below.
 - [ ] Delete `splitEof`'s reason for existing, and probably most of `splitEof`.
       With no synthesis there is no second marker to avoid: the tokenizer's

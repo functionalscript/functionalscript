@@ -26,7 +26,7 @@ recursion or terminal handling):
 | 3 | `fjs/djs/serializer/module.f.mjs:135` — `serializeWithConst.f` | (2) + ref-counter short-circuit. |
 | 4 | `fjs/djs/serializer/module.f.mjs:36` — `getConstantsOp` | Collect constants for `const c{n} = …` block. |
 | 5 | `fjs/djs/serializer/module.f.mjs:163` — `countRefsOp` | Count references for the ref table. |
-| 6 | `fjs/djs/ast/module.f.mjs:41` — `toDjs` | Evaluate `AstConst` → `Unknown` (over `AstConst`, a parallel shape with `'aref'`/`'cref'`/`'array'` tuples). |
+| 6 | `fjs/fsc/ast/module.f.mjs:41` — `toDjs` | Evaluate `AstConst` → `Unknown` (over `AstConst`, a parallel shape with `'aref'`/`'cref'`/`'array'` tuples). |
 
 [i157 §2](./157-json-djs-shared-value-machine.md) covers (1)–(3) by factoring the
 serializer walker. This issue extends that coverage to **(4)** and

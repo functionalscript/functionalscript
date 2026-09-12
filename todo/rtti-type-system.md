@@ -814,7 +814,7 @@ way, so the server that reports type errors is itself described by the type
 system it reports for.
 
 One known consequence elsewhere:
-[error-message-specificity](../fjs/djs/tokenizer/todo/error-message-specificity.md)
+[error-message-specificity](../fjs/fsc/tokenizer/todo/error-message-specificity.md)
 parks "continue tokenizing after an error" as not worth doing "unless a real use
 case (e.g. an editor/LSP wanting multiple diagnostics per file) shows up". This
 is that use case — an editor that stops at the first token error is not usable —
@@ -1841,7 +1841,7 @@ splits around inference, so the runnable order is 668's representation half
 - [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
   [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
   builds on, and the precedent for describing a protocol's messages in RTTI.
-- [error-message-specificity](../fjs/djs/tokenizer/todo/error-message-specificity.md) —
+- [error-message-specificity](../fjs/fsc/tokenizer/todo/error-message-specificity.md) —
   its parked "continue after an error" is unparked by stage 10; an editor needs
   more than one diagnostic per file.
 - [expression](../spec/todo/3410-expression.md) — **not** a dependency, which is

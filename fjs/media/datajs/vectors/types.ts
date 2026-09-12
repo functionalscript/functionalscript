@@ -60,10 +60,14 @@ export type Reject = Base & {
     readonly host: Host
 }
 
-/** An input a serializer must not refuse, and the graph its output must denote. */
+/**
+ * An input a serializer must not refuse. What its output must denote is the
+ * input itself: with the host recipes gone a serializer-side input is an
+ * ordinary value of the data model, so a second `graph` member would carry
+ * the same value twice and let the two drift apart.
+ */
 export type SerializerAccept = Base & {
     readonly input: Unknown
-    readonly graph: Unknown
 }
 
 /** An input graph, documents that denote it, and documents that do not. */

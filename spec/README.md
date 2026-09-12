@@ -558,6 +558,5 @@ effects, the content-addressable VM, object identity, mutability, and
 serialization — is in [`spec/todo/`](./todo/README.md). A feature's document
 moves into this one when the parser recognizes it.
 
-For the implementation, see [`fjs/djs/README.md`](../fjs/djs/README.md) for
-the data language and [`fjs/fsc/README.md`](../fjs/fsc/README.md) for the
-compiler.
+For the implementation, see [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
+compiler and the data language it accepts today.

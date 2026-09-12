@@ -3,8 +3,16 @@
 **Priority:** P3
 **Status:** open
 
-`fjs/fsc/module.f.mjs` and `fjs/js/tokenizer/module.f.mjs` are the only two
-code-point scanners in the tree, and both hand-roll the *same* Mealy machine
+**One of the two consumers is gone.** The `fjs/fsc/module.f.mjs` this issue
+measured was a range-map lexer stub nothing imported; it was deleted when the
+front end moved into `fjs/fsc` (stage 5a of
+[parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)).
+The code below is quoted from git history. With one scanner left the
+extraction is below the second-consumer bar; the issue stays as the record of
+the shared shape, for the next `range_map` scanner to reuse rather than fork.
+
+`fjs/fsc/module.f.mjs` and `fjs/js/tokenizer/module.f.mjs` were the only two
+code-point scanners in the tree, and both hand-rolled the *same* Mealy machine
 over `range_map`: a state is a continuation `(codePoint) => [output, nextState]`,
 transitions are looked up in a `RangeMapArray` of continuations, and overlapping
 ranges are merged with one identical conflict rule. They differ only in the
@@ -79,7 +87,8 @@ its `CreateToToken` continuation directly over `NumberRange`.
 ### Why this qualifies
 
 - Two real, shipping consumers (`fsc.init`, the JS tokenizer's transition
-  tables) — past the second-consumer bar in `AGENTS.md`.
+  tables) — past the second-consumer bar in `AGENTS.md`. **No longer true**,
+  see the top of this issue.
 - ~45 lines of reducer/merge/dispatch plumbing collapse into one factory; the
   conflict rule and `def`-merge are a genuine invariant, currently copied
   verbatim including the `throw [a, b]` ambiguity guard.

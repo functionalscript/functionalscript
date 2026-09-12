@@ -181,7 +181,7 @@ export const proof = {
         },
         () => {
             // `;` is an operator token here for the same reason it is one in
-            // fjs/djs/tokenizer: the two must agree byte for byte, and the DJS
+            // fjs/fsc/tokenizer: the two must agree byte for byte, and the DJS
             // module grammar accepts it as a statement terminator.
             assertEq(stringify(tokenizeString(';')), '[{"kind":";"},{"kind":"eof"}]')
         },
