@@ -8,14 +8,15 @@ was weighed and refused: it is not worth every record type and every proof for
 one shape, and it would give up the property that a set is an ordinary graph
 `tsc` checks. Nothing here is waiting on anyone.
 
-Kept as the record rather than deleted, because two live documents cite it for
-what no surviving file says — the search for a spelling that came back negative,
-and the alternative that was refused and why:
-[`../README.md`](../README.md), beside the sharing rule, and
-[`../../todo/conformance-vectors.md`](../../todo/conformance-vectors.md), in the
-round that measured the limit. Both would lose their reference if this file went,
-and a reader who notices that a shared empty array has no vector in any role
-would be left to re-derive the whole thing.
+Kept as the record rather than deleted, because
+[`../README.md`](../README.md) cites it twice for what no surviving file says —
+beside the sharing rule, and in §What this corpus cannot establish — and what it
+cites is the search for a spelling that came back negative, the alternative that
+was refused and why, and the two proofs that cover this repository where the
+corpus cannot. The design issue that derived the corpus cited it too and has been
+deleted; the measurement it recorded is in §Problem below, so nothing was lost
+with it. A reader who notices that a shared empty array has no vector in any role
+would otherwise be left to re-derive the whole thing.
 
 ### Problem
 
@@ -99,9 +100,6 @@ Three routes, and the first is the one to rule out first.
 
 - [`../README.md`](../README.md) — the corpus schema; sharing is part of a graph
   is stated there, and this is the one shape it cannot carry.
-- [`../../todo/conformance-vectors.md`](../../todo/conformance-vectors.md) — the
-  design this corpus came from; it records the `TS7034` measurement and the two
-  proofs that work around it.
 - [`fjs/media/datajs/todo/serializer.md`](../../../../fjs/media/datajs/todo/serializer.md)
   — stage 4's corpus proofs, which serialize the inputs these sets export and so
   are what a shared empty array would reach.

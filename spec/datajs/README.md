@@ -763,9 +763,14 @@ that just reads it emits none.
   output is the byte sequence [normalized form](#normalized-form) defines.
 
 An implementation states which roles it provides, and is judged only on those.
-The machine-readable corpus that decides each is
-[`spec/datajs/todo/conformance-vectors.md`](./todo/conformance-vectors.md);
-until it lands, this prose is the only statement of conformance.
+The machine-readable form of this section is the **conformance corpus**,
+[`spec/datajs/vectors`](./vectors/README.md): one directory per set, the schema
+and the rules the sets are derived by in its README, and
+[`matrix.md`](./vectors/matrix.md) — generated, so it is current or the build is
+red — showing every class of this specification against the three roles, with a
+reason in words for every cell a role owes nothing to. Where this prose and a
+vector disagree, this prose is normative and the vector is the bug; where the
+corpus is silent, its README says what it cannot carry and why.
 
 ## Rationale
 

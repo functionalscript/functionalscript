@@ -13,11 +13,11 @@ corpus proofs (§4), the module's own `module.f.mjs`, and a readable layout
 if one is wanted (§3).
 **Blocked by:** nothing, for what is left of the implementation. What landed
 proves itself against the specification by hand, as
-[the reader](../parser/proof.f.mjs) does — that is the interim proof source,
-and it is why stage 1b gating stage 4 means "land it or write the proofs
-twice" rather than "do not start".
+[the reader](../parser/proof.f.mjs) does — that was the interim proof source, and
+[the corpus](../../../../spec/datajs/vectors/README.md) has since landed, so the
+proofs below have their source.
 
-Its **corpus proofs** have their sets. Stage 1b's writer side is three sets,
+Its **corpus proofs** have their sets. The corpus's writer side is three sets,
 not four — `serializer-accept`, `graph-equivalence` and `normalize`, all three
 typed in [`../vectors/types.ts`](../vectors/types.ts); the first two are in the
 tree and `normalize` lands with the step that writes it. There is no
@@ -28,20 +28,21 @@ a `null` prototype and a cycle reach no serializer and the corpus describes
 none of them.
 
 **That last sentence is not yet true of this module's own signature, and the
-reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
-those values at run time, so as long as it does, the corpus owes vectors for
-exactly what it admits. Either the parameter narrows to the data model and the
-refusals go, or the parameter stays and the fourth set comes back — as a set,
-never as recipes. The question is recorded in
-[`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md)
-under the serializer's input domain, and it is the owner's. Read the paragraph
-above as what the corpus describes today, not as a settled contract.
+reconciliation is open. It is this issue's question, and the owner's.** The
+corpus's design issue carried it while the corpus was being derived and handed it
+here when that file went; nothing else records it.
 
-That retired the issue's **decision 6** rather than answering
-it, and
-[`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
-a `.f.mjs` API against such inputs in any case. §4 says what that leaves
-provable in the meantime.
+`tryStringify` takes `unknown` and refuses several of those values at run time,
+so as long as it does, the corpus would owe vectors for exactly what its
+parameter admits. Either the parameter narrows to the data model and the run-time
+refusals go — which is what "assume correct types" means applied to code — or the
+parameter stays and a fourth set comes back for the values it admits, **as a set,
+never as host recipes**: [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a
+`proof.mjs` that proves a `.f.mjs` API against host-built inputs, and
+[the corpus README](../../../../spec/datajs/vectors/README.md) records the gap
+from its own side. Read the paragraph above as what the corpus describes today,
+not as a settled contract, and §4 says what that leaves provable in the
+meantime.
 
 ### Problem
 
@@ -201,12 +202,13 @@ exclude:
 - an object is `typeof 'object'`, non-null, not an array, and **plain**:
   its prototype is `Object.prototype` or `null`, which the spec permits
   explicitly;
-- everything else is rejected, `Object.create({x: 1})` included — that
-  boundary is decision 2 of
-  [the corpus issue](../../../../spec/datajs/todo/conformance-vectors.md)
-  and is **not settled in the specification yet**. An implementation cannot
-  leave it open, since classifying is the first thing it does, so it takes
-  decision 2's proposal, which is the line
+- everything else is rejected, `Object.create({x: 1})` included — a boundary
+  the specification does **not** draw, and there is none to draw from the
+  caller's side: FunctionalScript cannot change a prototype and has no classes,
+  so every object a caller can build is under `Object.prototype` and every array
+  under `Array.prototype`, which leaves "any other non-plain object" with no case
+  to decide. An implementation cannot leave it open all the same, since
+  classifying is the first thing it does, so it takes the line
   [`difference`](../vectors/module.f.mjs) already draws. Taking it costs
   nothing if the decision goes the other way: the alternative *accepts* more,
   so what changes is one condition and one vector, and until then the
@@ -396,12 +398,10 @@ branches rather than the machinery to check them.
 `build` helper in `fjs/media/datajs/vectors/module.mjs` — a getter recording
 its own invocation is an effect, which is why that one was to be `.mjs` — and
 vectors whose inputs it constructed: an accessor, a non-enumerable property, a
-`null` prototype, a cycle. Stage 1b retired all of it, and
-[that issue's](../../../../spec/datajs/todo/conformance-vectors.md) **decision
-6** with it: the question it asked, whether a `proof.mjs` may prove a `.f.mjs`
-API against host-built inputs, has no subject once a serializer is handed a
-value of the data model and its type is the contract. No such file was ever
-written, and none is owed.
+`null` prototype, a cycle. The corpus retired all of it, and with it the question
+whether a `proof.mjs` may prove a `.f.mjs` API against host-built inputs: that
+question has no subject once a serializer is handed a value of the data model and
+its type is the contract. No such file was ever written, and none is owed.
 
 What that leaves unproved is the *plumbing* a host value would have exercised:
 that an object with an enumerable getter reaches `_memberValue` at all, and
@@ -441,10 +441,12 @@ conformance set is a DataJS data module and cannot spell the value at all.
       line and the hole-versus-`undefined` distinction proved.
 - [x] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
       `1e-6`/`1e-7` thresholds included.
-- [ ] Proofs over the three writer-side sets as stage 1b lands them. There is
-      no fourth and no host-input half: decision 6 was retired rather than
-      answered, and if the open `unknown` question is settled the other way it
-      comes back as a set, not as recipes.
+- [ ] Proofs over the three writer-side sets, all three of which have landed in
+      [the corpus](../../../../spec/datajs/vectors/README.md). There is no fourth
+      and no host-input half: the question whether a `proof.mjs` may prove this
+      API against host-built inputs was retired rather than answered, and if the
+      open `unknown` question above is settled the other way the fourth comes
+      back as a set, not as recipes.
 - [ ] `module.f.mjs`, the public API of
       [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
       path lands beside it — and the `parse` versus `tryParse` naming with it.
@@ -463,7 +465,7 @@ conformance set is a DataJS data module and cannot spell the value at all.
 - [`parser-serializer.md`](./parser-serializer.md) — the reader half of stage 4 and the shared public API; this file was split out of it.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. §Serialization and §Normalized form are what this implements.
 - [`spec/datajs/vectors/README.md`](../../../../spec/datajs/vectors/README.md) — the corpus schema; the writer-side sets are the proof source.
-- [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, which owns those sets, and where the serializer's input domain was settled against §What may be serialized.
+- [`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md) — the conformance corpus, which owns those sets; its README is the schema and the derivation rules, and states what it cannot carry, this writer's `unknown` parameter included.
 - [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. This is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type, whose optional index signature is why only the runtime enumerator sees a member holding `undefined`.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is the rest of its stage 4.

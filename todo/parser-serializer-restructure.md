@@ -1,13 +1,15 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
-**Priority:** P1 — stage 4 is urgent and stage 1b feeds it; see
-[Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2**: open,
+**Priority:** P1 — stage 4 is urgent and stage 1b, which feeds it, has landed;
+see [Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2**: open,
 partly startable, and not first, which is the level and status its own issue
 carries.
-**Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
-next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
-still undecided. Stages 5a, the rename, and 5c, the tokenizer's types and
-helpers off the hand-written scanner, are done.
+**Status:** wip — stages 1a, 1b, 2 and 3a done. **Stage 4 is what to pick up
+next**: its proof source exists now, in
+[`spec/datajs/vectors`](../spec/datajs/vectors/README.md). Stage 3b stays P2 with
+its error shapes undecided, and stage 4's grammar route consumes nothing from it.
+Stages 5a, the rename, and 5c, the tokenizer's types and helpers off the
+hand-written scanner, are done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -49,8 +51,8 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
 
    It still is not what to pick up first. It is P2 and its error shapes are
-   undecided; stage 1b is P1 and gates stage 4, which is the ordering that
-   matters.
+   undecided, where stage 4 is P1 and its proof source has landed, which is the
+   ordering that matters.
 
    The hand-written design was written, reviewed, implemented in full and
    **withdrawn** —
@@ -72,14 +74,16 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    That is answered in code —
    [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already
    imports JSON's rules — and the rewritten issue marks it done.
-2. **Start here: stage 1b, the conformance vectors**
-   ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
-   *Why here:* it is stage 4's proof source, so landing stage 4 first means
-   writing its proofs twice. The corpus is FunctionalScript data modules the
-   engine reads, so it exists before any DataJS reader does. It is *not* a prerequisite of stage 3,
-   which is JSON's own tokenizer and settles its own accepted set with JSON's
-   own proofs — unchanged but for one enumerated defect, an `n` today's
-   tokenizer deletes from inside a number.
+2. **Stage 1b, the conformance vectors — landed**, as
+   [`spec/datajs/vectors`](../spec/datajs/vectors/README.md): five sets, the
+   reasons directory, the generated
+   [class-by-role matrix](../spec/datajs/vectors/matrix.md), and the schema with
+   the derivation rules in its README. It went first because it is stage 4's
+   proof source, and landing stage 4 first would have meant writing its proofs
+   twice. It was *not* a prerequisite of stage 3, which is JSON's own tokenizer
+   and settles its own accepted set with JSON's own proofs — unchanged but for
+   one enumerated defect, an `n` today's tokenizer deletes from inside a
+   number.
    *Why it moved:* it was listed after stage 3 for convenience, not dependency.
    It is P1 and gates stage 4, where 3b is P2 with its error shapes undecided,
    and it is blocked on nothing — it needs no DataJS reader, and it does not
@@ -323,7 +327,7 @@ key       ::= string | '["__proto__"]'
   alphabet minus the tokens rather than a short list: `@` is rejected as much as
   U+2028. The 21 worth naming are the
   delta from ECMAScript's whitespace, enumerated once in
-  [the corpus derivation](../spec/datajs/todo/conformance-vectors.md) because
+  [the corpus's reject set](../spec/datajs/vectors/reject/data.f.mjs) because
   each owes a vector; the normative list the specification used to carry was
   short by fifteen of them.
 - **Whitespace is required after `const`, `export` and `default`**, with no
@@ -526,8 +530,8 @@ combined marker would encode a redundant fact.
 ### Priority: stages 3 and 4 come first
 
 Stages 3 and 4 are the urgent ones, ahead of the rest of this plan. They are
-what [EDAG](./edag-spec.md) is waiting on. Stage 1b comes with them, between the
-two — it is stage 4's proof source.
+what [EDAG](./edag-spec.md) is waiting on. Stage 1b came between the two, as
+stage 4's proof source, and is done.
 
 **Urgency is not the same as readiness, and stage 3b now separates them.** The
 change of direction lowered its own issue to **P2**. It is still what stage 4
@@ -537,7 +541,7 @@ tokenizer at a number's and a word's boundaries, and its mapping waits on
 `string`'s pin — but what it
 reports on malformed input is undecided. Design work and one type
 prerequisite are poor reasons to hold the front of a queue, so the P1
-urgency of this plan rests on stages 1b and 4.
+urgency of this plan now rests on stage 4 alone.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
 detail: one node referenced from two operand positions is one value, and `{} ===
@@ -561,9 +565,10 @@ stage 3b. The token-machine route does: its token-stream grammar extends
 JSON's and inherits the boundary resolution 3b owes. Either way stage 4 stays
 close behind 3b, to keep the shared rules honest.
 
-Stage 1b (the conformance vectors) is stage 4's other dependency, and not
+Stage 1b (the conformance vectors) was stage 4's other dependency, and never
 stage 3's: it is stage 4's proof source, and its corpus is FunctionalScript
-data modules exactly so it can exist before a DataJS reader does. So the dependencies are
+data modules exactly so it could exist before a DataJS reader does — which is how
+it landed first. So the dependencies were
 1b before 4, and 3b before 4 on the token route — a relationship, not a queue.
 An earlier draft wrote it as an intended order of 3, 1b, 4; that is withdrawn,
 and the order work is picked up in is the next paragraph's.
@@ -593,8 +598,8 @@ throughout.
    `text/javascript` with the dialect out of band, since RFC 9239 closes the
    JavaScript MIME list. The dialect segment DataJS takes in that chain is the
    one detail left to reconcile in that todo. The
-   conformance vectors are the remaining half, tracked in
-   [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
+   conformance vectors are the other half and have landed as
+   [`spec/datajs/vectors`](../spec/datajs/vectors/README.md);
    stages 4 and 6 consume them — not stage 3, which is JSON's own tokenizer.
 2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
    deleted rather than salvaged: both were dead (no importer) and unproven,
@@ -795,14 +800,18 @@ throughout.
 - [x] Stage 1a: write `spec/datajs/README.md`; disambiguate the older "DJS"
       in [`spec/README.md`](../spec/README.md), which names the wider subset
       the compiler accepts today.
-- [ ] Stage 1b: the conformance vectors —
-      [`conformance-vectors`](../spec/datajs/todo/conformance-vectors.md).
-      **Next, and actionable now**: the only constraint it carries is landing
-      **before stage 4**, which consumes it, since landing stage 4 first means
-      writing its proofs twice. It was sequenced after stage 3 for convenience
-      rather than dependency, and it goes first because it is P1 where 3b is
-      P2 with its error shapes undecided. The corpus is FunctionalScript data
-      modules, so it needs no DataJS reader to exist.
+- [x] Stage 1b: the conformance vectors —
+      [`spec/datajs/vectors`](../spec/datajs/vectors/README.md). Landed as a
+      stack of small pull requests: the schema and the record types, the five
+      sets derived production by production, the `not-applicable/` reasons, the
+      generated class-by-role matrix that fails on an unanswered cell, and the
+      whole-set JavaScript check in
+      [`accept/proof.mjs`](../spec/datajs/vectors/accept/proof.mjs). Its design
+      issue is deleted, its derivation rules carried into the corpus README. It
+      went before stage 4, which consumes it, since landing stage 4 first would
+      have meant writing its proofs twice. The FunctionalScript half of the
+      subset law is stage 6's, over this corpus: it needs `;` and the special
+      numbers in the front end, which is stage 5.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/ebnf/todo/207-bnf-semantic-actions.md)
       repointed at the classical `fjs/bnf/testlib.f.mjs`, since deleted.
@@ -831,9 +840,10 @@ throughout.
       `fjs/ebnf/lib/datajs` already does — and what error shapes a
       grammar-driven reader should produce is the open question that issue
       lists.
-- [ ] Stage 4: `fjs/media/datajs`; todo filed, reader landed on the grammar
-      route. The byte path, the serializer and normalized form remain, with
-      proofs over stage 1b's corpus as their source.
+- [ ] Stage 4: `fjs/media/datajs`; todo filed, reader and serializer landed on
+      the grammar route. The byte path and the proofs over
+      [the corpus](../spec/datajs/vectors/README.md) remain — that corpus is the
+      proof source, and it has landed.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths.
@@ -848,7 +858,13 @@ throughout.
       such as `serializer-children-helper` and `json-bigint-serialization`,
       stay beside `fjs/djs/serializer/` until stage 4 reworks it — and
       repoint every link into them.
-- [ ] Stage 6: normalizer + subset-law proofs; file its todo.
+- [ ] Stage 6: normalizer + subset-law proofs, over
+      [the corpus](../spec/datajs/vectors/README.md) — the DataJS ⊂
+      FunctionalScript law is the half stage 1b could not run, since today's
+      front end has no `NaN`, `Infinity` or `-Infinity` and separates
+      statements with a newline; the JavaScript half already runs in
+      [`accept/proof.mjs`](../spec/datajs/vectors/accept/proof.mjs) over the
+      390 accept documents that have a byte encoding. File its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
 - [ ] `tsc`, `fjs test` at every stage.

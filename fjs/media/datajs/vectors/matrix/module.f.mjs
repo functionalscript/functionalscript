@@ -9,10 +9,9 @@
  *
  * Prose could not do this job. A paragraph that mentions a class in two
  * roles reads exactly like one that mentions it in three, which is how the
- * corpus lost the same class from a role five times over — the rounds
- * `spec/datajs/todo/conformance-vectors.md` records. A table with a cell
- * per class and role cannot read one way and mean another: the cell is
- * empty or it is not.
+ * corpus lost the same class from a role five times over, in five consecutive
+ * review rounds. A table with a cell per class and role cannot read one way
+ * and mean another: the cell is empty or it is not.
  *
  * So an empty cell is a failure, and the only thing that answers it is a
  * `NotApplicable` record in the corpus, which says why in words a reviewer
