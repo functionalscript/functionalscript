@@ -1832,7 +1832,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 213 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 214 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
@@ -2131,6 +2131,23 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `{"x":0,["__proto__"]:1}`. Inside a hoisted body, first and later are two
       paths for every one of these questions, which is the shape to assume from
       here rather than to be told again.
+      **And the same rule for the value side of a hoisted body.** Measured
+      before writing anything this time: the only strings inside a node the
+      writer must hoist were `""` and `"a"` when the body was an array, so
+      **not one of the nine required escapes had ever been an element of a
+      shared array**, and on the object side the quote was a first member's
+      value while the other eight were only later ones, which is the
+      first-versus-later split the keys had already shown. So a writer with a
+      string emitter of its own for a hoisted array spells a newline `\u000a`,
+      which is valid and noncanonical, or omits the escape, which does not
+      parse, and passes every set either way. The const-body families answer it
+      without a new class: nine more kinds in each, which puts every required
+      spelling in a first and a later element and in a first and a later
+      member's value. The key side gets the other half of its own cross with
+      them, eighteen shared objects giving each spelling a first key and a later
+      key alone in a body, since the nine-key body above has the quote first and
+      the other eight after it. Nine spellings by six slots, and the matrix
+      gains no class.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2140,7 +2157,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 274 records in
+- [x] **Normalize.** Landed as 275 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2154,7 +2171,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 120,376 bytes of the bit
+      being refused outright. The matrix stands at 120,511 bytes of the bit
       vector's 131,072, which is 92% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2420,6 +2437,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       first vector with a sole `__proto__` member and the value `0` would have
       gone red demanding a document the reader refuses. That key now opts out
       of the check it cannot be right about.
+      **Then the escaping rule inside a body, which is this column's to catch
+      and nobody else's.** Every string in a hoisted *array* body was `""` or
+      `"a"`, so a normalizer with a string emitter of its own for a hoisted
+      array could spell a newline `\u000a` there — valid, and not the one
+      spelling the rule admits — and pass every set, since the other two
+      columns are judged on the graph and a graph cannot see it. The nine
+      required escapes join the const-body kind lists, which puts each in a
+      first and a later element and in a first and a later member's value; the
+      key side takes the missing half of its cross as eighteen shared objects,
+      one per spelling in a first key and one in a later key. The other two sets
+      get the same vectors, because a *required* escape omitted is a document
+      the reader refuses and that much every column sees; what only this column
+      sees is the valid wrong spelling. All five texts were predicted from the
+      rule before the writer was asked, and all five held.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
