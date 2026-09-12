@@ -695,7 +695,11 @@ throughout.
    counted its proof, `todo/camel-case-proof-keys.md` and
    `todo/inline-type-casts.md`; and `fjs/AGENTS.md`, which names `fsc` as
    a worked example of the per-arrow `@template` shape the stub used and
-   the front end does not.
+   the front end does not. Every link and path naming a moved document or
+   module — the root `README.md`, `fjs/README.md`, `doc/DESIGN.md`,
+   `spec/README.md`, the `fjs/ebnf/**` issues, the issues staying in
+   `fjs/djs/todo/` — was rewritten in the same pull request, so no incoming
+   link broke.
    **Done**, as described.
 
    **5b. The syntax.** The terminator — `';'` **after each** statement,
@@ -735,8 +739,9 @@ throughout.
    **Done.** The front end's tokenizer was already the grammar plus a fold;
    what it still took from the hand-written `fjs/js/tokenizer` was two
    helpers and the token types. The helpers were a keyword lookup, which the
-   fold already had from `fjs/js/keywords`, and the trivia rule, two lines
-   the fold now states itself. The token vocabulary — `JsToken` and its
+   fold already had from `fjs/js/keywords`, and the trivia rule, which now
+   has one owner, the grammar module `fjs/ebnf/lib/js`, that both tokenizers
+   import rather than restate. The token vocabulary — `JsToken` and its
    members, `TokenMetadata`, `TokenPosition`, `TriviaKind`, the error
    messages — moved to [`fjs/ebnf/lib/js/types.ts`](../fjs/ebnf/lib/js/types.ts),
    the grammar's, with the operator kinds derived from the grammar's own
@@ -827,8 +832,11 @@ throughout.
 - [x] Stage 5c: the token vocabulary is the grammar's, in
       `fjs/ebnf/lib/js/types.ts`; nothing under `fjs/fsc` imports
       `fjs/js/tokenizer`.
-- [ ] After stage 4 is on `main`: move `fjs/djs/todo/` to `fjs/fsc/todo/`
-      and repoint every link into it.
+- [ ] After stage 4 is on `main`: move the front end's issues out of
+      `fjs/djs/todo/` into `fjs/fsc/todo/`, by subject — the serializer's,
+      such as `serializer-children-helper` and `json-bigint-serialization`,
+      stay beside `fjs/djs/serializer/` until stage 4 reworks it — and
+      repoint every link into them.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).

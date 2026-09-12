@@ -56,6 +56,8 @@ import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
 import { error, ok } from '../../../../types/result/module.f.mjs'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.mjs'
+import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.mjs'
+import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.mjs'
 import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.mjs'
 
 /** Where the matrix is written. @type {string} */
@@ -82,10 +84,18 @@ export const corpus = {
                 ['reject', /** @type {readonly Base[]} */ (reject)],
             ],
         },
-        { role: 'serializer', sets: [] },
+        {
+            role: 'serializer',
+            sets: [
+                ['serializer-accept', /** @type {readonly Base[]} */ (serializerAccept)],
+                ['graph-equivalence', /** @type {readonly Base[]} */ (graphEquivalence)],
+            ],
+        },
         { role: 'normalize', sets: [] },
     ],
-    notApplicable: /** @type {readonly NotApplicable[]} */ (notApplicableData),
+    // through `unknown`: a data module spells a scope as an array literal,
+    // which infers as `string[]` rather than as the tagged tuple the type has
+    notApplicable: /** @type {readonly NotApplicable[]} */ (/** @type {unknown} */ (notApplicableData)),
 }
 
 /** @type {(a: string) => string} */
@@ -139,17 +149,25 @@ const specificity = ([tag, name]) =>
 const showScope = ([tag, name]) => `${tag} ${name}`
 
 /**
- * The reason the corpus gives for an empty cell, or `null` — the most
- * specific of those that reach it, since a wider one is what a narrower one
- * is an exception to.
+ * Which reason answers an empty cell, as its index in the corpus, or `-1` —
+ * the most specific of those that reach it, since a wider one is what a
+ * narrower one is an exception to.
  *
- * @type {(corpus: Corpus, role: string, c: string) => string | null}
+ * The index rather than the text, because one reason answers hundreds of
+ * cells and the table names it once. Printing it in each would be the same
+ * sentence several hundred times, which is unreadable and, past
+ * `maxLengthBytes`, unwritable.
+ *
+ * @type {(corpus: Corpus, role: string, c: string) => number}
  */
 const reasonOf = ({ roles, notApplicable }, role, c) => {
-    const matching = notApplicable.filter(n => n.role === role && reaches(roles, n.scope, c))
-    return matching.length === 0
-        ? null
-        : matching.reduce((a, b) => specificity(b.scope) > specificity(a.scope) ? b : a).because
+    let best = -1
+    for (let i = 0; i < notApplicable.length; i += 1) {
+        const n = notApplicable[i]
+        if (n.role !== role || !reaches(roles, n.scope, c)) { continue }
+        if (best === -1 || specificity(n.scope) > specificity(notApplicable[best].scope)) { best = i }
+    }
+    return best
 }
 
 /**
@@ -169,17 +187,20 @@ const reasonOf = ({ roles, notApplicable }, role, c) => {
  */
 const cell = (corpus, role, c) => {
     if (role.sets.length === 0) {
-        return reasonOf(corpus, role.role, c) === null
+        return reasonOf(corpus, role.role, c) === -1
             ? ok('*awaiting the set*')
             : error(`${c} in ${role.role}: a reason for a role whose sets have not landed`)
     }
     const ids = idsOf(role, c)
     if (ids.length !== 0) { return ok(ids.map(code).join(', ')) }
     const reason = reasonOf(corpus, role.role, c)
-    return reason === null
+    return reason === -1
         ? error(`${c} in ${role.role}: no vector and no reason`)
-        : ok(`not applicable: ${reason}`)
+        : ok(`not applicable, ${note(reason)}`)
 }
+
+/** How a cell names the reason that answers it. @type {(i: number) => string} */
+const note = i => `[note ${i + 1}](#notes)`
 
 /** @type {string} */
 const lower = 'abcdefghijklmnopqrstuvwxyz'
@@ -449,7 +470,7 @@ const row = (corpus, c) => {
 const summary = (corpus, role) => {
     const classes = classesOf(corpus.roles)
     const withVectors = classes.filter(c => idsOf(role, c).length !== 0).length
-    const notApplicable = classes.filter(c => idsOf(role, c).length === 0 && reasonOf(corpus, role.role, c) !== null).length
+    const notApplicable = classes.filter(c => idsOf(role, c).length === 0 && reasonOf(corpus, role.role, c) !== -1).length
     const sets = role.sets.length === 0
         ? 'no set yet'
         : role.sets.map(([name]) => code(name)).join(', ')
@@ -510,10 +531,10 @@ export const matrix = corpus => {
         'the thing an implementation can get wrong on its own. A **role** is what an',
         'implementation does — conformance is per role, so a serializer-only one',
         'never runs a reader or a normalize vector. A cell is the vectors that role',
-        'has for that class, the reason it owes none, or a role whose sets have not',
-        'landed. An empty cell with no reason fails the generator, which is the whole',
-        'point: prose that mentions a class in two roles reads exactly like prose that',
-        'mentions it in three.',
+        'has for that class, a reference to the note saying why it owes none, or a',
+        'role whose sets have not landed. An empty cell with no reason fails the',
+        'generator, which is the whole point: prose that mentions a class in two',
+        'roles reads exactly like prose that mentions it in three.',
         '',
         '| role | sets | classes covered | not applicable | awaiting |',
         '| - | - | -: | -: | -: |',
@@ -524,6 +545,16 @@ export const matrix = corpus => {
         `| class | ${header.join(' | ')} |`,
         `| - |${header.map(() => ' - |').join('')}`,
         ...classes.map((c, i) => `| ${code(c)} | ${/** @type {readonly string[]} */ (rows[i][1]).join(' | ')} |`),
+        '',
+        '## Notes',
+        '',
+        'Why a role owes no vector. Each is a record in',
+        '`spec/datajs/vectors/not-applicable`, and answers either one class, every',
+        'class under a prefix, or every class no set but one carries — so one note',
+        'stands under as many rows as it is true of.',
+        '',
+        ...corpus.notApplicable.map((n, i) =>
+            `${i + 1}. **${code(n.role)}**, ${n.scope[0]} ${code(n.scope[1])} — ${n.because}`),
         '',
     ].join('\n'))
 }
