@@ -44,17 +44,42 @@ import type { Utf16 } from '../../../ebnf/utf16/types.ts'
 type _Readable<O> = Meta<Utf16 | O> | readonly unknown[]
 /** The member of the alphabet `O` that `Id` names — computed, never supplied. */
 type _Tagged<O, Id extends string> = Extract<O, { readonly id: Id }>
+/** Whether `T` is a union of two or more members. */
+type _IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never
+/**
+ * The one field of `M` besides `id`, or `never` where `M` has none or more
+ * than one — so a member `tagged` cannot build whole has no key to name.
+ */
+type _OnlyKey<M> =
+    [Exclude<keyof M, 'id'>] extends [never] ? never :
+    _IsUnion<Exclude<keyof M, 'id'>> extends true ? never :
+    Exclude<keyof M, 'id'>
 /**
  * A tagged output symbol over the layer's output alphabet `O`: the member
- * `Id` names, and that member's one payload field `K`. `symbol` builds
- * `{ symbol: 0, meta: { id, [key]: payload } }`, `at` reads the payload
- * back, asserting `meta.id === id`.
+ * `Id` names, which must carry exactly one field besides `id`, and that
+ * field's key `K`. `symbol` builds `{ symbol: 0, meta: { id, [key]: payload } }`
+ * — the whole member, by construction — and `at` reads the payload back,
+ * asserting `meta.id === id`.
  */
-export const tagged: <O extends { readonly id: string }, Id extends O['id'], K extends Exclude<keyof _Tagged<O, Id>, 'id'>>(id: Id, key: K) => {
+export const tagged: <O extends { readonly id: string }, Id extends O['id'], K extends _OnlyKey<_Tagged<O, Id>>>(id: Id, key: K) => {
     readonly symbol: (payload: _Tagged<O, Id>[K]) => Meta<_Tagged<O, Id>>
     readonly at: (node: _Readable<O>) => _Tagged<O, Id>[K]
 }
 ```
+
+`tagged` is for **single-payload** members, and the type says so rather
+than assuming it: `K` ranges over `_OnlyKey<M>`, which is the member's
+one non-`id` key and `never` otherwise, so for a member such as
+`{ id: 'pair', left: number, right: string }` no `K` exists and
+`tagged<O, 'pair', 'left'>` is refused at compile time — `symbol(1)`
+cannot advertise a `Meta` of a member it built half of. The `id`
+convention guarantees one metadata type per `id`, not one field per
+type; this constraint adds the second guarantee for the members `tagged`
+takes. All three existing members (`Text`, `Json<P>`, `Value`) are
+single-payload, so nothing today is excluded; a future two-field member
+writes its own pair, as it would have had to anyway. `_IsUnion` and
+`_OnlyKey` are `_`-prefixed types beside `_Tagged` in
+`json/parser/types.ts`.
 
 The metadata type is **computed from the alphabet, not supplied**: the
 caller names `O`, an `Id` drawn from `O['id']`, and a key, and the
