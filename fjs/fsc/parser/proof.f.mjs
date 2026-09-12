@@ -3,6 +3,7 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
+import { run } from '../ast/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -326,6 +327,22 @@ export const proof = {
             assertEq(value.metadata?.column, 11)
         },
     ],
+    // An object's members stand in the order they are written, as JavaScript
+    // reads the same literal, and a repeated key keeps its first position
+    // and takes its last value. The parser used to sort them, which the
+    // subset law over the DataJS corpus found: the graph a module denotes
+    // has an order, and a reader that changes it reads another graph. The
+    // stringified module proofs above cannot see this, since they serialize
+    // sorted, so it is pinned on the evaluated value.
+    memberOrder: () => {
+        const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
+        assert(tag === 'ok', tag)
+        const object = run(value[1])([])
+        assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
+        assertEq(Object.keys(object).join(), 'b,a,c')
+        assertEq(object.b, 3)
+        assertEq(Object.keys(/** @type {object} */ (object.c)).join(), 'y,x')
+    },
     // None of the framing keywords is reserved: outside the positions that frame
     // a module, the parser accepts them as ordinary identifiers. Pinned here
     // because the grammar gives each its own token symbol, and a grammar

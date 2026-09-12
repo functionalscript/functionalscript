@@ -19,12 +19,14 @@ EDAG alone is not enough to represent an unresolved parsed module: module resolu
 also needs the module paths imported by that source file. Keep that information in a
 small temporary wrapper rather than adding module metadata to EDAG itself.
 
-The current parser/AST also cannot preserve the ordered object-entry representation
-required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
-`setReplace` and eventually produces a plain `AstObject`; duplicate keys are therefore
-collapsed and integer-like keys can lose their written order before EDAG conversion.
-This task must preserve object entries as an ordered sequence in the parser/AST until
-they are converted to `['{}', [...entry]]`.
+The current parser/AST cannot fully preserve the ordered object-entry representation
+required by EDAG. Object parsing builds a plain `AstObject` in source order — it
+used to sort the members through an `OrderedMap`, which the subset law over the
+DataJS corpus found and stage 5 fixed — so a repeated key keeps its first position
+and takes its last value, as in JavaScript. What a plain object still cannot keep
+is the written order of integer-like keys, which JavaScript lists first, and the
+duplicates themselves. This task must preserve object entries as an ordered
+sequence in the parser/AST until they are converted to `['{}', [...entry]]`.
 
 ### Proposal
 

@@ -1,15 +1,55 @@
 /**
  * @import { Unknown } from '../djs/types.ts'
+ * @import { Accept, Document } from '../media/datajs/vectors/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { compile } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
+import { run } from './ast/module.f.mjs'
+import { parseFromTokens } from './parser/module.f.mjs'
+import { tokenize } from './tokenizer/module.f.mjs'
 import { stringify } from '../djs/serializer/module.f.mjs'
+import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
+import { fromVec } from '../text/utf8/module.f.mjs'
+import { stringToList } from '../text/utf16/module.f.mjs'
 import { fromEntries, isObject, sort } from '../types/object/module.f.mjs'
+import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import accept from '../../spec/datajs/vectors/accept/data.f.mjs'
+
+/** The DataJS accept corpus, typed at the import since a data module carries no annotations. */
+const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/**
+ * A vector's document as the front end reads it: a string as it is, and a
+ * byte-form document decoded — the front end takes code units, as
+ * `transpile` feeds it, so a byte document reaches it the way it reaches any
+ * code-unit reader, through a decoder that refuses what is not UTF-8. Every
+ * accept document is UTF-8, so `null` here is a corpus defect, not a case.
+ *
+ * @type {(document: Document) => string | null}
+ */
+const documentText = document => {
+    if (typeof document === 'string') { return document }
+    const octets = bytes(document[1])
+    return octets === null ? null : fromVec(toVec(new Uint8Array(octets)))
+}
+
+/**
+ * What the front end makes of a source: the graph the module denotes, or
+ * the error it reports. Tokenizer, parser and evaluator over the code units
+ * of the text, with no imports to resolve — a DataJS document has none —
+ * which is what `transpile` does behind the file system.
+ *
+ * @type {(source: string) => readonly ['ok', Unknown] | readonly ['error', string]}
+ */
+const evaluate = source => {
+    const [tag, value] = parseFromTokens(tokenize(stringToList(source))(''))
+    return tag === 'error' ? ['error', value.message] : ['ok', run(value[1])([])]
+}
 
 /** @type {(root: typeof emptyState.root, path: string) => string} */
 const readOutput = (root, path) => {
@@ -152,6 +192,24 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
         assert(result[0] === 'ok', result[1])
         assertStructurallySame(result[1], value, source)
+    }),
+    // The subset law, FunctionalScript's half: every DataJS accept document
+    // is a FunctionalScript module, and the front end reads it to the graph
+    // its vector asserts — sharing and key order included, which is what
+    // `difference` compares. The corpus proves the other half against a
+    // JavaScript engine; this is the one stage 5 was done for, and it runs
+    // over the whole set, the eight documents holding an unpaired surrogate
+    // included, since the front end takes code units and owes no byte
+    // encoding. Two things it found: the parser used to sort an object's
+    // keys, and it used to be fed code points by the proofs where
+    // `transpile` feeds it code units.
+    subsetLaw: acceptSet.map(({ id, document, graph }) => () => {
+        const source = documentText(document)
+        assert(source !== null, `${id}: the document is not UTF-8`)
+        const [tag, value] = evaluate(source)
+        assert(tag === 'ok', `${id}: the front end refused the document: ${value}`)
+        const d = difference(graph)(value)
+        assert(d === null, `${id}: the front end's graph is not the vector's: ${d}`)
     }),
     // The three numbers JSON cannot spell, end to end: read as the values
     // they name, written back as the same words. `NaN` is checked by
