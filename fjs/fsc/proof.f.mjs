@@ -163,7 +163,7 @@ export const proof = {
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
             const value = result[1]
-            assert(Array.isArray(value) && value.length === 3, value)
+            assert(value instanceof Array && value.length === 3, value)
             assert(is(value[0], NaN), value[0])
             assertEq(value[1], Infinity)
             assertEq(value[2], -Infinity)
