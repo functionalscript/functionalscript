@@ -1692,21 +1692,34 @@ or the spec, not only into a thread.
    and a cycle. Its own header says of most of those that "no value
    FunctionalScript can build carries" them, so it agrees about
    reachability and still checks, because its parameter is `unknown` rather
-   than a graph. **One recipe it refuses that the specification accepts**: an
-   array under a `null` prototype, which §What may be serialized serializes
-   as its data, and which the writer meets at its object branch and refuses
-   for `length`, non-enumerable on every array. The specification wins where
-   the two disagree, and
+   than a graph. **One recipe it refused that the specification accepted**: an
+   array under a `null` prototype, which the writer meets at its object branch
+   and refuses for `length`, non-enumerable on every array. That disagreement is
+   settled, and the **writer won**: the step below measured all fourteen cases,
+   the value is constructible only through `Object.setPrototypeOf`, and
+   §What may be serialized no longer names it either way. The task it left on
    [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md)
-   carries that.
+   is gone with it.
 
-   So the two halves of this decision have to meet, and the meeting is the
-   owner's: either the writer's parameter narrows to the data model and its
-   run-time refusals go, which is what "assume correct types" means applied
-   to code; or the parameter stays `unknown` and the corpus owes a
-   serializer-reject set after all, for the values that parameter admits.
-   Until then the corpus carries none, and the task list below names the
-   reconciliation.
+   **What is still open is a different question, and it is the writer's rather
+   than the specification's.** §What may be serialized owes no vector either
+   way: a set is a DataJS data module and cannot spell any input the section
+   names, so the corpus is silent about that section by construction and the
+   step below says so. The open half is this writer's *signature*: while
+   `tryStringify` takes `unknown` and refuses at run time, its parameter admits
+   values the data model does not, and that gap is what a `serializer-reject`
+   set was once meant to cover. **It cannot be a set, and the reason is the same
+   carrier argument as above rather than a preference**: a set is a DataJS data
+   module, so every value a set can spell is already in the data model, and the
+   gap is by definition what is outside it. So the two ways out are narrowing
+   the parameter to the data model — "assume correct types" applied to code, and
+   then the gap has no inputs to reach — or leaving it and answering the gap
+   where §What may be serialized is answered, in the implementation's own tests,
+   in a host that can build those values. Never as a fourth set, and never as
+   host recipes. Either way the corpus is unchanged, and the decision is
+   recorded in
+   [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md),
+   which owns the signature.
 The steps, in order; a step is one pull request unless it says otherwise:
 
 - [x] **The vector record and the comparison.** The schema is
@@ -2637,14 +2650,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       asserted against the set's own length rather than written down. The
       FunctionalScript half of the law is stage 6's, once stage 5 has taught
       the front end `;` and the special numbers.
-- [ ] **The serializer's input domain in the spec.** §What may be serialized
+- [x] **The serializer's input domain in the spec.** §What may be serialized
       names an accessor, a non-enumerable property, a symbol key, an array's
       extra own property, a cycle and a `Date` as inputs a serializer must
       refuse, and a `null` prototype, an `Array` subclass and a frozen value
-      as inputs it must accept as data. None of the nine is constructible in
-      FunctionalScript. Whether that section stays as a rule for
-      implementations in hosts that can build them, or goes, is the owner's;
-      its own pull request either way.
+      as inputs it must accept as data. No *vector* can carry any of them, since
+      a set is a DataJS data module — which is the bound that matters, and not
+      the one this file first wrote: FunctionalScript is wider than DataJS and a
+      `.f.mjs` proof does spell a `Date`, an `Object.create(null)` and a
+      function. Whether that section stays as a rule for implementations in
+      hosts that can build these, or goes, is the owner's; its own pull request
+      either way.
       **Review raised both halves of it, separately, and they are one
       decision.** On the reject side, the normative text still requires
       refusal and the writer on `main` still takes `unknown`, so removing the
@@ -2657,6 +2673,95 @@ The steps, in order; a step is one pull request unless it says otherwise:
       free: every set is a FunctionalScript data module, so a vector whose
       input is a frozen object or an `Array` subclass has no spelling in the
       corpus, which is the wall the removed host recipes hit.
+      **Decided by measuring the writer against all fourteen cases the section
+      names, which settled it more narrowly than the paragraph above expected.**
+      Every refusal the section names holds: a function, a symbol leaf, a `Date`,
+      a hole, a symbol key, an accessor, a non-enumerable property, an array with
+      an extra own key, and a cycle are each refused. Four of the five accept
+      cases hold too — a `null`-prototype object, an `Array` subclass, a frozen
+      object and a frozen array all serialize as their data. So the section
+      **stays**: it is true of the shipped writer, and it is the only thing that
+      makes fourteen real defects errors rather than a silently wrong document.
+      The claim is about the fourteen the section names and nothing wider —
+      review found one input outside them that the writer answers with a
+      plausible wrong value, recorded two paragraphs below.
+      **One case disagreed, and the section gave up the requirement rather than
+      the writer changing.** A `null`-prototype array is refused, with `length
+      is a non-enumerable property`, and the mechanism is exact: `Array.isArray`
+      is true of it and `instanceof Array` is not, so the writer takes the
+      *object* branch, where a `null` prototype is allowed and every own
+      descriptor is read — including the non-enumerable `length` whose exception
+      lives in the array branch this value never reaches. The item is gone from
+      §What may be serialized, and nothing replaces it: whether that refusal is
+      right is left **undecided there, on purpose**, so a host-side serializer
+      may accept such an array without failing the section. The reason is that
+      the only way to build one is `Object.setPrototypeOf`, exactly as a
+      cross-realm array needs a second realm, and the format does not spend a
+      rule on values its own subset cannot construct. So the writer keeps the
+      spelling it chose deliberately and owes no fix.
+      **The mismatch runs the other way too, and review found it after this was
+      written.** Naming those two values "the whole of what `Array.isArray` and
+      `instanceof Array` disagree on" was wrong. A third shape disagrees in the
+      opposite direction:
+      `Object.create(Array.prototype, { length: { value: 0, enumerable: true } })`
+      is not an array — `Array.isArray` is false — while `instanceof Array` is
+      true, so the writer takes its *array* branch and answers `export default
+      [];`, dropping the object's own `length` member rather than refusing a
+      non-plain object. Measured, and worse than the one example shows: with
+      `length` **non-enumerable** the impostor's own descriptors are
+      byte-identical to a frozen array's (`e:false w:false c:false`), and with
+      `{ length: 1, 0: 7 }` it answers `export default [7];`. So **no
+      descriptor-based check can separate the two** — a genuine array's
+      arrayness is an exotic slot, and `Array.isArray` is the only predicate that
+      reads it, which is exactly the spelling
+      [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §3.1 does not allow. The value
+      needs `Object.create` with a descriptor, an API the subset does not have,
+      so nothing in this repository can build one — but it is **not** the same
+      category as the two above, and review was right to press the point. §What
+      may be serialized already refuses it under its first rule, as any other
+      non-plain object, and exempting it would make dropping a member conforming
+      behaviour. So the section does not exempt it, and what it states is
+      one-directional: nothing an implementation writes as an array may be a
+      value `Array.isArray` is false of, while refusing an array whose prototype
+      chain does not reach this realm's `Array.prototype` stays permitted and
+      required of nobody. That refuses the impostor and leaves the
+      `null`-prototype array where decision 6 left it — approximating is
+      forbidden, refusing is not.
+      That leaves this repository's writer measurably non-conforming for one
+      host-built input it cannot receive from a FunctionalScript caller — one and
+      not two, since its refusal of the `null`-prototype array is the permitted
+      half — and the two ways out are both the owner's: `fjs/AGENTS.md` §3.1 permits
+      `Array.isArray` here, or the writer's parameter narrows to the data model
+      and the input is not a valid argument at all — the signature question
+      decision 6 leaves open. Recorded, with the measurement, in
+      [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md).
+      **And the corpus owes nothing, which the section now says itself — on the
+      DataJS axis, not the FunctionalScript one.** A set is a *DataJS* data
+      module, and DataJS has no functions, no `Symbol`, no `Date`, and no way to
+      spell a hole, an accessor or a class, so no vector can hold any of these
+      inputs to hand a serializer. FunctionalScript is not the bound and saying
+      it was would be wrong: it adds functions, and the writer's own proof hands
+      one to `tryStringify`. A *proof* is an ordinary FunctionalScript module,
+      and it reaches the fourteen in four ways, which review had to correct
+      because the first arithmetic here summed to sixteen. **Five** arrive as
+      real values: a function, a symbol, a `Date`, a symbol key and a hole — and
+      four more values ride the `Date` rule rather than adding a case, since a
+      `Map`, a `Set`, a boxed number and `Object.create({ x: 1 })` are all "any
+      other non-plain object". **Four** name a condition no FunctionalScript
+      value carries — an accessor, a non-enumerable property, an own property on
+      an array besides its elements, and a cycle — so the proof reads them where
+      the rule lives: descriptors through `_memberValue`, own names through
+      `_elementNames`, the graph through `_link`. **One** accept, a
+      `null`-prototype object, the proof takes directly. The remaining **four**
+      accepts — an `Array` subclass, a frozen object, a frozen array and a
+      `null`-prototype array — need a class, `Object.freeze` or
+      `Object.setPrototypeOf`, none of which the subset has. Five and four are
+      the nine refusals, one and four the five accepts, and the last four are why
+      the measurements above are a scratch script rather than a landed test, and
+      why the section is a rule a host that *can* build them answers in its own
+      tests. Saying so in the specification is the whole of this
+      step: the alternative was a set of vectors that cannot be written and a
+      reader of the section left to guess why none exists.
 - [x] **The checks the data model does not need, removed.** `difference` in
       [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
       tested its actual graph for a symbol-keyed property, an own property
