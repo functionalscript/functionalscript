@@ -1832,8 +1832,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 13 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 164 of the 675 classes the corpus held then, with 47 scope
-      records answering the 511 cells the serializer column owed; the normalize
+      covering 168 of the 675 classes the corpus held then, with 45 scope
+      records answering the 507 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1991,6 +1991,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       denotes the same string, so a graph check cannot see it, which is the
       same bound the surrogate pairs run into. Normalized bytes are what
       catches this, one step up.
+      **And the correction to that very sentence, one round later.** Saying the
+      serializer role cannot see a later key's spelling was right about
+      U+2028 and wrong as a general claim: escaping is *optional* there, so
+      both spellings denote one string, but for a quote, a backslash or a
+      control it is **required**, and a writer that omits it emits a document
+      the reader refuses outright. Measured, `{"a":0,""":1}` does not parse. That
+      is visible to a role judged on the graph, because no graph can be read
+      out of a document that will not parse. Three vectors in each of the
+      writer and reader sets carry a required escape after a first member.
+      The bound I stated holds only where the rule leaves the spelling free,
+      which is the part I should have written rather than naming the role.
+      **A multi-digit Number never reached the writer.** Two reasons said the
+      spelling of an integer is the reader's branch, which is true of `109`
+      against `1.09e2` and false of `109` against `10`: dropping a digit is a
+      different value, not a different spelling. Measured, the set's only
+      integers past one digit were the max-finite pair, in exponential
+      notation, and `109n` exercises the bigint path instead. Four vectors take
+      `9`, `-9`, `109` and `-109`, and both reasons are gone.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
@@ -2003,7 +2021,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 233 records in
+- [x] **Normalize.** Landed as 236 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2017,7 +2035,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 116,668 bytes of the bit
+      being refused outright. The matrix stands at 116,516 bytes of the bit
       vector's 131,072, which is 89% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2154,6 +2172,16 @@ The steps, in order; a step is one pull request unless it says otherwise:
       serializer column gets none, measured rather than argued: the escaped
       spelling denotes the same string, so a graph check cannot see it, and
       byte-exactness here is the only thing that can.
+      That last sentence was too broad and the round after said so. Escaping is
+      optional for U+2028 and *required* for a quote, a backslash or a control,
+      and a writer that omits a required one emits a document the reader
+      refuses, which every role can see. So three vectors here carry a required
+      escape after a first member, matching the other two sets. The bound is
+      about the rule rather than the role: a role checked on the graph cannot
+      see a spelling the rule leaves free.
+      The multi-digit Number the serializer column was missing needed nothing
+      here, asked before writing: this set already pins 109 and its negation
+      with exact texts, along with the fixed-notation thresholds.
       **And one thing the matrix does not mean**, which review read the other
       way and a consumer could too. `serializer.md` states that a normalized
       writer owes `serializer-accept` and `graph-equivalence` besides
