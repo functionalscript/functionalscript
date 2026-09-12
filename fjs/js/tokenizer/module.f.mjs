@@ -15,7 +15,8 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Entry } from '../../types/ordered_map/types.ts'
  * @import { Range as NumberRange } from '../../types/range/types.ts'
- * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, TriviaKind, } from './types.ts'
+ * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _ErrorMessage, TriviaKind } from '../../ebnf/lib/js/types.ts'
+ * @import { _TokenizerStateWithMetadata, _TokenizerState, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken } from './types.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
@@ -263,9 +264,6 @@ const keywordEntries = keywords.map(kind =>
     [kind, /** @type {JsToken} */ ({ kind })])
 
 const keywordMap = fromEntries(keywordEntries)
-
-/** @type {(token: JsToken) => boolean} */
-export const isKeywordToken = token => at(token.kind)(keywordMap) !== null
 
 /**
  * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
@@ -603,10 +601,9 @@ const parseMultilineCommentAsteriskStateOp = create(
  * to a single token, and a run containing any newline is an `nl`. Equal kinds
  * coalesce; `nl` absorbs `ws`.
  *
- * Exported because `fjs/fsc/tokenizer` produces the same token stream and must
- * agree byte for byte — its scanner reaches the same four decisions from
- * grammar tags. This module defines `JsToken`, so the rule is stated here once
- * rather than re-derived on each side with only the proofs to catch a drift.
+ * `fjs/fsc/tokenizer` produces the same token stream and reaches the same
+ * four decisions from grammar tags; its proofs and this module's pin the two
+ * to the same answers.
  *
  * @type {(a: TriviaKind, b: TriviaKind) => TriviaKind}
  */

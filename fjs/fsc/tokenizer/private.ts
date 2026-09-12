@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { TokenMetadata, TriviaKind } from '../../js/tokenizer/types.ts'
+import type { TokenMetadata, TriviaKind } from '../../ebnf/lib/js/types.ts'
 
 /** The kind of a token, as the grammar's `token` variant tags it, `slash`'s four resolved. */
 export type _Kind = 'number' | 'string' | 'id' | 'comment' | 'operator' | 'ws' | 'newLine'

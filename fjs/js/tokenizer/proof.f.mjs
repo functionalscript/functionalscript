@@ -1,5 +1,5 @@
 /**
- * @import { JsToken, JsTokenWithMetadata } from './types.ts'
+ * @import { JsToken, JsTokenWithMetadata } from '../../ebnf/lib/js/types.ts'
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'

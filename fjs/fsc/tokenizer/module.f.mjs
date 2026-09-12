@@ -9,7 +9,9 @@
  * ```
  *
  * The grammar is [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs), one
- * token, read by the LL(1) backend resumed where the last token ended
+ * token, and the tokens are its too, `fjs/ebnf/lib/js/types.ts`; nothing
+ * here comes from the hand-written `fjs/js/tokenizer`, whose stream this
+ * one matches byte for byte. The grammar is read by the LL(1) backend resumed where the last token ended
  * ([`fjs/ebnf/ll1`](../../ebnf/ll1/README.md), "A token layer resumes the
  * parser"). A token's text is the input between where it began and where
  * it ended, so nothing walks its tree but the one question a block comment
@@ -37,7 +39,7 @@
  *
  * @module
  *
- * @import { ErrorToken, JsToken, JsTokenWithMetadata, TokenMetadata, TokenPosition } from '../../js/tokenizer/types.ts'
+ * @import { ErrorToken, JsToken, JsTokenWithMetadata, TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
@@ -49,7 +51,6 @@ import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token } from '../../ebnf/lib/js/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
-import { isKeywordToken, mergeTrivia } from '../../js/tokenizer/module.f.mjs'
 import {
     asterisk, lf,
     reverseSolidus,
@@ -278,11 +279,11 @@ export const tokenizeJs = input => path => {
         const { kind, start } = lexeme
         if (kind === 'ws' || kind === 'newLine') {
             // A run of trivia is one token, and its kind is decided by the
-            // run: a newline anywhere makes it `nl`, anchored at that newline,
-            // which is why the pending token restarts under the incoming kind
-            // when that kind is not the one it already has.
+            // run: a newline anywhere makes it `nl`, anchored at that newline.
+            // So a pending run stays as it is unless it is `ws` and a newline
+            // arrives, when it restarts there as `nl`.
             const incoming = kind === 'ws' ? 'ws' : 'nl'
-            trivia = trivia !== null && mergeTrivia(trivia.kind, incoming) === trivia.kind
+            trivia = trivia !== null && (trivia.kind === 'nl' || incoming === 'ws')
                 ? trivia
                 : { kind: incoming, metadata: start }
             previous = null
@@ -375,7 +376,7 @@ const mapDjsToken = input => {
         case '/*':
         case 'eof':
         case 'error': return [input]
-        default: return isKeywordToken(input) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
+        default: return keywordSet.has(input.kind) ? [{ kind: 'id', value: input.kind }] : [{ kind: 'error', message: 'invalid token' }]
     }
 }
 
