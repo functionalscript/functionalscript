@@ -213,11 +213,14 @@ The five parts:
     while passing every other vector here. `normalize` pins that `/` comes back
     unescaped, but that is a different role and closes nothing for this one.
     **And the raw non-ASCII character is not one vector but nineteen**, because
-    every character §Whitespace refuses *between* tokens is ordinary content
-    *inside* a string, and only a vector says so. That reject side enumerates
-    21; two of them, U+000B and U+000C, stay rejects inside a string under a
-    different rule — they are below U+0020, where the raw-control rule reaches
-    them — so the contextual inverse is the other nineteen: U+2028, U+2029,
+    a character §Whitespace refuses *between* tokens can be ordinary content
+    *inside* a string, and only a vector says so. What it refuses between
+    tokens is everything outside a token, `@` as much as U+2028, so the set
+    worth vectors here is the delta from ECMAScript's whitespace, which the
+    reject side enumerates: 21 characters. Two of them, U+000B and U+000C, stay
+    rejects inside a string under a different rule — they are below U+0020,
+    where the raw-control rule reaches them — so the contextual inverse is the
+    other nineteen: U+2028, U+2029,
     U+FEFF and the sixteen `Space_Separator` characters other than U+0020. A
     reader consulting one whitespace table in both contexts refuses all
     nineteen while passing every vector above, and a reader refusing only the
@@ -580,7 +583,8 @@ The five parts:
   reader can accept a raw LF as string content while rejecting the other three
   correctly. Then the characters JavaScript
   treats as whitespace or a line terminator and DataJS does not, of which there
-  are **21**, not the six the spec enumerates: U+000B, U+000C, U+2028, U+2029,
+  are **21**, a set §Whitespace deliberately does not list: U+000B, U+000C,
+  U+2028, U+2029,
   U+FEFF, and the sixteen `Space_Separator` characters other than U+0020 —
   U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and U+3000. **All 21 get
   vectors**, not one per shape. An earlier draft took six of the sixteen `Zs`
@@ -588,7 +592,9 @@ The five parts:
   reasoning that an implementation reaching that class at all reaches all of
   it. Review was right that nothing guarantees it, and this paragraph carries
   the disproof in its own first sentence: **the spec's own list of these
-  characters omitted fifteen of them**. A hand-written whitespace table with a
+  characters omitted fifteen of them** — which is why that list is now
+  deleted rather than corrected, the rule naming the four accepted
+  characters and nothing else. A hand-written whitespace table with a
   hole in it is not a hypothetical here — it is the thing that made this
   section necessary — and a reader whose table stops at U+2000 accepts U+200A
   while passing every sampled vector. So: U+000B, U+000C, U+2028, U+2029,
@@ -937,13 +943,17 @@ The five parts:
     `+`, no leading or trailing point, no separators, no leading zeros.
   - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
     non-ASCII letter and the `\uXXXX` spelling of an ASCII one.
-  - **Whitespace** — §Whitespace, which narrows twice, and where the *spec's
-    own list* is the trap. Its rule is general and correct: whitespace is
-    exactly JSON's four characters, so **every other character JavaScript
-    treats as whitespace or a line terminator** is rejected. The six it then
-    names after a colon are illustrations, and measured against ECMAScript the
-    real set is 21 — the colon list omits every `Space_Separator` character
-    but U+00A0. Derive from the rule; the six are not a set to copy. §Whitespace
+  - **Whitespace** — §Whitespace, which narrows twice, and where a list was
+    the trap. Its rule is general and correct: whitespace is exactly JSON's
+    four characters, so **every other character JavaScript treats as
+    whitespace or a line terminator** is rejected. The section used to name
+    six of them after a colon, in normative text, so a reader could take the
+    six for the set whatever they were meant as; measured against ECMAScript
+    the real set is 21, that list having omitted every `Space_Separator`
+    character but U+00A0, and it is now deleted rather than corrected —
+    §Whitespace enumerates what it accepts and nothing else. Derive the 21
+    from the rule; there is no list to copy and there was never a set to copy
+    from. §Whitespace
     also *requires* whitespace in three places — after `const`, after `export`
     and after `default` — **unconditionally in all three**, whatever follows.
     Not "before an identifier-starting value after `default`", which is the
@@ -1621,13 +1631,15 @@ or the spec, not only into a thread.
    serializer falls outside those two, so "any other non-plain object" has no
    case to decide, and the serializer-reject vector it was to unblock does not
    exist because that set does not either.
-3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
-   replace the six-item colon list with the complete set it denotes — the 21
-   characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
-   the four permitted, which is U+000B, U+000C, U+2028, U+2029, U+FEFF and the
-   sixteen `Space_Separator` characters other than U+0020 — since the corpus
-   enumerates all 21 anyway and a reader of the spec should not have to. The
-   alternative is to mark the six as illustrations and cite ECMAScript.
+3. **§Whitespace's enumeration — decided: enumerate what is accepted and
+   reject everything else.** The six-item list after the colon is deleted
+   rather than grown to 21. Naming four accepted characters is the whole
+   rule, and it cannot be short of anything; naming what is refused is the
+   taxonomy that same paragraph says an implementer should not have to know,
+   and it had been wrong by fifteen characters since it was written. The
+   corpus still enumerates all 21 rejects, because a reader delegating to a
+   JavaScript tokenizer over-accepts every one of them and only a vector
+   sees that.
 4. **The decoder seam — decided: there is none, and no set needs one.** DataJS
    works with correct UTF-8 and rejects everything else, so a malformed
    sequence is not an input the format processes and the corpus owes it no
@@ -1832,14 +1844,15 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 215 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 219 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 172 of the 679 classes the corpus holds, with 45 scope
-      records answering the 507 cells the serializer column owes; the normalize
-      set below adds 50 classes and one `['set', 'normalize']` reason answers
-      all of them.
+      covering 172 of the corpus's classes, with the scope records that answer
+      every cell its column owes. Those two figures move as the sets below add
+      classes, so the matrix summary is where they are read, not here; the
+      normalize set below adds 50 of them and one `['set', 'normalize']` reason
+      answers all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
       gone a serializer-side input is an ordinary value of the data model, so
       a second member carried the same value twice and let the two drift. The
@@ -2191,11 +2204,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 276 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
-      records answering the 512 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 280 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with the scope
+      records that answer every cell its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
-      the 50 classes this set introduced. The proof reads every text back
+      the 50 classes this set introduced. The counts are the matrix summary's,
+      for the reason above. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
       made a proof — **and one check the reader cannot make**: a document
       holding a raw U+D800 and one holding the six characters of its escape
@@ -2205,9 +2219,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 120,610 bytes of the bit
+      being refused outright. The matrix stands at 120,652 bytes of the bit
       vector's 131,072, which is 92% and leaves little room for another
-      column or another set of classes.
+      column or another set of classes. When it overflows, raise the cap
+      rather than split the table: splitting per role keeps the limit and costs
+      a reader the single view the table exists for. But the cap is **not** a
+      free number. `maxLengthBytes` in
+      [`bit_vec`](../../../fjs/types/bit_vec/module.f.mjs) is
+      `maxLength >> 3n`, and `maxLength` is `0x100000n` in
+      [`bigint`](../../../fjs/types/bigint/module.f.mjs), where the comment
+      beside it records that Bun throws on `max + 1n` and that `mask` is written
+      the way it is to avoid overflowing there at exactly that length. So
+      raising it is a question about the bigint a runtime will hold, measured on
+      every runtime the suite runs on, not an edit to one constant.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
       under them "varies only in a count or a depth, which normalized layout
@@ -2504,6 +2528,26 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a document that parses, so every column sees it and all three sets carry
       it. Each of the four texts was predicted from the rule and then compared
       with the writer.
+      **And the later slot of a hoisted body, for a share rather than a
+      spelling.** The rounds above put every kind and every spelling in a body's
+      first and later slots and left the one thing a body can also hold in only
+      its first: a reference. Measured across all four sets, every
+      shared-parent-shared-child input put the child in the parent's sole first
+      element or member, so a writer whose post-comma path inside a `const` body
+      inlines a reference emitted `const $0=[1];const $1=[0,[1]];export default
+      [$1,$1,$0];` for `[p,p,c]` with `p=[0,c]`, splitting the child, and passed
+      every set. Two vectors per set put the child in a later element and a later
+      member, and `const/shared/nested` loses the normalize reason that said a
+      nested share is a fact about naming rather than layout — true of the four
+      post-order vectors it named, and those four also put the child first.
+      **And the same question for a share behind `__proto__`.** Both vectors
+      under `key/proto/value/shared` reached the share through a *root* object,
+      while the hoisted proto objects held scalars, so a writer whose
+      hoisted-object emitter keeps the ordinary member's reference and inlines
+      the later computed one passed. Two vectors per set share a node across an
+      ordinary key and a computed one **inside** a hoisted body, computed first
+      and computed later. That is the third axis this position has now been
+      crossed with: the kind, the spelling, and the reference.
       **Then the adjacency shapes in the same slots**, which the round above
       said its free spellings covered and did not: a lone surrogate and a
       *valid* pair are both well-formed, so nothing malformed sat in a body.
@@ -2546,9 +2590,38 @@ The steps, in order; a step is one pull request unless it says otherwise:
       The generated table is the current count in every case — a figure here
       is what the corpus held at this step. Prose could not do this job, which
       four consecutive review rounds showed.
-- [ ] **The JavaScript whole-set check**, per decision 5. The
-      FunctionalScript one is stage 6's, once stage 5 has taught the front
-      end `;` and the special numbers.
+- [x] **The JavaScript whole-set check.** Landed as
+      [`accept/proof.mjs`](../vectors/accept/proof.mjs), taking decision 5's
+      proposal: a host proof under the existing `node --test`, so it runs on
+      every CI runtime rather than only where `gen` does. Every accept
+      document is imported as a `data:text/javascript` module and the value
+      it exports compared with `difference`, so sharing counts — an engine
+      graph that inlined a shared node denotes something else and is caught.
+      It is host code because it has to be: a proof in the subset cannot
+      call dynamic `import`, which is why it sits beside `proof.f.mjs`
+      rather than in it, and it is not §1.6's back door, since what it
+      proves is a property of the corpus's data rather than a
+      FunctionalScript API.
+      The URL's body is **base64**, which is the one spelling every runtime
+      the suite runs on decodes: measured, Bun hands back the URL itself as the
+      module's default export for a percent-encoded body, and Node and Deno take
+      either. It is built with `btoa` rather than `Buffer`, since `Buffer` is
+      Node's and is not a global everywhere the suite runs, and the one
+      byte-form document goes straight to `btoa` as the bytes it is, with no
+      encode between it and the engine.
+      **Eight of the 398 cannot be carried to an engine at all**, and they
+      are named rather than skipped. A document holding an unpaired
+      surrogate has no UTF-8 encoding, so no `data:` URL and no file can
+      hold it; encoding it anyway substitutes U+FFFD and quietly checks a
+      different document. The eight are the raw lone surrogates and their
+      key twins, listed by id, so a ninth appearing is a failure rather than
+      a silent fall in the count. The corpus can hold them at all only
+      because it is JavaScript, where the data module writes the escape and
+      the string denotes the unit.
+      390 checked, every one denoting the graph its vector asserts, the count
+      asserted against the set's own length rather than written down. The
+      FunctionalScript half of the law is stage 6's, once stage 5 has taught
+      the front end `;` and the special numbers.
 - [ ] **The serializer's input domain in the spec.** §What may be serialized
       names an accessor, a non-enumerable property, a symbol key, an array's
       extra own property, a cycle and a `Date` as inputs a serializer must
@@ -2604,13 +2677,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       literals. `types.ts` dropped `SerializerReject` and the twelve recipes,
       and the three surviving serializer-side records take an ordinary
       `Unknown`. Coverage stayed at 100%.
-- [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
-      pull request.
+- [x] **§Whitespace's enumeration in the spec**, per decision 3: the
+      six-item list after the colon is gone, and the rule names the four
+      characters a reader accepts and rejects everything else. The vectors
+      needed no change — their `rule` already read "whitespace: exactly
+      space, tab, LF and CR", which is the accepting form the spec now
+      takes too.
 - [ ] **The decoder seam in the spec**, per decision 4: say that a document
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
       request, as each of these changes a different contract.
-- [ ] **Make "every set is a DataJS document" a check rather than a
+- [x] **Make "every set is a DataJS document" a check rather than a
       measurement.** Review found every set ending with a trailing comma
       before its `]`, which JavaScript takes and DataJS refuses, so no set was
       readable by a conforming reader — a promise the corpus README makes and
@@ -2621,6 +2698,28 @@ The steps, in order; a step is one pull request unless it says otherwise:
       with the reader, and compare the graph with the imported set using
       `difference`. Its own pull request, because it needs a failing case in
       the matrix proof to keep coverage honest.
+      Landed as `modules`, `sourceOf`, `sourceDefect` and `sourceDefects` in
+      the generator, which reads all six sources before it writes anything and
+      reports what it finds as matrix defects, so a set that stops being DataJS
+      fails `npm run gen` exactly as an unanswered cell does. Measured against
+      the tree: all six parse and denote what the engine imports, and a trailing
+      comma put back into one of them gives `the set graph-equivalence: its own
+      source is not a DataJS document, unexpected symbol at 6310` and exit 1.
+      **Parsing alone would not have been enough**, and the reason bounds what
+      this check is: the source and the imported value come from one file, so
+      they can only disagree where JavaScript and DataJS both accept the text
+      and read it differently — a key order, a share spelled twice, a number
+      notation. That is precisely the failure a portable corpus cannot survive,
+      since a harness in another language reads these files rather than
+      importing them, so the graph is compared too.
+      The proof's own halves sit in different places on purpose. The predicate
+      is proved on texts chosen to break it, including the trailing comma and a
+      source that parses and denotes another graph. That the six real files
+      satisfy it is proved by `npm run gen` against the files themselves, which
+      is what moving the measurement into the generator buys and what no
+      in-memory fixture could establish: a proof runs on a virtual filesystem
+      and cannot read the repository. So the fixture writes each source with the
+      writer, whose output denotes the set by construction.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)

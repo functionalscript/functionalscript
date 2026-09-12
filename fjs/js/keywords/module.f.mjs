@@ -40,15 +40,24 @@ export const strictModeReservedWords = /** @type {const} */ ([
 export const restrictedNames = /** @type {const} */ (['arguments', 'eval'])
 
 /**
- * Every name FunctionalScript treats as a keyword, alphabetically: the
- * {@link reservedWords}, the {@link strictModeReservedWords}, the
- * {@link restrictedNames}, and `undefined` — an ordinary global in
- * JavaScript that FunctionalScript keeps as a literal keyword.
+ * Ordinary globals in JavaScript that FunctionalScript keeps as literal
+ * keywords: a module may not bind, assign or shadow them, so that each
+ * name denotes its value wherever it appears — `undefined` the value, `NaN`
+ * and `Infinity` the numbers JSON cannot spell, which DataJS has as leaves.
+ */
+export const literalGlobals = /** @type {const} */ (['Infinity', 'NaN', 'undefined'])
+
+/**
+ * Every name FunctionalScript treats as a keyword, sorted by code unit —
+ * the capitalized globals first: the {@link reservedWords}, the
+ * {@link strictModeReservedWords}, the {@link restrictedNames}, and the
+ * {@link literalGlobals}.
  *
  * The proof verifies this list is exactly the sorted union of the groups,
  * at runtime and at the type level.
  */
 export const keywords = /** @type {const} */ ([
+    'Infinity', 'NaN',
     'arguments', 'await', 'break', 'case', 'catch', 'class', 'const',
     'continue', 'debugger', 'default', 'delete', 'do', 'else', 'enum',
     'eval', 'export', 'extends', 'false', 'finally', 'for', 'function',

@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { StringToken, NumberToken, ErrorToken, EofToken, JsTokenWithMetadata } from '../../../js/tokenizer/types.ts'
+import type { StringToken, NumberToken, ErrorToken, EofToken, JsTokenWithMetadata } from '../../../ebnf/lib/js/types.ts'
 
 export type JsonToken = |
     {readonly kind: 'true' | 'false' | 'null' } |

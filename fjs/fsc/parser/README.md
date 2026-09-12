@@ -46,7 +46,11 @@ for that, each a conflict the backtracking grammar this replaced had
 
 Two rules that were once code are shape. Statement ordering — every `import`
 before every `const` — is `import* const* export`, and a late `import` is a
-token the grammar cannot use. `import`, `const` and `export` in the wrong order
+token the grammar cannot use. A reserved literal — `true`, `false`, `null`,
+`undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, so it is
+refused as a name, a reference or a key by the rule that wanted an
+identifier; `NaN` and `Infinity` have no rule of their own yet, so today they
+are refused everywhere. `import`, `const` and `export` in the wrong order
 report `unexpected token` at the offending keyword.
 
 ## The grammar sees symbols; the fold sees text

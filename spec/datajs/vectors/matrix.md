@@ -21,7 +21,7 @@ that mentions it in three.
 | - | - | -: | -: | -: |
 | `reader` | `accept`, `reject` | 679 | 50 | 0 |
 | `serializer` | `serializer-accept`, `graph-equivalence` | 172 | 557 | 0 |
-| `normalize` | `normalize` | 217 | 512 | 0 |
+| `normalize` | `normalize` | 218 | 511 | 0 |
 
 729 classes.
 
@@ -97,9 +97,9 @@ that mentions it in three.
 | `bigint/trailing-point/neg` | `bigint-neg-trailing-point` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `bigint/zero` | `bigint-0` | `ser-bigint-0` | `norm-bigint-0` |
 | `bigint/zero/neg` | `bigint-neg-0` | not applicable, [note 15](#notes) | not applicable, [note 94](#notes) |
-| `byte/bom/first` | `byte-bom-first` | not applicable, [note 103](#notes) | not applicable, [note 104](#notes) |
-| `byte/truncated` | `byte-truncated` | not applicable, [note 103](#notes) | not applicable, [note 104](#notes) |
-| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 103](#notes) | not applicable, [note 104](#notes) |
+| `byte/bom/first` | `byte-bom-first` | not applicable, [note 102](#notes) | not applicable, [note 103](#notes) |
+| `byte/truncated` | `byte-truncated` | not applicable, [note 102](#notes) | not applicable, [note 103](#notes) |
+| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 102](#notes) | not applicable, [note 103](#notes) |
 | `const/declarators` | `const-declarators` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `const/destructuring/array` | `const-destructuring-array` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `const/destructuring/object` | `const-destructuring-object` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
@@ -126,7 +126,7 @@ that mentions it in three.
 | `const/reference/member` | `const-reference-member` | not applicable, [note 23](#notes) | not applicable, [note 60](#notes) |
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 29](#notes) | `norm-shared-leaf` |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | `norm-shared-mixed` |
-| `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | not applicable, [note 97](#notes) |
+| `const/shared/nested` | `const-shared-nested`, `nested-later-element`, `nested-later-member` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `ser-nested-later-element`, `ser-nested-later-member`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | `norm-nested-later-element`, `norm-nested-later-member` |
 | `const/shared/object` | `const-shared-object`, `const-shared-object-parent`, `const-shared-object-proto-key`, `const-shared-object-escaped-keys`, `const-body-every-slot-object`, `const-shared-object-escaping-key-every-slot` | `ser-sharing-object`, `ser-shared-empty-object`, `ser-shared-empty-object-object-parent`, `ser-shared-object-proto-key`, `ser-shared-object-escaped-keys`, `ser-const-body-every-slot-object`, `ser-shared-object-escaping-key-every-slot`, `graph-sharing-object`, `graph-sharing-empty-object`, `graph-sharing-empty-object-object-parent` | `norm-shared-object`, `norm-const-body-escaping-key`, `norm-const-every-value-object`, `norm-const-body-key-proto`, `norm-const-body-escaped-keys`, `norm-const-body-escaping-key-after-first`, `norm-const-body-every-slot-object`, `norm-const-body-escaping-key-every-slot` |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | `norm-shared-three-paths` |
 | `const/shared/twice` | `const-shared-twice`, `const-body-every-slot-array` | `ser-sharing-array`, `ser-const-body-every-slot-array`, `graph-sharing-array` | `norm-shared-twice`, `norm-const-body-escaping-values`, `norm-const-every-value-array`, `norm-const-body-every-slot-array` |
@@ -138,7 +138,7 @@ that mentions it in three.
 | `const/unreferenced/among` | `const-unreferenced-among` | not applicable, [note 27](#notes) | not applicable, [note 77](#notes) |
 | `const/unshared/twins` | `const-unshared-twins` | not applicable, [note 28](#notes) | not applicable, [note 93](#notes) |
 | `const/value/every-alternative` | `const-value-every` | not applicable, [note 26](#notes) | not applicable, [note 89](#notes) |
-| `document/both-edges` | `document-both-edges` | not applicable, [note 5](#notes) | not applicable, [note 98](#notes) |
+| `document/both-edges` | `document-both-edges` | not applicable, [note 5](#notes) | not applicable, [note 97](#notes) |
 | `document/comment/block` | `document-comment-block` | not applicable, [note 5](#notes) | not applicable, [note 49](#notes) |
 | `document/comment/line` | `document-comment-line` | not applicable, [note 5](#notes) | not applicable, [note 49](#notes) |
 | `document/comment/trailing` | `document-comment-trailing` | not applicable, [note 5](#notes) | not applicable, [note 49](#notes) |
@@ -160,7 +160,7 @@ that mentions it in three.
 | `document/semicolon/export/newline` | `document-semicolon-export-newline` | not applicable, [note 5](#notes) | not applicable, [note 49](#notes) |
 | `document/shortest` | `document-shortest` | not applicable, [note 5](#notes) | not applicable, [note 95](#notes) |
 | `document/spelling/one-line` | `document-spelling-one-line` | not applicable, [note 5](#notes) | `norm-document-spelling-one-line` |
-| `document/spelling/readable` | `document-spelling-readable` | not applicable, [note 5](#notes) | not applicable, [note 100](#notes) |
+| `document/spelling/readable` | `document-spelling-readable` | not applicable, [note 5](#notes) | not applicable, [note 99](#notes) |
 | `document/statement/expression` | `document-statement-expression` | not applicable, [note 5](#notes) | not applicable, [note 49](#notes) |
 | `document/statement/function` | `document-statement-function` | not applicable, [note 5](#notes) | not applicable, [note 49](#notes) |
 | `document/statement/let` | `document-statement-let` | not applicable, [note 5](#notes) | not applicable, [note 49](#notes) |
@@ -261,7 +261,7 @@ that mentions it in three.
 | `key/proto/string/nested` | `key-proto-string-nested` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/proto/value/null` | `key-proto-value-null` | not applicable, [note 43](#notes) | not applicable, [note 45](#notes) |
 | `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 44](#notes) | not applicable, [note 46](#notes) |
-| `key/proto/value/shared` | `key-proto-shared`, `key-proto-shared-later` | `ser-key-proto-value-shared`, `ser-key-proto-value-shared-later` | `norm-key-proto-value-shared`, `norm-key-proto-value-shared-later` |
+| `key/proto/value/shared` | `key-proto-shared`, `key-proto-shared-later`, `proto-shared-body-later`, `proto-shared-body-first` | `ser-key-proto-value-shared`, `ser-key-proto-value-shared-later`, `ser-proto-shared-body-later`, `ser-proto-shared-body-first` | `norm-key-proto-value-shared`, `norm-key-proto-value-shared-later`, `norm-proto-shared-body-later`, `norm-proto-shared-body-first` |
 | `key/string/continuation` | `key-continuation` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/continuation/crlf` | `key-continuation-crlf` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/empty` | `key-empty` | `ser-key-empty` | `norm-key-empty` |
@@ -278,7 +278,7 @@ that mentions it in three.
 | `key/string/escape/quote` | `key-escape-quote`, `key-escape-quote-every-slot` | `ser-key-escape-quote`, `ser-key-escape-quote-every-slot` | `norm-key-escape-quote`, `norm-key-escape-quote-every-slot` |
 | `key/string/escape/r` | `key-escape-r`, `key-escape-r-every-slot` | `ser-key-escape-r`, `ser-key-escape-r-every-slot` | `norm-key-escape-r`, `norm-key-escape-r-every-slot` |
 | `key/string/escape/single-quote` | `key-escape-single-quote` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/slash` | `key-escape-slash`, `key-escape-slash-every-slot` | not applicable, [note 19](#notes) | not applicable, [note 99](#notes) |
+| `key/string/escape/slash` | `key-escape-slash`, `key-escape-slash-every-slot` | not applicable, [note 19](#notes) | not applicable, [note 98](#notes) |
 | `key/string/escape/space` | `key-escape-space` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/escape/t` | `key-escape-t`, `key-escape-t-every-slot` | `ser-key-escape-t`, `ser-key-escape-t-every-slot` | `norm-key-escape-t`, `norm-key-escape-t-every-slot` |
 | `key/string/escape/u-braces` | `key-escape-u-braces` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
@@ -504,9 +504,9 @@ that mentions it in three.
 | `object/equals` | `object-equals` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `object/key-only` | `object-key-only` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `object/key-order/boundaries` | `object-key-order-boundaries` | `ser-object-key-order-boundaries` | `norm-object-key-order-boundaries` |
-| `object/key-order/escaped-index` | `object-key-order-escaped-index` | not applicable, [note 22](#notes) | not applicable, [note 102](#notes) |
+| `object/key-order/escaped-index` | `object-key-order-escaped-index` | not applicable, [note 22](#notes) | not applicable, [note 101](#notes) |
 | `object/key-order/index-before-name` | `object-key-order-index-before-name` | `ser-object-key-order-index-before-name` | `norm-object-key-order-index-before-name` |
-| `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 21](#notes) | not applicable, [note 101](#notes) |
+| `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 21](#notes) | not applicable, [note 100](#notes) |
 | `object/key-order/names/first-occurrence` | `object-key-order-names-first-occurrence` | `ser-object-key-order-names-first-occurrence` | `norm-object-key-order-names-first-occurrence` |
 | `object/key-order/nested` | `object-key-order-nested` | `ser-object-key-order-nested`, `graph-object-key-order-nested` | `norm-object-key-order-nested` |
 | `object/key-order/non-index/above` | `object-key-order-non-index-above` | `ser-object-key-order-non-index-above` | `norm-object-key-order-non-index-above` |
@@ -860,11 +860,10 @@ stands under as many rows as it is true of.
 94. **`normalize`**, subtree `bigint/zero/neg` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
 95. **`normalize`**, subtree `document/shortest` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
 96. **`normalize`**, subtree `string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-97. **`normalize`**, subtree `const/shared/nested` — a share whose parent is itself shared is a fact about naming, not about layout, and the four const/name/post-order vectors carry it in every parent-child kind, each pinning the order the names come out in
-98. **`normalize`**, subtree `document/both-edges` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-99. **`normalize`**, subtree `key/string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-100. **`normalize`**, subtree `document/spelling/readable` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-101. **`normalize`**, subtree `object/key-order/index-first` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-102. **`normalize`**, subtree `object/key-order/escaped-index` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-103. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
-104. **`normalize`**, subtree `byte` — a byte document is a reader's input; normalized form is handed a graph and produces text, so encoding it is the caller's
+97. **`normalize`**, subtree `document/both-edges` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+98. **`normalize`**, subtree `key/string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+99. **`normalize`**, subtree `document/spelling/readable` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+100. **`normalize`**, subtree `object/key-order/index-first` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+101. **`normalize`**, subtree `object/key-order/escaped-index` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+102. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
+103. **`normalize`**, subtree `byte` — a byte document is a reader's input; normalized form is handed a graph and produces text, so encoding it is the caller's

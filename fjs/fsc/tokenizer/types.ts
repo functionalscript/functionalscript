@@ -16,16 +16,18 @@ import type {
     CommentToken,
     EofToken,
     TokenMetadata,
-} from '../../js/tokenizer/types.ts'
+} from '../../ebnf/lib/js/types.ts'
 
 /**
- * DJS-level token set: a narrower view of JsToken (only true/false/null/undefined survive
- * as bare keywords; every other keyword becomes an id) plus its own punctuator kinds.
- * `;` is a member because a statement may end with one — see the module-structure
- * rule in `spec/README.md`, and DataJS, which requires it.
+ * DJS-level token set: a narrower view of JsToken (only the literal keywords
+ * survive as bare keywords — `true`, `false`, `null` and the three
+ * `literalGlobals` of `fjs/js/keywords`; every other keyword becomes an id)
+ * plus its own punctuator kinds. `;` is a member because a statement may
+ * end with one — see the module-structure rule in `spec/README.md`, and
+ * DataJS, which requires it.
  */
 export type DjsToken = |
-  {readonly kind: 'true' | 'false' | 'null' | 'undefined'} |
+  {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity'} |
   {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' | ';' } |
   StringToken |
   NumberToken |

@@ -7,7 +7,7 @@
  * @module
  */
 
-import type { TokenMetadata, TokenPosition } from '../../js/tokenizer/types.ts'
+import type { TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { Primitive } from '../../djs/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
@@ -23,7 +23,7 @@ import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * came with one. A lexical error passes through the `end` its token carried, so
  * an unterminated string spans its opening quote to where the input ran out. A
  * *grammar* failure has no span: it points at one token, and a token's extent is
- * not recorded — see `ErrorToken` in `fjs/js/tokenizer/types.ts`, and
+ * not recorded — see `ErrorToken` in `fjs/ebnf/lib/js/types.ts`, and
  * `../parser/README.md` for the widening that would give every token one.
  */
 export type ParseError = {
