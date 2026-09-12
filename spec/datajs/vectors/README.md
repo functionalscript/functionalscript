@@ -40,8 +40,10 @@ implementation.
 | normalize | `normalize/` | `Normalize` | the normalized serializer, when it lands |
 
 One directory holds no vectors: `not-applicable/` carries the reasons the
-matrix below needs, one record per class and role a role owes no vector
-for.
+matrix below needs. A record answers a **scope** rather than a single cell —
+one class, a subtree of them, or every class no set but one carries — so the
+several hundred cells a role owes nothing to are answered by a few dozen
+records. The rules that keep a wide scope honest are below, under the matrix.
 
 The export of a set is an array of records. Every record carries an `id`, a
 stable name a matrix or a failure can cite, and a `class`, the branch of the
@@ -130,9 +132,35 @@ point of generating it: prose that mentions a class in two roles reads
 exactly like prose that mentions it in three, and the issue this corpus
 came from records five rounds where exactly that went unnoticed. The only
 thing that answers an empty cell is a record in `not-applicable/` giving
-the reason in words, reviewed beside the vectors like any other data. A
-reason for a cell that has vectors, or for a class no vector carries, is a
-failure too, so a reason cannot outlive the gap it was written for.
+the reason in words, reviewed beside the vectors like any other data.
+
+**A reason answers a scope, not always a cell**, because otherwise the bill
+is unpayable: a role's column must answer every class in the corpus, and a
+serializer owes nothing to the several hundred that are document facts — a
+whitespace rule, a grammar production, a defect a reader refuses. So a
+reason names one of three, tagged as a byte document is:
+
+| scope | answers |
+| - | - |
+| `['class', 'number/exp/E']` | that one cell |
+| `['subtree', 'id']` | every class under that prefix, by path segment |
+| `['set', 'reject']` | every class no set but that one carries |
+
+`set` is the widest and the most exact: a class only the reject set carries
+is one no other role has a vector for, so a single reason is true of the
+whole family by construction rather than by inspection. The most specific
+reason wins, so a family's reason can be overridden for one class beneath it
+without either being removed.
+
+A wide scope is bought with a rule, and the rule is what keeps the table
+honest: the generator refuses a reason the moment it answers a class that
+**has** vectors for that role, so a reason cannot quietly stop being true of
+something beneath it. It refuses one that answers no class at all, one
+naming a set or a role the corpus does not have, a tag that is none of the
+three, and two of equal specificity answering one cell. A reason cannot
+outlive the gap it was written for. A set name is one name across the whole
+corpus for the same reason: a `set` scope is answered by comparing names, so
+two roles holding a set of one name would leave it unable to say which.
 
 A role whose sets have not landed refuses nothing: a class cannot owe a
 vector to a set that does not exist. Its column says so on every row, and
