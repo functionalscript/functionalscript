@@ -36,6 +36,38 @@ const $n33 = [null, true, false, undefined, NaN, Infinity, -Infinity, 0, -0, 9, 
 const $n34 = {"a": null, "b": true, "c": false, "d": undefined, "e": NaN, "f": Infinity, "g": -Infinity, "h": 0, "i": -0, "j": 9, "k": -9, "l": 1.5, "m": 1e2, "n": 1n, "o": -1n, "p": "", "q": "a", "r": "\u2028", "s": "\ud800", "t": "\u0000", "u": [], "v": {}, "w": 1, "x": "\ud800\udc00"};
 const $n35 = {"d": 0, "c": 1};
 const $n36 = {["__proto__"]: 1};
+const $p0 = [null, 0];
+const $p1 = [undefined, 0];
+const $p2 = [NaN, 0];
+const $p3 = [Infinity, 0];
+const $p4 = [-Infinity, 0];
+const $p5 = [-0, 0];
+const $p6 = [false, 0];
+const $p7 = [true, 0];
+const $p8 = ["", 0];
+const $p9 = ["a", 0];
+const $p10 = [1n, 0];
+const $p11 = [-1n, 0];
+const $p12 = [0n, 0];
+const $p13 = [-1, 0];
+const $p14 = [[], 0];
+const $p15 = [{}, 0];
+const $q0 = {"a": null, "b": 0};
+const $q1 = {"a": undefined, "b": 0};
+const $q2 = {"a": NaN, "b": 0};
+const $q3 = {"a": Infinity, "b": 0};
+const $q4 = {"a": -Infinity, "b": 0};
+const $q5 = {"a": -0, "b": 0};
+const $q6 = {"a": false, "b": 0};
+const $q7 = {"a": true, "b": 0};
+const $q8 = {"a": "", "b": 0};
+const $q9 = {"a": "a", "b": 0};
+const $q10 = {"a": 1n, "b": 0};
+const $q11 = {"a": -1n, "b": 0};
+const $q12 = {"a": 0n, "b": 0};
+const $q13 = {"a": -1, "b": 0};
+const $q14 = {"a": [], "b": 0};
+const $q15 = {"a": {}, "b": 0};
 const $n38 = {"a": 0, "\u2028": 1};
 const $n37 = {"\"": "\"", "\\": "\\", "\b": "\b", "\t": "\t", "\n": "\n", "\f": "\f", "\r": "\r", "\u0000": "\u0000", "\u001f": "\u001f"};
 export default [
@@ -310,5 +342,7 @@ export default [
     {"id": "norm-object-keys-every-string", "class": "object/keys/every-string", "input": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}], "text": "export default [{\"\u2028\":0,\"\\ud800\":1,\"\\u0000\":2,\"\ud800\udc00\":3,\"a\":4}];"},
     {"id": "norm-const-body-key-proto", "class": "const/shared/object", "input": [$n36, $n36], "text": "const $0={[\"__proto__\"]:1};export default [$0,$0];"},
     {"id": "norm-const-body-escaped-keys", "class": "const/shared/object", "input": [$n37, $n37], "text": "const $0={\"\\\"\":\"\\\"\",\"\\\\\":\"\\\\\",\"\\b\":\"\\b\",\"\\t\":\"\\t\",\"\\n\":\"\\n\",\"\\f\":\"\\f\",\"\\r\":\"\\r\",\"\\u0000\":\"\\u0000\",\"\\u001f\":\"\\u001f\"};export default [$0,$0];"},
-    {"id": "norm-const-body-escaping-key-after-first", "class": "const/shared/object", "input": [$n38, $n38], "text": "const $0={\"a\":0,\"\u2028\":1};export default [$0,$0];"}
+    {"id": "norm-const-body-escaping-key-after-first", "class": "const/shared/object", "input": [$n38, $n38], "text": "const $0={\"a\":0,\"\u2028\":1};export default [$0,$0];"},
+    {"id": "norm-const-body-first-slot-array", "class": "const/shared/twice", "input": [$p0, $p0, $p1, $p1, $p2, $p2, $p3, $p3, $p4, $p4, $p5, $p5, $p6, $p6, $p7, $p7, $p8, $p8, $p9, $p9, $p10, $p10, $p11, $p11, $p12, $p12, $p13, $p13, $p14, $p14, $p15, $p15], "text": "const $0=[null,0];const $1=[undefined,0];const $2=[NaN,0];const $3=[Infinity,0];const $4=[-Infinity,0];const $5=[-0,0];const $6=[false,0];const $7=[true,0];const $8=[\"\",0];const $9=[\"a\",0];const $10=[1n,0];const $11=[-1n,0];const $12=[0n,0];const $13=[-1,0];const $14=[[],0];const $15=[{},0];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15];"},
+    {"id": "norm-const-body-first-slot-object", "class": "const/shared/object", "input": [$q0, $q0, $q1, $q1, $q2, $q2, $q3, $q3, $q4, $q4, $q5, $q5, $q6, $q6, $q7, $q7, $q8, $q8, $q9, $q9, $q10, $q10, $q11, $q11, $q12, $q12, $q13, $q13, $q14, $q14, $q15, $q15], "text": "const $0={\"a\":null,\"b\":0};const $1={\"a\":undefined,\"b\":0};const $2={\"a\":NaN,\"b\":0};const $3={\"a\":Infinity,\"b\":0};const $4={\"a\":-Infinity,\"b\":0};const $5={\"a\":-0,\"b\":0};const $6={\"a\":false,\"b\":0};const $7={\"a\":true,\"b\":0};const $8={\"a\":\"\",\"b\":0};const $9={\"a\":\"a\",\"b\":0};const $10={\"a\":1n,\"b\":0};const $11={\"a\":-1n,\"b\":0};const $12={\"a\":0n,\"b\":0};const $13={\"a\":-1,\"b\":0};const $14={\"a\":[],\"b\":0};const $15={\"a\":{},\"b\":0};export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15];"}
 ];

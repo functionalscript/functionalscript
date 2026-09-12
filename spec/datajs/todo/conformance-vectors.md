@@ -1807,8 +1807,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `['class', c]` for one cell, `['subtree', p]` for every class under a
       prefix by path segment, and `['set', s]` for every class no set but
       that one carries. The last is the widest and the most exact, since no
-      class is carried by two sets — measured, 344 accept-only, 334
-      reject-only, none in both — so one reason covers every reject class by
+      class is carried by two sets — measured, the accept and reject sets
+      share no class at all, which is the part the argument needs; their sizes
+      move with every round and are in the matrix summary — so one reason
+      covers every reject class by
       construction rather than by inspection. A prototype answered all of them
       with 28 records; the step below lands the real set, and its own paragraph
       carries the count — quoted there from the matrix summary, and not
@@ -1830,7 +1832,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 211 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 213 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
@@ -2056,6 +2058,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       for `[p,p,c]` with `p={"x":c}` and passed. Parent kind again, on the one
       class where I had crossed it in the shape of the share and never in the
       shape of the parent. One vector here, one graph-equivalence record.
+      **And the first slot of a hoisted body, which is the cross of two
+      positions the corpus had crossed separately.** Measured, the first child
+      of a node the writer must hoist was a zero, a positive number, a string
+      or a container, and nothing else: 13 of the 16 leaf kinds had never been
+      one in either writer set, so a writer with a first-slot path of its own
+      inside a `const` body could put `null` where `undefined` belongs and pass
+      everything. This one is exhaustible cheaply, since the bodies are the
+      shared nodes: 32 consts per set, `[k,0]` and `{"a":k,"b":0}` for each of
+      the sixteen kinds, and one vector per container kind referencing each
+      twice. All 36 cells of kind by body kind are now present in both writer
+      sets and in the reader set, measured. The matrix grows by two ids rather
+      than by 32, which is what makes the exhaustive form affordable here and
+      not in the escape cross.
       **Then the two cells that cross left over**, reported in the same round
       and both about a position rather than a value. A shared node's parent
       kind crossed with the child's emptiness has six spellable cells, not
@@ -2117,7 +2132,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 272 records in
+- [x] **Normalize.** Landed as 274 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2131,7 +2146,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 120,169 bytes of the bit
+      being refused outright. The matrix stands at 120,376 bytes of the bit
       vector's 131,072, which is 92% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2357,6 +2372,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `{"a":0,"\u2028":1}`, and the const body of values takes a second U+2028
       after its first element for the same reason. Over-escaping is a fact
       about bytes only, so this column is the only one that owes it.
+      **Then the first slot of a hoisted body**, which the base measured as 13
+      of 16 leaf kinds missing and this column as 12. Both vectors here
+      reference sixteen shared arrays and sixteen shared objects, `[k,0]` and
+      `{"a":k,"b":0}`, so all 36 cells of kind by body kind are present.
+      Their texts were written from the rule and only then compared with the
+      shipped writer, which is the order that makes them a claim: the const
+      names come out in post-order, `$0` through `$15`, one per shared node.
+      And a latent trap in this set's own proof, found by review rather than by
+      a failure: `spelling` built its expected text with `JSON.stringify`, which
+      knows nothing about `["__proto__"]` being a production of its own, so the
+      first vector with a sole `__proto__` member and the value `0` would have
+      gone red demanding a document the reader refuses. That key now opts out
+      of the check it cannot be right about.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
