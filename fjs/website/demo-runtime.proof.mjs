@@ -13,7 +13,7 @@
  * so a proof carries the module it drives rather than a fixture file.
  */
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { startDemo } from './demo-runtime.mjs'
 
 /**
@@ -38,12 +38,25 @@ const namesIn = html => html.split('name="').slice(1).map(rest => rest.split('"'
 const dom = path => {
     /** @type {any} */
     let active = null
+    let workedWith = ''
     /** @type {readonly any[]} */
     let children = []
     /** @type {((event: any) => void)[]} */
     const listeners = []
+    /** @type {((event: any) => void)[]} */
+    const clicks = []
     /** @type {string[]} */
     const rendered = []
+    /**
+     * What the runtime did to the section, in order. A flag that goes up and
+     * down inside one microtask cannot be caught by looking afterwards, so the
+     * stand-in writes down each step as it happens and the proof reads the
+     * sequence.
+     *
+     * @type {string[]} */
+    const steps = []
+    /** @type {any[]} */
+    let buttons = []
     /** @type {(name: string) => any} */
     const element = (/** @type {string} */ name) => {
         /** @type {any} */
@@ -67,6 +80,7 @@ const dom = path => {
         get innerHTML() { return rendered.length === 0 ? '' : rendered[rendered.length - 1] },
         set innerHTML(/** @type {string} */ html) {
             rendered.push(html)
+            steps.push('render')
             // **Replacing the contents detaches what was focused**, which is
             // the whole reason the runtime has to put focus back. A stand-in
             // that kept the old node focused would pass whether or not the
@@ -74,12 +88,39 @@ const dom = path => {
             // stand-in rather than the code.
             if (children.includes(active)) { active = null }
             children = namesIn(html).map(element)
+            buttons = children
+                .filter(child => html.includes(`<button type="button" name="${child.name}"`))
+                .map(button => {
+                    let off = false
+                    // The same sequence the flag and the render write to: a
+                    // control that goes unavailable and back inside one turn
+                    // cannot be caught by looking afterwards either.
+                    Object.defineProperty(button, 'disabled', {
+                        get: () => off,
+                        set: (/** @type {boolean} */ value) => {
+                            if (value !== off) { steps.push(value ? 'disabled' : 'enabled') }
+                            off = value
+                        },
+                    })
+                    return button
+                })
         },
         querySelector: (/** @type {string} */ selector) =>
             children.find(child => selector.includes(`"${child.name}"`)) ?? null,
         contains: (/** @type {any} */ node) => children.includes(node),
+        querySelectorAll: (/** @type {string} */ selector) =>
+            selector === 'button' ? buttons : [],
+        setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
+            root.attributes.set(name, value)
+            if (name === 'data-demo-working') { workedWith = value; steps.push('working') }
+        },
+        removeAttribute: (/** @type {string} */ name) => {
+            root.attributes.delete(name)
+            if (name === 'data-demo-working') { steps.push('idle') }
+        },
         addEventListener: (/** @type {string} */ kind, /** @type {any} */ f) => {
             if (kind === 'input') { listeners.push(f) }
+            if (kind === 'click') { clicks.push(f) }
         },
         ownerDocument: { get activeElement() { return active } },
     }
@@ -89,6 +130,23 @@ const dom = path => {
         // twice has said two things, and the last one alone cannot show it.
         rendered,
         activeName: () => active === null ? null : active.name,
+        steps,
+        /**
+         * Writes a step of its own from a macrotask queued at a known moment.
+         *
+         * The yield the runtime takes after raising its flag is not visible as
+         * a call, only as a gap — so a marker queued *before* the event lands
+         * between the flag and the render exactly when that gap exists, and
+         * after the render when it does not.
+         *
+         * @type {(name: string) => void}
+         */
+        mark: name => { setTimeout(() => steps.push(name), 0) },
+        working: () => root.attributes.has('data-demo-working'),
+        // The last value the flag carried, kept after it is removed: the
+        // attribute lives for one turn, so reading it afterwards reads nothing.
+        workedWith: () => workedWith,
+        disabled: () => buttons.map((/** @type {any} */ b) => b.disabled),
         caret: () => active === null ? null : active.selectionStart,
         focusOn: (/** @type {string} */ name, /** @type {number} */ caret) => {
             const el = root.querySelector(`[name="${name}"]`)
@@ -98,6 +156,10 @@ const dom = path => {
         /** @type {(name: string, value: string) => void} */
         input: (name, value) => {
             for (const f of listeners) { f({ target: { name, value } }) }
+        },
+        /** @type {(name: string) => void} */
+        click: name => {
+            for (const f of clicks) { f({ target: { name } }) }
         },
     }
 }
@@ -138,8 +200,19 @@ export const demo = {
 }
 `)
 
-/** Lets the queued update settle: the runtime chains each event onto a promise. */
-const settle = () => new Promise(resolve => setTimeout(resolve, 0))
+/**
+ * Lets a queued update settle.
+ *
+ * Two turns, not one: the runtime yields to the event loop after raising its
+ * working flag so a browser can paint it, so an update spans a macrotask
+ * boundary of its own.
+ *
+ * @type {() => Promise<void>}
+ */
+const settle = async () => {
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise(resolve => setTimeout(resolve, 0))
+}
 
 export const proof = {
     /**
@@ -183,6 +256,106 @@ export const proof = {
         assertEq(d.caret(), 1)
     },
     /**
+     * **The page says it is waiting, and stops being asked again.** A demo
+     * renders once, after its effect finishes, so it cannot paint "still
+     * going" itself: the loop that dispatched the command is the only thing
+     * that knows one is outstanding. Buttons are disabled rather than dimmed —
+     * a queued second click would be honoured after the first finished, which
+     * is a demo doing its work twice because somebody was impatient.
+     */
+    saysItIsWorking: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'idle',
+    update: state => event => () => ['ok', event.kind === 'click' ? 'done' : state],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        assert(!d.working(), 'expected the page to be idle before an event')
+        assertStructurallySame(d.disabled(), [false])
+        const before = d.steps.length
+        // Queued now, so it runs on the turn *after* this one: it lands
+        // wherever the runtime's own yield puts the boundary.
+        d.mark('turn')
+        d.click('go')
+        await settle()
+        /**
+         * **Three mechanisms, in one sequence.** The flag goes up and the
+         * control goes unavailable together; `turn` is a macrotask queued
+         * before the event, so where it lands *is* the yield — between the
+         * two and the render, which is the gap a browser paints in; then the
+         * render, and the flag down.
+         *
+         * Asserted as an order rather than by looking afterwards, because
+         * each lives for a single turn: a proof that checked the end state
+         * passed with the disabling and the yield both deleted, which is how
+         * they came to be unprotected.
+         *
+         * **No `enabled` here, and that is not an omission.** The render
+         * rebuilds the section, so the control that comes back is a new one,
+         * already available. The explicit re-enable covers the path where no
+         * render happens — see below.
+         */
+        assertStructurallySame(
+            d.steps.slice(before),
+            ['working', 'disabled', 'turn', 'render', 'idle'])
+        assert(!d.working(), 'expected the flag down once the update finished')
+        assertStructurallySame(d.disabled(), [false])
+    },
+    /**
+     * **A demo may add to the word, and cannot replace it.** The runtime owns
+     * "Working…" because it runs every demo; what it cannot know is that this
+     * demo's next turn is minutes rather than milliseconds. `wait` answers
+     * that, and it lands in the attribute's *value*, which the stylesheet
+     * appends — so the general word survives whatever a demo says.
+     *
+     * It is read from the state the demo is about to be given, not the one it
+     * returns: a warning that arrives after the wait is not a warning.
+     */
+    waitAddsToTheWord: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'slow',
+    update: state => event => () => ['ok', event.kind === 'click' ? 'quick' : state],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
+    wait: state => state === 'slow' ? 'about 2 minutes' : null,
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go')
+        await settle()
+        // The state at the click was `slow`, so that is what was announced —
+        // not the `quick` the turn produced.
+        assertEq(d.workedWith(), ' (about 2 minutes)')
+        // And the second turn, from a state with nothing unusual to say,
+        // leaves the value empty so the stylesheet renders the word alone.
+        d.click('go')
+        await settle()
+        assertEq(d.workedWith(), '')
+    },
+    /**
+     * **A demo without `wait` is the ordinary case**, and gets the general
+     * word with nothing appended. The field is optional so that silence means
+     * "nothing unusual" rather than "nobody remembered".
+     */
+    noWaitIsSilent: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'idle',
+    update: state => event => () => ['ok', 'done'],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go')
+        await settle()
+        assertEq(d.workedWith(), '')
+    },
+    /**
      * **A demo that throws is reported, not swallowed.** `update` and `view`
      * are total by construction, so a throw is a defect — and a blank section
      * is what a demo rendering nothing looks like, which is the one thing it
@@ -193,13 +366,28 @@ export const proof = {
 export const demo = {
     init: '',
     update: () => () => { throw new Error('boom') },
-    view: text => ['pre', text],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
 }
 `))
         await startDemo(d.root)
-        d.input('text', 'x')
+        await settle()
+        const before = d.steps.length
+        d.mark('turn')
+        d.click('go')
         await settle()
         assert(d.root.textContent.startsWith('demo failed: boom'), d.root.textContent)
+        /**
+         * **The control comes back even when nothing re-renders.** A reported
+         * failure replaces the section's text rather than its contents, so the
+         * button is the same element it was — and the explicit re-enable is
+         * the only thing that gives it back. On the ordinary path a render
+         * rebuilds it, which is why this is the sequence that shows the
+         * difference.
+         */
+        assertStructurallySame(
+            d.steps.slice(before),
+            ['working', 'disabled', 'turn', 'idle', 'enabled'])
+        assertStructurallySame(d.disabled(), [false])
     },
     /**
      * **The first render is reported like every later one.** It runs before

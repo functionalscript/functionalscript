@@ -564,6 +564,20 @@ format does not spend a rule on values its own subset cannot construct. A
 host-side serializer may accept such an array as its elements; nothing above
 requires it to.
 
+**The two predicates part company in both directions, which is why neither is
+made a rule here.** In the other direction the value is not an array at all:
+`Object.create(Array.prototype, { length: { value: 0, enumerable: true } })` has
+`Array.isArray` false and `instanceof Array` true, so a serializer branching on
+the prototype chain writes it as its elements — `export default [];` — where one
+branching on `Array.isArray` refuses it as a non-plain object. Measured, no
+descriptor separates the two: with a non-enumerable `length` this object's own
+descriptors are identical to a frozen array's, so a serializer that must tell
+them apart has exactly one instrument, the exotic array slot `Array.isArray`
+reads. This value also needs an API the subset does not have. An implementation
+in a host that can build either shape decides for itself, and states which
+predicate it classifies by; a serializer is judged on the inputs above, which
+are the ones this format's own values can reach.
+
 ### Normalized form
 
 Normalized form is one specific serializer, chosen so that a value has

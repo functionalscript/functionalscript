@@ -420,9 +420,35 @@ object branch and refuses for its non-enumerable `length`, because
 serialized used to serialize it as its data; it now leaves the value out rather
 than requiring anything either way, because the only way to build one is
 `Object.setPrototypeOf` — an API the subset does not have, as with a cross-realm
-array, and those two are exactly what `instanceof Array` parts from
-`Array.isArray` on. So there is no bug here to fix, and no vector to owe: a
-conformance set is a DataJS data module and cannot spell the value at all.
+array. So there is no bug here to fix, and no vector to owe: a conformance set
+is a DataJS data module and cannot spell the value at all.
+
+**What that left behind is the other direction of the same mismatch, and it is
+§3.1's question rather than this module's.** Review found it and it is measured:
+`Object.create(Array.prototype, { length: { value: 0, enumerable: true } })` is
+not an array — `Array.isArray` is false — while `instanceof Array` is true, so
+`readNode` takes the array branch and `tryStringify` answers `export default
+[];`, dropping the object's own `length` member instead of refusing a non-plain
+object. With `{ length: 1, 0: 7 }` it answers `export default [7];`.
+
+No check in this module's style closes it. With `length` non-enumerable the
+impostor's own descriptors are identical to a frozen array's — `e:false w:false
+c:false`, measured on both — and a frozen array must serialize as its data, so
+enumerability cannot separate them and neither can any other attribute. A
+genuine array's arrayness is an exotic slot, and `Array.isArray` is the only
+predicate that reads it, which is the spelling
+[`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 does not allow: it mandates
+`instanceof Array` on the premise that every value an `.f.mjs` sees was built by
+this realm's constructors, and calls `Array.isArray` "a longer one guarding
+against values this rule already excludes".
+
+The premise is what the impostor tests. It is built by this realm's
+constructors, but only through `Object.create` with a descriptor — not in the
+subset, the same family as `Object.setPrototypeOf` — so no FunctionalScript
+caller can hand this writer one. That is the whole of the reason this is not a
+bug to fix here, and it is a reason that belongs to §3.1: if §3.1 ever widens
+its premise to host-built values, `readNode` owes the `Array.isArray` check on
+the same day.
 
 ### Tasks
 
@@ -452,6 +478,14 @@ conformance set is a DataJS data module and cannot spell the value at all.
       path lands beside it — and the `parse` versus `tryParse` naming with it.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
+- [ ] **Put the `Array.prototype` impostor to [`fjs/AGENTS.md`](../../../AGENTS.md)
+      §3.1's owner**, with the measurement in §4: an object created under
+      `Array.prototype` with an own `length` is written as its elements rather
+      than refused, and only `Array.isArray` — the spelling §3.1 forbids —
+      separates it from a frozen array, whose own descriptors are identical.
+      Nothing in the subset can build one, so this module owes no change while
+      §3.1's premise stands; what is owed is the question, once, in that rule's
+      file rather than in this one.
 - [ ] **Walk both passes on an explicit stack**, so that a document the
       reader accepts is one the writer can write: 2,600 nested arrays make
       `tryStringify` throw `RangeError` today, where it owes an `error` at
