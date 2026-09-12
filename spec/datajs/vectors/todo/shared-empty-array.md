@@ -34,9 +34,10 @@ annotation where a data module may not, so `sharedEmptyArray` in
 [`../graph-equivalence/proof.f.mjs`](../graph-equivalence/proof.f.mjs) builds
 the graph and checks it against four documents through the reader: the two
 spellings that denote it and the two that do not. The writer side is the same
-trick in the `normalize` set's proof, which pins `tryStringify`'s output for a
-shared empty array — that set lands in the step after this one, so read the
-claim as covering the reader today and the writer when it arrives.
+trick in [`../normalize/proof.f.mjs`](../normalize/proof.f.mjs), whose
+`sharedEmptyArray` asserts `tryStringify` gives
+`const $0=[];const $1=[$0];export default [$1,$1,$0];`. Both roles are covered
+here, which is what the Status block above says.
 
 A third-party harness gets neither, because it reads the sets.
 
