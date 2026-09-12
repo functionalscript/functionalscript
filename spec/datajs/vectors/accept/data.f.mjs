@@ -10,7 +10,8 @@ const $s7 = {};
 const $s8 = [0];
 const $s9 = {"d": 0, "c": 1};
 const $s10 = {"a": 0};
-const $s11 = {["__proto__"]: 1};
+const $s11 = {["__proto__"]: 0, "x": 1};
+const $s13 = {"x": 0, ["__proto__"]: 1};
 const $f0 = [null, 0, null];
 const $f1 = [undefined, 0, undefined];
 const $f2 = [NaN, 0, NaN];
@@ -433,7 +434,7 @@ export default [
     {"id": "object-key-order-nested", "class": "object/key-order/nested", "document": "const $0={\"d\":0,\"c\":1};export default [{\"b\":0,\"a\":1},{\"x\":{\"b\":0,\"a\":1}},$0,$0];", "graph": [{"b": 0, "a": 1}, {"x": {"b": 0, "a": 1}}, $s9, $s9]},
     {"id": "object-keys-every-string", "class": "object/keys/every-string", "document": "export default [{\"\u2028\":0,\"\\ud800\":1,\"\\u0000\":2,\"\\ud800\\udc00\":3,\"a\":4}];", "graph": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}]},
     {"id": "const-shared-object-parent", "class": "const/shared/object", "document": "const $0={\"a\":0};export default {\"x\":$0,\"y\":$0};", "graph": {"x": $s10, "y": $s10}},
-    {"id": "const-shared-object-proto-key", "class": "const/shared/object", "document": "const $0={[\"__proto__\"]:1};export default [$0,$0];", "graph": [$s11, $s11]},
+    {"id": "const-shared-object-proto-key", "class": "const/shared/object", "document": "const $0={[\"__proto__\"]:0,\"x\":1};const $1={\"x\":0,[\"__proto__\"]:1};export default [$0,$0,$1,$1];", "graph": [$s11, $s11, $s13, $s13]},
     {"id": "const-shared-object-escaped-keys", "class": "const/shared/object", "document": "const $0={\"\\\"\":\"\\\"\",\"\\\\\":\"\\\\\",\"\\b\":\"\\b\",\"\\t\":\"\\t\",\"\\n\":\"\\n\",\"\\f\":\"\\f\",\"\\r\":\"\\r\",\"\\u0000\":\"\\u0000\",\"\\u001f\":\"\\u001f\"};export default [$0,$0];", "graph": [$s12, $s12]},
     {"id": "const-body-every-slot-array", "class": "const/shared/twice", "document": "const $0=[null,0,null];const $1=[undefined,0,undefined];const $2=[NaN,0,NaN];const $3=[Infinity,0,Infinity];const $4=[-Infinity,0,-Infinity];const $5=[-0,0,-0];const $6=[false,0,false];const $7=[true,0,true];const $8=[\"\",0,\"\"];const $9=[\"a\",0,\"a\"];const $10=[1n,0,1n];const $11=[-1n,0,-1n];const $12=[0n,0,0n];const $13=[-1,0,-1];const $14=[[],0,[]];const $15=[{},0,{}];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15];", "graph": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15]},
     {"id": "const-body-every-slot-object", "class": "const/shared/object", "document": "const $0={\"a\":null,\"b\":0,\"c\":null};const $1={\"a\":undefined,\"b\":0,\"c\":undefined};const $2={\"a\":NaN,\"b\":0,\"c\":NaN};const $3={\"a\":Infinity,\"b\":0,\"c\":Infinity};const $4={\"a\":-Infinity,\"b\":0,\"c\":-Infinity};const $5={\"a\":-0,\"b\":0,\"c\":-0};const $6={\"a\":false,\"b\":0,\"c\":false};const $7={\"a\":true,\"b\":0,\"c\":true};const $8={\"a\":\"\",\"b\":0,\"c\":\"\"};const $9={\"a\":\"a\",\"b\":0,\"c\":\"a\"};const $10={\"a\":1n,\"b\":0,\"c\":1n};const $11={\"a\":-1n,\"b\":0,\"c\":-1n};const $12={\"a\":0n,\"b\":0,\"c\":0n};const $13={\"a\":-1,\"b\":0,\"c\":-1};const $14={\"a\":[],\"b\":0,\"c\":[]};const $15={\"a\":{},\"b\":0,\"c\":{}};export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15];", "graph": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15]}

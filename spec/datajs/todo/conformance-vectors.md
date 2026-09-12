@@ -2124,7 +2124,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       each with itself as its value, so the body's key emitter and its value
       emitter are both reached for every spelling. That is the const-body
       position crossed with the escaping rule, which is the cross the
-      `__proto__` vector above did for one key only.
+      `__proto__` vector above did for one key only. That vector then took the
+      same correction: its shared object had the computed key **first**, so an
+      emitter using the computed form only for a body's first member passed, and
+      it now shares two objects, `{["__proto__"]:0,"x":1}` and
+      `{"x":0,["__proto__"]:1}`. Inside a hoisted body, first and later are two
+      paths for every one of these questions, which is the shape to assume from
+      here rather than to be told again.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2355,8 +2361,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       four of its `__proto__` records emit the key inline, so a writer with its
       own object emitter for a `const` body writes it literally there and this
       set's bytes never said otherwise. One vector under `const/shared/object`,
-      with the text the shipped writer emits,
-      `const $0={["__proto__"]:1};export default [$0,$0];`.
+      with the text the shipped writer emits, and it shares two objects rather
+      than one, since an emitter using the computed form only for a body's
+      **first** member passed while the key sat there:
+      `const $0={["__proto__"]:0,"x":1};const $1={"x":0,["__proto__"]:1};`.
       **And the two parent paths after it**, both of which this column had as
       little as the others. Nested key order was reached only through an array
       element here too, so the input takes `{"x":{"b":0,"a":1}}` beside the

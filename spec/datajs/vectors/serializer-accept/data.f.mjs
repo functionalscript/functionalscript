@@ -10,7 +10,8 @@ const $s8 = [$s7];
 const $s9 = {"x": $s7};
 const $s10 = {"d": 0, "c": 1};
 const $s11 = {};
-const $s12 = {["__proto__"]: 1};
+const $s12 = {["__proto__"]: 0, "x": 1};
+const $s14 = {"x": 0, ["__proto__"]: 1};
 const $f0 = [null, 0, null];
 const $f1 = [undefined, 0, undefined];
 const $f2 = [NaN, 0, NaN];
@@ -254,7 +255,7 @@ export default [
     {"id": "ser-object-keys-every-string", "class": "object/keys/every-string", "input": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}]},
     {"id": "ser-shared-empty-object", "class": "const/shared/object", "input": [$s11, $s11]},
     {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}},
-    {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12]},
+    {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12, $s14, $s14]},
     {"id": "ser-shared-object-escaped-keys", "class": "const/shared/object", "input": [$s13, $s13]},
     {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15]},
     {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15]}
