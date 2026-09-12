@@ -10,9 +10,11 @@ and `tryStringify` over the three passes of §1–§3, with every rule of §1 pr
 and the two worked examples of the hoisting and naming rules pinned. It refuses
 everything the specification refuses but **one host-built shape** — the
 `Array.prototype` impostor of §4, which no FunctionalScript caller can construct
-and which closes with either of the two decisions §4 names. What remains is the
-corpus proofs (§4), the module's own `module.f.mjs`, and a readable layout
-if one is wanted (§3).
+and which closes with either of the two decisions §4 names. The corpus proofs of
+§4 are done — all three writer-side sets run this writer — so what remains is
+the module's own `module.f.mjs`, the explicit-stack walk, the two quadratic
+steps measured, a readable layout if one is wanted (§3), and the impostor
+decision.
 **Blocked by:** nothing, for what is left of the implementation. What landed
 proves itself against the specification by hand, as
 [the reader](../parser/proof.f.mjs) does — that was the interim proof source, and
@@ -21,9 +23,10 @@ proofs below have their source.
 
 Its **corpus proofs** have their sets. The corpus's writer side is three sets,
 not four — `serializer-accept`, `graph-equivalence` and `normalize`, all three
-typed in [`../vectors/types.ts`](../vectors/types.ts) and all three in the tree;
-`normalize` carries 280 records and its own proof, which runs this writer over
-every one of them. There is no `serializer-reject`
+typed in [`../vectors/types.ts`](../vectors/types.ts), all three in the tree, and
+all three running this writer from their own proofs — `normalize` over its 280
+records byte for byte, `serializer-accept` over its 219 inputs, and
+`graph-equivalence` over its 16 sharing shapes. There is no `serializer-reject`
 and there are no **host recipes**: a serializer is handed a value of the data
 model and its type is the contract, so an accessor, a non-enumerable property,
 a `null` prototype and a cycle reach no serializer and the corpus describes
@@ -499,14 +502,22 @@ descriptor, so only a host caller reaches it — and a host caller is what the
       line and the hole-versus-`undefined` distinction proved.
 - [x] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
       `1e-6`/`1e-7` thresholds included.
-- [ ] Proofs over the three writer-side sets, all three of which have
-      landed in [the corpus](../../../../spec/datajs/vectors/README.md). There
-      is no fourth set and no host-input half, and neither is a scheduling
-      question: a set is a DataJS data module, so a set for values outside the
-      data model cannot be written at all, and the question whether a
-      `proof.mjs` may prove this API against host-built inputs was retired
-      rather than answered. If the open `unknown` question above is settled the
-      other way, what closes the gap is this module's own tests.
+- [x] Proofs over the three writer-side sets, all three of which have landed in
+      [the corpus](../../../../spec/datajs/vectors/README.md) and all three of
+      which now run this writer. `normalize` compares its 280 texts byte for
+      byte; `serializer-accept` hands over its 219 inputs and requires a document
+      the reader takes denoting each; `graph-equivalence` does the same over its
+      16 sharing shapes and also rules the output out of the vector's own
+      `denotesNot` list, which needs no reader. A spelling is asserted only where
+      the role permits it, which is `normalize` alone, and `serializer-accept`
+      also checks its output has a UTF-8 encoding, which the round trip cannot
+      see. There is no fourth set and
+      no host-input half, and neither is a scheduling question: a set is a DataJS
+      data module, so a set for values outside the data model cannot be written
+      at all, and the question whether a `proof.mjs` may prove this API against
+      host-built inputs was retired rather than answered. If the open `unknown`
+      question above is settled the other way, what closes the gap is this
+      module's own tests.
 - [ ] `module.f.mjs`, the public API of
       [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
       path lands beside it — and the `parse` versus `tryParse` naming with it.
