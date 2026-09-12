@@ -28,30 +28,44 @@ Publish a leaf builder from `fjs/media/json/serializer/module.f.mjs`
 beside `treeSerialize`:
 
 ```ts
-/** A leaf's spelling as chunks. */
-type LeafSerializer<V> = (value: V) => List<string>
-/** The dialect-specific arms; an arm left out falls to the shared default. */
-type ExtraLeaves = {
+/** A leaf's spelling as chunks. Public: every codec names it for its `numberSerialize`. */
+export type LeafSerializer<V> = (value: V) => List<string>
+/** The dialect-specific arms a configuration may carry. */
+type _ExtraLeaves = {
     readonly bigint?: LeafSerializer<bigint>
     readonly undefined?: LeafSerializer<undefined>
 }
-/** The leaf kinds a configuration serializes: the shared four plus each `extra` arm it carries. */
-type Leaves<X extends ExtraLeaves> =
+/**
+ * The leaf kinds a configuration serializes: the shared four plus each
+ * arm `X` carries as a **required** property. An optional key does not
+ * count — `{ bigint?: … }` is what a widened configuration looks like
+ * when the arm may be absent, and a kind is supported only where its
+ * serializer is known to be there.
+ */
+type _Leaves<X extends _ExtraLeaves> =
     | null | boolean | number | string
-    | ('bigint' extends keyof X ? bigint : never)
-    | ('undefined' extends keyof X ? undefined : never)
+    | (X extends { readonly bigint: LeafSerializer<bigint> } ? bigint : never)
+    | (X extends { readonly undefined: LeafSerializer<undefined> } ? undefined : never)
 const leafSerialize: (numberSerialize: LeafSerializer<number>)
-    => <X extends ExtraLeaves>(extra: X)
-    => LeafSerializer<Leaves<X>>
+    => <X extends _ExtraLeaves>(extra: X)
+    => LeafSerializer<_Leaves<X>>
 ```
 
 Every `extra` member is a serializer *function*, `undefined`'s included —
 a constant case is written `() => undefinedSerialize`, so there is one
 member shape and no second convention for "already a list". **The
-returned function's input type depends on the arms configured**: with
-`{}` it is `LeafSerializer<null | boolean | number | string>`, so
+returned function's input type depends on the arms actually present**:
+with `{}` it is `LeafSerializer<null | boolean | number | string>`, so
 `leafSerialize(numberSerialize)({})(1n)` is a type error rather than a
-`null` on the wire. The returned function dispatches on `typeof`:
+`null` on the wire — and so is the same call through a widened
+`const extra: _ExtraLeaves = {}`, because an optional `bigint?` is not a
+required `bigint` and `_Leaves` tests for the required one. A codec that
+wants `bigint` accepted passes a literal whose `bigint` arm is present,
+which is how all three callers here are written. Of the three helper
+types, `LeafSerializer` is public API — every codec spells its
+`numberSerialize` with it — and `_ExtraLeaves`/`_Leaves` are
+`_`-prefixed: they exist only to state `leafSerialize`'s declaration,
+inside the public closure because that declaration names them. The returned function dispatches on `typeof`:
 `boolean`/`string` to the shared atoms, `number` to the given serializer,
 `bigint`/`undefined` to their `extra` arm, `null` to `nullSerialize` —
 and a `bigint` or `undefined` that reaches a configuration with no arm

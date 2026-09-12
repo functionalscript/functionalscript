@@ -104,20 +104,33 @@ own: the exported reader is the single `'text'` instance re-typed
 generically over whatever alphabet surrounds it —
 
 ```js
-/** @type {<O extends { readonly id: string }>(node: _Readable<Text | Exclude<O, { readonly id: 'text' }>>) => string} */
-export const textAt = tagged('text', 'value').at
+/** @type {<O extends { readonly id: string }>(node: _Readable<Text | O>) => string} */
+export const textAt = node => {
+    const { meta } = symbolAt(node)
+    assert(meta.id === 'text')
+    const { value } = meta
+    assert(typeof value === 'string', ['not a text payload', value])
+    return value
+}
 ```
 
 — so a JSON node (`O = Json<P>`) and a DataJS node (`O = Value`) are
 both accepted, each alphabet's `Text` being the same declaration. The
-`Exclude` is what keeps that guarantee: the surrounding alphabet may
-contribute any members *but* another `text`-tagged one, so a
-`Meta<{ id: 'text', value: number }>` — which would infer `O` as that
-member, pass the runtime `id` assertion, and return a number typed as a
-string — is not assignable, because after `Exclude` the only `text`
-member the parameter admits is `Text` itself. That is the one-`id`,
-one-type convention applied across layers, checked at the type level
-for the one reader that crosses them. The
+guarantee that what comes back *is* a string is made **at runtime, not
+in the type**, and deliberately so. A type-level exclusion of other
+`text`-tagged members was tried and does not hold: `Exclude<O, { id:
+'text' }>` is bypassed by a widened `O = { id: string, value: number }`,
+a conditional on `O['id']` blocks inference of `O` from the node, and
+either leaves a `Meta<{ id: 'text', value: number }>` returning a number
+typed as a string. The payload check closes every such case in one
+line: a `text`-tagged member whose `value` is not a string is a
+**panic** — a caller error, since the alphabet convention says one `id`
+names one shape — and never a plausible wrong value
+([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+This is the one accessor that crosses layers, so it is the one that
+checks its payload; the layer-bound pairs (`json`, `value`) are covered
+by `tagged`'s alphabet parameter and the convention, and `textAt` is
+therefore written out rather than being `tagged('text', 'value').at`. The
 runtime is alphabet-agnostic already (it reads `meta.id` and
 `meta.value`); only the type had closed over JSON's `Out<P>`, which a
 `Utf16 | Text | Value` node is not assignable to. `text` (the
