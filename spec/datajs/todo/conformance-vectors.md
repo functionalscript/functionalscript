@@ -2378,7 +2378,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `{"a":k,"b":0}`, so all 36 cells of kind by body kind are present.
       Their texts were written from the rule and only then compared with the
       shipped writer, which is the order that makes them a claim: the const
-      names come out in post-order, `$0` through `$15`, one per shared node.
+      names come out in post-order, one per shared node.
+      The round after widened them by six, and only here: a shared body's first
+      child had been a keyword, a string, a container, `-0` or `-1`, so every
+      *number-formatting* branch was still missing from that slot — a writer
+      with its own path for a hoisted body's first child could spell `1.50` for
+      `1.5` and pass. The two vectors now start bodies with `1.5`, `1e21`,
+      `1e-7`, 2^53+1, the max finite and a multi-digit bigint as well, and the
+      writer's own answers are the claim: `1e+21`, `1e-7`, `9007199254740992`
+      and `1.7976931348623157e+308`, each predicted from the rule before it was
+      compared. The other two sets get none of the six, because a spelling is
+      what a graph check cannot see.
       And a latent trap in this set's own proof, found by review rather than by
       a failure: `spelling` built its expected text with `JSON.stringify`, which
       knows nothing about `["__proto__"]` being a production of its own, so the

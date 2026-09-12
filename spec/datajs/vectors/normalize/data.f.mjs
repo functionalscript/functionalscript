@@ -49,9 +49,15 @@ const $p9 = ["a", 0];
 const $p10 = [1n, 0];
 const $p11 = [-1n, 0];
 const $p12 = [0n, 0];
-const $p13 = [-1, 0];
-const $p14 = [[], 0];
-const $p15 = [{}, 0];
+const $p13 = [109n, 0];
+const $p14 = [-1, 0];
+const $p15 = [[], 0];
+const $p16 = [{}, 0];
+const $p17 = [1.5, 0];
+const $p18 = [1e21, 0];
+const $p19 = [1e-7, 0];
+const $p20 = [9007199254740993, 0];
+const $p21 = [1.7976931348623157e308, 0];
 const $q0 = {"a": null, "b": 0};
 const $q1 = {"a": undefined, "b": 0};
 const $q2 = {"a": NaN, "b": 0};
@@ -65,9 +71,15 @@ const $q9 = {"a": "a", "b": 0};
 const $q10 = {"a": 1n, "b": 0};
 const $q11 = {"a": -1n, "b": 0};
 const $q12 = {"a": 0n, "b": 0};
-const $q13 = {"a": -1, "b": 0};
-const $q14 = {"a": [], "b": 0};
-const $q15 = {"a": {}, "b": 0};
+const $q13 = {"a": 109n, "b": 0};
+const $q14 = {"a": -1, "b": 0};
+const $q15 = {"a": [], "b": 0};
+const $q16 = {"a": {}, "b": 0};
+const $q17 = {"a": 1.5, "b": 0};
+const $q18 = {"a": 1e21, "b": 0};
+const $q19 = {"a": 1e-7, "b": 0};
+const $q20 = {"a": 9007199254740993, "b": 0};
+const $q21 = {"a": 1.7976931348623157e308, "b": 0};
 const $n38 = {"a": 0, "\u2028": 1};
 const $n37 = {"\"": "\"", "\\": "\\", "\b": "\b", "\t": "\t", "\n": "\n", "\f": "\f", "\r": "\r", "\u0000": "\u0000", "\u001f": "\u001f"};
 export default [
@@ -343,6 +355,6 @@ export default [
     {"id": "norm-const-body-key-proto", "class": "const/shared/object", "input": [$n36, $n36], "text": "const $0={[\"__proto__\"]:1};export default [$0,$0];"},
     {"id": "norm-const-body-escaped-keys", "class": "const/shared/object", "input": [$n37, $n37], "text": "const $0={\"\\\"\":\"\\\"\",\"\\\\\":\"\\\\\",\"\\b\":\"\\b\",\"\\t\":\"\\t\",\"\\n\":\"\\n\",\"\\f\":\"\\f\",\"\\r\":\"\\r\",\"\\u0000\":\"\\u0000\",\"\\u001f\":\"\\u001f\"};export default [$0,$0];"},
     {"id": "norm-const-body-escaping-key-after-first", "class": "const/shared/object", "input": [$n38, $n38], "text": "const $0={\"a\":0,\"\u2028\":1};export default [$0,$0];"},
-    {"id": "norm-const-body-first-slot-array", "class": "const/shared/twice", "input": [$p0, $p0, $p1, $p1, $p2, $p2, $p3, $p3, $p4, $p4, $p5, $p5, $p6, $p6, $p7, $p7, $p8, $p8, $p9, $p9, $p10, $p10, $p11, $p11, $p12, $p12, $p13, $p13, $p14, $p14, $p15, $p15], "text": "const $0=[null,0];const $1=[undefined,0];const $2=[NaN,0];const $3=[Infinity,0];const $4=[-Infinity,0];const $5=[-0,0];const $6=[false,0];const $7=[true,0];const $8=[\"\",0];const $9=[\"a\",0];const $10=[1n,0];const $11=[-1n,0];const $12=[0n,0];const $13=[-1,0];const $14=[[],0];const $15=[{},0];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15];"},
-    {"id": "norm-const-body-first-slot-object", "class": "const/shared/object", "input": [$q0, $q0, $q1, $q1, $q2, $q2, $q3, $q3, $q4, $q4, $q5, $q5, $q6, $q6, $q7, $q7, $q8, $q8, $q9, $q9, $q10, $q10, $q11, $q11, $q12, $q12, $q13, $q13, $q14, $q14, $q15, $q15], "text": "const $0={\"a\":null,\"b\":0};const $1={\"a\":undefined,\"b\":0};const $2={\"a\":NaN,\"b\":0};const $3={\"a\":Infinity,\"b\":0};const $4={\"a\":-Infinity,\"b\":0};const $5={\"a\":-0,\"b\":0};const $6={\"a\":false,\"b\":0};const $7={\"a\":true,\"b\":0};const $8={\"a\":\"\",\"b\":0};const $9={\"a\":\"a\",\"b\":0};const $10={\"a\":1n,\"b\":0};const $11={\"a\":-1n,\"b\":0};const $12={\"a\":0n,\"b\":0};const $13={\"a\":-1,\"b\":0};const $14={\"a\":[],\"b\":0};const $15={\"a\":{},\"b\":0};export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15];"}
+    {"id": "norm-const-body-first-slot-array", "class": "const/shared/twice", "input": [$p0, $p0, $p1, $p1, $p2, $p2, $p3, $p3, $p4, $p4, $p5, $p5, $p6, $p6, $p7, $p7, $p8, $p8, $p9, $p9, $p10, $p10, $p11, $p11, $p12, $p12, $p13, $p13, $p14, $p14, $p15, $p15, $p16, $p16, $p17, $p17, $p18, $p18, $p19, $p19, $p20, $p20, $p21, $p21], "text": "const $0=[null,0];const $1=[undefined,0];const $2=[NaN,0];const $3=[Infinity,0];const $4=[-Infinity,0];const $5=[-0,0];const $6=[false,0];const $7=[true,0];const $8=[\"\",0];const $9=[\"a\",0];const $10=[1n,0];const $11=[-1n,0];const $12=[0n,0];const $13=[109n,0];const $14=[-1,0];const $15=[[],0];const $16=[{},0];const $17=[1.5,0];const $18=[1e+21,0];const $19=[1e-7,0];const $20=[9007199254740992,0];const $21=[1.7976931348623157e+308,0];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15,$16,$16,$17,$17,$18,$18,$19,$19,$20,$20,$21,$21];"},
+    {"id": "norm-const-body-first-slot-object", "class": "const/shared/object", "input": [$q0, $q0, $q1, $q1, $q2, $q2, $q3, $q3, $q4, $q4, $q5, $q5, $q6, $q6, $q7, $q7, $q8, $q8, $q9, $q9, $q10, $q10, $q11, $q11, $q12, $q12, $q13, $q13, $q14, $q14, $q15, $q15, $q16, $q16, $q17, $q17, $q18, $q18, $q19, $q19, $q20, $q20, $q21, $q21], "text": "const $0={\"a\":null,\"b\":0};const $1={\"a\":undefined,\"b\":0};const $2={\"a\":NaN,\"b\":0};const $3={\"a\":Infinity,\"b\":0};const $4={\"a\":-Infinity,\"b\":0};const $5={\"a\":-0,\"b\":0};const $6={\"a\":false,\"b\":0};const $7={\"a\":true,\"b\":0};const $8={\"a\":\"\",\"b\":0};const $9={\"a\":\"a\",\"b\":0};const $10={\"a\":1n,\"b\":0};const $11={\"a\":-1n,\"b\":0};const $12={\"a\":0n,\"b\":0};const $13={\"a\":109n,\"b\":0};const $14={\"a\":-1,\"b\":0};const $15={\"a\":[],\"b\":0};const $16={\"a\":{},\"b\":0};const $17={\"a\":1.5,\"b\":0};const $18={\"a\":1e+21,\"b\":0};const $19={\"a\":1e-7,\"b\":0};const $20={\"a\":9007199254740992,\"b\":0};const $21={\"a\":1.7976931348623157e+308,\"b\":0};export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15,$16,$16,$17,$17,$18,$18,$19,$19,$20,$20,$21,$21];"}
 ];
