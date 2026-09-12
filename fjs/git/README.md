@@ -26,6 +26,11 @@ what a grammar can and cannot do for the formats.
   for a repository's id width: a reader that reads what `git fsck` would
   flag, a `validate` that refuses it the way `fsck` does, `mode` as the
   number an entry's digits spell, and a writer.
+- [`refname/`](refname/module.f.mjs) — what names a ref takes, by the rules
+  `git check-ref-format` applies: the byte rules over the whole name, and the
+  rule each component between slashes must pass. A tag's `tag` header is a
+  ref name, which is why the tag module asks, and `HEAD`, a loose ref and a
+  `packed-refs` line carry one too.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
   block: `object`, `type`, `tag` and `tagger` as functions over the header
   list, read by position as Git reads them, and a `validate`.

@@ -192,25 +192,15 @@ export const proof = {
         assertStructurallySame(validate20(tag(['', 'm\0'])), ['error', 'no object'])
         assertStructurallySame(validate20(replaced(5, 'm\0'))[0], 'ok')
     },
-    // A tag's name is a ref name: what `git check-ref-format` takes passes,
-    // and each of its rules refuses.
+    // A tag's name is a ref name, so `validate` asks `fjs/git/refname`
+    // whether it is one and reports `bad tag name` where it is not. Which
+    // names those are is that module's rule and its proof walks the table;
+    // here it is the wiring and the message, one name each way.
     name: () => {
-        for (const n of ['v1.0', 'release/1.0', 'a@b', 'a.b.c', 'lock', 'x.locky', 'a{b', 'a/b/c', '\xE9', '@']) {
-            assertStructurallySame(validate20(replaced(2, `tag ${n}`))[0], 'ok')
-        }
-        for (const n of [
-            '', 'a b', 'a~b', 'a^b', 'a:b', 'a?b', 'a*b', 'a[b', 'a\\b', 'a\x01b', 'a\x7Fb',
-            'a..b', 'a@{b', 'a.', '.a', 'a/.b', 'a.lock', 'a.lock/b', 'a/', '/a', 'a//b',
-        ]) {
-            assertStructurallySame(validate20(replaced(2, `tag ${n}`)), ['error', 'bad tag name'])
-        }
+        assertStructurallySame(validate20(replaced(2, 'tag release/1.0'))[0], 'ok')
+        assertStructurallySame(validate20(replaced(2, 'tag a..b')), ['error', 'bad tag name'])
         assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 1 +000')), ['error', 'not a tagger'])
         assertStructurallySame(validate20(replaced(3, 'tagger A')), ['error', 'not a tagger'])
-        // A name is as long as its author made it, and is checked once over,
-        // not once per byte: twenty thousand bytes, and the same with slashes.
-        assertStructurallySame(validate20(replaced(2, `tag ${'n'.repeat(20000)}`))[0], 'ok')
-        assertStructurallySame(validate20(replaced(2, `tag ${'n/'.repeat(10000)}n`))[0], 'ok')
-        assertStructurallySame(validate20(replaced(2, `tag ${'n/'.repeat(10000)}`)), ['error', 'bad tag name'])
     },
     // The well-known fields panic on a tag `validate` refuses.
     throw: {
