@@ -4,7 +4,10 @@ The machine-readable form of [the specification](../README.md)'s Conformance
 section: the documents a reader accepts and rejects with the graphs they
 denote, the inputs a serializer accepts, and the bytes a normalized
 serializer produces. An implementation states which roles it
-provides and is judged on those sets alone. This file is the schema; the
+provides and is judged on the sets those roles own, with one inheritance:
+normalized form is a conforming serializer before it is a normalized one, so
+a normalized writer runs `serializer-accept` and `graph-equivalence` besides
+`normalize`. This file is the schema; the
 sets are the data modules beside it, one directory per set, and the issue
 that designed them is [`../todo/conformance-vectors.md`](../todo/conformance-vectors.md).
 
@@ -14,11 +17,18 @@ Each set is `<set>/data.f.mjs`, a FunctionalScript data module written in
 the DataJS subset the specification describes: `const $n = …;` statements,
 one `export default`, string keys, JSON's values and the leaves DataJS adds.
 So the engine imports it today and the reader reads the same file as a
-document — measured, every set parses and denotes exactly the value the
-engine imports, the sharing included. **That is a rule with teeth and it was
-broken:** every set ended with a trailing comma before its `]`, which
-JavaScript takes and DataJS refuses, so no set was readable by a conforming
-reader until it was removed. A value two vectors share is one `const` — a
+document: every set parses and denotes exactly the value the engine imports,
+the sharing included. **That is a rule with teeth and it was broken:** every
+set ended with a trailing comma before its `]`, which JavaScript takes and
+DataJS refuses, so no set was readable by a conforming reader until it was
+removed. It was found by measuring the files by hand, which is no
+guarantee at all, so `npm run gen` now reads each source back, parses it with
+the reader and compares the graph with the imported value — a set that stops
+being DataJS is a red check, like a class that loses a role. The comparison is
+the half worth having: the two can only disagree where both languages accept
+the text and read it differently, a key order or a share spelled twice, which
+is the one failure a corpus a harness *reads* rather than imports cannot
+survive. A value two vectors share is one `const` — a
 non-empty array or an object, never the empty array literal, which `tsc`
 types as an evolving array when a `const` binds it and refuses every read
 of. A set carries no
@@ -35,9 +45,18 @@ implementation.
 | - | - | - | - |
 | reader accept | `accept/` | `Accept` | the reader, as the set lands |
 | reader reject | `reject/` | `Reject` | the reader, as the set lands |
-| serializer accept | `serializer-accept/` | `SerializerAccept` | the serializer, when it lands |
-| graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer, when it lands |
-| normalize | `normalize/` | `Normalize` | the normalized serializer, when it lands |
+| serializer accept | `serializer-accept/` | `SerializerAccept` | the serializer |
+| graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer |
+| normalize | `normalize/` | `Normalize` | the normalized serializer |
+
+The writer has landed, so those three name an implementation that exists
+rather than one to come. What each set's own `proof.f.mjs` does is narrower
+than the column: it proves the set's shape, and for graph equivalence also
+that every `denotes` claim is true and every `denotesNot` one false, read
+back through the reader. The `normalize` set's proof goes further and runs
+the shipped writer over every vector, comparing its output with the text.
+`serializer-accept` and `graph-equivalence` have no such proof, so a harness
+is what closes those two.
 
 One directory holds no vectors: `not-applicable/` carries the reasons the
 matrix below needs. A record answers a **scope** rather than a single cell —
@@ -87,7 +106,12 @@ vector, the only kind that catches a reader delegating to the host; a
 
 **An expected graph** is a value of the data model, and sharing is part of
 it: `[$a, $a]` with one `const` is one node reached twice, and `[[], []]`
-is two nodes. A proof compares the graph an implementation produced with
+is two nodes. **One shared node has no vector in any role**: an empty array,
+which no set can bind — `const $e = [];` is an evolving `any[]` `tsc` refuses
+every read of — so a writer that expands one shared empty array into two passes
+the corpus. The limitation is
+[an issue of its own](./todo/shared-empty-array.md); the empty object shares
+normally. A proof compares the graph an implementation produced with
 `difference` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
@@ -113,9 +137,11 @@ property, a symbol key, an array carrying an extra own property, a cycle, a
 `null` prototype, an `Array` subclass and a frozen value reach no serializer
 in any case. A vector for an input no caller can construct can never run.
 
-**Normalized bytes** are the document as a string; a proof encodes it to
-compare bytes, and every string the normalized serializer emits is a valid
-document, so the accept grammar binds it.
+**Normalized bytes** are the document as a string, and the set's proof
+compares that string against what the shipped writer emits rather than
+encoding either to bytes, since two strings agreeing is the stronger claim
+and code units are what the record can carry. Every string the normalized
+serializer emits is a valid document, so the accept grammar binds it.
 
 ## The class-by-role matrix
 
@@ -124,8 +150,18 @@ it is current or the build is red. Rows are the classes, columns the three
 roles a conforming implementation may have — reader, serializer,
 normalize, since conformance is per role and a serializer-only
 implementation never runs a reader or a normalize vector. A cell is the
-vector ids that role has for that class, the reason it owes none, or a
-role whose sets have not landed.
+vector ids that role has for that class, a reference to the note saying why
+it owes none, or a role whose sets have not landed. A column is the sets
+that role **owns**, not every set an implementation of it runs, so the
+inheritance above does not fold in: a serializer vector asserts no spelling,
+and letting one fill a `normalize` cell would report a class as covered
+where nothing pins its bytes. That is not hypothetical — review found
+`array/elements/negative-first` carrying a serializer vector and no
+normalize one, and a column that inherited would have printed the first and
+hidden the second. The notes are listed
+once below the table, because one reason answers hundreds of cells and
+printing it in each would be the same sentence several hundred times over —
+unreadable, and past the bit vector's `maxLengthBytes` unwritable.
 
 **An empty cell with no reason fails the generator**, which is the whole
 point of generating it: prose that mentions a class in two roles reads

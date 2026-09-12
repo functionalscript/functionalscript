@@ -52,7 +52,7 @@ const keyedCollection = <K, V>(keyOf: (v: V) => K, keyCmp: (a: K) => (b: K) => S
   its `setReduce`/`setReplace`/`at` value-layer conveniences on top.
 
 Both consumers already exist: `ordered_map` is used widely (`object`,
-`djs/parser`, `djs/transpiler`, `media/datajs/parser`, `js/tokenizer`,
+`fsc/parser`, `fsc/transpiler`, `media/datajs/parser`, `js/tokenizer`,
 `website`); `string_set` is used by `ebnf/data`, `ebnf/ll1` and `website`. So
 extracting now satisfies the second-consumer rule.
 

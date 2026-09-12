@@ -5,7 +5,7 @@
 
 ### Problem
 
-In `fjs/djs/ast/module.f.mjs` the two container branches of `toDjs` are
+In `fjs/fsc/ast/module.f.mjs` the two container branches of `toDjs` are
 asymmetric. The array branch is declarative (`:54`):
 
 ```ts
@@ -61,13 +61,13 @@ same `toDjs(state)` transformation; only the disguise is removed.
 
 - [ ] Replace the object branch with the `map`; delete `FoldObjectState` and
       `foldAstObjectOp`; hoist `mapEntryValue`.
-- [ ] `tsc` clean; `fjs t` passes (`fjs/djs/ast/proof.f.mjs` and the djs
+- [ ] `tsc` clean; `fjs t` passes (`fjs/fsc/ast/proof.f.mjs` and the djs
       suite).
 
 ### Related
 
-- `fjs/djs/ast/types.ts:19-21`, `:30-36`, `:48-51` and
-  `fjs/djs/ast/module.f.mjs:18-25` — the types and code
+- `fjs/fsc/ast/types.ts:19-21`, `:30-36`, `:48-51` and
+  `fjs/fsc/ast/module.f.mjs:18-25` — the types and code
   involved.
 - [197](./197-djs-unknown-shape-walker.md) — the cross-function `Unknown`-walker factory; it lists
   `toDjs` as a caveat and defers its internals, so this intra-function

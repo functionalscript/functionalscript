@@ -7,9 +7,9 @@
  * layer resumes the parser"). Nothing follows a token here, and that is
  * what makes the grammar LL(1).
  *
- * Beside the classical grammar in `fjs/djs/tokenizer`, which the
+ * Beside the classical grammar in `fjs/fsc/tokenizer`, which the
  * backtracking backend read, four things are spelled differently, each
- * a conflict measured before the port and recorded in `fjs/djs/README.md`
+ * a conflict measured before the port and recorded in `fjs/fsc/README.md`
  * ("Both grammars are LL(1)"):
  *
  * - the block comment's `*` is left-factored: after a `*`, a `/` is the
@@ -30,7 +30,7 @@
  *
  * @module
  *
- * @import { AfterStar, Content } from './types.ts'
+ * @import { AfterStar, Content, TriviaKind } from './types.ts'
  */
 
 import { literals, range, remove, repeatFrom0, set, unicodeMax } from '../../module.f.mjs'
@@ -44,6 +44,17 @@ export const ws = set(' \t')
 
 /** One newline symbol. */
 export const newLine = set('\n\r')
+
+/**
+ * The rule above the grammar for the trivia it reads one symbol at a time:
+ * a maximal run of whitespace and newlines is one token, and the run is
+ * `nl` if it holds any newline — equal kinds coalesce, `nl` absorbs `ws`.
+ * Stated once, here, so that every reader of the grammar folds by the same
+ * rule rather than each restating it with only the proofs to catch a drift.
+ *
+ * @type {(a: TriviaKind, b: TriviaKind) => TriviaKind}
+ */
+export const mergeTrivia = (a, b) => a === 'nl' || b === 'nl' ? 'nl' : 'ws'
 
 const idStart = /**@type {const}*/({
     smallLetter: range('az'),

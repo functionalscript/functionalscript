@@ -77,7 +77,7 @@ const { hasOwn } = Object
  * `{ '__proto__': e }` — set the *prototype* instead, so there is no entry for
  * this to find. That is not a rule invented here: FunctionalScript's own parser
  * refuses both spellings with `__proto__ requires the computed key form`
- * (`../../../djs/parser/`), for this exact reason. The refused spelling was
+ * (`../../../fsc/parser/`), for this exact reason. The refused spelling was
  * never a working fixture anyway — `readdir` walks `Object.entries`, which is
  * own-only, so such a directory listed as empty while `stat` claimed the entry
  * existed. Now every operation agrees it is absent.

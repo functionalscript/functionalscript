@@ -11,10 +11,11 @@ separate pairs of modules each fork the same JSON value algorithm and then add
 the small DJS delta on top.
 
 The lexical layer is *partly* shared, and less than this issue once claimed.
-The grammar-based DJS tokenizer takes `isKeywordToken` and `mergeTrivia` from
-`fjs/js/tokenizer` and the simple-escape table from `fjs/js/string_escape`, but
-classifies characters and decodes numbers itself — whether that remainder is
-worth sharing is a lexer question, not this one. The duplication tracked here is
+The grammar-based DJS tokenizer takes its grammar and its token types from
+`fjs/ebnf/lib/js`, the keyword table from `fjs/js/keywords` and the
+simple-escape table from `fjs/js/string_escape`, nothing from
+`fjs/js/tokenizer`, and classifies characters and decodes numbers itself —
+whether that remainder is worth sharing is a lexer question, not this one. The duplication tracked here is
 one level up, in the **value** layer: parser, serializer, and the tokenizer's
 minus-rewriter.
 
@@ -25,7 +26,7 @@ landed independently.
 
 **This sub-task is done with, and must not be implemented.** It proposed sharing
 one container-building state machine between JSON and DJS because the two were
-line-for-line the same. The DJS half no longer exists: `fjs/djs/parser` is a BNF
+line-for-line the same. The DJS half no longer exists: `fjs/fsc/parser` is a BNF
 grammar over token symbols, and the value-state alphabet, the `pushValue` /
 `startArray` / `endObject` helpers, and the `parseValueOp`…`parseObjectCommaOp`
 family this issue tabulated were deleted with it.
@@ -221,10 +222,10 @@ line numbers changed. Any extraction here must first re-measure the current code
   compatibility.
 - `i003` (retired; shipped as this module) — the original DJS design: parse a
   module into a flat list of constants addressed by index. It landed verbatim —
-  [`ast/types.ts`](../ast/types.ts) carries the shape and
-  [`fjs/djs/README.md`](../README.md) records why the list is flat, with the
+  [`ast/types.ts`](../../fsc/ast/types.ts) carries the shape and
+  [`fjs/fsc/README.md`](../../fsc/README.md) records why the list is flat, with the
   design's own `['cref', n]` / `['aref', n]` / `['array', …]` spellings visible
-  in [`parser/proof.f.mjs`](../parser/proof.f.mjs).
+  in [`parser/proof.f.mjs`](../../fsc/parser/proof.f.mjs).
 - `i77` (retired) — identifier property names, the DJS object-key delta. It was
   `Support for property accessor`, and its whole body was a pointer to the spec
   section plus a sketch of the operators (`instant_property`, `at`,

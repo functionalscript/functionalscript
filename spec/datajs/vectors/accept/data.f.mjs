@@ -1,3 +1,4 @@
+const $m0 = [0];
 const $s0 = [0];
 const $s1 = [0];
 const $s2 = [0];
@@ -7,6 +8,128 @@ const $s5 = [1];
 const $s6 = [0];
 const $s7 = {};
 const $s8 = [0];
+const $s9 = {"d": 0, "c": 1};
+const $s10 = {"a": 0};
+const $s11 = {["__proto__"]: 0, "x": 1};
+const $s13 = {"x": 0, ["__proto__"]: 1};
+const $f0 = [null, 0, null];
+const $f1 = [undefined, 0, undefined];
+const $f2 = [NaN, 0, NaN];
+const $f3 = [Infinity, 0, Infinity];
+const $f4 = [-Infinity, 0, -Infinity];
+const $f5 = [-0, 0, -0];
+const $f6 = [false, 0, false];
+const $f7 = [true, 0, true];
+const $f8 = ["", 0, ""];
+const $f9 = ["a", 0, "a"];
+const $f10 = [1n, 0, 1n];
+const $f11 = [-1n, 0, -1n];
+const $f12 = [0n, 0, 0n];
+const $f13 = [-1, 0, -1];
+const $f14 = [[], 0, []];
+const $f15 = [{}, 0, {}];
+const $f16 = ["\"", 0, "\""];
+const $f17 = ["\\", 0, "\\"];
+const $f18 = ["\b", 0, "\b"];
+const $f19 = ["\t", 0, "\t"];
+const $f20 = ["\n", 0, "\n"];
+const $f21 = ["\f", 0, "\f"];
+const $f22 = ["\r", 0, "\r"];
+const $f23 = ["\u0000", 0, "\u0000"];
+const $f24 = ["\u001f", 0, "\u001f"];
+const $g0 = {"a": null, "b": 0, "c": null};
+const $g1 = {"a": undefined, "b": 0, "c": undefined};
+const $g2 = {"a": NaN, "b": 0, "c": NaN};
+const $g3 = {"a": Infinity, "b": 0, "c": Infinity};
+const $g4 = {"a": -Infinity, "b": 0, "c": -Infinity};
+const $g5 = {"a": -0, "b": 0, "c": -0};
+const $g6 = {"a": false, "b": 0, "c": false};
+const $g7 = {"a": true, "b": 0, "c": true};
+const $g8 = {"a": "", "b": 0, "c": ""};
+const $g9 = {"a": "a", "b": 0, "c": "a"};
+const $g10 = {"a": 1n, "b": 0, "c": 1n};
+const $g11 = {"a": -1n, "b": 0, "c": -1n};
+const $g12 = {"a": 0n, "b": 0, "c": 0n};
+const $g13 = {"a": -1, "b": 0, "c": -1};
+const $g14 = {"a": [], "b": 0, "c": []};
+const $g15 = {"a": {}, "b": 0, "c": {}};
+const $g16 = {"a": "\"", "b": 0, "c": "\""};
+const $g17 = {"a": "\\", "b": 0, "c": "\\"};
+const $g18 = {"a": "\b", "b": 0, "c": "\b"};
+const $g19 = {"a": "\t", "b": 0, "c": "\t"};
+const $g20 = {"a": "\n", "b": 0, "c": "\n"};
+const $g21 = {"a": "\f", "b": 0, "c": "\f"};
+const $g22 = {"a": "\r", "b": 0, "c": "\r"};
+const $g23 = {"a": "\u0000", "b": 0, "c": "\u0000"};
+const $g24 = {"a": "\u001f", "b": 0, "c": "\u001f"};
+const $s12 = {"\"": "\"", "\\": "\\", "\b": "\b", "\t": "\t", "\n": "\n", "\f": "\f", "\r": "\r", "\u0000": "\u0000", "\u001f": "\u001f"};
+const $h0 = {"\"": 0, "a": 1};
+const $h1 = {"\\": 0, "a": 1};
+const $h2 = {"\b": 0, "a": 1};
+const $h3 = {"\t": 0, "a": 1};
+const $h4 = {"\n": 0, "a": 1};
+const $h5 = {"\f": 0, "a": 1};
+const $h6 = {"\r": 0, "a": 1};
+const $h7 = {"\u0000": 0, "a": 1};
+const $h8 = {"\u001f": 0, "a": 1};
+const $h9 = {"a": 0, "\"": 1};
+const $h10 = {"a": 0, "\\": 1};
+const $h11 = {"a": 0, "\b": 1};
+const $h12 = {"a": 0, "\t": 1};
+const $h13 = {"a": 0, "\n": 1};
+const $h14 = {"a": 0, "\f": 1};
+const $h15 = {"a": 0, "\r": 1};
+const $h16 = {"a": 0, "\u0000": 1};
+const $h17 = {"a": 0, "\u001f": 1};
+const $f25 = ["\u2028", 0, "\u2028"];
+const $f26 = ["\ud800", 0, "\ud800"];
+const $f27 = ["\ud800\udc00", 0, "\ud800\udc00"];
+const $g25 = {"a": "\u2028", "b": 0, "c": "\u2028"};
+const $g26 = {"a": "\ud800", "b": 0, "c": "\ud800"};
+const $g27 = {"a": "\ud800\udc00", "b": 0, "c": "\ud800\udc00"};
+const $h18 = {"\u2028": 0, "a": 1};
+const $h19 = {"\ud800": 0, "a": 1};
+const $h20 = {"\ud800\udc00": 0, "a": 1};
+const $h21 = {"a": 0, "\u2028": 1};
+const $h22 = {"a": 0, "\ud800": 1};
+const $h23 = {"a": 0, "\ud800\udc00": 1};
+const $t0 = [0];
+const $f28 = ["\ud800\ud800", 0, "\ud800\ud800"];
+const $f29 = ["\udc00\ud800", 0, "\udc00\ud800"];
+const $f30 = ["\udc00\udc00", 0, "\udc00\udc00"];
+const $f31 = ["\udbff\udbff", 0, "\udbff\udbff"];
+const $f32 = ["\udfff\udbff", 0, "\udfff\udbff"];
+const $f33 = ["\udfff\udfff", 0, "\udfff\udfff"];
+const $f34 = ["\ud800\udbff", 0, "\ud800\udbff"];
+const $g28 = {"a": "\ud800\ud800", "b": 0, "c": "\ud800\ud800"};
+const $g29 = {"a": "\udc00\ud800", "b": 0, "c": "\udc00\ud800"};
+const $g30 = {"a": "\udc00\udc00", "b": 0, "c": "\udc00\udc00"};
+const $g31 = {"a": "\udbff\udbff", "b": 0, "c": "\udbff\udbff"};
+const $g32 = {"a": "\udfff\udbff", "b": 0, "c": "\udfff\udbff"};
+const $g33 = {"a": "\udfff\udfff", "b": 0, "c": "\udfff\udfff"};
+const $g34 = {"a": "\ud800\udbff", "b": 0, "c": "\ud800\udbff"};
+const $h24 = {"\ud800\ud800": 0, "a": 1};
+const $h25 = {"\udc00\ud800": 0, "a": 1};
+const $h26 = {"\udc00\udc00": 0, "a": 1};
+const $h27 = {"\udbff\udbff": 0, "a": 1};
+const $h28 = {"\udfff\udbff": 0, "a": 1};
+const $h29 = {"\udfff\udfff": 0, "a": 1};
+const $h30 = {"\ud800\udbff": 0, "a": 1};
+const $h31 = {"a": 0, "\ud800\ud800": 1};
+const $h32 = {"a": 0, "\udc00\ud800": 1};
+const $h33 = {"a": 0, "\udc00\udc00": 1};
+const $h34 = {"a": 0, "\udbff\udbff": 1};
+const $h35 = {"a": 0, "\udfff\udbff": 1};
+const $h36 = {"a": 0, "\udfff\udfff": 1};
+const $h37 = {"a": 0, "\ud800\udbff": 1};
+const $u0 = [1];
+const $v0 = [0, $u0];
+const $u1 = [1];
+const $v1 = {"a": 0, "b": $u1};
+const $u2 = [0];
+const $v2 = {"x": $u2, ["__proto__"]: $u2};
+const $u3 = [0];
+const $v3 = {["__proto__"]: $u3, "x": $u3};
 export default [
     {"id": "null", "class": "leaf/null", "document": "export default null;", "graph": null},
     {"id": "true", "class": "leaf/boolean/true", "document": "export default true;", "graph": true},
@@ -204,7 +327,7 @@ export default [
     {"id": "array-nested-array", "class": "array/nested/array", "document": "export default [[1]];", "graph": [[1]]},
     {"id": "array-nested-object", "class": "array/nested/object", "document": "export default [{\"a\":1}];", "graph": [{"a": 1}]},
     {"id": "array-nested-empty", "class": "array/nested/empty", "document": "export default [[],{}];", "graph": [[], {}]},
-    {"id": "array-elements-every-value", "class": "array/elements/every-value", "document": "const $0=1;export default [null,true,false,undefined,NaN,Infinity,-Infinity,0,-0,9,-9,1.5,1e2,1n,-1n,\"\",\"a\",[],{},$0];", "graph": [null, true, false, undefined, NaN, Infinity, -Infinity, 0, -0, 9, -9, 1.5, 100, 1n, -1n, "", "a", [], {}, 1]},
+    {"id": "array-elements-every-value", "class": "array/elements/every-value", "document": "const $0=1;export default [null,true,false,undefined,NaN,Infinity,-Infinity,0,-0,9,-9,1.5,1e2,1n,-1n,\"\",\"a\",\"\u2028\",\"\\ud800\",\"\\u0000\",\"\\ud800\\udc00\",[],{},$0];", "graph": [null, true, false, undefined, NaN, Infinity, -Infinity, 0, -0, 9, -9, 1.5, 100, 1n, -1n, "", "a", "\u2028", "\ud800", "\u0000", "\ud800\udc00", [], {}, 1]},
     {"id": "array-elements-negative-first", "class": "array/elements/negative-first", "document": "export default [-1,-1n,-Infinity];", "graph": [-1, -1n, -Infinity]},
     {"id": "array-nested-deep", "class": "array/nested/deep", "document": "export default [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]];", "graph": [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]},
     {"id": "object-empty", "class": "object/empty", "document": "export default {};", "graph": {}},
@@ -214,7 +337,7 @@ export default [
     {"id": "object-nested-object", "class": "object/nested/object", "document": "export default {\"a\":{\"b\":1}};", "graph": {"a": {"b": 1}}},
     {"id": "object-nested-array", "class": "object/nested/array", "document": "export default {\"a\":[1]};", "graph": {"a": [1]}},
     {"id": "object-nested-empty", "class": "object/nested/empty", "document": "export default {\"a\":{},\"b\":[]};", "graph": {"a": {}, "b": []}},
-    {"id": "object-members-every-value", "class": "object/members/every-value", "document": "const $0=1;export default {\"a\":null,\"b\":true,\"c\":false,\"d\":undefined,\"e\":NaN,\"f\":Infinity,\"g\":-Infinity,\"h\":0,\"i\":-0,\"j\":9,\"k\":-9,\"l\":1.5,\"m\":1e2,\"n\":1n,\"o\":-1n,\"p\":\"\",\"q\":\"a\",\"r\":[],\"s\":{},\"t\":$0};", "graph": {"a": null, "b": true, "c": false, "d": undefined, "e": NaN, "f": Infinity, "g": -Infinity, "h": 0, "i": -0, "j": 9, "k": -9, "l": 1.5, "m": 100, "n": 1n, "o": -1n, "p": "", "q": "a", "r": [], "s": {}, "t": 1}},
+    {"id": "object-members-every-value", "class": "object/members/every-value", "document": "const $0=1;export default {\"a\":null,\"b\":true,\"c\":false,\"d\":undefined,\"e\":NaN,\"f\":Infinity,\"g\":-Infinity,\"h\":0,\"i\":-0,\"j\":9,\"k\":-9,\"l\":1.5,\"m\":1e2,\"n\":1n,\"o\":-1n,\"p\":\"\",\"q\":\"a\",\"r\":[],\"s\":{},\"t\":$0,\"u\":\"\u2028\",\"v\":\"\\ud800\",\"w\":\"\\u0000\",\"x\":\"\\ud800\\udc00\"};", "graph": {"a": null, "b": true, "c": false, "d": undefined, "e": NaN, "f": Infinity, "g": -Infinity, "h": 0, "i": -0, "j": 9, "k": -9, "l": 1.5, "m": 100, "n": 1n, "o": -1n, "p": "", "q": "a", "r": [], "s": {}, "t": 1, "u": "\u2028", "v": "\ud800", "w": "\u0000", "x": "\ud800\udc00"}},
     {"id": "object-nested-deep", "class": "object/nested/deep", "document": "export default {\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":{\"a\":1}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}};", "graph": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": {"a": 1}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},
     {"id": "mixed-nested", "class": "array/object/nested/mixed", "document": "export default [{\"a\":[{\"b\":[]}]},[{\"c\":{}}]];", "graph": [{"a": [{"b": []}]}, [{"c": {}}]]},
     {"id": "key-proto", "class": "key/proto", "document": "export default {[\"__proto__\"]:1};", "graph": {["__proto__"]: 1}},
@@ -343,5 +466,67 @@ export default [
     {"id": "document-spelling-readable", "class": "document/spelling/readable", "document": "const $0 = [0];\nexport default [\n    $0,\n    $0\n];\n", "graph": [$s8, $s8]},
     {"id": "document-many-consts", "class": "document/consts/many", "document": "const $0=0;const $1=1;const $2=2;const $3=3;const $4=4;const $5=5;const $6=6;const $7=7;const $8=8;const $9=9;const $10=10;const $11=11;const $12=12;const $13=13;const $14=14;const $15=15;const $16=16;const $17=17;const $18=18;const $19=19;const $20=20;const $21=21;const $22=22;const $23=23;const $24=24;const $25=25;const $26=26;const $27=27;const $28=28;const $29=29;const $30=30;const $31=31;const $32=32;const $33=33;const $34=34;const $35=35;const $36=36;const $37=37;const $38=38;const $39=39;const $40=40;const $41=41;const $42=42;const $43=43;const $44=44;const $45=45;const $46=46;const $47=47;const $48=48;const $49=49;const $50=50;const $51=51;const $52=52;const $53=53;const $54=54;const $55=55;const $56=56;const $57=57;const $58=58;const $59=59;const $60=60;const $61=61;const $62=62;const $63=63;const $64=64;const $65=65;const $66=66;const $67=67;const $68=68;const $69=69;const $70=70;const $71=71;const $72=72;const $73=73;const $74=74;const $75=75;const $76=76;const $77=77;const $78=78;const $79=79;const $80=80;const $81=81;const $82=82;const $83=83;const $84=84;const $85=85;const $86=86;const $87=87;const $88=88;const $89=89;const $90=90;const $91=91;const $92=92;const $93=93;const $94=94;const $95=95;const $96=96;const $97=97;const $98=98;const $99=99;export default [$0,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55,$56,$57,$58,$59,$60,$61,$62,$63,$64,$65,$66,$67,$68,$69,$70,$71,$72,$73,$74,$75,$76,$77,$78,$79,$80,$81,$82,$83,$84,$85,$86,$87,$88,$89,$90,$91,$92,$93,$94,$95,$96,$97,$98,$99];", "graph": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]},
     {"id": "document-const-chain-long", "class": "document/consts/chain", "document": "const $0=[];const $1={\"a\":$0};const $2=[$1];const $3={\"a\":$2};const $4=[$3];const $5={\"a\":$4};const $6=[$5];const $7={\"a\":$6};const $8=[$7];const $9={\"a\":$8};const $10=[$9];const $11={\"a\":$10};const $12=[$11];const $13={\"a\":$12};const $14=[$13];const $15={\"a\":$14};const $16=[$15];const $17={\"a\":$16};const $18=[$17];const $19={\"a\":$18};const $20=[$19];const $21={\"a\":$20};const $22=[$21];const $23={\"a\":$22};const $24=[$23];const $25={\"a\":$24};const $26=[$25];const $27={\"a\":$26};const $28=[$27];const $29={\"a\":$28};const $30=[$29];const $31={\"a\":$30};const $32=[$31];const $33={\"a\":$32};const $34=[$33];const $35={\"a\":$34};const $36=[$35];const $37={\"a\":$36};const $38=[$37];const $39={\"a\":$38};const $40=[$39];const $41={\"a\":$40};const $42=[$41];const $43={\"a\":$42};const $44=[$43];const $45={\"a\":$44};const $46=[$45];const $47={\"a\":$46};const $48=[$47];const $49={\"a\":$48};const $50=[$49];const $51={\"a\":$50};const $52=[$51];const $53={\"a\":$52};const $54=[$53];const $55={\"a\":$54};const $56=[$55];const $57={\"a\":$56};const $58=[$57];const $59={\"a\":$58};const $60=[$59];const $61={\"a\":$60};const $62=[$61];const $63={\"a\":$62};const $64=[$63];const $65={\"a\":$64};const $66=[$65];const $67={\"a\":$66};const $68=[$67];const $69={\"a\":$68};const $70=[$69];const $71={\"a\":$70};const $72=[$71];const $73={\"a\":$72};const $74=[$73];const $75={\"a\":$74};const $76=[$75];const $77={\"a\":$76};const $78=[$77];const $79={\"a\":$78};const $80=[$79];const $81={\"a\":$80};const $82=[$81];const $83={\"a\":$82};const $84=[$83];const $85={\"a\":$84};const $86=[$85];const $87={\"a\":$86};const $88=[$87];const $89={\"a\":$88};const $90=[$89];const $91={\"a\":$90};const $92=[$91];const $93={\"a\":$92};const $94=[$93];const $95={\"a\":$94};const $96=[$95];const $97={\"a\":$96};const $98=[$97];const $99={\"a\":$98};export default $99;", "graph": {"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": [{"a": []}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}]}},
-    {"id": "byte-valid-widths", "class": "byte/valid/widths", "document": ["hex", "65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c3 a9 e2 82 ac f0 90 80 80 22 3b"], "graph": "a\u00e9\u20ac\ud800\udc00"}
+    {"id": "string-escape-u00-0000", "class": "string/escape/u00/0000", "document": "export default \"\\u0000\";", "graph": "\u0000"},
+    {"id": "string-escape-u00-001f", "class": "string/escape/u00/001f", "document": "export default \"\\u001f\";", "graph": "\u001f"},
+    {"id": "key-escape-u00-0000", "class": "key/string/escape/u00/0000", "document": "export default {\"\\u0000\":0};", "graph": {"\u0000": 0}},
+    {"id": "key-escape-u00-001f", "class": "key/string/escape/u00/001f", "document": "export default {\"\\u001f\":0};", "graph": {"\u001f": 0}},
+    {"id": "const-shared-mixed", "class": "const/shared/mixed", "document": "const $0=[0];export default [[$0],{\"x\":$0}];", "graph": [[$m0], {"x": $m0}]},
+    {"id": "object-unshared-equal", "class": "object/unshared/equal", "document": "export default [{\"a\":0},{\"a\":0}];", "graph": [{"a": 0}, {"a": 0}]},
+    {"id": "array-unshared-object-parent", "class": "array/unshared", "document": "export default {\"x\":[],\"y\":[]};", "graph": {"x": [], "y": []}},
+    {"id": "array-unshared-equal-object-parent", "class": "array/unshared/equal", "document": "export default {\"x\":[1],\"y\":[1]};", "graph": {"x": [1], "y": [1]}},
+    {"id": "object-unshared-object-parent", "class": "object/unshared", "document": "export default {\"x\":{},\"y\":{}};", "graph": {"x": {}, "y": {}}},
+    {"id": "object-unshared-equal-object-parent", "class": "object/unshared/equal", "document": "export default {\"x\":{\"a\":0},\"y\":{\"a\":0}};", "graph": {"x": {"a": 0}, "y": {"a": 0}}},
+    {"id": "object-members-negative-first-zero", "class": "object/members/negative-first", "document": "export default {\"a\":-0,\"b\":1};", "graph": {"a": -0, "b": 1}},
+    {"id": "object-members-negative-first-number", "class": "object/members/negative-first", "document": "export default {\"a\":-1,\"b\":1};", "graph": {"a": -1, "b": 1}},
+    {"id": "object-members-negative-first-bigint", "class": "object/members/negative-first", "document": "export default {\"a\":-1n,\"b\":1};", "graph": {"a": -1n, "b": 1}},
+    {"id": "object-members-negative-first-infinity", "class": "object/members/negative-first", "document": "export default {\"a\":-Infinity,\"b\":1};", "graph": {"a": -Infinity, "b": 1}},
+    {"id": "key-raw-ws-like-2028-after-first", "class": "key/string/raw/ws-like/2028", "document": "export default {\"a\":0,\"\u2028\":0};", "graph": {"a": 0, "\u2028": 0}},
+    {"id": "byte-valid-widths", "class": "byte/valid/widths", "document": ["hex", "65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c3 a9 e2 82 ac f0 90 80 80 22 3b"], "graph": "a\u00e9\u20ac\ud800\udc00"},
+    {"id": "string-escape-quote-every-slot", "class": "string/escape/quote", "document": "export default [\"\\\"\",0,\"\\\"\"];", "graph": ["\"", 0, "\""]},
+    {"id": "key-escape-quote-every-slot", "class": "key/string/escape/quote", "document": "export default [{\"\\\"\":\"\\\"\",\"a\":1},{\"a\":0,\"\\\"\":\"\\\"\"}];", "graph": [{"\"": "\"", "a": 1}, {"a": 0, "\"": "\""}]},
+    {"id": "string-escape-backslash-every-slot", "class": "string/escape/backslash", "document": "export default [\"\\\\\",0,\"\\\\\"];", "graph": ["\\", 0, "\\"]},
+    {"id": "key-escape-backslash-every-slot", "class": "key/string/escape/backslash", "document": "export default [{\"\\\\\":\"\\\\\",\"a\":1},{\"a\":0,\"\\\\\":\"\\\\\"}];", "graph": [{"\\": "\\", "a": 1}, {"a": 0, "\\": "\\"}]},
+    {"id": "string-escape-slash-every-slot", "class": "string/escape/slash", "document": "export default [\"\\/\",0,\"\\/\"];", "graph": ["/", 0, "/"]},
+    {"id": "key-escape-slash-every-slot", "class": "key/string/escape/slash", "document": "export default [{\"\\/\":\"\\/\",\"a\":1},{\"a\":0,\"\\/\":\"\\/\"}];", "graph": [{"/": "/", "a": 1}, {"a": 0, "/": "/"}]},
+    {"id": "string-escape-b-every-slot", "class": "string/escape/b", "document": "export default [\"\\b\",0,\"\\b\"];", "graph": ["\b", 0, "\b"]},
+    {"id": "key-escape-b-every-slot", "class": "key/string/escape/b", "document": "export default [{\"\\b\":\"\\b\",\"a\":1},{\"a\":0,\"\\b\":\"\\b\"}];", "graph": [{"\b": "\b", "a": 1}, {"a": 0, "\b": "\b"}]},
+    {"id": "string-escape-f-every-slot", "class": "string/escape/f", "document": "export default [\"\\f\",0,\"\\f\"];", "graph": ["\f", 0, "\f"]},
+    {"id": "key-escape-f-every-slot", "class": "key/string/escape/f", "document": "export default [{\"\\f\":\"\\f\",\"a\":1},{\"a\":0,\"\\f\":\"\\f\"}];", "graph": [{"\f": "\f", "a": 1}, {"a": 0, "\f": "\f"}]},
+    {"id": "string-escape-n-every-slot", "class": "string/escape/n", "document": "export default [\"\\n\",0,\"\\n\"];", "graph": ["\n", 0, "\n"]},
+    {"id": "key-escape-n-every-slot", "class": "key/string/escape/n", "document": "export default [{\"\\n\":\"\\n\",\"a\":1},{\"a\":0,\"\\n\":\"\\n\"}];", "graph": [{"\n": "\n", "a": 1}, {"a": 0, "\n": "\n"}]},
+    {"id": "string-escape-r-every-slot", "class": "string/escape/r", "document": "export default [\"\\r\",0,\"\\r\"];", "graph": ["\r", 0, "\r"]},
+    {"id": "key-escape-r-every-slot", "class": "key/string/escape/r", "document": "export default [{\"\\r\":\"\\r\",\"a\":1},{\"a\":0,\"\\r\":\"\\r\"}];", "graph": [{"\r": "\r", "a": 1}, {"a": 0, "\r": "\r"}]},
+    {"id": "string-escape-t-every-slot", "class": "string/escape/t", "document": "export default [\"\\t\",0,\"\\t\"];", "graph": ["\t", 0, "\t"]},
+    {"id": "key-escape-t-every-slot", "class": "key/string/escape/t", "document": "export default [{\"\\t\":\"\\t\",\"a\":1},{\"a\":0,\"\\t\":\"\\t\"}];", "graph": [{"\t": "\t", "a": 1}, {"a": 0, "\t": "\t"}]},
+    {"id": "string-escape-u-09af-every-slot", "class": "string/escape/u/09af", "document": "export default [\"\\u09af\",0,\"\\u09af\"];", "graph": ["\u09af", 0, "\u09af"]},
+    {"id": "key-escape-u-09af-every-slot", "class": "key/string/escape/u/09af", "document": "export default [{\"\\u09af\":\"\\u09af\",\"a\":1},{\"a\":0,\"\\u09af\":\"\\u09af\"}];", "graph": [{"\u09af": "\u09af", "a": 1}, {"a": 0, "\u09af": "\u09af"}]},
+    {"id": "string-escape-u-9afA-every-slot", "class": "string/escape/u/9afA", "document": "export default [\"\\u9afA\",0,\"\\u9afA\"];", "graph": ["\u9afa", 0, "\u9afa"]},
+    {"id": "key-escape-u-9afA-every-slot", "class": "key/string/escape/u/9afA", "document": "export default [{\"\\u9afA\":\"\\u9afA\",\"a\":1},{\"a\":0,\"\\u9afA\":\"\\u9afA\"}];", "graph": [{"\u9afa": "\u9afa", "a": 1}, {"a": 0, "\u9afa": "\u9afa"}]},
+    {"id": "string-escape-u-afAF-every-slot", "class": "string/escape/u/afAF", "document": "export default [\"\\uafAF\",0,\"\\uafAF\"];", "graph": ["\uafaf", 0, "\uafaf"]},
+    {"id": "key-escape-u-afAF-every-slot", "class": "key/string/escape/u/afAF", "document": "export default [{\"\\uafAF\":\"\\uafAF\",\"a\":1},{\"a\":0,\"\\uafAF\":\"\\uafAF\"}];", "graph": [{"\uafaf": "\uafaf", "a": 1}, {"a": 0, "\uafaf": "\uafaf"}]},
+    {"id": "string-escape-u-fAF0-every-slot", "class": "string/escape/u/fAF0", "document": "export default [\"\\ufAF0\",0,\"\\ufAF0\"];", "graph": ["\ufaf0", 0, "\ufaf0"]},
+    {"id": "key-escape-u-fAF0-every-slot", "class": "key/string/escape/u/fAF0", "document": "export default [{\"\\ufAF0\":\"\\ufAF0\",\"a\":1},{\"a\":0,\"\\ufAF0\":\"\\ufAF0\"}];", "graph": [{"\ufaf0": "\ufaf0", "a": 1}, {"a": 0, "\ufaf0": "\ufaf0"}]},
+    {"id": "string-escape-u-AF09-every-slot", "class": "string/escape/u/AF09", "document": "export default [\"\\uAF09\",0,\"\\uAF09\"];", "graph": ["\uaf09", 0, "\uaf09"]},
+    {"id": "key-escape-u-AF09-every-slot", "class": "key/string/escape/u/AF09", "document": "export default [{\"\\uAF09\":\"\\uAF09\",\"a\":1},{\"a\":0,\"\\uAF09\":\"\\uAF09\"}];", "graph": [{"\uaf09": "\uaf09", "a": 1}, {"a": 0, "\uaf09": "\uaf09"}]},
+    {"id": "string-escape-u-F09a-every-slot", "class": "string/escape/u/F09a", "document": "export default [\"\\uF09a\",0,\"\\uF09a\"];", "graph": ["\uf09a", 0, "\uf09a"]},
+    {"id": "key-escape-u-F09a-every-slot", "class": "key/string/escape/u/F09a", "document": "export default [{\"\\uF09a\":\"\\uF09a\",\"a\":1},{\"a\":0,\"\\uF09a\":\"\\uF09a\"}];", "graph": [{"\uf09a": "\uf09a", "a": 1}, {"a": 0, "\uf09a": "\uf09a"}]},
+    {"id": "string-escape-u00-0000-every-slot", "class": "string/escape/u00/0000", "document": "export default [\"\\u0000\",0,\"\\u0000\"];", "graph": ["\u0000", 0, "\u0000"]},
+    {"id": "key-escape-u00-0000-every-slot", "class": "key/string/escape/u00/0000", "document": "export default [{\"\\u0000\":\"\\u0000\",\"a\":1},{\"a\":0,\"\\u0000\":\"\\u0000\"}];", "graph": [{"\u0000": "\u0000", "a": 1}, {"a": 0, "\u0000": "\u0000"}]},
+    {"id": "string-escape-u00-001f-every-slot", "class": "string/escape/u00/001f", "document": "export default [\"\\u001f\",0,\"\\u001f\"];", "graph": ["\u001f", 0, "\u001f"]},
+    {"id": "key-escape-u00-001f-every-slot", "class": "key/string/escape/u00/001f", "document": "export default [{\"\\u001f\":\"\\u001f\",\"a\":1},{\"a\":0,\"\\u001f\":\"\\u001f\"}];", "graph": [{"\u001f": "\u001f", "a": 1}, {"a": 0, "\u001f": "\u001f"}]},
+    {"id": "array-elements-every-value-first", "class": "array/elements/every-value-first", "document": "export default [[null,0],[true,0],[false,0],[undefined,0],[NaN,0],[Infinity,0],[-Infinity,0],[0,0],[-0,0],[9,0],[-9,0],[1.5,0],[1e2,0],[1n,0],[-1n,0],[0n,0],[\"\",0],[\"a\",0],[\"\u2028\",0],[\"\\ud800\",0],[\"\\u0000\",0],[\"\\ud800\\udc00\",0],[[],0],[{},0]];", "graph": [[null, 0], [true, 0], [false, 0], [undefined, 0], [NaN, 0], [Infinity, 0], [-Infinity, 0], [0, 0], [-0, 0], [9, 0], [-9, 0], [1.5, 0], [100, 0], [1n, 0], [-1n, 0], [0n, 0], ["", 0], ["a", 0], ["\u2028", 0], ["\ud800", 0], ["\u0000", 0], ["\ud800\udc00", 0], [[], 0], [{}, 0]]},
+    {"id": "object-members-every-value-first", "class": "object/members/every-value-first", "document": "export default [{\"a\":null,\"b\":0},{\"a\":true,\"b\":0},{\"a\":false,\"b\":0},{\"a\":undefined,\"b\":0},{\"a\":NaN,\"b\":0},{\"a\":Infinity,\"b\":0},{\"a\":-Infinity,\"b\":0},{\"a\":0,\"b\":0},{\"a\":-0,\"b\":0},{\"a\":9,\"b\":0},{\"a\":-9,\"b\":0},{\"a\":1.5,\"b\":0},{\"a\":1e2,\"b\":0},{\"a\":1n,\"b\":0},{\"a\":-1n,\"b\":0},{\"a\":0n,\"b\":0},{\"a\":\"\",\"b\":0},{\"a\":\"a\",\"b\":0},{\"a\":\"\u2028\",\"b\":0},{\"a\":\"\\ud800\",\"b\":0},{\"a\":\"\\u0000\",\"b\":0},{\"a\":\"\\ud800\\udc00\",\"b\":0},{\"a\":[],\"b\":0},{\"a\":{},\"b\":0}];", "graph": [{"a": null, "b": 0}, {"a": true, "b": 0}, {"a": false, "b": 0}, {"a": undefined, "b": 0}, {"a": NaN, "b": 0}, {"a": Infinity, "b": 0}, {"a": -Infinity, "b": 0}, {"a": 0, "b": 0}, {"a": -0, "b": 0}, {"a": 9, "b": 0}, {"a": -9, "b": 0}, {"a": 1.5, "b": 0}, {"a": 100, "b": 0}, {"a": 1n, "b": 0}, {"a": -1n, "b": 0}, {"a": 0n, "b": 0}, {"a": "", "b": 0}, {"a": "a", "b": 0}, {"a": "\u2028", "b": 0}, {"a": "\ud800", "b": 0}, {"a": "\u0000", "b": 0}, {"a": "\ud800\udc00", "b": 0}, {"a": [], "b": 0}, {"a": {}, "b": 0}]},
+    {"id": "object-key-order-nested", "class": "object/key-order/nested", "document": "const $0={\"d\":0,\"c\":1};export default [{\"b\":0,\"a\":1},{\"x\":{\"b\":0,\"a\":1}},$0,$0];", "graph": [{"b": 0, "a": 1}, {"x": {"b": 0, "a": 1}}, $s9, $s9]},
+    {"id": "object-keys-every-string", "class": "object/keys/every-string", "document": "export default [{\"\u2028\":0,\"\\ud800\":1,\"\\u0000\":2,\"\\ud800\\udc00\":3,\"a\":4}];", "graph": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}]},
+    {"id": "const-shared-object-parent", "class": "const/shared/object", "document": "const $0={\"a\":0};export default {\"x\":$0,\"y\":$0};", "graph": {"x": $s10, "y": $s10}},
+    {"id": "const-shared-object-proto-key", "class": "const/shared/object", "document": "const $0={[\"__proto__\"]:0,\"x\":1};const $1={\"x\":0,[\"__proto__\"]:1};export default [$0,$0,$1,$1];", "graph": [$s11, $s11, $s13, $s13]},
+    {"id": "const-shared-object-escaped-keys", "class": "const/shared/object", "document": "const $0={\"\\\"\":\"\\\"\",\"\\\\\":\"\\\\\",\"\\b\":\"\\b\",\"\\t\":\"\\t\",\"\\n\":\"\\n\",\"\\f\":\"\\f\",\"\\r\":\"\\r\",\"\\u0000\":\"\\u0000\",\"\\u001f\":\"\\u001f\"};export default [$0,$0];", "graph": [$s12, $s12]},
+    {"id": "const-body-every-slot-array", "class": "const/shared/twice", "document": "const $0=[null,0,null];const $1=[undefined,0,undefined];const $2=[NaN,0,NaN];const $3=[Infinity,0,Infinity];const $4=[-Infinity,0,-Infinity];const $5=[-0,0,-0];const $6=[false,0,false];const $7=[true,0,true];const $8=[\"\",0,\"\"];const $9=[\"a\",0,\"a\"];const $10=[1n,0,1n];const $11=[-1n,0,-1n];const $12=[0n,0,0n];const $13=[-1,0,-1];const $14=[[],0,[]];const $15=[{},0,{}];const $16=[\"\\\"\",0,\"\\\"\"];const $17=[\"\\\\\",0,\"\\\\\"];const $18=[\"\\b\",0,\"\\b\"];const $19=[\"\\t\",0,\"\\t\"];const $20=[\"\\n\",0,\"\\n\"];const $21=[\"\\f\",0,\"\\f\"];const $22=[\"\\r\",0,\"\\r\"];const $23=[\"\\u0000\",0,\"\\u0000\"];const $24=[\"\\u001f\",0,\"\\u001f\"];const $25=[\" \",0,\" \"];const $26=[\"\\ud800\",0,\"\\ud800\"];const $27=[\"𐀀\",0,\"𐀀\"];const $28=[\"\\ud800\\ud800\",0,\"\\ud800\\ud800\"];const $29=[\"\\udc00\\ud800\",0,\"\\udc00\\ud800\"];const $30=[\"\\udc00\\udc00\",0,\"\\udc00\\udc00\"];const $31=[\"\\udbff\\udbff\",0,\"\\udbff\\udbff\"];const $32=[\"\\udfff\\udbff\",0,\"\\udfff\\udbff\"];const $33=[\"\\udfff\\udfff\",0,\"\\udfff\\udfff\"];const $34=[\"\\ud800\\udbff\",0,\"\\ud800\\udbff\"];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15,$16,$16,$17,$17,$18,$18,$19,$19,$20,$20,$21,$21,$22,$22,$23,$23,$24,$24,$25,$25,$26,$26,$27,$27,$28,$28,$29,$29,$30,$30,$31,$31,$32,$32,$33,$33,$34,$34];", "graph": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15, $f16, $f16, $f17, $f17, $f18, $f18, $f19, $f19, $f20, $f20, $f21, $f21, $f22, $f22, $f23, $f23, $f24, $f24, $f25, $f25, $f26, $f26, $f27, $f27, $f28, $f28, $f29, $f29, $f30, $f30, $f31, $f31, $f32, $f32, $f33, $f33, $f34, $f34]},
+    {"id": "const-body-every-slot-object", "class": "const/shared/object", "document": "const $0={\"a\":null,\"b\":0,\"c\":null};const $1={\"a\":undefined,\"b\":0,\"c\":undefined};const $2={\"a\":NaN,\"b\":0,\"c\":NaN};const $3={\"a\":Infinity,\"b\":0,\"c\":Infinity};const $4={\"a\":-Infinity,\"b\":0,\"c\":-Infinity};const $5={\"a\":-0,\"b\":0,\"c\":-0};const $6={\"a\":false,\"b\":0,\"c\":false};const $7={\"a\":true,\"b\":0,\"c\":true};const $8={\"a\":\"\",\"b\":0,\"c\":\"\"};const $9={\"a\":\"a\",\"b\":0,\"c\":\"a\"};const $10={\"a\":1n,\"b\":0,\"c\":1n};const $11={\"a\":-1n,\"b\":0,\"c\":-1n};const $12={\"a\":0n,\"b\":0,\"c\":0n};const $13={\"a\":-1,\"b\":0,\"c\":-1};const $14={\"a\":[],\"b\":0,\"c\":[]};const $15={\"a\":{},\"b\":0,\"c\":{}};const $16={\"a\":\"\\\"\",\"b\":0,\"c\":\"\\\"\"};const $17={\"a\":\"\\\\\",\"b\":0,\"c\":\"\\\\\"};const $18={\"a\":\"\\b\",\"b\":0,\"c\":\"\\b\"};const $19={\"a\":\"\\t\",\"b\":0,\"c\":\"\\t\"};const $20={\"a\":\"\\n\",\"b\":0,\"c\":\"\\n\"};const $21={\"a\":\"\\f\",\"b\":0,\"c\":\"\\f\"};const $22={\"a\":\"\\r\",\"b\":0,\"c\":\"\\r\"};const $23={\"a\":\"\\u0000\",\"b\":0,\"c\":\"\\u0000\"};const $24={\"a\":\"\\u001f\",\"b\":0,\"c\":\"\\u001f\"};const $25={\"a\":\" \",\"b\":0,\"c\":\" \"};const $26={\"a\":\"\\ud800\",\"b\":0,\"c\":\"\\ud800\"};const $27={\"a\":\"𐀀\",\"b\":0,\"c\":\"𐀀\"};const $28={\"a\":\"\\ud800\\ud800\",\"b\":0,\"c\":\"\\ud800\\ud800\"};const $29={\"a\":\"\\udc00\\ud800\",\"b\":0,\"c\":\"\\udc00\\ud800\"};const $30={\"a\":\"\\udc00\\udc00\",\"b\":0,\"c\":\"\\udc00\\udc00\"};const $31={\"a\":\"\\udbff\\udbff\",\"b\":0,\"c\":\"\\udbff\\udbff\"};const $32={\"a\":\"\\udfff\\udbff\",\"b\":0,\"c\":\"\\udfff\\udbff\"};const $33={\"a\":\"\\udfff\\udfff\",\"b\":0,\"c\":\"\\udfff\\udfff\"};const $34={\"a\":\"\\ud800\\udbff\",\"b\":0,\"c\":\"\\ud800\\udbff\"};export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15,$16,$16,$17,$17,$18,$18,$19,$19,$20,$20,$21,$21,$22,$22,$23,$23,$24,$24,$25,$25,$26,$26,$27,$27,$28,$28,$29,$29,$30,$30,$31,$31,$32,$32,$33,$33,$34,$34];", "graph": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15, $g16, $g16, $g17, $g17, $g18, $g18, $g19, $g19, $g20, $g20, $g21, $g21, $g22, $g22, $g23, $g23, $g24, $g24, $g25, $g25, $g26, $g26, $g27, $g27, $g28, $g28, $g29, $g29, $g30, $g30, $g31, $g31, $g32, $g32, $g33, $g33, $g34, $g34]},
+    {"id": "const-shared-object-escaping-key-every-slot", "class": "const/shared/object", "document": "const $0={\"\\\"\":0,\"a\":1};const $1={\"\\\\\":0,\"a\":1};const $2={\"\\b\":0,\"a\":1};const $3={\"\\t\":0,\"a\":1};const $4={\"\\n\":0,\"a\":1};const $5={\"\\f\":0,\"a\":1};const $6={\"\\r\":0,\"a\":1};const $7={\"\\u0000\":0,\"a\":1};const $8={\"\\u001f\":0,\"a\":1};const $9={\"a\":0,\"\\\"\":1};const $10={\"a\":0,\"\\\\\":1};const $11={\"a\":0,\"\\b\":1};const $12={\"a\":0,\"\\t\":1};const $13={\"a\":0,\"\\n\":1};const $14={\"a\":0,\"\\f\":1};const $15={\"a\":0,\"\\r\":1};const $16={\"a\":0,\"\\u0000\":1};const $17={\"a\":0,\"\\u001f\":1};const $18={\" \":0,\"a\":1};const $19={\"\\ud800\":0,\"a\":1};const $20={\"𐀀\":0,\"a\":1};const $21={\"a\":0,\" \":1};const $22={\"a\":0,\"\\ud800\":1};const $23={\"a\":0,\"𐀀\":1};const $24={\"\\ud800\\ud800\":0,\"a\":1};const $25={\"\\udc00\\ud800\":0,\"a\":1};const $26={\"\\udc00\\udc00\":0,\"a\":1};const $27={\"\\udbff\\udbff\":0,\"a\":1};const $28={\"\\udfff\\udbff\":0,\"a\":1};const $29={\"\\udfff\\udfff\":0,\"a\":1};const $30={\"\\ud800\\udbff\":0,\"a\":1};const $31={\"a\":0,\"\\ud800\\ud800\":1};const $32={\"a\":0,\"\\udc00\\ud800\":1};const $33={\"a\":0,\"\\udc00\\udc00\":1};const $34={\"a\":0,\"\\udbff\\udbff\":1};const $35={\"a\":0,\"\\udfff\\udbff\":1};const $36={\"a\":0,\"\\udfff\\udfff\":1};const $37={\"a\":0,\"\\ud800\\udbff\":1};export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10,$11,$11,$12,$12,$13,$13,$14,$14,$15,$15,$16,$16,$17,$17,$18,$18,$19,$19,$20,$20,$21,$21,$22,$22,$23,$23,$24,$24,$25,$25,$26,$26,$27,$27,$28,$28,$29,$29,$30,$30,$31,$31,$32,$32,$33,$33,$34,$34,$35,$35,$36,$36,$37,$37];", "graph": [$h0, $h0, $h1, $h1, $h2, $h2, $h3, $h3, $h4, $h4, $h5, $h5, $h6, $h6, $h7, $h7, $h8, $h8, $h9, $h9, $h10, $h10, $h11, $h11, $h12, $h12, $h13, $h13, $h14, $h14, $h15, $h15, $h16, $h16, $h17, $h17, $h18, $h18, $h19, $h19, $h20, $h20, $h21, $h21, $h22, $h22, $h23, $h23, $h24, $h24, $h25, $h25, $h26, $h26, $h27, $h27, $h28, $h28, $h29, $h29, $h30, $h30, $h31, $h31, $h32, $h32, $h33, $h33, $h34, $h34, $h35, $h35, $h36, $h36, $h37, $h37]},
+    {"id": "key-proto-shared-later", "class": "key/proto/value/shared", "document": "const $0=[0];export default {\"a\":$0,[\"__proto__\"]:$0};", "graph": {"a": $t0, ["__proto__"]: $t0}},
+    {"id": "nested-later-element", "class": "const/shared/nested", "document": "const $0=[1];const $1=[0,$0];export default [$1,$1,$0];", "graph": [$v0, $v0, $u0]},
+    {"id": "nested-later-member", "class": "const/shared/nested", "document": "const $0=[1];const $1={\"a\":0,\"b\":$0};export default [$1,$1,$0];", "graph": [$v1, $v1, $u1]},
+    {"id": "proto-shared-body-later", "class": "key/proto/value/shared", "document": "const $0=[0];const $1={\"x\":$0,[\"__proto__\"]:$0};export default [$1,$1,$0];", "graph": [$v2, $v2, $u2]},
+    {"id": "proto-shared-body-first", "class": "key/proto/value/shared", "document": "const $0=[0];const $1={[\"__proto__\"]:$0,\"x\":$0};export default [$1,$1,$0];", "graph": [$v3, $v3, $u3]}
 ];

@@ -43,19 +43,27 @@
  * @module
  *
  * @import { Result } from '../../../../types/result/types.ts'
- * @import { IoChannel, Mkdir, NodeProgram, WriteFile } from '../../../../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, NodeProgram, ReadFile, WriteFile } from '../../../../effects/node/types.ts'
  * @import { Effect } from '../../../../effects/types.ts'
+ * @import { Vec } from '../../../../types/bit_vec/types.ts'
  * @import { Base } from '../types.ts'
+ * @import { Unknown } from '../../types.ts'
  * @import { Corpus, NotApplicable, Role, Scope } from './types.ts'
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.mjs'
-import { step } from '../../../../effects/module.f.mjs'
-import { errorExit, exitStep, mkdir, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
+import { errorExit, exitStep, mkdir, readFile, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { fromVec } from '../../../../text/utf8/module.f.mjs'
+import { parse } from '../../parser/module.f.mjs'
+import { difference } from '../module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
 import { error, ok } from '../../../../types/result/module.f.mjs'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.mjs'
+import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.mjs'
+import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.mjs'
+import normalizeSet from '../../../../../spec/datajs/vectors/normalize/data.f.mjs'
 import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.mjs'
 
 /** Where the matrix is written. @type {string} */
@@ -82,10 +90,18 @@ export const corpus = {
                 ['reject', /** @type {readonly Base[]} */ (reject)],
             ],
         },
-        { role: 'serializer', sets: [] },
-        { role: 'normalize', sets: [] },
+        {
+            role: 'serializer',
+            sets: [
+                ['serializer-accept', /** @type {readonly Base[]} */ (serializerAccept)],
+                ['graph-equivalence', /** @type {readonly Base[]} */ (graphEquivalence)],
+            ],
+        },
+        { role: 'normalize', sets: [['normalize', /** @type {readonly Base[]} */ (normalizeSet)]] },
     ],
-    notApplicable: /** @type {readonly NotApplicable[]} */ (notApplicableData),
+    // through `unknown`: a data module spells a scope as an array literal,
+    // which infers as `string[]` rather than as the tagged tuple the type has
+    notApplicable: /** @type {readonly NotApplicable[]} */ (/** @type {unknown} */ (notApplicableData)),
 }
 
 /** @type {(a: string) => string} */
@@ -139,17 +155,25 @@ const specificity = ([tag, name]) =>
 const showScope = ([tag, name]) => `${tag} ${name}`
 
 /**
- * The reason the corpus gives for an empty cell, or `null` — the most
- * specific of those that reach it, since a wider one is what a narrower one
- * is an exception to.
+ * Which reason answers an empty cell, as its index in the corpus, or `-1` —
+ * the most specific of those that reach it, since a wider one is what a
+ * narrower one is an exception to.
  *
- * @type {(corpus: Corpus, role: string, c: string) => string | null}
+ * The index rather than the text, because one reason answers hundreds of
+ * cells and the table names it once. Printing it in each would be the same
+ * sentence several hundred times, which is unreadable and, past
+ * `maxLengthBytes`, unwritable.
+ *
+ * @type {(corpus: Corpus, role: string, c: string) => number}
  */
 const reasonOf = ({ roles, notApplicable }, role, c) => {
-    const matching = notApplicable.filter(n => n.role === role && reaches(roles, n.scope, c))
-    return matching.length === 0
-        ? null
-        : matching.reduce((a, b) => specificity(b.scope) > specificity(a.scope) ? b : a).because
+    let best = -1
+    for (let i = 0; i < notApplicable.length; i += 1) {
+        const n = notApplicable[i]
+        if (n.role !== role || !reaches(roles, n.scope, c)) { continue }
+        if (best === -1 || specificity(n.scope) > specificity(notApplicable[best].scope)) { best = i }
+    }
+    return best
 }
 
 /**
@@ -169,17 +193,20 @@ const reasonOf = ({ roles, notApplicable }, role, c) => {
  */
 const cell = (corpus, role, c) => {
     if (role.sets.length === 0) {
-        return reasonOf(corpus, role.role, c) === null
+        return reasonOf(corpus, role.role, c) === -1
             ? ok('*awaiting the set*')
             : error(`${c} in ${role.role}: a reason for a role whose sets have not landed`)
     }
     const ids = idsOf(role, c)
     if (ids.length !== 0) { return ok(ids.map(code).join(', ')) }
     const reason = reasonOf(corpus, role.role, c)
-    return reason === null
+    return reason === -1
         ? error(`${c} in ${role.role}: no vector and no reason`)
-        : ok(`not applicable: ${reason}`)
+        : ok(`not applicable, ${note(reason)}`)
 }
+
+/** How a cell names the reason that answers it. @type {(i: number) => string} */
+const note = i => `[note ${i + 1}](#notes)`
 
 /** @type {string} */
 const lower = 'abcdefghijklmnopqrstuvwxyz'
@@ -449,7 +476,7 @@ const row = (corpus, c) => {
 const summary = (corpus, role) => {
     const classes = classesOf(corpus.roles)
     const withVectors = classes.filter(c => idsOf(role, c).length !== 0).length
-    const notApplicable = classes.filter(c => idsOf(role, c).length === 0 && reasonOf(corpus, role.role, c) !== null).length
+    const notApplicable = classes.filter(c => idsOf(role, c).length === 0 && reasonOf(corpus, role.role, c) !== -1).length
     const sets = role.sets.length === 0
         ? 'no set yet'
         : role.sets.map(([name]) => code(name)).join(', ')
@@ -457,12 +484,15 @@ const summary = (corpus, role) => {
 }
 
 /**
- * The defects a corpus has, as the failure a caller reads.
+ * The defects a corpus has, as the failure a caller reads. The subject is the
+ * **corpus** rather than the table, because these are not all the table's: a
+ * source that is not a DataJS document is a defect of the corpus that the
+ * generator reports in the same list.
  *
  * @type {(failures: readonly string[]) => Result<string, string>}
  */
 const refused = failures => error([
-    `the class-by-role matrix has ${failures.length} defects:`,
+    `the corpus has ${failures.length} defects:`,
     ...failures.map(f => `  ${f}`),
     'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
 ].join('\n'))
@@ -473,20 +503,31 @@ const refused = failures => error([
  * vector ids, the reason there are none, or a role whose sets have not
  * landed.
  *
- * @type {(corpus: Corpus) => Result<string, string>}
+ * `also` carries defects found outside the table — the source checks below —
+ * and they are reported **beside** the matrix's own rather than instead of
+ * them. One edit can break both at once, a new vector with a trailing comma
+ * whose class no role answers being the obvious case, and a generator that
+ * reports one kind at a time turns one fix into two runs.
+ *
+ * They ride alongside a malformed scope too, which the exclusivity rule below
+ * does not reach: that rule is about defects *derived from reading* a scope,
+ * and a source defect is not derived from reading anything.
+ *
+ * @type {(corpus: Corpus, also?: readonly string[]) => Result<string, string>}
  */
-export const matrix = corpus => {
+export const matrix = (corpus, also = []) => {
     // A malformed scope is refused first and alone. Every other check reads a
     // scope as a tag and a name, so one that is neither cannot be read by them
     // at all — a one-element tuple has no name to render and no family to
     // measure. Reporting it beside failures derived from reading it would be
     // reporting the same defect twice over.
     const bad = malformed(corpus)
-    if (bad.length !== 0) { return refused(bad) }
+    if (bad.length !== 0) { return refused([...also, ...bad]) }
     const classes = classesOf(corpus.roles)
     const rows = classes.map(c => row(corpus, c))
     /** @type {readonly string[]} */
     const failures = [
+        ...also,
         ...roleless(corpus),
         ...unrenderable(corpus),
         ...ambiguous(corpus),
@@ -510,10 +551,15 @@ export const matrix = corpus => {
         'the thing an implementation can get wrong on its own. A **role** is what an',
         'implementation does — conformance is per role, so a serializer-only one',
         'never runs a reader or a normalize vector. A cell is the vectors that role',
-        'has for that class, the reason it owes none, or a role whose sets have not',
-        'landed. An empty cell with no reason fails the generator, which is the whole',
-        'point: prose that mentions a class in two roles reads exactly like prose that',
-        'mentions it in three.',
+        'has for that class, a reference to the note saying why it owes none, or a',
+        'role whose sets have not landed. A column is the sets that role owns, not',
+        'every set an implementation of it runs: a normalized writer runs the two',
+        'serializer sets as well, and folding that in would let a vector asserting',
+        'no spelling report a class whose bytes nothing pins.',
+        '',
+        'An empty cell with no reason fails the generator, which is the whole',
+        'point: prose that mentions a class in two roles reads exactly like prose',
+        'that mentions it in three.',
         '',
         '| role | sets | classes covered | not applicable | awaiting |',
         '| - | - | -: | -: | -: |',
@@ -525,6 +571,16 @@ export const matrix = corpus => {
         `| - |${header.map(() => ' - |').join('')}`,
         ...classes.map((c, i) => `| ${code(c)} | ${/** @type {readonly string[]} */ (rows[i][1]).join(' | ')} |`),
         '',
+        '## Notes',
+        '',
+        'Why a role owes no vector. Each is a record in',
+        '`spec/datajs/vectors/not-applicable`, and answers either one class, every',
+        'class under a prefix, or every class no set but one carries — so one note',
+        'stands under as many rows as it is true of.',
+        '',
+        ...corpus.notApplicable.map((n, i) =>
+            `${i + 1}. **${code(n.role)}**, ${n.scope[0]} ${code(n.scope[1])} — ${n.because}`),
+        '',
     ].join('\n'))
 }
 
@@ -535,6 +591,87 @@ export const matrix = corpus => {
  * @type {(text: string) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const write = text => step(mkdir(directory, { recursive: true }), () => writeUtf8File(path, text))
+
+/**
+ * Every data module the corpus is made of, under the name its directory
+ * carries. The reasons are one of them: `not-applicable/data.f.mjs` makes the
+ * same promise the vector sets make and broke it the same way.
+ *
+ * @type {(corpus: Corpus) => readonly (readonly [string, unknown])[]}
+ */
+export const modules = ({ roles, notApplicable }) => [
+    ...roles.flatMap(({ sets }) => sets.map(([name, vectors]) =>
+        /** @type {readonly [string, unknown]} */ ([name, vectors]))),
+    ['not-applicable', notApplicable],
+]
+
+/** Where a data module's own source is. @type {(name: string) => string} */
+export const sourceOf = name => `${directory}/${name}/data.f.mjs`
+
+/**
+ * What a data module's own source says, against the value the engine imported
+ * from it: the DataJS reader reads the source, and `difference` compares the
+ * graph it denotes with that value.
+ *
+ * `spec/datajs/vectors/README.md` promises every set is a module of the DataJS
+ * subset, which is what makes the corpus portable — a harness in another
+ * language reads these files rather than importing them. For all six the
+ * promise was false: each ended with a trailing comma before its `]`, which
+ * JavaScript takes and DataJS refuses, so no conforming reader could read the
+ * corpus it is the corpus for. The reject set says a trailing comma is not
+ * DataJS in four vectors of its own, so the corpus stated the rule and broke it
+ * in its own text.
+ *
+ * That was fixed by measuring each file by hand once. **Measuring by hand is
+ * not a check**, and the promise is worth exactly what enforces it, so it is
+ * enforced here, where the generator already reads the corpus and already fails
+ * the build.
+ *
+ * Parsing alone would not be enough. A source can be a DataJS document and
+ * denote something other than what the engine imported — a `1e2` the reader
+ * takes as `100`, a shared node spelled twice, a key order the two disagree on
+ * — and a harness would then be conforming against a different corpus from the
+ * one this repository's own proofs run. So the graph is compared too, sharing
+ * and key order included, which is what `difference` compares.
+ *
+ * @type {(name: string, bytes: Vec, imported: unknown) => readonly string[]}
+ */
+export const sourceDefect = (name, bytes, imported) => {
+    // The bytes come first because the rule does. Decoding before checking
+    // would make the check unable to see its own subject: this repository's
+    // `utf8ToString` maps an illegal byte to a character rather than failing —
+    // measured, `FF` becomes U+00FF, a truncated `C2` becomes U+00C2, an
+    // overlong `C0 AF` becomes two characters, and `ED A0 80` becomes a lone
+    // surrogate. So `const $0="\u00ff";export default [];` written with a raw
+    // `FF` decodes to a valid document denoting the graph the engine imported,
+    // and every later check passes on a file that is not UTF-8 at all.
+    const text = fromVec(bytes)
+    if (text === null) {
+        return [`the set ${name}: its own source is not correct UTF-8`]
+    }
+    const [tag, value] = parse(text)
+    if (tag === 'error') {
+        return [`the set ${name}: its own source is not a DataJS document, ${value}`]
+    }
+    const d = difference(/** @type {Unknown} */ (imported))(value)
+    return d === null ? [] : [`the set ${name}: its source denotes another graph, ${d}`]
+}
+
+/**
+ * Every data module's source read back and checked, as the defects the matrix
+ * reports beside its own. A file that cannot be read is a defect of the same
+ * kind: the corpus promises the file is there for a harness to read.
+ *
+ * @type {(corpus: Corpus) => Effect<ReadFile, readonly string[], never>}
+ */
+export const sourceDefects = corpus => foldStep(
+    pureOk(modules(corpus)),
+    /** @type {readonly string[]} */ ([]),
+    ([name, imported]) => defects => resultMapStep(
+        readFile(sourceOf(name)),
+        ([tag, value]) => ok([...defects, ...tag === 'error'
+            ? [`the set ${name}: its source cannot be read, ${errorMessage(value)}`]
+            : sourceDefect(name, value, imported)])))
 
 /**
  * `gen` regenerates the matrix on every pull request, so a set that lands
@@ -550,8 +687,10 @@ export const write = text => step(mkdir(directory, { recursive: true }), () => w
  * @type {(corpus: Corpus) => NodeProgram}
  */
 export const program = corpus => _options => {
-    const text = matrix(corpus)
-    return text[0] === 'error' ? errorExit(text[1]) : exitStep(write(text[1]))
+    const checked = sourceDefects(corpus)
+    const rendered = mapStep(checked, defects => matrix(corpus, defects))
+    return step(rendered, ([tag, value]) =>
+        tag === 'error' ? errorExit(value) : exitStep(write(value)))
 }
 
 /** @type {NodeProgram} */

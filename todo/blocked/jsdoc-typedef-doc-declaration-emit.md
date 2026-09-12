@@ -27,7 +27,7 @@ to `types.ts`, which is the workaround, not the fix). As of
 [#1530](https://github.com/functionalscript/functionalscript/pull/1530) the
 repository's exposure is limited to future code: the last three documented
 public typedefs authored in `.mjs` (`ParseContext`/`djsResult` in
-`fjs/djs/transpiler`, `Step` in `fjs/protocol/mcp/stdio`) moved to sibling
+`fjs/fsc/transpiler`, `Step` in `fjs/protocol/mcp/stdio`) moved to sibling
 `types.ts` files, and a sweep measures zero remaining. Implementation-local
 `_`-prefixed typedefs keep their (fewer) doc comments in `.mjs` and are still
 subject to the bug.

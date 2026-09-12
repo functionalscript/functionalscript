@@ -19,10 +19,19 @@ import { concat } from '../../types/string/module.f.mjs'
 import { flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.mjs'
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
-import { objectWrap, arrayWrap, colon, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+import { objectWrap, arrayWrap, colon, stringSerialize, numberSerialize as jsonNumberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
-const { entries } = Object
+const { entries, is } = Object
+
+/**
+ * A number as the parser reads it back: `-0` is written `-0`, where JSON's
+ * writer, `ToString`, writes `0` and loses the sign — the one departure
+ * DataJS names too. `parseFloat('-0')` is `-0`, so the round trip holds.
+ *
+ * @type {(value: number) => List<string>}
+ */
+const numberSerialize = value => is(value, -0) ? ['-0'] : jsonNumberSerialize(value)
 
 export const undefinedSerialize = ['undefined']
 
@@ -203,10 +212,10 @@ const addRef = djs => refs => {
  * Serializes a value as a JavaScript module: a shared value becomes a `const`,
  * a `__proto__` key is written in the computed form the language requires,
  * and every statement ends with `;`, the export included — the terminator
- * `fjs/djs/parser` requires after each statement, as DataJS does
+ * `fjs/fsc/parser` requires after each statement, as DataJS does
  * ([spec](../../../spec/datajs/README.md)) and as
  * `todo/parser-serializer-restructure.md` settles on for FunctionalScript
- * (stage 5). What is written here reads back through `fjs/djs`; it is not
+ * (stage 5). What is written here reads back through `fjs/fsc`; it is not
  * yet DataJS, whose names begin with `$` where a hoisted `const` here is
  * `c0` — the differences the spec's status section lists.
  *

@@ -13,7 +13,7 @@ structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
 decide semantic equivalence. This module owns the data model only: node kinds, operand
 shapes, and their schema. Producers and executors are staged work that will
-consume it — the [DJS](../djs/) compiler lowering parsed modules to EDAG
+consume it — the [FunctionalScript](../fsc/) compiler lowering parsed modules to EDAG
 ([compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md)), the
 interpreter and Rust code generation executing it — and the dependency is
 one-way by design: `fjs/edag` imports nothing from them.

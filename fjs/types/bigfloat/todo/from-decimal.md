@@ -12,7 +12,7 @@ algorithms, and neither lives in this module:
 - `fjs/js/tokenizer/module.f.mjs:267-286` — incremental accumulator threaded
   through the scan state (`addFracDigit`, `addExpDigit`,
   `bufferToNumberToken` computing `[b.s * b.m, b.f + b.es * b.e]`);
-- `fjs/djs/tokenizer/module.f.mjs:378-390` — `decodeNumber` doing string
+- `fjs/fsc/tokenizer/module.f.mjs:378-390` — `decodeNumber` doing string
   surgery over the matched lexeme (`BigInt(intDigits + fracDigits)`,
   `exp - fracDigits.length`).
 

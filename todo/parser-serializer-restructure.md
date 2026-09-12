@@ -6,7 +6,8 @@ partly startable, and not first, which is the level and status its own issue
 carries.
 **Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
 next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
-still undecided.
+still undecided. Stages 5a, the rename, and 5c, the tokenizer's types and
+helpers off the hand-written scanner, are done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -101,7 +102,11 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below.
+4. **Then stages 5–7**, in order, as listed below. Within stage 5 the
+   order is not a dependency: 5b and 5c each wait on 5a alone, and 5c
+   landed first. So stages 5a, the code-only rename of the front end to
+   `fjs/fsc`, and 5c are done; 5b waits on nothing else, and stage 6 waits
+   on stage 4.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
@@ -311,8 +316,16 @@ key       ::= string | '["__proto__"]'
   without the `;`, followed by an appended line beginning with `[`, silently
   exports `1` instead of `[1]`; with the `;` it stays `[1]`.
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant between tokens.
-  The exact `["__proto__"]` key is one token and contains none. Other JS
-  whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
+  The exact `["__proto__"]` key is one token and contains none. Those four and
+  no others: outside a string literal a character is whitespace or part of a
+  token, and one that is neither is rejected. Naming the rejected ones is the
+  taxonomy the specification declines to carry, and it is the whole input
+  alphabet minus the tokens rather than a short list: `@` is rejected as much as
+  U+2028. The 21 worth naming are the
+  delta from ECMAScript's whitespace, enumerated once in
+  [the corpus derivation](../spec/datajs/todo/conformance-vectors.md) because
+  each owes a vector; the normative list the specification used to carry was
+  short by fifteen of them.
 - **Whitespace is required after `const`, `export` and `default`**, with no
   condition, and optional between other tokens except within `["__proto__"]`.
   Two of the three were forced
@@ -489,8 +502,8 @@ combined marker would encode a redundant fact.
   the restriction for itself; DataJS no longer relies on inheriting it, its
   `$`-leading names making the collision unreachable.
 - The parser's separator rule is `';'` only, and this landed ahead of the
-  stage: `fjs/djs/parser`'s move to the LL(1) backend
-  ([`fjs/djs/README.md`](../fjs/djs/README.md#both-grammars-are-ll1)) dropped the
+  stage: `fjs/fsc/parser`'s move to the LL(1) backend
+  ([`fjs/fsc/README.md`](../fjs/fsc/README.md#both-grammars-are-ll1)) dropped the
   newline terminator, since telling a newline from a `;` reached through
   newlines took unbounded lookahead, and `fjs/djs/serializer` writes the
   `;` after every statement. Stage 5 inherits the rule rather than making
@@ -654,32 +667,99 @@ throughout.
    grammar. It is the shared walker of
    [157](../fjs/djs/todo/157-json-djs-shared-value-machine.md) §2 with a
    ref-lookup hook and DataJS's own number writer.
-5. **Front-end move** — `fjs/djs/{tokenizer,parser,ast,transpiler}` →
-   `fjs/fsc/*` as a rename. The rest of `fjs/djs` has stated destinations
-   rather than following the rename: `serializer/` is reworked into stage
-   4's `fjs/media/datajs` (it does not move to `fsc`); the value-tree types
-   in `fjs/djs/types.ts` go with it, per
-   [663](../fjs/djs/todo/663-json-djs-tree-type.md); `examples/` and the
-   top-level `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with
-   the front end to `fsc`. Terminator `nl` → `';'` **after each** statement,
-   the module's final one included (never `;` between statements with EOF
-   after the last — see the FunctionalScript consequences above); reserved
-   words added;
+5. **Front-end move**, in three pull requests. What was one stage is three
+   because the rename is mechanical and disjoint from stage 4, while the
+   syntax change and the tokenizer change are each a decision with proofs.
+
+   **5a. The rename, code only** — `fjs/djs/{tokenizer,parser,ast,transpiler}`
+   → `fjs/fsc/*`; `examples/`, `README.md` and the top-level
+   `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with them, and
+   `fjs compile` is repointed. Three things stay behind. `serializer/` is
+   reworked into stage 4's `fjs/media/datajs` (it does not move to `fsc`),
+   and the value-tree types in `fjs/djs/types.ts` go with it, per
+   [663](../fjs/djs/todo/663-json-djs-tree-type.md). And `fjs/djs/todo/`
+   stays until stage 4 lands: the stack of stage 4 pull requests links into
+   it from files those pull requests edit, so moving the issues now would
+   force a conflict on them. The issues follow the code in a pull request of
+   their own once the stack is on `main`.
+
+   Accepted syntax does not change, but published paths do: the package has
+   no `exports` map, so every module the front end held under `fjs/djs/**`
+   was a reachable deep import, and the `init` and `terminal` of the old
+   `fjs/fsc/module.f.mjs` go with the stub below. That is a break of the
+   public API, so this pull request carries its own `**BREAKING CHANGES:**`
+   entry for the moved and removed paths; stage 7's entry then covers only
+   what is left of `fjs/djs/*` after stage 4.
+
+   The destination is occupied, and the rename says how the two reconcile
+   rather than overwrite. `fjs/fsc/README.md` is the repository-wide
+   extension contract, cited by name and by anchor from `CONTRIBUTING.md`,
+   the root `README.md`, `fjs/AGENTS.md` and this plan's own Related list,
+   so it stays with its sections and anchors intact, and the DJS README's
+   content — the AST, the LL(1) record, the roadmap — joins it under the
+   compiler's title. `fjs/fsc/module.f.mjs`, `types.ts` and `proof.f.mjs`
+   are a range-map lexer stub nothing imports; the front end's entry module
+   takes the path and the stub is deleted, and everything that cited it is
+   told: [174](../fjs/js/todo/174-shared-range-map-lexer.md) and
+   [190](../fjs/text/todo/190-text-code-unit-string-boundary.md), which
+   quote it as code and lose a consumer each; the two inventories that
+   counted its proof, `todo/camel-case-proof-keys.md` and
+   `todo/inline-type-casts.md`; and `fjs/AGENTS.md`, which names `fsc` as
+   a worked example of the per-arrow `@template` shape the stub used and
+   the front end does not. Every link and path naming a moved document or
+   module — the root `README.md`, `fjs/README.md`, `doc/DESIGN.md`,
+   `spec/README.md`, the `fjs/ebnf/**` issues, the issues staying in
+   `fjs/djs/todo/` — was rewritten in the same pull request, so no incoming
+   link broke.
+   **Done**, as described.
+
+   **5b. The syntax.** The terminator — `';'` **after each** statement,
+   the module's final one included, never `;` between statements with EOF
+   after the last (see the FunctionalScript consequences above) — is
+   **already the baseline**: the LL(1) port landed it ahead of the stage,
+   as the consequences record, so it is not scheduled or declared here.
+   Reserved words: **done** — `NaN` and `Infinity` join `undefined` as the
+   `literalGlobals` of `fjs/js/keywords`, kept as keyword tokens by the DJS
+   layer and named in the parser's alphabet, so a module cannot bind,
+   reference or key them. What that changed: a *reference*, `export
+   default NaN;`, was refused before too, as an unresolved name; a
+   *binding*, `const NaN = 1;`, and a bare *key*, `{ NaN: 1 }`, parsed as
+   identifiers and are refused now, which is the break the entry declares.
+   With no rule reading the two yet they are refused wherever they stand.
+   Exact `-0`: **done** — it parsed correctly already,
+   and the serializer now writes it back as `-0` where it wrote `0`; the
+   round trip is pinned in `fjs/fsc/proof.f.mjs`. What remains is
    the DataJS numeric leaves taught to the moved front end — `NaN`,
-   `Infinity`, and `-Infinity` are unresolved identifiers in
-   today's parser, so reserving the names alone would *reject* DataJS accept
-   vectors: their tokenizer, grammar, minus-folding, and AST/evaluation
-   support is stage-5 work; exact `-0` already parses correctly (the
-   tokenizer pins the `-0` lexeme and `parseFloat` preserves signed zero),
-   so it needs a regression proof, not reimplementation (together the
-   front-end half of
+   `Infinity`, and `-Infinity`: their grammar rule, minus-folding, and
+   AST/evaluation support, and the serializer writing them as words rather
+   than `null` (together the front-end half of
    [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)'s
-   special-number requirement), a precondition of stage 6's subset proofs;
-   `fjs compile` repointed. The EDAG staging continues under the `fsc`
-   name. This stage changes accepted public `.f.js` syntax (statement
-   termination, newly reserved names), so its own PR carries the
-   `**BREAKING CHANGES:**` changelog treatment for that behavior — it is
-   not deferred to stage 7.
+   special-number requirement), a precondition of stage 6's subset proofs.
+   The EDAG staging continues under the `fsc` name. This is the pull request
+   that changes accepted public `.f.js` syntax (the newly reserved names),
+   so it carries the `**BREAKING CHANGES:**` changelog treatment for that
+   behavior — it is not deferred to stage 7.
+
+   **5c. The tokenizer is the grammar** — decided: FunctionalScript's
+   tokenizer is the LL(1) grammar over
+   [`fjs/ebnf/lib/js`](../fjs/ebnf/lib/js/module.f.mjs), read by
+   `fjs/ebnf/ll1`, the way JSON's and DataJS's readers are. The rule is the
+   one those two already follow: what one LL(1) layer cannot decide is split
+   into layers, with a grammar transform between them, rather than
+   hand-written around. The grammar layers stay in `fjs/ebnf/lib/js` for now.
+   **Done.** The front end's tokenizer was already the grammar plus a fold;
+   what it still took from the hand-written `fjs/js/tokenizer` was two
+   helpers and the token types. The helpers were a keyword lookup, which the
+   fold already had from `fjs/js/keywords`, and the trivia rule, which now
+   has one owner, the grammar module `fjs/ebnf/lib/js`, that both tokenizers
+   import rather than restate. The token vocabulary — `JsToken` and its
+   members, `TokenMetadata`, `TokenPosition`, `TriviaKind`, the error
+   messages — moved to [`fjs/ebnf/lib/js/types.ts`](../fjs/ebnf/lib/js/types.ts),
+   the grammar's, with the operator kinds derived from the grammar's own
+   `operators` list rather than spelled a second time; the hand-written
+   scanner and `fjs/media/json/tokenizer` read them from there. Nothing under
+   `fjs/fsc` imports `fjs/js/tokenizer` now, which is what stage 7 waits
+   for.
 6. **Compiler output** — the normalizer: data-only FunctionalScript (imports
    resolved and inlined) to normalized DataJS or JSON, with the subset-law
    proofs above. DataJS output is total; JSON output is permitted only when
@@ -695,11 +775,18 @@ throughout.
    explicit, so-labeled choice, never the normalizer's `.json` default.
    Rejection proofs cover each unrepresentable leaf and the shared-node
    case.
-7. **Cleanup** — retire `fjs/js/tokenizer` when its last consumer is gone
+7. **Cleanup** — retire `fjs/js/tokenizer` when its last consumer is gone:
+   stage 3b takes the JSON reader off it, stage 5c takes the front end off
+   it, and after those only its own proof imports it
    (`fjs/js/string_escape` and `fjs/js/keywords` remain as shared,
-   JS-spec-frozen tables); the clean-break release with `**BREAKING
-   CHANGES:**` changelog treatment for the removed `fjs/djs/*` paths and
-   changed serializer output — no compatibility shims. (Each earlier stage
+   JS-spec-frozen tables). Where the rest of `fjs/js` lives afterwards —
+   a `fjs/media/js` for a JavaScript parser and serializer has been
+   suggested — is a later rename and no part of this plan; do not fold it
+   into this stage. The clean-break release with `**BREAKING
+   CHANGES:**` changelog treatment for what is left of `fjs/djs/*` after
+   stages 4 and 5a — the serializer and the value types, the front end's
+   paths having been declared in 5a — and changed serializer output — no
+   compatibility shims. (Each earlier stage
    that changes public behavior, stage 5 in particular, carries its own
    breaking-change entry in its own PR, per the changelog convention.)
 
@@ -747,7 +834,20 @@ throughout.
 - [ ] Stage 4: `fjs/media/datajs`; todo filed, reader landed on the grammar
       route. The byte path, the serializer and normalized form remain, with
       proofs over stage 1b's corpus as their source.
-- [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
+- [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
+      `serializer/` and `types.ts` left in place; the breaking-change entry
+      for the moved paths.
+- [ ] Stage 5b: over the `;` termination the LL(1) port already landed,
+      reserved words and `-0` (done), the special numbers as values (open);
+      each part carries its breaking-change entry.
+- [x] Stage 5c: the token vocabulary is the grammar's, in
+      `fjs/ebnf/lib/js/types.ts`; nothing under `fjs/fsc` imports
+      `fjs/js/tokenizer`.
+- [ ] After stage 4 is on `main`: move the front end's issues out of
+      `fjs/djs/todo/` into `fjs/fsc/todo/`, by subject — the serializer's,
+      such as `serializer-children-helper` and `json-bigint-serialization`,
+      stay beside `fjs/djs/serializer/` until stage 4 reworks it — and
+      repoint every link into them.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
@@ -767,7 +867,7 @@ throughout.
 - bnf-grammar-single-owner — **retired with `fjs/bnf`**, done by the ports:
   `fjs/ebnf/lib/js` reads its digit and string rules from `fjs/ebnf/lib/json`,
   which is the sharing it asked for, and the post-recognition pass it left
-  unowned is implemented in `fjs/media/datajs` and `fjs/djs/parser`. Its
+  unowned is implemented in `fjs/media/datajs` and `fjs/fsc/parser`. Its
   `fjs/media/json/grammar` proposal stays withdrawn; the one JSON grammar is
   `fjs/ebnf/lib/json`, a runtime dependency of the codecs as the reversal
   above allows, and its statement that **the media scanners stay
@@ -783,15 +883,16 @@ throughout.
   patches.
 - `orphaned-json-grammar` — **done**: resolved by stage 2 and its file
   deleted with the code it described.
-- `fjs/djs/README.md` and the remaining `fjs/djs/todo/*` files — move with
-  their subject matter in stage 5; the DJS name in them refers to the moved
-  front end, not to DataJS.
+- `fjs/djs/README.md` moved with the front end in stage 5a, into
+  `fjs/fsc/README.md`; the remaining `fjs/djs/todo/*` files follow once
+  stage 4 is on `main`. The DJS name in them refers to the moved front end,
+  not to DataJS.
 
 ### Related
 
 - [`fjs/media/json/README.md`](../fjs/media/json/README.md) — the policy-seam
   parser design DataJS layers on.
-- [`fjs/djs/parser/README.md`](../fjs/djs/parser/README.md) — the front end
+- [`fjs/fsc/parser/README.md`](../fjs/fsc/parser/README.md) — the front end
   that moves to `fjs/fsc`.
 - [`todo/edag-stage1-discussion.md`](./edag-stage1-discussion.md),
   [`todo/edag-spec.md`](./edag-spec.md) — EDAG semantics the moved front end

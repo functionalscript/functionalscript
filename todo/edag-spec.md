@@ -47,7 +47,7 @@ fjs/edag/
 - EDAG validation and canonicality rules that depend only on the EDAG value.
 
 Other layers consume that module rather than defining parallel EDAG types. In
-particular, `fjs/djs/` imports `fjs/edag/` when lowering parsed DJS source to an
+particular, `fjs/fsc/` imports `fjs/edag/` when lowering parsed DJS source to an
 EDAG.
 
 The dependency is intentionally one-way:
@@ -55,7 +55,7 @@ The dependency is intentionally one-way:
 ```text
 fjs/edag/
     ↑
-fjs/djs/
+fjs/fsc/
 ```
 
 `fjs/edag/` must not depend on DJS parsing, module loading, or serialization.
@@ -105,8 +105,8 @@ standard JSON numeric policy remains separate in
 - [ ] Create `fjs/edag/` as the canonical FunctionalScript EDAG module.
 - [ ] Keep the `EDAG`/operation types, canonical operation definitions, RTTI
       schema, and EDAG-only validation in `fjs/edag/`; do not duplicate those
-      definitions under `fjs/djs/` or another consumer.
-- [ ] Keep the module dependency one-way: `fjs/djs/` may import `fjs/edag/`,
+      definitions under `fjs/fsc/` or another consumer.
+- [ ] Keep the module dependency one-way: `fjs/fsc/` may import `fjs/edag/`,
       but `fjs/edag/` must not import DJS parser/module-loader/serializer code.
 - [ ] Keep temporary module-compilation structures such as
       `Unresolved { imports, edag }` outside `fjs/edag/`.

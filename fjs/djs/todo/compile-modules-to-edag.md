@@ -392,16 +392,17 @@ rediscovered:
 
 | value | parser | serializer |
 |---|---|---|
-| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `0` |
-| `NaN` | `const not found` | emits `null` |
-| `Infinity` | `const not found` | emits `null` |
+| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` — done, pinned in `fjs/fsc/proof.f.mjs` |
+| `NaN` | `unexpected token` | emits `null` |
+| `Infinity` | `unexpected token` | emits `null` |
 | `-Infinity` | `unexpected token` | emits `null` |
 
-`-0` is serializer-only, which is easy to miss because `String(-0)` is `"0"` and
-only `Object.is` separates them. The other three arrive as `id` tokens, so the
-grammar reads them as references and name resolution rejects them; `-Infinity`
-fails earlier still, since there is no `-` in the `DjsToken` set at all and it
-tokenizes to `error id(Infinity) eof`.
+`-0` was serializer-only, which is easy to miss because `String(-0)` is `"0"`
+and only `Object.is` separates them; the serializer writes `-0` now. The
+other three are reserved words with their own token kinds, which no grammar
+rule reads yet, so the grammar refuses them wherever they stand; `-Infinity`
+fails at the `-`, which folds into a number token only, and tokenizes to
+`error Infinity eof`.
 
 ### Existing compile API boundary
 
@@ -572,10 +573,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 ### Related
 
-- [`../transpiler/module.f.mjs`](../transpiler/module.f.mjs) — currently loads imports
+- [`fjs/fsc/transpiler/module.f.mjs`](../../fsc/transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`; keep its value-producing public
   contract until EDAG interpretation is integrated.
-- [`../parser/module.f.mjs`](../parser/module.f.mjs) — DJS parser that must support the
+- [`fjs/fsc/parser/module.f.mjs`](../../fsc/parser/module.f.mjs) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
 - [`../serializer/module.f.mjs`](../serializer/module.f.mjs) — DJS serializer where
   special-number handling belongs.
@@ -586,9 +587,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   — existing owner of the standard FunctionalScript JSON policy for `-0`, `NaN`, and
   infinities.
 - [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md) — existing JSON/DJS parser/serializer deduplication task.
-- [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
+- [`fjs/fsc/ast/types.ts`](../../fsc/ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
-- [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
+- [`fjs/fsc/ast/module.f.mjs`](../../fsc/ast/module.f.mjs) — current sequential AST evaluator.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter

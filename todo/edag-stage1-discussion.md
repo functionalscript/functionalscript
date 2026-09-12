@@ -141,7 +141,7 @@ family but carries control edges and a scheduling phase this design
 does not have.
 
 *AST* is now reserved for **grammar parser output** ([fjs/ebnf](../fjs/ebnf/README.md),
-[fjs/djs](../fjs/djs/README.md)); the function representation is the EDAG
+[fjs/fsc](../fjs/fsc/README.md)); the function representation is the EDAG
 everywhere else.
 
 "Behaves the same" means, precisely, under the assumptions:

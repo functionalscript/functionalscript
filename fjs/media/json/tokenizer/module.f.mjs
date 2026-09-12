@@ -5,7 +5,7 @@
  *
  * @import { StateScan } from '../../../types/function/operator/types.ts'
  * @import { List } from '../../../types/list/types.ts'
- * @import { JsToken, JsTokenWithMetadata } from '../../../js/tokenizer/types.ts'
+ * @import { JsToken, JsTokenWithMetadata } from '../../../ebnf/lib/js/types.ts'
  * @import { JsonToken, _ScanState, _ScanInput } from './types.ts'
  */
 

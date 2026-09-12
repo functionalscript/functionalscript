@@ -282,8 +282,10 @@ export default [0, -42.5, 3e2, 1E-7];
 
 The syntax is JSON's, so the JavaScript spellings JSON leaves out are not
 recognized: no hexadecimal (`0x10`), no leading `+`, no leading decimal point
-(`.5`), no numeric separators (`1_000`), and no `NaN` or `Infinity` — those
-two are identifiers, and the parser reports them as an undeclared name.
+(`.5`), no numeric separators (`1_000`), and no `NaN` or `Infinity` yet —
+those two are reserved words, like `undefined`, so a module cannot bind or
+shadow them, and until the compiler reads them as the numbers they name they
+are refused wherever they stand.
 
 The `-` is lexical: it joins the number to its left as part of one token, so
 `-42.5` is a number literal and `- 42.5` is not a value at all. There is no
@@ -558,6 +560,5 @@ effects, the content-addressable VM, object identity, mutability, and
 serialization — is in [`spec/todo/`](./todo/README.md). A feature's document
 moves into this one when the parser recognizes it.
 
-For the implementation, see [`fjs/djs/README.md`](../fjs/djs/README.md) for
-the data language and [`fjs/fsc/README.md`](../fjs/fsc/README.md) for the
-compiler.
+For the implementation, see [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
+compiler and the data language it accepts today.

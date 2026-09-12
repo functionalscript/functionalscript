@@ -37,16 +37,20 @@ The drift is large and consistent, so these are not off-by-a-few:
 **`tokenizer-token-tables` has half shipped.** Its §1 says `KeywordToken`
 "spells out 45 keyword kinds" and `keywordEntries` "repeats every one of them"
 as `['catch', { kind: 'catch' }]` rows. Neither is true now: `_KeywordToken`
-(`fjs/js/tokenizer/types.ts:69`) is
+(`fjs/ebnf/lib/js/types.ts`, since moved there from this module) is
 `{ kind: Exclude<typeof keywords[number], 'true'|'false'|'null'|'undefined'> }`,
 derived from the shared `fjs/js/keywords` list, and `keywordEntries`
 (`module.f.mjs:262`) is `keywords.map(kind => [kind, ({ kind })])`. That is the
-remedy the issue proposes, already applied. Its §2 still stands — `_OperatorToken`
-(`types.ts:79`) is a spelled-out union and `operatorEntries`
-(`module.f.mjs:276-332`) is a literal table of ~56 `['&&=', { kind: '&&=' }]`
-rows — so the issue is half done, not done. Renumbering it would leave an
-implementer redoing the keyword half and working from its now-wrong ~130-line
-estimate. Both type names also gained a `_` prefix.
+remedy the issue proposes, already applied. Its §2 is half shipped: the type
+half is done — `_OperatorToken` (`fjs/ebnf/lib/js/types.ts`, beside
+`_KeywordToken`) derives from the grammar's own `operators` list plus the two
+`slash` holds, one member per kind — while `operatorEntries`
+(`module.f.mjs:273-330`) is still a literal table of ~56
+`['&&=', { kind: '&&=' }]` rows in this module. So the issue's table half is
+what remains, and both its §1 and §2 cite `fjs/js/tokenizer/types.ts` for
+types that live in `fjs/ebnf/lib/js/types.ts` now. Renumbering it would leave
+an implementer redoing the type halves and working from its now-wrong
+~130-line estimate. Both type names also gained a `_` prefix.
 
 **`666-js-tokenizer-position-layer` was written against a symbol that is gone,
 and is repaired.** All three of its citations are fixed —
@@ -104,9 +108,10 @@ against naming the symbol — is a separate question.
 - [ ] Repair the citations in `tokenizer-continue-string-comment`,
       `tokenizer-flush-redispatch` and `tokenizer-finish-number-shared` against
       the symbols they name.
-- [ ] Rewrite `tokenizer-token-tables` around its operator half; the keyword
-      half has shipped, so its §1, its `~130 lines` estimate and its two type
-      names all need redoing rather than renumbering.
+- [ ] Rewrite `tokenizer-token-tables` around its operator *table*; both
+      type halves have shipped in `fjs/ebnf/lib/js/types.ts`, so its §1, its
+      §2's type paragraph, its `~130 lines` estimate and its two type names
+      all need redoing rather than renumbering.
 - [ ] Confirm no remaining citation in `fjs/js/todo/` exceeds the length of the
       file it names.
 

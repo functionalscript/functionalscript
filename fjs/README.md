@@ -26,7 +26,7 @@ fjs <command> [args]
 | Command | Description | Documentation |
 |---------|-------------|---------------|
 | `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
-| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [djs](djs/README.md), [fsc](fsc/README.md) |
+| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [fsc](fsc/README.md) |
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
 | `ci`     | Generate the GitHub Actions CI and npm publishing workflows | [ci](ci/README.md) |
@@ -46,7 +46,7 @@ fjs compile <input> <output>
 The output extension picks the format: `.json` emits a tree (shared values are
 expanded), anything else emits a JavaScript module that preserves sharing by
 naming reused values as `const`s. Imports are resolved and inlined in both
-cases. See [djs/README.md](djs/README.md) for the accepted subset.
+cases. See [fsc/README.md](fsc/README.md) for the accepted subset.
 
 ## `fjs ci` — generating the standard workflows
 
