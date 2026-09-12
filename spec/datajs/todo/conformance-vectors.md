@@ -1830,7 +1830,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 210 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 211 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
@@ -2094,6 +2094,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       once the reason is structural: the defective output does not parse, so
       it cannot be a `denotesNot`, which needs a document that reads to
       another graph.
+      **Two more parent paths of the same kind, reported together.** Nested
+      key order was reached only through an array element, since the vector's
+      unsorted objects were elements of the root and a hoisted `const` body, so
+      a writer preserving order through elements and sorting object-valued
+      members passed; the input now carries `{"x":{"b":0,"a":1}}` beside them
+      and graph equivalence carries the half-sorted document as a `denotesNot`.
+      And no shared object in either writer set had a key the rule requires an
+      escape for, so a writer with its own emitter for a hoisted body could
+      omit one there and emit a document the reader refuses. One vector per set
+      carries a shared object whose nine keys are the nine required escapes,
+      each with itself as its value, so the body's key emitter and its value
+      emitter are both reached for every spelling. That is the const-body
+      position crossed with the escaping rule, which is the cross the
+      `__proto__` vector above did for one key only.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2103,7 +2117,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 270 records in
+- [x] **Normalize.** Landed as 271 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2117,7 +2131,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 120,023 bytes of the bit
+      being refused outright. The matrix stands at 120,125 bytes of the bit
       vector's 131,072, which is 92% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2326,6 +2340,15 @@ The steps, in order; a step is one pull request unless it says otherwise:
       set's bytes never said otherwise. One vector under `const/shared/object`,
       with the text the shipped writer emits,
       `const $0={["__proto__"]:1};export default [$0,$0];`.
+      **And the two parent paths after it**, both of which this column had as
+      little as the others. Nested key order was reached only through an array
+      element here too, so the input takes `{"x":{"b":0,"a":1}}` beside the
+      element and the hoisted body. And no shared object in the set had a key
+      the rule requires an escape for — the const-body escaping vector uses
+      U+2028, where escaping is *optional* and the bytes therefore say raw — so
+      one vector carries a shared object whose nine keys are the nine required
+      escapes, each with itself as its value. Its text is the shipped writer's,
+      which is what makes it a claim about bytes rather than about validity.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
