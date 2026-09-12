@@ -11,6 +11,7 @@ const $s9 = {"x": $s7};
 const $s10 = {"d": 0, "c": 1};
 const $s11 = {};
 const $s12 = {["__proto__"]: 1};
+const $s13 = {"\"": "\"", "\\": "\\", "\b": "\b", "\t": "\t", "\n": "\n", "\f": "\f", "\r": "\r", "\u0000": "\u0000", "\u001f": "\u001f"};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -216,10 +217,11 @@ export default [
     {"id": "ser-key-escape-u00-001f-every-slot", "class": "key/string/escape/u00/001f", "input": [{"\u001f": "\u001f", "a": 1}, {"a": 0, "\u001f": "\u001f"}]},
     {"id": "ser-array-elements-every-value-first", "class": "array/elements/every-value-first", "input": [[null, 0], [true, 0], [false, 0], [undefined, 0], [NaN, 0], [Infinity, 0], [-Infinity, 0], [0, 0], [-0, 0], [1.5, 0], [-1.5, 0], [109n, 0], [-109n, 0], [0n, 0], ["", 0], ["a", 0], ["\u2028", 0], ["\ud800", 0], ["\u0000", 0], ["\ud800\udc00", 0], [[], 0], [{}, 0]]},
     {"id": "ser-object-members-every-value-first", "class": "object/members/every-value-first", "input": [{"a": null, "b": 0}, {"a": true, "b": 0}, {"a": false, "b": 0}, {"a": undefined, "b": 0}, {"a": NaN, "b": 0}, {"a": Infinity, "b": 0}, {"a": -Infinity, "b": 0}, {"a": 0, "b": 0}, {"a": -0, "b": 0}, {"a": 1.5, "b": 0}, {"a": -1.5, "b": 0}, {"a": 109n, "b": 0}, {"a": -109n, "b": 0}, {"a": 0n, "b": 0}, {"a": "", "b": 0}, {"a": "a", "b": 0}, {"a": "\u2028", "b": 0}, {"a": "\ud800", "b": 0}, {"a": "\u0000", "b": 0}, {"a": "\ud800\udc00", "b": 0}, {"a": [], "b": 0}, {"a": {}, "b": 0}]},
-    {"id": "ser-object-key-order-nested", "class": "object/key-order/nested", "input": [{"b": 0, "a": 1}, $s10, $s10]},
+    {"id": "ser-object-key-order-nested", "class": "object/key-order/nested", "input": [{"b": 0, "a": 1}, {"x": {"b": 0, "a": 1}}, $s10, $s10]},
     {"id": "ser-const-shared-nested-object-parent", "class": "const/shared/nested", "input": [$s9, $s9, $s7]},
     {"id": "ser-object-keys-every-string", "class": "object/keys/every-string", "input": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}]},
     {"id": "ser-shared-empty-object", "class": "const/shared/object", "input": [$s11, $s11]},
     {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}},
-    {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12]}
+    {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12]},
+    {"id": "ser-shared-object-escaped-keys", "class": "const/shared/object", "input": [$s13, $s13]}
 ];
