@@ -1827,12 +1827,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 175 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 176 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 12 in
+      and 13 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 162 of the 674 classes the corpus held then, with 48 scope
-      records answering the 512 cells the serializer column owed; the normalize
+      covering 163 of the 674 classes the corpus held then, with 47 scope
+      records answering the 511 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1951,6 +1951,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       three things at once — indices before names, the key staying in the names
       group, and insertion order within it — and every one of the seven
       separates a correct writer from that mutant. The reason is gone.
+      **Sharing inside a shared container**, which no vector in either writer
+      set had: measured, not one had a shared node whose own body reached
+      another shared node. So a writer that keeps references at the root and
+      inlines them inside a hoisted `const` body emitted
+      `const $0=[[0]];export default [$0,$0,[0]];` for a graph whose three
+      references are two nodes, splitting the inner one in two, and passed. A
+      serializer vector and a graph-equivalence record now carry it, the latter
+      with that exact output as a `denotesNot`, and the `const/shared/nested`
+      exemption is gone.
+      **And the reader's corner of the same grid.** Four rounds went into
+      parent kind crossed with child kind for the writer columns, and every
+      equal-container input in the *accept* set still had an array parent, so a
+      reader that hash-conses equal containers only while building object
+      members returned a shared child for
+      `export default {"x":{"a":0},"y":{"a":0}};` and passed every reader
+      vector. The graph-equivalence records do not help, since a reader-only
+      implementation never runs that role. Four accept vectors close it, all
+      four corners at once this time.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
@@ -1977,7 +1995,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 116,139 bytes of the bit
+      being refused outright. The matrix stands at 116,036 bytes of the bit
       vector's 131,072, which is 89% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2093,6 +2111,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       without saying which document: the landed entry point takes a string, so
       the byte path of §Layout, refusing invalid UTF-8 and a leading BOM, is
       still to come, and the byte-form vectors are what require it.
+      One check came back clean for once. The serializer column turned out to
+      have no vector sharing a node inside a shared node, and the rule says to
+      ask the same of this column before writing anything — measured, the four
+      post-order naming vectors already carry exactly that shape, across all
+      four parent-child kinds, so there was nothing to add. Asking cost one
+      query and is the step that has been missing.
       **And one thing the matrix does not mean**, which review read the other
       way and a consumer could too. `serializer.md` states that a normalized
       writer owes `serializer-accept` and `graph-equivalence` besides

@@ -5,6 +5,8 @@ const $s3 = [0];
 const $s4 = {"a": 0};
 const $s5 = [1];
 const $s6 = [0];
+const $s7 = [0];
+const $s8 = [$s7];
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -164,6 +166,7 @@ export default [
     {"id": "ser-key-raw-e000", "class": "key/string/raw/bmp", "input": {"\ue000": 0}},
     {"id": "ser-string-raw-ffff", "class": "string/raw/bmp", "input": "\uffff"},
     {"id": "ser-key-raw-ffff", "class": "key/string/raw/bmp", "input": {"\uffff": 0}},
+    {"id": "ser-const-shared-nested", "class": "const/shared/nested", "input": [$s8, $s8, $s7]},
     {"id": "ser-shared-three-paths", "class": "const/shared/three-paths", "input": [$s5, {"a": $s5}, {"b": [$s5]}]},
     {"id": "ser-string-raw-0021", "class": "string/raw/range/0020-0021/high", "input": "!"},
     {"id": "ser-key-raw-0021", "class": "key/string/raw/range/0020-0021/high", "input": {"!": 0}},
