@@ -107,6 +107,51 @@ const fail = (root, cause) => {
 }
 
 /**
+ * Return to the event loop, so the browser can paint what was just set.
+ *
+ * **A macrotask, and that is the whole point.** A demo's work is ordinary
+ * JavaScript on the one thread that paints: `sandbox` calls the thunk the
+ * moment it is dispatched, so a flag raised and then awaited is raised and
+ * blocked in the same task and nobody ever sees it. Draining the microtask
+ * queue is part of that same task, which is why an `await` of a resolved
+ * promise is not enough — the same bargain the browser test runner makes
+ * between rows.
+ *
+ * @type {() => Promise<void>}
+ */
+const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
+
+/**
+ * Says whether the page is waiting on this demo, and stops the reader asking
+ * again while it is.
+ *
+ * **Only the runtime can say this.** A demo renders once, after its effect
+ * has finished, so it cannot paint a state that means "still going" — the one
+ * thing that knows a command is outstanding is the loop that dispatched it.
+ *
+ * **The word is the runtime's too, and so it is a general one.** This runs
+ * every demo: the next may be waiting on a network or on a reader picking a
+ * file, neither of which is calculating. A demo that wants its own wording
+ * should say so in its own field rather than have this one guess.
+ *
+ * Buttons are disabled rather than merely dimmed. A queued second click would
+ * be honoured after the first finished, which is a demo measuring twice
+ * because somebody was impatient.
+ *
+ * @type {(root: Element, working: boolean) => void}
+ */
+const busy = (root, working) => {
+    if (working) {
+        root.setAttribute('data-demo-working', '')
+    } else {
+        root.removeAttribute('data-demo-working')
+    }
+    for (const control of root.querySelectorAll('button')) {
+        control.disabled = working
+    }
+}
+
+/**
  * A demo runs one event at a time.
  *
  * An operation is asynchronous, so an event can arrive while an `update` is
@@ -128,10 +173,14 @@ const stepper = (root, demo) => {
             // and total by construction, so one that throws is a defect in the
             // demo, and the page says so where its output would have gone.
             try {
+                busy(root, true)
+                await macrotask()
                 state = unwrapState(await run(demo.update(state)(event)))
                 render(root, htmlToString(demo.view(state)))
             } catch (cause) {
                 fail(root, cause)
+            } finally {
+                busy(root, false)
             }
         })
     }

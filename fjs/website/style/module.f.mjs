@@ -68,6 +68,12 @@ pre { white-space: pre-wrap }
    site that is static files. Its summary is the section's heading, and is
    sized like one. */
 [data-section] { margin: 1.5rem 0 }
+/* A demo that is waiting on a command says so, and the word is general because
+   the runtime that sets it runs every demo: the next may be waiting on a
+   network rather than on arithmetic. The message is the attribute's, not the
+   demo's, so no demo can forget it. */
+[data-demo-working]::after { content: "Working…"; display: block; margin-top: .5rem }
+[data-demo-working] button { cursor: default }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 [data-section] > ul { margin-top: .5rem }
 `
