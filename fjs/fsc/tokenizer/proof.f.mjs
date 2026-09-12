@@ -856,9 +856,20 @@ export const proof = {
             assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":";"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
-            // keywords other than true/false/null/undefined become plain ids
+            // keywords other than the literals become plain ids
             const result = toArray(tokenize(stringToList('break'))(''))
             assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"id","value":"break"}},{"metadata":{"column":6,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            // `NaN` and `Infinity` are literals, kept as keywords like `undefined`
+            const result = toArray(tokenize(stringToList('NaN Infinity'))(''))
+            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"NaN"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"ws"}},{"metadata":{"column":5,"line":1,"path":""},"token":{"kind":"Infinity"}},{"metadata":{"column":13,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            // a `-` folds into a number only; before `Infinity` it is still
+            // the error it always was, the folding being the next step
+            const result = toArray(tokenize(stringToList('-Infinity'))(''))
+            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"Infinity"}},{"metadata":{"column":10,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('-10'))(''))

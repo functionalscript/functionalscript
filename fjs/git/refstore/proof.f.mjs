@@ -14,21 +14,16 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError } from '../../effects/module.f.mjs'
 import { run as mockRun } from '../../effects/mock/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
+import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { maxLookups, tryResolve, tryRoots } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
-
-/** @type {(hex: string) => Oid} */
-const id = hex => {
-    const i = tryFromHex(latin1(hex))
-    assert(i !== null)
-    return i
-}
 
 /** A commit id, and a second one so a shadowed name is told from its shadow. */
 const a = /** @type {const} */ ('8dd3225810cee59495e415a45957c2fdc0030e22')
@@ -56,8 +51,21 @@ const run = (root, e) => {
     return r[1]
 }
 
-/** @type {(r: Root) => readonly [string, string]} */
-const seen = r => [codePointListToString(r.name), codePointListToString(toHex(r.id))]
+/**
+ * A root as a name and a hex id, for comparing against a table.
+ *
+ * The name is decoded as UTF-8 and not a byte per code point, because that is
+ * what it is: the bytes of a path, which the walk read from a directory
+ * listing. A byte-per-code-point rendering would spell `é` as `Ã©` and put a
+ * table of expected names a decoding away from the names Git shows.
+ *
+ * @type {(r: Root) => readonly [string, string]}
+ */
+const seen = r => {
+    const n = fromVec(toVec(r.name))
+    assert(n !== null, r.name)
+    return [n, codePointListToString(toHex(r.id))]
+}
 
 /**
  * Asserts the roots are exactly these name and id pairs, as a set.
@@ -107,6 +115,25 @@ const resolved = (root, name) => run(root, tryResolve('', 20)(latin1(name)))
 /** @type {(root: Dir, name: string) => string} */
 const hexOf = (root, name) => {
     const i = resolved(root, name)
+    assert(i !== null, name)
+    return codePointListToString(toHex(i))
+}
+
+/**
+ * A name as its UTF-8 bytes, which is what a name outside ASCII needs and
+ * {@link latin1} cannot give: `é` is one byte to `latin1` and the two bytes
+ * `0xC3 0xA9` on a filesystem, and those are what Git stores.
+ *
+ * @type {(s: string) => readonly number[]}
+ */
+const utf8 = s => toArray(fromCodePointList(stringToCodePointList(s)))
+
+/** @type {(dir: string, root: Dir, name: readonly number[]) => Nullable<Oid>} */
+const resolvedIn = (dir, root, name) => run(root, tryResolve(dir, 20)(name))
+
+/** @type {(dir: string, root: Dir, name: readonly number[]) => string} */
+const hexOfIn = (dir, root, name) => {
+    const i = resolvedIn(dir, root, name)
     assert(i !== null, name)
     return codePointListToString(toHex(i))
 }
@@ -297,6 +324,83 @@ export const proof = {
         for (const n of ['FETCH_HEAD', 'MERGE_HEAD']) {
             const root = { 'packed-refs': file(`${a} ${n}\n`), refs: {} }
             assertEq(resolved(root, n), null)
+        }
+    },
+    // A name outside ASCII is UTF-8 on the way to the filesystem and UTF-8 on
+    // the way back, so the two halves agree about one file. `é` is the two
+    // bytes `0xC3 0xA9`, and reading each of them as a code point would ask
+    // the host for `Ã©` — a name no file has — so `tryResolve` would miss the
+    // very file `tryRoots` lists.
+    utf8Name: () => {
+        const root = { refs: { heads: { 'é': ref(a) } } }
+        sameRoots(run(root, tryRoots('', 20)), [['refs/heads/é', a]])
+        assertEq(hexOfIn('', root, utf8('refs/heads/é')), a)
+        // The byte-per-code-point reading of the same name, which is the path
+        // `Ã©` and no file: it answers nothing, so the case above is about the
+        // decoding and not about any two bytes finding the file.
+        assertEq(resolvedIn('', root, latin1('refs/heads/é')), null)
+    },
+    // A name that is no ref name never reaches the filesystem, and `..` is
+    // the case that matters: joined below the repository it names a file
+    // outside it, and a file outside a repository that happens to begin with
+    // forty hex digits is not a ref. The virtual filesystem folds `..` the
+    // way a host does, so without the check this reads `secret` and answers
+    // its id.
+    resolveEscape: () => {
+        /** @type {Dir} */
+        const root = { repo: { refs: { heads: { master: ref(a) } } }, a: { b: ref(b) } }
+        // The same file read as a ref of the outer directory, so it is there
+        // and readable and the refusal below is the name's rather than the
+        // absence's.
+        assertEq(hexOfIn('', root, utf8('a/b')), b)
+        assertEq(resolvedIn('repo', root, utf8('../a/b')), null)
+    },
+    // A loose symbolic ref whose target is nowhere hides the packed line of
+    // the same name, because the shadow is the file existing. Otherwise a
+    // name whose loose file replaced a packed one comes back with the stale
+    // packed id, which is the opposite of what the loose file says.
+    danglingShadowsPacked: () => {
+        const root = {
+            'packed-refs': file(`${b} refs/heads/master\n`),
+            refs: { heads: { master: file('ref: refs/heads/gone\n') } },
+        }
+        sameRoots(run(root, tryRoots('', 20)), [])
+        assertEq(resolvedIn('', root, utf8('refs/heads/master')), null)
+    },
+    // `HEAD`'s target must sit under `refs/`. Measured on Git 2.43.0: with
+    // `.git/HEAD` holding `ref: a/b` and `.git/a/b` holding a valid id, each
+    // of `rev-parse HEAD`, `rev-parse --verify HEAD` and `symbolic-ref HEAD`
+    // answers `not a git repository` — the directory is no repository at all,
+    // so there is no id to answer. `a/b` is a name
+    // `git check-ref-format` accepts, which is why the rule is this
+    // function's and not the name grammar's.
+    headTarget: () => {
+        /** @type {Dir} */
+        const root = { HEAD: file('ref: a/b\n'), a: { b: ref(a) } }
+        // the target file is there and reads as a ref, so the refusal is the
+        // prefix rule's
+        assertEq(hexOf(root, 'a/b'), a)
+        assertEq(resolved(root, 'HEAD'), null)
+        // A `HEAD` under `refs/` resolves, so the rule is the prefix and not
+        // the name `HEAD`.
+        assertEq(hexOf({ ...loose, HEAD: file('ref: refs/heads/master\n') }, 'HEAD'), a)
+        // And the constraint is `HEAD`'s alone: a loose ref may point outside
+        // `refs/`, which `resolveSpecial` shows for `FETCH_HEAD`.
+        assertEq(hexOf({ ...root, refs: { heads: { sym: file('ref: a/b\n') } } }, 'refs/heads/sym'), a)
+    },
+    // A `packed-refs` naming one ref twice is not refused and does not answer
+    // twice: measured on Git 2.43.0, `git show-ref` lists both lines and
+    // `git rev-parse` answers the **last**, in either order of the two. So
+    // the last line is the value and the earlier ones are dead, which keeps
+    // the one-entry-per-name `tryRoots` promises.
+    packedTwice: () => {
+        for (const [first, second] of [[a, b], [b, a]]) {
+            const root = {
+                'packed-refs': file(`${first} refs/heads/dup\n${second} refs/heads/dup\n`),
+                refs: {},
+            }
+            sameRoots(run(root, tryRoots('', 20)), [['refs/heads/dup', second]])
+            assertEq(hexOf(root, 'refs/heads/dup'), second)
         }
     },
 }

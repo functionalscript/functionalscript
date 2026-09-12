@@ -26,7 +26,7 @@ const compileSource = source => outputFileName => {
     return readOutput(state.root, outputFileName)
 }
 
-const { getPrototypeOf, prototype: objectPrototype } = Object
+const { getPrototypeOf, is, prototype: objectPrototype } = Object
 
 /** The value every `protoKey` test below denotes. */
 const protoValue = fromEntries([['__proto__', { a: 42 }]])
@@ -149,6 +149,26 @@ export const proof = {
         assert(result[0] === 'ok', result[1])
         assertStructurallySame(result[1], value, source)
     }),
+    // Negative zero end to end: the tokenizer pins the `-0` lexeme,
+    // `parseFloat` keeps the sign, and the serializer writes it back as
+    // `-0` — where `String(-0)` is `"0"`, which is why only `Object.is` can
+    // state this and why the round trip is pinned rather than assumed.
+    negativeZero: {
+        value: () => {
+            const root = { 'input.f.js': [utf8('export default -0;')] }
+            const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+            assert(result[0] === 'ok', result[1])
+            assert(is(result[1], -0), result[1])
+        },
+        moduleRoundTrip: () => {
+            assertEq(compileSource('export default -0;')('output.f.js'), 'export default -0;')
+            assertEq(compileSource('export default [0, -0];')('output.f.js'), 'export default [0,-0];')
+        },
+        // `-0` is a JSON number too, so the tree output keeps it
+        jsonOutput: () => {
+            assertEq(compileSource('export default -0;')('output.json'), '-0')
+        },
+    },
     // The `__proto__` key end to end: one value, two output languages, and one
     // spelling of the key in each (#2480).
     protoKey: {

@@ -56,6 +56,16 @@ const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
 ])
 
 /**
+ * A version 1 index over no objects: a fanout of zeros, no entries, and the
+ * two checksums. Also the tail of the version 2 spelling of the same, which
+ * adds only the magic and the version word in front of it.
+ */
+const emptyV1 = /** @type {const} */ ([
+    ...Array.from({ length: 256 }, () => u32(0)).flat(),
+    ...Array.from({ length: 40 }, () => 0),
+])
+
+/**
  * A version 2 index over one id, whose offset sits in the 8-byte table.
  *
  * Built rather than captured, and it is the one shape that has to be: a
@@ -176,12 +186,10 @@ export const proof = {
     // An index of no objects: a fanout of zeros and nothing between it and
     // the checksums. The lookup answers nothing rather than searching.
     empty: () => {
-        const zeros = Array.from({ length: 256 }, () => u32(0)).flat()
-        const tail = Array.from({ length: 40 }, () => 0)
-        const v1 = decoded([...zeros, ...tail])
+        const v1 = decoded(emptyV1)
         assertStructurallySame(seen(v1), [])
         assertEq(offsetOf(v1)(only), null)
-        const v2 = decoded([0xFF, 0x74, 0x4F, 0x63, ...u32(2), ...zeros, ...tail])
+        const v2 = decoded([0xFF, 0x74, 0x4F, 0x63, ...u32(2), ...emptyV1])
         assertStructurallySame(seen(v2), [])
     },
     // A length the tables do not add up to is refused. The length is the
@@ -270,6 +278,13 @@ export const proof = {
         // `Vec` can have the same value through leading zeros, so answering
         // `null` would hide the bug behind a plausible miss.
         lookupWidth: () => offsetOf(decoded(packIdx2))(id('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')),
+        // The same, in an index of no objects, where every lookup misses
+        // anyway. The width is the index's and not its first id's, so there
+        // is something to check even here: reading it from `ids[0]` had
+        // nothing to read and answered `null`, reporting a caller mixing two
+        // repositories as an id the pack lacks.
+        emptyLookupWidth: () =>
+            offsetOf(decoded(emptyV1))(id('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')),
         // Bytes that are no bytes, the same refusal every reader here makes.
         notBytes: () => read([256]),
     },

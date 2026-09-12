@@ -5,7 +5,7 @@
  * @module
  */
 
-import type { Oid } from '../types.ts'
+import type { Oid, OidBytes } from '../types.ts'
 
 /**
  * A decoded `.idx`: the ids the pack holds and where each one's entry
@@ -20,8 +20,13 @@ import type { Oid } from '../types.ts'
  * The version itself is not here. It says how the bytes were laid out and
  * nothing about what they mean, so a consumer that kept it would only be
  * able to misuse it.
+ *
+ * `oidBytes` is here even though every id in `ids` already has that width,
+ * because an index of no objects has no id to read it from and a lookup
+ * still has to tell an id of the wrong width from one the pack lacks.
  */
 export type Idx = {
+    readonly oidBytes: OidBytes
     readonly ids: readonly Oid[]
     readonly offsets: readonly number[]
     readonly packChecksum: Oid
