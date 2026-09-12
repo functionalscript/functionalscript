@@ -2,6 +2,10 @@
 
 **Priority:** P3
 **Status:** open
+**Blocked by:**
+[self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
+— until `media/json/tokenizer` stops reading this module, widening it regresses
+a public JSON tokenizer. See below for the fallback if that wait is too long.
 
 ### Problem
 
@@ -85,16 +89,44 @@ Its refusal of `'x'` today is this module erroring, nothing more:
 "'x'"  => error 'unexpected character', error 'invalid token', error, eof
 ```
 
-Nothing in the repository imports it. It survives as a public `tokenize` for
-outside callers, off `parse`'s path, and
-[self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
-holds the open question of whether it is rebuilt over the grammar's lexical
-rules or retired outright.
+The same goes for escapes, and there it is pinned by name. Once `\xHH` is
+recognised, `"\x41"` becomes an ordinary `string` token opened by a double
+quote — indistinguishable by delimiter from `"A"` — while
+[`media/json/tokenizer/proof.f.mjs`](../../../media/json/tokenizer/proof.f.mjs)
+requires `"\x"` to stay an error and names the case
+`escapeJsHasAndJsonDoesNot`. So no property of the *token* saves the adapter:
+what JSON needs to know is which sub-language the literal stayed within, and
+the widening is exactly what destroys that.
 
-So this is a small exposure with an owner, not a blocker. Put the delimiter on
-the token — [2460](../../../../spec/todo/2460-js-string-literals.md) wants it
-for the sub-language distinction anyway — and the adapter can check it for as
-long as it exists.
+#### Which is an ordering problem, not a design problem
+
+Do not add a sub-language flag to the token to rescue this.
+[2460](../../../../spec/todo/2460-js-string-literals.md) offered two mechanisms
+— "two grammar rules (`json-string` ⊂ `js-string`) sharing the escape
+sub-rules, or by recording which sub-language each matched token stayed
+within" — and the repository has already taken the first: JSON and JS have
+separate grammars,
+[`ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs) and
+[`ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs). A flag would reintroduce
+the abandoned mechanism to defend a module that is scheduled to stop existing.
+
+[self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
+holds that schedule: the remaining stage is the public `tokenize`, to be either
+rebuilt over the grammar's lexical rules or retired outright. **Either outcome
+ends the dependency** — and the rebuild is not speculative, because
+`ebnf/lib/json` already exports the rules it needs (`string`, `number`,
+`escape`, `character`, `hex`, `digit`, `ws`), and
+[`fsc/tokenizer`](../../../fsc/tokenizer/module.f.mjs) is the working precedent
+for reading a `token` rule that way.
+
+So this issue waits for that one. Once the adapter no longer reads this module,
+this module has **no consumers at all**, and the widening costs nothing
+downstream. If the website work cannot wait that long, the fallback is a mode on
+`tokenize` — strict versus JS — which leaves every existing proof untouched at
+the price of a language selector inside a public function. Widening without one
+of the two is a silent regression of a public tokenizer, which
+[`DESIGN.md` §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+forbids.
 
 That adapter is now the **only** consumer of this module in the tree.
 [`fsc/tokenizer`](../../../fsc/tokenizer/module.f.mjs) imports nothing from
@@ -145,7 +177,9 @@ and it makes the head/middle/tail boundaries explicit:
 | `` `a${b}c${d}e` `` | `templateHead "a"`, `id b`, `templateMiddle "c"`, `id d`, `templateTail "e"` |
 
 Each of the four carries the chunk's text and nothing else; the substitution's
-contents are ordinary tokens between them. Note what this buys beyond naming:
+contents are ordinary tokens between them. Only an *unescaped* `${` opens a
+substitution — `` `\${x}` `` is a single `noSubstitutionTemplate` — which is the
+escape rule below doing the work, not a special case here. Note what this buys beyond naming:
 `}` is not reused. A `templateMiddle` or `templateTail` *begins* at the `}` that
 closes a substitution, so the block-closing `}` token keeps its one meaning, and
 the nesting depth is what decides which of the two a given `}` is.
@@ -180,8 +214,16 @@ them out would mean shipping a prerequisite whose own acceptance check cannot
 pass, and naming the remainder in the final scan would be a way of not noticing
 that.
 
-The `simpleEscapes` warning in the tasks applies to all of them, not only to
-the delimiters.
+Do not answer this with a longer list, though. The list keeps acquiring rows —
+first `\'`, then the backtick, then `\$` for the escaped substitution opener
+in [`media/nix/module.f.mjs:224`](../../../media/nix/module.f.mjs#L224) — because
+JavaScript does not have a list. Its rule is **the listed escapes, otherwise
+the character itself**: `\q` is `q`, `\$` is `$`. Today the tokenizer does the
+opposite and errors, which is JSON's rule sitting inside a JS lexer. Stating
+the rule once retires every enumeration above, and the tasks do that.
+
+The `simpleEscapes` warning applies throughout: the shared table stays JSON's,
+and the JS rule belongs in a layer above it.
 
 ### Tokens do not reproduce their source
 
@@ -240,31 +282,36 @@ source view. Decide before the source view is written, not after.
 
 - [ ] `_ParseStringState` carries its opening delimiter, so `'` closes only a
       `'` string and a `"` inside one is content. Same for the reverse.
-- [ ] `StringToken` records the delimiter. If
-      [`media/json/tokenizer`](../../../media/json/tokenizer/module.f.mjs) still
-      exists by then, it checks the delimiter in `mapToken`, with a proof that
-      `'x'` stays a non-JSON token; if
-      [self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
-      has retired it, nothing is owed.
-- [ ] The active delimiter becomes escapable: `\'` inside a `'` string, `` \` ``
-      inside a template. Both are `unescaped character` errors today, and both
-      occur — [`git/testlib.f.mjs:232`](../../../git/testlib.f.mjs#L232) has
-      `'Merge tag \'vt\''`, and
+- [ ] **First**, confirm
+      [`media/json/tokenizer`](../../../media/json/tokenizer/module.f.mjs) no
+      longer reads this module — see the blocker above. Nothing below may land
+      while it does, unless the `tokenize` mode fallback is taken instead.
+- [ ] One escape rule, replacing the enumeration this issue used to carry:
+      **the listed escapes, otherwise the character itself**, plus line
+      continuation. That is ECMAScript's rule, and it covers `\'`, `` \` ``,
+      `\$`, and every case nobody has thought of, where a list would keep
+      acquiring rows. Today the opposite holds — `"a\qb"` is an `unescaped
+      character` error — because JSON's rule is living inside a JS lexer.
+      The listed escapes grow by `\v`, `\0`, `\xHH` and `\u{...}`.
+- [ ] Fixtures for that rule, all currently failing:
+      [`git/testlib.f.mjs:232`](../../../git/testlib.f.mjs#L232)
+      (`'Merge tag \'vt\''`),
+      [`git/testlib.f.mjs:121-128`](../../../git/testlib.f.mjs#L121-L128)
+      (`\0` and `\xNN` in ordinary data),
       [`media/datajs/vectors/matrix/proof.f.mjs:295`](../../../media/datajs/vectors/matrix/proof.f.mjs#L295)
-      escapes backticks inside a template. Use them as fixtures.
-      **Do not add rows to `simpleEscapes`** to do it: that table is shared with
-      [`fsc/tokenizer`](../../../fsc/tokenizer/module.f.mjs)'s decoder and with
+      (escaped backticks in a template), and
+      [`media/nix/module.f.mjs:224`](../../../media/nix/module.f.mjs#L224),
+      which is `` `\${${reference}}` `` — an escaped substitution opener and a
+      real substitution on one line, so it pins the two against each other.
+- [ ] **Do not add rows to `simpleEscapes`** for any of it: that table is
+      shared with [`fsc/tokenizer`](../../../fsc/tokenizer/module.f.mjs)'s
+      decoder and with
       [`media/json/serializer`](../../../media/json/serializer/module.f.mjs)'s
       encode side, so an apostrophe row would make the JSON serializer emit
-      `\'` and produce invalid JSON. The escape has to be conditional on the
-      delimiter that opened the literal, or live in a JS-only layer above the
-      shared table.
-- [ ] The remaining JS-only escapes — `\v`, `\0`, `\xHH`, `\u{...}`, literal
-      control characters, line continuations — recognised, not accepted, with
-      [`git/testlib.f.mjs:121-128`](../../../git/testlib.f.mjs#L121-L128) as the
-      fixture. Same rule as above: not by adding rows to `simpleEscapes`.
-- [ ] A template state with a nesting depth: `${` returns to ordinary lexing,
-      the matching `}` resumes the template. Emit the four ECMAScript token
+      `\'` and produce invalid JSON. The JS rule belongs in a layer above the
+      shared table, which stays JSON's.
+- [ ] A template state with a nesting depth: an *unescaped* `${` returns to
+      ordinary lexing, the matching `}` resumes the template. Emit the four ECMAScript token
       kinds above — `noSubstitutionTemplate`, `templateHead`, `templateMiddle`,
       `templateTail` — so the public stream is the one this issue names rather
       than one invented at implementation time. Proofs for the six shapes

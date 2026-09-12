@@ -2,7 +2,12 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md)
+**Blocked by:**
+[single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md),
+which is itself waiting on
+[self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md):
+widening the JS lexer regresses the public JSON tokenizer until that adapter
+stops reading it. The chain has a documented fallback if this work cannot wait.
 
 ### Problem
 
