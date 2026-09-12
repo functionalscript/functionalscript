@@ -2169,6 +2169,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document that parses. One vector per set carries `{"a": a, ["__proto__"]:
       a}`. First and later inside a hoisted body was the rule stated one round
       up; a computed key is the same axis one level out.
+      **And the adjacency shapes in the same slots, which the round above
+      claimed and did not deliver.** Its reason said the free spellings catch a
+      body path that reads two adjacent units as a pair, and the three kinds it
+      added were a lone surrogate and a *valid* pair, so nothing in a body was
+      malformed. Review measured that and it is exactly right: a writer whose
+      body path pairs any two adjacent surrogates turns a shared
+      `["\ud800\ud800", 0]` into an astral character that was never in the
+      graph, and the seven adjacency classes reached only a root. All seven join
+      each const-body family and the key family, so each shape sits in a first
+      and a later element, a first and a later member's value and a first and a
+      later key. Writing the reason before checking it is what this file keeps
+      recording; here the reason named the mutant and the vectors did not reach
+      it.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
