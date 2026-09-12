@@ -1818,8 +1818,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 13 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 164 of the 675 classes the corpus held then, with 47 scope
-      records answering the 511 cells the serializer column owed; the normalize
+      covering 168 of the 675 classes the corpus held then, with 45 scope
+      records answering the 507 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1977,6 +1977,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       denotes the same string, so a graph check cannot see it, which is the
       same bound the surrogate pairs run into. Normalized bytes are what
       catches this, one step up.
+      **And the correction to that very sentence, one round later.** Saying the
+      serializer role cannot see a later key's spelling was right about
+      U+2028 and wrong as a general claim: escaping is *optional* there, so
+      both spellings denote one string, but for a quote, a backslash or a
+      control it is **required**, and a writer that omits it emits a document
+      the reader refuses outright. Measured, `{"a":0,""":1}` does not parse. That
+      is visible to a role judged on the graph, because no graph can be read
+      out of a document that will not parse. Three vectors in each of the
+      writer and reader sets carry a required escape after a first member.
+      The bound I stated holds only where the rule leaves the spelling free,
+      which is the part I should have written rather than naming the role.
+      **A multi-digit Number never reached the writer.** Two reasons said the
+      spelling of an integer is the reader's branch, which is true of `109`
+      against `1.09e2` and false of `109` against `10`: dropping a digit is a
+      different value, not a different spelling. Measured, the set's only
+      integers past one digit were the max-finite pair, in exponential
+      notation, and `109n` exercises the bigint path instead. Four vectors take
+      `9`, `-9`, `109` and `-109`, and both reasons are gone.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
