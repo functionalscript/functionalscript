@@ -19,11 +19,11 @@ that mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 674 | 50 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 163 | 561 | 0 |
-| `normalize` | `normalize` | 212 | 512 | 0 |
+| `reader` | `accept`, `reject` | 675 | 50 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 164 | 561 | 0 |
+| `normalize` | `normalize` | 213 | 512 | 0 |
 
-724 classes.
+725 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
@@ -363,7 +363,7 @@ that mentions it in three.
 | `key/string/raw/ws-like/2008` | `key-raw-ws-like-2008` | `ser-key-raw-ws-like-2008` | `norm-key-raw-ws-like-2008` |
 | `key/string/raw/ws-like/2009` | `key-raw-ws-like-2009` | `ser-key-raw-ws-like-2009` | `norm-key-raw-ws-like-2009` |
 | `key/string/raw/ws-like/200a` | `key-raw-ws-like-200a` | `ser-key-raw-ws-like-200a` | `norm-key-raw-ws-like-200a` |
-| `key/string/raw/ws-like/2028` | `key-raw-ws-like-2028` | `ser-key-raw-ws-like-2028` | `norm-key-raw-ws-like-2028`, `norm-key-raw-ws-like-2028-nested` |
+| `key/string/raw/ws-like/2028` | `key-raw-ws-like-2028`, `key-raw-ws-like-2028-after-first` | `ser-key-raw-ws-like-2028` | `norm-key-raw-ws-like-2028`, `norm-key-raw-ws-like-2028-nested`, `norm-key-raw-ws-like-2028-after-first` |
 | `key/string/raw/ws-like/2029` | `key-raw-ws-like-2029` | `ser-key-raw-ws-like-2029` | `norm-key-raw-ws-like-2029` |
 | `key/string/raw/ws-like/202f` | `key-raw-ws-like-202f` | `ser-key-raw-ws-like-202f` | `norm-key-raw-ws-like-202f` |
 | `key/string/raw/ws-like/205f` | `key-raw-ws-like-205f` | `ser-key-raw-ws-like-205f` | `norm-key-raw-ws-like-205f` |
@@ -516,6 +516,7 @@ that mentions it in three.
 | `object/key-order/non-index/space` | `object-key-order-non-index-space` | `ser-object-key-order-non-index-space` | `norm-object-key-order-non-index-space` |
 | `object/leading-comma` | `object-leading-comma` | not applicable, [note 1](#notes) | not applicable, [note 51](#notes) |
 | `object/members/every-value` | `object-members-every-value` | `ser-object-members-every-value` | `norm-object-members-every-value` |
+| `object/members/negative-first` | `object-members-negative-first-zero`, `object-members-negative-first-number`, `object-members-negative-first-bigint`, `object-members-negative-first-infinity` | `ser-object-members-negative-first-zero`, `ser-object-members-negative-first-number`, `ser-object-members-negative-first-bigint`, `ser-object-members-negative-first-infinity` | `norm-object-members-negative-first-zero`, `norm-object-members-negative-first-number`, `norm-object-members-negative-first-bigint`, `norm-object-members-negative-first-infinity` |
 | `object/nested/array` | `object-nested-array` | `ser-object-nested-array` | not applicable, [note 61](#notes) |
 | `object/nested/deep` | `object-nested-deep` | not applicable, [note 36](#notes) | not applicable, [note 61](#notes) |
 | `object/nested/empty` | `object-nested-empty` | not applicable, [note 38](#notes) | not applicable, [note 61](#notes) |

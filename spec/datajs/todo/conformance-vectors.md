@@ -1828,11 +1828,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 176 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 180 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 13 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 163 of the 674 classes the corpus held then, with 47 scope
+      covering 164 of the 675 classes the corpus held then, with 47 scope
       records answering the 511 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
@@ -1970,6 +1970,27 @@ The steps, in order; a step is one pull request unless it says otherwise:
       vector. The graph-equivalence records do not help, since a reader-only
       implementation never runs that role. Four accept vectors close it, all
       four corners at once this time.
+      **And the object twin of the first slot**, which the array round should
+      have taken with it. A first-*member* emitter avoiding a leading comma is
+      the same code shape as a first-element one, and no vector in any of the
+      three sets had a negative leaf as an object's first member — measured,
+      zero in all three. So `{"a":-0,"b":1}` could come out as
+      `{"a":0,"b":1}`, which `difference` sees through `Object.is` and nothing
+      caught. `object/members/negative-first` is a new class, with four
+      vectors per writer set and four in the accept set, so it lands answered
+      in every role that carries it and owes no reason at all. Container kind
+      was the third axis of a cross I had already crossed twice.
+      **The same first-versus-later axis for a key.** Measured, every
+      escape-sensitive key in all three sets is the sole member of its object,
+      57 of them here and 51 in the serializer set, and not one sits after
+      another member. So a writer with separate first-member and later-member
+      key emitters escapes the second key and passes. This role gets a vector
+      with a raw U+2028 key in second position, under the class its
+      sole-member twin already has; the serializer role gets none, and the
+      reason is measurable rather than a judgment — the escaped spelling
+      denotes the same string, so a graph check cannot see it, which is the
+      same bound the surrogate pairs run into. Normalized bytes are what
+      catches this, one step up.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
@@ -1982,7 +2003,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 228 records in
+- [x] **Normalize.** Landed as 233 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -1996,7 +2017,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 116,036 bytes of the bit
+      being refused outright. The matrix stands at 116,668 bytes of the bit
       vector's 131,072, which is 89% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2118,6 +2139,21 @@ The steps, in order; a step is one pull request unless it says otherwise:
       post-order naming vectors already carry exactly that shape, across all
       four parent-child kinds, so there was nothing to add. Asking cost one
       query and is the step that has been missing.
+      The round after took the object twin of the first slot, in the same pass
+      as the other two sets rather than the pass after. A first-member emitter
+      avoiding a leading comma is the same code shape as a first-element one,
+      and no vector in any of the three sets had a negative leaf as an object's
+      first member, so `{"a":-0,"b":1}` could come out as `{"a":0,"b":1}`. The
+      new `object/members/negative-first` class has four vectors here and four
+      in each of the other two sets, so it owes no reason in any role.
+      Then the key half of the same axis. Every escape-sensitive key in all
+      three sets was the sole member of its object, 62 of them here, so a
+      writer with separate first-member and later-member key emitters escaped
+      the second key and passed. One vector carries a raw U+2028 key after an
+      ordinary member, under the class its sole-member twin already has. The
+      serializer column gets none, measured rather than argued: the escaped
+      spelling denotes the same string, so a graph check cannot see it, and
+      byte-exactness here is the only thing that can.
       **And one thing the matrix does not mean**, which review read the other
       way and a consumer could too. `serializer.md` states that a normalized
       writer owes `serializer-accept` and `graph-equivalence` besides
