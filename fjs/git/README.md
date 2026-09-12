@@ -37,6 +37,14 @@ what a grammar can and cannot do for the formats.
   need not end in LF and ignores anything after its first line, where
   `packed-refs` requires LF on every line and refuses a second comment — so
   each rule here was measured against Git rather than assumed.
+- [`pack/`](pack/module.f.mjs) — a packfile's framing and the delta
+  instructions inside one, with no effects: an entry's payload is a zlib
+  stream, so nothing can say where one entry ends without inflating it, and
+  walking the file belongs to the reader that has `inflate`. Three different
+  varints appear in a pack and two of them look alike — the odd one is an
+  `ofsDelta`'s distance back, most significant group first with a `+ 1` per
+  continuation byte, which is what makes its spelling unique and what decides
+  whether a base lands in the right place.
 - [`packidx/`](packidx/module.f.mjs) — a pack index, `.idx`, from an object
   id to where its entry begins in the `.pack` beside it. Length-framed and so
   a decoder rather than a grammar. Both live versions are read into one
