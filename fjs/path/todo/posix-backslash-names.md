@@ -6,8 +6,11 @@
 ### Problem
 
 [`toPosix`](../module.f.mjs) turns every `\` into `/`, and every entry point
-runs it before reading a root: `root`, `parse`, `normalize`, `escapes`,
-`concat` and `under` all do. That is right on Windows, where both bytes are
+that reads a root runs it first: `root`, `parse`, `normalize`, `escapes` and
+`concat`. `under` reaches the same reading by another route — it never reads a
+root, and instead names both separators itself, so that the path it builds
+keeps whatever root the five above would find. Either way the whole module
+treats `\` as a separator. That is right on Windows, where both bytes are
 separators. On POSIX a backslash is an ordinary filename byte, so a directory
 really called `a\` exists there and this module cannot name it.
 
@@ -23,9 +26,10 @@ So `a\` is `a/`, and a name below it is `a/.git` however it was written.
 A consumer cannot ask this module for the POSIX reading, and no argument to
 any function selects it.
 
-This is not a fault in one function. It follows from `toPosix` being
-unconditional, and it is the same shape as the bare-drive ambiguity the
-module already records: a single string does not say which host wrote it,
+This is not a fault in one function. It follows from the module reading `\`
+as a separator everywhere — unconditionally in `toPosix` for the five, and by
+its own list of separators in `under` — and it is the same shape as the
+bare-drive ambiguity the module already records: a single string does not say which host wrote it,
 and `C:` names two different directories for the same reason `a\` does.
 
 ### Why it is recorded and not fixed
@@ -44,8 +48,9 @@ is, and a caller composing two of them would get two answers.
 ### Proposal
 
 A host is an argument, not a guess. The entry points take which reading to
-use — the pair of separators the host has — rather than each one calling
-`toPosix` on its own. POSIX passes `/` alone and a backslash stays a
+use — the pair of separators the host has — rather than each deciding for
+itself, whether by calling `toPosix` as the five do or by naming the
+separators as `under` does. POSIX passes `/` alone and a backslash stays a
 filename byte; Windows passes both and nothing changes from today.
 [`decode-once.md`](./decode-once.md) is the step that gathers those calls
 into one place, which is where such an argument would go, so that issue
