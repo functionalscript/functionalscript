@@ -63,8 +63,11 @@ refusal.
 
 **The writer's** are in each set's own proof, since what they check is the claim
 the record makes. `serializer-accept` hands every input to the writer, and the
-document that comes out must be one the reader takes, denoting the input: *a*
-valid document and never a particular spelling, which is what this role owes.
+document that comes out must be one the reader takes, denoting the input, and
+must have a UTF-8 encoding — *a* valid document and never a particular spelling,
+which is what this role owes. The encoding check is not redundant: a document is
+UTF-8, an unpaired surrogate has none, and the reader takes code units, so a
+writer emitting one raw round-trips and has still not written a document.
 `graph-equivalence` does the same over the sharing shapes, where `difference`
 comparing containers as a bijection is what refuses an expanded share or a merge
 of two distinct nodes — and it also checks the output against the vector's own
