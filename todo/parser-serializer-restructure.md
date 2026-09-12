@@ -670,12 +670,27 @@ throughout.
    stays until stage 4 lands: the stack of stage 4 pull requests links into
    it from files those pull requests edit, so moving the issues now would
    force a conflict on them. The issues follow the code in a pull request of
-   their own once the stack is on `main`. Nothing in this pull request
-   changes accepted syntax, so it carries no breaking-change entry.
-   **Done.** The `fjs/fsc/module.f.mjs` that was there before, a range-map
-   lexer stub nothing imported, was deleted to make room; the shared shape
-   it had with `fjs/js/tokenizer` is kept on record in
-   [174](../fjs/js/todo/174-shared-range-map-lexer.md).
+   their own once the stack is on `main`.
+
+   Accepted syntax does not change, but published paths do: the package has
+   no `exports` map, so every module the front end held under `fjs/djs/**`
+   was a reachable deep import, and the `init` and `terminal` of the old
+   `fjs/fsc/module.f.mjs` go with the stub below. That is a break of the
+   public API, so this pull request carries its own `**BREAKING CHANGES:**`
+   entry for the moved and removed paths; stage 7's entry then covers only
+   what is left of `fjs/djs/*` after stage 4.
+
+   The destination is occupied, and the rename says how the two reconcile
+   rather than overwrite. `fjs/fsc/README.md` is the repository-wide
+   extension contract, cited by name and by anchor from `CONTRIBUTING.md`,
+   the root `README.md`, `fjs/AGENTS.md` and this plan's own Related list,
+   so it stays with its sections and anchors intact, and the DJS README's
+   content — the AST, the LL(1) record, the roadmap — joins it under the
+   compiler's title. `fjs/fsc/module.f.mjs`, `types.ts` and `proof.f.mjs`
+   are a range-map lexer stub nothing imports; the front end's entry module
+   takes the path and the stub is deleted, its one citation as code,
+   [174](../fjs/js/todo/174-shared-range-map-lexer.md), told.
+   **Done**, as described.
 
    **5b. The syntax** — terminator `nl` → `';'` **after each** statement,
    the module's final one included (never `;` between statements with EOF
@@ -730,8 +745,10 @@ throughout.
    a `fjs/media/js` for a JavaScript parser and serializer has been
    suggested — is a later rename and no part of this plan; do not fold it
    into this stage. The clean-break release with `**BREAKING
-   CHANGES:**` changelog treatment for the removed `fjs/djs/*` paths and
-   changed serializer output — no compatibility shims. (Each earlier stage
+   CHANGES:**` changelog treatment for what is left of `fjs/djs/*` after
+   stages 4 and 5a — the serializer and the value types, the front end's
+   paths having been declared in 5a — and changed serializer output — no
+   compatibility shims. (Each earlier stage
    that changes public behavior, stage 5 in particular, carries its own
    breaking-change entry in its own PR, per the changelog convention.)
 
@@ -780,7 +797,8 @@ throughout.
       route. The byte path, the serializer and normalized form remain, with
       proofs over stage 1b's corpus as their source.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
-      `serializer/` and `types.ts` left in place.
+      `serializer/` and `types.ts` left in place; the breaking-change entry
+      for the moved paths.
 - [ ] Stage 5b: `;` termination, reserved words, the special numbers; the
       breaking-change entry. File its todo under `fjs/fsc/todo/`.
 - [ ] Stage 5c: the front end's tokenizer as grammar layers in

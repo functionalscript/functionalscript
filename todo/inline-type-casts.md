@@ -157,9 +157,13 @@ nine `fjs/rtti/validate/` rows describe a module that has been deleted —
 exist. Two more have since moved: `fjs/cas/evo/module.f.mjs:466`'s cast went
 with the flattening of `Evo.add`'s nested `Result`, and
 `fjs/cas/module.f.mjs:348` now reads `Effect<Rm, Vec, IoChannel>` — the same
-type, spelled through the three-parameter `Effect`. All are left in place
-rather than removed with the totals re-derived around them; a re-audit is the
-way to refresh this file, not a partial edit.
+type, spelled through the three-parameter `Effect`. And the
+`fjs/fsc/proof.f.mjs:21` row names a file that has since been replaced: the
+range-map lexer stub it audited was deleted when the front end moved into
+`fjs/fsc`, and the `proof.f.mjs` at that path today is the compiler's,
+moved from `fjs/djs`, whose casts this table never recorded. All are left in
+place rather than removed with the totals re-derived around them; a re-audit
+is the way to refresh this file, not a partial edit.
 
 | File | Line | `@type {T}` | Why it stays |
 | --- | --- | --- | --- |
@@ -188,6 +192,7 @@ way to refresh this file, not a partial edit.
 | `fjs/emergent_testing/proof.f.mjs` | 434 | `Parameters<typeof mockRun<_RegisterMockOps \| Readdir \| Imp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/emergent_testing/proof.f.mjs` | 443 | `readonly [undefined, readonly unknown[]]` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
 | `fjs/emergent_testing/proof.f.mjs` | 448 | `Effect<_RegisterMockOps \| Readdir \| Import, number>` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/fsc/proof.f.mjs` | 21 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/js/tokenizer/module.f.mjs` | 262 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/js/tokenizer/module.f.mjs` | 689 | `List<List<number \| null>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/mcp/cas/proof.f.mjs` | 33 | `readonly unknown[]` | arrived on `main` after the audit — not measured here |

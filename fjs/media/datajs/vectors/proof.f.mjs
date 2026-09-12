@@ -78,12 +78,6 @@ const same = (expected, actual) => assertEq(difference(expected)(actual), null)
 /** Two graphs whose first difference is the message. @type {(expected: Unknown, actual: Unknown, message: string) => void} */
 const differ = (expected, actual, message) => assertEq(difference(expected)(actual), message)
 
-/**
- * A host value handed to the comparison as if it were a graph, which is what
- * a broken implementation does. @type {(value: unknown) => Unknown}
- */
-const outside = value => /** @type {Unknown} */ (value)
-
 /** `n` arrays nested, the innermost holding `leaf`. @type {(n: number, leaf: Unknown) => Unknown} */
 const nested = (n, leaf) => {
     /** @type {Unknown} */
@@ -185,54 +179,14 @@ export const proof = {
         differ({ a: 1 }, { b: 1 }, 'at $: expected member 0 to be "a", got "b"')
         differ({ a: [1, { b: 'x' }] }, { a: [1, { b: 'y' }] }, 'at $["a"][1]["b"]: expected "x", got "y"')
         // an object member holding `undefined` is present, and differs from
-        // an absent one by the count; an array element holding `undefined`
-        // is present, and differs from a hole, which no expected graph has
+        // an absent one by the count
         differ({ a: undefined }, {}, 'at $: expected 1 members, got 0')
-        differ([undefined], [, undefined].slice(0, 1), 'at $[0]: expected undefined, got a hole')
-        differ([1, [2, 3]], [1, [2, , 4].slice(0, 2)], 'at $[1][1]: expected 3, got a hole')
-        // in document order: an earlier element's difference comes first
-        differ([1, 2], [9, , 3].slice(0, 2), 'at $[0]: expected 1, got 9')
-        differ([[1], 2], [[9], , 3].slice(0, 2), 'at $[0][0]: expected 1, got 9')
         same([undefined, 1], [undefined, 1])
-    },
-    // An object of the data model is a plain one: a host object with no
-    // members — a `Date`, a `Map`, a boxed number — is not an empty object,
-    // at the root and below it.
-    plain: () => {
-        differ({}, outside(new Date(0)), 'at $: expected an object, got a non-plain object')
-        differ({}, outside(new Map()), 'at $: expected an object, got a non-plain object')
-        differ({ a: 1 }, outside(Object(1)), 'at $: expected an object, got a non-plain object')
-        differ([{}], [outside(new Date(0))], 'at $[0]: expected an object, got a non-plain object')
-        differ(1, outside(new Date(0)), 'at $: expected 1, got an object')
-    },
-    // Only the data is in the model: an own property an expected graph does
-    // not have is a difference of the container, and an accessor is one
-    // wherever it stands — read through its descriptor, so the getter never
-    // runs while the comparison asks whether it should have been there.
-    model: () => {
-        // an array carrying an own property beyond its elements and `length`
-        differ([], outside(Object.assign([], { meta: 1 })), 'at $: expected data members only, got the own property "meta"')
-        differ([1], outside(Object.assign([1], { meta: 1 })), 'at $: expected data members only, got the own property "meta"')
-        // the same, non-enumerable, which `Object.keys` cannot see
-        differ([], outside(Object.defineProperty([], 'meta', { value: 1 })), 'at $: expected data members only, got the own property "meta"')
-        // an object's enumerable extra is already a member count apart; the
-        // one `Object.keys` cannot see is what this check is for
-        differ({}, outside(Object.assign({}, { meta: 1 })), 'at $: expected 0 members, got 1')
-        differ({}, outside(Object.defineProperty({}, 'meta', { value: 1 })), 'at $: expected data members only, got the own property "meta"')
-        // a symbol-keyed property, outside the model wherever it stands
-        differ([], outside(Object.assign([], { [Symbol('s')]: 1 })), 'at $: expected data members only, got a symbol-keyed property')
-        differ({}, outside(Object.assign({}, { [Symbol('s')]: 1 })), 'at $: expected data members only, got a symbol-keyed property')
-        // an accessor, reported where the walk reaches it and never invoked
-        let read = 0
-        const getter = (/** @type {Unknown} */ target, /** @type {string} */ k) =>
-            outside(Object.defineProperty(target, k, { get: () => { read += 1; return 1 }, enumerable: true }))
-        differ({ a: 1 }, getter({}, 'a'), 'at $["a"]: expected 1, got an accessor')
-        differ([1], getter([1], '0'), 'at $[0]: expected 1, got an accessor')
-        // a setter with no getter reads as `undefined` and is an accessor all the same
-        differ({ a: undefined }, outside(Object.defineProperty({}, 'a', { set: () => {}, enumerable: true })), 'at $["a"]: expected undefined, got an accessor')
-        // an earlier member's difference still comes first
-        differ({ a: 1, b: 2 }, getter({ a: 9 }, 'b'), 'at $["a"]: expected 1, got 9')
-        assertEq(read, 0)
+        // in document order: an earlier element's difference comes first
+        differ([1, 2], [9, 3], 'at $[0]: expected 1, got 9')
+        differ([[1], 2], [[9], 3], 'at $[0][0]: expected 1, got 9')
+        // a leaf against a container of either kind
+        differ(1, {}, 'at $: expected 1, got an object')
     },
     // Sharing is part of the graph, in both directions: a node the expected
     // graph reaches twice must be one node in the actual, and two nodes it

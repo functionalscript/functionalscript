@@ -72,11 +72,17 @@ what a grammar can and cannot do for the formats.
   is quadratic in a chain Git puts no bound on. A walk's loop is flat in the
   item count whatever the `Read` answers, and the map answers and grows in
   the logarithm.
+
   Both readers refuse a payload under the length Git's own parse requires
   before it reads a header — the id's hexadecimal digits plus 24 for a tag,
   plus 6 for a commit — since that is what the headers each needs cost at
   their shortest, and nothing shorter could have held them.
 
+- [`repo/`](repo/module.f.mjs) — from a worktree to the repository
+  directory that holds its objects: `.git` is the repository, or a file
+  whose `gitdir:` line names one, and that directory is the repository
+  unless its `commondir` names another. One rule for a `git init` worktree,
+  a `--separate-git-dir` one and a linked one.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
@@ -338,10 +344,11 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   supplies them from `node:zlib` at the host boundary, and
   [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
   is [`todo/inflate.md`](../../todo/inflate.md).
-- **A repository found.** `store` reads one object by id and `walk` walks
-  from one to a blob, but both take the repository's directory as the
-  caller gives it: finding it through a `.git` file's `gitdir` and a
-  `commondir`, and `objects/info/alternates`, are the rest of
+- **Alternates.** `repo` finds the repository a worktree belongs to, and
+  `store` and `walk` read at the directory they are given, so a caller
+  puts the two together. What is left is
+  `objects/info/alternates`, which adds directories to search after the
+  repository's own and so makes the store read several rather than one:
   [`todo/object-store.md`](todo/object-store.md). What the id check means
   in a SHA-1 repository, and what a trust layer does about a hash that can
   collide, is

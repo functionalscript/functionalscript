@@ -1,4 +1,4 @@
-## camel-case-proof-keys. 42 `proof` test keys are snake_case
+## camel-case-proof-keys. 41 `proof` test keys are snake_case
 
 **Priority:** P4
 **Status:** open
