@@ -1,12 +1,13 @@
 ## streaming-recognizer. A payload-free, O(depth) JSON validity recognizer
 
 **Priority:** P3
-**Status:** blocked — the reader it reuses is being redesigned.
-**Blocked by:** [self-contained-tokenizer](./self-contained-tokenizer.md)
+**Status:** open — the design below is written against a reader that no
+longer exists; rebase it on the grammar before starting.
 
 > **The seam this design is built on no longer exists.** It reuses the
-> hand-written `Scan<S>` scanners that
-> [self-contained-tokenizer](./self-contained-tokenizer.md) used to promise, and
+> hand-written `Scan<S>` scanners that the JSON reader's rewrite (stage 3 of
+> [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md),
+> closed) used to promise, and
 > that design was implemented, reverted
 > ([#1895](https://github.com/functionalscript/functionalscript/pull/1895)) and
 > replaced by a reader generated from JSON's EBNF grammar. Nothing exports
@@ -139,7 +140,7 @@ is the thing being lagged.
 
 **A code unit, not a code point**, and it is `(state, unit)` rather than a
 `Fold` — see the note at the end of this section before wiring it into one.
-The reason for the unit is the seam this design reuses. [self-contained-tokenizer](./self-contained-tokenizer.md) types the
+The reason for the unit is the seam this design reuses. The withdrawn scanner design typed the
 scanners as `Scan<S>` over `U16 | null`, so a caller holding one value for a
 raw astral character such as U+1F600 has nothing it can pass: the scalar is two
 units, and expanding it is the caller's job under either spelling. Taking
@@ -173,10 +174,10 @@ out of scope, even if a test corpus shows it equivalent.
 
 Concretely, reuse the existing grammar rather than writing a fourth JSON
 parser; drop only the accumulation. Where the bullets below say `fjs/js`, read
-`fjs/media/json/tokenizer` once
-[self-contained-tokenizer](./self-contained-tokenizer.md) lands: the string and
-number scanners become JSON's own, which is a better fit for this design, not a
+[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs): the string and
+number rules are JSON's own now, which is a better fit for this design, not a
 worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar.
+The JSON tokenizer the bullets once expected to read is retired.
 
 - **Payload-free scanning.** Reuse the tokenizer's *transition structure*
   (range-map dispatch, escape / `\uXXXX` / surrogate handling, number-shape DFA)

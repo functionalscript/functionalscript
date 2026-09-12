@@ -67,7 +67,8 @@ fold change, both local. (2) is likely not worth it unless a real use case
       investing here.
 - [ ] If yes: spell the string's failure modes as accepting branches of
       `fjs/ebnf/lib/js`'s `string` rule, as the block comment's
-      `unterminated` is, and name each in `tokenizeJs`'s fold.
+      `unterminated` is, and name each in the fold of `fjs/js/tokenizer`'s
+      `tokenize`.
 - [ ] Separately evaluate whether continuation-after-error is actually
       needed, given `fjs/fsc/parser` already freezes on the first error and
       doesn't do multi-error collection today.

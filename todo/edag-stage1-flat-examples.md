@@ -81,8 +81,8 @@ occurrence #1756 introduced rather than inherited. The shorthand only became
 ambiguous once `["{}", []]` acquired a meaning, so give it a nonempty
 placeholder — `["{}", entries]` — rather than the empty form or a bare tag.
 
-Sections are named rather than line numbers cited, per
-[tokenizer-line-citations](../fjs/js/todo/tokenizer-line-citations.md).
+Sections are named rather than line numbers cited: a line number rots with
+every edit above it, a section name does not.
 
 ### Tasks
 
