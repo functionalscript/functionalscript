@@ -42,22 +42,29 @@ import type { Framing, Framed, Hash } from './types.ts'
  * `hashBytes`/`blockBytes` rounding and the `{ hash, len: 0n, remainder: empty }`
  * initial state are spelled. `H` is the hash value's shape (`V8`, `V5`).
  */
-export const framed: <H>(f: Framing<H> & { readonly chunkLength: bigint }, hash: H, hashLength: bigint) => Hash<Framed<H>>
+export const framed: <H>(f: Framing<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>
 /** The bigint the words spell, most significant first, each `wordLength` bits wide; `[]` is `0n`. */
 export const fromWords: (wordLength: bigint) => (words: readonly bigint[]) => bigint
 export const ch: (x: bigint, y: bigint, z: bigint) => bigint
 export const maj: (x: bigint, y: bigint, z: bigint) => bigint
 ```
 
-`framed` takes a **built** `Framing<H>` — the `append`/`end` a
-`framing(…)` call returns, typed over the same `H` as `hash` — together
-with the `chunkLength` that becomes `blockLength`, the initial words,
-and the `hashLength` that `end` is closed over; the state it returns is
-`Framed<H>` and its `R` is the default `Vec`. It is exactly the private
+`framed` takes a **built** `Framing<H>` — what a `framing(…)` call
+returns, typed over the same `H` as `hash` — plus the initial words and
+the `hashLength` that `end` is closed over; the state it returns is
+`Framed<H>` and its `R` is the default `Vec`. The block length is **not
+a separate argument**: `Framing<H>` gains a `readonly chunkLength:
+bigint` that `framing` copies from the `FramingInit` it was built from,
+so the width `framed` advertises as `blockLength`/`blockBytes` is the
+width `append` and `end` actually frame with, by construction — a
+caller cannot attach `1024n` to closures built for 512-bit blocks, which
+would have had `hmac` pad keys to a width the framing never used. Adding
+a field to `Framing<H>` is non-breaking. It is exactly the private
 `sha2` factory with `V8` generalized to `H`, and its parameter is
 exactly what that factory already receives: `base32` and `base64` carry
-`append`, `end`, and `chunkLength` today, so they are passed to `framed`
-unchanged. **Nothing about `Base` changes** — neither the exported type
+`append`, `end`, and `chunkLength` today (`base`'s own `chunkLength` is
+the one it hands `framing`), so they satisfy `Framing<V8>` structurally
+and are passed to `framed` unchanged. **Nothing about `Base` changes** — neither the exported type
 nor the exported values `base32`/`base64`, whose shape stays
 `{ bitLength, chunkLength, compress, fromV8, append, end }`: `fjs/sul/id`
 imports `base32` and the SHA-2 proof reads `fromV8`, `compress`, and
@@ -85,10 +92,10 @@ form is chosen because a public function over `readonly bigint[]` must
 answer for every value of that type, and `0n` is the answer that needs no
 special case. The proof pins `fromWords(32n)([]) === 0n` alongside the
 `V5`/`V8` rows. `sha1` then builds its record as
-`framed({ ...framing({ chunkLength, lengthLength, digestLength: hashLength,
-compress, digest: fromWords(wordLength) }), chunkLength }, [0x67452301n, …],
-hashLength)` instead of writing the literal — `framing` as it imports it
-today, `framed` beside it.
+`framed(framing({ chunkLength, lengthLength, digestLength: hashLength,
+compress, digest: fromWords(wordLength) }), [0x67452301n, …], hashLength)`
+instead of writing the literal — `framing` as it imports it today,
+`framed` beside it, and the block length stated once, in the init.
 
 ### Tasks
 

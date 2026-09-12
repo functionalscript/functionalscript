@@ -35,18 +35,33 @@ type ExtraLeaves = {
     readonly bigint?: LeafSerializer<bigint>
     readonly undefined?: LeafSerializer<undefined>
 }
+/** The leaf kinds a configuration serializes: the shared four plus each `extra` arm it carries. */
+type Leaves<X extends ExtraLeaves> =
+    | null | boolean | number | string
+    | ('bigint' extends keyof X ? bigint : never)
+    | ('undefined' extends keyof X ? undefined : never)
 const leafSerialize: (numberSerialize: LeafSerializer<number>)
-    => (extra: ExtraLeaves)
-    => LeafSerializer<null | boolean | number | string | bigint | undefined>
+    => <X extends ExtraLeaves>(extra: X)
+    => LeafSerializer<Leaves<X>>
 ```
 
 Every `extra` member is a serializer *function*, `undefined`'s included —
 a constant case is written `() => undefinedSerialize`, so there is one
-member shape and no second convention for "already a list". The returned
-function dispatches on `typeof`: `boolean`/`string` to the shared atoms,
-`number` to the given serializer, `bigint`/`undefined` to the `extra` arm
-when present, and everything else — `null`, and any `extra` arm left out
-— to `nullSerialize`, which is exactly today's `default`. Standard passes
+member shape and no second convention for "already a list". **The
+returned function's input type depends on the arms configured**: with
+`{}` it is `LeafSerializer<null | boolean | number | string>`, so
+`leafSerialize(numberSerialize)({})(1n)` is a type error rather than a
+`null` on the wire. The returned function dispatches on `typeof`:
+`boolean`/`string` to the shared atoms, `number` to the given serializer,
+`bigint`/`undefined` to their `extra` arm, `null` to `nullSerialize` —
+and a `bigint` or `undefined` that reaches a configuration with no arm
+for it **asserts**, since only a cast can deliver one past the type; it
+is not answered with `nullSerialize`, which would be a plausible wrong
+value ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+That is the one behaviour this builder changes: today's `default` arm
+folds an out-of-type `bigint` into `null` silently. It is reachable only
+outside the declared input types, so no `Changelog:` entry is owed, and
+the proof pins the assertion. Standard passes
 only its `numberSerialize` and `{}`; extended adds `bigint`; DataJS adds
 `bigint` and `undefined`. Each dialect states exactly what it adds, and
 `bigint`'s return shape is fixed once by `LeafSerializer<bigint>`.

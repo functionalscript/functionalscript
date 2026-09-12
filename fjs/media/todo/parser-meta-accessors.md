@@ -104,12 +104,20 @@ own: the exported reader is the single `'text'` instance re-typed
 generically over whatever alphabet surrounds it —
 
 ```js
-/** @type {<O extends { readonly id: string }>(node: _Readable<Text | O>) => string} */
+/** @type {<O extends { readonly id: string }>(node: _Readable<Text | Exclude<O, { readonly id: 'text' }>>) => string} */
 export const textAt = tagged('text', 'value').at
 ```
 
 — so a JSON node (`O = Json<P>`) and a DataJS node (`O = Value`) are
 both accepted, each alphabet's `Text` being the same declaration. The
+`Exclude` is what keeps that guarantee: the surrounding alphabet may
+contribute any members *but* another `text`-tagged one, so a
+`Meta<{ id: 'text', value: number }>` — which would infer `O` as that
+member, pass the runtime `id` assertion, and return a number typed as a
+string — is not assignable, because after `Exclude` the only `text`
+member the parameter admits is `Text` itself. That is the one-`id`,
+one-type convention applied across layers, checked at the type level
+for the one reader that crosses them. The
 runtime is alphabet-agnostic already (it reads `meta.id` and
 `meta.value`); only the type had closed over JSON's `Out<P>`, which a
 `Utf16 | Text | Value` node is not assignable to. `text` (the
