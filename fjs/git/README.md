@@ -37,6 +37,14 @@ what a grammar can and cannot do for the formats.
   need not end in LF and ignores anything after its first line, where
   `packed-refs` requires LF on every line and refuses a second comment — so
   each rule here was measured against Git rather than assumed.
+- [`packidx/`](packidx/module.f.mjs) — a pack index, `.idx`, from an object
+  id to where its entry begins in the `.pack` beside it. Length-framed and so
+  a decoder rather than a grammar. Both live versions are read into one
+  shape — version 2 with its magic and separate tables, version 1 with its
+  ids and offsets interleaved — because the version says how the bytes were
+  laid out and nothing about what they mean. The ids' order is checked and not
+  trusted, since the lookup is a search and a search over ids that do not
+  ascend answers wrongly instead of failing.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them and `tryResolve` for a name
   in hand. Two rules live here because no reader of one file can decide
