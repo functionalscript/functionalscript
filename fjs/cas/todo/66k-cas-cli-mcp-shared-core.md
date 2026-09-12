@@ -132,9 +132,15 @@ accepted as-is, the same as `cp`.
       CLI-only file-path `add`).
 - [ ] Refactor `casToolRegistry` to delegate to the shared layer (inline only —
       no file-path source; MCP `type:'url'` has already been removed).
-      `cas_get` and `cas_add` both collapse to registry shape — a
-      `toolResultStep` over the shared inspection / the shared inline
-      `add`, wording unchanged, `uri` shaped by the adapter.
+      `cas_get` collapses to registry shape — a `toolResultStep` over the
+      shared inspection, wording unchanged, `uri` shaped by the adapter.
+      `cas_add` collapses to the shared inline `add` **plus one
+      continuation the adapter owns**: the `syncRevision(cacheKey)(hash)(value)`
+      step that keeps `evo_list`/`evo_head` current after a write is an
+      MCP-server concern (the CLI has no Evo cache), so it stays in
+      `fjs/mcp/cas` as `resultStep(add(c)(input), hash => resultStep(syncRevision(…), …))`
+      rather than moving into the shared layer or being dropped. The
+      shared `add` takes no cache key and no post-write hook.
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the CLI staging flow.
 

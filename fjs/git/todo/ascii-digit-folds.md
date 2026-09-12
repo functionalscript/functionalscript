@@ -71,8 +71,11 @@ so it reads as canonical — which is one more reason to name the rule: today's 
 length first), and the PR confirms each remaining caller is non-empty by
 construction or takes the new refusal explicitly.
 
-`object.decimal` becomes the canonicality check plus `digitsValue(10n)`
-narrowed by `isSafeInteger`; `ident`'s `canonical`/`decimal` disappear
+`object.decimal` becomes the canonicality check plus `digitsValue(10n)`,
+bounded **as a bigint** and only then converted — `n !== null && n <=
+BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : null` — since
+`Number.isSafeInteger` is `false` for every bigint and would refuse
+`blob 0\0`; `decimal` keeps its `Nullable<number>` result type; `ident`'s `canonical`/`decimal` disappear
 into the pair (`ident` already wants the bigint form); `tree.octal`
 becomes `digitsValue(8n)` and its digit-range check rides the same
 helper's refusal. `0x30` then lives once.
