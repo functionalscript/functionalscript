@@ -2683,10 +2683,35 @@ The steps, in order; a step is one pull request unless it says otherwise:
       needed no change — their `rule` already read "whitespace: exactly
       space, tab, LF and CR", which is the accepting form the spec now
       takes too.
-- [ ] **The decoder seam in the spec**, per decision 4: say that a document
+- [x] **The decoder seam in the spec**, per decision 4: say that a document
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
       request, as each of these changes a different contract.
+      Landed as [§Encoding](../README.md#encoding), the first subsection of the
+      grammar, where the bytes are. The rule it replaces was two sentences at
+      the *end of §Whitespace* — "A document is UTF-8. It has no BOM." — which
+      said what a document is and not what follows from it, in the one section
+      that is not about encoding. §Encoding says it in the accepting form
+      §Whitespace uses, and adds the two things the old sentences left to the
+      reader: anything that is not correct UTF-8 is **rejected**, and **nothing
+      is required of a decoder** — not whether one is exposed, what it reports,
+      where it stops, or whether it replaces anything. A decoder that
+      substitutes U+FFFD is then not a permitted variation but a reader that
+      accepts a document the format rejects, which is the sentence the corpus's
+      byte vectors need in order to mean anything.
+      **The BOM rule turned out to be worth more than it looked**, and the
+      round measured it rather than asserting it. `EF BB BF` is correct UTF-8
+      for U+FEFF, so it is not an encoding error at all, and §Whitespace already
+      refuses what it decodes to. It needs its own sentence because **two layers
+      a reader is likely to stand on remove it first**: a JavaScript engine
+      imports `EF BB BF 65 78 70 6F 72 74 20 64 65 66 61 75 6C 74 20 31 3B` and
+      exports `1`, and a WHATWG `TextDecoder` returns the *empty string* for
+      those three bytes unless `ignoreBOM` is set. So an implementation can be
+      assembled from correct parts and over-accept without any part of it
+      deciding to — which is why the reject vector for it records the host as
+      `accepts`, and why prose alone could never have caught it.
+      §Status's forward reference is corrected with it: it pointed at "§Layout",
+      a section this specification does not have.
 - [x] **Make "every set is a DataJS document" a check rather than a
       measurement.** Review found every set ending with a trailing comma
       before its `]`, which JavaScript takes and DataJS refuses, so no set was

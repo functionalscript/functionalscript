@@ -78,9 +78,9 @@ included, measured against
 [`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
 which closed the reader-side gap this paragraph used to name. That entry
 point takes a string, so what parses today is the document as code units; the
-byte path of §Layout, which refuses invalid UTF-8 and a leading BOM before
-the reader sees a unit, is still to come and is what the corpus's byte-form
-vectors require.
+byte path of [§Encoding](#encoding), which refuses invalid UTF-8 and a leading
+BOM before the reader sees a unit, is still to come and is what the corpus's
+byte-form vectors require.
 The shipped `fjs/djs` serializer still differs from
 [normalized form](#normalized-form) in four ways, each of them stage 4–6 work
 rather than a bug:
@@ -124,6 +124,41 @@ document specifies **DataJS**, the narrow interchange format.
 
 ## Grammar
 
+### Encoding
+
+A document is a byte sequence, and it is **correct UTF-8**. Anything else is
+not a DataJS document and is **rejected**.
+
+That is the whole rule, and it is stated in the accepting form for the reason
+§Whitespace is: a taxonomy of malformed sequences — an overlong form, a
+surrogate encoded as three bytes, a truncated sequence, a continuation byte
+with no leader — is exactly the knowledge a data format should not ask an
+implementer to carry, and any list of them is one entry short of something.
+
+So this specification requires **nothing of a decoder**. It does not say
+whether an implementation exposes one, what it reports, where it stops, or
+whether it replaces anything: correct UTF-8 decodes to one sequence of code
+units, the grammar below reads that sequence, and every other byte sequence is
+refused. How an implementation discovers the refusal is its own business, and
+a decoder that substitutes U+FFFD rather than failing is simply a reader that
+accepts a document this specification rejects.
+
+A document also **has no BOM**, and that rule is not about encoding. The bytes
+`EF BB BF` are correct UTF-8 for U+FEFF, so they decode, and §Whitespace
+already refuses what they decode to: U+FEFF is not one of the four whitespace
+characters and begins no token.
+
+It is stated separately because **two layers a reader is likely to stand on
+remove it before the grammar ever sees it**, and both were measured rather than
+assumed. A JavaScript engine strips a leading BOM: the module
+`EF BB BF 65 78 70 6F 72 74 20 64 65 66 61 75 6C 74 20 31 3B` imports and
+exports `1`. A WHATWG `TextDecoder` strips it too, by default — `decode` of
+those three bytes yields the *empty string*, and only `ignoreBOM: true` returns
+U+FEFF. So an implementation can be built from correct parts and still accept a
+document this format rejects, without anything in it deciding to. Naming the
+rule is what makes that a defect instead of a difference of opinion, and the
+corpus carries the vector that finds it.
+
 ### Whitespace
 
 Whitespace is exactly JSON's: **space** (U+0020), **tab** (U+0009), **LF**
@@ -156,8 +191,6 @@ writer ever consults the next character to find out. The
 So the one-line spelling of a document is `const $0=[];export default [$0,$0];`,
 and `export default [1];`, `export default -1;` and `export default "a";` all
 carry the space.
-
-A document is UTF-8. It has no BOM.
 
 ### Tokens
 
