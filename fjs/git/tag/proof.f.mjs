@@ -112,6 +112,14 @@ export const proof = {
         assertEq(tryType(replaced(1, 'type blob\0')), 'blob')
         assertEq(tryType(replaced(1, 'type blob\0junk')), 'blob')
         assertEq(tryType(replaced(1, 'type \0blob')), null)
+        // A continuation folded into the value leaves an LF in it, and
+        // that is no type: Git reads the `type` line and then wants `tag `
+        // on the line after, which the continuation is not. Without this
+        // the NUL cut would hide the continuation and accept a tag Git
+        // refuses — measured on Git 2.43.0, where `type blob<NUL>` with a
+        // continuation before `tag` is `Not a valid object name`.
+        assertEq(tryType(tag([`object ${id}`, 'type blob\0', ' cont', 'tag v1', '', 'm'])), null)
+        assertEq(tryType(tag([`object ${id}`, 'type blob', ' cont', 'tag v1', '', 'm'])), null)
     },
     // What a tag names and what it says that object is, taken together as
     // Git's own parse takes them: the `object` header first naming an id of

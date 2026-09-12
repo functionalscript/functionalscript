@@ -73,6 +73,8 @@ export default [
     {"id": "ser-key-surrogate-lone-dfff", "class": "key/string/surrogate/lone/dfff", "input": {"\udfff": 0}},
     {"id": "ser-string-surrogate-pair-interior", "class": "string/surrogate/pair/interior", "input": "😀"},
     {"id": "ser-key-surrogate-pair-interior", "class": "key/string/surrogate/pair/interior", "input": {"😀": 0}},
+    {"id": "ser-string-surrogate-pair-mixed", "class": "string/surrogate/pair/mixed", "input": "\ud800\udfff"},
+    {"id": "ser-key-surrogate-pair-mixed", "class": "key/string/surrogate/pair/mixed", "input": {"\ud800\udfff": 0}},
     {"id": "ser-string-raw-latin", "class": "string/raw/bmp", "input": "é"},
     {"id": "ser-key-raw-latin", "class": "key/string/raw/bmp", "input": {"é": 0}},
     {"id": "ser-string-raw-0020", "class": "string/raw/range/0020-0021/low", "input": " "},

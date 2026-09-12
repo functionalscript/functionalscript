@@ -51,12 +51,17 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
 [data-test-results] { color: var(--text) }
 [data-status="passed"]::marker { color: var(--pass) }
 [data-status="failed"] { color: var(--fail) }
-/* Two elements do not inherit the page's font on their own. A browser's rule
+/* Some elements do not inherit the page's font on their own. A browser's rule
    for pre names a monospace family, and naming one is what triggers the legacy
    shrink to 13.33px; a form control is given the platform's UI face outright,
    so Run was Arial at 13.33px on a page set in monospace at 16px. Inheriting
-   is what makes "one face" true of the whole page rather than of its text. */
-button, pre { font: inherit }
+   is what makes "one face" true of the whole page rather than of its text.
+
+   Every control, not only the ones the site has today: a demo's field is an
+   input, and it was Arial the moment the first demo landed. A list that has to
+   be extended for each new control is a rule that is wrong between the element
+   arriving and somebody noticing. */
+button, input, pre { font: inherit }
 pre { white-space: pre-wrap }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a

@@ -36,6 +36,15 @@ export type Dir = {
      * however it is reached.
      */
     readonly proofs: readonly Proof[]
+    /**
+     * The demo module of this directory, as the root-relative path the page
+     * loads it by, or `null` where there is none.
+     *
+     * Root-relative because the runtime is one module at a fixed depth, and a
+     * relative specifier in its `import()` would resolve against it rather
+     * than against the page.
+     */
+    readonly demo: string | null
 }
 
 /**

@@ -26,7 +26,8 @@
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { OrderedMap } from '../types/ordered_map/types.ts'
  * @import { Dir, Proof } from './page/types.ts'
  * @import { Node } from '../media/html/types.ts'
  */
@@ -35,14 +36,14 @@ import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { exportsProof, local, specifiers } from './browser-source/module.f.mjs'
+import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
-import { at, empty as emptyMap, setReplace } from '../types/ordered_map/module.f.mjs'
+import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { page, sections, subtree, testSection } from './page/module.f.mjs'
+import { demoSection, page, sections, subtree, testSection } from './page/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -75,6 +76,7 @@ const rootPage = dir => htmlUtf8(
         ]],
         ['h1', 'FunctionalScript'],
         .../** @type {readonly Node[]} */ (sections(dir)),
+        .../** @type {readonly Node[]} */ (dir.demo === null ? [] : demoSection(dir.demo)),
         .../** @type {readonly Node[]} */ (testSection(dir)([
             ['p',
                 'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
@@ -302,13 +304,21 @@ const browserProofOf = tree =>
  * and would answer the same in any order. A sorted subtree happens to be a
  * contiguous run; nothing here depends on it.
  *
- * @type {(paths: readonly string[]) => Effect<ReadFile, readonly Proof[], IoChannel>}
+ * Demos are classified in the same pass, and from the same graph: a page
+ * loads a demo the way it loads a proof, so what would stop one would stop the
+ * other. They are answered separately because only proofs are listed.
+ *
+ * @type {(proofs: readonly string[], demos: readonly string[]) => Effect<ReadFile, readonly [readonly Proof[], readonly Proof[]], IoChannel>}
  */
-const classify = paths => step(
-    readGraph(paths)(emptyMap),
-    graph => pureOk(paths
-        .toSorted()
-        .map(name => ({ name, blockers: blockersOf(graph)(name) }))))
+const classify = (proofs, demos) => step(
+    readGraph([...proofs, ...demos])(emptyMap),
+    graph => {
+        /** @type {(paths: readonly string[]) => readonly Proof[]} */
+        const classified = paths => paths
+            .toSorted()
+            .map(name => ({ name, blockers: blockersOf(graph)(name) }))
+        return pureOk(/** @type {const} */ ([classified(proofs), classified(demos)]))
+    })
 
 /**
  * Says what will not run, and how much will.
@@ -337,6 +347,19 @@ const proofModules = paths => foldStep(
         source => pureOk(exportsProof(source) ? [...found, path] : found)))
 
 /**
+ * The authored modules that export a `demo`, in the path order they were
+ * given.
+ *
+ * @type {(paths: readonly string[]) => Effect<ReadFile, readonly string[], IoChannel>}
+ */
+const demoModules = paths => foldStep(
+    pureOk(paths),
+    /** @type {readonly string[]} */ ([]),
+    path => found => step(
+        readUtf8File(path),
+        source => pureOk(exportsDemo(source) ? [...found, path] : found)))
+
+/**
  * Whether a name is the generator's own output rather than a file a reader
  * would open. `index.html` and the `_`-prefixed files are written by this
  * program, and `.gitignore` keeps them out of the tree for the same reason a
@@ -346,6 +369,68 @@ const proofModules = paths => foldStep(
  */
 const generatedName = name =>
     name === 'index.html' || name.startsWith('_') || name.startsWith('.')
+
+/**
+ * The directory a module lives in: `fjs/crypto/sha2` for its `demo.f.mjs`,
+ * and `.` for a module at the root.
+ *
+ * @type {(path: string) => string}
+ */
+const dirOf = path => {
+    const at = path.lastIndexOf('/')
+    return at === -1 ? '.' : path.slice(0, at)
+}
+
+/**
+ * Each directory's demo, by directory, and what was refused.
+ *
+ * **Discovery is by export, as it is for a proof**: a module is a demo module
+ * if and only if it exports `demo`, so the convention holds whether the demo
+ * lives in `demo.f.mjs` or beside the implementation in `module.f.mjs`.
+ *
+ * **The decision is made once per directory, over all of its candidates.** It
+ * was a fold with a nullable lookup standing in for a flag, and that could not
+ * hold the rule: a stored `null` and a missing key read the same through `at`,
+ * so a third demo in a directory was accepted after the second had refused it,
+ * and a blocked demo recorded nothing at all, so a linkable one beside it won.
+ * Grouping first makes the rule the shape of the code.
+ *
+ * **Two in one directory is refused, not resolved**, whether or not both could
+ * run. A page has one demo section, and choosing between them — by order, or
+ * by which happens to link — is exactly the silent precedence the rule exists
+ * to prevent.
+ *
+ * **A demo a browser cannot link is no demo.** The page loads it as it loads a
+ * proof, so the same analysis applies; unlike a proof it has nowhere on the
+ * page to be listed with its blocker, so it is dropped and said on the console
+ * instead.
+ *
+ * @type {(demos: readonly Proof[]) => readonly [_Demos, readonly string[]]}
+ */
+const resolveDemos = demos => {
+    /** @type {OrderedMap<readonly Proof[]>} */
+    const byDir = demos.reduce(
+        (map, demo) => {
+            const dir = dirOf(demo.name)
+            return setReplace(dir)(/** @type {readonly Proof[]} */ ([...(at(dir)(map) ?? []), demo]))(map)
+        },
+        /** @type {OrderedMap<readonly Proof[]>} */ (emptyMap))
+    return toArray(entries(byDir)).reduce(
+        ([found, refused], [dir, candidates]) => {
+            if (candidates.length > 1) {
+                return /** @type {const} */ ([found, [...refused,
+                    `skipped the demo in ${dir}: ${candidates.length} modules export one`
+                    + ` (${candidates.map(demo => demo.name).join(', ')})`]])
+            }
+            const only = candidates[0]
+            if (only.blockers.length !== 0) {
+                return /** @type {const} */ ([found, [...refused,
+                    `skipped ${only.name}: a demo must link in a browser (${only.blockers.join(', ')})`]])
+            }
+            return /** @type {const} */ ([setReplace(dir)(`/${only.name}`)(found), refused])
+        },
+        /** @type {readonly [_Demos, readonly string[]]} */ ([emptyMap, []]))
+}
 
 /**
  * Whether a name in a `todo/` directory is an issue.
@@ -393,9 +478,9 @@ const isTodoDir = path => path.split('/').includes('todo')
  * Rust sources, `fjs/types/option/` its `types.ts`. What a directory holds is
  * what the walk found in it, minus the generator's own output.
  *
- * @type {(tree: _Tree) => (proofs: readonly Proof[]) => (walked: _Walked) => Dir}
+ * @type {(tree: _Tree) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
  */
-const toDir = tree => proofs => walked => ({
+const toDir = tree => proofs => demos => walked => ({
     path: walked.path,
     files: walked.files.filter(name => !generatedName(name)),
     dirs: walked.dirs.filter(name => name !== 'todo'),
@@ -404,6 +489,7 @@ const toDir = tree => proofs => walked => ({
         ?.filter(isIssue)
         ?? [],
     proofs: subtree(walked.path)(proofs),
+    demo: at(walked.path)(demos),
 })
 
 /**
@@ -413,13 +499,13 @@ const toDir = tree => proofs => walked => ({
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(tree: readonly _Walked[]) => (proofs: readonly Proof[]) => Effect<WriteFile | Write, void, IoChannel>}
+ * @type {(tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
  */
-const writePages = tree => proofs => {
+const writePages = tree => proofs => demos => {
     const byPath = tree.reduce(
         (map, walked) => setReplace(walked.path)(walked)(map),
         /** @type {_Tree} */ (emptyMap))
-    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath)(proofs))
+    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath)(proofs)(demos))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pathConcat(dir.path)('index.html'),
@@ -429,13 +515,21 @@ const writePages = tree => proofs => {
 
 /** @type {Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
 const program = exitStep(mapStep(
-    step(walk('.'), tree => step(
-        proofModules(authoredModules(tree)),
-        found => step(classify([...found, ...browserProofOf(tree)]), proofs => step(
-            reportClassification(proofs),
-            () => step(
-                writePages(tree)(proofs),
-                () => writeUtf8File('_main.css', stylesheet)))))),
+    step(walk('.'), tree => {
+        const authored = authoredModules(tree)
+        return step(proofModules(authored), foundProofs =>
+            step(demoModules(authored), foundDemos =>
+                // One graph over both: a page loads a demo the way it loads a
+                // proof, so what would stop one would stop the other.
+                step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos),
+                    ([proofs, demoProofs]) => {
+                        const [demos, refused] = resolveDemos(demoProofs)
+                        return step(reportClassification(proofs), () =>
+                            step(forEachStep(pureOk(refused), log), () =>
+                                step(writePages(tree)(proofs)(demos), () =>
+                                    writeUtf8File('_main.css', stylesheet))))
+                    })))
+    }),
     () => undefined))
 
 export const main = () => program
