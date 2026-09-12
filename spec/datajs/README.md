@@ -73,11 +73,15 @@ exactly one byte sequence.
 
 **This document specifies a target, not the current implementation.** The
 `;` this format requires after every statement is what the compiler's
-parser requires too, so a document that stays on the finite leaves parses
-today; `NaN` and the
-infinities do not parse yet, which is the reader-side gap that remains
-(tracked with the numeric-leaf work in the restructure plan below).
-The shipped `fjs/djs` serializer also differs from
+parser requires too, so a document parses today — `NaN` and the infinities
+included, measured against
+[`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
+which closed the reader-side gap this paragraph used to name. That entry
+point takes a string, so what parses today is the document as code units; the
+byte path of §Layout, which refuses invalid UTF-8 and a leading BOM before
+the reader sees a unit, is still to come and is what the corpus's byte-form
+vectors require.
+The shipped `fjs/djs` serializer still differs from
 [normalized form](#normalized-form) in four ways, each of them stage 4–6 work
 rather than a bug:
 
@@ -127,10 +131,12 @@ Whitespace is exactly JSON's: **space** (U+0020), **tab** (U+0009), **LF**
 except that the special property-key sequence `["__proto__"]` is one token and
 must contain exactly those characters without whitespace or escapes.
 
-Every other character JavaScript treats as whitespace or a line terminator is
-**rejected**: U+2028, U+2029, no-break space, form feed, vertical tab, and a
-byte order mark, wherever they appear outside a string literal. Accepting them
-would import a taxonomy no implementer of a data format should have to know.
+Those four and no others: **nothing else is whitespace**, whatever JavaScript
+may treat as one. Outside a string literal a character is whitespace or part
+of a token, and one that is neither is **rejected**. Enumerating what a reader
+accepts is the whole rule, and it is four characters long; enumerating what it
+refuses would import a taxonomy no implementer of a data format should have to
+know.
 
 Whitespace is **required after `const`, after `export`, and after `default`**.
 Three positions, with no condition attached to any of them. Elsewhere it is
