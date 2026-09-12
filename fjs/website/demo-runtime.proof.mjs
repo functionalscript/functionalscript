@@ -87,7 +87,22 @@ const dom = path => {
             // stand-in rather than the code.
             if (children.includes(active)) { active = null }
             children = namesIn(html).map(element)
-            buttons = children.filter(child => html.includes(`<button type="button" name="${child.name}"`))
+            buttons = children
+                .filter(child => html.includes(`<button type="button" name="${child.name}"`))
+                .map(button => {
+                    let off = false
+                    // The same sequence the flag and the render write to: a
+                    // control that goes unavailable and back inside one turn
+                    // cannot be caught by looking afterwards either.
+                    Object.defineProperty(button, 'disabled', {
+                        get: () => off,
+                        set: (/** @type {boolean} */ value) => {
+                            if (value !== off) { steps.push(value ? 'disabled' : 'enabled') }
+                            off = value
+                        },
+                    })
+                    return button
+                })
         },
         querySelector: (/** @type {string} */ selector) =>
             children.find(child => selector.includes(`"${child.name}"`)) ?? null,
@@ -115,6 +130,17 @@ const dom = path => {
         rendered,
         activeName: () => active === null ? null : active.name,
         steps,
+        /**
+         * Writes a step of its own from a macrotask queued at a known moment.
+         *
+         * The yield the runtime takes after raising its flag is not visible as
+         * a call, only as a gap — so a marker queued *before* the event lands
+         * between the flag and the render exactly when that gap exists, and
+         * after the render when it does not.
+         *
+         * @type {(name: string) => void}
+         */
+        mark: name => { setTimeout(() => steps.push(name), 0) },
         working: () => root.attributes.has('data-demo-working'),
         disabled: () => buttons.map((/** @type {any} */ b) => b.disabled),
         caret: () => active === null ? null : active.selectionStart,
@@ -246,13 +272,31 @@ export const demo = {
         assert(!d.working(), 'expected the page to be idle before an event')
         assertStructurallySame(d.disabled(), [false])
         const before = d.steps.length
+        // Queued now, so it runs on the turn *after* this one: it lands
+        // wherever the runtime's own yield puts the boundary.
+        d.mark('turn')
         d.click('go')
         await settle()
-        // **The flag goes up before the work and down after the render.** It
-        // lives for one microtask, so looking afterwards can only ever see it
-        // down; the order is the thing worth asserting, and the order is what
-        // a reader sees.
-        assertStructurallySame(d.steps.slice(before), ['working', 'render', 'idle'])
+        /**
+         * **Three mechanisms, in one sequence.** The flag goes up and the
+         * control goes unavailable together; `turn` is a macrotask queued
+         * before the event, so where it lands *is* the yield — between the
+         * two and the render, which is the gap a browser paints in; then the
+         * render, and the flag down.
+         *
+         * Asserted as an order rather than by looking afterwards, because
+         * each lives for a single turn: a proof that checked the end state
+         * passed with the disabling and the yield both deleted, which is how
+         * they came to be unprotected.
+         *
+         * **No `enabled` here, and that is not an omission.** The render
+         * rebuilds the section, so the control that comes back is a new one,
+         * already available. The explicit re-enable covers the path where no
+         * render happens — see below.
+         */
+        assertStructurallySame(
+            d.steps.slice(before),
+            ['working', 'disabled', 'turn', 'render', 'idle'])
         assert(!d.working(), 'expected the flag down once the update finished')
         assertStructurallySame(d.disabled(), [false])
     },
@@ -267,13 +311,28 @@ export const demo = {
 export const demo = {
     init: '',
     update: () => () => { throw new Error('boom') },
-    view: text => ['pre', text],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
 }
 `))
         await startDemo(d.root)
-        d.input('text', 'x')
+        await settle()
+        const before = d.steps.length
+        d.mark('turn')
+        d.click('go')
         await settle()
         assert(d.root.textContent.startsWith('demo failed: boom'), d.root.textContent)
+        /**
+         * **The control comes back even when nothing re-renders.** A reported
+         * failure replaces the section's text rather than its contents, so the
+         * button is the same element it was — and the explicit re-enable is
+         * the only thing that gives it back. On the ordinary path a render
+         * rebuilds it, which is why this is the sequence that shows the
+         * difference.
+         */
+        assertStructurallySame(
+            d.steps.slice(before),
+            ['working', 'disabled', 'turn', 'idle', 'enabled'])
+        assertStructurallySame(d.disabled(), [false])
     },
     /**
      * **The first render is reported like every later one.** It runs before
