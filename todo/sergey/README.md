@@ -27,7 +27,7 @@
 - [ ] Website Module Browsing
   - [ ] Demo pages.
 - [ ] Investigate using Git Commits instead of Evo
-- [ ] Replace CHANGELOG with a generated from a Website.
+- [X] Replace CHANGELOG with a generated from a Website.
   - [ ] Proposal: Create changelog during release.
 - [ ] Reformulate "grab and implement" task. It should focus on priorities.
 - [ ] convention for generated files, for example `gen_`
@@ -79,3 +79,7 @@
     ```js
     export const y = 3
     ```
+- [ ] Document about DAG
+- [ ] EDAG: Object.is
+- [X] EDAG implicit function frame can't be done because the exp may contain wrong `arg`, `self` and `frame`.
+-
