@@ -441,7 +441,7 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
         if (!isWholeName(name)) { return pureOk(walked(found, null)) }
         // the name is recorded whatever the file turns out to hold, because
         // that is what shadows the packed line
-        const names = [...found.names, name]
+        const names = /** @type {readonly (readonly number[])[]} */ ([...found.names, name])
         /** @type {(bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>} */
         const cont = bytes => {
             const r = readRef(bytes)

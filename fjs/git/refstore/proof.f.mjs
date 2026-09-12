@@ -110,6 +110,7 @@ const shadowed = {
 }
 
 /** A repository with loose refs only, nested one deeper under `remotes`. */
+/** @type {Dir} */
 const loose = {
     refs: {
         heads: { master: ref(a), other: ref(b) },
@@ -193,7 +194,9 @@ export const proof = {
             // A good ref after the broken one, so the refusal is the
             // listing's and not just the last word: once a file under
             // `refs/` is no ref, nothing later rescues it.
-            const heads = { master: file(bytes), other: ref(b) }
+            /** @type {Dir} */
+        /** @type {Dir} */
+        const heads = { master: file(bytes), other: ref(b) }
             assertEq(run({ ...shadowed, refs: { heads } }, tryRoots(one(''), 20)), null)
         }
     },
@@ -201,6 +204,7 @@ export const proof = {
     // word, which is Git's own walk: each of these is refused by
     // `git check-ref-format` and missing from `git show-ref`.
     skipped: () => {
+        /** @type {Dir} */
         const heads = {
             master: ref(a),
             '.hidden': ref(b), 'x.lock': ref(b), 'bad.': ref(b),
@@ -212,6 +216,7 @@ export const proof = {
     // A symbolic loose ref is answered resolved, which is what
     // `git show-ref` lists for one.
     symbolicRoot: () => {
+        /** @type {Dir} */
         const heads = { master: ref(a), sym: file('ref: refs/heads/master\n') }
         sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [
             ['refs/heads/master', a],
@@ -222,6 +227,7 @@ export const proof = {
     // does not spoil the listing: it is a dangling symref, which Git skips
     // with a warning rather than refusing the file.
     danglingRoot: () => {
+        /** @type {Dir} */
         const heads = { master: ref(a), sym: file('ref: refs/heads/gone\n') }
         sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [['refs/heads/master', a]])
     },
@@ -249,6 +255,7 @@ export const proof = {
     // bytes, so the comparison cannot stop at the length, and a fixture
     // whose names all differ in length would never ask it to.
     sameLength: () => {
+        /** @type {Dir} */
         const root = { 'packed-refs': file(`${b} refs/heads/y\n`), refs: { heads: { x: ref(a) } } }
         sameRoots(run(root, tryRoots(one(''), 20)), [['refs/heads/x', a], ['refs/heads/y', b]])
     },
@@ -281,6 +288,7 @@ export const proof = {
     // `fatal: unexpected line in .git/packed-refs` rather than the loose
     // id. The file is the repository's, so a reader cannot use half of it.
     resolveBadPacked: () => {
+        /** @type {Dir} */
         const root = { 'packed-refs': file('# hello\n'), refs: { heads: { master: ref(a) } } }
         assertEq(resolved(root, 'refs/heads/master'), null)
         assertEq(resolved(root, 'refs/heads/nothing'), null)
@@ -315,6 +323,7 @@ export const proof = {
     // `not-for-merge` still answers that first line's id to
     // `git rev-parse FETCH_HEAD`.
     resolveSpecial: () => {
+        /** @type {Dir} */
         const fetched = {
             ...loose,
             FETCH_HEAD: file(`${b}\tnot-for-merge\tbranch 'dev' of https://example/x\n${a}\t\tbranch 'main' of https://example/x\n`),
@@ -331,6 +340,7 @@ export const proof = {
     // fall back to its packed line, which the first case above shows.
     resolveSpecialAbsent: () => {
         for (const n of ['FETCH_HEAD', 'MERGE_HEAD']) {
+            /** @type {Dir} */
             const root = { 'packed-refs': file(`${a} ${n}\n`), refs: {} }
             assertEq(resolved(root, n), null)
         }
@@ -341,6 +351,7 @@ export const proof = {
     // the host for `Ã©` — a name no file has — so `tryResolve` would miss the
     // very file `tryRoots` lists.
     utf8Name: () => {
+        /** @type {Dir} */
         const root = { refs: { heads: { 'é': ref(a) } } }
         sameRoots(run(root, tryRoots(one(''), 20)), [['refs/heads/é', a]])
         assertEq(hexOfIn('', root, utf8('refs/heads/é')), a)
@@ -369,6 +380,7 @@ export const proof = {
     // name whose loose file replaced a packed one comes back with the stale
     // packed id, which is the opposite of what the loose file says.
     danglingShadowsPacked: () => {
+        /** @type {Dir} */
         const root = {
             'packed-refs': file(`${b} refs/heads/master\n`),
             refs: { heads: { master: file('ref: refs/heads/gone\n') } },
@@ -417,6 +429,7 @@ export const proof = {
     // the one-entry-per-name `tryRoots` promises.
     packedTwice: () => {
         for (const [first, second] of [[a, b], [b, a]]) {
+            /** @type {Dir} */
             const root = {
                 'packed-refs': file(`${first} refs/heads/dup\n${second} refs/heads/dup\n`),
                 refs: {},
@@ -434,8 +447,9 @@ export const proof = {
     // available, and refusing would call a ref `tryRoots` lists absent. What
     // that costs is in `todo/byte-ref-names.md`.
     byteName: () => {
+        /** @type {Dir} */
         const root = { 'packed-refs': file(`${a} refs/heads/\x80\n`), refs: {} }
-        const name = [...latin1('refs/heads/'), 0x80]
+        const name = /** @type {readonly number[]} */ ([...latin1('refs/heads/'), 0x80])
         const i = resolvedIn('', root, name)
         assert(i !== null)
         assertEq(codePointListToString(toHex(i)), a)
