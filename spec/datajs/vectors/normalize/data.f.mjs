@@ -32,6 +32,8 @@ const $n29 = [1];
 const $n30 = ["\u2028", "\ud800", "\u0000"];
 const $n31 = {"\u2028": 0};
 const $n32 = [0];
+const $n33 = [null, true, false, undefined, NaN, Infinity, -Infinity, 0, -0, 9, -9, 1.5, 1e2, 1n, -1n, "", "a", "\u2028", "\ud800", "\u0000", [], {}, 1];
+const $n34 = {"a": null, "b": true, "c": false, "d": undefined, "e": NaN, "f": Infinity, "g": -Infinity, "h": 0, "i": -0, "j": 9, "k": -9, "l": 1.5, "m": 1e2, "n": 1n, "o": -1n, "p": "", "q": "a", "r": "\u2028", "s": "\ud800", "t": "\u0000", "u": [], "v": {}, "w": 1};
 export default [
     {"id": "norm-string-escape-quote", "class": "string/escape/quote", "input": "\"", "text": "export default \"\\\"\";"},
     {"id": "norm-key-escape-quote", "class": "key/string/escape/quote", "input": {"\"": 0}, "text": "export default {\"\\\"\":0};"},
@@ -252,5 +254,9 @@ export default [
     {"id": "norm-key-raw-ws-like-2028-nested", "class": "key/string/raw/ws-like/2028", "input": {"a": {"\u2028": 0}}, "text": "export default {\"a\":{\"\u2028\":0}};"},
     {"id": "norm-const-body-escaping-values", "class": "const/shared/twice", "input": [$n30, $n30], "text": "const $0=[\"\u2028\",\"\\ud800\",\"\\u0000\"];export default [$0,$0];"},
     {"id": "norm-const-body-escaping-key", "class": "const/shared/object", "input": [$n31, $n31], "text": "const $0={\"\u2028\":0};export default [$0,$0];"},
-    {"id": "norm-key-proto-value-shared", "class": "key/proto/value/shared", "input": {["__proto__"]: $n32, "a": $n32}, "text": "const $0=[0];export default {[\"__proto__\"]:$0,\"a\":$0};"}
+    {"id": "norm-key-proto-value-shared", "class": "key/proto/value/shared", "input": {["__proto__"]: $n32, "a": $n32}, "text": "const $0=[0];export default {[\"__proto__\"]:$0,\"a\":$0};"},
+    {"id": "norm-const-every-value-array", "class": "const/shared/twice", "input": [$n33, $n33], "text": "const $0=[null,true,false,undefined,NaN,Infinity,-Infinity,0,-0,9,-9,1.5,100,1n,-1n,\"\",\"a\",\"\u2028\",\"\\ud800\",\"\\u0000\",[],{},1];export default [$0,$0];"},
+    {"id": "norm-const-every-value-object", "class": "const/shared/object", "input": [$n34, $n34], "text": "const $0={\"a\":null,\"b\":true,\"c\":false,\"d\":undefined,\"e\":NaN,\"f\":Infinity,\"g\":-Infinity,\"h\":0,\"i\":-0,\"j\":9,\"k\":-9,\"l\":1.5,\"m\":100,\"n\":1n,\"o\":-1n,\"p\":\"\",\"q\":\"a\",\"r\":\"\u2028\",\"s\":\"\\ud800\",\"t\":\"\\u0000\",\"u\":[],\"v\":{},\"w\":1};export default [$0,$0];"},
+    {"id": "norm-string-surrogate-pair-mixed", "class": "string/surrogate/pair/mixed", "input": "\ud800\udfff", "text": "export default \"\ud800\udfff\";"},
+    {"id": "norm-key-surrogate-pair-mixed", "class": "key/string/surrogate/pair/mixed", "input": {"\ud800\udfff": 0}, "text": "export default {\"\ud800\udfff\":0};"}
 ];

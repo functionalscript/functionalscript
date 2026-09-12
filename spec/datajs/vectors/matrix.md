@@ -16,32 +16,32 @@ mentions it in three.
 | - | - | -: | -: | -: |
 | `reader` | `accept`, `reject` | 674 | 50 | 0 |
 | `serializer` | `serializer-accept`, `graph-equivalence` | 154 | 570 | 0 |
-| `normalize` | `normalize` | 209 | 515 | 0 |
+| `normalize` | `normalize` | 211 | 513 | 0 |
 
 724 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
 | `array/elements/every-value` | `array-elements-every-value` | `ser-array-elements-every-value` | `norm-array-elements-every-value` |
-| `array/elements/negative-first` | `array-elements-negative-first` | `ser-array-elements-negative-first` | not applicable, [note 71](#notes) |
+| `array/elements/negative-first` | `array-elements-negative-first` | `ser-array-elements-negative-first` | not applicable, [note 75](#notes) |
 | `array/elision/leading` | `array-elision-leading` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `array/elision/medial` | `array-elision-medial` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `array/elision/only` | `array-elision-only` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `array/elision/trailing` | `array-elision-trailing` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `array/empty` | `array-empty` | `ser-array-empty` | not applicable, [note 87](#notes) |
+| `array/empty` | `array-empty` | `ser-array-empty` | not applicable, [note 91](#notes) |
 | `array/nested/array` | `array-nested-array` | `ser-array-nested-array` | not applicable, [note 61](#notes) |
 | `array/nested/deep` | `array-nested-deep` | not applicable, [note 37](#notes) | not applicable, [note 61](#notes) |
 | `array/nested/empty` | `array-nested-empty` | not applicable, [note 39](#notes) | not applicable, [note 61](#notes) |
 | `array/nested/object` | `array-nested-object` | `ser-array-nested-object` | not applicable, [note 61](#notes) |
 | `array/no-comma` | `array-no-comma` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `array/object/nested/mixed` | `mixed-nested` | not applicable, [note 36](#notes) | not applicable, [note 92](#notes) |
-| `array/one` | `array-one` | `ser-array-one` | not applicable, [note 81](#notes) |
+| `array/object/nested/mixed` | `mixed-nested` | not applicable, [note 36](#notes) | not applicable, [note 96](#notes) |
+| `array/one` | `array-one` | `ser-array-one` | not applicable, [note 85](#notes) |
 | `array/separator/semicolon` | `array-semicolon` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `array/spread` | `array-spread` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `array/three` | `array-three` | `ser-array-three` | not applicable, [note 88](#notes) |
+| `array/three` | `array-three` | `ser-array-three` | not applicable, [note 92](#notes) |
 | `array/trailing-comma` | `array-trailing-comma` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `array/trailing-comma/two` | `array-trailing-comma-two` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `array/two` | `array-two` | not applicable, [note 34](#notes) | not applicable, [note 82](#notes) |
+| `array/two` | `array-two` | not applicable, [note 34](#notes) | not applicable, [note 86](#notes) |
 | `array/unclosed` | `array-unclosed` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `array/unopened` | `array-unopened` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `array/unshared` | `array-unshared` | `graph-unshared-array-empty` | `norm-unshared-array-empty` |
@@ -50,8 +50,8 @@ mentions it in three.
 | `bigint/binary-upper` | `bigint-binary-upper` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `bigint/binary-upper/neg` | `bigint-neg-binary-upper` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `bigint/binary/neg` | `bigint-neg-binary` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `bigint/digit9` | `bigint-9` | not applicable, [note 16](#notes) | not applicable, [note 70](#notes) |
-| `bigint/digit9/neg` | `bigint-neg-9` | not applicable, [note 16](#notes) | not applicable, [note 70](#notes) |
+| `bigint/digit9` | `bigint-9` | not applicable, [note 16](#notes) | not applicable, [note 74](#notes) |
+| `bigint/digit9/neg` | `bigint-neg-9` | not applicable, [note 16](#notes) | not applicable, [note 74](#notes) |
 | `bigint/digits` | `bigint-109` | `ser-bigint-109` | `norm-bigint-109` |
 | `bigint/digits/neg` | `bigint-neg-109` | `ser-bigint-neg-109` | `norm-bigint-neg-109` |
 | `bigint/exponent` | `bigint-exponent` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
@@ -90,10 +90,10 @@ mentions it in three.
 | `bigint/trailing-point` | `bigint-trailing-point` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `bigint/trailing-point/neg` | `bigint-neg-trailing-point` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `bigint/zero` | `bigint-0` | `ser-bigint-0` | `norm-bigint-0` |
-| `bigint/zero/neg` | `bigint-neg-0` | not applicable, [note 17](#notes) | not applicable, [note 94](#notes) |
-| `byte/bom/first` | `byte-bom-first` | not applicable, [note 103](#notes) | not applicable, [note 104](#notes) |
-| `byte/truncated` | `byte-truncated` | not applicable, [note 103](#notes) | not applicable, [note 104](#notes) |
-| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 103](#notes) | not applicable, [note 104](#notes) |
+| `bigint/zero/neg` | `bigint-neg-0` | not applicable, [note 17](#notes) | not applicable, [note 98](#notes) |
+| `byte/bom/first` | `byte-bom-first` | not applicable, [note 107](#notes) | not applicable, [note 108](#notes) |
+| `byte/truncated` | `byte-truncated` | not applicable, [note 107](#notes) | not applicable, [note 108](#notes) |
+| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 107](#notes) | not applicable, [note 108](#notes) |
 | `const/declarators` | `const-declarators` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `const/destructuring/array` | `const-destructuring-array` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `const/destructuring/object` | `const-destructuring-object` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
@@ -113,31 +113,31 @@ mentions it in three.
 | `const/name/value-word` | `const-name-value-word` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `const/no-name` | `const-no-name` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `const/no-value` | `const-no-value` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `const/one` | `const-one` | not applicable, [note 27](#notes) | not applicable, [note 83](#notes) |
+| `const/one` | `const-one` | not applicable, [note 27](#notes) | not applicable, [note 87](#notes) |
 | `const/reference/chain` | `const-reference-chain` | not applicable, [note 26](#notes) | not applicable, [note 63](#notes) |
 | `const/reference/chain/shared` | `const-reference-chain-shared` | not applicable, [note 26](#notes) | not applicable, [note 63](#notes) |
 | `const/reference/element` | `const-reference-element` | not applicable, [note 26](#notes) | not applicable, [note 63](#notes) |
 | `const/reference/member` | `const-reference-member` | not applicable, [note 26](#notes) | not applicable, [note 63](#notes) |
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 32](#notes) | `norm-shared-leaf` |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | `norm-shared-mixed` |
-| `const/shared/nested` | `const-shared-nested` | not applicable, [note 33](#notes) | not applicable, [note 97](#notes) |
-| `const/shared/object` | `const-shared-object` | `ser-sharing-object`, `graph-sharing-object`, `graph-sharing-empty-object` | `norm-shared-object`, `norm-const-body-escaping-key` |
+| `const/shared/nested` | `const-shared-nested` | not applicable, [note 33](#notes) | not applicable, [note 101](#notes) |
+| `const/shared/object` | `const-shared-object` | `ser-sharing-object`, `graph-sharing-object`, `graph-sharing-empty-object` | `norm-shared-object`, `norm-const-body-escaping-key`, `norm-const-every-value-object` |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | `norm-shared-three-paths` |
-| `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | `norm-shared-twice`, `norm-const-body-escaping-values` |
+| `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | `norm-shared-twice`, `norm-const-body-escaping-values`, `norm-const-every-value-array` |
 | `const/shared/two-nodes` | `const-shared-two-nodes` | `ser-shared-two-nodes` | `norm-shared-two-nodes` |
 | `const/shared/two-nodes/key-order` | not applicable, [note 50](#notes) | not applicable, [note 51](#notes) | `norm-shared-two-nodes-key-order` |
 | `const/shared/two-nodes/object` | not applicable, [note 50](#notes) | not applicable, [note 51](#notes) | `norm-shared-two-nodes-object` |
-| `const/two` | `const-two` | not applicable, [note 28](#notes) | not applicable, [note 84](#notes) |
-| `const/unreferenced` | `const-unreferenced` | not applicable, [note 30](#notes) | not applicable, [note 77](#notes) |
-| `const/unreferenced/among` | `const-unreferenced-among` | not applicable, [note 30](#notes) | not applicable, [note 77](#notes) |
-| `const/unshared/twins` | `const-unshared-twins` | not applicable, [note 31](#notes) | not applicable, [note 93](#notes) |
-| `const/value/every-alternative` | `const-value-every` | not applicable, [note 29](#notes) | not applicable, [note 89](#notes) |
-| `document/both-edges` | `document-both-edges` | not applicable, [note 5](#notes) | not applicable, [note 98](#notes) |
+| `const/two` | `const-two` | not applicable, [note 28](#notes) | not applicable, [note 88](#notes) |
+| `const/unreferenced` | `const-unreferenced` | not applicable, [note 30](#notes) | not applicable, [note 81](#notes) |
+| `const/unreferenced/among` | `const-unreferenced-among` | not applicable, [note 30](#notes) | not applicable, [note 81](#notes) |
+| `const/unshared/twins` | `const-unshared-twins` | not applicable, [note 31](#notes) | not applicable, [note 97](#notes) |
+| `const/value/every-alternative` | `const-value-every` | not applicable, [note 29](#notes) | not applicable, [note 93](#notes) |
+| `document/both-edges` | `document-both-edges` | not applicable, [note 5](#notes) | not applicable, [note 102](#notes) |
 | `document/comment/block` | `document-comment-block` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/comment/line` | `document-comment-line` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/comment/trailing` | `document-comment-trailing` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
-| `document/consts/chain` | `document-const-chain-long` | not applicable, [note 5](#notes) | not applicable, [note 74](#notes) |
-| `document/consts/many` | `document-many-consts` | not applicable, [note 5](#notes) | not applicable, [note 74](#notes) |
+| `document/consts/chain` | `document-const-chain-long` | not applicable, [note 5](#notes) | not applicable, [note 78](#notes) |
+| `document/consts/many` | `document-many-consts` | not applicable, [note 5](#notes) | not applicable, [note 78](#notes) |
 | `document/empty` | `document-empty` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/empty-statement/between` | `document-semicolon-between` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/empty-statement/double` | `document-semicolon-double` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
@@ -147,14 +147,14 @@ mentions it in three.
 | `document/export/twice` | `document-export-twice` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/import` | `document-import` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/import/binding` | `document-import-binding` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
-| `document/leading/lf` | `document-leading-lf` | not applicable, [note 5](#notes) | not applicable, [note 75](#notes) |
-| `document/leading/run` | `document-leading-run` | not applicable, [note 5](#notes) | not applicable, [note 75](#notes) |
+| `document/leading/lf` | `document-leading-lf` | not applicable, [note 5](#notes) | not applicable, [note 79](#notes) |
+| `document/leading/run` | `document-leading-run` | not applicable, [note 5](#notes) | not applicable, [note 79](#notes) |
 | `document/semicolon/const` | `document-semicolon-const` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/semicolon/export` | `document-semicolon-export` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/semicolon/export/newline` | `document-semicolon-export-newline` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
-| `document/shortest` | `document-shortest` | not applicable, [note 5](#notes) | not applicable, [note 95](#notes) |
+| `document/shortest` | `document-shortest` | not applicable, [note 5](#notes) | not applicable, [note 99](#notes) |
 | `document/spelling/one-line` | `document-spelling-one-line` | not applicable, [note 5](#notes) | `norm-document-spelling-one-line` |
-| `document/spelling/readable` | `document-spelling-readable` | not applicable, [note 5](#notes) | not applicable, [note 100](#notes) |
+| `document/spelling/readable` | `document-spelling-readable` | not applicable, [note 5](#notes) | not applicable, [note 104](#notes) |
 | `document/statement/expression` | `document-statement-expression` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/statement/function` | `document-statement-function` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
 | `document/statement/let` | `document-statement-let` | not applicable, [note 5](#notes) | not applicable, [note 52](#notes) |
@@ -272,7 +272,7 @@ mentions it in three.
 | `key/string/escape/quote` | `key-escape-quote` | `ser-key-escape-quote` | `norm-key-escape-quote` |
 | `key/string/escape/r` | `key-escape-r` | `ser-key-escape-r` | `norm-key-escape-r` |
 | `key/string/escape/single-quote` | `key-escape-single-quote` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `key/string/escape/slash` | `key-escape-slash` | not applicable, [note 21](#notes) | not applicable, [note 99](#notes) |
+| `key/string/escape/slash` | `key-escape-slash` | not applicable, [note 21](#notes) | not applicable, [note 103](#notes) |
 | `key/string/escape/space` | `key-escape-space` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `key/string/escape/t` | `key-escape-t` | `ser-key-escape-t` | `norm-key-escape-t` |
 | `key/string/escape/u-braces` | `key-escape-u-braces` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
@@ -375,14 +375,14 @@ mentions it in three.
 | `key/string/surrogate/lone/dbff` | `key-surrogate-lone-dbff` | `ser-key-surrogate-lone-dbff` | `norm-key-surrogate-lone-dbff` |
 | `key/string/surrogate/lone/dc00` | `key-surrogate-lone-dc00` | `ser-key-surrogate-lone-dc00` | `norm-key-surrogate-lone-dc00` |
 | `key/string/surrogate/lone/dfff` | `key-surrogate-lone-dfff` | `ser-key-surrogate-lone-dfff` | `norm-key-surrogate-lone-dfff` |
-| `key/string/surrogate/lone/raw/d800` | `key-surrogate-lone-raw-d800` | not applicable, [note 42](#notes) | not applicable, [note 69](#notes) |
-| `key/string/surrogate/lone/raw/dbff` | `key-surrogate-lone-raw-dbff` | not applicable, [note 42](#notes) | not applicable, [note 69](#notes) |
-| `key/string/surrogate/lone/raw/dc00` | `key-surrogate-lone-raw-dc00` | not applicable, [note 42](#notes) | not applicable, [note 69](#notes) |
-| `key/string/surrogate/lone/raw/dfff` | `key-surrogate-lone-raw-dfff` | not applicable, [note 42](#notes) | not applicable, [note 69](#notes) |
-| `key/string/surrogate/pair/high-corner` | `key-surrogate-pair-high-corner` | not applicable, [note 46](#notes) | not applicable, [note 68](#notes) |
-| `key/string/surrogate/pair/interior` | `key-surrogate-pair-interior` | `ser-key-surrogate-pair-interior` | not applicable, [note 68](#notes) |
-| `key/string/surrogate/pair/low-corner` | `key-surrogate-pair-low-corner` | not applicable, [note 45](#notes) | not applicable, [note 68](#notes) |
-| `key/string/surrogate/pair/mixed` | `key-surrogate-pair-mixed` | `ser-key-surrogate-pair-mixed` | not applicable, [note 68](#notes) |
+| `key/string/surrogate/lone/raw/d800` | `key-surrogate-lone-raw-d800` | not applicable, [note 42](#notes) | not applicable, [note 73](#notes) |
+| `key/string/surrogate/lone/raw/dbff` | `key-surrogate-lone-raw-dbff` | not applicable, [note 42](#notes) | not applicable, [note 73](#notes) |
+| `key/string/surrogate/lone/raw/dc00` | `key-surrogate-lone-raw-dc00` | not applicable, [note 42](#notes) | not applicable, [note 73](#notes) |
+| `key/string/surrogate/lone/raw/dfff` | `key-surrogate-lone-raw-dfff` | not applicable, [note 42](#notes) | not applicable, [note 73](#notes) |
+| `key/string/surrogate/pair/high-corner` | `key-surrogate-pair-high-corner` | not applicable, [note 46](#notes) | not applicable, [note 72](#notes) |
+| `key/string/surrogate/pair/interior` | `key-surrogate-pair-interior` | `ser-key-surrogate-pair-interior` | not applicable, [note 70](#notes) |
+| `key/string/surrogate/pair/low-corner` | `key-surrogate-pair-low-corner` | not applicable, [note 45](#notes) | not applicable, [note 71](#notes) |
+| `key/string/surrogate/pair/mixed` | `key-surrogate-pair-mixed` | `ser-key-surrogate-pair-mixed` | `norm-key-surrogate-pair-mixed` |
 | `leaf/boolean/false` | `false` | `ser-false` | not applicable, [note 59](#notes) |
 | `leaf/boolean/true` | `true` | `ser-true` | not applicable, [note 59](#notes) |
 | `leaf/nan` | `nan` | `ser-nan` | not applicable, [note 59](#notes) |
@@ -394,14 +394,14 @@ mentions it in three.
 | `number/binary/neg` | `number-neg-binary` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `number/binary64/max` | `number-max` | `ser-number-max` | `norm-number-max` |
 | `number/binary64/max/neg` | `number-neg-max` | `ser-number-neg-max` | `norm-number-neg-max` |
-| `number/binary64/overflow` | `number-overflow` | not applicable, [note 14](#notes) | not applicable, [note 79](#notes) |
-| `number/binary64/overflow/neg` | `number-neg-overflow` | not applicable, [note 14](#notes) | not applicable, [note 79](#notes) |
+| `number/binary64/overflow` | `number-overflow` | not applicable, [note 14](#notes) | not applicable, [note 83](#notes) |
+| `number/binary64/overflow/neg` | `number-neg-overflow` | not applicable, [note 14](#notes) | not applicable, [note 83](#notes) |
 | `number/binary64/rounding` | `number-rounding` | not applicable, [note 13](#notes) | `norm-number-rounding` |
 | `number/binary64/rounding/neg` | `number-neg-rounding` | not applicable, [note 13](#notes) | `norm-number-neg-rounding` |
 | `number/binary64/subnormal` | `number-subnormal` | `ser-number-subnormal` | `norm-number-subnormal` |
 | `number/binary64/subnormal/neg` | `number-neg-subnormal` | `ser-number-neg-subnormal` | `norm-number-neg-subnormal` |
-| `number/binary64/underflow` | `number-underflow` | not applicable, [note 15](#notes) | not applicable, [note 80](#notes) |
-| `number/binary64/underflow/neg` | `number-neg-underflow` | not applicable, [note 15](#notes) | not applicable, [note 80](#notes) |
+| `number/binary64/underflow` | `number-underflow` | not applicable, [note 15](#notes) | not applicable, [note 84](#notes) |
+| `number/binary64/underflow/neg` | `number-neg-underflow` | not applicable, [note 15](#notes) | not applicable, [note 84](#notes) |
 | `number/double-point` | `number-double-point` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `number/double-point/neg` | `number-neg-double-point` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `number/exp/E` | `number-1E2` | not applicable, [note 6](#notes) | not applicable, [note 55](#notes) |
@@ -429,10 +429,10 @@ mentions it in three.
 | `number/exp/sign/no-digits` | `number-exp-sign-no-digits` | not applicable, [note 6](#notes) | not applicable, [note 55](#notes) |
 | `number/exp/sign/no-digits/neg` | `number-neg-exp-sign-no-digits` | not applicable, [note 6](#notes) | not applicable, [note 55](#notes) |
 | `number/frac` | `number-1.09` | `ser-number-1.5` | `norm-number-1.5` |
-| `number/frac-exp` | `number-1.09e-2` | not applicable, [note 10](#notes) | not applicable, [note 72](#notes) |
-| `number/frac-exp/neg` | `number-neg-1.09e-2` | not applicable, [note 10](#notes) | not applicable, [note 72](#notes) |
-| `number/frac/high-first` | `number-1.90` | not applicable, [note 9](#notes) | not applicable, [note 78](#notes) |
-| `number/frac/high-first/neg` | `number-neg-1.90` | not applicable, [note 9](#notes) | not applicable, [note 78](#notes) |
+| `number/frac-exp` | `number-1.09e-2` | not applicable, [note 10](#notes) | not applicable, [note 76](#notes) |
+| `number/frac-exp/neg` | `number-neg-1.09e-2` | not applicable, [note 10](#notes) | not applicable, [note 76](#notes) |
+| `number/frac/high-first` | `number-1.90` | not applicable, [note 9](#notes) | not applicable, [note 82](#notes) |
+| `number/frac/high-first/neg` | `number-neg-1.90` | not applicable, [note 9](#notes) | not applicable, [note 82](#notes) |
 | `number/frac/neg` | `number-neg-1.09` | `ser-number-neg-1.5` | `norm-number-neg-1.5` |
 | `number/frac/no-digits/exp` | `number-frac-exp-no-digits` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `number/frac/no-digits/exp/neg` | `number-neg-frac-exp-no-digits` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
@@ -444,8 +444,8 @@ mentions it in three.
 | `number/hex-upper` | `number-hex-upper` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `number/hex-upper/neg` | `number-neg-hex-upper` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `number/hex/neg` | `number-neg-hex` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `number/int/digit9` | `number-9` | not applicable, [note 11](#notes) | not applicable, [note 76](#notes) |
-| `number/int/digit9/neg` | `number-neg-9` | not applicable, [note 11](#notes) | not applicable, [note 76](#notes) |
+| `number/int/digit9` | `number-9` | not applicable, [note 11](#notes) | not applicable, [note 80](#notes) |
+| `number/int/digit9/neg` | `number-neg-9` | not applicable, [note 11](#notes) | not applicable, [note 80](#notes) |
 | `number/int/digits` | `number-109` | not applicable, [note 12](#notes) | `norm-number-109` |
 | `number/int/digits/neg` | `number-neg-109` | not applicable, [note 12](#notes) | `norm-number-neg-109` |
 | `number/int/zero` | `number-0` | `ser-number-0` | `norm-number-0` |
@@ -494,13 +494,13 @@ mentions it in three.
 | `object/duplicate/plain` | `object-duplicate-plain` | not applicable, [note 22](#notes) | not applicable, [note 56](#notes) |
 | `object/duplicate/proto` | `object-duplicate-proto` | not applicable, [note 22](#notes) | not applicable, [note 56](#notes) |
 | `object/duplicate/three` | `object-duplicate-three` | not applicable, [note 22](#notes) | not applicable, [note 56](#notes) |
-| `object/empty` | `object-empty` | `ser-object-empty` | not applicable, [note 90](#notes) |
+| `object/empty` | `object-empty` | `ser-object-empty` | not applicable, [note 94](#notes) |
 | `object/equals` | `object-equals` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `object/key-only` | `object-key-only` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `object/key-order/boundaries` | `object-key-order-boundaries` | `ser-object-key-order-boundaries` | `norm-object-key-order-boundaries` |
-| `object/key-order/escaped-index` | `object-key-order-escaped-index` | not applicable, [note 25](#notes) | not applicable, [note 102](#notes) |
+| `object/key-order/escaped-index` | `object-key-order-escaped-index` | not applicable, [note 25](#notes) | not applicable, [note 106](#notes) |
 | `object/key-order/index-before-name` | `object-key-order-index-before-name` | `ser-object-key-order-index-before-name` | `norm-object-key-order-index-before-name` |
-| `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 24](#notes) | not applicable, [note 101](#notes) |
+| `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 24](#notes) | not applicable, [note 105](#notes) |
 | `object/key-order/names/first-occurrence` | `object-key-order-names-first-occurrence` | `ser-object-key-order-names-first-occurrence` | `norm-object-key-order-names-first-occurrence` |
 | `object/key-order/non-index/above` | `object-key-order-non-index-above` | not applicable, [note 23](#notes) | `norm-object-key-order-non-index-above` |
 | `object/key-order/non-index/exp` | `object-key-order-non-index-exp` | not applicable, [note 23](#notes) | `norm-object-key-order-non-index-exp` |
@@ -517,14 +517,14 @@ mentions it in three.
 | `object/nested/object` | `object-nested-object` | `ser-object-nested-object` | not applicable, [note 62](#notes) |
 | `object/no-colon` | `object-no-colon` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `object/no-value` | `object-no-value` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `object/one` | `object-one` | `ser-object-one` | not applicable, [note 85](#notes) |
+| `object/one` | `object-one` | `ser-object-one` | not applicable, [note 89](#notes) |
 | `object/spread` | `object-spread` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `object/three` | `object-three` | `ser-object-three` | not applicable, [note 91](#notes) |
+| `object/three` | `object-three` | `ser-object-three` | not applicable, [note 95](#notes) |
 | `object/trailing-comma` | `object-trailing-comma` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `object/trailing-comma/two` | `object-trailing-comma-two` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `object/two` | `object-two` | not applicable, [note 35](#notes) | not applicable, [note 86](#notes) |
+| `object/two` | `object-two` | not applicable, [note 35](#notes) | not applicable, [note 90](#notes) |
 | `object/unclosed` | `object-unclosed` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `object/unshared` | `object-unshared` | `graph-unshared-object-empty`, `graph-unshared-object-parent-empty` | not applicable, [note 73](#notes) |
+| `object/unshared` | `object-unshared` | `graph-unshared-object-empty`, `graph-unshared-object-parent-empty` | not applicable, [note 77](#notes) |
 | `object/unshared/equal` | `object-unshared-equal` | `graph-unshared-object-non-empty`, `graph-unshared-object-parent` | `norm-unshared-object-equal`, `norm-unshared-object-parent-object` |
 | `reference/case` | `reference-case` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `reference/forward` | `reference-forward` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
@@ -550,7 +550,7 @@ mentions it in three.
 | `string/escape/quote` | `string-escape-quote` | `ser-string-escape-quote` | `norm-string-escape-quote` |
 | `string/escape/r` | `string-escape-r` | `ser-string-escape-r` | `norm-string-escape-r` |
 | `string/escape/single-quote` | `string-escape-single-quote` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
-| `string/escape/slash` | `string-escape-slash` | not applicable, [note 20](#notes) | not applicable, [note 96](#notes) |
+| `string/escape/slash` | `string-escape-slash` | not applicable, [note 20](#notes) | not applicable, [note 100](#notes) |
 | `string/escape/space` | `string-escape-space` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `string/escape/t` | `string-escape-t` | `ser-string-escape-t` | `norm-string-escape-t` |
 | `string/escape/u-braces` | `string-escape-u-braces` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
@@ -653,14 +653,14 @@ mentions it in three.
 | `string/surrogate/lone/dbff` | `string-surrogate-lone-dbff` | `ser-string-surrogate-lone-dbff` | `norm-string-surrogate-lone-dbff` |
 | `string/surrogate/lone/dc00` | `string-surrogate-lone-dc00` | `ser-string-surrogate-lone-dc00` | `norm-string-surrogate-lone-dc00` |
 | `string/surrogate/lone/dfff` | `string-surrogate-lone-dfff` | `ser-string-surrogate-lone-dfff` | `norm-string-surrogate-lone-dfff` |
-| `string/surrogate/lone/raw/d800` | `string-surrogate-lone-raw-d800` | not applicable, [note 41](#notes) | not applicable, [note 67](#notes) |
-| `string/surrogate/lone/raw/dbff` | `string-surrogate-lone-raw-dbff` | not applicable, [note 41](#notes) | not applicable, [note 67](#notes) |
-| `string/surrogate/lone/raw/dc00` | `string-surrogate-lone-raw-dc00` | not applicable, [note 41](#notes) | not applicable, [note 67](#notes) |
-| `string/surrogate/lone/raw/dfff` | `string-surrogate-lone-raw-dfff` | not applicable, [note 41](#notes) | not applicable, [note 67](#notes) |
-| `string/surrogate/pair/high-corner` | `string-surrogate-pair-high-corner` | not applicable, [note 44](#notes) | not applicable, [note 66](#notes) |
+| `string/surrogate/lone/raw/d800` | `string-surrogate-lone-raw-d800` | not applicable, [note 41](#notes) | not applicable, [note 69](#notes) |
+| `string/surrogate/lone/raw/dbff` | `string-surrogate-lone-raw-dbff` | not applicable, [note 41](#notes) | not applicable, [note 69](#notes) |
+| `string/surrogate/lone/raw/dc00` | `string-surrogate-lone-raw-dc00` | not applicable, [note 41](#notes) | not applicable, [note 69](#notes) |
+| `string/surrogate/lone/raw/dfff` | `string-surrogate-lone-raw-dfff` | not applicable, [note 41](#notes) | not applicable, [note 69](#notes) |
+| `string/surrogate/pair/high-corner` | `string-surrogate-pair-high-corner` | not applicable, [note 44](#notes) | not applicable, [note 68](#notes) |
 | `string/surrogate/pair/interior` | `string-surrogate-pair-interior` | `ser-string-surrogate-pair-interior` | not applicable, [note 66](#notes) |
-| `string/surrogate/pair/low-corner` | `string-surrogate-pair-low-corner` | not applicable, [note 43](#notes) | not applicable, [note 66](#notes) |
-| `string/surrogate/pair/mixed` | `string-surrogate-pair-mixed` | `ser-string-surrogate-pair-mixed` | not applicable, [note 66](#notes) |
+| `string/surrogate/pair/low-corner` | `string-surrogate-pair-low-corner` | not applicable, [note 43](#notes) | not applicable, [note 67](#notes) |
+| `string/surrogate/pair/mixed` | `string-surrogate-pair-mixed` | `ser-string-surrogate-pair-mixed` | `norm-string-surrogate-pair-mixed` |
 | `value/expression/binary` | `value-binary` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `value/expression/call` | `value-call` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
 | `value/expression/comma` | `value-comma` | not applicable, [note 1](#notes) | not applicable, [note 52](#notes) |
@@ -819,42 +819,46 @@ stands under as many rows as it is true of.
 63. **`normalize`**, subtree `const/reference` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
 64. **`normalize`**, subtree `document/trailing` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
 65. **`normalize`**, subtree `number/frac/one-digit` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-66. **`normalize`**, subtree `string/surrogate/pair` — the four lone surrogates and the pair are pinned, and the escaping rule is per code unit, so an adjacency's spelling follows from theirs with nothing left to decide
-67. **`normalize`**, subtree `string/surrogate/lone/raw` — the four lone surrogates and the pair are pinned, and the escaping rule is per code unit, so an adjacency's spelling follows from theirs with nothing left to decide
-68. **`normalize`**, subtree `key/string/surrogate/pair` — the four lone surrogates and the pair are pinned, and the escaping rule is per code unit, so an adjacency's spelling follows from theirs with nothing left to decide
-69. **`normalize`**, subtree `key/string/surrogate/lone/raw` — the four lone surrogates and the pair are pinned, and the escaping rule is per code unit, so an adjacency's spelling follows from theirs with nothing left to decide
-70. **`normalize`**, subtree `bigint/digit9` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-71. **`normalize`**, class `array/elements/negative-first` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-72. **`normalize`**, subtree `number/frac-exp` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-73. **`normalize`**, class `object/unshared` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-74. **`normalize`**, subtree `document/consts` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-75. **`normalize`**, subtree `document/leading` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-76. **`normalize`**, subtree `number/int/digit9` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-77. **`normalize`**, subtree `const/unreferenced` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-78. **`normalize`**, subtree `number/frac/high-first` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-79. **`normalize`**, subtree `number/binary64/overflow` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-80. **`normalize`**, subtree `number/binary64/underflow` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-81. **`normalize`**, subtree `array/one` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-82. **`normalize`**, subtree `array/two` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-83. **`normalize`**, subtree `const/one` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-84. **`normalize`**, subtree `const/two` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-85. **`normalize`**, subtree `object/one` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-86. **`normalize`**, subtree `object/two` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-87. **`normalize`**, subtree `array/empty` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-88. **`normalize`**, subtree `array/three` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-89. **`normalize`**, subtree `const/value` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-90. **`normalize`**, subtree `object/empty` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-91. **`normalize`**, subtree `object/three` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-92. **`normalize`**, subtree `array/object` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-93. **`normalize`**, subtree `const/unshared` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-94. **`normalize`**, subtree `bigint/zero/neg` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-95. **`normalize`**, subtree `document/shortest` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-96. **`normalize`**, subtree `string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-97. **`normalize`**, subtree `const/shared/nested` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-98. **`normalize`**, subtree `document/both-edges` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-99. **`normalize`**, subtree `key/string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-100. **`normalize`**, subtree `document/spelling/readable` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
-101. **`normalize`**, subtree `object/key-order/index-first` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-102. **`normalize`**, subtree `object/key-order/escaped-index` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
-103. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
-104. **`normalize`**, subtree `byte` — a byte document is a reader's input; normalized form is handed a graph and produces text, so encoding it is the caller's
+66. **`normalize`**, class `string/surrogate/pair/interior` — this set pins the same value raw under its own class with an exact text, which is where a writer that escapes a pair rather than emitting it, and one that miscomputes the two halves, both show; what a pair class adds over that is the reader's escaped spelling
+67. **`normalize`**, class `string/surrogate/pair/low-corner` — this set pins the same value raw under its own class with an exact text, which is where a writer that escapes a pair rather than emitting it, and one that miscomputes the two halves, both show; what a pair class adds over that is the reader's escaped spelling
+68. **`normalize`**, class `string/surrogate/pair/high-corner` — this set pins the same value raw under its own class with an exact text, which is where a writer that escapes a pair rather than emitting it, and one that miscomputes the two halves, both show; what a pair class adds over that is the reader's escaped spelling
+69. **`normalize`**, subtree `string/surrogate/lone/raw` — this set pins all four lone surrogates with exact texts under their own classes, and a raw class is the reader's other spelling of one of those same values
+70. **`normalize`**, class `key/string/surrogate/pair/interior` — this set pins the same value raw under its own class with an exact text, which is where a writer that escapes a pair rather than emitting it, and one that miscomputes the two halves, both show; what a pair class adds over that is the reader's escaped spelling
+71. **`normalize`**, class `key/string/surrogate/pair/low-corner` — this set pins the same value raw under its own class with an exact text, which is where a writer that escapes a pair rather than emitting it, and one that miscomputes the two halves, both show; what a pair class adds over that is the reader's escaped spelling
+72. **`normalize`**, class `key/string/surrogate/pair/high-corner` — this set pins the same value raw under its own class with an exact text, which is where a writer that escapes a pair rather than emitting it, and one that miscomputes the two halves, both show; what a pair class adds over that is the reader's escaped spelling
+73. **`normalize`**, subtree `key/string/surrogate/lone/raw` — this set pins all four lone surrogates with exact texts under their own classes, and a raw class is the reader's other spelling of one of those same values
+74. **`normalize`**, subtree `bigint/digit9` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+75. **`normalize`**, class `array/elements/negative-first` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+76. **`normalize`**, subtree `number/frac-exp` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+77. **`normalize`**, class `object/unshared` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+78. **`normalize`**, subtree `document/consts` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+79. **`normalize`**, subtree `document/leading` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+80. **`normalize`**, subtree `number/int/digit9` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+81. **`normalize`**, subtree `const/unreferenced` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+82. **`normalize`**, subtree `number/frac/high-first` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+83. **`normalize`**, subtree `number/binary64/overflow` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+84. **`normalize`**, subtree `number/binary64/underflow` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+85. **`normalize`**, subtree `array/one` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+86. **`normalize`**, subtree `array/two` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+87. **`normalize`**, subtree `const/one` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+88. **`normalize`**, subtree `const/two` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+89. **`normalize`**, subtree `object/one` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+90. **`normalize`**, subtree `object/two` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+91. **`normalize`**, subtree `array/empty` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+92. **`normalize`**, subtree `array/three` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+93. **`normalize`**, subtree `const/value` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+94. **`normalize`**, subtree `object/empty` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+95. **`normalize`**, subtree `object/three` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+96. **`normalize`**, subtree `array/object` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+97. **`normalize`**, subtree `const/unshared` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+98. **`normalize`**, subtree `bigint/zero/neg` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+99. **`normalize`**, subtree `document/shortest` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+100. **`normalize`**, subtree `string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+101. **`normalize`**, subtree `const/shared/nested` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+102. **`normalize`**, subtree `document/both-edges` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+103. **`normalize`**, subtree `key/string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
+104. **`normalize`**, subtree `document/spelling/readable` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
+105. **`normalize`**, subtree `object/key-order/index-first` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+106. **`normalize`**, subtree `object/key-order/escaped-index` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+107. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
+108. **`normalize`**, subtree `byte` — a byte document is a reader's input; normalized form is handed a graph and produces text, so encoding it is the caller's

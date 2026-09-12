@@ -1925,9 +1925,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 220 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 54 scope
-      records answering the 515 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 224 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 58 scope
+      records answering the 513 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1939,7 +1939,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 113,696 bytes of the bit
+      being refused outright. The matrix stands at 115,223 bytes of the bit
       vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2001,6 +2001,26 @@ The steps, in order; a step is one pull request unless it says otherwise:
       node emits two arrays where the graph has one. Three vectors, and the
       proto exemption narrows from a subtree to the two classes under it that
       really are ordinary value coverage.
+      **The const body then took a second round, for the reason the escaping
+      one should have predicted.** Giving a shared container escape-sensitive
+      strings answered the string emitter and nothing else: every const body in
+      the set still held only strings, ordinary numbers and containers, so a
+      writer with its own value emitter for hoisted bodies could put `null` in
+      place of `undefined`, `NaN` or an infinity inside a shared node, or refuse
+      a bigint there, and pass all 220. Both `every-value` aggregates now appear
+      again as shared containers, one array and one object, so every leaf of the
+      data model is pinned in a const body as well as inline. The lesson is the
+      one this file keeps recording at a smaller size each time: a position is
+      not covered by a value that reaches it, and fixing the reported instance
+      is not sweeping for its shape.
+      **And the mixed surrogate pair**, which the serializer step above added
+      in the same round. Here it is stronger, because this role asserts the
+      spelling: the writer emits a pair raw, so a vector for one pins detection
+      and the halves' arithmetic together. Two vectors, and the two pair
+      subtrees narrow to the three classes whose values this set already pins
+      raw with exact texts. Their old reason had been closing them with a
+      sentence about adjacency, a different family, which the purity rule could
+      not catch because the premise was true and only the subject was wrong.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
