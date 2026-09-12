@@ -78,6 +78,8 @@ const candidates = /** @type {const} */ ([
  * Big enough that the two separate — around 21 ms against 58 ms in Chrome, and
  * indistinguishable at 4000 — and small enough that the page does not appear
  * to hang.
+ *
+ * @type {string}
  */
 const defaultSize = '20000'
 
@@ -89,6 +91,8 @@ const defaultSize = '20000'
  * times the wait: 20000 is a fifth of a second, 200000 is a couple of seconds,
  * and the million the original page used is minutes of a frozen tab. A reader
  * who mistypes a zero should be told, not punished.
+ *
+ * @type {bigint}
  */
 const maxSize = 200_000n
 
