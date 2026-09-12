@@ -85,11 +85,12 @@ export const proof = {
         assertEq(id.meta.token.kind, 'id')
     },
     // A reserved literal has its own symbol, so where a rule wants an
-    // identifier it is the token the grammar names in the error, not a word.
+    // identifier it is the token the grammar names in the error, not a word;
+    // where a value may stand, it is one.
     reserved: () => {
         assertStructurallySame(read('const NaN = 1;\nexport default NaN;'), ['error', 'NaN'])
-        assertStructurallySame(read('export default Infinity;'), ['error', 'Infinity'])
         assertStructurallySame(read('export default { Infinity: 1 };'), ['error', 'Infinity'])
+        assertStructurallySame(read('export default [NaN, Infinity, -Infinity];'), ['ok'])
     },
     accepted: () => {
         assertStructurallySame(read('export default 1;'), ['ok'])

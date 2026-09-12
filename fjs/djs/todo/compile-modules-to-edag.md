@@ -392,17 +392,18 @@ rediscovered:
 
 | value | parser | serializer |
 |---|---|---|
-| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` — done, pinned in `fjs/fsc/proof.f.mjs` |
-| `NaN` | `unexpected token` | emits `null` |
-| `Infinity` | `unexpected token` | emits `null` |
-| `-Infinity` | `unexpected token` | emits `null` |
+| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` |
+| `NaN` | `NaN` | `NaN` |
+| `Infinity` | `Infinity` | `Infinity` |
+| `-Infinity` | `-Infinity`, one token | `-Infinity` |
 
-`-0` was serializer-only, which is easy to miss because `String(-0)` is `"0"`
-and only `Object.is` separates them; the serializer writes `-0` now. The
-other three are reserved words with their own token kinds, which no grammar
-rule reads yet, so the grammar refuses them wherever they stand; `-Infinity`
-fails at the `-`, which folds into a number token only, and tokenizes to
-`error Infinity eof`.
+**All four are done**, in stage 5 of
+[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md),
+and pinned end to end in `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
+which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
+separates them. The other three are reserved words with their own token
+kinds, read as primitives by the grammar, the tokenizer folding `-` into
+`Infinity` as it folds one into a number.
 
 ### Existing compile API boundary
 
@@ -537,9 +538,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Shared/final
 
-- [ ] Add explicit **DJS** parser support for the chosen `.f.js` spellings of
+- [x] Add explicit **DJS** parser support for the chosen `.f.js` spellings of
       `Infinity`, `-Infinity`, `NaN`, and `-0`.
-- [ ] Add DJS-specific number serialization that the DJS parser round-trips to exactly
+- [x] Add DJS-specific number serialization that the DJS parser round-trips to exactly
       `Infinity`, `-Infinity`, `NaN`, and `-0`; do not change the standard JSON codec's
       policy as a side effect of this task.
 - [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)

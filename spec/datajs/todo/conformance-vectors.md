@@ -1601,14 +1601,17 @@ names the eight and asserts there are exactly eight, so a ninth is a failure
 rather than a silent narrowing of the law.
 
 **They land at different times, and this corpus only owes the second.** The
-FunctionalScript check cannot run when this corpus lands: today's front end has
-no `NaN`, `Infinity` or `-Infinity`, and its statement separator is a newline
-rather than `;` — both are stage 5's work
-([parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)).
-Running it earlier would fail on almost every accept vector, for reasons that
-are not the corpus's fault. So the FunctionalScript subset law is **stage 6's
-task**, over this corpus, and this file only requires the JavaScript one, which
-needs nothing beyond an engine.
+FunctionalScript check could not run when this corpus landed: the front end
+then had no `NaN`, `Infinity` or `-Infinity`, which was stage 5's work
+([parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)),
+and stage 5 has since landed them, so nothing in the front end stands in the
+way any more. (The `;` terminator was never in the way: the front end required
+it before this corpus existed, and stage 5 inherited that rule rather than
+making it.) Running the check earlier would have failed on every vector
+holding one of the three words, for a reason that is not the corpus's fault.
+So the FunctionalScript subset law is **stage 6's task**, over this corpus,
+and this file only requires the JavaScript one, which needs nothing beyond an
+engine.
 
 ### Tasks
 

@@ -47,7 +47,11 @@ const roundTripCorpus = [
     false,
     undefined,
     0,
+    -0,
     -1.5,
+    NaN,
+    Infinity,
+    -Infinity,
     42n,
     'a"b\n\\',
     [],
@@ -149,6 +153,33 @@ export const proof = {
         assert(result[0] === 'ok', result[1])
         assertStructurallySame(result[1], value, source)
     }),
+    // The three numbers JSON cannot spell, end to end: read as the values
+    // they name, written back as the same words. `NaN` is checked by
+    // `Object.is` directly, which is what `structurallySame` compares leaves
+    // by too — so the corpus below carries it and `-0` as well.
+    specialNumbers: {
+        value: () => {
+            const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }
+            const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+            assert(result[0] === 'ok', result[1])
+            const value = result[1]
+            assert(value instanceof Array && value.length === 3, value)
+            assert(is(value[0], NaN), value[0])
+            assertEq(value[1], Infinity)
+            assertEq(value[2], -Infinity)
+        },
+        moduleRoundTrip: () => {
+            const source = 'export default [NaN,Infinity,-Infinity];'
+            assertEq(compileSource(source)('output.f.js'), source)
+        },
+        // The `.json` output spells them as the same words, as it spells
+        // `undefined` and a bigint: not JSON, and not a substitute `null`
+        // either — refusing them there is the policy json-bigint-serialization
+        // records for the whole class.
+        jsonOutput: () => {
+            assertEq(compileSource('export default [NaN,Infinity,-Infinity];')('output.json'), '[NaN,Infinity,-Infinity]')
+        },
+    },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
     // `parseFloat` keeps the sign, and the serializer writes it back as
     // `-0` — where `String(-0)` is `"0"`, which is why only `Object.is` can
