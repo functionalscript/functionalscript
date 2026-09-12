@@ -9,6 +9,7 @@ const $s7 = [0];
 const $s8 = [$s7];
 const $s9 = {"x": $s7};
 const $s10 = {"d": 0, "c": 1};
+const $s11 = {};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -48,8 +49,8 @@ export default [
     {"id": "ser-array-nested-object", "class": "array/nested/object", "input": [{"a": 1}]},
     {"id": "ser-object-nested-object", "class": "object/nested/object", "input": {"a": {"b": 1}}},
     {"id": "ser-object-nested-array", "class": "object/nested/array", "input": {"a": [1]}},
-    {"id": "ser-array-elements-every-value", "class": "array/elements/every-value", "input": [null, true, false, undefined, NaN, Infinity, -Infinity, 0, -0, 1.5, -1.5, 109n, -109n, "", "a", [], {}]},
-    {"id": "ser-object-members-every-value", "class": "object/members/every-value", "input": {"a": null, "b": true, "c": false, "d": undefined, "e": NaN, "f": Infinity, "g": -Infinity, "h": 0, "i": -0, "j": 1.5, "k": -1.5, "l": 109n, "m": -109n, "n": "", "o": "a", "p": [], "q": {}}},
+    {"id": "ser-array-elements-every-value", "class": "array/elements/every-value", "input": [null, true, false, undefined, NaN, Infinity, -Infinity, 0, -0, 1.5, -1.5, 109n, -109n, "", "a", "\u2028", "\ud800", "\u0000", "\ud800\udc00", [], {}]},
+    {"id": "ser-object-members-every-value", "class": "object/members/every-value", "input": {"a": null, "b": true, "c": false, "d": undefined, "e": NaN, "f": Infinity, "g": -Infinity, "h": 0, "i": -0, "j": 1.5, "k": -1.5, "l": 109n, "m": -109n, "n": "", "o": "a", "p": [], "q": {}, "r": "\u2028", "s": "\ud800", "t": "\u0000", "u": "\ud800\udc00"}},
     {"id": "ser-object-key-order-names-first-occurrence", "class": "object/key-order/names/first-occurrence", "input": {"b": 1, "a": 2, "c": 3}},
     {"id": "ser-object-key-order-index-before-name", "class": "object/key-order/index-before-name", "input": {"10": 1, "2": 2, "z": 3, "a": 4}},
     {"id": "ser-key-proto", "class": "key/proto", "input": {["__proto__"]: 1}},
@@ -212,8 +213,11 @@ export default [
     {"id": "ser-key-escape-u00-0000-every-slot", "class": "key/string/escape/u00/0000", "input": [{"\u0000": "\u0000", "a": 1}, {"a": 0, "\u0000": "\u0000"}]},
     {"id": "ser-string-escape-u00-001f-every-slot", "class": "string/escape/u00/001f", "input": ["\u001f", 0, "\u001f"]},
     {"id": "ser-key-escape-u00-001f-every-slot", "class": "key/string/escape/u00/001f", "input": [{"\u001f": "\u001f", "a": 1}, {"a": 0, "\u001f": "\u001f"}]},
-    {"id": "ser-array-elements-every-value-first", "class": "array/elements/every-value-first", "input": [[null, 0], [true, 0], [false, 0], [undefined, 0], [NaN, 0], [Infinity, 0], [-Infinity, 0], [0, 0], [-0, 0], [1.5, 0], [-1.5, 0], [109n, 0], [-109n, 0], [0n, 0], ["", 0], ["a", 0], [[], 0], [{}, 0]]},
-    {"id": "ser-object-members-every-value-first", "class": "object/members/every-value-first", "input": [{"a": null, "b": 0}, {"a": true, "b": 0}, {"a": false, "b": 0}, {"a": undefined, "b": 0}, {"a": NaN, "b": 0}, {"a": Infinity, "b": 0}, {"a": -Infinity, "b": 0}, {"a": 0, "b": 0}, {"a": -0, "b": 0}, {"a": 1.5, "b": 0}, {"a": -1.5, "b": 0}, {"a": 109n, "b": 0}, {"a": -109n, "b": 0}, {"a": 0n, "b": 0}, {"a": "", "b": 0}, {"a": "a", "b": 0}, {"a": [], "b": 0}, {"a": {}, "b": 0}]},
+    {"id": "ser-array-elements-every-value-first", "class": "array/elements/every-value-first", "input": [[null, 0], [true, 0], [false, 0], [undefined, 0], [NaN, 0], [Infinity, 0], [-Infinity, 0], [0, 0], [-0, 0], [1.5, 0], [-1.5, 0], [109n, 0], [-109n, 0], [0n, 0], ["", 0], ["a", 0], ["\u2028", 0], ["\ud800", 0], ["\u0000", 0], ["\ud800\udc00", 0], [[], 0], [{}, 0]]},
+    {"id": "ser-object-members-every-value-first", "class": "object/members/every-value-first", "input": [{"a": null, "b": 0}, {"a": true, "b": 0}, {"a": false, "b": 0}, {"a": undefined, "b": 0}, {"a": NaN, "b": 0}, {"a": Infinity, "b": 0}, {"a": -Infinity, "b": 0}, {"a": 0, "b": 0}, {"a": -0, "b": 0}, {"a": 1.5, "b": 0}, {"a": -1.5, "b": 0}, {"a": 109n, "b": 0}, {"a": -109n, "b": 0}, {"a": 0n, "b": 0}, {"a": "", "b": 0}, {"a": "a", "b": 0}, {"a": "\u2028", "b": 0}, {"a": "\ud800", "b": 0}, {"a": "\u0000", "b": 0}, {"a": "\ud800\udc00", "b": 0}, {"a": [], "b": 0}, {"a": {}, "b": 0}]},
     {"id": "ser-object-key-order-nested", "class": "object/key-order/nested", "input": [{"b": 0, "a": 1}, $s10, $s10]},
-    {"id": "ser-const-shared-nested-object-parent", "class": "const/shared/nested", "input": [$s9, $s9, $s7]}
+    {"id": "ser-const-shared-nested-object-parent", "class": "const/shared/nested", "input": [$s9, $s9, $s7]},
+    {"id": "ser-object-keys-every-string", "class": "object/keys/every-string", "input": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}]},
+    {"id": "ser-shared-empty-object", "class": "const/shared/object", "input": [$s11, $s11]},
+    {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}}
 ];
