@@ -1,16 +1,24 @@
 /**
+ * @import { Effect } from '../../../../effects/types.ts'
+ * @import { IoChannel, Mkdir, WriteFile } from '../../../../effects/node/types.ts'
+ * @import { Vec } from '../../../../types/bit_vec/types.ts'
+ * @import { State } from '../../../../effects/node/virtual/types.ts'
  * @import { Corpus, Scope } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../../asserts/module.f.mjs'
-import { step as ioStep } from '../../../../effects/module.f.mjs'
-import { exitCode, readUtf8File } from '../../../../effects/node/module.f.mjs'
+import { foldStep, mapStep, pureOk, step as ioStep } from '../../../../effects/module.f.mjs'
+import { exitCode, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.mjs'
 import {
     defaultNodeProgramOptions,
     emptyState,
     virtual,
 } from '../../../../effects/node/virtual/module.f.mjs'
-import { corpus, main, matrix, path, program, write } from './module.f.mjs'
+import { utf8 } from '../../../../text/module.f.mjs'
+import { toVec } from '../../../../types/uint8array/module.f.mjs'
+import { unwrap } from '../../../../types/result/module.f.mjs'
+import { tryStringify } from '../../serializer/module.f.mjs'
+import { corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
 
 /** A vector as the matrix reads one: an id and the class it covers. @type {(id: string, c: string) => { id: string, class: string }} */
 const v = (id, c) => ({ id, class: c })
@@ -58,6 +66,53 @@ const reason = because => ({ ...landed, notApplicable: [{ scope: /** @type {cons
 /** @type {string} */
 const prose = 'is not prose the table can show as written'
 
+/**
+ * One source written into a virtual filesystem: the directory, then the file,
+ * then the fold's state. Each effect is bound at this level so the three read
+ * in the order they run.
+ *
+ * @type {(source: readonly [string, string]) => (state: null) => Effect<Mkdir | WriteFile, null, IoChannel>}
+ */
+const writeSource = ([name, text]) => () => {
+    const made = mkdir(`${directory}/${name}`, { recursive: true })
+    const stored = ioStep(made, () => writeUtf8File(sourceOf(name), text))
+    return mapStep(stored, () => null)
+}
+
+/**
+ * A virtual filesystem holding each data module's source, which the program
+ * now reads. The text is the *writer's*, not the file's: a proof runs against
+ * an in-memory filesystem and cannot read the repository, and the writer's
+ * output is a DataJS document denoting the set by construction, which is
+ * exactly the shape the check must accept.
+ *
+ * So the two halves are proved in different places, deliberately. The
+ * predicate is proved here, on texts chosen to break it. That the six real
+ * files satisfy it is proved by `npm run gen`, in CI, against the files
+ * themselves — which is the point of moving the measurement into the
+ * generator, and something no in-memory fixture could establish.
+ *
+ * @type {(sources: readonly (readonly [string, string])[]) => State}
+ */
+const withSources = sources =>
+    virtual(emptyState)(foldStep(pureOk(sources), null, writeSource))[0]
+
+/** Each data module's source as the writer spells it. @type {readonly (readonly [string, string])[]} */
+const written = modules(corpus).map(([name, imported]) =>
+    /** @type {readonly [string, string]} */ ([name, unwrap(tryStringify(imported))]))
+
+/** The exit code the real program gives against a filesystem. @type {(state: State) => number} */
+const run = state => exitCode(virtual(state)(main(defaultNodeProgramOptions))[1])
+
+/**
+ * Each character of `s` taken as one byte, so a fixture can spell a byte no
+ * encoder would produce. `utf8` cannot: it encodes a *string*, and the point
+ * here is a byte sequence that decodes to no string at all.
+ *
+ * @type {(s: string) => Vec}
+ */
+const bytes = s => toVec(new Uint8Array([...s].map(c => c.codePointAt(0) ?? 0)))
+
 /** @type {string} */
 const name = 'is not a name the table can show as written'
 
@@ -89,7 +144,7 @@ export const proof = {
     // generator names the ones it does not get.
     unanswered: () => {
         assertEq(failure(landed), [
-            'the class-by-role matrix has 1 defects:',
+            'the corpus has 1 defects:',
             '  y in serializer: no vector and no reason',
             'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
         ].join('\n'))
@@ -109,7 +164,7 @@ export const proof = {
     stale: () => {
         assertEq(failure({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'reader', because: 'no' }] }),
             [
-                'the class-by-role matrix has 1 defects:',
+                'the corpus has 1 defects:',
                 '  class x in reader: answers 1 classes that have vectors, x among them',
                 'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
             ].join('\n'))
@@ -410,13 +465,85 @@ export const proof = {
         assertEq(result, 'hello')
     },
     main: () => {
-        const [, result] = virtual(emptyState)(main(defaultNodeProgramOptions))
-        assertEq(exitCode(result), 0)
+        assertEq(run(withSources(written)), 0)
+    },
+    // A source the corpus promises is there and is not.
+    sourceMissing: () => {
+        assertEq(run(withSources(written.slice(1))), 1)
+        assertEq(run(emptyState), 1)
+    },
+    // A source JavaScript takes and DataJS refuses. This is not a hypothetical
+    // defect: every set in the corpus ended with a trailing comma before its
+    // `]`, and the reject set says in four vectors of its own that a trailing
+    // comma is not DataJS, so the corpus stated the rule and broke it in its
+    // own text six times over. It was fixed by hand, which is why it is a check
+    // now.
+    sourceNotDataJs: () => {
+        const [name, text] = written[0]
+        const withComma = `${text.slice(0, -2)},];`
+        assertEq(run(withSources([[name, withComma], ...written.slice(1)])), 1)
+        const d = sourceDefect(name, utf8(withComma), null)
+        assertEq(d.length, 1)
+        assert(d[0].includes(`the set ${name}: its own source is not a DataJS document`), d[0])
+    },
+    // A source that is a DataJS document and denotes something else. Only a
+    // text both languages accept and read differently reaches this half, so the
+    // proof supplies the disagreement directly: the one thing a portable corpus
+    // cannot survive is the reader and the engine reading one file two ways.
+    sourceOtherGraph: () => {
+        const one = sourceDefect('a-set', utf8('export default [1];'), [2])
+        assertEq(one.length, 1)
+        assert(one[0].includes('the set a-set: its source denotes another graph'), one[0])
+        // sharing is part of a graph, so a source that spells a node twice
+        // denotes another graph than one that shares it
+        const node = [0]
+        const shared = sourceDefect('a-set', utf8('export default [[0],[0]];'), [node, node])
+        assertEq(shared.length, 1)
+        assert(shared[0].includes('another graph'), shared[0])
+        assertEq(sourceDefect('a-set', utf8('const $0=[0];export default [$0,$0];'), [node, node]).length, 0)
+    },
+    // A source that is not correct UTF-8 at all, which is checked before the
+    // text exists because nothing after it can see the difference: this
+    // repository's own decoder maps an illegal byte to a character rather than
+    // failing, so each of these decodes to a *valid* document denoting exactly
+    // the graph the engine imported. Every one of them would pass a check that
+    // parsed first.
+    sourceNotUtf8: () => {
+        // `FF` is no UTF-8 byte at all; `C2` at the end is a truncated
+        // sequence; `C0 AF` is an overlong `/`; `ED A0 80` is a surrogate
+        for (const junk of ['\u00ff', '\u00c2', '\u00c0\u00af', '\u00ed\u00a0\u0080']) {
+            const source = bytes(`const $0="${junk}";export default [];`)
+            const d = sourceDefect('a-set', source, [])
+            assertEq(d.length, 1)
+            assert(d[0].includes('the set a-set: its own source is not correct UTF-8'), d[0])
+        }
+        // and the same text encoded properly is accepted, so the case is not
+        // passing because the document is wrong
+        assertEq(sourceDefect('a-set', utf8('const $0="\u00ff";export default [];'), []).length, 0)
     },
     // A corpus the matrix refuses exits non-zero rather than writing a
     // table with a hole in it.
     programRefuses: () => {
         const [, result] = virtual(emptyState)(program(landed)(defaultNodeProgramOptions))
         assertEq(exitCode(result), 1)
+    },
+    // A defect found outside the table is reported *beside* the table's own,
+    // not instead of them. One edit breaks both — a new vector with a trailing
+    // comma whose class no role answers — and reporting one kind at a time
+    // turns one fix into two runs of the generator.
+    defectsTogether: () => {
+        const outside = 'the set a-set: its own source is not a DataJS document'
+        const [tag, both] = matrix(landed, [outside])
+        assert(tag === 'error', 'expected a refusal')
+        assert(both.includes(outside), both)
+        assert(both.includes('y in serializer'), both)
+        assert(both.includes('the corpus has 2 defects:'), both)
+        // and beside a malformed scope, which the table refuses first and alone:
+        // that exclusivity is about defects derived from *reading* a scope, and
+        // an outside defect is not one
+        const [badTag, badScope] = matrix(withScope(null), [outside])
+        assert(badTag === 'error', 'expected a refusal')
+        assert(badScope.includes(outside), badScope)
+        assert(badScope.includes('is not a scope'), badScope)
     },
 }
