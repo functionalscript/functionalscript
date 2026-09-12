@@ -2065,12 +2065,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       one in either writer set, so a writer with a first-slot path of its own
       inside a `const` body could put `null` where `undefined` belongs and pass
       everything. This one is exhaustible cheaply, since the bodies are the
-      shared nodes: 32 consts per set, `[k,0]` and `{"a":k,"b":0}` for each of
-      the sixteen kinds, and one vector per container kind referencing each
-      twice. All 36 cells of kind by body kind are now present in both writer
-      sets and in the reader set, measured. The matrix grows by two ids rather
-      than by 32, which is what makes the exhaustive form affordable here and
-      not in the escape cross.
+      shared nodes: 32 consts per set, `[k,0,k]` and `{"a":k,"b":0,"c":k}` for
+      each of the sixteen kinds, and one vector per container kind referencing
+      each twice. The kind sits in the body's first slot **and** in a later one,
+      because the round after asked the same question of the post-comma path and
+      it was the same shape; all 36 cells of kind by body kind are present in
+      both writer sets and in the reader set, measured. The matrix grows by two
+      ids rather than by 32, which is what makes the exhaustive form affordable
+      here and not in the escape cross.
       **Then the two cells that cross left over**, reported in the same round
       and both about a position rather than a value. A shared node's parent
       kind crossed with the child's emptiness has six spellable cells, not
@@ -2396,6 +2398,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       per-branch one, and six of the bodies already start with `-0`, `-1`,
       `-1n`, `-1e+21`, `-1.5e-7` or `-Infinity`. The other two sets get none of
       this, because a spelling is what a graph check cannot see.
+      The round after that asked the same of a body's **later** slot, where
+      every `1e+21` had been a first element, and the answer cost nothing: each
+      body carries its kind twice, `[k,0,k]` and `{"a":k,"b":0,"c":k}`, so the
+      post-comma path inside a hoisted body sees all 35 spellings too. Writing
+      the pair by hand would have been wrong in one place, and the check caught
+      it: a container spelled twice in a body is **two** nodes, so `[[],0,[]]`
+      hoists nothing, where the same array twice would have hoisted itself and
+      made the text `const $0=[];const $1=[$0,0,$0];`.
       And a latent trap in this set's own proof, found by review rather than by
       a failure: `spelling` built its expected text with `JSON.stringify`, which
       knows nothing about `["__proto__"]` being a production of its own, so the
