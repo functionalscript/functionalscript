@@ -4,7 +4,7 @@
  *
  * @module
  *
- * @import { Commands, Effect, Operation, PartialOperationMap, ToAsyncOperationMap } from './types.ts'
+ * @import { Commands, Effect, Operation, PartialAsyncOperationMap, ToAsyncOperationMap } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
@@ -45,7 +45,7 @@ export const asyncRun = map => async effect => {
  *
  * @template {Operation} O
  * @param {Commands<O>} commands
- * @returns {<R>(map: PartialOperationMap<O, Promise<R>>) => <T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>}
+ * @returns {(map: PartialAsyncOperationMap<O>) => <T, E>(effect: Effect<O, T, E>) => Promise<Result<T, E>>}
  */
 export const asyncPartialRun = commands => map => async effect => {
     /** @type {(command: O[0]) => Promise<any>} */

@@ -8,6 +8,8 @@
  * impure `demo.mjs` beside every module was the alternative, and it is the
  * migration debt `AGENTS.md` names, multiplied by every demo.
  *
+ * @import { CommandSet, Commands } from '../effects/types.ts'
+ * @import { Catch, Sandbox } from '../effects/common/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
  */
 
@@ -32,12 +34,71 @@ import { htmlToString } from '../media/html/module.f.mjs'
  * the first category today, and the first browser-only operation — a fetch, a
  * file the reader picks — is where that gap opens.
  *
- * @type {readonly ['sandbox', 'catch']}
+ * Declared as a record because `CommandSet` is checked for *completeness*: a
+ * command added to the vocabulary and forgotten here is a compile error, where
+ * an array literal has only its members checked and drifts silently. The list
+ * the runner tests membership against is derived from it, so the two cannot
+ * disagree — the same shape `effects/node` uses for the same reason.
+ *
+ * @type {CommandSet<Sandbox | Catch>}
  */
-const commands = ['sandbox', 'catch']
+const commandSet = { sandbox: null, catch: null }
 
-const run = asyncPartialRun(/** @type {any} */ (commands))(
-    /** @type {any} */ (commonOperationMap))
+/**
+ * The commands of {@link commandSet}, in the form a partial runner tests
+ * membership against. The cast is the one `Object.keys` always needs: it
+ * answers `string[]` for a record whose keys the type system knows exactly.
+ *
+ * @type {Commands<Sandbox | Catch>}
+ */
+const commands = /** @type {Commands<Sandbox | Catch>} */ (Object.keys(commandSet))
+
+const run = asyncPartialRun(commands)(commonOperationMap)
+
+/**
+ * Return to the event loop, so the browser can paint what was just set.
+ *
+ * **A macrotask, and that is the whole point.** A demo's work is ordinary
+ * JavaScript on the one thread that paints: `sandbox` calls the thunk the
+ * moment it is dispatched, so a flag raised and then awaited is raised and
+ * blocked in the same task and nobody ever sees it. Draining the microtask
+ * queue is part of that same task, which is why an `await` of a resolved
+ * promise is not enough — the same bargain the browser test runner makes
+ * between rows.
+ *
+ * @type {() => Promise<void>}
+ */
+const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
+
+/**
+ * Says whether the page is waiting on this demo, and stops the reader asking
+ * again while it is.
+ *
+ * **Only the runtime can say this.** A demo renders once, after its effect
+ * has finished, so it cannot paint a state that means "still going" — the one
+ * thing that knows a command is outstanding is the loop that dispatched it.
+ *
+ * **The word is the runtime's too, and so it is a general one.** This runs
+ * every demo: the next may be waiting on a network or on a reader picking a
+ * file, neither of which is calculating. A demo that wants its own wording
+ * should say so in its own field rather than have this one guess.
+ *
+ * Buttons are disabled rather than merely dimmed. A queued second click would
+ * be honoured after the first finished, which is a demo measuring twice
+ * because somebody was impatient.
+ *
+ * @type {(root: Element, working: boolean) => void}
+ */
+const busy = (root, working) => {
+    if (working) {
+        root.setAttribute('data-demo-working', '')
+    } else {
+        root.removeAttribute('data-demo-working')
+    }
+    for (const control of root.querySelectorAll('button')) {
+        control.disabled = working
+    }
+}
 
 /**
  * What the reader was doing, so re-rendering does not take it away.
@@ -104,51 +165,6 @@ const render = (root, view) => {
  */
 const fail = (root, cause) => {
     root.textContent = `demo failed: ${cause instanceof Error ? cause.message : String(cause)}`
-}
-
-/**
- * Return to the event loop, so the browser can paint what was just set.
- *
- * **A macrotask, and that is the whole point.** A demo's work is ordinary
- * JavaScript on the one thread that paints: `sandbox` calls the thunk the
- * moment it is dispatched, so a flag raised and then awaited is raised and
- * blocked in the same task and nobody ever sees it. Draining the microtask
- * queue is part of that same task, which is why an `await` of a resolved
- * promise is not enough — the same bargain the browser test runner makes
- * between rows.
- *
- * @type {() => Promise<void>}
- */
-const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
-
-/**
- * Says whether the page is waiting on this demo, and stops the reader asking
- * again while it is.
- *
- * **Only the runtime can say this.** A demo renders once, after its effect
- * has finished, so it cannot paint a state that means "still going" — the one
- * thing that knows a command is outstanding is the loop that dispatched it.
- *
- * **The word is the runtime's too, and so it is a general one.** This runs
- * every demo: the next may be waiting on a network or on a reader picking a
- * file, neither of which is calculating. A demo that wants its own wording
- * should say so in its own field rather than have this one guess.
- *
- * Buttons are disabled rather than merely dimmed. A queued second click would
- * be honoured after the first finished, which is a demo measuring twice
- * because somebody was impatient.
- *
- * @type {(root: Element, working: boolean) => void}
- */
-const busy = (root, working) => {
-    if (working) {
-        root.setAttribute('data-demo-working', '')
-    } else {
-        root.removeAttribute('data-demo-working')
-    }
-    for (const control of root.querySelectorAll('button')) {
-        control.disabled = working
-    }
 }
 
 /**

@@ -1,3 +1,9 @@
+/**
+ * @import { Commands } from '../../effects/types.ts'
+ * @import { Sandbox } from '../../effects/common/types.ts'
+ * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ */
+
 import { demo, parseSize, stringLog2, work } from './demo.f.mjs'
 import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -471,7 +477,7 @@ export const proof = {
          * with no handler is exactly that runtime.
          */
         absorbsARefusal: () => {
-            const decline = partialRun(/** @type {any} */ (['sandbox']))({})
+            const decline = partialRun(/** @type {Commands<Sandbox>} */ (['sandbox']))({})
             const [, r] = decline(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
             assertEq(rows.length, 2)
@@ -486,10 +492,11 @@ export const proof = {
          * itself, so a proof states the duration rather than reading one.
          */
         measures: () => {
-            const timed = run(/** @type {any} */ ({
-                sandbox: (/** @type {() => unknown} */ f) => (/** @type {null} */ state) =>
-                    [state, ok({ result: ok(f()), duration: 7 })],
-            }))
+            /** @type {MemOperationMap<Sandbox, null>} */
+            const handlers = {
+                sandbox: f => state => [state, ok({ result: ok(f()), duration: 7 })],
+            }
+            const timed = run(handlers)
             const [, r] = timed(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
             assertStructurallySame(rows.map(({ name, ms, note }) => [name, ms, note]), [
