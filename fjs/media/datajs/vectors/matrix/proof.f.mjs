@@ -1,6 +1,7 @@
 /**
  * @import { Effect } from '../../../../effects/types.ts'
  * @import { IoChannel, Mkdir, WriteFile } from '../../../../effects/node/types.ts'
+ * @import { Vec } from '../../../../types/bit_vec/types.ts'
  * @import { State } from '../../../../effects/node/virtual/types.ts'
  * @import { Corpus, Scope } from './types.ts'
  */
@@ -13,6 +14,8 @@ import {
     emptyState,
     virtual,
 } from '../../../../effects/node/virtual/module.f.mjs'
+import { utf8 } from '../../../../text/module.f.mjs'
+import { toVec } from '../../../../types/uint8array/module.f.mjs'
 import { unwrap } from '../../../../types/result/module.f.mjs'
 import { tryStringify } from '../../serializer/module.f.mjs'
 import { corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
@@ -470,7 +473,7 @@ export const proof = {
         const [name, text] = written[0]
         const withComma = `${text.slice(0, -2)},];`
         assertEq(run(withSources([[name, withComma], ...written.slice(1)])), 1)
-        const d = sourceDefect(name, withComma, null)
+        const d = sourceDefect(name, utf8(withComma), null)
         assertEq(d.length, 1)
         assert(d[0].includes(`the set ${name}: its own source is not a DataJS document`), d[0])
     },
@@ -479,16 +482,37 @@ export const proof = {
     // proof supplies the disagreement directly: the one thing a portable corpus
     // cannot survive is the reader and the engine reading one file two ways.
     sourceOtherGraph: () => {
-        const one = sourceDefect('a-set', 'export default [1];', [2])
+        const one = sourceDefect('a-set', utf8('export default [1];'), [2])
         assertEq(one.length, 1)
         assert(one[0].includes('the set a-set: its source denotes another graph'), one[0])
         // sharing is part of a graph, so a source that spells a node twice
         // denotes another graph than one that shares it
         const node = [0]
-        const shared = sourceDefect('a-set', 'export default [[0],[0]];', [node, node])
+        const shared = sourceDefect('a-set', utf8('export default [[0],[0]];'), [node, node])
         assertEq(shared.length, 1)
         assert(shared[0].includes('another graph'), shared[0])
-        assertEq(sourceDefect('a-set', 'const $0=[0];export default [$0,$0];', [node, node]).length, 0)
+        assertEq(sourceDefect('a-set', utf8('const $0=[0];export default [$0,$0];'), [node, node]).length, 0)
+    },
+    // A source that is not correct UTF-8 at all, which is checked before the
+    // text exists because nothing after it can see the difference: this
+    // repository's own decoder maps an illegal byte to a character rather than
+    // failing, so each of these decodes to a *valid* document denoting exactly
+    // the graph the engine imported. Every one of them would pass a check that
+    // parsed first.
+    sourceNotUtf8: () => {
+        /** each character taken as one byte, so a fixture can spell an illegal one @type {(s: string) => Vec} */
+        const bytes = s => toVec(new Uint8Array([...s].map(c => c.codePointAt(0) ?? 0)))
+        // `FF` is no UTF-8 byte at all; `C2` at the end is a truncated
+        // sequence; `C0 AF` is an overlong `/`; `ED A0 80` is a surrogate
+        for (const junk of ['\u00ff', '\u00c2', '\u00c0\u00af', '\u00ed\u00a0\u0080']) {
+            const source = bytes(`const $0="${junk}";export default [];`)
+            const d = sourceDefect('a-set', source, [])
+            assertEq(d.length, 1)
+            assert(d[0].includes('the set a-set: its own source is not correct UTF-8'), d[0])
+        }
+        // and the same text encoded properly is accepted, so the case is not
+        // passing because the document is wrong
+        assertEq(sourceDefect('a-set', utf8('const $0="\u00ff";export default [];'), []).length, 0)
     },
     // A corpus the matrix refuses exits non-zero rather than writing a
     // table with a hole in it.
