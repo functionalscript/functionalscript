@@ -23,13 +23,25 @@ the step that resolves a DISOT name.
 ### Proposal
 
 Three files, all text, all delimiter-framed and so grammars over the byte
-alphabet like the objects:
+alphabet like the objects. The shapes below are the sketch this issue was
+written from, and each is looser in the reader than it reads here — so take
+[`fjs/git/ref`](../ref/module.f.mjs) as the specification and these lines as a
+map of which file is which:
 
-- `HEAD`, and any symbolic ref: `ref: <name> LF`, or a bare hex id.
-- `refs/<name>`: a hex id and LF, one file per loose ref.
+- `HEAD`, and any symbolic ref: `ref: <name>`, or a bare hex id. The LF is
+  optional, the whitespace around the name is free and includes LF, and a NUL
+  ends the name.
+- `refs/<name>`: a hex id, one file per loose ref. No terminator is needed;
+  one whitespace byte or a NUL after the id opens the rest of the file, and
+  nothing in it is read.
 - `packed-refs`: an optional `# pack-refs with:` header line, then
-  `<hex> SP <name> LF` per ref, a `^<hex>` line after a tag naming what it
-  points to.
+  `<hex> <sep> <name> LF` per ref, where `<sep>` is one of SP, TAB or CR and a
+  NUL ends the name; then a `^<hex>` line after a tag naming what it points
+  to. Every line ends in LF, including the last.
+
+Each of those looser rules is measured against Git 2.43.0 in that module's
+header and pinned in its proof, so an implementer of the remaining work should
+not add a precheck the readers would disagree with.
 
 Two functions over the effects:
 

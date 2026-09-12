@@ -27,6 +27,10 @@
  *   name's first character and Git then calls it
  *   `packed refname is dangerous`.
  *
+ * **A NUL ends a field in all three.** Git reads a ref file's contents and a
+ * ref name as C strings, so the first NUL ends them — see {@link nul} for the
+ * rows, including the two that show it is neither whitespace nor a separator.
+ *
  * A hex id is read case-insensitively, which is Git's reading and this
  * repository's: a loose ref holding an id in upper case resolves, and
  * `fjs/git/oid`'s `tryFromHex` takes either case already.
@@ -60,6 +64,44 @@ import { isWholeName } from '../refname/module.f.mjs'
 const space = set(' \t\r\n')
 
 /**
+ * The byte that ends a field, wherever one of these files holds one.
+ *
+ * Git reads a ref file's contents and a ref name as C strings, so the first
+ * NUL ends them and whatever follows is never looked at. That makes it a
+ * third thing beside {@link space} and {@link separator}, and folding it into
+ * either would be wrong in a measurable direction. Measured on Git 2.43.0:
+ *
+ * | file | Git |
+ * | --- | --- |
+ * | `<id>` NUL `junk` | resolves — `rev-parse` gives the id |
+ * | `ref: refs/heads/master` NUL `junk` | target `refs/heads/master` |
+ * | `ref: refs/heads` NUL `/master` | target `refs/heads` — truncated mid-name |
+ * | `ref:` NUL `refs/heads/master` | `No such ref` — an empty target, *not* a skipped byte |
+ * | `<id> refs/heads/master` NUL `junk` LF | name `refs/heads/master` |
+ * | `<id> refs/heads/mas` NUL `ter` LF | name `refs/heads/mas` |
+ * | `<id>` NUL `refs/heads/master` LF | `unexpected line` — an empty name |
+ *
+ * The fourth and last rows are what rule out treating it as whitespace or as
+ * a separator: in both, a NUL where content must begin leaves the field empty
+ * and Git refuses, where a space there would have been skipped.
+ *
+ * In `packed-refs` it ends the *name* and not the file: a second line after a
+ * line holding one is still read, measured.
+ */
+const nul = set('\0')
+
+/**
+ * A byte that ends a loose ref's id: whitespace, or the NUL that ends the
+ * content.
+ *
+ * The two are one set here and nowhere else, because a loose ref treats them
+ * alike — either opens the rest of the file and nothing in it is read. A
+ * symbolic ref and a `packed-refs` line tell them apart, which is why they do
+ * not share this.
+ */
+const looseEnd = set(' \t\r\n\0')
+
+/**
  * A hex digit, in either case. An entry of `packed-refs` and a `^` line
  * both begin with one, which is what keeps the file LL(1): a `#` can then
  * only be the header, and the header is the first line or nothing.
@@ -90,8 +132,8 @@ const hexDigit = set('0123456789abcdefABCDEF')
  * whitespace load-bearing rather than decorative.
  */
 const looseRule = /** @type {const} */ ([
-    repeatFrom1(not(space)),
-    option([space, repeatFrom0(byte)]),
+    repeatFrom1(not(looseEnd)),
+    option([looseEnd, repeatFrom0(byte)]),
     eof,
 ])
 
@@ -140,8 +182,9 @@ export const tryLoose = oidBytes => {
 const symbolicRule = /** @type {const} */ ([
     'ref:',
     repeatFrom0(space),
-    repeatFrom1(not(space)),
+    repeatFrom1(not(looseEnd)),
     repeatFrom0(space),
+    option([nul, repeatFrom0(byte)]),
     eof,
 ])
 
@@ -272,7 +315,8 @@ const separator = set(' \t\r')
 const entryRule = /** @type {const} */ ([
     repeatFrom1(hexDigit),
     separator,
-    repeatFrom1(not(set('\n'))),
+    repeatFrom1(not(set('\n\0'))),
+    option([nul, repeatFrom0(not(set('\n')))]),
     '\n',
     option(peeledRule),
 ])
@@ -295,7 +339,7 @@ const parsePacked = byteParser(packedRule)
  *
  * @type {(id: (hex: Bytes) => Nullable<Oid>) => (e: Ast<typeof entryRule, Byte>) => Nullable<PackedRef>}
  */
-const entryOf = id => ([h, , n, , p]) => {
+const entryOf = id => ([h, , n, , , p]) => {
     const oid = id(symbolsOf(h))
     if (oid === null) { return null }
     const name = byteArray(symbolsOf(n))
