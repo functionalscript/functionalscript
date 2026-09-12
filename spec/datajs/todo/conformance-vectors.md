@@ -1816,7 +1816,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 209 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 210 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
@@ -2067,6 +2067,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `object/keys/every-string` carries them as the keys of a nested object.
       The `normalize` set has carried three of the four in its aggregates
       since the whitespace round, which is where its bytes are pinned.
+      **And `__proto__` inside a hoisted body**, which is the const-body
+      position crossed with the one key that has a production of its own.
+      Measured in all four sets: seven records here carry a `__proto__` key
+      and not one of them is a node the writer must hoist, so a writer with a
+      separate emitter for a `const` body writes the key literally there —
+      `const $0={"__proto__":1};export default [$0,$0];` — which sets a
+      prototype and is not a document for that graph at all. One vector in
+      each writer set and one in the reader set, under `const/shared/object`
+      as the other const-body vectors are, since the position is a walker and
+      not a branch of the specification. Graph equivalence gets none, and for
+      once the reason is structural: the defective output does not parse, so
+      it cannot be a `denotesNot`, which needs a document that reads to
+      another graph.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
