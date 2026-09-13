@@ -17,7 +17,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { loadProofs, reportOf, runProofs } from './module.f.mjs'
+import { formatDuration, groupByModule, groupLabel, loadProofs, reportOf, runProofs, unreported } from './module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
@@ -368,5 +368,72 @@ export const proof = {
         const [events, answered] = working([])(runProofs([]))
         assertEq(events.length, 0)
         assertEq(answered[1], null)
+    },
+    groupByModule: {
+        // No results, no groups — not one empty group.
+        empty: () => assertStructurallySame(groupByModule([]), []),
+        /**
+         * **One group per run of a module, with its counts.** The counts are
+         * folded by the same `addResult` the report's totals are, so a group's
+         * line and the suite's summary cannot disagree about what passed.
+         */
+        counts: () => {
+            const a1 = leaf('passed', 1)
+            const a2 = leaf('failed', 2)
+            const b1 = { ...leaf('passed', 3), module: 'b' }
+            assertStructurallySame(groupByModule([a1, a2, b1]), [
+                { module: 'a', results: [a1, a2], passed: 1, failed: 1 },
+                { module: 'b', results: [b1], passed: 1, failed: 0 },
+            ])
+        },
+        /**
+         * **Consecutive, not keyed.** Two runs that share a label with another
+         * run between them are two groups, in the order they ran; keying by
+         * module would merge them and move `b` out from between them.
+         */
+        aRepeatedModuleIsTwoGroups: () => {
+            const a = leaf('passed', 1)
+            const b = { ...leaf('passed', 1), module: 'b' }
+            assertStructurallySame(groupByModule([a, b, a]).map(g => g.module), ['a', 'b', 'a'])
+        },
+        /**
+         * **Two runs of one label with nothing between them share a group** —
+         * pinned so it is a known limit rather than an accident. A result has no
+         * run identity, so nothing in `[a, a]` says whether that is one run of
+         * two leaves or two runs of one. Every row survives, in order, and the
+         * counts add up.
+         */
+        adjacentRunsOfOneLabelShareAGroup: () => {
+            const a1 = leaf('passed', 1)
+            const a2 = leaf('failed', 2)
+            assertStructurallySame(groupByModule([a1, a2]), [
+                { module: 'a', results: [a1, a2], passed: 1, failed: 1 },
+            ])
+        },
+    },
+    groupLabel: {
+        // A group that passed says how many, which is all its folded line shows.
+        passed: () => assertEq(groupLabel(42, 0), '42 passed'),
+        // A failure leads, because it is the count a reader is scanning for.
+        failed: () => assertEq(groupLabel(14, 1), '1 failed · 14 passed'),
+    },
+    formatDuration: {
+        underASecond: () => assertEq(formatDuration(82.34), '82.3 ms'),
+        // From a second on, seconds: the root page's suite is minutes long.
+        fromASecond: () => assertEq(formatDuration(1000), '1.0 s'),
+        long: () => assertEq(formatDuration(103812.4), '103.8 s'),
+    },
+    unreported: {
+        /**
+         * **A source with no result at all is unreported**, in the order the
+         * run was given its sources: `e` ran and had no tests, `z` was never
+         * reached. A source with even one result, passed or failed, is not.
+         */
+        emptyAndUnreached: () => {
+            const b = { ...leaf('failed', 1), module: 'b' }
+            assertStructurallySame(unreported(['a', 'e', 'b', 'z'], [leaf('passed', 1), b]), ['e', 'z'])
+        },
+        // Every source reported something: nothing to keep listed.
+        none: () => assertStructurallySame(unreported(['a'], [leaf('failed', 1)]), []),
     },
 }

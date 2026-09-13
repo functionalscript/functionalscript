@@ -67,6 +67,23 @@ Nothing starts on load, as
 [browser-test-controls](../emergent_testing/todo/browser-test-controls.md)
 requires. A page binds the runner to its button.
 
+**A run's report is grouped by module, and what passed folds away.** The root
+page runs thousands of proofs, and one list of that many identical rows gave a
+reader no way to find the one that failed. Each module run is a group whose
+folded line is a green or red dot, the module's path, and its counts at the
+right edge, failures first — `1 failed · 14 passed` — and a group closes as soon
+as the run moves past it having passed, so what stays open is exactly what needs
+reading. The whole run's counts sit in the section's title, green and red, with
+the time. A failure's message and stack are a tinted box of their own under its
+row. Two runs of the same module with another run between them are two
+groups; two with nothing between them share one, because a result carries no
+run identity to tell them apart — and a generated page names each proof once,
+so it never meets that case. The list of proof sources under the report is
+shown until a run puts results in it; from then on an entry that produced
+results is hidden, since it is a group above. Two kinds stay, because no group
+stands for either: a blocked proof, with its reason, and a proof that ran and
+reported no tests, which the runner marks after the run.
+
 ## A demo shows what a module does
 
 A module page can say what a module *is* and whether it *passes*. A demo is the

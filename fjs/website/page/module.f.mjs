@@ -44,13 +44,17 @@ import { stylesheetLink } from '../style/module.f.mjs'
 export const repository = 'https://github.com/functionalscript/functionalscript'
 
 /**
- * Where a run's result rows go, unchanged from the page that had only one of
- * them: the runner appends to the list, and the list is a `pre` so a failure's
- * stack keeps its lines.
+ * Where a run's results go: an empty container the runner fills with one
+ * foldable group per module.
+ *
+ * **No longer a `pre` around one list.** Six thousand rows in one list gave a
+ * reader no way to find the one that failed, and the `pre` was only there so a
+ * failure's stack kept its lines — so the runner now gives each failure its own
+ * `pre`, and every other row is ordinary text.
  *
  * @type {Element}
  */
-const report = ['pre', ['ol', { 'data-test-results': '' }]]
+const report = ['div', { 'data-test-results': '' }]
 
 /**
  * The proofs of `dir`'s subtree, named the way a page at `dir` loads them.
@@ -104,10 +108,25 @@ document.querySelector('[data-test-run]').addEventListener(
     () => startBrowserTestSources(root, sources))
 `]
 
-/** @type {(proof: Proof) => Element} */
+/**
+ * One proof in the section's list: its name, or its name and what stops a
+ * browser linking it.
+ *
+ * **A blocked proof is marked**, because it is the one entry a run cannot
+ * repeat. Once a run has results, every runnable entry is a group in the report
+ * above and the stylesheet hides it; a blocked proof never produces a group, so
+ * it stays — otherwise a green count would read as the whole subtree passing.
+ *
+ * **A runnable entry names its source in `data-source`**, for the same reason
+ * one step later: a proof with no tests in it runs and produces no group
+ * either. The runner reads these names after a run and marks the entries that
+ * reported nothing, so they stay listed rather than vanish with the rest.
+ *
+ * @type {(proof: Proof) => Element}
+ */
 const proofItem = proof => proof.blockers.length === 0
-    ? ['li', proof.name]
-    : ['li', `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
+    ? ['li', { 'data-source': proof.name }, proof.name]
+    : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
  * The demo section: what this module *does*, if it says.
@@ -153,16 +172,22 @@ startDemo(document.querySelector('[data-demo]'))
  */
 export const testSection = dir => intro => {
     if (dir.proofs.length === 0) { return [] }
-    /** @type {(rest: readonly Node[]) => readonly Node[]} */
-    const section = rest => [['details', { 'data-section': '', open: '' },
-        ['summary', 'Emergent Testing'],
+    /** @type {(title: Element) => (rest: readonly Node[]) => readonly Node[]} */
+    const section = title => rest => [['details', { 'data-section': '', open: '' },
+        title,
         ...intro,
         ...rest,
-        ['ul', ...dir.proofs.map(proofItem)],
+        // After the report, and marked, so the stylesheet can hide it once the
+        // report has anything in it: from then on every source it names is a
+        // group above it, and the list is the same names a second time.
+        ['ul', { 'data-test-sources': '' }, ...dir.proofs.map(proofItem)],
     ]]
     const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
-    if (linkable.length === 0) { return section([]) }
-    return section([
+    if (linkable.length === 0) { return section(['summary', 'Emergent Testing'])([]) }
+    // **The run's counts go in the title**, so they stay in sight with the
+    // section folded. The slot is there only where something can run: a title
+    // waiting for counts over a suite with no control would wait for ever.
+    return section(['summary', 'Emergent Testing', ['span', { 'data-test-counts': '' }]])([
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,

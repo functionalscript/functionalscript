@@ -354,3 +354,80 @@ const channelFailure = ([source, cause]) => {
  * @type {(modules: readonly (readonly [string, unknown])[]) => Effect<Catch | Sandbox | _BrowserReport, _BrowserTestResult | null, never>}
  */
 export const runProofs = modules => foldStep(pureOk(modules), null, one)
+
+/**
+ * A report's results as the page shows them: one group per unbroken stretch of
+ * a module's results, in the order they ran, with each group's counts.
+ *
+ * **Consecutive, not keyed.** A run is sequential, so one run's results are
+ * always adjacent, and a group starts where the module changes — which is also
+ * where the live page starts one. Two runs that share a label with another run
+ * between them are two groups; keying by module would merge them and move what
+ * ran between them.
+ *
+ * **Two runs of one label with nothing between them share a group**, and that
+ * is a limit of the data rather than a choice. A result carries its module's
+ * label and no run identity, so a finished report cannot tell where one such
+ * run ended and the next began, and neither can the live page, which sees the
+ * same results. Every row is still there, in order, and the counts still add
+ * up. A generated page never meets it: it names each proof source once.
+ * Separating them would need a run identity in `_BrowserTestResult`, which is
+ * the published report's shape.
+ *
+ * Linear, because the page calls it on a whole suite: the boundaries are found
+ * in one pass and each group is a slice, rather than an append that copies
+ * the prefix per result (catalog item 9).
+ *
+ * @type {(results: readonly _BrowserTestResult[]) => readonly { readonly module: string, readonly results: readonly _BrowserTestResult[], readonly passed: number, readonly failed: number }[]}
+ */
+export const groupByModule = results => {
+    const starts = results.flatMap((result, at) =>
+        at === 0 || results[at - 1]?.module !== result.module
+            ? [/** @type {const} */ ([at, result.module])]
+            : [])
+    return starts.map(([start, module], n) => {
+        const group = results.slice(start, starts[n + 1]?.[0] ?? results.length)
+        const { passed, failed } = group.reduce(addResult, zeroTotals)
+        return { module, results: group, passed, failed }
+    })
+}
+
+/**
+ * The counts on a group's line, with the failures first. The module's path is
+ * the line's own separate part, so this is only what sits at its right edge.
+ *
+ * A group that passed is folded, so its line is all a reader sees of it; and a
+ * failure is the one count anybody scans for, so it leads rather than trails.
+ *
+ * @type {(passed: number, failed: number) => string}
+ */
+export const groupLabel = (passed, failed) =>
+    failed === 0 ? `${passed} passed` : `${failed} failed · ${passed} passed`
+
+/**
+ * A run's duration as the report's title shows it: milliseconds under a
+ * second, seconds from there on. The root page's suite takes the better part
+ * of two minutes, and `103812.4 ms` is not a number a reader takes in at a
+ * glance where `103.8 s` is.
+ *
+ * @type {(ms: number) => string}
+ */
+export const formatDuration = ms => ms < 1000 ? `${ms.toFixed(1)} ms` : `${(ms / 1000).toFixed(1)} s`
+
+/**
+ * The sources a run was given that produced no result at all, in the order
+ * they were given: a proof with no tests in it, or one the run never reached.
+ *
+ * **A source with no result has no group**, so a page that hid its entry with
+ * the rest would show a green count over a list that looks complete. The page
+ * keeps these entries listed and says they reported no tests.
+ *
+ * Compared against the groups rather than every result, because a report has
+ * a result per test and a group per module: the second list is the short one.
+ *
+ * @type {(sources: readonly string[], results: readonly _BrowserTestResult[]) => readonly string[]}
+ */
+export const unreported = (sources, results) => {
+    const reported = groupByModule(results).map(group => group.module)
+    return sources.filter(source => !reported.includes(source))
+}

@@ -174,10 +174,20 @@ export const proof = {
         namesItsProofsAndBindsRun: () => {
             const html = concat(element(['body', ...testSection(
                 { ...empty, proofs: [{ name: './proof.f.mjs', blockers: [] }] })([])]))
-            assert(html.includes('<summary>Emergent Testing</summary>'), html)
-            assert(html.includes('<li>./proof.f.mjs</li>'), html)
+            // The title carries a slot the runner fills with the run's counts.
+            assert(html.includes('<summary>Emergent Testing<span data-test-counts=""></span></summary>'), html)
+            // A runnable entry names its source, so a run can mark it if it
+            // reports no tests.
+            assert(html.includes('<li data-source="./proof.f.mjs">./proof.f.mjs</li>'), html)
             assert(html.includes('data-test-run'), html)
-            assert(html.includes('<ol data-test-results="">'), html)
+            assert(html.includes('<div data-test-results="">'), html)
+            // **The sources list follows the report.** The stylesheet hides it
+            // with a sibling selector once the report has content, and a
+            // sibling selector only looks forward — put the list first and it
+            // would never hide.
+            const results = html.indexOf('<div data-test-results="">')
+            const sources = html.indexOf('<ul data-test-sources="">')
+            assert(sources !== -1 && results < sources, html)
             assert(html.includes("'./proof.f.mjs',"), html)
         },
         /**
@@ -195,6 +205,11 @@ export const proof = {
             assert(!html.includes("'./a.f.mjs',"), html)
             assert(html.includes("'./b.f.mjs',"), html)
             assert(html.includes('data-test-run'), html)
+            // **Only the blocked entry is marked.** The stylesheet hides the
+            // unmarked ones once a run has results, and keeps the marked one:
+            // it is the entry no group in the report will ever stand for.
+            assert(html.includes('<li data-blocked="">./a.f.mjs — not linkable in a browser: node:fs</li>'), html)
+            assert(html.includes('<li data-source="./b.f.mjs">./b.f.mjs</li>'), html)
         },
         /**
          * **No control where nothing can run.** A subtree whose proofs are all
