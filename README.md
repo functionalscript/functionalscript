@@ -41,7 +41,7 @@ evaluates a module and emits the data it exports, with every `import` resolved.
 `m.f.js`:
 
 ```js
-export default "text"
+export default ["text"];
 ```
 
 `input.f.js`:
@@ -60,8 +60,8 @@ fjs compile input.f.js output.json   # JSON
 ```
 
 `output.f.js` is a [DataJS](spec/datajs/README.md) document in normalized
-form. It preserves the object graph — a value referenced more than once stays
-shared and is hoisted into a `const` — with `m.f.js` exporting `["text"]`:
+form. It preserves the object graph: `c` is one array referenced twice, so it
+stays shared and is hoisted into a `const`:
 
 ```js
 const $0=["text"];export default [1,1,$0,{"x":$0}];
@@ -69,8 +69,14 @@ const $0=["text"];export default [1,1,$0,{"x":$0}];
 
 `output.json` is a tree, so the compiler refuses a value JSON cannot spell —
 a shared value, `bigint`, `undefined`, `NaN`, `Infinity` — rather than write
-a file that reads back as something else. With `m.f.js` exporting the string
-`"text"`, a leaf that is shared by nothing, both outputs are trees:
+a file that reads back as something else. For the module above it refuses:
+
+```text
+output.json - error: no JSON spelling for a shared node
+```
+
+With `m.f.js` exporting the string `"text"` instead — a leaf, which is never
+shared — both outputs are trees, and `output.json` is:
 
 ```json
 [1,1,"text",{"x":"text"}]

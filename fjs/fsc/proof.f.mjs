@@ -4,7 +4,7 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { compile, tryJson } from './module.f.mjs'
+import { _tryJson, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { run } from './ast/module.f.mjs'
 import { parse as parseDataJs } from '../media/datajs/parser/module.f.mjs'
@@ -317,11 +317,11 @@ export const proof = {
             assertEq(compileSource('export default [undefined, 42n, NaN];')('output.f.js'), 'export default [undefined,42n,NaN];')
             assertEq(compileSource('const a = [1]; export default [a, a];')('output.f.js'), 'const $0=[1];export default [$0,$0];')
         },
-        // and `tryJson` itself, on a value rather than a file, for the leaf
+        // and `_tryJson` itself, on a value rather than a file, for the leaf
         // JSON has a spelling for and the container order it keeps
         value: () => {
-            assertEq(unwrap(tryJson({ b: -0, a: [true, null, 'x'] })), '{"b":-0,"a":[true,null,"x"]}')
-            assertEq(unwrap(invert(tryJson(undefined))), 'no JSON spelling for undefined')
+            assertEq(unwrap(_tryJson({ b: -0, a: [true, null, 'x'] })), '{"b":-0,"a":[true,null,"x"]}')
+            assertEq(unwrap(invert(_tryJson(undefined))), 'no JSON spelling for undefined')
         },
     },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,

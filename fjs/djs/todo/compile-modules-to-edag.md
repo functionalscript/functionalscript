@@ -22,7 +22,7 @@ small temporary wrapper rather than adding module metadata to EDAG itself.
 The current parser/AST cannot fully preserve the ordered object-entry representation
 required by EDAG. Object parsing builds a plain `AstObject` in source order — it
 used to sort the members through an `OrderedMap`, which the subset law over the
-DataJS corpus found and stage 5 fixed — so a repeated key keeps its first position
+DataJS corpus found and stage 6 fixed (#2028) — so a repeated key keeps its first position
 and takes its last value, as in JavaScript. What a plain object still cannot keep
 is the written order of integer-like keys, which JavaScript lists first, and the
 duplicates themselves. This task must preserve object entries as an ordered
