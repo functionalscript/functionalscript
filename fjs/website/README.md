@@ -143,6 +143,27 @@ is built from the repository path and never from where the page sits. The
 exception is a page's own proof sources, which are relative *by design*: that
 is what makes their names the ones `fjs t` uses.
 
+## A file opens on GitHub, at the commit the site was built from
+
+A listed file or issue links to
+`https://github.com/functionalscript/functionalscript/blob/<commit>/<path>`
+when the build knows its commit, and to its raw path on this site when it does
+not. Until the site has a source view of its own
+([`todo/source-and-doc-view.md`](todo/source-and-doc-view.md)), GitHub is that
+view: source is highlighted and Markdown is rendered, where the raw file is
+neither.
+
+- **The commit, not the branch.** A branch preview outlives its branch, which is
+  usually deleted when the pull request merges, and a page's proofs ran that
+  exact commit — a branch link would show whatever the branch holds today.
+- **Where it comes from:** `WORKERS_CI_COMMIT_SHA`, which Cloudflare's Workers
+  Builds sets on every build. A value that is not a SHA-1 commit id is refused,
+  and the build log's `file links:` line says which way a build went.
+- **A local build keeps raw links.** It has no such variable, and its unpushed
+  commits would open nothing on GitHub.
+- **Only what a reader follows moves.** A page's proofs and its demo are
+  imported by the browser from this site, and stay there.
+
 ## One face, the whole site
 
 Everything is set in a monospace stack, `ui-monospace` first so each platform
