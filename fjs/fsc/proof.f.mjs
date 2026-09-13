@@ -1,24 +1,30 @@
 /**
  * @import { Unknown } from '../djs/types.ts'
- * @import { Accept, Document } from '../media/datajs/vectors/types.ts'
+ * @import { Accept, Document, Normalize } from '../media/datajs/vectors/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { compile } from './module.f.mjs'
+import { _tryJson, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { run } from './ast/module.f.mjs'
-import { stringify } from '../djs/serializer/module.f.mjs'
+import { parse as parseDataJs } from '../media/datajs/parser/module.f.mjs'
+import { tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
-import { fromEntries, isObject, sort } from '../types/object/module.f.mjs'
+import { invert, unwrap } from '../types/result/module.f.mjs'
+import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.mjs'
+import normalize from '../../spec/datajs/vectors/normalize/data.f.mjs'
 
 /** The DataJS accept corpus, typed at the import since a data module carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/** The normalized-form corpus, typed the same way. */
+const normalizeSet = /** @type {readonly Normalize[]} */ (normalize)
 
 /**
  * A vector's document as the front end reads it: a string as it is, and a
@@ -63,6 +69,31 @@ const compileSource = source => outputFileName => {
     assertEq(exitCode(code), 0, state.stderr)
     return readOutput(state.root, outputFileName)
 }
+
+/**
+ * What `fjs compile` prints when it refuses to write `.json` for a module:
+ * the exit code is `1`, nothing is written, and the message names the output
+ * file, because the module is sound and the output is what cannot be.
+ *
+ * @type {(source: string) => string}
+ */
+const jsonRefused = source => {
+    const root = { 'input.f.js': [utf8(source)] }
+    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+    assertEq(exitCode(code), 1, state.stderr)
+    assertEq(state.root['output.json'], undefined)
+    return state.stderr.trim()
+}
+
+/** Whether the front end finds a shared node in the module at `path`. @type {(root: typeof emptyState.root) => (path: string) => boolean} */
+const sharedOf = root => path => {
+    const [, result] = virtual({ ...emptyState, root })(transpile(path))
+    assert(result[0] === 'ok', result[1])
+    return result[1].shared
+}
+
+/** The module `fjs compile` writes for a value. @type {(value: Unknown) => string} */
+const moduleText = value => unwrap(tryStringify(value))
 
 const { getPrototypeOf, is, prototype: objectPrototype } = Object
 
@@ -185,11 +216,11 @@ export const proof = {
     // The emitter is only correct if its output is an input denoting the value
     // it was given, which no assertion on the text alone can state.
     roundTrip: roundTripCorpus.map(value => () => {
-        const source = stringify(sort)(value)
+        const source = moduleText(value)
         const root = { 'input.f.js': [utf8(source)] }
         const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
         assert(result[0] === 'ok', result[1])
-        assertStructurallySame(result[1], value, source)
+        assertStructurallySame(result[1].value, value, source)
     }),
     // The subset law, FunctionalScript's half: every DataJS accept document
     // is a FunctionalScript module, and the front end reads it to the graph
@@ -209,6 +240,108 @@ export const proof = {
         const d = difference(graph)(value)
         assert(d === null, `${id}: the front end's graph is not the vector's: ${d}`)
     }),
+    // The normalizer's loop: the document `fjs compile` writes for a module
+    // is read by the DataJS reader to the graph the module denotes, over the
+    // whole accept set. It runs on the compiler's parts as `subsetLaw` does,
+    // since the eight byte-form documents cannot be fed to the file system as
+    // UTF-8 — the output side is a document in every case, the writer
+    // escaping what it cannot encode. `normalizeSet` below runs the file
+    // system route.
+    normalizeLoop: acceptSet.map(({ id, document, graph }) => () => {
+        const source = documentText(document)
+        assert(source !== null, `${id}: the document is not UTF-8`)
+        const [tag, value] = evaluate(source)
+        assert(tag === 'ok', `${id}: the front end refused the document: ${value}`)
+        const normalized = unwrap(tryStringify(value))
+        const d = difference(graph)(unwrap(parseDataJs(normalized)))
+        assert(d === null, `${id}: the normalized document does not denote the vector's graph: ${d}`)
+    }),
+    // Normalized form is a fixed point of the compiler: `fjs compile` on a
+    // normalized document writes the same bytes back, for every text the
+    // corpus pins. This is the whole command, file system included.
+    normalizeFixedPoint: normalizeSet.map(({ id, text }) => () => {
+        assertEq(compileSource(text)('output.f.js'), text, id)
+    }),
+    // Sharing is decided from the module's syntax, not by walking the value:
+    // a container `const` or import that the export reaches twice, or an
+    // import whose own value is shared. A leaf referenced twice is not a
+    // node, an unreachable `const` is not part of the value, and an inline
+    // literal is a fresh node every time it is written.
+    sharing: {
+        constTwice: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = [1]; export default [a, a];')] })('a.f.js')) },
+        leafTwice: () => {
+            assert(!sharedOf({ 'a.f.js': [utf8('const a = 1; export default [a, a];')] })('a.f.js'))
+            assertEq(compileSource('const a = 1; export default [a, a];')('output.json'), '[1,1]')
+        },
+        unreachable: () => {
+            assert(!sharedOf({ 'a.f.js': [utf8('const a = []; const b = [a, a]; export default [a];')] })('a.f.js'))
+            assertEq(compileSource('const a = []; const b = [a, a]; export default [a];')('output.json'), '[[]]')
+        },
+        alias: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; const b = a; export default [a, b];')] })('a.f.js')) },
+        nested: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; export default [a, [a]];')] })('a.f.js')) },
+        member: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "y": {"z": a}};')] })('a.f.js')) },
+        literals: () => { assert(!sharedOf({ 'a.f.js': [utf8('export default [[1], [1], {"a": {}}];')] })('a.f.js')) },
+        importTwice: () => {
+            assert(sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default [1];')] })('a.f.js'))
+            assert(!sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default 1;')] })('a.f.js'))
+        },
+        importShared: () => {
+            const root = { 'c.f.js': [utf8('const a = []; export default [a, a];')] }
+            assert(sharedOf({ ...root, 'a.f.js': [utf8('import c from "./c.f.js"; export default [c];')] })('a.f.js'))
+            // an import the export never reaches contributes nothing
+            assert(!sharedOf({ ...root, 'a.f.js': [utf8('import c from "./c.f.js"; const x = 1; export default [x];')] })('a.f.js'))
+        },
+        json: () => { assert(!sharedOf({ 'a.json': [utf8('[[1],[1]]')] })('a.json')) },
+        // one module reached along two import edges is one node reached
+        // twice, however the edges are spelled: two import statements, two
+        // spellings of one path, or a diamond through a third module — which
+        // is what a module's `reaches` list is for
+        moduleTwice: () => {
+            const m = { 'm.f.js': [utf8('export default [1];')] }
+            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./m.f.js"; export default [m, m2];')] })('a.f.js'))
+            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./sub/../m.f.js"; export default [m, m2];')] })('a.f.js'))
+        },
+        diamond: () => {
+            const root = {
+                'm.f.js': [utf8('export default [1];')],
+                'b.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
+                'a.f.js': [utf8('import m from "./m.f.js"; import b from "./b.f.js"; export default [m, b];')],
+            }
+            assert(sharedOf(root)('a.f.js'))
+            const [state, code] = virtual({ ...emptyState, root })(compile(['a.f.js', 'output.json']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'output.json - error: no JSON spelling for a shared node')
+            // and the same module reached along one edge each by two
+            // *different* modules is still one node reached twice
+            assert(sharedOf({ ...root, 'c.f.js': [utf8('import m from "./m.f.js"; export default {"m": m};')], 'a.f.js': [utf8('import b from "./b.f.js"; import c from "./c.f.js"; export default [b, c];')] })('a.f.js'))
+            // a leaf module along two edges is two copies of a leaf
+            assert(!sharedOf({ ...root, 'm.f.js': [utf8('export default 1;')] })('a.f.js'))
+        },
+        // what a module reaches is listed once each, and not at all once it
+        // is shared, so the lists stay sets however the modules join
+        reaches: () => {
+            const root = {
+                'm.f.js': [utf8('export default [1];')],
+                'b.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
+                'a.f.js': [utf8('import b from "./b.f.js"; export default [b, [b]];')],
+            }
+            const [, b] = virtual({ ...emptyState, root })(transpile('b.f.js'))
+            assert(b[0] === 'ok', b[1])
+            assertStructurallySame(b[1].reaches, ['m.f.js'])
+            const [, a] = virtual({ ...emptyState, root })(transpile('a.f.js'))
+            assert(a[0] === 'ok', a[1])
+            assertEq(a[1].shared, true)
+            assertStructurallySame(a[1].reaches, [])
+        },
+        // a node doubled at every `const`: two to the twenty-fourth references
+        // in the value, and one `const` per line in the syntax the answer is
+        // read from — refused at once, where a walk over the value's paths
+        // would not return
+        doubling: () => {
+            const consts = Array.from({ length: 24 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            assertEq(jsonRefused(`const a0 = [1]; ${consts} export default a24;`), 'output.json - error: no JSON spelling for a shared node')
+        },
+    },
     // The three numbers JSON cannot spell, end to end: read as the values
     // they name, written back as the same words. `NaN` is checked by
     // `Object.is` directly, which is what `structurallySame` compares leaves
@@ -218,7 +351,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const value = result[1]
+            const { value } = result[1]
             assert(value instanceof Array && value.length === 3, value)
             assert(is(value[0], NaN), value[0])
             assertEq(value[1], Infinity)
@@ -228,12 +361,54 @@ export const proof = {
             const source = 'export default [NaN,Infinity,-Infinity];'
             assertEq(compileSource(source)('output.f.js'), source)
         },
-        // The `.json` output spells them as the same words, as it spells
-        // `undefined` and a bigint: not JSON, and not a substitute `null`
-        // either — refusing them there is the policy json-bigint-serialization
-        // records for the whole class.
+        // The `.json` output refuses them, each by name: `JSON.stringify`'s
+        // `null` would read back as a different value, and the word would
+        // not read back at all.
         jsonOutput: () => {
-            assertEq(compileSource('export default [NaN,Infinity,-Infinity];')('output.json'), '[NaN,Infinity,-Infinity]')
+            assertEq(jsonRefused('export default NaN;'), 'output.json - error: no JSON spelling for NaN')
+            assertEq(jsonRefused('export default Infinity;'), 'output.json - error: no JSON spelling for Infinity')
+            assertEq(jsonRefused('export default -Infinity;'), 'output.json - error: no JSON spelling for -Infinity')
+        },
+    },
+    // What JSON cannot spell, refused wherever it sits — at the root, as an
+    // element, as a member's value — and nothing written. A bigint is
+    // refused even though its digits are JSON: the standard reader would
+    // take `1` back as the number `1`, a change of type the extended codec's
+    // output exists to signal and a `.json` file cannot. Sharing is refused
+    // too, since JSON denotes a tree and writing the node twice denotes a
+    // different graph. `-0` is a JSON number and stays one.
+    jsonRefusals: {
+        undefinedRoot: () => { assertEq(jsonRefused('export default undefined;'), 'output.json - error: no JSON spelling for undefined') },
+        undefinedElement: () => { assertEq(jsonRefused('export default [1, undefined];'), 'output.json - error: no JSON spelling for undefined') },
+        undefinedMember: () => { assertEq(jsonRefused('export default {"a": undefined};'), 'output.json - error: no JSON spelling for undefined') },
+        bigintRoot: () => { assertEq(jsonRefused('export default 42n;'), 'output.json - error: no JSON spelling for 42n') },
+        bigintElement: () => { assertEq(jsonRefused('export default [42n];'), 'output.json - error: no JSON spelling for 42n') },
+        bigintMember: () => { assertEq(jsonRefused('export default {"a": 42n};'), 'output.json - error: no JSON spelling for 42n') },
+        nanElement: () => { assertEq(jsonRefused('export default [NaN];'), 'output.json - error: no JSON spelling for NaN') },
+        nanMember: () => { assertEq(jsonRefused('export default {"a": NaN};'), 'output.json - error: no JSON spelling for NaN') },
+        sharedNode: () => {
+            assertEq(jsonRefused('const a = [1]; export default [a, a];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const a = {}; export default {"x": a, "y": a};'), 'output.json - error: no JSON spelling for a shared node')
+        },
+        // two equal containers are two nodes, and a tree is a tree
+        equalNotShared: () => {
+            assertEq(compileSource('export default [[1], [1]];')('output.json'), '[[1],[1]]')
+        },
+        // the whole tree is written once the first refusal is found: nothing
+        // after it is reported, and nothing before it is written
+        firstRefusal: () => {
+            assertEq(jsonRefused('export default [1, undefined, 2n];'), 'output.json - error: no JSON spelling for undefined')
+        },
+        // the module output takes every one of them
+        moduleOutput: () => {
+            assertEq(compileSource('export default [undefined, 42n, NaN];')('output.f.js'), 'export default [undefined,42n,NaN];')
+            assertEq(compileSource('const a = [1]; export default [a, a];')('output.f.js'), 'const $0=[1];export default [$0,$0];')
+        },
+        // and `_tryJson` itself, on a value rather than a file, for the leaf
+        // JSON has a spelling for and the container order it keeps
+        value: () => {
+            assertEq(unwrap(_tryJson({ b: -0, a: [true, null, 'x'] })), '{"b":-0,"a":[true,null,"x"]}')
+            assertEq(unwrap(invert(_tryJson(undefined))), 'no JSON spelling for undefined')
         },
     },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
@@ -245,7 +420,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default -0;')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            assert(is(result[1], -0), result[1])
+            assert(is(result[1].value, -0), result[1])
         },
         moduleRoundTrip: () => {
             assertEq(compileSource('export default -0;')('output.f.js'), 'export default -0;')
@@ -338,7 +513,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const value = result[1]
+            const { value } = result[1]
             assert(isObject(value), value)
             assertStructurallySame(value, protoValue)
             assertEq(getPrototypeOf(value), objectPrototype)

@@ -24,10 +24,12 @@
  * @import { Effect, Func, ToAsyncOperationMap } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
+ * @import { Element as HtmlElement } from '../../media/html/types.ts'
  */
 
 import {
-    errorDetails, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
+    countsView, errorDetails, formatDuration, groupLabel, groupStatus, groupView, loadProofs, moduleFailure,
+    pendingView, reportOf, reportView, resultView, runProofs, runnerSource, unreported,
 } from './module.f.mjs'
 // The phrase for a value that will not be read is the runners' shared one:
 // this host meets such a value at its `import` boundary, where the walk cannot.
@@ -371,12 +373,83 @@ export const startBrowserTestSources = (root, sources) => {
  */
 const setState = (root, state) => {
     root.setAttribute('data-state', state)
+    // A new run's title must not keep the last run's counts, nor its list the
+    // last run's marks, while this one has no results of its own yet.
+    if (state === 'loading' || state === 'running') {
+        root.querySelector('[data-test-counts]')?.replaceChildren()
+        markUnreported(root, null)
+    }
     const runButton = root.querySelector('[data-test-run]')
     if (runButton !== null) {
         if (state === 'loading' || state === 'running') {
             runButton.setAttribute('disabled', '')
         } else {
             runButton.removeAttribute('disabled')
+        }
+    }
+}
+
+/**
+ * Writes a `media/html` element onto a DOM element — its attributes, its text,
+ * then its child elements — and answers the DOM element.
+ *
+ * **One markup, two renderers.** What a report looks like is decided once, by
+ * the pure views in [`./module.f.mjs`](./module.f.mjs): the runner's demo
+ * returns them for the demo runtime to render, and this page turns the same
+ * views into nodes as rows land.
+ *
+ * Text first, then elements — the only order those views produce. Setting
+ * `textContent` replaces what was there, which is also what lets a pending row
+ * settle in place rather than gain a second line.
+ *
+ * @type {(target: Element, element: HtmlElement) => Element}
+ */
+const fill = (target, [, ...rest]) => {
+    const [first] = rest
+    const hasAttributes = first !== undefined && typeof first === 'object' && !(first instanceof Array)
+    const attributes = hasAttributes ? /** @type {Readonly<Record<string, string>>} */ (first) : {}
+    const children = hasAttributes ? rest.slice(1) : rest
+    for (const [name, value] of Object.entries(attributes)) { target.setAttribute(name, value) }
+    target.textContent = children.filter(child => typeof child === 'string').join('')
+    // `instanceof Array` rather than "not a string": the tuple type lets the
+    // attributes object sit in any position, and only an element is an array.
+    for (const child of children) {
+        if (child instanceof Array) { target.append(toDom(target.ownerDocument, child)) }
+    }
+    return target
+}
+
+/** @type {(document: Document, element: HtmlElement) => Element} */
+const toDom = (document, element) => fill(document.createElement(element[0]), element)
+
+/**
+ * Marks the entries of the page's sources list whose source produced no result
+ * in `results`, and unmarks the rest — or unmarks every entry, for `null`.
+ *
+ * **Why the page marks them.** Once a run has results the stylesheet hides
+ * every runnable entry, because each is a group in the report above. A proof
+ * with no tests produces no group, so without a mark its entry would vanish
+ * with the others and the list above would look like everything that ran.
+ * Which sources those are is {@link unreported}'s decision; this only writes
+ * it onto the entries that named themselves in `data-source`.
+ *
+ * @type {(root: Element, results: readonly _BrowserTestResult[] | null) => void}
+ */
+const markUnreported = (root, results) => {
+    const list = root.querySelector('[data-test-sources]')
+    if (list === null) { return }
+    const items = [...list.children]
+    const sources = items.flatMap(item => {
+        const source = item.getAttribute('data-source')
+        return source === null ? [] : [source]
+    })
+    const missing = results === null ? [] : unreported(sources, results)
+    for (const item of items) {
+        const source = item.getAttribute('data-source')
+        if (source !== null && missing.includes(source)) {
+            item.setAttribute('data-no-tests', '')
+        } else {
+            item.removeAttribute('data-no-tests')
         }
     }
 }
@@ -390,55 +463,35 @@ export const renderBrowserReport = (root, report) => {
     setState(root, report.status)
     const summary = root.querySelector('[data-test-summary]')
     if (summary !== null) {
+        // The counts are the section title's, so this line says only what the
+        // title cannot: that the suite never reached its tests. A run that did
+        // leaves it empty, and the stylesheet draws nothing for it.
         summary.textContent = report.status === 'infrastructure-error'
-            ? `Infrastructure error: ${report.totals.failed} failed to load (${report.duration.toFixed(1)} ms)`
-            : `${report.totals.passed} passed, ${report.totals.failed} failed (${report.duration.toFixed(1)} ms)`
+            ? `Infrastructure error: ${report.totals.failed} failed to load (${formatDuration(report.duration)})`
+            : ''
     }
+    const counts = root.querySelector('[data-test-counts]')
+    if (counts !== null) { counts.replaceChildren(...countsView(report).map(view => toDom(root.ownerDocument, view))) }
+    markUnreported(root, report.results)
     const output = root.querySelector('[data-test-results]')
-    if (output !== null) {
-        output.replaceChildren(...report.results.map(result =>
-            renderResult(root.ownerDocument, result)))
-    }
+    if (output !== null) { output.replaceChildren(...reportView(report.results).map(view => toDom(root.ownerDocument, view))) }
 }
 
 /**
- * Writes a settled leaf onto a row — the one it has been running in, or a new
- * one.
+ * Writes a group's counts onto its line and its status onto the group — by the
+ * same {@link groupStatus} its view uses — and folds it once it has passed.
  *
- * Settling **in place** rather than replacing the node is what keeps a pending
- * row and its result one row: the element a reader is already looking at is
- * the element that gains the verdict.
+ * **A failure marks the group at once; a pass waits to be settled.** One that
+ * has failed has failed however the rest goes; one that has only passed so far
+ * may still fail, so it stays `running` and open until the run moves on.
  *
- * @type {(item: Element, result: _BrowserTestResult) => void}
+ * @type {(group: { readonly details: Element, readonly counts: Element }, passed: number, failed: number, settled: boolean) => void}
  */
-const settleResult = (item, result) => {
-    item.setAttribute('data-status', result.status)
-    const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
-    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)${detail}`
-}
-
-/** @type {(document: Document, result: _BrowserTestResult) => HTMLLIElement} */
-const renderResult = (document, result) => {
-    const item = document.createElement('li')
-    settleResult(item, result)
-    return item
-}
-
-/**
- * The row a leaf gets while it is running: its name, and no verdict, because
- * there is none yet.
- *
- * `data-status="running"` rather than a missing attribute, so a stylesheet and
- * a proof can both name the state, and so a row left in it after a run ends is
- * visibly the test that did not finish.
- *
- * @type {(document: Document, id: TestId) => HTMLLIElement}
- */
-const renderPending = (document, id) => {
-    const item = document.createElement('li')
-    item.setAttribute('data-status', 'running')
-    item.textContent = `RUN  ${id.name}`
-    return item
+const labelGroup = ({ details, counts }, passed, failed, settled) => {
+    counts.textContent = groupLabel(passed, failed)
+    const status = groupStatus(passed, failed, settled)
+    details.setAttribute('data-status', status)
+    if (status === 'passed') { details.removeAttribute('open') }
 }
 
 /**
@@ -455,11 +508,38 @@ export const startBrowserTests = (root, modules) => {
     // The row the running leaf is showing in, so its result can settle **in
     // place** rather than appending a second row for the same test. One
     // variable is enough because the run is sequential: a leaf's whole chain
-    // finishes before the next leaf's start event, so there is never more than
-    // one pending row. A concurrent runner would need a row per leaf, and that
-    // is one more thing the sequential run does not have to carry.
-    /** @type {HTMLLIElement | null} */
+    // finishes before the next leaf's start event.
+    /** @type {Element | null} */
     let pending = null
+    // The group rows are landing in. One is enough for the same reason one
+    // pending row is: a module's results are adjacent, and the group changes
+    // only when the module does.
+    /** @type {{ readonly module: string, readonly details: Element, readonly counts: Element, readonly list: Element, passed: number, failed: number } | null} */
+    let group = null
+    /**
+     * The group for `module`: the current one, or a new one — in which case the
+     * previous group is settled first, so a module that passed folds as soon as
+     * the run has moved past it rather than at the end of the suite.
+     *
+     * @type {(target: Element, module: string) => { readonly module: string, readonly details: Element, readonly counts: Element, readonly list: Element, passed: number, failed: number }}
+     */
+    const groupFor = (target, module) => {
+        const current = group
+        if (current !== null && current.module === module) { return current }
+        if (current !== null) { labelGroup(current, current.passed, current.failed, true) }
+        const details = toDom(root.ownerDocument, groupView({ module, results: [], passed: 0, failed: 0 }, false))
+        const next = {
+            module,
+            details,
+            counts: /** @type {Element} */ (details.querySelector('[data-counts]')),
+            list: /** @type {Element} */ (details.querySelector('[data-rows]')),
+            passed: 0,
+            failed: 0,
+        }
+        target.append(details)
+        group = next
+        return next
+    }
     return publish(root, runBrowserProofs(
         modules,
         result => {
@@ -467,19 +547,22 @@ export const startBrowserTests = (root, modules) => {
             const summary = root.querySelector('[data-test-summary]')
             if (summary !== null) { summary.textContent = `${completed} tests completed…` }
             if (output === null) { return }
+            const into = groupFor(output, result.module)
             // A result with no pending row is a leaf that was never announced —
             // a module that could not be read, or the runner's own failure.
             // Those are rows too, and appending is right for them.
             if (pending === null) {
-                output.append(renderResult(root.ownerDocument, result))
+                into.list.append(toDom(root.ownerDocument, resultView(result)))
             } else {
-                settleResult(pending, result)
+                fill(pending, resultView(result))
             }
             pending = null
+            if (result.status === 'passed') { into.passed += 1 } else { into.failed += 1 }
+            labelGroup(into, into.passed, into.failed, false)
         },
         id => {
             if (output === null) { return }
-            pending = renderPending(root.ownerDocument, id)
-            output.append(pending)
+            pending = toDom(root.ownerDocument, pendingView(id))
+            groupFor(output, id.module).list.append(pending)
         }))
 }

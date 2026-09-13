@@ -35,4 +35,4 @@ A future consumer: the DJS serializer currently quotes every object key; with `i
 
 ### Related
 
-- `fjs/js/tokenizer` — `rangeIdStart`/`rangeId` are the code-point twin of these string predicates; a candidate for a future shared source of truth.
+- `fjs/ebnf/lib/js` — `idStart`/`idChar` are the code-point twin of these string predicates; a candidate for a future shared source of truth.

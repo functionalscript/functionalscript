@@ -237,9 +237,9 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
   before it is narrowed.
 - [Standard JSON transformer](./standard-transform.md) — runtime value conversion
   between already-materialized extended and ordinary JSON trees.
-- [`fjs/media/json/tokenizer/module.f.mjs`](../tokenizer/module.f.mjs) — JSON token
-  production must preserve the numeric lexeme before any unrepresentable derived
-  numeric construction.
+- [Losslessness starts at the grammar](../README.md#losslessness-starts-at-the-grammar)
+  — the reader hands the policy the numeric lexeme, never a derived value, so
+  nothing is narrowed before the policy asks.
 - [`fjs/rtti/parse`](../../../rtti/parse/module.f.mjs) — existing strict
   runtime-value parser whose structural behavior should be reused where possible,
   not changed to add JSON-specific coercion.

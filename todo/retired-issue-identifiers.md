@@ -76,8 +76,7 @@ sed -n '/^|`i/s/^|`\([^`]*\)`.*/\1/p' todo/retired-issue-identifiers.md \
 Append `| sed 's|:[0-9]*:.*||' | sort -u` for the **13** files they live in.
 
 Line numbers are deliberately omitted. This file is an inventory of citation
-rot, and pinning it to line numbers would make it rot the same way — see
-[tokenizer-line-citations](../fjs/js/todo/tokenizer-line-citations.md).
+rot, and pinning it to line numbers would make it rot the same way.
 
 Finding the file is mechanical. Deciding what the citation should say instead is
 not, and both outcomes occur:
@@ -195,5 +194,3 @@ reads as prose about an issue, not as a type argument.
 
 - [`todo/README.md`](./README.md) — the four searches, and the three outcomes to
   distinguish once you have the retired file.
-- [tokenizer-line-citations](../fjs/js/todo/tokenizer-line-citations.md) — the
-  same shape of problem for line numbers rather than identifiers.

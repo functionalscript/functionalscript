@@ -1,6 +1,6 @@
 /**
  * Type-level API for `fjs/fsc/tokenizer/module.f.mjs`: the DJS token shapes
- * `tokenize`/`tokenizeJs`/`tokenizeString` produce.
+ * `tokenize` produces.
  *
  * @module
  */
