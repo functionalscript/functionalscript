@@ -42,6 +42,8 @@ import type { FramingInit, Framed, Hash } from './types.ts'
  * the one place the `hashBytes`/`blockBytes` rounding and the
  * `{ hash, len: 0n, remainder: empty }` initial state are spelled. `H` is
  * the hash value's shape (`V8`, `V5`).
+ * @throws unless `0n < hashLength && hashLength <= init.digestLength` — a
+ *   caller error no data can cause.
  */
 export const framed: <H>(init: FramingInit<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>
 /** The bigint the words spell, most significant first, each `wordLength` bits wide; `[]` is `0n`. */
@@ -68,7 +70,18 @@ member, no break. `framed` is exactly the private `sha2` factory with
 its `FramingInit<V8>` as a module-scope value beside the exported
 record, and each variant is `framed(init32, hash, hashLength)` — a
 framing built per variant rather than per width, six closures instead
-of two, which is simplicity over an optimization nothing measured. **Nothing about `Base` changes** — neither the exported type
+of two, which is simplicity over an optimization nothing measured.
+
+`hashLength` is **asserted against the init** before anything is built:
+`0n < hashLength && hashLength <= init.digestLength`. The digest `end`
+answers is the high `hashLength` bits of a `digestLength`-bit value, so
+a `hashLength` past the digest has no bits to answer with — today's
+`end` would compute a negative offset, which JavaScript's `>>` turns
+into a left shift, and hand back a "300-bit" SHA-256 padded with zeros
+that `hmac` would then accept as a hash. Every real variant satisfies
+the bound (`sha224` is 224 of 256, `sha512x224` is 224 of 512, `sha1` is
+160 of 160), no data can violate it, and a violation is a panic, not a
+plausible wrong digest. **Nothing about `Base` changes** — neither the exported type
 nor the exported values `base32`/`base64`, whose shape stays
 `{ bitLength, chunkLength, compress, fromV8, append, end }`: `fjs/sul/id`
 imports `base32` and the SHA-2 proof reads `fromV8`, `compress`, and
@@ -106,7 +119,9 @@ block length stated once, in the init, and nowhere else.
 - [ ] Export `framed`, `fromWords`, `ch`, `maj` from
       `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
       through them; pin `fromWords`'s empty case at `0n` and its
-      out-of-range word and non-positive width as panics; `Base`, `base32`,
+      out-of-range word and non-positive width as panics; pin
+      `framed`'s `hashLength` bound (`0n` and `digestLength + 1n` panic,
+      `digestLength` passes); `Base`, `base32`,
       `base64`, and `Framing<H>` keep their exact shape and the SHA-2
       proof's field reads pass unchanged — no `Changelog:` entry.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass

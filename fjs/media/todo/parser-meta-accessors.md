@@ -42,6 +42,11 @@ import type { Meta } from '../../../ebnf/ast/types.ts'
 import type { Utf16 } from '../../../ebnf/utf16/types.ts'
 /** A node a reader may be handed: a symbol of the input or the layer's output alphabet `O`, or a subtree. */
 type _Readable<O> = Meta<Utf16 | O> | readonly unknown[]
+/**
+ * The ids an alphabet may be addressed by: its members' `id`s where every one
+ * is a literal, and `never` where any member's `id` is the widened `string`.
+ */
+type _LiteralId<O extends { readonly id: string }> = string extends O['id'] ? never : O['id']
 /** The member of the alphabet `O` that `Id` names — computed, never supplied. */
 type _Tagged<O, Id extends string> = Extract<O, { readonly id: Id }>
 /** Whether `T` is a union of two or more members. */
@@ -61,7 +66,7 @@ type _OnlyKey<M> =
  * — the whole member, by construction — and `at` reads the payload back,
  * asserting `meta.id === id`.
  */
-export const tagged: <O extends { readonly id: string }, Id extends O['id'], K extends _OnlyKey<_Tagged<O, Id>>>(id: Id, key: K) => {
+export const tagged: <O extends { readonly id: string }, Id extends _LiteralId<O>, K extends _OnlyKey<_Tagged<O, Id>>>(id: Id, key: K) => {
     readonly symbol: (payload: _Tagged<O, Id>[K]) => Meta<_Tagged<O, Id>>
     readonly at: (node: _Readable<O>) => _Tagged<O, Id>[K]
 }
@@ -80,6 +85,21 @@ single-payload, so nothing today is excluded; a future two-field member
 writes its own pair, as it would have had to anyway. `_IsUnion` and
 `_OnlyKey` are `_`-prefixed types beside `_Tagged` in
 `json/parser/types.ts`.
+
+The alphabet's ids must be **literal**, and `_LiteralId<O>` enforces
+that where `Extract` alone cannot. An alphabet such as
+`{ id: 'foo', value: string } | { id: string, value: number }` would let
+`_Tagged<O, 'foo'>` select the first member while `_Readable<O>` still
+admitted a `Meta` of the widened second, whose runtime `id` might be
+`'foo'` — the assertion passes and `at` returns a number typed as a
+string. With `Id extends _LiteralId<O>`, any member whose `id` is
+`string` makes `O['id']` widen to `string`, `_LiteralId<O>` collapses to
+`never`, and no `Id` exists: `tagged<O, …>` over such an alphabet does
+not instantiate. The three real alphabets have only literal ids
+(`'text'`, `'json'`, `'value'`), so nothing today is refused. This
+closes for `tagged` what `textAt`'s payload assertion closes for the one
+cross-layer reader; `tagged` needs no runtime check because an alphabet
+is a declared type, and the declaration is where the widening would be.
 
 The metadata type is **computed from the alphabet, not supplied**: the
 caller names `O`, an `Id` drawn from `O['id']`, and a key, and the
