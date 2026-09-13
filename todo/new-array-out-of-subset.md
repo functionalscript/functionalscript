@@ -172,6 +172,8 @@ module they live in.
 - [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
   — already states that FunctionalScript cannot build a sparse array, and
   assumes dense operands on that basis.
-- [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)
+- [`fjs/media/datajs/todo/serializer.md`](../fjs/media/datajs/todo/serializer.md)
   — where the same argument was made, acted on, and reversed; its open question
-  about the serializer's `unknown` parameter gates the last task here.
+  about the serializer's `unknown` parameter gates the last task here. The corpus
+  that argument was about is [`spec/datajs/vectors`](../spec/datajs/vectors/README.md),
+  whose README records the gap from its own side.
