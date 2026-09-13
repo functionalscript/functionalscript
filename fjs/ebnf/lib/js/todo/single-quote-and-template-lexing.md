@@ -73,7 +73,19 @@ The grammar has three readers, and the widening reaches each differently.
   outside JSON's table plus `\u` are errors *there*, at the token, until
   2460 and 3440 accept them. That keeps the accepted language exactly where
   it is, and it is the same place the fold already refuses `-NaN`. The
-  compiler's proofs pin it.
+  compiler's proofs pin it. **It can refuse only if the spelling survives
+  the layer below it**, and today it does not: the fold there cooks a
+  string, so `"A"`, `'A'` and `"\x41"` would all arrive as one
+  `{ kind: 'string', value: 'A' }`. So `StringToken` gains a `json`
+  boolean, true exactly when the literal is one JSON's string grammar
+  accepts — opened by `"`, every escape from JSON's table — decided by the
+  decoder that already reads each escape as it cooks the value. A template
+  is a kind of its own and needs no flag. That is the second of the two
+  mechanisms 2460 offered, "recording which sub-language each matched token
+  stayed within", used on the *token* rather than on the grammar, where the
+  first mechanism already holds: the JS string rule cannot be two LL(1)
+  branches by dialect, since both begin with `"`, and one bit on the token
+  is what the compiler's fold reads.
 - `fjs/js/tokenizer`, once stage 7 rebuilds it over this grammar as the
   general JS stream. It is the consumer this issue exists for: the website's
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
@@ -116,10 +128,24 @@ is the rule the grammar already follows — what one LL(1) layer cannot decide
 is split into layers, with a fold between them, rather than hand-written
 around. The grammar recognises a template *chunk*: from a backtick or a `}`
 to the next backtick or unescaped `${`. The layer above, which resumes the
-parser at each token, keeps a nesting depth — `${` pushes, the `}` that
-brings the depth back pops and is read as a chunk's start rather than an
-operator — and hands ordinary tokens to the grammar in between. The depth
-lives in the reader's scan state beside the position, not in the grammar.
+parser at each token, keeps a **stack of template contexts, each with a
+brace count**, and hands ordinary tokens to the grammar in between: `${`
+pushes a context at zero; inside the innermost context an ordinary `{`
+counts up and a `}` counts down while the count is above zero; the `}` that
+meets a count of zero pops the context and is read as a chunk's start
+rather than an operator; outside every context `}` is the operator it
+always was. A template opened inside a substitution pushes a context of its
+own above the outer one, so its `}` can never close the outer substitution.
+A depth alone would not do: it cannot tell an object literal's `}` from a
+substitution's. The stack lives in the reader's scan state beside the
+position, not in the grammar.
+
+Two fixtures the tree scan cannot see, because a wrong split there is not an
+error but a template that swallows the rest of the file as text:
+[`media/rust/module.f.mjs:34-48`](../../../../media/rust/module.f.mjs#L34-L48),
+whose substitution holds `map(c => { switch (c) { … } })`, so its first `}`
+must stay an operator, and `` `${{ x: 1 }.x}` ``, an object literal as the
+whole substitution.
 
 #### The token stream, decided here rather than at implementation time
 
@@ -212,13 +238,30 @@ not the third: [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs)
 reads a token's text as "the input between where it began and where it
 ended" and anchors the token at its start, and only an `error` token carries
 an end. Since trivia is emitted rather than skipped, the stream is
-contiguous, so a token's text is the source from its own start to the next
-token's start, the last running to the end of input. A view that has the
-source — which it does; it fetched it — slices by those starts and shows the
-text exactly, indentation and raw escapes included, with no second
-tokenization and no rule about ends to get backwards. The rebuilt
-`fjs/js/tokenizer` keeps that property; a proof should pin the slicing on
-the largest module, since it is what the source view rests on.
+contiguous, so the starts partition the source, and a view that has the
+source — which it does; it fetched it — slices between consecutive starts
+and shows the text exactly, indentation and raw escapes included, with no
+second tokenization and no rule about ends to get backwards.
+
+**The partition does not yet delimit tokens**, measured on two shapes:
+
+- a trivia run holding both whitespace and a newline is anchored at the
+  **newline**, not at the run's start — `mergeTrivia` restarts the pending
+  token there — so for `"a  \n  b"` the `id` token's slice is `"a  "`, two
+  spaces that are not its text;
+- a block comment holding a newline is emitted as the `/*` token and a
+  synthetic `nl` **at the same start**, so for `"a /* x\ny */ b"` the
+  comment's slice is empty and the `nl`'s is the comment.
+
+Both are the stream's to fix, in the PR that widens it, and the compiler's
+tokens share the stream so its proofs move too: a trivia run is anchored at
+its first symbol, and the synthetic `nl` after a block comment goes — it is
+the old scanner's habit, and the compiler's grammar reads `nl` as trivia
+since the `;`-only terminator rule, which the compiler's proofs check at the
+change. After that the rule is the simple one: a token's text is the source
+from its start to the next token's start. A proof should pin that on the
+largest module in the tree and on the two shapes above, since it is what
+the source view rests on.
 
 ### Tasks
 
@@ -247,7 +290,7 @@ the largest module, since it is what the source view rests on.
       token kinds above — `noSubstitutionTemplate`, `templateHead`,
       `templateMiddle`, `templateTail` — in `types.ts`, so the shared stream
       is the one this issue names rather than one invented at implementation
-      time. Proofs for the six shapes above.
+      time. Proofs for the six shapes above and the two brace shapes.
 - [ ] **Do not add rows to `simpleEscapes`** for any of it; the JS decoder is
       a layer above the shared table.
 - [ ] The compiler keeps refusing what it refused: `fsc/tokenizer`'s fold
@@ -255,9 +298,12 @@ the largest module, since it is what the source view rests on.
       into the error token the grammar used to produce, with proofs, until
       2460 and 3440 accept them. The accepted language does not move in this
       PR.
-- [ ] Pin with a proof that a token's text is the source between its
-      positions, for every token kind including trivia, on the largest
-      module in the tree.
+- [ ] Anchor a trivia run at its first symbol and drop the synthetic `nl`
+      after a block comment, so that consecutive starts delimit tokens; the
+      compiler's position proofs follow.
+- [ ] Pin with a proof that a token's text is the source from its start to
+      the next token's start, for every token kind including trivia, on the
+      largest module in the tree and on the two shapes above.
 - [ ] Re-run the tree scan; the 336 failing modules should reach zero, or the
       remainder should be named and explained.
 

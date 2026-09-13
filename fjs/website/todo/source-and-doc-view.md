@@ -29,8 +29,10 @@ page.
   two renderings of the same token list, read from the JS token grammar
   [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) the way the compiler's
   [`fjs/fsc/tokenizer`](../../fsc/tokenizer/module.f.mjs) reads it: comments
-  and trivia are tokens, every token knows where it begins and ends, and it is
-  authored FunctionalScript, so it loads in a browser like any other module.
+  and trivia are tokens, every token knows where it begins, and the stream is
+  contiguous, so a token's text runs from its start to the next token's — the
+  prerequisite says what that still needs — and it is authored
+  FunctionalScript, so it loads in a browser like any other module.
   Nothing is written twice. The token stream is the one the plan's stage 7
   makes `fjs/js/tokenizer` — the grammar's general JS stream, which the
   compiler's tokenizer folds — so the module path below stays right; what
