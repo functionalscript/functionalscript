@@ -5,7 +5,7 @@
  *
  * @import { Array, Unknown } from '../../djs/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { AstConst, AstBody, AstModuleRef, Denotation } from './types.ts'
+ * @import { AstConst, AstBody, AstModuleRef, Import, Sharing } from './types.ts'
  * @import { _FoldObjectState, _Reach, _RunState } from './private.ts'
  */
 
@@ -88,12 +88,15 @@ const refsOf = ast => {
     return flat(values(ast).map(refsOf))
 }
 
+/** @type {(value: Unknown) => boolean} */
+const isContainer = value => value !== null && typeof value === 'object'
+
 /**
  * Whether an entry denotes a container, given which earlier entries do: a
  * literal does, an alias does if what it names does, and a primitive does
  * not.
  *
- * @type {(imports: readonly Denotation[]) => (containers: bigint, ast: AstConst) => boolean}
+ * @type {(imports: readonly Import[]) => (containers: bigint, ast: AstConst) => boolean}
  */
 const denotesContainer = imports => (containers, ast) => {
     if (ast === null || typeof ast !== 'object') { return false }
@@ -101,11 +104,11 @@ const denotesContainer = imports => (containers, ast) => {
     switch (ast[0]) {
         case 'array': { return true }
         case 'cref': { return (containers & bit(ast[1])) !== 0n }
-        default: { const { value } = imports[ast[1]]; return value !== null && typeof value === 'object' }
+        default: { return isContainer(imports[ast[1]].value) }
     }
 }
 
-/** @type {(imports: readonly Denotation[]) => (containers: bigint, ast: AstConst, i: number) => bigint} */
+/** @type {(imports: readonly Import[]) => (containers: bigint, ast: AstConst, i: number) => bigint} */
 const containerStep = imports => (containers, ast, i) =>
     denotesContainer(imports)(containers, ast) ? containers | bit(i) : containers
 
@@ -113,10 +116,11 @@ const containerStep = imports => (containers, ast, i) =>
 const reachStep = (reachable, [kind, i]) => kind === 'cref' ? reachable | bit(i) : reachable
 
 /**
- * One entry of the sweep from the export downwards: an entry two references
- * reach is reachable, and a reachable entry's own references count and make
- * their targets reachable. A `cref` points at an earlier entry, so by the
- * time the sweep arrives at an entry every reference to it has been seen.
+ * One entry of the sweep from the export downwards: an entry a reference
+ * reaches is reachable, and a reachable entry's own references count and
+ * make their targets reachable. A `cref` names an earlier entry — the
+ * parser refuses a `const` naming itself or a later one — so by the time
+ * the sweep arrives at an entry every reference to it has been seen.
  *
  * @type {(reach: _Reach, ast: AstConst, i: number) => _Reach}
  */
@@ -126,32 +130,42 @@ const reachEntry = (reach, ast, i) => {
     return { reachable: refs.reduce(reachStep, reach.reachable), refs: concat(reach.refs)(refs) }
 }
 
-/** A reference as a key, so that two references to one node are equal. @type {(ref: AstModuleRef) => string} */
-const key = ([kind, i]) => `${kind}${i}`
+/** Whether a list names something twice. @type {(xs: readonly string[]) => boolean} */
+const repeats = xs => new Set(xs).size !== xs.length
+
+/** @type {(m: Import) => readonly [string, Import]} */
+const byId = m => [m.id, m]
 
 /**
- * Whether the value a module denotes has a node two references reach —
- * decided from the syntax, where sharing is spelled: a container `const` or
- * a container import referenced twice from the parts of the module the
- * export reaches, or an import whose own value has such a node. A leaf
+ * What a module's syntax says about the graph its value denotes — decided
+ * where sharing is spelled, a `const` or a module referenced twice, and
+ * never by walking the value. A node two references reach is a container
+ * `const` referenced twice from the parts of the module the export reaches,
+ * a container module reached twice — along two import statements, or along
+ * two import edges through other modules, which is what {@link Sharing}'s
+ * `reaches` is for — or a reached module whose own value is shared. A leaf
  * referenced twice is two copies of a leaf, which is no sharing, and a
  * `const` the export never reaches is not part of the value at all.
  *
- * Linear in the size of the module: each entry is read once, and a
- * reference is counted rather than followed, so a module that doubles a
- * node at every `const` costs its length, not its two-to-the-length.
+ * Linear in the size of the module and in the modules it reaches: each
+ * entry is read once and a reference is counted rather than followed, so a
+ * module that doubles a node at every `const` costs its length, not its
+ * two-to-the-length; and a reached module lists each module it reaches
+ * once, or is shared and lists none, so a diamond of modules is found at
+ * its join and the lists stay sets.
  *
- * @type {(body: AstBody) => (imports: readonly Denotation[]) => boolean}
+ * @type {(body: AstBody) => (imports: readonly Import[]) => Sharing}
  */
-export const shared = body => imports => {
+export const sharing = body => imports => {
     const containers = body.reduce(containerStep(imports), 0n)
     /** @type {_Reach} */
     const start = { reachable: bit(body.length - 1), refs: empty }
     const { refs } = body.reduceRight(reachEntry, start)
-    const nodes = toArray(refs).filter(([kind, i]) => kind === 'cref'
-        ? (containers & bit(i)) !== 0n
-        : imports[i].value !== null && typeof imports[i].value === 'object')
-    return new Set(nodes.map(key)).size !== nodes.length
-        || nodes.some(([kind, i]) => kind === 'aref' && imports[i].shared)
+    const nodes = toArray(refs)
+    const consts = nodes.flatMap(([kind, i]) => kind === 'cref' && (containers & bit(i)) !== 0n ? [`${i}`] : [])
+    const reached = nodes.flatMap(([kind, i]) => kind === 'aref' && isContainer(imports[i].value) ? [imports[i]] : [])
+    const distinct = [...new Map(reached.map(byId)).values()]
+    const reaches = [...reached.map(m => m.id), ...distinct.flatMap(m => m.reaches)]
+    const shared = repeats(consts) || repeats(reaches) || distinct.some(m => m.shared)
+    return { shared, reaches: shared ? [] : reaches }
 }
-

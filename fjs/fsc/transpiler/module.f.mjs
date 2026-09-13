@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Unknown } from '../../djs/types.ts'
- * @import { Denotation } from '../ast/types.ts'
+ * @import { Denotation, Import } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { AstModule } from '../ast/types.ts'
@@ -23,7 +23,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { run, shared } from '../ast/module.f.mjs'
+import { run, sharing } from '../ast/module.f.mjs'
 import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 
@@ -45,6 +45,9 @@ const mapDjs = context => path => {
     }
     return res
 }
+
+/** @type {(context: ParseContext) => (path: string) => Import} */
+const importAt = context => path => ({ ...mapDjs(context)(path), id: path })
 
 /** @type {(denotation: Denotation) => Unknown} */
 const valueOf = ({ value }) => value
@@ -81,9 +84,9 @@ const transpileWithImports = path => module => context => {
     return mapStep(
         x0,
         contextWithImports => {
-            const imports = toArray(listMap(mapDjs(contextWithImports))(pathsCombine))
+            const imports = toArray(listMap(importAt(contextWithImports))(pathsCombine))
             /** @type {Denotation} */
-            const denotation = { value: run(module[1])(imports.map(valueOf)), shared: shared(module[1])(imports) }
+            const denotation = { value: run(module[1])(imports.map(valueOf)), ...sharing(module[1])(imports) }
             return {
                 ...contextWithImports,
                 stack: drop(1)(contextWithImports.stack),
@@ -121,7 +124,7 @@ const transpileModule = path => mapStep(
  * than as metadata, so the `ParseError` has none and `fjs/djs`'s `compile`
  * names the file instead of a line and column.
  *
- * A JSON value is a tree, so it shares nothing.
+ * A JSON value is a tree, so it shares nothing and reaches no module.
  *
  * @type {(path: string) => Effect<ReadFile, Denotation, ParseError>}
  */
@@ -131,7 +134,7 @@ const transpileJson = path => step(
         const json = jsonParse(text)
         return pure(json[0] === 'error'
             ? error({ message: json[1], metadata: null })
-            : ok({ value: json[1], shared: false }))
+            : ok({ value: json[1], shared: false, reaches: [] }))
     })
 
 /**

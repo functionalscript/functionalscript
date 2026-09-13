@@ -83,7 +83,6 @@ export const proof = {
                 ["export default {[\"__proto__\"]: 1};", "[[],[{\"__proto__\":1}]]"],
                 ["const a = 1;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
                 ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"array\",[[\"cref\",0],[\"cref\",1]]]]]"],
-                ["const a = a;\nexport default a;", "[[],[[\"cref\",0],[\"cref\",0]]]"],
                 ["import x from \"m\";\nexport default x;", "[[\"m\"],[[\"aref\",0]]]"],
                 ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[\"m\"],[1,[\"cref\",0]]]"],
                 ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[\"m\",\"n\"],[[\"array\",[[\"aref\",0],[\"aref\",1]]]]]"],
@@ -172,6 +171,11 @@ export const proof = {
                 ["export default -NaN;", "unexpected token", [1, 17]],
                 ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
+                // a `const` naming itself is a reference before its declaration,
+                // which JavaScript refuses too; it used to name the entry
+                // being defined, and denote the entry before it
+                ["const a = a;\nexport default a;", "const not found", [1, 11]],
+                ["const a = [1];\nconst b = { x: b };\nexport default [a, b];", "const not found", [2, 16]],
                 ["export default [zzz];", "const not found", [1, 17]],
                 ["export default {a: zzz};", "const not found", [1, 20]],
                 ["export default {__proto__: 1};", "__proto__ requires the computed key form", [1, 17]],

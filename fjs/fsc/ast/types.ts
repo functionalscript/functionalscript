@@ -59,10 +59,26 @@ export type AstObject = { readonly[k in string]?: AstConst }
 export type AstBody = readonly AstConst[]
 
 /**
- * What a module denotes: the value the front end built for it, and whether
- * that value's graph has a node two references reach. The second is known
- * from the module's syntax — a `const` or an import referenced twice — and
- * is carried beside the value because nothing about a plain object says it
- * afterwards without walking the graph by identity.
+ * What the sweep over a module's syntax says about the graph its value
+ * denotes: whether a node is reached by two references, and — when none is —
+ * which container modules the value reaches, each named once by its id, so
+ * that an importer can see a module reached along two import edges as one
+ * node reached twice. A shared module reaches nothing worth listing: every
+ * importer of it is shared already.
  */
-export type Denotation = { readonly value: Unknown, readonly shared: boolean }
+export type Sharing = {
+    readonly shared: boolean
+    readonly reaches: readonly string[]
+}
+
+/**
+ * What a module denotes: the value the front end built for it, and what the
+ * sweep says of its graph. The sweep's answer is known from the module's
+ * syntax — a `const` or a module referenced twice — and is carried beside
+ * the value because nothing about a plain object says it afterwards without
+ * walking the graph by identity.
+ */
+export type Denotation = Sharing & { readonly value: Unknown }
+
+/** An imported module as the sweep sees it: what it denotes, under the id an importer names it by — its resolved path. */
+export type Import = Denotation & { readonly id: string }

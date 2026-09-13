@@ -292,6 +292,47 @@ export const proof = {
             assert(!sharedOf({ ...root, 'a.f.js': [utf8('import c from "./c.f.js"; const x = 1; export default [x];')] })('a.f.js'))
         },
         json: () => { assert(!sharedOf({ 'a.json': [utf8('[[1],[1]]')] })('a.json')) },
+        // one module reached along two import edges is one node reached
+        // twice, however the edges are spelled: two import statements, two
+        // spellings of one path, or a diamond through a third module — which
+        // is what a module's `reaches` list is for
+        moduleTwice: () => {
+            const m = { 'm.f.js': [utf8('export default [1];')] }
+            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./m.f.js"; export default [m, m2];')] })('a.f.js'))
+            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; import m2 from "./sub/../m.f.js"; export default [m, m2];')] })('a.f.js'))
+        },
+        diamond: () => {
+            const root = {
+                'm.f.js': [utf8('export default [1];')],
+                'b.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
+                'a.f.js': [utf8('import m from "./m.f.js"; import b from "./b.f.js"; export default [m, b];')],
+            }
+            assert(sharedOf(root)('a.f.js'))
+            const [state, code] = virtual({ ...emptyState, root })(compile(['a.f.js', 'output.json']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'output.json - error: no JSON spelling for a shared node')
+            // and the same module reached along one edge each by two
+            // *different* modules is still one node reached twice
+            assert(sharedOf({ ...root, 'c.f.js': [utf8('import m from "./m.f.js"; export default {"m": m};')], 'a.f.js': [utf8('import b from "./b.f.js"; import c from "./c.f.js"; export default [b, c];')] })('a.f.js'))
+            // a leaf module along two edges is two copies of a leaf
+            assert(!sharedOf({ ...root, 'm.f.js': [utf8('export default 1;')] })('a.f.js'))
+        },
+        // what a module reaches is listed once each, and not at all once it
+        // is shared, so the lists stay sets however the modules join
+        reaches: () => {
+            const root = {
+                'm.f.js': [utf8('export default [1];')],
+                'b.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
+                'a.f.js': [utf8('import b from "./b.f.js"; export default [b, [b]];')],
+            }
+            const [, b] = virtual({ ...emptyState, root })(transpile('b.f.js'))
+            assert(b[0] === 'ok', b[1])
+            assertStructurallySame(b[1].reaches, ['m.f.js'])
+            const [, a] = virtual({ ...emptyState, root })(transpile('a.f.js'))
+            assert(a[0] === 'ok', a[1])
+            assertEq(a[1].shared, true)
+            assertStructurallySame(a[1].reaches, [])
+        },
         // a node doubled at every `const`: two to the twenty-fourth references
         // in the value, and one `const` per line in the syntax the answer is
         // read from — refused at once, where a walk over the value's paths

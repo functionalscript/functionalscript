@@ -8,8 +8,6 @@ import type { Denotation } from '../ast/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 
-/** The evaluated DJS value produced for one successfully transpiled module. */
-
 /**
  * State threaded through the recursive transpilation of a DJS module graph.
  *
