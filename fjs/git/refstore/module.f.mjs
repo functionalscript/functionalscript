@@ -93,14 +93,14 @@
  * @import { _Entry, _Found, _Walked } from './private.ts'
  */
 
-import { catchStep, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, history, historyStep, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, readdir } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'
 
@@ -230,29 +230,53 @@ const head = /** @type {const} */ ('HEAD')
 const refsPrefix = /** @type {const} */ ('refs/')
 
 /**
- * The ref names Git keeps per worktree rather than once for the repository.
+ * Whether a name is spelled the way Git spells a *pseudoref*: every character an
+ * upper-case letter, `-` or `_`, and at least one of them.
  *
- * Measured on Git 2.43.0 by writing a different id into each directory and
- * asking a linked worktree: every one of these answers the worktree's copy,
- * where `refs/heads/x` and `refs/tags/x` answer the shared one. So this is not
- * "the names outside `refs/`" — `refs/bisect/`, `refs/worktree/` and
- * `refs/rewritten/` are under `refs/` and still per worktree, and a
- * `refs/bisect/good` left in the *common* directory is invisible to a linked
- * worktree entirely, also measured.
+ * This is a rule about spelling and not a list of names, which an earlier
+ * revision had it as — nine names Git's own documentation calls the ones the
+ * rule is "usually useful" for. Measured on Git 2.43.0 by writing a different id
+ * into each directory and asking a linked worktree:
+ *
+ * | name | both present | shared only | worktree only |
+ * | --- | --- | --- | --- |
+ * | `ORIG_HEAD` | the worktree's | no such ref | the worktree's |
+ * | `BISECT_EXPECTED_REV` | the worktree's | no such ref | the worktree's |
+ * | `MERGE_AUTOSTASH` | the worktree's | no such ref | the worktree's |
+ * | `FOO_BAR`, `FOO-BAR`, `_FOO`, `FOO_`, `F` | the worktree's | no such ref | the worktree's |
+ * | `FOO1`, `Foo`, `lowercase` | the shared one | the shared one | no such ref |
+ *
+ * So a name nobody has ever heard of is per worktree if it is spelled like one,
+ * and a name with a digit in it is not. The last row is what makes it a syntax
+ * rule rather than a longer list: `FOO1` differs from `FOO_BAR` only in a
+ * character class.
+ *
+ * The other direction matters too. A pseudoref-shaped name is read from the
+ * worktree's directory *only* — the shared-only column is "no such ref", not a
+ * fallback — which is why {@link dirOf} chooses one directory rather than trying
+ * both.
+ *
+ * @type {(text: string) => boolean}
  */
-const perWorktreeNames = /** @type {readonly string[]} */ ([
-    'HEAD', 'ORIG_HEAD', 'FETCH_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD',
-    'REVERT_HEAD', 'REBASE_HEAD', 'BISECT_HEAD', 'AUTO_MERGE',
-])
+const isPseudoref = text =>
+    text.length !== 0
+    && [...text].every(c => (c >= 'A' && c <= 'Z') || c === '-' || c === '_')
 
-/** The prefixes under `refs/` that are per worktree — see {@link perWorktreeNames}. */
+/**
+ * The prefixes under `refs/` that are per worktree.
+ *
+ * Not pseudorefs — they are lower-case and hold a `/` — and still the
+ * worktree's: measured, a linked worktree answers its own `refs/bisect/good`,
+ * and one left in the *shared* directory is invisible to that worktree
+ * entirely. So "per worktree" is these two rules and neither alone.
+ */
 const perWorktreePrefixes = /** @type {readonly string[]} */ ([
     'refs/bisect/', 'refs/worktree/', 'refs/rewritten/',
 ])
 
 /** @type {(text: string) => boolean} */
 const isPerWorktree = text =>
-    perWorktreeNames.includes(text) || perWorktreePrefixes.some(p => text.startsWith(p))
+    isPseudoref(text) || perWorktreePrefixes.some(p => text.startsWith(p))
 
 /** @type {(text: string) => boolean} */
 const isShared = text => !isPerWorktree(text)
@@ -263,6 +287,10 @@ const isShared = text => !isPerWorktree(text)
  * For a main worktree the answer is the same either way, since a caller passes
  * one directory twice. For a linked worktree it is the whole difference between
  * its own `HEAD` and the main worktree's — see {@link Dirs}.
+ *
+ * One directory and not both, because Git reads one: a pseudoref-shaped name
+ * present only in the shared directory is no ref at all to a linked worktree,
+ * measured — see {@link isPseudoref}.
  *
  * @type {(dirs: Dirs, text: string) => string}
  */
@@ -461,17 +489,19 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
         if (!isWholeName(name)) { return pureOk(walked(found, null)) }
         // the name is recorded whatever the file turns out to hold, because
         // that is what shadows the packed line
-        const names = /** @type {readonly (readonly number[])[]} */ ([...found.names, name])
+        const names = concat(found.names)([name])
         /** @type {(bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>} */
         const cont = bytes => {
             const r = readRef(bytes)
             if (r === null) { return pureOk(walked(null, null)) }
             if (r.kind === 'direct') {
-                return pureOk(walked({ roots: [...found.roots, { name, id: r.id }], names }, null))
+                return pureOk(walked({ roots: concat(found.roots)([{ name, id: r.id }]), names }, null))
             }
             return mapStep(
                 resolve(r.target, maxLookups - 1),
-                id => walked({ roots: id === null ? found.roots : [...found.roots, { name, id }], names }, null))
+                id => walked(
+                    { roots: id === null ? found.roots : concat(found.roots)([{ name, id }]), names },
+                    null))
         }
         return step(mapStep(readFile(item.path), toBytes), cont)
     }
@@ -490,12 +520,12 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
  * @type {(found: _Found, packed: readonly PackedRef[]) => readonly Root[]}
  */
 const combine = (found, packed) => {
-    const shadowed = new Set(found.names.map(nameKey))
+    const shadowed = new Set(toArray(found.names).map(nameKey))
     // The last line of each name, as one pass: the `Map` constructor keeps the
     // later entry for a repeated key, which is the rule this needs.
     const last = new Map(packed.map((p, i) => [nameKey(p.name), i]))
     return [
-        ...found.roots,
+        ...toArray(found.roots),
         ...packed
             .filter((p, i) => {
                 const k = nameKey(p.name)
@@ -631,30 +661,49 @@ const tryHeadFound = (dirs, oidBytes) => {
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
  */
-export const tryRoots = (dirs, oidBytes) =>
-    step(tryPackedRefs(dirs, oidBytes), packed => {
-        if (packed === null) { return pureOk(null) }
-        /** @type {_Entry} */
-        const shared = { path: under(dirs.common, refsDir), name: refsDir, isDirectory: true }
-        /** @type {Nullable<_Found>} */
-        const init = { roots: [], names: [] }
-        // The shared walk takes the shared names and the worktree's walk takes
-        // the per-worktree ones, so a name is listed once whether the two
-        // directories are one or two. The worktree's `refs/` is usually not
-        // there at all — a linked worktree has one only while a bisect or a
-        // rebase is running — so it is found by listing the worktree's directory
-        // rather than by reading a path that may not be there. See
-        // {@link ownRefs}.
-        const first = walkStep(pureOk([shared]), init, looseOf(dirs, oidBytes, packed, isShared))
-        const both = step(first, found =>
-            walkStep(ownRefs(dirs), found, looseOf(dirs, oidBytes, packed, isPerWorktree)))
-        return step(both, found => found === null
-            ? pureOk(null)
-            : mapStep(tryHeadFound(dirs, oidBytes), h =>
-                h === null
-                    ? null
-                    : combine({
-                        roots: [...found.roots, ...h.roots],
-                        names: [...found.names, ...h.names],
-                    }, packed)))
-    })
+export const tryRoots = (dirs, oidBytes) => {
+    /** @type {_Entry} */
+    const shared = { path: under(dirs.common, refsDir), name: refsDir, isDirectory: true }
+    /** @type {Nullable<_Found>} */
+    const init = { roots: [], names: [] }
+    // Four effects, one link each and all at one level, so the order they run
+    // in is the order they are written: the packed file, the shared walk of
+    // `refs/`, the worktree's own walk, and `HEAD`. Each link carries the
+    // earlier values forward through `historyStep` rather than nesting to reach
+    // them, and each is skipped once something before it has refused, which is
+    // what the `null`s in front of them are for.
+    //
+    // The shared walk takes the shared names and the worktree's walk takes the
+    // per-worktree ones, so a name is listed once whether the two directories
+    // are one or two. The worktree's `refs/` is usually not there at all — a
+    // linked worktree has one only while a bisect or a rebase is running — so it
+    // is found by listing the worktree's directory rather than by reading a path
+    // that may not be there. See {@link ownRefs}.
+    const read = history(tryPackedRefs(dirs, oidBytes))
+    // A refusal is `null` at every link, including the first: answering `init`
+    // here instead — a `_Found` of nothing, which unifies with the walk's own
+    // answer — let the chain continue past a `packed-refs` Git refuses, and the
+    // `HEAD` read at the end then had a whole file's worth of ways to fail in
+    // place of an answer this function had already decided.
+    const sharedWalk = historyStep(read, packed => packed === null
+        ? pureOk(/** @type {Nullable<_Found>} */ (null))
+        : walkStep(pureOk([shared]), init, looseOf(dirs, oidBytes, packed, isShared)))
+    // The refusals are tested oldest first, which is not a style choice: a later
+    // one implies every earlier one, so asking about an earlier refusal after a
+    // later one is a question with only one answer — a branch no input reaches.
+    const ownWalk = historyStep(sharedWalk, (found, packed) => packed === null || found === null
+        ? pureOk(found)
+        : walkStep(ownRefs(dirs), found, looseOf(dirs, oidBytes, packed, isPerWorktree)))
+    const headRead = historyStep(ownWalk, found => found === null
+        ? pureOk(/** @type {Nullable<_Found>} */ (null))
+        : tryHeadFound(dirs, oidBytes))
+    // newest first, and the shared walk's own answer is skipped because the
+    // worktree's walk carried it forward as its starting state
+    return mapStep(headRead, ([h, found, , packed]) =>
+        packed === null || found === null || h === null
+            ? null
+            : combine({
+                roots: concat(found.roots)(h.roots),
+                names: concat(found.names)(h.names),
+            }, packed))
+}

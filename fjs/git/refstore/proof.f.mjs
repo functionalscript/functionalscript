@@ -3,7 +3,7 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { ReadFile, Readdir } from '../../effects/node/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Oid } from '../types.ts'
@@ -18,7 +18,7 @@ import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { error } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { maxLookups, tryResolve, tryRoots } from './module.f.mjs'
@@ -270,6 +270,27 @@ export const proof = {
         const [, r] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))
         assertStructurallySame(r, error(denied))
     },
+    // A `packed-refs` Git refuses is the answer, and nothing after it is read.
+    // The listing is four effects in sequence, and the first one refusing has to
+    // end it: otherwise `HEAD`'s read comes next, and a failure there — a
+    // permission, a broken host — arrives as a channel error in place of the
+    // `null` this had already decided on. The host below answers the malformed
+    // file and refuses every other read, so a chain that reads on fails.
+    rootsBadPackedStops: () => {
+        const denied = ioError({ code: 'EACCES', message: 'permission denied' })
+        // Every read but the malformed file fails, and so does every listing, so
+        // a chain that goes on after the refusal cannot answer at all.
+        /** @type {MemOperationMap<ReadFile | Readdir, null>} */
+        const host = {
+            readFile: path => state => [
+                state,
+                path === 'packed-refs' ? ok(toVec(latin1('# hello\n'))) : error(denied),
+            ],
+            readdir: () => state => [state, error(denied)],
+        }
+        const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
+        assertStructurallySame(r, ok(null))
+    },
     // One name at a time: a loose ref, a packed one, a loose one shadowing
     // a packed one, and a name nothing is stored under.
     resolve: () => {
@@ -513,6 +534,23 @@ export const proof = {
             const root = { wt: at(b), repo: { ...at(t), refs: { ...at(t).refs, heads: {} } } }
             assertEq(codePointListToString(toHex(/** @type {Oid} */ (
                 run(root, tryResolve({ gitdir: 'wt', common: 'repo' }, 20)(utf8(name)))))), b, name)
+        }
+        // The rule is how a name is *spelled*, not a list of names Git's
+        // documentation happens to mention. Measured on Git 2.43.0 in a linked
+        // worktree with a different id in each directory: a name of upper-case
+        // letters, `-` and `_` answers the worktree's copy and does not resolve
+        // at all when only the shared directory has it, while one with a digit
+        // or a lower-case letter answers the shared copy and does not resolve
+        // when only the worktree has it.
+        for (const [name, from] of /** @type {readonly (readonly [string, string])[]} */ ([
+            ['BISECT_EXPECTED_REV', b], ['MERGE_AUTOSTASH', b], ['FOO_BAR', b],
+            ['FOO-BAR', b], ['_FOO', b], ['FOO_', b], ['F', b],
+            ['FOO1', a], ['Foo', a], ['lowercase', a],
+        ])) {
+            /** @type {Dir} */
+            const root = { wt: { [name]: ref(b) }, repo: { [name]: ref(a), refs: { heads: {} } } }
+            assertEq(codePointListToString(toHex(/** @type {Oid} */ (
+                run(root, tryResolve({ gitdir: 'wt', common: 'repo' }, 20)(utf8(name)))))), from, name)
         }
         // And a name that is shared comes from the shared directory, so the list
         // above is a rule and not "everything comes from the worktree".
