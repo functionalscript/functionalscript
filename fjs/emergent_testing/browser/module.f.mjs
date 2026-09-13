@@ -413,3 +413,21 @@ export const groupLabel = (passed, failed) =>
  * @type {(ms: number) => string}
  */
 export const formatDuration = ms => ms < 1000 ? `${ms.toFixed(1)} ms` : `${(ms / 1000).toFixed(1)} s`
+
+/**
+ * The sources a run was given that produced no result at all, in the order
+ * they were given: a proof with no tests in it, or one the run never reached.
+ *
+ * **A source with no result has no group**, so a page that hid its entry with
+ * the rest would show a green count over a list that looks complete. The page
+ * keeps these entries listed and says they reported no tests.
+ *
+ * Compared against the groups rather than every result, because a report has
+ * a result per test and a group per module: the second list is the short one.
+ *
+ * @type {(sources: readonly string[], results: readonly _BrowserTestResult[]) => readonly string[]}
+ */
+export const unreported = (sources, results) => {
+    const reported = groupByModule(results).map(group => group.module)
+    return sources.filter(source => !reported.includes(source))
+}

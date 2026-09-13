@@ -17,7 +17,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { formatDuration, groupByModule, groupLabel, loadProofs, reportOf, runProofs } from './module.f.mjs'
+import { formatDuration, groupByModule, groupLabel, loadProofs, reportOf, runProofs, unreported } from './module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
@@ -422,5 +422,18 @@ export const proof = {
         // From a second on, seconds: the root page's suite is minutes long.
         fromASecond: () => assertEq(formatDuration(1000), '1.0 s'),
         long: () => assertEq(formatDuration(103812.4), '103.8 s'),
+    },
+    unreported: {
+        /**
+         * **A source with no result at all is unreported**, in the order the
+         * run was given its sources: `e` ran and had no tests, `z` was never
+         * reached. A source with even one result, passed or failed, is not.
+         */
+        emptyAndUnreached: () => {
+            const b = { ...leaf('failed', 1), module: 'b' }
+            assertStructurallySame(unreported(['a', 'e', 'b', 'z'], [leaf('passed', 1), b]), ['e', 'z'])
+        },
+        // Every source reported something: nothing to keep listed.
+        none: () => assertStructurallySame(unreported(['a'], [leaf('failed', 1)]), []),
     },
 }

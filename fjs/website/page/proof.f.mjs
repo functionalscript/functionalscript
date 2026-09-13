@@ -116,7 +116,9 @@ export const proof = {
                 { ...empty, proofs: [{ name: './proof.f.mjs', blockers: [] }] })([])]))
             // The title carries a slot the runner fills with the run's counts.
             assert(html.includes('<summary>Emergent Testing<span data-test-counts=""></span></summary>'), html)
-            assert(html.includes('<li>./proof.f.mjs</li>'), html)
+            // A runnable entry names its source, so a run can mark it if it
+            // reports no tests.
+            assert(html.includes('<li data-source="./proof.f.mjs">./proof.f.mjs</li>'), html)
             assert(html.includes('data-test-run'), html)
             assert(html.includes('<div data-test-results="">'), html)
             // **The sources list follows the report.** The stylesheet hides it
@@ -147,7 +149,7 @@ export const proof = {
             // unmarked ones once a run has results, and keeps the marked one:
             // it is the entry no group in the report will ever stand for.
             assert(html.includes('<li data-blocked="">./a.f.mjs — not linkable in a browser: node:fs</li>'), html)
-            assert(html.includes('<li>./b.f.mjs</li>'), html)
+            assert(html.includes('<li data-source="./b.f.mjs">./b.f.mjs</li>'), html)
         },
         /**
          * **No control where nothing can run.** A subtree whose proofs are all
