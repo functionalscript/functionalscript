@@ -372,59 +372,77 @@ const targetAllowed = (text, r) =>
 const nameText = name => fromVec(toVec(name))
 
 /**
- * The id a name resolves to, given the packed refs already read: the loose
- * file where there is one, its `packed-refs` line where there is not, a
- * symbolic ref followed to {@link maxLookups}, and `null` for everything
- * else.
+ * One lookup of a name, and the lookup after it where what was read is a
+ * symbolic ref: the loose file where there is one, its `packed-refs` line where
+ * there is not, and `null` for everything else — a name that is no ref name, a
+ * name no path can spell, bytes that are no ref, a target `HEAD` may not have,
+ * and a chain longer than the `left` it was given.
  *
  * The loose file decides the name by existing. Where it is there and holds
  * bytes that are no ref, the answer is `null` and **not** the packed line,
  * which is Git's reading: it refuses such a name outright rather than
  * falling back.
  *
- * Everything it needs is a leading parameter, so this closes over nothing
- * and the recursion below is a plain self-call.
+ * **One effect per lookup, and the lookup after it is a self-call.** Everything
+ * this needs is a parameter, so it is closed and at module scope (§3.3) and the
+ * recursion is a plain self-call rather than one inside a closure. It stays a
+ * recursion rather than becoming a `walkStep` because the number of lookups is
+ * bounded by the format at {@link maxLookups} — Git follows four hops and
+ * refuses the fifth, measured — so a resolution performs at most five reads and
+ * nests at most five deep. That is the difference from the two loops in this
+ * module and the two in [`fjs/git/walk`](../walk/module.f.mjs), which are walks
+ * because their lengths are the repository's: a `refs/` of any size, a tag chain
+ * Git puts no bound on. If the bound here ever stops being a small constant,
+ * this has to become a walk for the reason `_walkLoop` exists — a `Read` that
+ * answers values resumes inside its own caller, so depth follows the chain.
+ *
+ * @type {(dirs: Dirs, packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>, name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
+ */
+const lookupIn = (dirs, packed, readRef, name, left) => {
+    if (left <= 0) { return pureOk(null) }
+    const dense = byteArray(name)
+    // A name that is no ref name never reaches the filesystem. `..` is
+    // one of the byte pairs `isWholeName` refuses, so this is also what
+    // keeps `../secret` from being joined below either directory and read: a path
+    // that leaves the repository is not a ref this can answer for, and
+    // the file at the other end of it could begin with something that
+    // looks like an id.
+    if (!isWholeName(dense)) { return pureOk(null) }
+    const text = nameText(dense)
+    // No path can name this ref's loose file, so whether one exists is not a
+    // question this host can put to the filesystem — and a loose file
+    // shadows a packed line by existing, so the packed line is the answer
+    // only if there is no loose file. Unknowable, not absent: answering the
+    // packed line would be a stale id whenever the loose file is there, and
+    // that state cannot even be constructed in a proof here, since the
+    // virtual filesystem spells a directory entry as a string too.
+    // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
+    if (text === null) { return pureOk(null) }
+    // Which directory the name's file sits in is the name's own question,
+    // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
+    // the repository's. See {@link dirOf}.
+    return step(tryBytes(under(dirOf(dirs, text), text)), bytes => {
+        if (bytes === null) { return pureOk(special.includes(text) ? null : packedId(packed, name)) }
+        const r = readRef(bytes)
+        if (r === null) { return pureOk(null) }
+        // The one rule about *which* file a ref was read from, which the
+        // grammar over one file's bytes cannot know. See {@link targetAllowed}.
+        if (!targetAllowed(text, r)) { return pureOk(null) }
+        if (r.kind === 'direct') { return pureOk(r.id) }
+        return lookupIn(dirs, packed, readRef, r.target, left - 1)
+    })
+}
+
+/**
+ * The id a name resolves to, given the packed refs already read: {@link lookupIn}
+ * with the repository's directories, its packed lines and a reader of one ref
+ * file bound once, so a resolution builds the reader once rather than per lookup.
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[]) => (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
  */
 const resolveWith = (dirs, oidBytes, packed) => {
     const readRef = tryRef(oidBytes)
-    /** @type {(name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>} */
-    const go = (name, left) => {
-        if (left <= 0) { return pureOk(null) }
-        const dense = byteArray(name)
-        // A name that is no ref name never reaches the filesystem. `..` is
-        // one of the byte pairs `isWholeName` refuses, so this is also what
-        // keeps `../secret` from being joined below either directory and read: a path
-        // that leaves the repository is not a ref this can answer for, and
-        // the file at the other end of it could begin with something that
-        // looks like an id.
-        if (!isWholeName(dense)) { return pureOk(null) }
-        const text = nameText(dense)
-        // No path can name this ref's loose file, so whether one exists is not a
-        // question this host can put to the filesystem — and a loose file
-        // shadows a packed line by existing, so the packed line is the answer
-        // only if there is no loose file. Unknowable, not absent: answering the
-        // packed line would be a stale id whenever the loose file is there, and
-        // that state cannot even be constructed in a proof here, since the
-        // virtual filesystem spells a directory entry as a string too.
-        // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
-        if (text === null) { return pureOk(null) }
-        // Which directory the name's file sits in is the name's own question,
-        // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
-        // the repository's. See {@link dirOf}.
-        return step(tryBytes(under(dirOf(dirs, text), text)), bytes => {
-            if (bytes === null) { return pureOk(special.includes(text) ? null : packedId(packed, name)) }
-            const r = readRef(bytes)
-            if (r === null) { return pureOk(null) }
-            // The one rule about *which* file a ref was read from, which the
-            // grammar over one file's bytes cannot know. See {@link targetAllowed}.
-            if (!targetAllowed(text, r)) { return pureOk(null) }
-            if (r.kind === 'direct') { return pureOk(r.id) }
-            return go(r.target, left - 1)
-        })
-    }
-    return go
+    return (name, left) => lookupIn(dirs, packed, readRef, name, left)
 }
 
 /**
