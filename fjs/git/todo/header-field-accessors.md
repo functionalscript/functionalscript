@@ -73,12 +73,16 @@ beside `bad`, as every existing `assert` does. `optionalAt` needs only
 `fieldAt(0, 'tree', tryFromHex, 'no tree', 'not a tree id')` and every
 panic message is exactly what it is now.
 
-and a fourth for the `validate` chains, exported under the same roof:
+and, for the `validate` chains, the `Result`-returning mirror of each
+panicking shape, exported under the same roof:
 
 ```ts
 /** The parsed field, or the message for whichever of the two ways it is not there. */
 const checkedAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>,
     missing: string, bad: string) => (p: Payload) => Result<T, string>
+/** The parsed field, `ok(null)` where absent, `error(bad)` where present and unparsable. */
+const checkedOptionalAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>,
+    bad: string) => (p: Payload) => Result<Nullable<T>, string>
 ```
 
 so `commit`'s `valueAt(c, 0, 'tree')` / `error('no tree')` /
@@ -86,7 +90,14 @@ so `commit`'s `valueAt(c, 0, 'tree')` / `error('no tree')` /
 'not a tree id')`, and each `validate` becomes a short chain of
 `checkedAt` applications joined on `Result` — the messages stay the
 strings `fsck`'s vocabulary already uses, supplied at the call site, so
-neither module keeps a private copy of the pattern. `tree`, `identAt`,
+neither module keeps a private copy of the pattern. `tag`'s `tagger`
+step is the one exception, and `checkedOptionalAt` is its shape:
+today's `validate` answers `ok` on a tag with no `tagger` and
+`error('not a tagger')` on one whose `tagger` is no ident — the tag
+proof's `old` case pins the first — which `checkedAt` cannot say, since
+absence is its error. `checkedAt` mirrors `fieldAt` and
+`checkedOptionalAt` mirrors `optionalAt`, so every accessor shape has a
+`validate` step and no branch of either chain stays open-coded. `tree`, `identAt`,
 `object`, `type` become `fieldAt`; `tryTree`/`tryObject`/`tryType` become
 `tryFieldAt`; `tagger` becomes `optionalAt`, keeping its
 absent-versus-invalid distinction exactly. Commit-specific logic
@@ -95,11 +106,13 @@ stays in `commit`, as it should.
 
 ### Tasks
 
-- [ ] Add `fieldAt`/`tryFieldAt`/`optionalAt`/`checkedAt` to
-      `fjs/git/header/module.f.mjs` with proofs — `optionalAt`'s two
-      outcomes and `checkedAt`'s two messages pinned separately.
+- [ ] Add `fieldAt`/`tryFieldAt`/`optionalAt`/`checkedAt`/
+      `checkedOptionalAt` to `fjs/git/header/module.f.mjs` with proofs —
+      `optionalAt`'s two outcomes, `checkedAt`'s two messages, and
+      `checkedOptionalAt`'s `ok(null)` pinned separately.
 - [ ] Rewrite the commit and tag accessors through them; panic messages
-      unchanged; `tagger` on a three-header tag still `null`.
+      unchanged; `tagger` on a three-header tag still `null`, and
+      `validate` on it still `ok`.
 - [ ] `tsc`, `fjs test`; existing commit/tag proofs pass unchanged.
 
 ### Related

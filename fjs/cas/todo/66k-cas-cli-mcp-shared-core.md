@@ -137,8 +137,11 @@ accepted as-is, the same as `cp`.
       that the adapter keeps both values the Evo sync needs in scope:
       a pure `decodeInline: (input: { type?, content }) => Result<Vec, string>`
       (the `text`/`base64` decoding and the size cap, today's `x`), and
-      an effectful `writeBlob: (c: Cas<O>) => (value: Vec) => Effect<O, Vec, WriteError>`
-      (today's `c.write(nonEmpty(x, …))` plus the error mapping) — the
+      an effectful `writeBlob: (c: Cas<O>) => (value: Vec) => Effect<O, Vec, IoChannel>`
+      (today's `c.write(nonEmpty(x, …))`, its error channel `Cas.write`'s
+      own `IoChannel`, retained — the mapping of that failure to the
+      tool's `'write'` message is the adapter's, as the snippet below
+      shows, so the shared layer invents no error type) — the
       hash in the `Effect`'s success channel and the failure in its error
       channel, not a `Result` nested inside a success, since
       `Effect<O, T, E>` already yields `Result<T, E>` and that is exactly
@@ -162,8 +165,11 @@ accepted as-is, the same as `cp`.
 
       `value` is bound by the adapter from the shared decode, `r[1]` is
       the hash from the shared write, and the shared layer takes no cache
-      key and no post-write hook. The CLI composes the same two functions
-      without the sync.
+      key and no post-write hook. The CLI's `add` takes a file path and
+      stays on `casAddFile`, as the task above says: it composes neither
+      function, since it has no inline source to decode. The two are the
+      decomposition of an inline `add`, shared so that any transport
+      offering one — MCP today — spells it once.
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the CLI staging flow.
 
