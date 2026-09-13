@@ -65,6 +65,22 @@
  * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md); the fix is a path API
  * that speaks bytes and belongs to the effects, not here.
  *
+ * **Two entries of one listing with the same name are refused**, which is the
+ * case where that unreachability stops announcing itself. One such file alone
+ * fails its read and the channel carries it. Beside a file whose name really is
+ * U+FFFD, it does not fail at all: node decodes the byte to U+FFFD and the two
+ * entries come back as one name twice, so the walk would read the *valid* file
+ * for both, list its id under that name twice, and drop the other ref without a
+ * word. Measured on node 22 in a directory holding a file named by the byte
+ * `0x80` and a file named `0xEF 0xBF 0xBD`: `readdir` answers two entries both
+ * named U+FFFD, and a read of that name answers the second file's bytes both
+ * times. A retention root silently missing is the one answer this module must
+ * not give — a ref is what keeps an object from being collected — so the
+ * listing is refused with {@link lossyNameCode}. No filesystem holds two
+ * entries whose names are the same bytes, so a name twice in one listing means
+ * the bytes of at least one of them are not what the name says, and which ref
+ * is which is not knowable from here.
+ *
  * **`HEAD`'s target must sit under `refs/`, and it is the only name with such
  * a rule.** Measured: with `.git/HEAD` holding `ref: a/b` and `.git/a/b`
  * holding a valid id, each of `git rev-parse HEAD`,
@@ -93,7 +109,7 @@
  * @import { _Entry, _Found, _Walked } from './private.ts'
  */
 
-import { catchStep, history, historyStep, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, readdir } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -444,6 +460,41 @@ export const tryResolve = (dirs, oidBytes) => name =>
 /** @type {(state: Nullable<_Found>, items: Nullable<readonly _Entry[]>) => _Walked} */
 const walked = (state, items) => [state, items]
 
+/**
+ * The code a listing is refused with when it carries one name twice: the host
+ * decoded two different names to the same string, so the walk cannot tell which
+ * file a name means. The module doc has the measurement and why this is a
+ * refusal rather than a listing with one entry dropped.
+ */
+export const lossyNameCode = /** @type {const} */ ('ERR_LOSSY_NAME')
+
+/**
+ * The message beside {@link lossyNameCode}: the directory listed, and the name
+ * it answered twice.
+ *
+ * @type {(path: string, name: string) => string}
+ */
+export const lossyNameMessage = (path, name) => `${path} lists two entries named ${name}`
+
+/**
+ * The name a listing carries twice, or `null` where every name in it is its
+ * own.
+ *
+ * One pass and a map of last positions, as {@link combine} compares names: the
+ * first name that is not the last of its own kind is a name that repeats. A
+ * `refs/heads` of a busy repository holds tens of thousands of entries, so
+ * comparing each against every other is not an option here for the same reason
+ * it is not one there.
+ *
+ * @type {(entries: readonly Dirent[]) => Nullable<string>}
+ */
+const twiceNamed = entries => {
+    const names = entries.map(d => d.name)
+    const last = new Map(names.map((n, i) => [n, i]))
+    const twice = names.find((n, i) => last.get(n) !== i)
+    return twice === undefined ? null : twice
+}
+
 /** @type {(parent: _Entry) => (d: Dirent) => _Entry} */
 const childOf = parent => d => ({
     path: under(parent.path, d.name),
@@ -480,9 +531,17 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
         if (state === null) { return pureOk(walked(null, null)) }
         const found = state
         if (item.isDirectory) {
-            return step(
-                readdir(item.path, {}),
-                entries => pureOk(walked(found, entries.map(childOf(item)))))
+            return step(readdir(item.path, {}), entries => {
+                // a name the host answered twice is two files it cannot tell
+                // apart; see the module doc
+                const twice = twiceNamed(entries)
+                return twice === null
+                    ? pureOk(walked(found, entries.map(childOf(item))))
+                    : pureError(ioError({
+                        code: lossyNameCode,
+                        message: lossyNameMessage(item.path, twice),
+                    }))
+            })
         }
         if (!keep(item.name)) { return pureOk(walked(found, null)) }
         const name = nameBytes(item.name)
