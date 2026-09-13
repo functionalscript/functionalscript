@@ -161,6 +161,15 @@ renamed, and then the rename is what a reader searches for. Numbers that
 are part of the meaning — a bit width, a `0x30` offset, the two outcomes
 a function has — are not measurements and stay exact.
 
+Where a measurement is the point — a benchmark, a count that motivates
+the issue, a line worth quoting by position — pin it to the commit it
+was taken at: "at `1a2b3c4d`, `cas_get` was about seventy lines". Read
+at that commit it stays true forever, so it is never updated, and a
+reviewer does not ask for it to be re-taken at each new commit
+([REVIEWING.md](../doc/REVIEWING.md#designs-and-todo-files)). A
+measurement with no commit is the one thing a reviewer may ask to see
+pinned or replaced by a name — once.
+
 ```md
 ## Title
 

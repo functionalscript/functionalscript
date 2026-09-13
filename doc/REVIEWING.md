@@ -87,6 +87,17 @@ it does not contradict itself — a task list still building what the proposal
 above it retired. Both are checked against the tree, not against what the
 reviewer expects the tree to hold.
 
+What it does **not** check is statistics. A `todo/` describes meaning,
+not measurements ([todo/README.md](../todo/README.md#issue-format)): it
+cites code by name and counts in words, and where it does carry a
+measurement — a line number, a count, a timing — it pins it to a commit.
+A pinned measurement is read at that commit, is true there forever, and
+is **never** asked to be re-taken: a review that demands "`matrix` is at
+517 now, not 518" on every push is chasing a number the next merge moves
+again, and the pull request stops converging on nothing. An unpinned
+line number or exact count is asked, once, to be pinned or replaced by
+the name of the code it means — not corrected to today's value.
+
 ## Type-level computation
 
 TypeScript evaluates conditional and recursive types against a hard depth, and a
