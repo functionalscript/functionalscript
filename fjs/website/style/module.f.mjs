@@ -86,11 +86,15 @@ li[data-status="passed"] { color: var(--muted) }
 [data-duration] { color: var(--muted); float: right; font-weight: 400; line-height: 1.9rem }
 [data-test-summary]:empty { display: none }
 /* Before a run, the list of proof sources is the only view of what the page
-   will run. Once the report has anything in it, every source the list names is
-   a group above it, so the list is hidden rather than repeated. Pure CSS, keyed
-   on the report having content: it hides as the first group lands and returns
+   will run. Once the report has anything in it, every runnable source is a
+   group above it, so those entries are hidden rather than repeated. A blocked
+   proof is not: it never produces a group, and hiding it would let a green
+   count read as the whole subtree passing — so it stays, and the list itself
+   is hidden only when it has no blocked entry left to show. Pure CSS, keyed on
+   the report having content: it hides as the first group lands and returns
    when a new run empties the report. */
-[data-test-results]:not(:empty) ~ [data-test-sources] { display: none }
+[data-test-results]:not(:empty) ~ [data-test-sources] > li:not([data-blocked]) { display: none }
+[data-test-results]:not(:empty) ~ [data-test-sources]:not(:has([data-blocked])) { display: none }
 /* Some elements do not inherit the page's font on their own. A browser's rule
    for pre names a monospace family, and naming one is what triggers the legacy
    shrink to 13.33px; a form control is given the platform's UI face outright,

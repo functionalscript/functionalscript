@@ -75,10 +75,13 @@ right edge, failures first — `1 failed · 14 passed` — and a group closes as
 as the run moves past it having passed, so what stays open is exactly what needs
 reading. The whole run's counts sit in the section's title, green and red, with
 the time. A failure's message and stack are a tinted box of their own under its
-row. Two runs of the same module are two
-groups, never merged, for the reason the runner's catalog gives. The list of
-proof sources under the report is shown until a run puts results in it, and
-hidden from then on, since every source it names is a group above it.
+row. Two runs of the same module with another run between them are two
+groups; two with nothing between them share one, because a result carries no
+run identity to tell them apart — and a generated page names each proof once,
+so it never meets that case. The list of proof sources under the report is
+shown until a run puts results in it; from then on its runnable entries are
+hidden, since each is a group above it, and a blocked proof stays listed with
+its reason, since no group will ever stand for it.
 
 **The runner's own page shows a failure on purpose.** A green suite never shows
 the report's failure state, and breaking a real proof would turn every run red.

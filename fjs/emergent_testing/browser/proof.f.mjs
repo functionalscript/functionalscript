@@ -393,14 +393,28 @@ export const proof = {
             ])
         },
         /**
-         * **Consecutive, not keyed.** Two runs that share a label are two
-         * groups (catalog item 6), in the order they ran; keying by module
-         * would merge them and move `b` out from between them.
+         * **Consecutive, not keyed.** Two runs that share a label with another
+         * run between them are two groups, in the order they ran; keying by
+         * module would merge them and move `b` out from between them.
          */
         aRepeatedModuleIsTwoGroups: () => {
             const a = leaf('passed', 1)
             const b = { ...leaf('passed', 1), module: 'b' }
             assertStructurallySame(groupByModule([a, b, a]).map(g => g.module), ['a', 'b', 'a'])
+        },
+        /**
+         * **Two runs of one label with nothing between them share a group** —
+         * pinned so it is a known limit rather than an accident. A result has no
+         * run identity, so nothing in `[a, a]` says whether that is one run of
+         * two leaves or two runs of one. Every row survives, in order, and the
+         * counts add up.
+         */
+        adjacentRunsOfOneLabelShareAGroup: () => {
+            const a1 = leaf('passed', 1)
+            const a2 = leaf('failed', 2)
+            assertStructurallySame(groupByModule([a1, a2]), [
+                { module: 'a', results: [a1, a2], passed: 1, failed: 1 },
+            ])
         },
     },
     groupLabel: {

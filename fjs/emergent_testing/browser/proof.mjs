@@ -664,9 +664,8 @@ export const proof = {
         await startBrowserTests(p.root, [['m', { a: () => { during = [...during, p.counts.children.length] } }]])
         assertStructurallySame(during, [0])
     },
-    // Two entries may share a label and are two runs (catalog item 6), so they
-    // are two groups: folding them into one would also reorder what ran
-    // between them.
+    // Two runs sharing a label with another run between them are two groups:
+    // folding them into one would also reorder what ran between them.
     aRepeatedModuleIsTwoGroups: async () => {
         const p = page()
         await startBrowserTests(p.root, [
@@ -675,6 +674,23 @@ export const proof = {
             ['m', { c: () => undefined }],
         ])
         assertStructurallySame(p.results.children.map(g => g.attributes.get('data-test-module')), ['m', 'n', 'm'])
+    },
+    /**
+     * **Two runs of one label with nothing between them share a group**, on the
+     * live page as in the final report. The events carry a leaf's label and no
+     * run identity, so the page cannot see where one run ended — and it must at
+     * least lose nothing: both runs' rows are in the one group, in order, and
+     * its counts add both up.
+     */
+    adjacentRunsOfOneLabelShareAGroup: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined }],
+            ['m', { b: () => { throw 'x' } }],
+        ])
+        assertStructurallySame(p.results.children.map(g => g.attributes.get('data-test-module')), ['m'])
+        assertStructurallySame([...statuses(p.results)], ['passed', 'failed'])
+        assertEq(p.results.children[0]?.querySelector('[data-counts]')?.textContent, '1 failed · 1 passed')
     },
     sources: async () => {
         const p = page()

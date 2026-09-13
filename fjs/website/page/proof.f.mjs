@@ -143,6 +143,11 @@ export const proof = {
             assert(!html.includes("'./a.f.mjs',"), html)
             assert(html.includes("'./b.f.mjs',"), html)
             assert(html.includes('data-test-run'), html)
+            // **Only the blocked entry is marked.** The stylesheet hides the
+            // unmarked ones once a run has results, and keeps the marked one:
+            // it is the entry no group in the report will ever stand for.
+            assert(html.includes('<li data-blocked="">./a.f.mjs — not linkable in a browser: node:fs</li>'), html)
+            assert(html.includes('<li>./b.f.mjs</li>'), html)
         },
         /**
          * **No control where nothing can run.** A subtree whose proofs are all
