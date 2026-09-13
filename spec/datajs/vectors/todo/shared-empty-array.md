@@ -45,9 +45,12 @@ node, where this is *expanding* one shared empty into two.
 annotation where a data module may not, so `sharedEmptyArray` in
 [`../graph-equivalence/proof.f.mjs`](../graph-equivalence/proof.f.mjs) builds
 the graph and checks it against four documents through the reader: the two
-spellings that denote it and the two that do not. The writer side is the same
-trick in [`../normalize/proof.f.mjs`](../normalize/proof.f.mjs), whose
-`sharedEmptyArray` asserts `tryStringify` gives
+spellings that denote it and the two that do not — and, since the writer-side
+runs landed, hands the same graph to `tryStringify` and requires the output to
+denote it, which the two ruled-out documents are exactly what an inlining writer
+would emit instead. The byte-exact side is the same trick in
+[`../normalize/proof.f.mjs`](../normalize/proof.f.mjs), whose `sharedEmptyArray`
+asserts `tryStringify` gives
 `const $0=[];const $1=[$0];export default [$1,$1,$0];`. Both roles are covered
 here, which is what the Status block above says.
 
