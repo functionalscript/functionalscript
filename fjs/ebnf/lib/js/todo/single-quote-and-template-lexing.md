@@ -214,17 +214,37 @@ encoder, so an apostrophe row there would make the JSON serializer emit `\'`
 and produce invalid JSON. The JS rule's decoder — the listed escapes, else the
 character — belongs in a layer above that table, which stays JSON's.
 
-### Regular expressions, measured and left out
+### Regular expressions: one of the two stops the scan
 
 `/x/` reads today as `/`, `id x`, `/`: two divisions. Whether a `/` opens a
 regular expression or is an operator is decided by the token before it, which
 is exactly the layer-above question the number boundary already answers, so
-recognising it is the same shape of work as the template depth. It is not in
-this issue's scope, because the repository's own sources barely use it — two
-`.f.mjs` modules, `effects/node` and `text/sgr`, one regex each — and a
-highlighter that reads those two as divisions colours two lines wrong, where
-a missing single quote colours 336 files wrong. Record it here so the
-measurement is not redone; take it when a consumer needs it.
+recognising it is the same shape of work as the template context stack.
+
+The repository has two, one per module, and **they are not the same case**:
+
+| regex | tokenizes as | cost |
+| --- | --- | --- |
+| [`effects/node:431`](../../../../effects/node/module.f.mjs#L431) `` /^v/ `` | `/`, `^`, `id v`, `/` | one line coloured as divisions |
+| [`text/sgr:83`](../../../../text/sgr/module.f.mjs#L83) `` /\x1b\[[0-9;]*m/g `` | `invalid token` at the `\` | the module is lost from there on |
+
+The second is what the earlier draft of this section missed by measuring `/x/`
+alone. A regex body is not JavaScript, so a backslash in it begins no token,
+and the grammar stops — where an escape *inside a string* is the string rule's
+business and lexes fine. Today both modules stop earlier anyway, at their
+first single-quoted string (`text/sgr` at 16:23, `effects/node` at 26:36), so
+the regex is invisible; **once the quotes and templates above land it becomes
+the first stop in `text/sgr`**, and the last task's tree scan cannot reach
+zero while it does.
+
+So this issue owes a decision rather than an exclusion, and the cheap one is
+enough: lex a regular expression as a token whose body runs to the unescaped
+closing `/` and its flags, with the preceding token deciding `/` as opener or
+operator — the same layer-above shape as the number boundary. Nothing reads
+the body, so the token carries its text and no structure; a source view
+colours it as a literal, which is what it is. Recognising it is not accepting
+it: FunctionalScript has no regular expressions, and the compiler's fold
+refuses the token as it refuses a template.
 
 ### Tokens do reproduce their source, by position
 
@@ -304,6 +324,10 @@ the source view rests on.
 - [ ] Pin with a proof that a token's text is the source from its start to
       the next token's start, for every token kind including trivia, on the
       largest module in the tree and on the two shapes above.
+- [ ] A regex-literal token, with the preceding token deciding whether `/`
+      opens one, and the compiler's fold refusing it as it refuses a
+      template. Without it `text/sgr` stops at its regex's backslash once
+      the quotes land, so the scan below cannot reach zero.
 - [ ] Re-run the tree scan; the 336 failing modules should reach zero, or the
       remainder should be named and explained.
 
