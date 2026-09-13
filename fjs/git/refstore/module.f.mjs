@@ -680,10 +680,18 @@ export const tryRoots = (dirs, oidBytes) => {
     // is found by listing the worktree's directory rather than by reading a path
     // that may not be there. See {@link ownRefs}.
     const read = history(tryPackedRefs(dirs, oidBytes))
+    // A refusal is `null` at every link, including the first: answering `init`
+    // here instead — a `_Found` of nothing, which unifies with the walk's own
+    // answer — let the chain continue past a `packed-refs` Git refuses, and the
+    // `HEAD` read at the end then had a whole file's worth of ways to fail in
+    // place of an answer this function had already decided.
     const sharedWalk = historyStep(read, packed => packed === null
-        ? pureOk(init)
+        ? pureOk(/** @type {Nullable<_Found>} */ (null))
         : walkStep(pureOk([shared]), init, looseOf(dirs, oidBytes, packed, isShared)))
-    const ownWalk = historyStep(sharedWalk, (found, packed) => found === null || packed === null
+    // The refusals are tested oldest first, which is not a style choice: a later
+    // one implies every earlier one, so asking about an earlier refusal after a
+    // later one is a question with only one answer — a branch no input reaches.
+    const ownWalk = historyStep(sharedWalk, (found, packed) => packed === null || found === null
         ? pureOk(found)
         : walkStep(ownRefs(dirs), found, looseOf(dirs, oidBytes, packed, isPerWorktree)))
     const headRead = historyStep(ownWalk, found => found === null
@@ -692,7 +700,7 @@ export const tryRoots = (dirs, oidBytes) => {
     // newest first, and the shared walk's own answer is skipped because the
     // worktree's walk carried it forward as its starting state
     return mapStep(headRead, ([h, found, , packed]) =>
-        h === null || found === null || packed === null
+        packed === null || found === null || h === null
             ? null
             : combine({
                 roots: concat(found.roots)(h.roots),

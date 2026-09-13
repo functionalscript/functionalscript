@@ -3,7 +3,7 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { ReadFile, Readdir } from '../../effects/node/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Oid } from '../types.ts'
@@ -18,7 +18,7 @@ import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { error } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { maxLookups, tryResolve, tryRoots } from './module.f.mjs'
@@ -269,6 +269,27 @@ export const proof = {
         const host = { readFile: () => state => [state, error(denied)] }
         const [, r] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))
         assertStructurallySame(r, error(denied))
+    },
+    // A `packed-refs` Git refuses is the answer, and nothing after it is read.
+    // The listing is four effects in sequence, and the first one refusing has to
+    // end it: otherwise `HEAD`'s read comes next, and a failure there — a
+    // permission, a broken host — arrives as a channel error in place of the
+    // `null` this had already decided on. The host below answers the malformed
+    // file and refuses every other read, so a chain that reads on fails.
+    rootsBadPackedStops: () => {
+        const denied = ioError({ code: 'EACCES', message: 'permission denied' })
+        // Every read but the malformed file fails, and so does every listing, so
+        // a chain that goes on after the refusal cannot answer at all.
+        /** @type {MemOperationMap<ReadFile | Readdir, null>} */
+        const host = {
+            readFile: path => state => [
+                state,
+                path === 'packed-refs' ? ok(toVec(latin1('# hello\n'))) : error(denied),
+            ],
+            readdir: () => state => [state, error(denied)],
+        }
+        const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
+        assertStructurallySame(r, ok(null))
     },
     // One name at a time: a loose ref, a packed one, a loose one shadowing
     // a packed one, and a name nothing is stored under.
