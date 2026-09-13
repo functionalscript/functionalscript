@@ -739,9 +739,10 @@ throughout.
    messages — moved to [`fjs/ebnf/lib/js/types.ts`](../fjs/ebnf/lib/js/types.ts),
    the grammar's, with the operator kinds derived from the grammar's own
    `operators` list rather than spelled a second time; the hand-written
-   scanner and `fjs/media/json/tokenizer` read them from there. Nothing under
-   `fjs/fsc` imports `fjs/js/tokenizer` now, which is what stage 7 waits
-   for.
+   scanner and `fjs/media/json/tokenizer` read them from there. After 5c
+   nothing under `fjs/fsc` imported the hand-written scanner, which is what
+   stage 7 waited for; since stage 7 `fjs/fsc/tokenizer` imports
+   `fjs/js/tokenizer` again, the grammar's stream that replaced it.
 6. **Compiler output** — the normalizer: data-only FunctionalScript (imports
    resolved and inlined) to normalized DataJS or JSON, with the subset-law
    proofs above. DataJS output is total; JSON output is permitted only when

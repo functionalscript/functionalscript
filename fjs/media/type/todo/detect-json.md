@@ -109,10 +109,10 @@ work for two reasons that are `fjs/media/json`'s to own, not `fjs/media/type`'s 
 
 - `parse` builds the whole value in `top`/`stack` — O(n) memory in the document
   size.
-- the shared `fjs/js` tokenizer buffers each token's payload
-  (`ParseStringState.value` / `ParseNumberState.value`, appended per character),
-  so even a value-discarding parser still allocates O(token length) on a single
-  huge string or number — e.g. metadata-only `cas_get` on `{"x":"⟨1 MB⟩"}`.
+- the grammar's reader materializes each token's text as a slice of the
+  input and decodes a string over it (`lex` and `decodeJsonString` in
+  `fjs/js/tokenizer`), so even a value-discarding parser still allocates
+  O(token length) on a single huge string or number — e.g. metadata-only `cas_get` on `{"x":"⟨1 MB⟩"}`.
 
 Both are addressed by the payload-free, O(depth) recognizer proposed in
 **`fjs/media/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`

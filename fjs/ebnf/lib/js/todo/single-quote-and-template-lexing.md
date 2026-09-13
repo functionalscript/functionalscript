@@ -25,8 +25,9 @@ actually written in stop the grammar, and with it every reader of it:
 ```
 
 Measured over every `.mjs` under `fjs/` and `spec/` (350 files) through
-[`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs)'s `tokenizeJs`, the
-grammar's reader: **336 stop at an error token; 14 tokenize cleanly**, and
+[`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
+grammar's reader (it was `fsc/tokenizer`'s `tokenizeJs` when measured; the
+same code, moved): **336 stop at an error token; 14 tokenize cleanly**, and
 they are the small ones and the data modules — `effects/list`,
 `types/function`, `types/map`, `types/nominal`, `types/range`,
 `types/btree/types`, the two `fsc/examples` fixtures and the six DataJS vector

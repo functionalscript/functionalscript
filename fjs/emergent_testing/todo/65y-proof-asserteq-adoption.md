@@ -25,21 +25,22 @@ if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
 
 Counts in the current tree (re-verified 2026-08-14):
 
-- ~494 `if (...) { throw ... }` lines remain across `**/proof.f.mjs` —
-  down from the original count, but still a real chunk of the manual
-  pattern.
-- 151 of 160 `proof.f.mjs` files now import `assertEq` — adoption is
-  well underway (re-measured when the JS tokenizer's proof joined and the
-  JSON tokenizer's went). The 9 remaining holdouts:
+- 76 `if (...) { throw ... }` lines remain across `**/proof.f.mjs` — down
+  from ~494 when the hand-written JS scanner's proof and the JSON
+  tokenizer's went and the JS tokenizer's moved proof was converted, which
+  took 349 of them, but still the manual pattern.
+- 152 of 162 tracked `proof.f.mjs` files now import `assertEq` — adoption
+  is well underway (re-measured at the same change, over `fjs/`, `spec/`
+  and `todo/`). The 10 remaining holdouts:
   `fjs/basen/base128/proof.f.mjs`, `fjs/ebnf/proof.f.mjs`,
   `fjs/git/refname/proof.f.mjs`, `fjs/media/json/number/proof.f.mjs`,
   `fjs/rtti/proof.f.mjs`, `fjs/website/browser-source/proof.f.mjs`,
   `fjs/types/nominal/proof.f.mjs`,
   `fjs/types/object/structurally_same/proof.f.mjs`,
-  `fjs/types/range_set/proof.f.mjs`.
+  `fjs/types/range_set/proof.f.mjs`, `todo/proof.f.mjs`.
 - A number of files already using `assertEq` still carry leftover
-  manual `if (...) { throw ... }` sites alongside it (the 494 count
-  above is not confined to the 9 holdout files) — full adoption within
+  manual `if (...) { throw ... }` sites alongside it (the 76 count
+  above is not confined to the 10 holdout files) — full adoption within
   an already-migrated file is still incomplete in places.
 
 The mechanical translation is one-to-one:
