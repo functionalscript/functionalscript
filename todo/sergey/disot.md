@@ -61,8 +61,56 @@ And the revision should point to the old version of a document, otherwise we wil
 
 ```js
 export default {
-    "document": $documentHash,
-    "parent": $parents,
-    "author": $author
-};
+    document: $documentHash,
+    parent: $parents,
+    author: $author
+}
+```
+
+For example,
+
+- Document, reversion # 1: `abcd...`
+
+  ```js
+  export default 5
+  ```
+
+- Document, revision # 2: `bcd2...`
+
+  ```js
+  export default 7
+  ```
+
+- Commit document for revision # 1: `d0c0...`
+
+  ```js
+  export default {
+      document: "abcd...",
+  }
+  ```
+
+- Commit document for revision # 1: `r002...`
+
+  ```js
+  export default {
+      document: "bcd2...",
+      parent: "r002...",
+  }
+  ```
+
+```mermaid
+block-beta
+    columns 3
+
+    C2["Commit r002..."] space D2["Document bcd2...
+    export default 7"]
+
+    space:3
+
+    C1["Commit d0c0..."] space D1["Document abcd...
+    export default 5"]
+
+    C2 --> C1
+    C2 --> D2
+    C1 --> D1
 ```
