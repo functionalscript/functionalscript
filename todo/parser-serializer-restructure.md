@@ -845,9 +845,11 @@ throughout.
       grammar-driven reader should produce is the open question that issue
       lists.
 - [ ] Stage 4: `fjs/media/datajs`; todo filed, reader and serializer landed on
-      the grammar route. The byte path and the proofs over
-      [the corpus](../spec/datajs/vectors/README.md) remain — that corpus is the
-      proof source, and it has landed.
+      the grammar route. What remains is the byte path, the public
+      `fjs/media/datajs/module.f.mjs` surface — which the overview above and both
+      co-located issues still owe — and the proofs over
+      [the corpus](../spec/datajs/vectors/README.md), which has landed and is the
+      proof source.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths.
