@@ -20,7 +20,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import {
     countsView, formatDuration, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
-    pendingView, reportOf, reportView, resultView, runProofs,
+    pendingView, reportOf, reportView, resultView, runProofs, unreported,
 } from './module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
@@ -522,5 +522,18 @@ export const proof = {
                 assert(!html.includes(hook), [hook, html])
             }
         },
+    },
+    unreported: {
+        /**
+         * **A source with no result at all is unreported**, in the order the
+         * run was given its sources: `e` ran and had no tests, `z` was never
+         * reached. A source with even one result, passed or failed, is not.
+         */
+        emptyAndUnreached: () => {
+            const b = { ...leaf('failed', 1), module: 'b' }
+            assertStructurallySame(unreported(['a', 'e', 'b', 'z'], [leaf('passed', 1), b]), ['e', 'z'])
+        },
+        // Every source reported something: nothing to keep listed.
+        none: () => assertStructurallySame(unreported(['a'], [leaf('failed', 1)]), []),
     },
 }

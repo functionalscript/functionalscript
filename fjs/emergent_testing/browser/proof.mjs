@@ -28,7 +28,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
  * element/document/view types can stay function-local.
  */
 const dom = () => {
-    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
+    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void, readonly getAttribute: (name: string) => string | null }} _Element */
     /** @typedef {{ defaultView: _View | null, readonly baseURI: string, readonly createElement: (tag: string) => _Element }} _Document */
     /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
@@ -72,6 +72,7 @@ const dom = () => {
                 null),
             replaceChildren: (...nodes) => { self.children = nodes },
             append: node => { self.children = [...self.children, node] },
+            getAttribute: name => self.attributes.get(name) ?? null,
         }
         return self
     }
@@ -655,6 +656,36 @@ export const proof = {
      * its own — read from inside the second run's leaf, since afterwards the
      * title holds the second run's counts and would look the same either way.
      */
+    /**
+     * **A source that reported no tests is marked, so it stays listed.** An
+     * empty proof produces no result and so no group; the stylesheet hides
+     * every unmarked entry once there are results, so without the mark a green
+     * count would sit over a list that looked complete. The next run clears the
+     * mark before it has results of its own.
+     */
+    anEmptyProofIsMarked: async () => {
+        const p = page()
+        const document = p.root.ownerDocument
+        const list = document.createElement('ul')
+        list.setAttribute('data-test-sources', '')
+        for (const source of ['empty', 'full']) {
+            const item = document.createElement('li')
+            item.setAttribute('data-source', source)
+            list.append(item)
+        }
+        p.root.append(list)
+        /** @type {() => readonly boolean[]} */
+        const marks = () => [...list.children].map(item => item.getAttribute('data-no-tests') !== null)
+        await startBrowserTests(p.root, [['empty', {}], ['full', { a: () => undefined }]])
+        assertStructurallySame(marks(), [true, false])
+        /** @type {(readonly boolean[])[]} */
+        let during = []
+        await startBrowserTests(p.root, [['full', { a: () => { during = [...during, marks()] } }]])
+        // Cleared as the run started, before it had results of its own …
+        assertStructurallySame(during, [[false, false]])
+        // … and `empty` is marked again, because this run gave it nothing either.
+        assertStructurallySame(marks(), [true, false])
+    },
     countsClearWhenARunStarts: async () => {
         const p = page()
         await startBrowserTests(p.root, [['m', { a: () => undefined }]])

@@ -29,7 +29,7 @@
 
 import {
     countsView, errorDetails, formatDuration, groupLabel, groupStatus, groupView, loadProofs, moduleFailure,
-    pendingView, reportOf, reportView, resultView, runProofs, runnerSource,
+    pendingView, reportOf, reportView, resultView, runProofs, runnerSource, unreported,
 } from './module.f.mjs'
 // The phrase for a value that will not be read is the runners' shared one:
 // this host meets such a value at its `import` boundary, where the walk cannot.
@@ -373,9 +373,12 @@ export const startBrowserTestSources = (root, sources) => {
  */
 const setState = (root, state) => {
     root.setAttribute('data-state', state)
-    // A new run's title must not keep the last run's counts while this one
-    // has none yet.
-    if (state === 'loading' || state === 'running') { root.querySelector('[data-test-counts]')?.replaceChildren() }
+    // A new run's title must not keep the last run's counts, nor its list the
+    // last run's marks, while this one has no results of its own yet.
+    if (state === 'loading' || state === 'running') {
+        root.querySelector('[data-test-counts]')?.replaceChildren()
+        markUnreported(root, null)
+    }
     const runButton = root.querySelector('[data-test-run]')
     if (runButton !== null) {
         if (state === 'loading' || state === 'running') {
@@ -420,6 +423,38 @@ const fill = (target, [, ...rest]) => {
 const toDom = (document, element) => fill(document.createElement(element[0]), element)
 
 /**
+ * Marks the entries of the page's sources list whose source produced no result
+ * in `results`, and unmarks the rest — or unmarks every entry, for `null`.
+ *
+ * **Why the page marks them.** Once a run has results the stylesheet hides
+ * every runnable entry, because each is a group in the report above. A proof
+ * with no tests produces no group, so without a mark its entry would vanish
+ * with the others and the list above would look like everything that ran.
+ * Which sources those are is {@link unreported}'s decision; this only writes
+ * it onto the entries that named themselves in `data-source`.
+ *
+ * @type {(root: Element, results: readonly _BrowserTestResult[] | null) => void}
+ */
+const markUnreported = (root, results) => {
+    const list = root.querySelector('[data-test-sources]')
+    if (list === null) { return }
+    const items = [...list.children]
+    const sources = items.flatMap(item => {
+        const source = item.getAttribute('data-source')
+        return source === null ? [] : [source]
+    })
+    const missing = results === null ? [] : unreported(sources, results)
+    for (const item of items) {
+        const source = item.getAttribute('data-source')
+        if (source !== null && missing.includes(source)) {
+            item.setAttribute('data-no-tests', '')
+        } else {
+            item.removeAttribute('data-no-tests')
+        }
+    }
+}
+
+/**
  * Renders a completed report in the browser test page.
  *
  * @type {(root: Element, report: BrowserTestReport) => void}
@@ -437,6 +472,7 @@ export const renderBrowserReport = (root, report) => {
     }
     const counts = root.querySelector('[data-test-counts]')
     if (counts !== null) { counts.replaceChildren(...countsView(report).map(view => toDom(root.ownerDocument, view))) }
+    markUnreported(root, report.results)
     const output = root.querySelector('[data-test-results]')
     if (output !== null) { output.replaceChildren(...reportView(report.results).map(view => toDom(root.ownerDocument, view))) }
 }

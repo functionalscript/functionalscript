@@ -494,3 +494,21 @@ export const countsView = ({ totals, duration }) => [
     ...(totals.failed === 0 ? [] : [/** @type {Element} */ (['span', { 'data-count-failed': '' }, `${totals.failed} failed`])]),
     ['span', { 'data-duration': '' }, formatDuration(duration)],
 ]
+
+/**
+ * The sources a run was given that produced no result at all, in the order
+ * they were given: a proof with no tests in it, or one the run never reached.
+ *
+ * **A source with no result has no group**, so a page that hid its entry with
+ * the rest would show a green count over a list that looks complete. The page
+ * keeps these entries listed and says they reported no tests.
+ *
+ * Compared against the groups rather than every result, because a report has
+ * a result per test and a group per module: the second list is the short one.
+ *
+ * @type {(sources: readonly string[], results: readonly _BrowserTestResult[]) => readonly string[]}
+ */
+export const unreported = (sources, results) => {
+    const reported = groupByModule(results).map(group => group.module)
+    return sources.filter(source => !reported.includes(source))
+}

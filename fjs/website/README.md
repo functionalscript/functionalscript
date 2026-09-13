@@ -79,9 +79,10 @@ row. Two runs of the same module with another run between them are two
 groups; two with nothing between them share one, because a result carries no
 run identity to tell them apart — and a generated page names each proof once,
 so it never meets that case. The list of proof sources under the report is
-shown until a run puts results in it; from then on its runnable entries are
-hidden, since each is a group above it, and a blocked proof stays listed with
-its reason, since no group will ever stand for it.
+shown until a run puts results in it; from then on an entry that produced
+results is hidden, since it is a group above. Two kinds stay, because no group
+stands for either: a blocked proof, with its reason, and a proof that ran and
+reported no tests, which the runner marks after the run.
 
 **The runner's own page shows a failure on purpose.** A green suite never shows
 the report's failure state, and breaking a real proof would turn every run red.

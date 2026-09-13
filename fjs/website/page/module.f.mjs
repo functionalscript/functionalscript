@@ -100,10 +100,15 @@ document.querySelector('[data-test-run]').addEventListener(
  * above and the stylesheet hides it; a blocked proof never produces a group, so
  * it stays — otherwise a green count would read as the whole subtree passing.
  *
+ * **A runnable entry names its source in `data-source`**, for the same reason
+ * one step later: a proof with no tests in it runs and produces no group
+ * either. The runner reads these names after a run and marks the entries that
+ * reported nothing, so they stay listed rather than vanish with the rest.
+ *
  * @type {(proof: Proof) => Element}
  */
 const proofItem = proof => proof.blockers.length === 0
-    ? ['li', proof.name]
+    ? ['li', { 'data-source': proof.name }, proof.name]
     : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
