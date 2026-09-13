@@ -414,7 +414,9 @@ success result of the existing value-producing DJS transpiler/CLI yet. Until an 
 execution path is integrated, existing `transpile` callers and `fjs compile` continue
 to evaluate the module and serialize its exported value exactly as they do today.
 
-In particular, the final EDAG artifact described below is a distinct compiler artifact,
+The current `transpile` success value is a `Denotation` — the evaluated value and
+whether its graph is shared (`fjs/fsc/ast/types.ts`) — and this task preserves it;
+the final EDAG artifact described below is a distinct compiler artifact,
 not a replacement for the current `fjs compile <input> <output>` result during this
 stage. Land the EDAG-producing path alongside the current value-producing path rather
 than routing existing callers to an EDAG value that they would accidentally stringify
@@ -550,7 +552,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
       allow JSON output only when it preserves the EDAG completely.
 - [ ] Preserve the existing value-producing `transpile` / `fjs compile` success output
-      until `interpret-edag.md` integrates EDAG execution behind that API.
+      — `transpile`'s `Denotation` and `fjs compile`'s bytes — until
+      `interpret-edag.md` integrates EDAG execution behind that API.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Add Stage 1 proofs that permitted `a.b`, `a['x']`, and numeric `a[0]` forms
       produce property-access EDAGs, while prohibited names and runtime-computed string

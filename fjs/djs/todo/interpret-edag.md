@@ -82,7 +82,8 @@ source modules
 ```
 
 This integration must preserve the public contract. `transpile` still returns the
-module's evaluated exported value on success, and `fjs compile <input> <output>` still
+module's `Denotation` on success — the evaluated exported value and whether its
+graph is shared (`fjs/fsc/ast/types.ts`) — and `fjs compile <input> <output>` still
 serializes that value rather than serializing the EDAG as if it were the module result.
 The separately serializable final EDAG remains a compiler artifact/API from the P2 task.
 
@@ -132,8 +133,8 @@ hardening TODO after the baseline interpreter exists.
       final EDAG and then interpreted produces the same final value as the current DJS
       transpiler.
 - [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
-      result and `fjs compile` output remain unchanged after switching their internals
-      to final-EDAG interpretation.
+      result — the `Denotation`, value and sharing alike — and `fjs compile` output
+      remain unchanged after switching their internals to final-EDAG interpretation.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
