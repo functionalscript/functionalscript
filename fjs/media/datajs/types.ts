@@ -2,8 +2,8 @@
  * TypeScript counterparts of the DataJS data model: JSON's containers over
  * the leaves the format adds — `bigint` and `undefined` beside JSON's, with
  * `NaN` and the infinities values of `number` — as `spec/datajs/README.md`
- * has it. The same shape `fjs/djs/types.ts` spells for the wider compiler
- * subset; this one is the interchange format's own.
+ * has it. The compiler, `fjs/fsc`, has no value model of its own: what it
+ * denotes is a value of this one.
  *
  * `TreeObject`'s index signature is optional, so `{ a: undefined }` and `{}`
  * are one type here: only the runtime enumerator tells a member holding

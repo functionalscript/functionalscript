@@ -43,7 +43,7 @@
  * @import { Children, Meta } from '../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../ebnf/types.ts'
- * @import { Primitive } from '../../djs/types.ts'
+ * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'

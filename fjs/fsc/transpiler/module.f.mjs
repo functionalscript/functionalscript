@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Unknown } from '../../djs/types.ts'
+ * @import { Unknown } from '../../media/datajs/types.ts'
  * @import { Denotation, Import } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
@@ -121,7 +121,7 @@ const transpileModule = path => mapStep(
  * and the value is the result.
  *
  * That reader reports where it failed as an offset in its message rather
- * than as metadata, so the `ParseError` has none and `fjs/djs`'s `compile`
+ * than as metadata, so the `ParseError` has none and `fjs/fsc`'s `compile`
  * names the file instead of a line and column.
  *
  * A JSON value is a tree, so it shares nothing and reaches no module.

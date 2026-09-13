@@ -26,13 +26,14 @@ exports it:
 export const serialize = (a: bigint): string => `${a}n`
 ```
 
-`fjs/djs/serializer/module.f.mjs` is a good citizen — it imports the owner rather
-than re-spelling the template:
+`fjs/media/datajs/serializer/module.f.mjs` is a good citizen — it imports the
+owner rather than re-spelling the template, and the compiler's proof dump in
+`fjs/fsc/module.f.mjs` does the same:
 
 ```ts
-// fjs/djs/serializer/module.f.mjs:14
-import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
-// :113
+// fjs/media/datajs/serializer/module.f.mjs
+import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
+// ...
 case 'bigint': { return [bigintSerialize(value)] }
 ```
 
@@ -45,8 +46,8 @@ case 'bigint': return `${c}n`
 ```
 
 `fjs/types/ts` currently imports *nothing*, so this is a pure miss: the owner is
-a peer in `fjs/types/` and one consumer (`djs/serializer`) already demonstrates
-the intended import.
+a peer in `fjs/types/` and one consumer (`media/datajs/serializer`) already
+demonstrates the intended import.
 
 #### 2. JS string literal `JSON.stringify(s)` — the operation has a de-facto home
 
@@ -94,8 +95,8 @@ but isn't exposed in a reusable (bare-string) form.
    case 'bigint': return bigintSerialize(c)
    ```
 
-   This mirrors `djs/serializer` exactly and adds no new layering (peer import
-   inside `fjs/types/`).
+   This mirrors `media/datajs/serializer` exactly and adds no new layering
+   (peer import inside `fjs/types/`).
 
 2. **string (do now where layering is clean).** Factor the bare-string renderer
    out of `stringSerialize` in `fjs/media/json/serializer`:

@@ -6,7 +6,7 @@
 
 import type { List } from '../../types/list/types.ts'
 import type { Entry } from '../../types/ordered_map/types.ts'
-import type { Array, Unknown } from '../../djs/types.ts'
+import type { Array, Unknown } from '../../media/datajs/types.ts'
 import type { AstBody, AstModuleRef } from './types.ts'
 
 /** An evaluation in progress: the body, its arguments, and the values so far. */

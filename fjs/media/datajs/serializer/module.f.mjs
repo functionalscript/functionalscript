@@ -82,9 +82,9 @@ const undefinedSerialize = ['undefined']
  * specification restates, with the one departure it names: `-0` is written
  * `-0` where `ToString` writes `0`. `NaN` and the infinities are words,
  * where JSON's `numberSerialize` writes `null` for them. Exported because
- * `fjs/djs/serializer` writes numbers the same way, and the rule has one
- * owner; the `_` prefix says that export is linkage rather than API, as it
- * does for `_memberValue` below.
+ * the compiler's JSON output and its proofs' dump, in `fjs/fsc`, write
+ * numbers the same way, and the rule has one owner; the `_` prefix says that
+ * export is linkage rather than API, as it does for `_memberValue` below.
  *
  * @type {(value: number) => List<string>}
  */
@@ -109,11 +109,9 @@ const protoKey = '__proto__'
  * the computed form: JavaScript reads `{"__proto__": v}` as an instruction
  * to replace the object's prototype, so a document spelling a member that
  * way would not read back the member it was given, and the reader refuses
- * it outright. `jsKeySerialize` in
- * [`fjs/djs/serializer`](../../../djs/serializer/module.f.mjs) is the same
- * rule for the same reason — the key seam
- * [157](../../../djs/todo/157-json-djs-shared-value-machine.md) §2 counts,
- * and the second implementation its extraction now has to answer for.
+ * it outright. This is the key seam
+ * [157](../../../fsc/todo/157-json-djs-shared-value-machine.md) §2 counts,
+ * and since the old `fjs/djs/serializer` was retired its only implementation.
  *
  * @type {(key: string) => List<string>}
  */
