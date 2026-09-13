@@ -4,13 +4,14 @@
 see [Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2**: open,
 partly startable, and not first, which is the level and status its own issue
 carries.
-**Status:** wip — stages 1a, 1b, 2, 3a and 5 done. **Stage 4 is what to pick up
-next**: its proof source exists now, in
+**Status:** wip — stages 1a, 1b, 2, 3a, 5 and 6 done. **Stage 4 is what to pick
+up next**: its proof source exists now, in
 [`spec/datajs/vectors`](../spec/datajs/vectors/README.md). Stage 3b stays P2 with
 its error shapes undecided, and stage 4's grammar route consumes nothing from it.
 Stage 5 is done in all three parts: 5a, the rename; 5b, the syntax and the
 special numbers; and 5c, the tokenizer's types and helpers off the hand-written
-scanner.
+scanner. Stage 6 is done: the compiler writes normalized DataJS, refuses what
+JSON cannot spell, and both halves of the subset law are proved.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -107,10 +108,10 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below. Stage 5 is done —
-   within it the order was not a dependency, 5b and 5c each waiting on 5a
-   alone, and 5c landed first; stage 6 waits on stage 4, and stage 7 on
-   stage 3b.
+4. **Then stages 5–7**, in order, as listed below. Stages 5 and 6 are done —
+   within stage 5 the order was not a dependency, 5b and 5c each waiting on
+   5a alone, and 5c landed first; stage 6 took stage 4's writer as it stood.
+   Stage 7 waits on stage 3b.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
@@ -773,9 +774,7 @@ throughout.
    proofs above. DataJS output is total; JSON output is permitted only when
    every leaf has a JSON spelling and no graph sharing is lost — a value
    containing `undefined`, `NaN`, `±Infinity`, `bigint`, or a shared node
-   is **rejected as an error**, never silently substituted or dropped,
-   matching the validation policy of
-   [json-bigint-serialization](../fjs/djs/todo/json-bigint-serialization.md).
+   is **rejected as an error**, never silently substituted or dropped.
    `bigint` is rejected even though its digits are spellable in JSON: the
    text `1` read back by the standard `.json` reader is the *number* `1`,
    so emitting `1n` as `1` would silently change the value's type — the
@@ -783,6 +782,23 @@ throughout.
    explicit, so-labeled choice, never the normalizer's `.json` default.
    Rejection proofs cover each unrepresentable leaf and the shared-node
    case.
+   **Done.** `fjs compile` writes its module output through
+   [`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs),
+   so the output is normalized form by construction, and its `.json` output
+   through a writer of its own in
+   [`fjs/fsc/module.f.mjs`](../fjs/fsc/module.f.mjs) that refuses each leaf
+   above and a shared node, naming what it refused. The loop is proved in
+   [`fjs/fsc/proof.f.mjs`](../fjs/fsc/proof.f.mjs): every accept document
+   compiles to a document the DataJS reader takes back to the vector's
+   graph, and every normalized text compiles to itself, byte for byte. The
+   `.json` policy was the issue json-bigint-serialization asked for, so that
+   issue closed with this; what it also proposed, the extended codec as the
+   `.json` spelling of a bigint, is the choice refused above. Two things
+   changed for a caller: the module output is one line with `$0`, `$1`, …
+   names rather than the old serializer's layout, and an object's members
+   come out in the order the module gave them rather than sorted, in both
+   formats — the order is part of the value, and sorting it wrote a document
+   denoting a different object.
 7. **Cleanup** — retire `fjs/js/tokenizer` when its last consumer is gone:
    stage 3b takes the JSON reader off it, stage 5c takes the front end off
    it, and after those only its own proof imports it
@@ -861,18 +877,18 @@ throughout.
       `fjs/js/tokenizer`.
 - [ ] After stage 4 is on `main`: move the front end's issues out of
       `fjs/djs/todo/` into `fjs/fsc/todo/`, by subject — the serializer's,
-      such as `serializer-children-helper` and `json-bigint-serialization`,
-      stay beside `fjs/djs/serializer/` until stage 4 reworks it — and
-      repoint every link into them.
-- [ ] Stage 6: normalizer + subset-law proofs, over
-      [the corpus](../spec/datajs/vectors/README.md); file its todo. The
-      **FunctionalScript half of the subset law is proved**, in
-      `fjs/fsc/proof.f.mjs` over the whole accept set — stage 5's special
-      numbers were what it waited on — and it found the parser sorting an
-      object's members. The JavaScript half runs in
-      [`accept/proof.mjs`](../spec/datajs/vectors/accept/proof.mjs), over the 390
-      accept documents that have a byte encoding. What remains is the normalizer
-      and its loop.
+      such as `serializer-children-helper`, stay beside
+      `fjs/djs/serializer/` until stage 4 reworks it — and repoint every
+      link into them. (`json-bigint-serialization` was in this list; stage 6
+      implemented its `.json` policy and deleted it.)
+- [x] Stage 6: the normalizer and the subset-law proofs, both in `fjs/fsc`;
+      no todo of its own was needed. The FunctionalScript half of the subset
+      law runs in `fjs/fsc/proof.f.mjs` over the whole accept set — stage 5's
+      special numbers were what it waited on — and it found the parser sorting
+      an object's members; the JavaScript half runs in
+      [`accept/proof.mjs`](../spec/datajs/vectors/accept/proof.mjs) over the 390
+      accept documents that have a byte encoding; and the normalizer and its
+      loop landed with the compiler-output work.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
 - [ ] `tsc`, `fjs test` at every stage.
