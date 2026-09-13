@@ -5,7 +5,7 @@
 
 ### Problem
 
-`matrix` (`module.f.mjs:522`) fuses two independent questions — "is this
+`matrix` (`module.f.mjs:518`) fuses two independent questions — "is this
 corpus well-formed" and "what does its table look like": it runs
 `malformed` first, then collects `roleless`/`unrenderable`/`ambiguous`/
 `duplicated`/`stale` plus the per-row errors, and only then assembles the
@@ -18,7 +18,7 @@ The proof shows the cost: its only way to ask "is this corpus valid?" is
 to render and substring-match —
 
 ```js
-// proof.f.mjs:48-57
+// proof.f.mjs:55-58
 const refuses = (c, ...expected) => {
     const r = failure(c)          // matrix(c), asserted to be an error
     for (const e of expected) { assert(r.includes(e), …) }

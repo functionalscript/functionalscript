@@ -124,33 +124,26 @@ own: the exported reader is the single `'text'` instance re-typed
 generically over whatever alphabet surrounds it —
 
 ```js
-/** @type {<O extends { readonly id: string }>(node: _Readable<Text | O>) => string} */
-export const textAt = node => {
-    const { meta } = symbolAt(node)
-    assert(meta.id === 'text')
-    const { value } = meta
-    assert(typeof value === 'string', ['not a text payload', value])
-    return value
-}
+/** @type {<O extends { readonly id: string }>(node: _Readable<Text | ('text' extends O['id'] ? never : O)>) => string} */
+export const textAt = tagged('text', 'value').at
 ```
 
 — so a JSON node (`O = Json<P>`) and a DataJS node (`O = Value`) are
-both accepted, each alphabet's `Text` being the same declaration. The
-guarantee that what comes back *is* a string is made **at runtime, not
-in the type**, and deliberately so. A type-level exclusion of other
-`text`-tagged members was tried and does not hold: `Exclude<O, { id:
-'text' }>` is bypassed by a widened `O = { id: string, value: number }`,
-a conditional on `O['id']` blocks inference of `O` from the node, and
-either leaves a `Meta<{ id: 'text', value: number }>` returning a number
-typed as a string. The payload check closes every such case in one
-line: a `text`-tagged member whose `value` is not a string is a
-**panic** — a caller error, since the alphabet convention says one `id`
-names one shape — and never a plausible wrong value
-([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
-This is the one accessor that crosses layers, so it is the one that
-checks its payload; the layer-bound pairs (`json`, `value`) are covered
-by `tagged`'s alphabet parameter and the convention, and `textAt` is
-therefore written out rather than being `tagged('text', 'value').at`. The
+both accepted, each alphabet's `Text` being the same declaration, and
+the guarantee that what comes back *is* a string is made in the type.
+The conditional is the same idea as `_LiteralId`, applied to the one
+reader that crosses layers: the surrounding alphabet `O` is admitted
+only if no member of it could carry the id `'text'` — `'text' extends
+O['id']` is true both for a literal collider `{ id: 'text', value:
+number }` and for a widened `{ id: string, value: number }`, and in
+either case the parameter collapses to `_Readable<Text>`, which the
+colliding node is not assignable to. A plain `Exclude<O, { id: 'text'
+}>` was tried first and is bypassed by the widened member; the
+conditional on `O['id']` is not, and it infers `O` from every node shape
+the two readers hand it (checked against all four at this head). No
+runtime payload check is needed, for the reason `tagged` needs none:
+an alphabet is a declared type, and the declaration is where a
+collision would be. The
 runtime is alphabet-agnostic already (it reads `meta.id` and
 `meta.value`); only the type had closed over JSON's `Out<P>`, which a
 `Utf16 | Text | Value` node is not assignable to. `text` (the

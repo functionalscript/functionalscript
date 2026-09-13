@@ -10,9 +10,10 @@
 share nothing: not an import, not a type. `types.ts` splits the same way
 (`Block`/`Item` vs `Utf8`).
 
-Every production importer of the module (~25 across `crypto`, `effects`,
-`web`, `website`, `media/html`, `cas/evo`, `mcp`, `protocol/mcp/stdio`,
-`sul/id`, `djs`, `git/repo`, …) imports only `utf8`/`tryUtf8`/
+Every production importer of the module — twelve: `cas/evo`,
+`crypto/hmac`, `effects/common`, `effects/node`, `effects/node/virtual`,
+`mcp/cas`, `media/html`, `protocol/mcp/stdio`, `sul/id`,
+`types/uint8array`, `web`, and `website` — imports only `utf8`/`tryUtf8`/
 `utf8ToString`. The sole importer of `flat` is `fjs/text/proof.f.mjs`,
 and the sole reference to `Block` outside `types.ts` is the same proof —
 an exported capability with no consumer, the shape
@@ -34,7 +35,7 @@ imports, which is the same speculative surface under a better name. They
 are exported from `module.f.mjs`/`types.ts`, so this is a declared
 breaking change with a `Changelog:` entry; if a block renderer is wanted
 later, it is written next to its consumer, and `git log` keeps this one.
-`fjs/text` is then the UTF-8/string boundary its ~25 importers actually
+`fjs/text` is then the UTF-8/string boundary its twelve importers actually
 consume, and `vec-to-code-point-pipeline`'s "does `utf8ToString` move?"
 question has an obvious answer.
 
