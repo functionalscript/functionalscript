@@ -658,11 +658,6 @@ export const proof = {
         assert(html.includes('<ul data-example-sources=""><li data-no-tests="">./example/empty.f.mjs</li></ul>'), html)
     },
     /**
-     * **A new run's title drops the last run's counts** before it has any of
-     * its own — read from inside the second run's leaf, since afterwards the
-     * title holds the second run's counts and would look the same either way.
-     */
-    /**
      * **A source that reported no tests is marked, so it stays listed.** An
      * empty proof produces no result and so no group; the stylesheet hides
      * every unmarked entry once there are results, so without the mark a green
@@ -692,6 +687,11 @@ export const proof = {
         // … and `empty` is marked again, because this run gave it nothing either.
         assertStructurallySame(marks(), [true, false])
     },
+    /**
+     * **A new run's title drops the last run's counts** before it has any of
+     * its own — read from inside the second run's leaf, since afterwards the
+     * title holds the second run's counts and would look the same either way.
+     */
     countsClearWhenARunStarts: async () => {
         const p = page()
         await startBrowserTests(p.root, [['m', { a: () => undefined }]])
