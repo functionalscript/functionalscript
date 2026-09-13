@@ -67,6 +67,33 @@ Nothing starts on load, as
 [browser-test-controls](../emergent_testing/todo/browser-test-controls.md)
 requires. A page binds the runner to its button.
 
+**A run's report is grouped by module, and what passed folds away.** The root
+page runs thousands of proofs, and one list of that many identical rows gave a
+reader no way to find the one that failed. Each module run is a group whose
+folded line is a green or red dot, the module's path, and its counts at the
+right edge, failures first — `1 failed · 14 passed` — and a group closes as soon
+as the run moves past it having passed, so what stays open is exactly what needs
+reading. The whole run's counts sit in the section's title, green and red, with
+the time. A failure's message and stack are a tinted box of their own under its
+row. Two runs of the same module with another run between them are two
+groups; two with nothing between them share one, because a result carries no
+run identity to tell them apart — and a generated page names each proof once,
+so it never meets that case. The list of proof sources under the report is
+shown until a run puts results in it; from then on an entry that produced
+results is hidden, since it is a group above. Two kinds stay, because no group
+stands for either: a blocked proof, with its reason, and a proof that ran and
+reported no tests, which the runner marks after the run.
+
+**The runner's own page shows a failure on purpose.** A green suite never shows
+the report's failure state, and breaking a real proof would turn every run red.
+So `fjs/emergent_testing/browser` has a demo that runs a small example suite —
+one module passing, one failing, one with no tests — through the same walk,
+sandbox and report views a real run uses, and after the run lists the module
+that reported nothing the way a real page does. It is a `demo`, never a
+`proof`, so no real run sees it. It draws into `data-example-*` hooks, not
+`data-test-*`, because the runner looks those up across the whole page and the
+demo renders above the suite.
+
 ## A demo shows what a module does
 
 A module page can say what a module *is* and whether it *passes*. A demo is the
@@ -142,6 +169,31 @@ what found that was someone typing `1234` into the page.
 is built from the repository path and never from where the page sits. The
 exception is a page's own proof sources, which are relative *by design*: that
 is what makes their names the ones `fjs t` uses.
+
+## A file opens on GitHub, at the commit the site was built from
+
+A listed file or issue links to
+`https://github.com/functionalscript/functionalscript/blob/<commit>/<path>`
+when the build knows its commit, and to its raw path on this site when it does
+not. Until the site has a source view of its own
+([`todo/source-and-doc-view.md`](todo/source-and-doc-view.md)), GitHub is that
+view: source is highlighted and Markdown is rendered, where the raw file is
+neither.
+
+- **The commit, not the branch.** A branch preview outlives its branch, which is
+  usually deleted when the pull request merges, and a page's proofs ran that
+  exact commit — a branch link would show whatever the branch holds today.
+- **Where it comes from:** `WORKERS_CI_COMMIT_SHA`, which Cloudflare's Workers
+  Builds sets on every build. A value that is not a SHA-1 commit id is refused,
+  and the build log's `file links:` line says which way a build went.
+- **A local build keeps raw links.** It has no such variable, and its unpushed
+  commits would open nothing on GitHub.
+- **Only what a reader follows moves.** A page's proofs and its demo are
+  imported by the browser from this site, and stay there.
+- **Every link a reader follows is percent-encoded, segment by segment** —
+  file, issue and directory links, on this site and on GitHub. A space, `#`, `?`
+  or `%` in a name would otherwise end the path or change what it means, and the
+  link would go somewhere else without saying so.
 
 ## One face, the whole site
 
