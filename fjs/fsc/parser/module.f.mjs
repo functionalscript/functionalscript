@@ -13,9 +13,10 @@
  * per value — a primitive, a reference by the token that spells it, a
  * container of nodes — and a record per statement, and the names are
  * resolved where the statements are read, after the grammar has matched
- * the whole module. Each `import` and `const` binds its name *before* its
- * value is resolved, so `const a = a` names the constant being defined,
- * and the export is the module's last value.
+ * the whole module. Each `import` binds its name, each `const` resolves its
+ * value against the names bound so far and then binds its own — so
+ * `const a = a` is `const not found`, as it is a reference before its
+ * declaration in JavaScript — and the export is the module's last value.
  *
  * The grammar sees symbols and the fold sees text, which is the line that
  * decides where a check belongs: every check that has to read a *word* is
@@ -529,9 +530,10 @@ const bind = env => (name, ref) => {
 
 /**
  * The statements of a module, in order: each `import` binds its name to
- * the next argument, each `const` binds its name and then resolves its
- * value against the names bound so far, itself included, and the export
- * is resolved against them all.
+ * the next argument, each `const` resolves its value against the names
+ * bound so far — itself not among them, so a `cref` always names an earlier
+ * entry — and then binds its name, and the export is resolved against them
+ * all.
  *
  * @type {(module: Module) => Result<AstModule, ParseError>}
  */
@@ -549,11 +551,11 @@ const foldModule = ({ imports, consts, exported }) => {
         modules = [...modules, module]
     }
     for (const { name, value: node } of consts) {
+        const [resolved, value] = evaluate(env)(node)
+        if (resolved === 'error') { return error(value) }
         const [tag, bound] = bind(env)(name, ['cref', body.length])
         if (tag === 'error') { return error(bound) }
         env = bound
-        const [resolved, value] = evaluate(env)(node)
-        if (resolved === 'error') { return error(value) }
         body = [...body, value]
     }
     const [resolved, last] = evaluate(env)(exported)

@@ -9,6 +9,15 @@
  * be for the same reason: a relative specifier is resolved against something,
  * and the page is not always that something.
  *
+ * **Except a file a reader opens, when the build knows its commit.** The site
+ * serves every file raw, which is right for a module a page imports and wrong
+ * for one a person reads: no highlighting, and Markdown shown as its source.
+ * Until this site has a source view of its own, GitHub is that view, so a
+ * listed file links to it — at the commit the site was built from, not at a
+ * branch, because a preview outlives its branch and a page's proofs ran that
+ * exact commit. A build that does not know its commit keeps the raw link,
+ * since a GitHub link to a commit nobody pushed opens nothing.
+ *
  * The builder is split in two because the root page is not built here. It
  * carries the site's own heading and the browser test runner, so it takes
  * {@link sections} and keeps its own frame, while every other directory gets
@@ -27,13 +36,25 @@ import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { stylesheetLink } from '../style/module.f.mjs'
 
 /**
- * Where a run's result rows go, unchanged from the page that had only one of
- * them: the runner appends to the list, and the list is a `pre` so a failure's
- * stack keeps its lines.
+ * The repository the site is built from, which is where a file is read when
+ * the site cannot show it itself.
+ *
+ * @type {string}
+ */
+export const repository = 'https://github.com/functionalscript/functionalscript'
+
+/**
+ * Where a run's results go: an empty container the runner fills with one
+ * foldable group per module.
+ *
+ * **No longer a `pre` around one list.** Six thousand rows in one list gave a
+ * reader no way to find the one that failed, and the `pre` was only there so a
+ * failure's stack kept its lines — so the runner now gives each failure its own
+ * `pre`, and every other row is ordinary text.
  *
  * @type {Element}
  */
-const report = ['pre', ['ol', { 'data-test-results': '' }]]
+const report = ['div', { 'data-test-results': '' }]
 
 /**
  * The proofs of `dir`'s subtree, named the way a page at `dir` loads them.
@@ -87,10 +108,25 @@ document.querySelector('[data-test-run]').addEventListener(
     () => startBrowserTestSources(root, sources))
 `]
 
-/** @type {(proof: Proof) => Element} */
+/**
+ * One proof in the section's list: its name, or its name and what stops a
+ * browser linking it.
+ *
+ * **A blocked proof is marked**, because it is the one entry a run cannot
+ * repeat. Once a run has results, every runnable entry is a group in the report
+ * above and the stylesheet hides it; a blocked proof never produces a group, so
+ * it stays — otherwise a green count would read as the whole subtree passing.
+ *
+ * **A runnable entry names its source in `data-source`**, for the same reason
+ * one step later: a proof with no tests in it runs and produces no group
+ * either. The runner reads these names after a run and marks the entries that
+ * reported nothing, so they stay listed rather than vanish with the rest.
+ *
+ * @type {(proof: Proof) => Element}
+ */
 const proofItem = proof => proof.blockers.length === 0
-    ? ['li', proof.name]
-    : ['li', `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
+    ? ['li', { 'data-source': proof.name }, proof.name]
+    : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
  * The demo section: what this module *does*, if it says.
@@ -136,22 +172,45 @@ startDemo(document.querySelector('[data-demo]'))
  */
 export const testSection = dir => intro => {
     if (dir.proofs.length === 0) { return [] }
-    /** @type {(rest: readonly Node[]) => readonly Node[]} */
-    const section = rest => [['details', { 'data-section': '', open: '' },
-        ['summary', 'Emergent Testing'],
+    /** @type {(title: Element) => (rest: readonly Node[]) => readonly Node[]} */
+    const section = title => rest => [['details', { 'data-section': '', open: '' },
+        title,
         ...intro,
         ...rest,
-        ['ul', ...dir.proofs.map(proofItem)],
+        // After the report, and marked, so the stylesheet can hide it once the
+        // report has anything in it: from then on every source it names is a
+        // group above it, and the list is the same names a second time.
+        ['ul', { 'data-test-sources': '' }, ...dir.proofs.map(proofItem)],
     ]]
     const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
-    if (linkable.length === 0) { return section([]) }
-    return section([
+    if (linkable.length === 0) { return section(['summary', 'Emergent Testing'])([]) }
+    // **The run's counts go in the title**, so they stay in sight with the
+    // section folded. The slot is there only where something can run: a title
+    // waiting for counts over a suite with no control would wait for ever.
+    return section(['summary', 'Emergent Testing', ['span', { 'data-test-counts': '' }]])([
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,
         runner(linkable.map(proof => proof.name)),
     ])
 }
+
+/**
+ * A repository path as a URL path: each segment percent-encoded, the
+ * separators kept.
+ *
+ * **A file name is not a URL.** A space, `#`, `?` or `%` in one would end the
+ * path, start a fragment or a query, or read as an escape, and the link would
+ * go somewhere else without anything saying so. None of the tree's paths has
+ * such a character today, which is exactly when a rule is cheap to have: the
+ * first one to arrive would otherwise be a broken link on its page.
+ *
+ * Segment by segment rather than the path whole, because `/` is the one
+ * character that must survive, and `encodeURIComponent` encodes it.
+ *
+ * @type {(path: string) => string}
+ */
+const urlPath = path => path.split('/').map(encodeURIComponent).join('/')
 
 /**
  * The page for a directory path, as a root-relative URL.
@@ -162,14 +221,22 @@ export const testSection = dir => intro => {
  *
  * @type {(path: string) => string}
  */
-export const pageHref = path => path === '.' ? '/index.html' : `/${path}/index.html`
+export const pageHref = path => path === '.' ? '/index.html' : `/${urlPath(path)}/index.html`
 
 /**
- * A file in a directory, as a root-relative URL.
+ * A file in a directory, as a reader opens it: on GitHub at `commit`, or
+ * root-relative on this site when there is no commit to link.
  *
- * @type {(path: string) => (name: string) => string}
+ * Only the links a person follows go through here. A page's proofs and its
+ * demo are imported by the browser from this site, and pointing those at
+ * GitHub would not load them.
+ *
+ * @type {(commit: string | null) => (path: string) => (name: string) => string}
  */
-const fileHref = path => name => path === '.' ? `/${name}` : `/${path}/${name}`
+const fileHref = commit => path => name => {
+    const file = urlPath(path === '.' ? name : `${path}/${name}`)
+    return commit === null ? `/${file}` : `${repository}/blob/${commit}/${file}`
+}
 
 /**
  * One section of a page: a heading a reader can fold the section away under,
@@ -210,15 +277,17 @@ const item = href => text => ['li', ['a', { href }, text]]
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
  *
- * @type {(dir: Dir) => readonly Node[]}
+ * `commit` is where files are read — see {@link fileHref}.
+ *
+ * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
-export const sections = dir => [
+export const sections = commit => dir => [
     ...section('Files')(true)(dir.files.map(name =>
-        item(fileHref(dir.path)(name))(name))),
+        item(fileHref(commit)(dir.path)(name))(name))),
     ...section('Directories')(true)(dir.dirs.map(name =>
         item(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(`${name}/`))),
     ...section('Issues')(false)(dir.todo.map(name =>
-        item(fileHref(dir.path)(`todo/${name}`))(name))),
+        item(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
 ]
 
 /**
@@ -241,9 +310,9 @@ const ancestors = path => {
  * The whole page for a directory below the root: where it sits, what it
  * holds, and what is open against it.
  *
- * @type {(dir: Dir) => Vec}
+ * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
-export const page = dir => htmlUtf8(
+export const page = commit => dir => htmlUtf8(
     ['title', dir.path],
     stylesheetLink,
 )(
@@ -254,7 +323,7 @@ export const page = dir => htmlUtf8(
             return at === 0 ? [link] : [' / ', link]
         })],
         ['h1', dir.path],
-        ...sections(dir),
+        ...sections(commit)(dir),
         ...(dir.demo === null ? [] : demoSection(dir.demo)),
         ...testSection(dir)([]),
     ],

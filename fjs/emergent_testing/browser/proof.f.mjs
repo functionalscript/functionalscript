@@ -13,11 +13,17 @@
  * @import { SandboxResult } from '../../effects/common/types.ts'
  * @import { Commands } from '../../effects/types.ts'
  * @import { _BrowserOp, _Rows } from './private.ts'
- * @import { TestStatus, _BrowserTestResult } from '../types.ts'
+ * @import { ReportDemoState, TestStatus, _BrowserTestResult } from '../types.ts'
+ * @import { Catch, Sandbox } from '../../effects/common/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { loadProofs, reportOf, runProofs } from './module.f.mjs'
+import {
+    countsView, formatDuration, groupByModule, groupLabel, groupStatus, groupView, loadProofs,
+    pendingView, reportOf, reportView, resultView, runProofs, unreported,
+} from './module.f.mjs'
+import { demo } from './demo.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
@@ -368,5 +374,193 @@ export const proof = {
         const [events, answered] = working([])(runProofs([]))
         assertEq(events.length, 0)
         assertEq(answered[1], null)
+    },
+    groupByModule: {
+        // No results, no groups — not one empty group.
+        empty: () => assertStructurallySame(groupByModule([]), []),
+        /**
+         * **One group per run of a module, with its counts.** The counts are
+         * folded by the same `addResult` the report's totals are, so a group's
+         * line and the suite's summary cannot disagree about what passed.
+         */
+        counts: () => {
+            const a1 = leaf('passed', 1)
+            const a2 = leaf('failed', 2)
+            const b1 = { ...leaf('passed', 3), module: 'b' }
+            assertStructurallySame(groupByModule([a1, a2, b1]), [
+                { module: 'a', results: [a1, a2], passed: 1, failed: 1 },
+                { module: 'b', results: [b1], passed: 1, failed: 0 },
+            ])
+        },
+        /**
+         * **Consecutive, not keyed.** Two runs that share a label with another
+         * run between them are two groups, in the order they ran; keying by
+         * module would merge them and move `b` out from between them.
+         */
+        aRepeatedModuleIsTwoGroups: () => {
+            const a = leaf('passed', 1)
+            const b = { ...leaf('passed', 1), module: 'b' }
+            assertStructurallySame(groupByModule([a, b, a]).map(g => g.module), ['a', 'b', 'a'])
+        },
+        /**
+         * **Two runs of one label with nothing between them share a group** —
+         * pinned so it is a known limit rather than an accident. A result has no
+         * run identity, so nothing in `[a, a]` says whether that is one run of
+         * two leaves or two runs of one. Every row survives, in order, and the
+         * counts add up.
+         */
+        adjacentRunsOfOneLabelShareAGroup: () => {
+            const a1 = leaf('passed', 1)
+            const a2 = leaf('failed', 2)
+            assertStructurallySame(groupByModule([a1, a2]), [
+                { module: 'a', results: [a1, a2], passed: 1, failed: 1 },
+            ])
+        },
+    },
+    groupLabel: {
+        // A group that passed says how many, which is all its folded line shows.
+        passed: () => assertEq(groupLabel(42, 0), '42 passed'),
+        // A failure leads, because it is the count a reader is scanning for.
+        failed: () => assertEq(groupLabel(14, 1), '1 failed · 14 passed'),
+    },
+    formatDuration: {
+        underASecond: () => assertEq(formatDuration(82.34), '82.3 ms'),
+        // From a second on, seconds: the root page's suite is minutes long.
+        fromASecond: () => assertEq(formatDuration(1000), '1.0 s'),
+        long: () => assertEq(formatDuration(103812.4), '103.8 s'),
+    },
+    /**
+     * **The report's markup, as data.** Both renderers draw these — the live
+     * page turns them into nodes, the demo returns them — so pinning them here
+     * pins what a reader sees in either place.
+     */
+    views: {
+        passedRow: () => assertStructurallySame(resultView(leaf('passed', 0.5)),
+            ['li', { 'data-status': 'passed' }, 'PASS import("a").proof.x() (0.5 ms)']),
+        // A failure's message and stack are a block of their own under the row.
+        failedRow: () => assertStructurallySame(resultView({ ...leaf('failed', 1), message: 'm', stack: 's' }),
+            ['li', { 'data-status': 'failed' }, 'FAIL import("a").proof.x() (1.0 ms)', ['pre', { 'data-test-error': '' }, 'm\ns']]),
+        pendingRow: () => assertStructurallySame(pendingView(leaf('passed', 0)),
+            ['li', { 'data-status': 'running' }, 'RUN  import("a").proof.x()']),
+        groupStatus: () => {
+            assertEq(groupStatus(1, 0, false), 'running')
+            assertEq(groupStatus(1, 0, true), 'passed')
+            assertEq(groupStatus(0, 1, false), 'failed')
+        },
+        /**
+         * **Folded once it passed, open otherwise.** A group still running is
+         * open so its pending row is in sight, and one that failed stays open
+         * because its rows are what the reader came for.
+         */
+        groupFolding: () => {
+            const group = { module: 'a', results: [leaf('passed', 1)], passed: 1, failed: 0 }
+            assertStructurallySame(groupView(group, true),
+                ['details', { 'data-test-module': 'a', 'data-status': 'passed' },
+                    ['summary', ['span', { 'data-dot': '' }], ['span', { 'data-path': '' }, 'a'], ['span', { 'data-counts': '' }, '1 passed']],
+                    ['ol', { 'data-rows': '' }, resultView(leaf('passed', 1))]])
+            assert(htmlToString(groupView(group, false)).includes('open=""'), 'a running group is open')
+            assert(htmlToString(groupView({ ...group, passed: 0, failed: 1 }, true)).includes('open=""'),
+                'a failed group stays open')
+        },
+        reportIsSettledGroups: () => {
+            const b = { ...leaf('failed', 1), module: 'b', message: 'm', stack: 's' }
+            assertStructurallySame(reportView([leaf('passed', 1), b]),
+                [groupView({ module: 'a', results: [leaf('passed', 1)], passed: 1, failed: 0 }, true),
+                    groupView({ module: 'b', results: [b], passed: 0, failed: 1 }, true)])
+        },
+        // No red zero: a clean run's counts are the green count and the time.
+        countsWithoutFailures: () => assertStructurallySame(countsView(reportOf('b', 12.3, [leaf('passed', 1)], null)),
+            [['span', { 'data-count-passed': '' }, '1 passed'], ['span', { 'data-duration': '' }, '12.3 ms']]),
+        countsWithFailures: () => assertStructurallySame(countsView(reportOf('b', 1500, [leaf('passed', 1), leaf('failed', 1)], null)),
+            [['span', { 'data-count-passed': '' }, '1 passed'], ['span', { 'data-count-failed': '' }, '1 failed'], ['span', { 'data-duration': '' }, '1.5 s']]),
+    },
+    demo: {
+        // Before anything runs, the demo is its sentence, its button, and the
+        // list of what it will run — as a real page lists its sources.
+        idle: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="run"'), html)
+            assert(!html.includes('data-example-report'), html)
+            assert(html.includes('<ul data-example-sources=""><li>./example/passing.f.mjs</li>'
+                + '<li>./example/failing.f.mjs</li><li>./example/empty.f.mjs</li></ul>'), html)
+        },
+        /**
+         * **After a run, only the source that reported nothing stays listed**,
+         * marked as the real page marks it. A source with results is a group in
+         * the report above; one without has no group, so the list is the only
+         * place it appears.
+         */
+        listsOnlyWhatReportedNothing: () => {
+            /** @type {(module: string) => _BrowserTestResult} */
+            const ranIn = module => ({ ...leaf('passed', 1), module })
+            /** @type {ReportDemoState} */
+            const twoReported = {
+                kind: 'done',
+                report: reportOf('example', 1, [ranIn('./example/passing.f.mjs'), ranIn('./example/failing.f.mjs')], null),
+            }
+            const html = htmlToString(demo.view(twoReported))
+            assert(html.includes('<ul data-example-sources=""><li data-no-tests="">./example/empty.f.mjs</li></ul>'), html)
+            // And where every source reported something, there is no list at all.
+            /** @type {ReportDemoState} */
+            const allReported = {
+                kind: 'done',
+                report: reportOf('example', 1, [ranIn('./example/passing.f.mjs'), ranIn('./example/failing.f.mjs'), ranIn('./example/empty.f.mjs')], null),
+            }
+            assert(!htmlToString(demo.view(allReported)).includes('data-example-sources'), 'no list when everything reported')
+        },
+        // Only the named button runs the example; any other event leaves the
+        // state as it was.
+        onlyRunRuns: () => {
+            const [, r] = partialRun(/** @type {Commands<Sandbox | Catch>} */ (['sandbox', 'catch']))({})(null)(
+                demo.update(demo.init)({ kind: 'click', name: 'other' }))
+            assertStructurallySame(r, ok(demo.init))
+        },
+        /**
+         * **A runtime that will not sandbox is a report of rows saying so**,
+         * not a demo that broke — a demo's error channel is `never`. Every leaf
+         * of the example is still named, and every one says why it has no
+         * verdict.
+         */
+        refusedSandboxIsARow: () => {
+            const [, r] = partialRun(/** @type {Commands<Sandbox | Catch>} */ (['sandbox', 'catch']))({})(null)(
+                demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            const state = /** @type {ReportDemoState} */ (r[0] === 'ok' ? r[1] : demo.init)
+            assertEq(state.kind, 'done')
+            const results = state.kind === 'done' ? state.report.results : []
+            assertEq(results.length, 6)
+            assert(results.every(row => row.status === 'failed' && row.message === 'this page cannot run the example: sandbox is not implemented'),
+                results)
+        },
+        /**
+         * **The demo never renders the runner's hooks.** The runner looks them
+         * up across the whole page and the demo sits above the suite, so a
+         * `data-test-results` in here is where a real run on this page would
+         * draw its report.
+         */
+        neverUsesTheRunnersHooks: () => {
+            /** @type {ReportDemoState} */
+            const done = {
+                kind: 'done',
+                report: reportOf('example', 1, [leaf('passed', 1), { ...leaf('failed', 1), message: 'm', stack: 's' }], null),
+            }
+            const html = htmlToString(demo.view(done))
+            assert(html.includes('data-example-report') && html.includes('data-example-counts'), html)
+            for (const hook of ['data-test-results', 'data-test-counts', 'data-test-summary', 'data-test-run', 'data-test-sources']) {
+                assert(!html.includes(hook), [hook, html])
+            }
+        },
+    },
+    unreported: {
+        /**
+         * **A source with no result at all is unreported**, in the order the
+         * run was given its sources: `e` ran and had no tests, `z` was never
+         * reached. A source with even one result, passed or failed, is not.
+         */
+        emptyAndUnreached: () => {
+            const b = { ...leaf('failed', 1), module: 'b' }
+            assertStructurallySame(unreported(['a', 'e', 'b', 'z'], [leaf('passed', 1), b]), ['e', 'z'])
+        },
+        // Every source reported something: nothing to keep listed.
+        none: () => assertStructurallySame(unreported(['a'], [leaf('failed', 1)]), []),
     },
 }

@@ -3,18 +3,25 @@
 **Priority:** P3
 **Status:** open
 **Blocked by:**
-[single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md),
-which is itself waiting on
-[self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md):
-widening the JS lexer regresses the public JSON tokenizer until that adapter
-stops reading it. The chain has a documented fallback if this work cannot wait.
+[single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md),
+the grammar's issue: the JS token grammar has to recognise the spellings the
+repository is written in before a view can show them. It waits on nothing
+else — the grammar has no JSON consumer to regress, which is what used to
+chain this issue behind the JSON tokenizer's rebuild.
 
 ### Problem
 
-A module page that links to `module.f.mjs` sends the reader to raw text, and a
-reader who wants the module's documentation has nothing to read at all. The
-JSDoc is in the source; the source is on the site; nothing turns either into a
-page.
+A module page that links to `module.f.mjs` sends the reader away to read it,
+and a reader who wants the module's documentation has nothing to read at all.
+The JSDoc is in the source; the source is on the site; nothing turns either
+into a page.
+
+Until this lands, a built site links files to GitHub at the commit it was built
+from, and a local build to the raw file — see
+[`../README.md`](../README.md#a-file-opens-on-github-at-the-commit-the-site-was-built-from).
+That gives highlighting and rendered Markdown now; it does not give a doc view,
+and it takes the reader off the site. When this issue lands, a file link points
+at the site's own view, and GitHub can stay as a second link.
 
 ### Decisions
 
@@ -26,21 +33,27 @@ page.
   generator a read and a tokenization per module on top of the 42 s it already
   spends, for output that is stale the moment a module changes.
 - **One tokenization serves both views.** The source view and the doc view are
-  two renderings of the same token list from
-  [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs), which emits comment
-  tokens and is authored FunctionalScript, so it loads in a browser like any
-  other module. Nothing is written twice.
-- **The tokenizer must first accept the sources it will show.** Today its
-  string state recognises the double quote only, and it has no template
-  literal state: `const a = 'x'` tokenizes as an `unexpected character`
-  error, the identifier `x`, and a second error, and a template literal the
-  same. Nearly every authored module uses single quotes — the tokenizer
-  itself does — so the views would highlight garbage and the doc extractor
-  would read string contents as declarations. Extending the tokenizer is the
-  prerequisite, as a PR of its own in `fjs/js/tokenizer`, tracked as
-  [single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md).
-  A second lexer was the alternative and is the "written twice" the bullet
-  above rejects.
+  two renderings of the same token list, read from the JS token grammar
+  [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) the way the compiler's
+  [`fjs/fsc/tokenizer`](../../fsc/tokenizer/module.f.mjs) reads it: comments
+  and trivia are tokens, every token knows where it begins, and the stream is
+  contiguous, so a token's text runs from its start to the next token's — the
+  prerequisite says what that still needs — and it is authored
+  FunctionalScript, so it loads in a browser like any other module.
+  Nothing is written twice. The token stream is
+  [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s — the grammar's
+  general JS stream, which the compiler's tokenizer folds — since stage 7
+  of the plan replaced the hand-written scanner behind that path.
+- **The grammar must first recognise the sources it will show.** Today its
+  string rule is JSON's, the double quote only, and it has no template
+  literal: `const a = 'x'` and a template literal alike stop the grammar at
+  an `invalid token`. Nearly every authored module uses single quotes, so the
+  views would show nothing or highlight garbage, and the doc extractor would
+  read string contents as declarations. Widening the grammar is the
+  prerequisite, as a PR of its own in `fjs/ebnf/lib/js`, tracked as
+  [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md).
+  A second lexer, or widening the hand-written scanner instead, is the
+  "written twice" the bullet above rejects.
 - **The doc extractor is ours, not `deno doc`.** `deno doc --html` produces one
   site with its own navigation and styling; slicing it per page means
   post-processing its HTML, which is more machinery than the extractor. It is
@@ -73,11 +86,11 @@ page.
 ### Tasks
 
 - [ ] Prerequisite:
-      [single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md),
+      [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md),
       before anything below. It is larger than this issue first assumed: a
       template cannot be one opaque token, because substitutions in this
       repository nest.
-- [ ] Confirm `fjs/js/tokenizer` links in a browser, i.e. that its own page
+- [ ] Confirm the tokenizer module links in a browser, i.e. that its own page
       lists it as a proof rather than as one with a blocker.
 - [ ] `source-view/module.f.mjs`: tokens → highlighted `<pre>` content.
 - [ ] `source-view/module.f.mjs`: tokens → doc entries (`@module` block, one
@@ -94,6 +107,7 @@ page.
 - [Publish `deno doc` to website](publish-deno-doc-to-website.md) — the full
   type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
-- [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the tokenizer both views use.
-- [single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md)
+- [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the token stream
+  both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs).
+- [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md)
   — the prerequisite, as its own issue.
