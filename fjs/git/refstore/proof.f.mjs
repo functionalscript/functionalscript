@@ -450,18 +450,24 @@ export const proof = {
         /** @type {Dir} */
         const root = { 'packed-refs': file(`${a} refs/heads/\x80\n`), refs: {} }
         const name = /** @type {readonly number[]} */ ([...latin1('refs/heads/'), 0x80])
-        const i = resolvedIn('', root, name)
-        assert(i !== null)
-        assertEq(codePointListToString(toHex(i)), a)
-        // The listing carries the same ref, which is the consistency this is
-        // about. Asserted by bytes rather than through `sameRoots`, because
-        // that helper renders a name as UTF-8 text and this name is none —
-        // which is the whole reason `tryResolve` cannot build a path for it.
+        // The listing carries the ref, because the walk *looked*: it read every
+        // entry of `refs/` and would have failed on a file it could not name, so
+        // there is no loose file to shadow this packed line. Asserted by bytes
+        // rather than through `sameRoots`, because that helper renders a name as
+        // UTF-8 text and this name is none.
         const rs = run(root, tryRoots(one(''), 20))
         assert(rs !== null)
         assertEq(rs.length, 1)
         assertStructurallySame(toArray(rs[0].name), name)
         assertEq(codePointListToString(toHex(rs[0].id)), a)
+        // The lookup refuses, because it does *not* look: a loose file of this
+        // name shadows the packed line by existing, and no path can be built to
+        // ask whether one does. Answering the packed id would be a stale id in
+        // exactly the state this host cannot observe — and cannot construct here
+        // either, since the virtual filesystem spells a directory entry as a
+        // string too. The two answers differ because one half looked and the
+        // other cannot, which the docs of both say.
+        assertEq(resolvedIn('', root, name), null)
     },
     // The two directories are two, and `HEAD` is the name that tells them apart.
     // Measured on Git 2.43.0: a linked worktree detached at another commit
@@ -576,5 +582,32 @@ export const proof = {
         sameRoots(
             run({ refs: { heads: { master: ref(a) }, bisect: { good: ref(b) } } }, tryRoots(one(''), 20)),
             [['refs/heads/master', a], ['refs/bisect/good', b]])
+    },
+    // A `packed-refs` line naming `HEAD` is shadowed by the `HEAD` file, which is
+    // this module's shadowing rule applied to the one name outside `refs/`.
+    // Measured on Git 2.43.0 with both present: `show-ref --head` prints two
+    // `HEAD` lines and `rev-list --all` keeps both ids, while `rev-parse HEAD`
+    // answers the file and `for-each-ref` lists neither — so Git does hold two,
+    // and the file is what the name means. `git pack-refs` never writes such a
+    // line, so this is a file made by hand either way.
+    packedHead: () => {
+        /** @type {Dir} */
+        const detached = { 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} }
+        sameRoots(run(detached, tryRoots(one(''), 20)), [['HEAD', a]])
+        // The file wins even when it adds no root of its own: an attached `HEAD`
+        // shadows the packed line and contributes nothing, so the name is gone
+        // rather than stale.
+        /** @type {Dir} */
+        const attached = {
+            'packed-refs': file(`${b} HEAD\n`),
+            HEAD: file('ref: refs/heads/master\n'),
+            refs: { heads: { master: ref(t) } },
+        }
+        sameRoots(run(attached, tryRoots(one(''), 20)), [['refs/heads/master', t]])
+        // With no `HEAD` file the packed line is all there is, so it is listed:
+        // the shadow is the file existing, here as everywhere else.
+        sameRoots(run({ 'packed-refs': file(`${b} HEAD\n`), refs: {} }, tryRoots(one(''), 20)), [['HEAD', b]])
+        // And the lookup answers the file, which is what `rev-parse` does.
+        assertEq(hexOf(detached, 'HEAD'), a)
     },
 }

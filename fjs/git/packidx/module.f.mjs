@@ -9,6 +9,14 @@
  *
  * Every claim below was measured against Git 2.43.0 on packs it wrote.
  *
+ * **Reading a large index is dominated by building its ids.** Measured on a
+ * synthetic 100,000-object index of 2.80 MB, `tryIdx` costs 3498 ms, of which
+ * 2122 ms is the checksum hash and 1161 ms is materialising the ids as bit
+ * vectors. Two scans that used to cost the rest are gone — see {@link upTo} and
+ * {@link differsAt} — and the eager ids are the shape of {@link Idx} rather than
+ * a mistake in a loop, so they are
+ * [`todo/lazy-index-ids.md`](./todo/lazy-index-ids.md) and not a change here.
+ *
  * **Two versions are live, and the second is not a superset of the first.**
  * Version 2 begins with the four bytes `\377tOc` and a version word; version
  * 1 has neither and begins with the fanout table. Git writes 2 by default
@@ -92,6 +100,46 @@ const u64 = (b, at) => {
 const oidAt = (b, at, width) => toVec(b.slice(at, at + width))
 
 /**
+ * The first byte position at which the ids at `x` and `y` differ, or `width`
+ * where they are equal.
+ *
+ * A recursion over the width rather than a `find` over an array of positions,
+ * because the array was allocated once per *pair of ids*: on a 100,000-object
+ * index that is a hundred thousand throwaway arrays of twenty numbers. In
+ * isolation over 100,000 pairs, the array shape takes 137 ms and this 4 ms. The
+ * depth is the id width — 20 or 32 — so it is bounded by the format and not by
+ * the file.
+ *
+ * @type {(b: readonly number[], x: number, y: number, width: number, k: number) => number}
+ */
+const differsAt = (b, x, y, width, k) =>
+    k === width ? width : b[x + k] !== b[y + k] ? k : differsAt(b, x, y, width, k + 1)
+
+/**
+ * How many of `firsts` are `k` or less — a search and not a scan.
+ *
+ * `firsts` is the first byte of each id in file order, so it is non-decreasing
+ * *because* {@link fanoutAgrees} has already refused a file whose ids do not
+ * ascend. That is a real dependency and not a coincidence: this function is
+ * wrong on an unsorted list, and the only caller checks the order first.
+ *
+ * A filter per bucket instead is 256 full passes over the ids, which is the shape
+ * this replaced. In isolation on 100,000 first bytes, the 256 filters take
+ * 427 ms and the 256 searches 1 ms.
+ *
+ * @type {(firsts: readonly number[], k: number) => number}
+ */
+const upTo = (firsts, k) => {
+    /** @type {(lo: number, hi: number) => number} */
+    const search = (lo, hi) => {
+        if (lo >= hi) { return lo }
+        const mid = lo + Math.floor((hi - lo) / 2)
+        return firsts[mid] <= k ? search(mid + 1, hi) : search(lo, mid)
+    }
+    return search(0, firsts.length)
+}
+
+/**
  * Whether the fanout table agrees with the ids that follow it: every
  * `fanout[k]` is the number of ids whose first byte is `k` or less, and the
  * ids ascend.
@@ -118,15 +166,14 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
     const ascends = Array.from({ length: n === 0 ? 0 : n - 1 }, (_, i) => i).every(i => {
         const x = idsAt + i * stride
         const y = x + stride
-        const at = Array.from({ length: width }, (_, k) => k).find(k => b[x + k] !== b[y + k])
-        return at !== undefined && b[x + at] < b[y + at]
+        const at = differsAt(b, x, y, width, 0)
+        return at !== width && b[x + at] < b[y + at]
     })
     if (!ascends) { return false }
     /** The first byte of each id, which is the bucket the fanout counts. */
     const firsts = Array.from({ length: n }, (_, i) => b[idsAt + i * stride])
-    /** @type {(k: number) => number} */
-    const upTo = k => firsts.filter(v => v <= k).length
-    return Array.from({ length: fanout }, (_, k) => k).every(k => u32(b, fanoutAt + k * 4) === upTo(k))
+    return Array.from({ length: fanout }, (_, k) => k)
+        .every(k => u32(b, fanoutAt + k * 4) === upTo(firsts, k))
 }
 
 /**

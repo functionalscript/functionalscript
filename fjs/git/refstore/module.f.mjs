@@ -98,7 +98,7 @@ import { isNotFound, readFile, readdir } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
@@ -119,6 +119,25 @@ const toVec = u8ListToVec(msb)
  *
  * @type {(s: string) => readonly number[]} */
 const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
+
+/**
+ * A ref name as a string that stands for its bytes, for use as a key.
+ *
+ * One code unit per byte, which is **not** a decoding and never becomes a path —
+ * {@link nameText} is the decoding, and it is UTF-8. This is only an injective
+ * encoding: two names give the same key exactly when they are the same bytes, so
+ * a `Map` or a `Set` over it answers what {@link sameName} answers, in one
+ * lookup rather than a pass per name.
+ *
+ * That matters at the size a repository reaches. Comparing every packed line
+ * against every other is quadratic in the count and allocates a tail array per
+ * line: in isolation over 20,000 names the pairwise shape takes 1636 ms and this
+ * one 8 ms, and `git pack-refs` on a busy repository writes more lines than
+ * that.
+ *
+ * @type {(name: Bytes) => string}
+ */
+const nameKey = name => codePointListToString(toArray(name))
 
 /** @type {(a: Bytes, b: Bytes) => boolean} */
 const sameName = (a, b) => {
@@ -294,16 +313,15 @@ const targetAllowed = (text, r) =>
  * UTF-8 name no file node could have handed us, so they answer `null` rather
  * than a path built from replacement characters.
  *
- * `null` means *there is no loose file to ask about*, not that the name is bad.
- * A ref name is bytes and Git takes any byte the name rule allows —
+ * `null` means *no path can be built*, not that the name is bad. A ref name is
+ * bytes and Git takes any byte the name rule allows —
  * `git check-ref-format refs/heads/\x80` is accepted, and `show-ref` and
- * `rev-parse` both handle such a ref, measured — so a `packed-refs` line may
- * carry one and `tryRoots` lists it. What cannot carry one is this host's path:
- * node reads a directory entry as UTF-8 with replacement, so the same byte
- * comes back as U+FFFD and a `readFile` of that string answers `ENOENT`,
- * measured. So for such a name the packed line is the only answer the host can
- * give, and [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) records what
- * that costs.
+ * `rev-parse` both handle such a ref, measured. What cannot carry one is this
+ * host's path: node reads a directory entry as UTF-8 with replacement, so the
+ * same byte comes back as U+FFFD and a `readFile` of that string answers
+ * `ENOENT`, measured. The consequence for a *lookup* is
+ * {@link resolveWith}'s to state, and it is a refusal;
+ * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) has the rest.
  *
  * @type {(name: readonly number[]) => Nullable<string>}
  */
@@ -339,13 +357,15 @@ const resolveWith = (dirs, oidBytes, packed) => {
         // looks like an id.
         if (!isWholeName(dense)) { return pureOk(null) }
         const text = nameText(dense)
-        // No path can name this ref's loose file — not because the name is bad
-        // but because this host spells a path as text. A loose file of such a
-        // name is unreachable through `readFile` either way, so it is absent as
-        // far as this API can see, and the rule for an absent loose file is the
-        // packed line. Refusing here instead would call a packed ref that
-        // `tryRoots` lists absent. See {@link nameText}.
-        if (text === null) { return pureOk(packedId(packed, name)) }
+        // No path can name this ref's loose file, so whether one exists is not a
+        // question this host can put to the filesystem — and a loose file
+        // shadows a packed line by existing, so the packed line is the answer
+        // only if there is no loose file. Unknowable, not absent: answering the
+        // packed line would be a stale id whenever the loose file is there, and
+        // that state cannot even be constructed in a proof here, since the
+        // virtual filesystem spells a directory entry as a string too.
+        // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
+        if (text === null) { return pureOk(null) }
         // Which directory the name's file sits in is the name's own question,
         // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
         // the repository's. See {@link dirOf}.
@@ -469,14 +489,21 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
  *
  * @type {(found: _Found, packed: readonly PackedRef[]) => readonly Root[]}
  */
-const combine = (found, packed) => [
-    ...found.roots,
-    ...packed
-        .filter((p, i) =>
-            !found.names.some(n => sameName(n, p.name))
-            && !packed.slice(i + 1).some(q => sameName(q.name, p.name)))
-        .map(p => ({ name: p.name, id: p.id })),
-]
+const combine = (found, packed) => {
+    const shadowed = new Set(found.names.map(nameKey))
+    // The last line of each name, as one pass: the `Map` constructor keeps the
+    // later entry for a repeated key, which is the rule this needs.
+    const last = new Map(packed.map((p, i) => [nameKey(p.name), i]))
+    return [
+        ...found.roots,
+        ...packed
+            .filter((p, i) => {
+                const k = nameKey(p.name)
+                return !shadowed.has(k) && last.get(k) === i
+            })
+            .map(p => ({ name: p.name, id: p.id })),
+    ]
+}
 
 /** The one directory name refs live under, in either of the two directories. */
 const refsDir = /** @type {const} */ ('refs')
@@ -506,26 +533,41 @@ const ownRefs = dirs =>
 const headName = nameBytes(head)
 
 /**
- * `HEAD` as a retention root: `[]` where it names a branch or is not there,
- * one root where it holds an id, and `null` where it is there and is no ref.
+ * What `HEAD` contributes to the walk's findings: one root where it holds an id,
+ * none where it names a branch, and `null` where it is there and is no ref or
+ * points outside `refs/`.
  *
- * A branch `HEAD` adds nothing — the branch is already a root at the same id —
- * so only the detached spelling is a root, and `tryRoots`' doc has the
- * measurements for both.
+ * A branch `HEAD` adds no root — the branch is already one at the same id — so
+ * only the detached spelling is a root, and `tryRoots`' doc has the measurements
+ * for both.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<ReadFile, Nullable<readonly Root[]>, IoChannel>}
+ * **The name is recorded whichever it holds, so the file shadows a `packed-refs`
+ * line naming `HEAD`.** That is the module's shadowing rule — a loose file wins
+ * by existing — applied to the one name that is not under `refs/`, and without it
+ * the listing carried two entries called `HEAD`. Git has both: measured on Git
+ * 2.43.0 with a packed `HEAD` line beside a detached `HEAD` file,
+ * `git show-ref --head` prints two `HEAD` lines and `git rev-list --all` keeps
+ * both ids, while `git rev-parse HEAD` answers the file and `git for-each-ref`
+ * lists neither. So the file is what the name *means*, which is the winner this
+ * defines; and `git pack-refs` never writes such a line, so the collision only
+ * arises in a file made by hand.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<ReadFile, Nullable<_Found>, IoChannel>}
  */
-const tryHeadRoot = (dirs, oidBytes) => {
+const tryHeadFound = (dirs, oidBytes) => {
     const readRef = tryRef(oidBytes)
     return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
-        if (bytes === null) { return [] }
+        if (bytes === null) { return { roots: [], names: [] } }
         const r = readRef(bytes)
         if (r === null) { return null }
         // The same rule the lookup asks, and for the same reason: a `HEAD`
         // pointing outside `refs/` is no repository, so there is no list of its
         // refs to answer. See {@link targetAllowed}.
         if (!targetAllowed(head, r)) { return null }
-        return r.kind === 'direct' ? [{ name: headName, id: r.id }] : []
+        return {
+            roots: r.kind === 'direct' ? [{ name: headName, id: r.id }] : [],
+            names: [headName],
+        }
     })
 }
 
@@ -608,6 +650,11 @@ export const tryRoots = (dirs, oidBytes) =>
             walkStep(ownRefs(dirs), found, looseOf(dirs, oidBytes, packed, isPerWorktree)))
         return step(both, found => found === null
             ? pureOk(null)
-            : mapStep(tryHeadRoot(dirs, oidBytes), head =>
-                head === null ? null : [...combine(found, packed), ...head]))
+            : mapStep(tryHeadFound(dirs, oidBytes), h =>
+                h === null
+                    ? null
+                    : combine({
+                        roots: [...found.roots, ...h.roots],
+                        names: [...found.names, ...h.names],
+                    }, packed)))
     })

@@ -402,6 +402,11 @@ export const proof = {
         assertEq(read(v2With([high, low])), null)
         // And across buckets, where the first bytes stop ascending too.
         assertEq(read(v2With([other, low])), null)
+        // The same id twice, which is neither ascending nor descending: the ids
+        // must *strictly* ascend, and this is the only case that reaches the
+        // comparison's "every byte is equal" answer. A file like this would make
+        // the search pick one of the two arbitrarily.
+        assertEq(read(v2With([low, low])), null)
     },
     // The width is the repository's. The same file read at the other width
     // puts the trailer in the wrong place, which the length check catches,

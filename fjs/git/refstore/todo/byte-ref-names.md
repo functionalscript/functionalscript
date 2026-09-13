@@ -29,17 +29,26 @@ So a loose ref whose name is not UTF-8 is unreachable here. Two halves of this
 module meet it differently, and neither is right:
 
 - [`tryResolve`](../module.f.mjs) cannot build a path for such a name, so it
-  treats the loose file as absent and answers the `packed-refs` line. That is
-  the only answer the host can give and it is wrong where such a loose file
-  exists and shadows a packed line: Git answers the loose id.
-- [`tryRoots`](../module.f.mjs) walks `refs/` through `readdir`, so it is handed
-  `�` for that entry, encodes it back as `0xEF 0xBF 0xBD`, and then fails
-  to read the file it was just told about — which this module reports on the
-  channel, since a file a listing named and a read cannot find is a broken host.
-  So one such file refuses the whole listing.
+  cannot ask whether the loose file that would shadow a `packed-refs` line is
+  there. Unknowable is not absent, so it refuses rather than answer the packed
+  line — which would be a stale id in exactly the state the host cannot observe.
+  A packed-only name is refused with it, which is the cost of not guessing.
+- [`tryRoots`](../module.f.mjs) *does* look, so it answers: the walk reads every
+  entry of `refs/`, and a loose file it cannot name is one it is handed as `�`,
+  re-encodes as `0xEF 0xBF 0xBD`, and then fails to read — which this module
+  reports on the channel, since a file a listing named and a read cannot find is
+  a broken host. So a packed name with no such file is listed correctly, and one
+  with such a file refuses the whole listing. Neither answer is a guess.
 
-A packed name is unaffected in both: it never becomes a path, and both halves
-answer it correctly.
+The two halves therefore disagree about a packed-only name: the listing has it
+and the lookup will not answer for it. That is the honest shape of the
+limitation rather than a bug in one of them — one half looked and the other
+cannot — and it is what this issue removes.
+
+The state that makes the lookup's refusal necessary cannot be built in a proof
+here either: the virtual filesystem spells a directory entry as a `string`, so a
+fixture cannot hold a file whose name is not UTF-8. A reader that answered from
+the packed line would be answering a state its own tests cannot reach.
 
 ### Proposal
 
