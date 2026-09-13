@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Array, Unknown } from '../../djs/types.ts'
+ * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { AstConst, AstBody, AstModuleRef, Import, Sharing } from './types.ts'
  * @import { _FoldObjectState, _Reach, _RunState } from './private.ts'

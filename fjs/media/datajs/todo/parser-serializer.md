@@ -148,9 +148,10 @@ which are proof obligations rather than notes:
   property, which it does through `Object.fromEntries` and which no type will
   check — its proof pins it.
 
-This is [157](../../../djs/todo/157-json-djs-shared-value-machine.md)'s fourth
-seam met from the other side, and it interacts with
-[663](../../../djs/todo/663-json-djs-tree-type.md).
+This is [157](../../../fsc/todo/157-json-djs-shared-value-machine.md)'s fourth
+seam met from the other side, and it interacts with the optional index
+signature of [`Tree<P>`](../../json/types.ts), the one recursive shape both
+formats instantiate.
 
 #### 2. Tokenizer
 
@@ -283,5 +284,5 @@ reader's two sets, `accept` and `reject`, are this file's; the writer's three �
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
 - [`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md) — the conformance corpus, landed as stage 1b. The proof source, and the schema for every set this issue's proofs read.
 - [JSON's reader](../../json/README.md) — stage 3, done: the grammar, with no token stream left beside it. Over a grammar the reuse is of rules and of the `string` mapping, which [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) and [`../parser`](../parser/module.f.mjs) do by import.
-- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
-- [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type; interacts with the optional index signature in §1.
+- [157](../../../fsc/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
+- [`fjs/media/json/types.ts`](../../json/types.ts) — the tree type; its optional index signature interacts with §1.

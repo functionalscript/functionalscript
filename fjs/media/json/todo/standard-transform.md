@@ -116,6 +116,5 @@ the P5 [native JSON compatibility](./native-json-compatibility.md) task.
   decisions for values that are not straightforward finite numbers.
 - [RTTI-aware extended JSON parser](./rtti-parse.md) — another consumer of the
   shared lossless structural parse.
-- [Generic JSON/DJS tree type](../../../djs/todo/663-json-djs-tree-type.md) — if
-  it lands first, reuse its generic recursive tree shape rather than duplicating
-  traversal types.
+- [`Tree<P>`](../types.ts) — the one recursive tree shape, which JSON, extended
+  JSON and DataJS instantiate; reuse it rather than duplicating traversal types.

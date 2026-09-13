@@ -8,7 +8,7 @@ result is distilled into a concrete design in [edag-spec.md](./edag-spec.md)
 and this document is deleted.
 
 The concrete DJS rollout is tracked in
-[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md):
+[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md):
 Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
 non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
@@ -196,7 +196,7 @@ Agreed points (not under discussion):
 The operations we want, with their stage. Every operand is an operation
 node; `node` below means any of them. The stage numbers match the concrete
 DJS rollout in
-[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md).
+[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md).
 
 #### Structural operations
 
@@ -934,7 +934,7 @@ the FJS compiler would never emit. To validate:
   function boundary (the closed-scope model above). Structural containers that are not
   nodes, such as object-entry descriptors, follow their operation-specific canonicality
   rules above instead. The initial Stage 2 validator/proofs for this boundary are tracked
-  by [`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md).
+  by [`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md).
 
 #### 6. Command vocabulary vs. the existing spec names
 
