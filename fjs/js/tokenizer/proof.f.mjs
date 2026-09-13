@@ -111,31 +111,31 @@ export const proof = {
     djs: [
         () => {
             const result = tokenizeString('')
-            if (result !== '[{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('{')
-            if (result !== '[{"kind":"{"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"{"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('}')
-            if (result !== '[{"kind":"}"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"}"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString(':')
-            if (result !== '[{"kind":":"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":":"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString(',')
-            if (result !== '[{"kind":","},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":","},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('[')
-            if (result !== '[{"kind":"["},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"["},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString(']')
-            if (result !== '[{"kind":"]"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"]"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('ᄑ')
@@ -143,15 +143,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('{ \t\n\r}')
-            if (result !== '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"{"},{"kind":"nl"},{"kind":"}"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('""')
-            if (result !== '[{"kind":"string","value":""},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":""},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"value"')
-            if (result !== '[{"kind":"string","value":"value"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"value"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"value')
@@ -159,7 +159,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"value1" "value2"')
-            if (result !== '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"value1"},{"kind":"ws"},{"kind":"string","value":"value2"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"')
@@ -167,15 +167,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\\\"')
-            if (result !== '[{"kind":"string","value":"\\\\"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"\\\\"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"\\""')
-            if (result !== '[{"kind":"string","value":"\\""},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"\\""},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"\\/"')
-            if (result !== '[{"kind":"string","value":"/"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"/"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"\\x"')
@@ -195,15 +195,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('"\\b\\f\\n\\r\\t"')
-            if (result !== '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"\\b\\f\\n\\r\\t"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"\\u1234"')
-            if (result !== '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"ሴ"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"\\uaBcDEeFf"')
-            if (result !== '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('"\\uEeFg"')
@@ -211,11 +211,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('0')
-            if (result !== '[{"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"0"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('[0]')
-            if (result !== '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('00')
@@ -227,15 +227,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('123456789012345678901234567890')
-            if (result !== '[{"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"123456789012345678901234567890"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('{90}')
-            if (result !== '[{"kind":"{"},{"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"{"},{"kind":"number","value":"90"},{"kind":"}"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('1 2')
-            if (result !== '[{"kind":"number","value":"1"},{"kind":"ws"},{"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"1"},{"kind":"ws"},{"kind":"number","value":"2"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('0. 2')
@@ -243,7 +243,7 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('10-0')
-            if (result !== '[{"kind":"number","value":"10"},{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"10"},{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('9a:')
@@ -251,11 +251,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-10')
-            if (result !== '[{"kind":"-"},{"kind":"number","value":"10"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"10"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-0')
-            if (result !== '[{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"0"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-00')
@@ -263,15 +263,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('-.123')
-            if (result !== '[{"kind":"-"},{"kind":"."},{"kind":"number","value":"123"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"."},{"kind":"number","value":"123"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('0.01')
-            if (result !== '[{"kind":"number","value":"0.01"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"0.01"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-0.9')
-            if (result !== '[{"kind":"-"},{"kind":"number","value":"0.9"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"0.9"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-0.')
@@ -283,11 +283,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('12.34')
-            if (result !== '[{"kind":"number","value":"12.34"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"12.34"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-12.00')
-            if (result !== '[{"kind":"-"},{"kind":"number","value":"12.00"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"12.00"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-12.')
@@ -299,27 +299,27 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('0e1')
-            if (result !== '[{"kind":"number","value":"0e1"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"0e1"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('0e+2')
-            if (result !== '[{"kind":"number","value":"0e+2"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"0e+2"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('0e-0')
-            if (result !== '[{"kind":"number","value":"0e-0"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"0e-0"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('12e0000')
-            if (result !== '[{"kind":"number","value":"12e0000"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"12e0000"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-12e-0001')
-            if (result !== '[{"kind":"-"},{"kind":"number","value":"12e-0001"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"12e-0001"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-12.34e1234')
-            if (result !== '[{"kind":"-"},{"kind":"number","value":"12.34e1234"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"number","value":"12.34e1234"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('0e')
@@ -331,19 +331,19 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('ABCdef1234567890$_')
-            if (result !== '[{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('{ABCdef1234567890$_}')
-            if (result !== '[{"kind":"{"},{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"{"},{"kind":"id","value":"ABCdef1234567890$_"},{"kind":"}"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('123 _123')
-            if (result !== '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"_123"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('123 $123')
-            if (result !== '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"123"},{"kind":"ws"},{"kind":"id","value":"$123"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('123_123')
@@ -355,15 +355,15 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('1234567890n')
-            if (result !== '[{"kind":"bigint","value":1234567890n},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"bigint","value":1234567890n},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('0n')
-            if (result !== '[{"kind":"bigint","value":0n},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"bigint","value":0n},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('[-1234567890n]')
-            if (result !== '[{"kind":"["},{"kind":"-"},{"kind":"bigint","value":1234567890n},{"kind":"]"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"["},{"kind":"-"},{"kind":"bigint","value":1234567890n},{"kind":"]"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('123.456n')
@@ -386,322 +386,322 @@ export const proof = {
     [
         () => {
             const result = tokenizeString('=')
-            if (result !== '[{"kind":"="},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"="},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('=a')
-            if (result !== '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"="},{"kind":"id","value":"a"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('-')
-            if (result !== '[{"kind":"-"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"-"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('1*2')
-            if (result !== '[{"kind":"number","value":"1"},{"kind":"*"},{"kind":"number","value":"2"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"number","value":"1"},{"kind":"*"},{"kind":"number","value":"2"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('( )')
-            if (result !== '[{"kind":"("},{"kind":"ws"},{"kind":")"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"("},{"kind":"ws"},{"kind":")"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('== != === !== > >= < <=')
-            if (result !== '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"=="},{"kind":"ws"},{"kind":"!="},{"kind":"ws"},{"kind":"==="},{"kind":"ws"},{"kind":"!=="},{"kind":"ws"},{"kind":">"},{"kind":"ws"},{"kind":">="},{"kind":"ws"},{"kind":"<"},{"kind":"ws"},{"kind":"<="},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('+ - * / % ++ -- **')
-            if (result !== '[{"kind":"+"},{"kind":"ws"},{"kind":"-"},{"kind":"ws"},{"kind":"*"},{"kind":"ws"},{"kind":"/"},{"kind":"ws"},{"kind":"%"},{"kind":"ws"},{"kind":"++"},{"kind":"ws"},{"kind":"--"},{"kind":"ws"},{"kind":"**"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"+"},{"kind":"ws"},{"kind":"-"},{"kind":"ws"},{"kind":"*"},{"kind":"ws"},{"kind":"/"},{"kind":"ws"},{"kind":"%"},{"kind":"ws"},{"kind":"++"},{"kind":"ws"},{"kind":"--"},{"kind":"ws"},{"kind":"**"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('= += -= *= /= %= **=')
-            if (result !== '[{"kind":"="},{"kind":"ws"},{"kind":"+="},{"kind":"ws"},{"kind":"-="},{"kind":"ws"},{"kind":"*="},{"kind":"ws"},{"kind":"/="},{"kind":"ws"},{"kind":"%="},{"kind":"ws"},{"kind":"**="},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"="},{"kind":"ws"},{"kind":"+="},{"kind":"ws"},{"kind":"-="},{"kind":"ws"},{"kind":"*="},{"kind":"ws"},{"kind":"/="},{"kind":"ws"},{"kind":"%="},{"kind":"ws"},{"kind":"**="},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('& | ^ ~ << >> >>>')
-            if (result !== '[{"kind":"&"},{"kind":"ws"},{"kind":"|"},{"kind":"ws"},{"kind":"^"},{"kind":"ws"},{"kind":"~"},{"kind":"ws"},{"kind":"<<"},{"kind":"ws"},{"kind":">>"},{"kind":"ws"},{"kind":">>>"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"&"},{"kind":"ws"},{"kind":"|"},{"kind":"ws"},{"kind":"^"},{"kind":"ws"},{"kind":"~"},{"kind":"ws"},{"kind":"<<"},{"kind":"ws"},{"kind":">>"},{"kind":"ws"},{"kind":">>>"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('&= |= ^= <<= >>= >>>=')
-            if (result !== '[{"kind":"&="},{"kind":"ws"},{"kind":"|="},{"kind":"ws"},{"kind":"^="},{"kind":"ws"},{"kind":"<<="},{"kind":"ws"},{"kind":">>="},{"kind":"ws"},{"kind":">>>="},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"&="},{"kind":"ws"},{"kind":"|="},{"kind":"ws"},{"kind":"^="},{"kind":"ws"},{"kind":"<<="},{"kind":"ws"},{"kind":">>="},{"kind":"ws"},{"kind":">>>="},{"kind":"eof"}]')
         },
         () => {
             // '<<<' and '<<<=' are not JS operators; maximal munch tokenizes them
             // as '<<' followed by '<' / '<=', matching the old tokenizer's behavior.
             const result = tokenizeString('<<< <<<=')
-            if (result !== '[{"kind":"<<"},{"kind":"<"},{"kind":"ws"},{"kind":"<<"},{"kind":"<="},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"<<"},{"kind":"<"},{"kind":"ws"},{"kind":"<<"},{"kind":"<="},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('&& || ! ??')
-            if (result !== '[{"kind":"&&"},{"kind":"ws"},{"kind":"||"},{"kind":"ws"},{"kind":"!"},{"kind":"ws"},{"kind":"??"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"&&"},{"kind":"ws"},{"kind":"||"},{"kind":"ws"},{"kind":"!"},{"kind":"ws"},{"kind":"??"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('&&= ||= ??=')
-            if (result !== '[{"kind":"&&="},{"kind":"ws"},{"kind":"||="},{"kind":"ws"},{"kind":"??="},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"&&="},{"kind":"ws"},{"kind":"||="},{"kind":"ws"},{"kind":"??="},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('? ?. . =>')
-            if (result !== '[{"kind":"?"},{"kind":"ws"},{"kind":"?."},{"kind":"ws"},{"kind":"."},{"kind":"ws"},{"kind":"=>"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"?"},{"kind":"ws"},{"kind":"?."},{"kind":"ws"},{"kind":"."},{"kind":"ws"},{"kind":"=>"},{"kind":"eof"}]')
         },
     ],
     ws: [
         () => {
             const result = tokenizeString(' ')
-            if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('\t')
-            if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString(' \t')
-            if (result !== '[{"kind":"ws"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"ws"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('\n')
-            if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"nl"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('\r')
-            if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"nl"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString(' \t\n\r ')
-            if (result !== '[{"kind":"nl"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"nl"},{"kind":"eof"}]')
         },
     ],
     id: [
         () => {
             const result = tokenizeString('err')
-            if (result !== '[{"kind":"id","value":"err"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"id","value":"err"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('{e}')
-            if (result !== '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"{"},{"kind":"id","value":"e"},{"kind":"}"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('tru')
-            if (result !== '[{"kind":"id","value":"tru"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"id","value":"tru"},{"kind":"eof"}]')
         },
     ],
     keywords: [
         () => {
             const result = tokenizeString('true')
-            if (result !== '[{"kind":"true"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"true"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('false')
-            if (result !== '[{"kind":"false"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"false"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('null')
-            if (result !== '[{"kind":"null"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"null"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('undefined')
-            if (result !== '[{"kind":"undefined"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"undefined"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('[null]')
-            if (result !== '[{"kind":"["},{"kind":"null"},{"kind":"]"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"["},{"kind":"null"},{"kind":"]"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('arguments')
-            if (result !== '[{"kind":"arguments"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"arguments"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('await')
-            if (result !== '[{"kind":"await"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"await"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('break')
-            if (result !== '[{"kind":"break"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"break"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('case')
-            if (result !== '[{"kind":"case"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"case"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('catch')
-            if (result !== '[{"kind":"catch"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"catch"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('class')
-            if (result !== '[{"kind":"class"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"class"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('const')
-            if (result !== '[{"kind":"const"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"const"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('continue')
-            if (result !== '[{"kind":"continue"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"continue"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('debugger')
-            if (result !== '[{"kind":"debugger"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"debugger"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('default')
-            if (result !== '[{"kind":"default"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"default"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('delete')
-            if (result !== '[{"kind":"delete"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"delete"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('do')
-            if (result !== '[{"kind":"do"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"do"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('else')
-            if (result !== '[{"kind":"else"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"else"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('enum')
-            if (result !== '[{"kind":"enum"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"enum"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('eval')
-            if (result !== '[{"kind":"eval"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"eval"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('export')
-            if (result !== '[{"kind":"export"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"export"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('extends')
-            if (result !== '[{"kind":"extends"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"extends"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('finally')
-            if (result !== '[{"kind":"finally"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"finally"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('for')
-            if (result !== '[{"kind":"for"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"for"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('function')
-            if (result !== '[{"kind":"function"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"function"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('if')
-            if (result !== '[{"kind":"if"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"if"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('implements')
-            if (result !== '[{"kind":"implements"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"implements"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('import')
-            if (result !== '[{"kind":"import"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"import"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('in')
-            if (result !== '[{"kind":"in"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"in"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('instanceof')
-            if (result !== '[{"kind":"instanceof"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"instanceof"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('interface')
-            if (result !== '[{"kind":"interface"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"interface"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('let')
-            if (result !== '[{"kind":"let"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"let"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('new')
-            if (result !== '[{"kind":"new"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"new"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('package')
-            if (result !== '[{"kind":"package"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"package"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('private')
-            if (result !== '[{"kind":"private"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"private"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('protected')
-            if (result !== '[{"kind":"protected"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"protected"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('public')
-            if (result !== '[{"kind":"public"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"public"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('return')
-            if (result !== '[{"kind":"return"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"return"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('static')
-            if (result !== '[{"kind":"static"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"static"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('super')
-            if (result !== '[{"kind":"super"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"super"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('switch')
-            if (result !== '[{"kind":"switch"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"switch"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('this')
-            if (result !== '[{"kind":"this"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"this"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('throw')
-            if (result !== '[{"kind":"throw"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"throw"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('try')
-            if (result !== '[{"kind":"try"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"try"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('typeof')
-            if (result !== '[{"kind":"typeof"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"typeof"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('var')
-            if (result !== '[{"kind":"var"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"var"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('void')
-            if (result !== '[{"kind":"void"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"void"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('while')
-            if (result !== '[{"kind":"while"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"while"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('with')
-            if (result !== '[{"kind":"with"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"with"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('yield')
-            if (result !== '[{"kind":"yield"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"yield"},{"kind":"eof"}]')
         },
     ],
     comments: [
         () => {
             const result = tokenizeString('//singleline comment')
-            if (result !== '[{"kind":"//","value":"singleline comment"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"//","value":"singleline comment"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('true//singleline comment\nfalse')
-            if (result !== '[{"kind":"true"},{"kind":"//","value":"singleline comment"},{"kind":"nl"},{"kind":"false"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"true"},{"kind":"//","value":"singleline comment"},{"kind":"nl"},{"kind":"false"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('/* multiline comment */')
-            if (result !== '[{"kind":"/*","value":" multiline comment "},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"/*","value":" multiline comment "},{"kind":"eof"}]')
         },
         () => {
             // a `/` inside the body is content: only `*/` ends the comment
             const result = tokenizeString('/* a/b ../../x.ts */')
-            if (result !== '[{"kind":"/*","value":" a/b ../../x.ts "},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"/*","value":" a/b ../../x.ts "},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('/* multiline comment *')
@@ -713,11 +713,11 @@ export const proof = {
         },
         () => {
             const result = tokenizeString('/* multiline comment \n * **/')
-            if (result !== '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"/*","value":" multiline comment \\n * *"},{"kind":"nl"},{"kind":"eof"}]')
         },
         () => {
             const result = tokenizeString('/* multiline comment *\n * **/')
-            if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
+            assertEq(result, '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]')
         },
         // `'/'` is an `operatorTags` member for division, so a line comment's own
         // slashes must be consumed by the comment rule before the tag reaches

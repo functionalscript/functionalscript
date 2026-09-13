@@ -124,7 +124,8 @@ top-level tag — adding no JSON grammar of its own. This todo therefore **depen
 on** that recognizer landing first.
 
 Strictness note: the recognizer must reject raw U+0000–U+001F inside strings,
-already fixed in the shared `fjs/js` tokenizer (`parseStringStateOp`). This
+already refused by JSON's own grammar — `character` in `fjs/ebnf/lib/json`
+admits nothing below U+0020 outside an escape. This
 matters here because `fjs/media/type`'s text gate admits TAB/VT/FF as text
 (`utf8Step`/`isTextCodePoint`), so without the strict check a blob like
 `{"a":"⟨TAB⟩"}` — invalid JSON per RFC 8259 — would be mislabeled
@@ -269,6 +270,6 @@ exactly the path `cas_get` uses.
 - `fjs/media/type/module.f.mjs:221-229` — `finish`, where the text→JSON refinement lands.
 - `fjs/media/type/module.f.mjs:140-161` — the UTF-8 factor whose decoded code points feed the JSON factor.
 - `fjs/media/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
-- `fjs/js/tokenizer/module.f.mjs` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
+- `fjs/ebnf/lib/json/module.f.mjs` — `character`; refuses raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
 - `fjs/media/json/parser/module.f.mjs:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
 - `fjs/mcp/cas/module.f.mjs:211-213` — `cas_get`, the consumer that gains `application/json` for free.

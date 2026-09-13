@@ -38,10 +38,10 @@ pipeline unfit as a validity check for a size-independent streaming consumer:
    `top`/`stack`, i.e. O(n) memory in the document size — even when the caller
    only wants a yes/no verdict.
 
-2. **The tokenizer buffers token payloads.** The shared `fjs/js` string and
-   number states accumulate their text with `appendChar`
-   (`ParseStringState.value`, `ParseNumberState.value` —
-   `fjs/js/tokenizer/module.f.mjs:436-474,550-556`). A single huge token — e.g.
+2. **The reader materializes token payloads.** The grammar's reader takes a
+   token's text as a slice of the input and decodes a string over it
+   (`lex` and `decodeJsonString` in `fjs/js/tokenizer`), and JSON's own
+   `parse` folds the string rule to its value. A single huge token — e.g.
    `{"x":"⟨1 MB⟩"}` or one very long number — allocates O(token length) even
    before the parser runs. So a recognizer built by discarding only the parser's
    values still buffers whole tokens.
@@ -200,10 +200,9 @@ The JSON tokenizer the bullets once expected to read is retired.
   leaving it off keeps them equivalent.
 
 - **Strictness.** Honor RFC 8259 at scan time. The raw-control-in-string
-  rejection already lives in the shared `fjs/js` tokenizer (`parseStringStateOp`),
-  so the recognizer inherits it for free by reusing that scanner's string op
-  (factored over a no-op builder, per the payload-free point above) rather than
-  re-deriving the check.
+  rejection already lives in the grammar's `character` rule
+  (`fjs/ebnf/lib/json`), so the recognizer inherits it for free by running
+  that grammar rather than re-deriving the check.
 
 Because the recognizer and the value-building `parse` run on the same state
 machine over the same grammar, they cannot diverge **by construction** — the
