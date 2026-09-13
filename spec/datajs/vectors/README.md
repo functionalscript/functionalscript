@@ -169,8 +169,8 @@ a set, and the reason is the same carrier fact: everything a set can spell is a
 value of the data model, so what is outside the model is outside the corpus by
 construction. What closes it there is narrowing the parameter, after which the
 gap has no inputs to reach — and that is the writer's decision to take, recorded
-in its own issue, which also records why its repository cannot prove the gap
-another way. §What may be serialized is the same shape: a rule an implementation
+in its own issue, which also records which half of the gap its own proofs cover
+and which half no proof there may build. §What may be serialized is the same shape: a rule an implementation
 answers in a host that can build the values, not something a vector reaches.
 
 **Normalized bytes** are the document as a string, and the set's proof

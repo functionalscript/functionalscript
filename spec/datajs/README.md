@@ -593,14 +593,21 @@ another realm. Each needs an API or a realm this format's own subset has not
 got, and a refusal is an error rather than a wrong document, which is why the
 permission costs nothing to a caller staying inside the model.
 
-**This is the one place the permission and the list above can name the same
-value, and the permission wins.** The list requires an `Array` subclass to
-serialize as its data, and it means one as built: its chain runs through
-`A.prototype` to `Array.prototype`. Re-point that chain and the value is in the
-family above, whatever it was before — the list is about values this format's
-callers construct, and re-pointing a prototype is not among the things they can
-do. A frozen array and an ordinary subclass are untouched: their chains reach
-`Array.prototype`, so nothing here permits refusing them.
+**Where the permission and the list above name the same value, the permission
+wins.** The list requires an `Array` subclass to serialize as its data, and it
+means one of this realm as built: its chain runs through `A.prototype` to this
+realm's `Array.prototype`, so it is `instanceof Array` and the permission does
+not reach it. Two things take a subclass instance out of that: re-pointing a
+prototype, and building it in another realm — a subclass instance from a second
+realm is a subclass *and* a foreign array, and it is the permission that decides
+it. Neither is something a caller staying inside this format's subset can do,
+which is why the list can speak of values as built and leave the rest to the
+predicate.
+
+So the reading is one predicate throughout: `instanceof Array` true, and the
+list decides — a plain array, a frozen one, a subclass of this realm are all
+data. `instanceof Array` false, and the permission decides — a re-pointed array,
+a foreign array, a foreign subclass may be refused, and nothing requires it.
 
 So the two shapes are not symmetric, and the asymmetry is the section's whole
 subject: **approximating is forbidden, refusing is not**. A serializer

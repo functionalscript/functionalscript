@@ -1,8 +1,10 @@
 ## DataJS parser and serializer
 
-**Priority:** P1 — stage 4 is P1 in the coordinating issue and in the
-conformance-vector issue, which says outright that it blocks stage 4 "which is
-P1". This file is the canonical co-located issue, so it carries the same level.
+**Priority:** P1 — stage 4 is P1 in [the coordinating
+issue](../../../../todo/parser-serializer-restructure.md), which calls it the
+deliverable everything else waits on, and the corpus that used to gate it has
+landed as [`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md).
+This file is the canonical co-located issue, so it carries the same level.
 **Status:** wip — **the reader landed, on the grammar route.**
 [`fjs/media/datajs/parser`](../parser/module.f.mjs) folds the grammar of
 [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) to a node per
