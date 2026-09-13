@@ -70,10 +70,12 @@ requires. A page binds the runner to its button.
 **A run's report is grouped by module, and what passed folds away.** The root
 page runs thousands of proofs, and one list of that many identical rows gave a
 reader no way to find the one that failed. Each module run is a group whose
-folded line carries its counts, failures first — `./list/proof.f.mjs — 46
-passed` — and a group closes as soon as the run moves past it having passed,
-so what stays open is exactly what needs reading. A failure's message and stack
-are a block of their own under its row. Two runs of the same module are two
+folded line is a green or red dot, the module's path, and its counts at the
+right edge, failures first — `1 failed · 14 passed` — and a group closes as soon
+as the run moves past it having passed, so what stays open is exactly what needs
+reading. The whole run's counts sit in the section's title, green and red, with
+the time. A failure's message and stack are a tinted box of their own under its
+row. Two runs of the same module are two
 groups, never merged, for the reason the runner's catalog gives.
 
 ## A demo shows what a module does

@@ -347,7 +347,7 @@ export const proof = {
         aDirectoryWithoutProofsHasNoSection: () => {
             const { root } = generate({ a: { 'notes.md': file('# notes') } })
             const page = pageAt(root, ['a'])
-            assert(!page.includes('<summary>Emergent Testing</summary>'), page)
+            assert(!page.includes('<summary>Emergent Testing'), page)
             assert(!page.includes('data-test-run'), page)
         },
         /**
@@ -489,7 +489,7 @@ export const proof = {
         // the reader came for, and a run cannot move what is above it.
         assert(
             source.indexOf('<summary>Directories</summary>')
-                < source.indexOf('<summary>Emergent Testing</summary>'),
+                < source.indexOf('<summary>Emergent Testing<span data-test-counts=""></span></summary>'),
             source)
         // The heading is the project; the suite is one section of its page.
         assert(source.includes('<h1>FunctionalScript</h1>'), source)

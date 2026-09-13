@@ -140,16 +140,19 @@ startDemo(document.querySelector('[data-demo]'))
  */
 export const testSection = dir => intro => {
     if (dir.proofs.length === 0) { return [] }
-    /** @type {(rest: readonly Node[]) => readonly Node[]} */
-    const section = rest => [['details', { 'data-section': '', open: '' },
-        ['summary', 'Emergent Testing'],
+    /** @type {(title: Element) => (rest: readonly Node[]) => readonly Node[]} */
+    const section = title => rest => [['details', { 'data-section': '', open: '' },
+        title,
         ...intro,
         ...rest,
         ['ul', ...dir.proofs.map(proofItem)],
     ]]
     const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
-    if (linkable.length === 0) { return section([]) }
-    return section([
+    if (linkable.length === 0) { return section(['summary', 'Emergent Testing'])([]) }
+    // **The run's counts go in the title**, so they stay in sight with the
+    // section folded. The slot is there only where something can run: a title
+    // waiting for counts over a suite with no control would wait for ever.
+    return section(['summary', 'Emergent Testing', ['span', { 'data-test-counts': '' }]])([
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,

@@ -384,13 +384,23 @@ export const groupByModule = results => {
 }
 
 /**
- * What a group says about itself on its folded line: the module, and its
- * counts with the failures first.
+ * The counts on a group's line, with the failures first. The module's path is
+ * the line's own separate part, so this is only what sits at its right edge.
  *
- * A group that passed is folded, so this line is all a reader sees of it; and
- * a failure is the one count anybody scans for, so it leads rather than trails.
+ * A group that passed is folded, so its line is all a reader sees of it; and a
+ * failure is the one count anybody scans for, so it leads rather than trails.
  *
- * @type {(module: string, passed: number, failed: number) => string}
+ * @type {(passed: number, failed: number) => string}
  */
-export const groupLabel = (module, passed, failed) =>
-    failed === 0 ? `${module} — ${passed} passed` : `${module} — ${failed} failed, ${passed} passed`
+export const groupLabel = (passed, failed) =>
+    failed === 0 ? `${passed} passed` : `${failed} failed · ${passed} passed`
+
+/**
+ * A run's duration as the report's title shows it: milliseconds under a
+ * second, seconds from there on. The root page's suite takes the better part
+ * of two minutes, and `103812.4 ms` is not a number a reader takes in at a
+ * glance where `103.8 s` is.
+ *
+ * @type {(ms: number) => string}
+ */
+export const formatDuration = ms => ms < 1000 ? `${ms.toFixed(1)} ms` : `${(ms / 1000).toFixed(1)} s`

@@ -81,7 +81,7 @@ const dom = () => {
      * `baseURI` is what the runner resolves a relative source against, so a
      * proof about resolution supplies a real one.
      *
-     * @type {(withView?: boolean, baseURI?: string) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
+     * @type {(withView?: boolean, baseURI?: string) => { readonly root: Element, readonly counts: _Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
      */
     const page = (withView = true, baseURI = 'https://example.invalid/') => {
         /** @type {string[]} */
@@ -107,11 +107,13 @@ const dom = () => {
         if (withView) { document.defaultView = view }
         const root = element(document, 'main', ['data-browser-tests'], states)
         root.replaceChildren(
+            element(document, 'span', ['data-test-counts'], states),
             element(document, 'p', ['data-test-summary'], states),
             element(document, 'button', ['data-test-run'], states),
-            element(document, 'ol', ['data-test-results'], states))
+            element(document, 'div', ['data-test-results'], states))
         return {
             root: /** @type {Element} */ (/** @type {unknown} */ (root)),
+            counts: assertNotNullish(root.querySelector('[data-test-counts]')),
             summary: assertNotNullish(root.querySelector('[data-test-summary]')),
             results: assertNotNullish(root.querySelector('[data-test-results]')),
             runButton: assertNotNullish(root.querySelector('[data-test-run]')),
@@ -132,10 +134,22 @@ const dom = () => {
     /** @type {(element: _Element) => readonly (string | undefined)[]} */
     const statuses = element => rows(element).map(child => child.attributes.get('data-status'))
 
-    return { element, page, rows, statuses }
+    /**
+     * What the title's counts say, one entry per part — which part it is,
+     * and its text. The duration's text is a wall-clock reading, so it is
+     * named and not compared.
+     *
+     * @type {(counts: _Element) => readonly (readonly [string, string])[]}
+     */
+    const countParts = counts => counts.children.map(child => {
+        const [name] = [...child.attributes.keys()]
+        return /** @type {const} */ ([name ?? '', name === 'data-duration' ? '' : child.textContent])
+    })
+
+    return { countParts, element, page, rows, statuses }
 }
 
-const { element, page, rows, statuses } = dom()
+const { countParts, element, page, rows, statuses } = dom()
 
 /** @type {(proof: unknown) => ReturnType<typeof runBrowserProofs>} */
 const run = proof => runBrowserProofs([['proof', proof]])
@@ -517,7 +531,10 @@ export const proof = {
             [['m', { ok: () => undefined, bad: () => { throw 'x' } }]])
         assertEq(report.status, 'failed')
         assertStructurallySame([...p.states], ['running', 'failed'])
-        assertEq(p.summary.textContent, `1 passed, 1 failed (${report.duration.toFixed(1)} ms)`)
+        // The counts are the title's, so the line under it has nothing to add.
+        assertEq(p.summary.textContent, '')
+        assertStructurallySame(countParts(p.counts),
+            [['data-count-passed', '1 passed'], ['data-count-failed', '1 failed'], ['data-duration', '']])
         assertStructurallySame([...statuses(p.results)], ['passed', 'failed'])
         const event = assertNotNullish(p.view.events[0])
         assertEq(event.type, 'fjs-browser-test-complete')
@@ -530,7 +547,9 @@ export const proof = {
         const p = page(false)
         const report = await startBrowserTests(p.root, [['m', { ok: () => undefined }]])
         assertEq(report.status, 'passed')
-        assertEq(p.summary.textContent, `1 passed, 0 failed (${report.duration.toFixed(1)} ms)`)
+        assertEq(p.summary.textContent, '')
+        // Nothing failed, so there is no red count at all — not a red zero.
+        assertStructurallySame(countParts(p.counts), [['data-count-passed', '1 passed'], ['data-duration', '']])
         assertEq(p.view.events.length, 0)
         assertEq(p.view.fjsBrowserTestReport, undefined)
     },
@@ -545,7 +564,8 @@ export const proof = {
             duration: 1,
             results: [{ module: 'm', path: '.t', name: 'import("m").proof.t()', status: 'passed', duration: 0.5 }],
         })
-        assertEq(p.summary.textContent, '1 passed, 0 failed (1.0 ms)')
+        assertEq(p.summary.textContent, '')
+        assertStructurallySame(p.counts.children.map(child => child.textContent), ['1 passed', '1.0 ms'])
         assertEq(rows(p.results)[0]?.textContent, 'PASS import("m").proof.t() (0.5 ms)')
     },
     /**
@@ -564,7 +584,11 @@ export const proof = {
         assertStructurallySame(groups.map(g => g.attributes.get('data-test-module')), ['m', 'n'])
         assertStructurallySame(groups.map(g => g.attributes.get('data-status')), ['passed', 'failed'])
         assertStructurallySame(groups.map(g => g.attributes.has('open')), [false, true])
-        assertStructurallySame(groups.map(g => g.children[0]?.textContent), ['m — 2 passed', 'n — 1 failed, 0 passed'])
+        assertStructurallySame(groups.map(g => g.querySelector('[data-path]')?.textContent), ['m', 'n'])
+        assertStructurallySame(groups.map(g => g.querySelector('[data-counts]')?.textContent), ['2 passed', '1 failed · 0 passed'])
+        // The dot is its own element, so the stylesheet colours it by the
+        // group's status rather than by reading its text.
+        assert(groups.every(g => g.querySelector('[data-dot]') !== null), 'every group line has a dot')
     },
     /**
      * **A failure's error is a block of its own under its row**, not more text
@@ -601,6 +625,20 @@ export const proof = {
             }],
         ])
         assertStructurallySame(seen, [['passed', false], ['failed', true], ['running', true]])
+    },
+    /**
+     * **A new run's title drops the last run's counts** before it has any of
+     * its own — read from inside the second run's leaf, since afterwards the
+     * title holds the second run's counts and would look the same either way.
+     */
+    countsClearWhenARunStarts: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [['m', { a: () => undefined }]])
+        assertEq(p.counts.children.length, 2)
+        /** @type {number[]} */
+        let during = []
+        await startBrowserTests(p.root, [['m', { a: () => { during = [...during, p.counts.children.length] } }]])
+        assertStructurallySame(during, [0])
     },
     // Two entries may share a label and are two runs (catalog item 6), so they
     // are two groups: folding them into one would also reorder what ran
@@ -810,6 +848,8 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assert(p.summary.textContent.startsWith('Infrastructure error: 1 failed to load'),
             p.summary.textContent)
+        assertStructurallySame(countParts(p.counts),
+            [['data-count-passed', '0 passed'], ['data-count-failed', '1 failed'], ['data-duration', '']])
         assertStructurallySame([...statuses(p.results)], ['failed'])
         assertEq(p.view.events.length, 1)
     },

@@ -114,7 +114,8 @@ export const proof = {
         namesItsProofsAndBindsRun: () => {
             const html = concat(element(['body', ...testSection(
                 { ...empty, proofs: [{ name: './proof.f.mjs', blockers: [] }] })([])]))
-            assert(html.includes('<summary>Emergent Testing</summary>'), html)
+            // The title carries a slot the runner fills with the run's counts.
+            assert(html.includes('<summary>Emergent Testing<span data-test-counts=""></span></summary>'), html)
             assert(html.includes('<li>./proof.f.mjs</li>'), html)
             assert(html.includes('data-test-run'), html)
             assert(html.includes('<div data-test-results="">'), html)

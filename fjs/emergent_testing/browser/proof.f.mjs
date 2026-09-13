@@ -17,7 +17,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { groupByModule, groupLabel, loadProofs, reportOf, runProofs } from './module.f.mjs'
+import { formatDuration, groupByModule, groupLabel, loadProofs, reportOf, runProofs } from './module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
@@ -399,8 +399,14 @@ export const proof = {
     },
     groupLabel: {
         // A group that passed says how many, which is all its folded line shows.
-        passed: () => assertEq(groupLabel('./proof.f.mjs', 42, 0), './proof.f.mjs — 42 passed'),
+        passed: () => assertEq(groupLabel(42, 0), '42 passed'),
         // A failure leads, because it is the count a reader is scanning for.
-        failed: () => assertEq(groupLabel('./proof.f.mjs', 14, 1), './proof.f.mjs — 1 failed, 14 passed'),
+        failed: () => assertEq(groupLabel(14, 1), '1 failed · 14 passed'),
+    },
+    formatDuration: {
+        underASecond: () => assertEq(formatDuration(82.34), '82.3 ms'),
+        // From a second on, seconds: the root page's suite is minutes long.
+        fromASecond: () => assertEq(formatDuration(1000), '1.0 s'),
+        long: () => assertEq(formatDuration(103812.4), '103.8 s'),
     },
 }

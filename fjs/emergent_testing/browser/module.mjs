@@ -27,7 +27,7 @@
  */
 
 import {
-    errorDetails, groupByModule, groupLabel, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
+    errorDetails, formatDuration, groupByModule, groupLabel, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
 } from './module.f.mjs'
 // The phrase for a value that will not be read is the runners' shared one:
 // this host meets such a value at its `import` boundary, where the walk cannot.
@@ -371,6 +371,9 @@ export const startBrowserTestSources = (root, sources) => {
  */
 const setState = (root, state) => {
     root.setAttribute('data-state', state)
+    // A new run's title must not keep the last run's counts while this one
+    // has none yet.
+    if (state === 'loading' || state === 'running') { root.querySelector('[data-test-counts]')?.replaceChildren() }
     const runButton = root.querySelector('[data-test-run]')
     if (runButton !== null) {
         if (state === 'loading' || state === 'running') {
@@ -390,19 +393,48 @@ export const renderBrowserReport = (root, report) => {
     setState(root, report.status)
     const summary = root.querySelector('[data-test-summary]')
     if (summary !== null) {
+        // The counts are the section title's now, so this line says only what
+        // the title cannot: that the suite never reached its tests. A run that
+        // did leaves it empty, and the stylesheet draws nothing for it.
         summary.textContent = report.status === 'infrastructure-error'
-            ? `Infrastructure error: ${report.totals.failed} failed to load (${report.duration.toFixed(1)} ms)`
-            : `${report.totals.passed} passed, ${report.totals.failed} failed (${report.duration.toFixed(1)} ms)`
+            ? `Infrastructure error: ${report.totals.failed} failed to load (${formatDuration(report.duration)})`
+            : ''
     }
+    const counts = root.querySelector('[data-test-counts]')
+    if (counts !== null) { counts.replaceChildren(...renderCounts(root.ownerDocument, report)) }
     const output = root.querySelector('[data-test-results]')
     if (output !== null) {
         output.replaceChildren(...groupByModule(report.results).map(({ module, results, passed, failed }) => {
             const group = openGroup(root.ownerDocument, module)
             for (const result of results) { group.list.append(renderResult(root.ownerDocument, result)) }
-            labelGroup(group, module, passed, failed, true)
+            labelGroup(group, passed, failed, true)
             return group.details
         }))
     }
+}
+
+/**
+ * The run's counts, for the section's title: a green count of what passed, a
+ * red one of what failed, and the time.
+ *
+ * **The red count is there only when something failed**, so a clean run's
+ * title does not carry a zero in the colour that means trouble.
+ *
+ * @type {(document: Document, report: BrowserTestReport) => readonly HTMLElement[]}
+ */
+const renderCounts = (document, report) => {
+    /** @type {(attribute: string, text: string) => HTMLElement} */
+    const span = (attribute, text) => {
+        const element = document.createElement('span')
+        element.setAttribute(attribute, '')
+        element.textContent = text
+        return element
+    }
+    return [
+        span('data-count-passed', `${report.totals.passed} passed`),
+        ...(report.totals.failed === 0 ? [] : [span('data-count-failed', `${report.totals.failed} failed`)]),
+        span('data-duration', formatDuration(report.duration)),
+    ]
 }
 
 /**
@@ -415,7 +447,11 @@ export const renderBrowserReport = (root, report) => {
  * Open while running so the pending row is on screen — the whole point of
  * announcing a leaf before running it — and settled by {@link labelGroup}.
  *
- * @type {(document: Document, module: string) => { readonly details: HTMLDetailsElement, readonly summary: HTMLElement, readonly list: HTMLOListElement }}
+ * Its line is three parts — a dot for its verdict, the module's path, and its
+ * counts — so the stylesheet can colour the dot and push the counts to the
+ * right edge without parsing a sentence.
+ *
+ * @type {(document: Document, module: string) => { readonly details: HTMLDetailsElement, readonly counts: HTMLElement, readonly list: HTMLOListElement }}
  */
 const openGroup = (document, module) => {
     const details = document.createElement('details')
@@ -423,11 +459,21 @@ const openGroup = (document, module) => {
     details.setAttribute('data-status', 'running')
     details.setAttribute('open', '')
     const summary = document.createElement('summary')
-    summary.textContent = groupLabel(module, 0, 0)
+    const dot = document.createElement('span')
+    dot.setAttribute('data-dot', '')
+    const path = document.createElement('span')
+    path.setAttribute('data-path', '')
+    path.textContent = module
+    const counts = document.createElement('span')
+    counts.setAttribute('data-counts', '')
+    counts.textContent = groupLabel(0, 0)
+    summary.append(dot)
+    summary.append(path)
+    summary.append(counts)
     const list = document.createElement('ol')
     details.append(summary)
     details.append(list)
-    return { details, summary, list }
+    return { details, counts, list }
 }
 
 /**
@@ -439,10 +485,10 @@ const openGroup = (document, module) => {
  * moment it knows. One that has only passed so far may still fail, so it
  * stays `running` and open until the run moves on to another module.
  *
- * @type {(group: { readonly details: Element, readonly summary: Element }, module: string, passed: number, failed: number, settled: boolean) => void}
+ * @type {(group: { readonly details: Element, readonly counts: Element }, passed: number, failed: number, settled: boolean) => void}
  */
-const labelGroup = ({ details, summary }, module, passed, failed, settled) => {
-    summary.textContent = groupLabel(module, passed, failed)
+const labelGroup = ({ details, counts }, passed, failed, settled) => {
+    counts.textContent = groupLabel(passed, failed)
     if (failed !== 0) {
         details.setAttribute('data-status', 'failed')
     } else if (settled) {
@@ -522,19 +568,19 @@ export const startBrowserTests = (root, modules) => {
     // The group rows are landing in. One is enough for the same reason one
     // pending row is: the run is sequential, so a module's results are adjacent
     // and the group changes only when the module does.
-    /** @type {{ readonly module: string, readonly details: HTMLDetailsElement, readonly summary: HTMLElement, readonly list: HTMLOListElement, passed: number, failed: number } | null} */
+    /** @type {{ readonly module: string, readonly details: HTMLDetailsElement, readonly counts: HTMLElement, readonly list: HTMLOListElement, passed: number, failed: number } | null} */
     let group = null
     /**
      * The group for `module`: the current one, or a new one — in which case the
      * previous group is settled first, so a module that passed folds as soon as
      * the run has moved past it rather than at the end of the suite.
      *
-     * @type {(target: Element, module: string) => { readonly module: string, readonly details: HTMLDetailsElement, readonly summary: HTMLElement, readonly list: HTMLOListElement, passed: number, failed: number }}
+     * @type {(target: Element, module: string) => { readonly module: string, readonly details: HTMLDetailsElement, readonly counts: HTMLElement, readonly list: HTMLOListElement, passed: number, failed: number }}
      */
     const groupFor = (target, module) => {
         const current = group
         if (current !== null && current.module === module) { return current }
-        if (current !== null) { labelGroup(current, current.module, current.passed, current.failed, true) }
+        if (current !== null) { labelGroup(current, current.passed, current.failed, true) }
         const next = { module, ...openGroup(root.ownerDocument, module), passed: 0, failed: 0 }
         target.append(next.details)
         group = next
@@ -558,7 +604,7 @@ export const startBrowserTests = (root, modules) => {
             }
             pending = null
             if (result.status === 'passed') { into.passed += 1 } else { into.failed += 1 }
-            labelGroup(into, into.module, into.passed, into.failed, false)
+            labelGroup(into, into.passed, into.failed, false)
         },
         id => {
             if (output === null) { return }

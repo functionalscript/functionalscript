@@ -41,9 +41,9 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --pass: #137333; --fail: #b3261e }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6 }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --pass: #81c995; --fail: #f28b82 }
+    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
 }
 body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
@@ -51,21 +51,39 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
 [data-test-results] { color: var(--text) }
 [data-status="passed"]::marker { color: var(--pass) }
 [data-status="failed"] { color: var(--fail) }
-/* One group per module, folded when every row in it passed. What a reader
-   scans for is the failure, so a passing row and a passed group recede into
-   the muted colour and a failed group is marked twice: its line in bold, and a
-   rule down its left edge that survives folding it. A failure's error is its
-   own pre block, in the ordinary text colour, so a stack is readable rather
-   than a wall of red — and it may break inside a word, because a stack line is
-   often one long URL, and pre-wrap alone would run it off the page. */
-[data-test-module] { border-left: 3px solid transparent; margin: .25rem 0; padding-left: .5rem }
-[data-test-module][data-status="failed"] { border-left-color: var(--fail) }
-[data-test-module] > summary { cursor: pointer }
-[data-test-module][data-status="passed"] > summary { color: var(--muted) }
-[data-test-module][data-status="failed"] > summary { font-weight: 600 }
-[data-test-module] > ol { margin: .25rem 0 .5rem; padding-left: 2rem }
+/* The report is one framed panel: a group per module, divided by rules, each
+   line a chevron, a dot for its verdict, the module's path, and its counts at
+   the right edge. A group that passed folds and recedes; one that failed stays
+   open with a red dot. A failure's error is a tinted, bordered box in the
+   ordinary text colour, so a stack is readable rather than a wall of red, and
+   it may break inside a word because a stack line is often one long URL. The
+   panel is not drawn until a run has put something in it. */
+[data-test-results] { border: 1px solid var(--border); border-radius: 10px; margin-top: .5rem; overflow: hidden }
+[data-test-results]:empty { display: none }
+[data-test-module] { color: var(--text) }
+[data-test-module] + [data-test-module] { border-top: 1px solid var(--border) }
+[data-test-module] > summary { align-items: center; cursor: pointer; display: flex; gap: .5rem; list-style: none; padding: .4rem .75rem }
+[data-test-module] > summary::-webkit-details-marker { display: none }
+[data-test-module] > summary::before { color: var(--muted); content: "▸"; display: inline-block; flex: none; transition: transform .15s; width: 1ch }
+[data-test-module][open] > summary::before { transform: rotate(90deg) }
+[data-dot] { background: var(--muted); border-radius: 50%; flex: none; height: .5rem; width: .5rem }
+[data-status="passed"] > summary > [data-dot] { background: var(--pass) }
+[data-status="failed"] > summary > [data-dot] { background: var(--fail) }
+[data-path] { overflow-wrap: anywhere }
+[data-counts] { color: var(--muted); margin-left: auto; white-space: nowrap }
+[data-test-module] > ol { margin: 0 0 .5rem; padding: 0 .75rem 0 3rem }
 li[data-status="passed"] { color: var(--muted) }
-[data-test-error] { border-left: 3px solid var(--fail); color: var(--text); margin: .25rem 0 .5rem; overflow-wrap: anywhere; padding: .25rem .5rem }
+[data-test-error] { background: var(--fail-bg); border: 1px solid color-mix(in srgb, var(--fail) 40%, transparent); border-radius: 6px; color: var(--text); margin: .25rem 0 .5rem; overflow-wrap: anywhere; padding: .5rem .6rem }
+/* The run's counts sit in the section's own title — green for what passed,
+   red for what failed, and the time at the right edge — so they stay in sight
+   with the section folded. The line under the title keeps only what the title
+   cannot say, and is not drawn when it has nothing to say. */
+[data-test-counts] { font-size: .8rem; font-weight: 600 }
+[data-count-passed], [data-count-failed] { border-radius: 999px; margin-left: .5rem; padding: .1rem .5rem; vertical-align: middle }
+[data-count-passed] { background: var(--pass-bg); color: var(--pass) }
+[data-count-failed] { background: var(--fail-bg); color: var(--fail) }
+[data-duration] { color: var(--muted); float: right; font-weight: 400; line-height: 1.9rem }
+[data-test-summary]:empty { display: none }
 /* Some elements do not inherit the page's font on their own. A browser's rule
    for pre names a monospace family, and naming one is what triggers the legacy
    shrink to 13.33px; a form control is given the platform's UI face outright,
