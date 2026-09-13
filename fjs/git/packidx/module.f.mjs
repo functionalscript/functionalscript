@@ -127,16 +127,17 @@ const differsAt = (b, x, y, width, k) =>
  * this replaced. In isolation on 100,000 first bytes, the 256 filters take
  * 427 ms and the 256 searches 1 ms.
  *
- * @type {(firsts: readonly number[], k: number) => number}
+ * The range it searches is a parameter rather than a capture, as `k` and the list
+ * are, so this is closed and lives at module scope like {@link differsAt}: one
+ * function for the whole file instead of a fresh closure per call, and there are
+ * 256 calls per index — one per bucket the fanout names.
+ *
+ * @type {(firsts: readonly number[], k: number, lo: number, hi: number) => number}
  */
-const upTo = (firsts, k) => {
-    /** @type {(lo: number, hi: number) => number} */
-    const search = (lo, hi) => {
-        if (lo >= hi) { return lo }
-        const mid = lo + Math.floor((hi - lo) / 2)
-        return firsts[mid] <= k ? search(mid + 1, hi) : search(lo, mid)
-    }
-    return search(0, firsts.length)
+const upTo = (firsts, k, lo, hi) => {
+    if (lo >= hi) { return lo }
+    const mid = lo + Math.floor((hi - lo) / 2)
+    return firsts[mid] <= k ? upTo(firsts, k, mid + 1, hi) : upTo(firsts, k, lo, mid)
 }
 
 /**
@@ -173,7 +174,7 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
     /** The first byte of each id, which is the bucket the fanout counts. */
     const firsts = Array.from({ length: n }, (_, i) => b[idsAt + i * stride])
     return Array.from({ length: fanout }, (_, k) => k)
-        .every(k => u32(b, fanoutAt + k * 4) === upTo(firsts, k))
+        .every(k => u32(b, fanoutAt + k * 4) === upTo(firsts, k, 0, firsts.length))
 }
 
 /**
@@ -319,6 +320,30 @@ export const tryIdx = oidBytes => input => {
 }
 
 /**
+ * Where the id a value spells sits in the index's offsets, or `null` where the
+ * index does not hold it: the bisection {@link offsetOf} is, over the range
+ * `[lo, hi)`.
+ *
+ * Closed and at module scope, like {@link upTo} and {@link differsAt} above: the
+ * tables, the value searched for and the range are parameters, so a lookup
+ * allocates no closure and the function has an identity of its own (§3.3). The
+ * value and not the id, because an id is a `Vec` and comparing two of them means
+ * comparing their values — the width is the index's and {@link offsetOf} has
+ * already checked it, so every comparison here is between equal widths.
+ *
+ * @type {(ids: readonly Oid[], offsets: readonly number[], target: bigint, lo: number, hi: number) => Nullable<number>}
+ */
+const offsetIn = (ids, offsets, target, lo, hi) => {
+    if (lo >= hi) { return null }
+    const mid = lo + Math.floor((hi - lo) / 2)
+    const v = uint(ids[mid])
+    if (v === target) { return offsets[mid] }
+    return v < target
+        ? offsetIn(ids, offsets, target, mid + 1, hi)
+        : offsetIn(ids, offsets, target, lo, mid)
+}
+
+/**
  * Where an id's entry begins in the pack, or `null` where the pack does not
  * hold it.
  *
@@ -345,16 +370,7 @@ export const tryIdx = oidBytes => input => {
  */
 export const offsetOf = ({ oidBytes, ids, offsets }) => id => {
     assert(length(id) === BigInt(oidBytes) * 8n, ['not an id of the index width', id])
-    const target = uint(id)
-    /** @type {(lo: number, hi: number) => Nullable<number>} */
-    const search = (lo, hi) => {
-        if (lo >= hi) { return null }
-        const mid = lo + Math.floor((hi - lo) / 2)
-        const v = uint(ids[mid])
-        if (v === target) { return offsets[mid] }
-        return v < target ? search(mid + 1, hi) : search(lo, mid)
-    }
-    return search(0, ids.length)
+    return offsetIn(ids, offsets, uint(id), 0, ids.length)
 }
 
 /**
