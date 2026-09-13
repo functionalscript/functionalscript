@@ -36,41 +36,39 @@ instances of that fold in the tree.
 Export three names from `fjs/crypto/sha2/module.f.mjs` beside `framing`:
 
 ```ts
-import type { Framing, Framed, Hash } from './types.ts'
+import type { FramingInit, Framed, Hash } from './types.ts'
 /**
- * The `Hash` over a built framing and its initial words — the one place the
- * `hashBytes`/`blockBytes` rounding and the `{ hash, len: 0n, remainder: empty }`
- * initial state are spelled. `H` is the hash value's shape (`V8`, `V5`).
+ * The `Hash` over a framing this builds from `init` and the initial words —
+ * the one place the `hashBytes`/`blockBytes` rounding and the
+ * `{ hash, len: 0n, remainder: empty }` initial state are spelled. `H` is
+ * the hash value's shape (`V8`, `V5`).
  */
-export const framed: <H>(f: Framing<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>
+export const framed: <H>(init: FramingInit<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>
 /** The bigint the words spell, most significant first, each `wordLength` bits wide; `[]` is `0n`. */
 export const fromWords: (wordLength: bigint) => (words: readonly bigint[]) => bigint
 export const ch: (x: bigint, y: bigint, z: bigint) => bigint
 export const maj: (x: bigint, y: bigint, z: bigint) => bigint
 ```
 
-`framed` takes a **built** `Framing<H>` — what a `framing(…)` call
-returns, typed over the same `H` as `hash` — plus the initial words and
-the `hashLength` that `end` is closed over; the state it returns is
-`Framed<H>` and its `R` is the default `Vec`. The block length is **not
-a separate argument**: `Framing<H>` gains a `readonly chunkLength:
-bigint` that `framing` copies from the `FramingInit` it was built from,
-so the width `framed` advertises as `blockLength`/`blockBytes` is the
-width `append` and `end` actually frame with, by construction — a
-caller cannot attach `1024n` to closures built for 512-bit blocks, which
-would have had `hmac` pad keys to a width the framing never used.
-`Framing<H>` is exported from `sha2/types.ts`, so a **required** new
-member is a breaking change — a caller that constructs or mocks the
-current `{ append, end }` shape stops type-checking — and the PR
-declares it with a `Changelog:` entry; it is not made optional, because
-an optional width is exactly the uncoupled one this closes. Every value
-of the type in the repository (`base32`, `base64`, and what `framing`
-returns) gains the field in the same PR. It is exactly the private
-`sha2` factory with `V8` generalized to `H`, and its parameter is
-exactly what that factory already receives: `base32` and `base64` carry
-`append`, `end`, and `chunkLength` today (`base`'s own `chunkLength` is
-the one it hands `framing`), so they satisfy `Framing<V8>` structurally
-and are passed to `framed` unchanged. **Nothing about `Base` changes** — neither the exported type
+`framed` takes the **`FramingInit<H>`** — the same record `framing`
+takes — plus the initial words and the `hashLength` that `end` is
+closed over, and calls `framing(init)` itself; the state it returns is
+`Framed<H>` and its `R` is the default `Vec`. That is what makes the
+block length coupled **by construction and not by field**: the width
+`framed` advertises as `blockLength`/`blockBytes` is `init.chunkLength`,
+and the `append`/`end` it uses were built from that same `init`, so no
+caller can pair 1024-bit metadata with 512-bit closures — there is no
+value in which the two exist separately. A structural
+`Framing<H> & { chunkLength }` was tried and does not give this: a
+caller can write `{ ...framing(init512), chunkLength: 1024n }` and the
+type is satisfied, which would have had `hmac` pad keys to a width the
+framing never used. `Framing<H>` is therefore **left as it is** — no new
+member, no break. `framed` is exactly the private `sha2` factory with
+`framing` folded in and `V8` generalized to `H`; `sha2`'s `base` keeps
+its `FramingInit<V8>` as a module-scope value beside the exported
+record, and each variant is `framed(init32, hash, hashLength)` — a
+framing built per variant rather than per width, six closures instead
+of two, which is simplicity over an optimization nothing measured. **Nothing about `Base` changes** — neither the exported type
 nor the exported values `base32`/`base64`, whose shape stays
 `{ bitLength, chunkLength, compress, fromV8, append, end }`: `fjs/sul/id`
 imports `base32` and the SHA-2 proof reads `fromV8`, `compress`, and
@@ -98,10 +96,10 @@ form is chosen because a public function over `readonly bigint[]` must
 answer for every value of that type, and `0n` is the answer that needs no
 special case. The proof pins `fromWords(32n)([]) === 0n` alongside the
 `V5`/`V8` rows. `sha1` then builds its record as
-`framed(framing({ chunkLength, lengthLength, digestLength: hashLength,
-compress, digest: fromWords(wordLength) }), [0x67452301n, …], hashLength)`
-instead of writing the literal — `framing` as it imports it today,
-`framed` beside it, and the block length stated once, in the init.
+`framed({ chunkLength, lengthLength, digestLength: hashLength, compress,
+digest: fromWords(wordLength) }, [0x67452301n, …], hashLength)` instead
+of writing the literal — importing `framed` in place of `framing`, the
+block length stated once, in the init, and nowhere else.
 
 ### Tasks
 
@@ -109,9 +107,8 @@ instead of writing the literal — `framing` as it imports it today,
       `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
       through them; pin `fromWords`'s empty case at `0n` and its
       out-of-range word and non-positive width as panics; `Base`, `base32`,
-      and `base64` keep their exact shape and the SHA-2 proof's field
-      reads pass unchanged; `Framing<H>`'s new required `chunkLength` is
-      the one break, declared in `Changelog:`.
+      `base64`, and `Framing<H>` keep their exact shape and the SHA-2
+      proof's field reads pass unchanged — no `Changelog:` entry.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
       unchanged.
 - [ ] `tsc`, `fjs test`.

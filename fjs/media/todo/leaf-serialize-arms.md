@@ -44,8 +44,8 @@ type _ExtraLeaves = {
  */
 type _Leaves<X extends _ExtraLeaves> =
     | null | boolean | number | string
-    | (X extends { readonly bigint: LeafSerializer<bigint> } ? bigint : never)
-    | (X extends { readonly undefined: LeafSerializer<undefined> } ? undefined : never)
+    | ([X] extends [{ readonly bigint: LeafSerializer<bigint> }] ? bigint : never)
+    | ([X] extends [{ readonly undefined: LeafSerializer<undefined> }] ? undefined : never)
 const leafSerialize: (numberSerialize: LeafSerializer<number>)
     => <X extends _ExtraLeaves>(extra: X)
     => LeafSerializer<_Leaves<X>>
@@ -59,7 +59,14 @@ with `{}` it is `LeafSerializer<null | boolean | number | string>`, so
 `leafSerialize(numberSerialize)({})(1n)` is a type error rather than a
 `null` on the wire — and so is the same call through a widened
 `const extra: _ExtraLeaves = {}`, because an optional `bigint?` is not a
-required `bigint` and `_Leaves` tests for the required one. A codec that
+required `bigint` and `_Leaves` tests for the required one. The test is
+written `[X] extends [...]`, **not** `X extends ...`: a naked `X` would
+distribute over a union configuration such as
+`{ bigint: LeafSerializer<bigint> } | {}` and admit `bigint` from the
+first member alone, while the runtime branch might be `{}`; wrapped in a
+tuple the conditional asks whether the *whole* union carries the arm,
+which that union does not, so `bigint` is admitted only when every
+possible configuration has its serializer. A codec that
 wants `bigint` accepted passes a literal whose `bigint` arm is present,
 which is how all three callers here are written. Of the three helper
 types, `LeafSerializer` is public API — every codec spells its
