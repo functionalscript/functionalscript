@@ -171,6 +171,23 @@ export const testSection = dir => intro => {
 }
 
 /**
+ * A repository path as a URL path: each segment percent-encoded, the
+ * separators kept.
+ *
+ * **A file name is not a URL.** A space, `#`, `?` or `%` in one would end the
+ * path, start a fragment or a query, or read as an escape, and the link would
+ * go somewhere else without anything saying so. None of the tree's paths has
+ * such a character today, which is exactly when a rule is cheap to have: the
+ * first one to arrive would otherwise be a broken link on its page.
+ *
+ * Segment by segment rather than the path whole, because `/` is the one
+ * character that must survive, and `encodeURIComponent` encodes it.
+ *
+ * @type {(path: string) => string}
+ */
+const urlPath = path => path.split('/').map(encodeURIComponent).join('/')
+
+/**
  * The page for a directory path, as a root-relative URL.
  *
  * The root's page is `/index.html` rather than `/./index.html`: `'.'` is the
@@ -179,7 +196,7 @@ export const testSection = dir => intro => {
  *
  * @type {(path: string) => string}
  */
-export const pageHref = path => path === '.' ? '/index.html' : `/${path}/index.html`
+export const pageHref = path => path === '.' ? '/index.html' : `/${urlPath(path)}/index.html`
 
 /**
  * A file in a directory, as a reader opens it: on GitHub at `commit`, or
@@ -192,7 +209,7 @@ export const pageHref = path => path === '.' ? '/index.html' : `/${path}/index.h
  * @type {(commit: string | null) => (path: string) => (name: string) => string}
  */
 const fileHref = commit => path => name => {
-    const file = path === '.' ? name : `${path}/${name}`
+    const file = urlPath(path === '.' ? name : `${path}/${name}`)
     return commit === null ? `/${file}` : `${repository}/blob/${commit}/${file}`
 }
 

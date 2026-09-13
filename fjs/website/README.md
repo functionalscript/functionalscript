@@ -163,6 +163,10 @@ neither.
   commits would open nothing on GitHub.
 - **Only what a reader follows moves.** A page's proofs and its demo are
   imported by the browser from this site, and stay there.
+- **Every link a reader follows is percent-encoded, segment by segment** —
+  file, issue and directory links, on this site and on GitHub. A space, `#`, `?`
+  or `%` in a name would otherwise end the path or change what it means, and the
+  link would go somewhere else without saying so.
 
 ## One face, the whole site
 

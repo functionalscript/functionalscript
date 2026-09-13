@@ -29,6 +29,12 @@ export const proof = {
         // `/./index.html`.
         root: () => assertEq(pageHref('.'), '/index.html'),
         nested: () => assertEq(pageHref('fjs/types/list'), '/fjs/types/list/index.html'),
+        /**
+         * **A directory name is encoded, segment by segment.** A space would
+         * be sent as-is, and a `#` would turn the rest of the path into a
+         * fragment; the `/` between segments is the one character that stays.
+         */
+        encoded: () => assertEq(pageHref('fjs/x y#1/中'), '/fjs/x%20y%231/%E4%B8%AD/index.html'),
     },
     sections: {
         // A directory with nothing in it says nothing: no heading stands over
@@ -75,6 +81,29 @@ export const proof = {
             sectionsHtml({ ...empty, todo: ['a.md'] }),
             '<body><details data-section=""><summary>Issues</summary>'
             + '<ul><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
+        /**
+         * **A file name that is not already a URL is encoded**, on this site
+         * and on GitHub alike. `%` is in it on purpose: an encoder that
+         * skipped it would leave `100%` reading as the start of an escape.
+         */
+        encoded: {
+            files: () => assertEq(
+                sectionsHtml({ ...empty, path: 'fjs/x y', files: ['a b#c?100%.md'] }),
+                '<body><details data-section="" open=""><summary>Files</summary>'
+                + '<ul><li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md">a b#c?100%.md</a></li></ul></details></body>'),
+            todo: () => assertEq(
+                sectionsHtml({ ...empty, path: 'fjs', todo: ['open issue.md'] }),
+                '<body><details data-section=""><summary>Issues</summary>'
+                + '<ul><li><a href="/fjs/todo/open%20issue.md">open issue.md</a></li></ul></details></body>'),
+            dirs: () => assertEq(
+                sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
+                '<body><details data-section="" open=""><summary>Directories</summary>'
+                + '<ul><li><a href="/fjs/x%20y/index.html">x y/</a></li></ul></details></body>'),
+            atCommit: () => assertEq(
+                sectionsAtCommit({ ...empty, path: 'fjs/x y', files: ['中.md'] }),
+                '<body><details data-section="" open=""><summary>Files</summary>'
+                + `<ul><li><a href="${repository}/blob/${commit}/fjs/x%20y/%E4%B8%AD.md">中.md</a></li></ul></details></body>`),
+        },
         /**
          * **With a commit, a file a reader opens is read on GitHub**, at that
          * commit — highlighted, and Markdown rendered — which the raw link on
