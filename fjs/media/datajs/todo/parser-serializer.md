@@ -12,10 +12,10 @@ value as [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md) parses it, and
 resolves the names over the statements in document order; `parse(text)`
 returns `Result<Unknown, string>`. §3's open question is settled: the token-driven
 container machine is retired for this format, not widened, and the seam
-work that route owed is gone with it. What remains here is the **byte path**
-(`tryParseBytes`, §Layout) and the reader's proofs over
-[the corpus](../../../../spec/datajs/vectors/README.md), which has landed — the
-reader's own proof is derived from the specification by hand today.
+work that route owed is gone with it. **The byte path has landed too**, as
+`parseBytes` beside `parse`, and the corpus's three byte records run through it.
+What remains here is this directory's public `module.f.mjs` (§Layout) and the
+`parse` versus `tryParse` naming it carries for both surfaces at once.
 
 **The writer is [`serializer.md`](./serializer.md).** It was split out of this
 file, which keeps what both roles share — the value domain, the module's public
@@ -76,6 +76,12 @@ export const tryParse:      (text: string)    => Result<Unknown, string>
 export const trySerialize:  (value: unknown)  => Result<List<string>, string>
 export const tryStringify:  (value: unknown)  => Result<string, string>
 ```
+
+The two reader entry points exist as `parseBytes` and `parse` in
+[`../parser`](../parser/module.f.mjs). The `try*` spelling above is one decision
+for all four names, taken with `module.f.mjs` — the writer's two already carry
+it, the reader's two do not, and renaming half of them before that decision
+would be the inconsistency this file is meant to resolve.
 
 There is no `tryNormalize` beside them: the writer that landed **is** the
 normalized one, so the name waits for a second writer to tell apart from —
@@ -223,9 +229,12 @@ is the order the spec restates — array-index keys first by numeric value,
 the rest in first-occurrence order, a duplicate keeping its first position and
 taking its last value — and a member holding `undefined` is a present property.
 
-What is not landed is the byte path of §Layout — `tryParseBytes`, refusing
-invalid UTF-8 and a leading BOM before the reader sees a unit — which the
-corpus's byte-form vectors require.
+The byte path of §Layout has landed as `parseBytes`: it decodes with
+`fjs/text/utf8`'s `toCodePointList`, refuses anything `isValidCodePoint` rejects
+— which is the strictness `fromVec` uses, so a truncated sequence, a lone
+continuation byte, an overlong form, a surrogate encoding and an out-of-range
+lead all go — refuses a leading BOM after that, and re-encodes to code units for
+the one reader. What is not landed is the directory's public `module.f.mjs`.
 
 #### 4. Serializer, and 5. normalized form
 
@@ -258,14 +267,15 @@ reader's two sets, `accept` and `reject`, are this file's; the writer's three �
       bound-once and declare-before-use; the key rule on the decoded value.
 - [x] Reader proofs derived from the specification by hand, both sharing
       directions included.
-- [ ] The byte path, `tryParseBytes`, with the BOM and invalid-UTF-8 vectors the
-      corpus assigns to stage 4. The reader's proofs over the corpus are done —
-      [`fjs/media/datajs/vectors/proof.f.mjs`](../vectors/proof.f.mjs) reads
-      every accept document to the graph its vector asserts and refuses every
-      reject one — but they reach the byte documents by decoding with
-      `fjs/text/utf8` and reading the units, so the two rules only bytes can
-      break are pinned at the wrong layer until this lands and the set is rerun
-      through it.
+- [x] The byte path, as `parseBytes`, with the BOM and invalid-UTF-8 vectors the
+      corpus assigns to stage 4 rerun through it:
+      [`fjs/media/datajs/vectors/proof.f.mjs`](../vectors/proof.f.mjs) now reads
+      each document by the path its form calls for, so the three byte records
+      reach the reader as bytes instead of being decoded by the corpus and read
+      as units. The two rules only bytes can break are pinned at their own layer
+      as well as refused — a byte reject naming one of them owes *that* message,
+      which is what tells `byte-bom-first` apart from the code-unit refusal of
+      U+FEFF it would otherwise pass on.
 - [ ] The writer, in [`serializer.md`](./serializer.md) — including
       `module.f.mjs`, the public API of §Layout, which waits for something
       beyond the reader to hold.
