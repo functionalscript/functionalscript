@@ -83,14 +83,23 @@ export const proof = {
     header: () => {
         assertStructurallySame(tryHeader(packHeader), { version: 2, count: 18 })
     },
+    // Version 3 is read as version 2 is, because Git reads both and treats them
+    // identically. Measured on Git 2.43.0 by taking a pack it wrote, changing
+    // the version word to 3 and recomputing the trailing checksum:
+    // `git index-pack --strict` indexes it and `git verify-pack -v` lists every
+    // object. The header answers whichever number the file carried.
+    headerVersion3: () => {
+        assertStructurallySame(
+            tryHeader([...packHeader.slice(0, 4), 0, 0, 0, 3, ...packHeader.slice(8)]),
+            { version: 3, count: 18 })
+    },
     // Not a pack: a signature that is not `PACK`, too few bytes, and a version
-    // this does not read. Version 3 is refused rather than read as 2 would be,
-    // since a layout this does not know is not one to guess at.
+    // number that is neither of the two Git reads.
     headerRefused: () => {
         assertEq(tryHeader([...latin1('PACX'), ...packHeader.slice(4)]), null)
         assertEq(tryHeader(packHeader.slice(0, 11)), null)
         assertEq(tryHeader([]), null)
-        for (const v of [0, 1, 3, 4]) {
+        for (const v of [0, 1, 4, 5]) {
             assertEq(tryHeader([...packHeader.slice(0, 4), 0, 0, 0, v, ...packHeader.slice(8)]), null)
         }
     },

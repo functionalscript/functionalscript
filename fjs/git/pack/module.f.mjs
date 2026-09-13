@@ -54,11 +54,21 @@ const toVec = u8ListToVec(msb)
 const signature = /** @type {const} */ ([0x50, 0x41, 0x43, 0x4B])
 
 /**
- * The versions this reads. Git writes 2; 3 was defined for a reftable-era
- * change that never shipped in a pack Git writes, so it is refused rather
- * than read as 2 would be.
+ * The versions this reads, which are the versions Git reads.
+ *
+ * Git writes 2 and reads 2 or 3, treating them identically — `pack_version_ok`
+ * admits both and nothing downstream branches on which it was. Measured on Git
+ * 2.43.0 by taking a pack it wrote, changing the version word to 3 and
+ * recomputing the trailing checksum: `git index-pack --strict` indexes it and
+ * `git verify-pack -v` lists every object.
+ *
+ * So a version 3 pack is read here as a version 2 one, and the header answers
+ * whichever number it carried. An earlier revision of this doc said 3 was
+ * "defined for a reftable-era change that never shipped" and refused it, which
+ * made a pack Git reads unreadable — the same mistake as a rule narrower than
+ * Git's, in the one place a whole file hangs on it.
  */
-const version2 = /** @type {const} */ (2)
+const versions = /** @type {readonly number[]} */ ([2, 3])
 
 /** How long a pack's header is: the signature, the version, the count. */
 const headerBytes = /** @type {const} */ (12)
@@ -77,7 +87,8 @@ const objectTypes = [undefined, 'commit', 'tree', 'blob', 'tag']
 
 /**
  * A pack's header, or `null` where the bytes are not one: a signature that is
- * not `PACK`, a version this does not read, or fewer than twelve bytes.
+ * not `PACK`, a version this does not read — see {@link versions} — or fewer
+ * than twelve bytes.
  *
  * @throws If the input is not a list of bytes.
  *
@@ -88,7 +99,7 @@ export const tryHeader = input => {
     if (b.length < headerBytes) { return null }
     if (!signature.every((v, i) => b[i] === v)) { return null }
     const version = u32(b, 4)
-    return version === version2 ? { version, count: u32(b, 8) } : null
+    return versions.includes(version) ? { version, count: u32(b, 8) } : null
 }
 
 /**
