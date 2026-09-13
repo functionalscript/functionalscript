@@ -192,13 +192,6 @@ export type JsTokenWithMetadata = {readonly token: JsToken,  readonly metadata: 
 
 /** @internal */
 export type _ErrorMessage = |
-    '" are missing' |
-    'unescaped character' |
-    'invalid hex value' |
-    'unexpected character' |
     'invalid number' |
     'invalid token' |
-    '*\/ expected' |
-    'unterminated string literal' |
-    'unescaped control character in string' |
-    'eof'
+    '*\/ expected'

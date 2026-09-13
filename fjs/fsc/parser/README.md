@@ -72,8 +72,12 @@ The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
 to approximate these.
 
-A name binds *before* the value that follows it, which is why `const a = a;`
-resolves to the constant being defined rather than failing.
+A `const`'s value is resolved *before* its own name is bound, so `const a = a;`
+is `const not found` — a reference to a name before its declaration, as it is
+in JavaScript, and as the DataJS reject corpus's `reference-self` requires.
+A name binds before the values that *follow* it, so a later statement may name
+an earlier `const`, which is what a `cref` always is: a reference to an earlier
+entry.
 
 ## The rewrite set builds nodes; the fold resolves them
 
