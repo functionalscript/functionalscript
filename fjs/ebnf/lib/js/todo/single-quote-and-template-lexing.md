@@ -204,15 +204,21 @@ measurement is not redone; take it when a consumer needs it.
 
 The scanner this issue was written against emitted *cooked* strings and
 collapsed every run of whitespace to one valueless token, so its stream could
-not reconstruct the text it came from, and the old issue spent a section on
-slicing the source by end positions to get it back. The grammar route does not
-have the problem: [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs)
-already reads a token's text as "the input between where it began and where
-it ended", and carries both positions. A view built on that stream can show
-the source exactly, indentation and raw escapes included, without a second
-pass over the text. The rebuilt `fjs/js/tokenizer` keeps that property; a
-proof should pin it on the largest module, since it is what the source view
-rests on.
+not reconstruct the text it came from, and it anchored each token at its
+**end**, so the old issue spent a section on the slicing rule that recovers
+the text from end positions. The grammar route keeps the first two — a
+`string` token is still its cooked value, and trivia is still valueless — but
+not the third: [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs)
+reads a token's text as "the input between where it began and where it
+ended" and anchors the token at its start, and only an `error` token carries
+an end. Since trivia is emitted rather than skipped, the stream is
+contiguous, so a token's text is the source from its own start to the next
+token's start, the last running to the end of input. A view that has the
+source — which it does; it fetched it — slices by those starts and shows the
+text exactly, indentation and raw escapes included, with no second
+tokenization and no rule about ends to get backwards. The rebuilt
+`fjs/js/tokenizer` keeps that property; a proof should pin the slicing on
+the largest module, since it is what the source view rests on.
 
 ### Tasks
 
