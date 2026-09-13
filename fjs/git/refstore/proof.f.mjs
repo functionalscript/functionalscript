@@ -514,6 +514,23 @@ export const proof = {
             assertEq(codePointListToString(toHex(/** @type {Oid} */ (
                 run(root, tryResolve({ gitdir: 'wt', common: 'repo' }, 20)(utf8(name)))))), b, name)
         }
+        // The rule is how a name is *spelled*, not a list of names Git's
+        // documentation happens to mention. Measured on Git 2.43.0 in a linked
+        // worktree with a different id in each directory: a name of upper-case
+        // letters, `-` and `_` answers the worktree's copy and does not resolve
+        // at all when only the shared directory has it, while one with a digit
+        // or a lower-case letter answers the shared copy and does not resolve
+        // when only the worktree has it.
+        for (const [name, from] of /** @type {readonly (readonly [string, string])[]} */ ([
+            ['BISECT_EXPECTED_REV', b], ['MERGE_AUTOSTASH', b], ['FOO_BAR', b],
+            ['FOO-BAR', b], ['_FOO', b], ['FOO_', b], ['F', b],
+            ['FOO1', a], ['Foo', a], ['lowercase', a],
+        ])) {
+            /** @type {Dir} */
+            const root = { wt: { [name]: ref(b) }, repo: { [name]: ref(a), refs: { heads: {} } } }
+            assertEq(codePointListToString(toHex(/** @type {Oid} */ (
+                run(root, tryResolve({ gitdir: 'wt', common: 'repo' }, 20)(utf8(name)))))), from, name)
+        }
         // And a name that is shared comes from the shared directory, so the list
         // above is a rule and not "everything comes from the worktree".
         /** @type {Dir} */
