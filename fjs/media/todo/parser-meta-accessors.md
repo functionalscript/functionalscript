@@ -83,7 +83,7 @@ resolves `O` to its constraint, whose `_LiteralId` is `never`, and
 `'text'` is refused — checked at this head, `"text" is not assignable to
 never`. What supplies `O` is the annotation: TypeScript infers a call's
 type parameters from its contextual return type, and `Tagged<O, Id, K>`
-names all three, so the four instances are
+names all three, so the three instances are
 
 ```js
 /** @type {Tagged<Text, 'text', 'value'>} */

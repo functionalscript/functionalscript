@@ -5,7 +5,7 @@
 
 ### Problem
 
-`matrix` (`module.f.mjs:518`) fuses two independent questions — "is this
+`matrix` (`module.f.mjs:517`) fuses two independent questions — "is this
 corpus well-formed" and "what does its table look like": it runs
 `malformed` first, then collects `roleless`/`unrenderable`/`ambiguous`/
 `duplicated`/`stale` plus the per-row errors, and only then assembles the

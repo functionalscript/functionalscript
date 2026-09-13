@@ -11,10 +11,12 @@ share nothing: not an import, not a type. `types.ts` splits the same way
 (`Block`/`Item` vs `Utf8`).
 
 Every production importer of the module — twelve: `cas/evo`,
-`crypto/hmac`, `effects/common`, `effects/node`, `effects/node/virtual`,
-`mcp/cas`, `media/html`, `protocol/mcp/stdio`, `sul/id`,
+`effects/common`, `effects/node`, `effects/node/virtual`, `mcp/cas`,
+`media/html`, `protocol/mcp/stdio`, `sul/id`, `text/sgr`,
 `types/uint8array`, `web`, and `website` — imports only `utf8`/`tryUtf8`/
-`utf8ToString`. The sole importer of `flat` is `fjs/text/proof.f.mjs`,
+`utf8ToString`. (`crypto/hmac` is not one: its only mention is a
+doc-comment `@example` importing a `msbUtf8` the module does not export —
+a stale example, not an importer.) The sole importer of `flat` is `fjs/text/proof.f.mjs`,
 and the sole reference to `Block` outside `types.ts` is the same proof —
 an exported capability with no consumer, the shape
 [../sgr/todo/inplace-writer-split.md](../sgr/todo/inplace-writer-split.md)
