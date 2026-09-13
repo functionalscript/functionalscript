@@ -16,8 +16,11 @@ import { runInNewContext } from 'node:vm'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _runBrowserProofsWith, renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
 import { fmtImport, testResult } from '../module.f.mjs'
-import { runnerSource } from './module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { groupByModule, runnerSource } from './module.f.mjs'
+import { demo } from './demo.f.mjs'
+import { asyncRun } from '../../effects/module.mjs'
+import { commonOperationMap } from '../../effects/common/module.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * Builds the DOM stand-in the proofs drive the runner with. A single factory
@@ -625,6 +628,27 @@ export const proof = {
             }],
         ])
         assertStructurallySame(seen, [['passed', false], ['failed', true], ['running', true]])
+    },
+    /**
+     * **The demo's example really fails, the way a real run fails.** Run on the
+     * page's own operations — a real `sandbox` and a real `catch` — because its
+     * failures are real throws, which a pure runner cannot catch. One module
+     * passes and one fails twice: an assertion that does not hold, and a proof
+     * expected to throw that returned.
+     */
+    theDemoRunsItsExample: async () => {
+        const state = unwrap(await asyncRun(commonOperationMap)(demo.update(demo.init)({ kind: 'click', name: 'run' })))
+        assertEq(state.kind, 'done')
+        if (state.kind !== 'done') { return }
+        assertEq(state.report.status, 'failed')
+        assertStructurallySame(groupByModule(state.report.results).map(g => [g.module, g.passed, g.failed]),
+            [['./example/passing.f.mjs', 3, 0], ['./example/failing.f.mjs', 1, 2]])
+        const failures = state.report.results.filter(row => row.status === 'failed')
+        assertStructurallySame(failures.map(row => row.name), [
+            'import("./example/failing.f.mjs").proof.many()',
+            'import("./example/failing.f.mjs").proof.throw.onEmpty()',
+        ])
+        assertEq(failures[1]?.message, 'Expected the proof to throw')
     },
     /**
      * **A new run's title drops the last run's counts** before it has any of

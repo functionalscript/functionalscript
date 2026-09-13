@@ -80,6 +80,14 @@ groups, never merged, for the reason the runner's catalog gives. The list of
 proof sources under the report is shown until a run puts results in it, and
 hidden from then on, since every source it names is a group above it.
 
+**The runner's own page shows a failure on purpose.** A green suite never shows
+the report's failure state, and breaking a real proof would turn every run red.
+So `fjs/emergent_testing/browser` has a demo that runs a small example suite —
+one module passing, one failing — through the same walk, sandbox and report
+views a real run uses. It is a `demo`, never a `proof`, so no real run sees it.
+It draws into `data-example-*` hooks, not `data-test-*`, because the runner
+looks those up across the whole page and the demo renders above the suite.
+
 ## A demo shows what a module does
 
 A module page can say what a module *is* and whether it *passes*. A demo is the

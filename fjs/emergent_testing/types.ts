@@ -223,6 +223,18 @@ export type BrowserTestReport = {
 }
 
 /**
+ * What the browser runner's demo page shows: nothing yet, or the report of the
+ * example suite it ran.
+ *
+ * **Public because the demo's export is.** `browser/demo.f.mjs` exports `demo`,
+ * and its type names this, so it is in the package's declaration closure
+ * whether or not anyone outside imports it.
+ */
+export type ReportDemoState =
+    | { readonly kind: 'idle' }
+    | { readonly kind: 'done', readonly report: BrowserTestReport }
+
+/**
  * A run's outcome, folded from its leaf results: how many passed, how many
  * failed, and how long they took together.
  *
