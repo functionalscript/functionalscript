@@ -40,6 +40,17 @@ module meet it differently, and neither is right:
   a broken host. So a packed name with no such file is listed correctly, and one
   with such a file refuses the whole listing. Neither answer is a guess.
 
+  That read failing is what makes the limitation announce itself, and it is only
+  guaranteed while the lossy name matches no other file. Put a file whose name
+  really *is* U+FFFD beside one named `0x80` and the read succeeds: measured on
+  node 22, `readdir` answers two entries both named U+FFFD and a read of that
+  name answers the valid file's bytes both times, so a walk that read on would
+  list one id twice under one name and drop the other ref in silence. A
+  retention root missing is worse than a refusal, so the walk refuses a listing
+  that carries one name twice — `lossyNameCode` — and that refusal is this
+  issue's other half rather than its fix: the pair is *two* refs, and answering
+  both needs the byte-oriented listing below.
+
 The two halves therefore disagree about a packed-only name: the listing has it
 and the lookup will not answer for it. That is the honest shape of the
 limitation rather than a bug in one of them — one half looked and the other
@@ -48,7 +59,10 @@ cannot — and it is what this issue removes.
 The state that makes the lookup's refusal necessary cannot be built in a proof
 here either: the virtual filesystem spells a directory entry as a `string`, so a
 fixture cannot hold a file whose name is not UTF-8. A reader that answered from
-the packed line would be answering a state its own tests cannot reach.
+the packed line would be answering a state its own tests cannot reach. The
+colliding listing above can be proven, because what reaches this module is the
+host's *answer* and a mock host can give the answer node gives — two entries of
+one name — without holding two such files.
 
 ### Proposal
 

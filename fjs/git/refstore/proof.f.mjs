@@ -21,7 +21,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { maxLookups, tryResolve, tryRoots } from './module.f.mjs'
+import { lossyNameCode, lossyNameMessage, maxLookups, tryResolve, tryRoots } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -290,6 +290,42 @@ export const proof = {
         }
         const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
         assertStructurallySame(r, ok(null))
+    },
+    // A listing that answers one name twice is refused rather than read. Node
+    // decodes a directory entry as UTF-8 and replaces what is not, so a file
+    // named by the byte `0x80` and a file named U+FFFD come back as the same
+    // name: measured on node 22 in such a directory, `readdir` answered two
+    // entries both named U+FFFD and a read of that name answered the same
+    // file's bytes both times. Read on, the walk would list that file's id
+    // twice under one name and drop the other ref without a word — a retention
+    // root missing, which is the answer this module must not give.
+    //
+    // The state cannot be built in the virtual filesystem, whose directory is a
+    // map from a name to a file and so cannot hold a name twice; the host below
+    // answers the listing node would.
+    lossyNames: () => {
+        const twice = '\uFFFD'
+        /** @type {MemOperationMap<ReadFile | Readdir, null>} */
+        const host = {
+            readFile: path => state => [state, error(ioError({ code: 'ENOENT', message: path }))],
+            readdir: path => state => [
+                state,
+                path === 'refs'
+                    ? ok([twice, twice].map(name => ({
+                        name,
+                        parentPath: path,
+                        isFile: true,
+                        isDirectory: false,
+                    })))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, lossyNameCode)
+        assertEq(e[1].message, lossyNameMessage('refs', twice))
     },
     // One name at a time: a loose ref, a packed one, a loose one shadowing
     // a packed one, and a name nothing is stored under.

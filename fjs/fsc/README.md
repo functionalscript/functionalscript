@@ -6,9 +6,12 @@ The front end: a grammar-based tokenizer over
 [transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
 from `fjs/djs` as stage 5a of
 [`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md);
-what stayed there is the serializer and the value types, which stage 4 reworks
-into [`fjs/media/datajs`](../media/datajs/README.md), and the issues in
-`fjs/djs/todo/`, which follow once that lands.
+what stayed there is the old serializer and the value types, and the issues in
+`fjs/djs/todo/`, which follow once stage 4 lands. `fjs compile` writes through
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs)
+since stage 6: its module output is a DataJS document in normalized form, and
+its `.json` output refuses what JSON cannot spell rather than approximating
+it — see [`module.f.mjs`](./module.f.mjs).
 
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too. The classical grammars this package once
