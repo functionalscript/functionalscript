@@ -1,7 +1,7 @@
 ## DataJS serializer
 
-**Priority:** P1 — it is what is left of stage 4 beside the reader's byte path,
-and stage 4 is the deliverable
+**Priority:** P1 — it is what is left of stage 4 beside the public
+`module.f.mjs` surface, and stage 4 is the deliverable
 [the coordinating plan](../../../../todo/parser-serializer-restructure.md)
 calls the one everything else is waiting for.
 **Status:** wip — **the writer landed**, as
@@ -65,12 +65,13 @@ today, not as a settled contract.
 
 ### Problem
 
-The reader landed on the grammar route and
-[`parser-serializer.md`](./parser-serializer.md) keeps what remains of it —
-`tryParseBytes` and the corpus proofs. This file is the other half: the
-writer, which landed as described under **Status** above. What is written
-below is the design it was built to; where a section is done, it says so and
-records what the implementation settled.
+The reader landed on the grammar route, its byte path and its corpus proofs
+with it, and [`parser-serializer.md`](./parser-serializer.md) keeps what
+remains — the public `module.f.mjs` surface and the `parse` versus `tryParse`
+naming it carries. This file is the other half: the writer, which landed as
+described under **Status** above. What is written below is the design it was
+built to; where a section is done, it says so and records what the
+implementation settled.
 
 The specification is finished and normative.
 **This issue implements it and does not redesign it.** Where the two disagree
@@ -480,8 +481,9 @@ divergence to close; that was a category error, and it is not one.
       file sets out. The rest of the gap is proved at the top level, by the
       `refusals` table in [`../serializer/proof.f.mjs`](../serializer/proof.f.mjs).
 - [ ] `module.f.mjs`, the public API of
-      [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
-      path lands beside it — and the `parse` versus `tryParse` naming with it.
+      [`parser-serializer.md`](./parser-serializer.md#layout) — the byte path
+      has landed beside it, so nothing gates this — and the `parse` versus
+      `tryParse` naming with it.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
 - [ ] **Walk both passes on an explicit stack**, so that a document the

@@ -552,15 +552,18 @@ frozen array and a `null`-prototype array — need a class, `Object.freeze` or
 `Object.setPrototypeOf`, none of which the subset has, so nothing in this
 repository builds them and a host that can owes the rule on its own.
 
-**A value whose prototype was replaced, or that comes from another realm, is
-outside this section's input domain.** `Object.setPrototypeOf` and a second
-realm are the two ways to make one, neither is available to this format's own
-subset, and no rule above reaches them: what a serializer does with such a value
-is **undefined**, and an implementation owes nothing either way. That is why the
-list above speaks of values as built — a `null`-prototype object from
-`Object.create(null)`, an `Array` subclass instance, a frozen array — and why it
-says nothing about an array whose chain was re-pointed away from
-`Array.prototype` or an object re-pointed onto it.
+**A value whose prototype chain says one kind and whose construction says
+another is outside this section's input domain.** An object under
+`Array.prototype` that no array literal or constructor made —
+`Object.create(Array.prototype, …)`, or one re-pointed there by
+`Object.setPrototypeOf` — an array re-pointed away from it, and an array from
+another realm are all of that kind. None of them can be built by this format's
+own subset, which has no prototype operations at all, and no rule above reaches
+them: what a serializer does with such a value is **undefined**, and an
+implementation owes nothing either way. That is why the list above speaks of
+values as built — a `null`-prototype object from `Object.create(null)`, an
+`Array` subclass instance, a frozen array — and never of what a host can make
+the chain say afterwards.
 
 The practical consequence is worth one line, since implementations differ here
 and none of them is wrong: a serializer classifying arrays by the prototype
