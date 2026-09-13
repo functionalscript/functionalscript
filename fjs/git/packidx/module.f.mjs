@@ -356,3 +356,46 @@ export const offsetOf = ({ oidBytes, ids, offsets }) => id => {
     }
     return search(0, ids.length)
 }
+
+/**
+ * {@link after}'s fold: the least of the offsets past the one asked about.
+ *
+ * A leading parameter rather than a capture, so the step has an identity of its
+ * own (§3.3).
+ *
+ * @type {(offset: number) => (best: Nullable<number>, v: number) => Nullable<number>}
+ */
+const nextStep = offset => (best, v) =>
+    v > offset && (best === null || v < best) ? v : best
+
+/**
+ * Where the entry beginning at `offset` ends: the least offset in the index
+ * greater than it, or `null` where no entry begins after it and what follows is
+ * the pack's trailing checksum.
+ *
+ * **A pack entry carries no length.** Its header says how many bytes the object
+ * *inflates to* and says nothing about how many bytes of the file its zlib
+ * stream takes, so nothing in the entry itself says where it ends. That is what
+ * makes this the index's question: every object in the pack has an entry here,
+ * so the offsets are exactly where the entries begin, and the next one up is
+ * where this one ends.
+ *
+ * The window has to be exact rather than generous, because `inflate` refuses
+ * bytes after the end of a stream — a file that holds them is not the object
+ * its stream spells — so a reader that hands the host a few bytes too many
+ * hands it the beginning of the entry after this one and is refused. Measured
+ * on a pack Git 2.43.0 wrote of six objects, two of them deltas: every entry's
+ * window taken this way inflated with nothing left over, and the last one ended
+ * at the pack's length less its checksum.
+ *
+ * A scan and not a search: `offsets` runs parallel to `ids` and so is in id
+ * order, not in pack order. One pass per entry read, which a delta chain pays
+ * per link. The alternative is a table in pack order, which is what Git's own
+ * reverse index is and what [packfiles.md](../todo/packfiles.md) leaves out of
+ * this reader: building one costs a sort of the whole index per read unless it
+ * is kept, and keeping it is a second shape {@link Idx} does not have.
+ *
+ * @type {(idx: Idx) => (offset: number) => Nullable<number>}
+ */
+export const after = ({ offsets }) => offset =>
+    offsets.reduce(nextStep(offset), /** @type {Nullable<number>} */ (null))

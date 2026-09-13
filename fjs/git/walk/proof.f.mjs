@@ -1,5 +1,5 @@
 /**
- * @import { Inflate, ReadFile } from '../../effects/node/types.ts'
+ * @import { Inflate, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { Bytes, ObjectType, Oid } from '../types.ts'
@@ -237,21 +237,29 @@ const files = Object.fromEntries([
     ...chain.slice(1).map(t => tagFile(t.id, t.payload)),
 ])
 
+/** @type {(path: string) => ReturnType<typeof ioError>} */
+const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
+
 /**
  * The host the store reads through: the objects above, uncompressed, with
  * `inflate` handing every buffer back as it is, and a log of the ids read
  * so a proof can see which objects the walk asked for.
  *
- * @type {MemOperationMap<ReadFile | Inflate, readonly string[]>}
+ * This repository keeps no packs, which is what the three commands a pack read
+ * uses answer here — the store asks its packs for an object no loose file holds,
+ * and a directory that is not there is the ordinary way to have none. They log
+ * nothing, so the log stays the list of objects the walk asked for.
+ *
+ * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadBytes | Inflate, readonly string[]>}
  */
 const host = {
     readFile: path => log => {
         const f = files[path]
-        return [
-            [...log, path],
-            f === undefined ? error(ioError({ code: 'ENOENT', message: `no such file: ${path}` })) : ok(toVec(f)),
-        ]
+        return [[...log, path], f === undefined ? error(noFile(path)) : ok(toVec(f))]
     },
+    readdir: path => log => [log, error(noFile(path))],
+    stat: path => log => [log, error(noFile(path))],
+    readBytes: path => log => [log, error(noFile(path))],
     inflate: data => log => [log, ok(data)],
 }
 

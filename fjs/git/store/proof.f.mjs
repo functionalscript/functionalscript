@@ -1,5 +1,5 @@
 /**
- * @import { Inflate, ReadFile } from '../../effects/node/types.ts'
+ * @import { Dirent, Inflate, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Oid } from '../types.ts'
@@ -13,7 +13,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { tryFromHex } from '../oid/module.f.mjs'
-import { commitPayload, latin1, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
+import { commitPayload, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
 import { objectIdCode, objectPath, oidBytes, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
@@ -46,16 +46,30 @@ const compressed = toVec(tagLoose)
 
 const tagEnvelope = toVec(toArray(writeEnvelope('tag', tagPayload)))
 
+/** The pack Git wrote that `repo` below keeps, and the two files it is. */
+const packName = /** @type {const} */ ('pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf')
+
+/** An id that is in that pack and has no loose file: the blob at offset 508. */
+const packedId = /** @type {const} */ ('b00a3b66a7a094e6165bfcd39e0b8524042140db')
+
+/** The zlib stream of its entry, and what the host inflates it to. */
+const packedStream = toVec(packMixed.slice(510, 525))
+
+const packedBlob = latin1(`${'y'.repeat(300)}D\n`)
+
 /**
  * Two repositories as files: `repo` under SHA-1, holding the signed tag as
  * Git compressed it, the merge commit and the empty blob as their plain
- * envelopes, an object under a wrong id, and bytes that are no object;
- * `sha` under SHA-256, holding its root commit. The host inflates the one
- * real stream and hands every other buffer back as it is.
+ * envelopes, an object under a wrong id, bytes that are no object, and one
+ * pack Git wrote; `sha` under SHA-256, holding its root commit. The host
+ * inflates the tag's stream and the pack entry's, and hands every other
+ * buffer back as it is.
  *
  * @type {StringMap<readonly number[]>}
  */
 const files = {
+    [`repo/objects/pack/${packName}.idx`]: packMixedIdx,
+    [`repo/objects/pack/${packName}.pack`]: packMixed,
     'repo/config': latin1('[core]\n\trepositoryformatversion = 0\n'),
     [objectPath('repo')(id(tagId))]: tagLoose,
     [objectPath('repo')(id(commitId))]: toArray(writeEnvelope('commit', commitPayload)),
@@ -71,17 +85,58 @@ const files = {
     '/config': latin1('[core]\n\trepositoryformatversion = 0\n'),
 }
 
-/** @type {MemOperationMap<ReadFile | Inflate, readonly string[]>} */
-const host = {
+/** @type {(path: string) => ReturnType<typeof ioError>} */
+const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
+
+/** @type {(n: string) => Dirent} */
+const dirent = n => ({ name: n, parentPath: 'repo/objects/pack', isFile: true, isDirectory: false })
+
+/**
+ * A host over a file map: the two whole-file commands, the two the packs need,
+ * and an inflater over the streams these fixtures hold.
+ *
+ * `readdir` lists the one pack directory there is and refuses every other path,
+ * which is what a repository without one answers — `sha` and `odd` below have no
+ * packs, and their reads say so through the same ENOENT.
+ *
+ * @type {(fs: StringMap<readonly number[]>) => MemOperationMap<ReadFile | Readdir | Stat | ReadBytes | Inflate, readonly string[]>}
+ */
+const hostOf = fs => ({
     readFile: path => log => {
-        const file = files[path]
+        const file = fs[path]
+        return [[...log, `readFile ${path}`], file === undefined ? error(noFile(path)) : ok(toVec(file))]
+    },
+    readdir: path => log => [
+        [...log, `readdir ${path}`],
+        path === 'repo/objects/pack'
+            ? ok([dirent(`${packName}.idx`), dirent(`${packName}.pack`)])
+            : error(noFile(path)),
+    ],
+    stat: path => log => {
+        const file = fs[path]
         return [
-            [...log, `readFile ${path}`],
-            file === undefined ? error(ioError({ code: 'ENOENT', message: `no such file: ${path}` })) : ok(toVec(file)),
+            [...log, `stat ${path}`],
+            file === undefined
+                ? error(noFile(path))
+                : ok({ size: file.length, isFile: true, isDirectory: false }),
         ]
     },
-    inflate: data => log => [[...log, 'inflate'], ok(uint(data) === uint(compressed) ? tagEnvelope : data)],
-}
+    readBytes: (path, at, size) => log => {
+        const file = fs[path]
+        return [
+            [...log, `readBytes ${path} ${at} ${size}`],
+            file === undefined ? error(noFile(path)) : ok(toVec(file.slice(at, at + size))),
+        ]
+    },
+    inflate: data => log => [
+        [...log, 'inflate'],
+        ok(uint(data) === uint(compressed) ? tagEnvelope
+            : uint(data) === uint(packedStream) ? toVec(packedBlob)
+            : data),
+    ],
+})
+
+const host = hostOf(files)
 
 const runHost = run(host)([])
 
@@ -138,7 +193,14 @@ export const proof = {
     wrongId: () => {
         const p = objectPath('repo')(id(wrongId))
         const [log, r] = runHost(read(id(wrongId)))
-        assertStructurallySame(log, [`readFile ${p}`, 'inflate'])
+        // and the packs are asked before the loose refusal stands, since a
+        // packed copy would have been the answer
+        assertStructurallySame(log, [
+            `readFile ${p}`,
+            'inflate',
+            'readdir repo/objects/pack',
+            `readFile repo/objects/pack/${packName}.idx`,
+        ])
         assert(r[0] === 'error')
         const e = r[1]
         assert(e[0] === 'ioError')
@@ -157,6 +219,42 @@ export const proof = {
         const e = r[1]
         assert(e[0] === 'ioError')
         assertEq(e[1].code, 'ENOENT')
+    },
+    // An object a pack holds and no loose file does: the loose read misses,
+    // the pack answers, and the bytes are hashed against the id exactly as a
+    // loose object's are — a caller cannot tell which file answered.
+    packed: () => {
+        const [log, r] = runHost(read(id(packedId)))
+        assert(r[0] === 'ok' && r[1] !== null)
+        assertEq(r[1].type, 'blob')
+        assertStructurallySame(toArray(r[1].payload), packedBlob)
+        assertStructurallySame(log, [
+            `readFile ${objectPath('repo')(id(packedId))}`,
+            'readdir repo/objects/pack',
+            `readFile repo/objects/pack/${packName}.idx`,
+            `stat repo/objects/pack/${packName}.pack`,
+            `readBytes repo/objects/pack/${packName}.pack 508 17`,
+            'inflate',
+        ])
+    },
+    // A loose file that is no object does not hide the packed copy of the same
+    // id. Git answers the pack there — measured on 2.43.0 with garbage planted
+    // at a packed object's loose path — and so does this, with the hash check
+    // standing behind whichever copy answered.
+    packedOverJunkLoose: () => {
+        const p = objectPath('repo')(id(packedId))
+        const [log, r] = run(hostOf({ ...files, [p]: latin1('junk') }))([])(read(id(packedId)))
+        assert(r[0] === 'ok' && r[1] !== null)
+        assertStructurallySame(toArray(r[1].payload), packedBlob)
+        assertStructurallySame(log, [
+            `readFile ${p}`,
+            'inflate',
+            'readdir repo/objects/pack',
+            `readFile repo/objects/pack/${packName}.idx`,
+            `stat repo/objects/pack/${packName}.pack`,
+            `readBytes repo/objects/pack/${packName}.pack 508 17`,
+            'inflate',
+        ])
     },
     // The other width: the SHA-256 repository's commit by its 32-byte id,
     // in a store bound to that width.

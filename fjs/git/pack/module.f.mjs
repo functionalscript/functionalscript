@@ -70,8 +70,15 @@ const signature = /** @type {const} */ ([0x50, 0x41, 0x43, 0x4B])
  */
 const versions = /** @type {readonly number[]} */ ([2, 3])
 
-/** How long a pack's header is: the signature, the version, the count. */
-const headerBytes = /** @type {const} */ (12)
+/**
+ * How long a pack's header is: the signature, the version, the count.
+ *
+ * Exported because it is where the entries begin, and so the bound a reader
+ * holding offsets checks them against: a pack's first entry is at 12, and an
+ * offset below that — an `ofsDelta` whose distance back overshoots the front of
+ * the file — names no entry.
+ */
+export const headerBytes = /** @type {const} */ (12)
 
 /** @type {(b: readonly number[], at: number) => number} */
 const u32 = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + b[at + 3]

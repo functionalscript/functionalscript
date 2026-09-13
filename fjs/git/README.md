@@ -76,6 +76,18 @@ what a grammar can and cannot do for the formats.
 - [`loose/`](loose/module.f.mjs) — a loose object file read through the
   host's `inflate` effect and past its envelope: the one place a real
   repository meets the decoder.
+- [`packstore/`](packstore/module.f.mjs) — the same for the other place an
+  object lives: from an id to the object a pack below `objects/pack/` holds,
+  through the `.idx` beside it. Two rules here are the effects' and not the
+  format's. An entry carries no length — its header says what the object
+  inflates to and nothing about how many bytes of the file its zlib stream
+  takes — so the window handed to `inflate` has to end exactly where the next
+  entry begins, which is the index's question and `packidx`'s `after`; and a
+  delta chain is walked rather than recursed, for the reason
+  [`walk/`](walk/module.f.mjs) walks. A `refDelta` names its base by id and may
+  name one stored *after* it, which is where `index-pack --fix-thin` appends
+  the base a fetched pack arrived without, so nothing here assumes a base
+  precedes the delta and a chain is bounded by the pack's object count instead.
 - [`config/`](config/module.f.mjs) — the repository's `config` as
   `(section, key, value)` entries, read a character at a time as Git's own
   parser reads it — quoted values and their escapes, a header that ends
@@ -84,9 +96,14 @@ what a grammar can and cannot do for the formats.
   `repositoryformatversion = 1` is SHA-256, and what Git refuses is
   refused.
 - [`store/`](store/module.f.mjs) — from an id to the object it names,
-  checked: the loose file at the id's path, hashed with `oid`'s `of` and
-  refused where the hash is not the id; and the width from `config`.
-  Loose objects only, until packs.
+  checked: the loose file at the id's path or the packs through
+  [`packstore/`](packstore/module.f.mjs), whichever answers, hashed with
+  `oid`'s `of` and refused where the hash is not the id; and the width from
+  `config`. The loose file is read first and anything but a good object there
+  — no file, no stream, no object, another object — asks the packs, since Git
+  answers a packed copy over a loose one that cannot be read and the hash
+  check stands behind either. What `objects/info/alternates` adds is
+  [`todo/object-store.md`](todo/object-store.md).
 - [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
   over whatever reads objects: `peel`, a tag to what it names;
   `tryEntries`, a commit or a tree to the entries of its tree; and
@@ -239,7 +256,7 @@ payload.
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
 | zlib stream | bit-level, length-framed | the host's `inflate`, until [`todo/inflate.md`](../../todo/inflate.md) |
-| packfile, `.idx` | varints, deltas, zlib | a decoder, [`todo/packfiles.md`](todo/packfiles.md) |
+| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.mjs), read over the effects by [`packstore/`](packstore/module.f.mjs) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in
 a tree entry is 20 raw bytes and may spell anything, a file name is
@@ -389,8 +406,16 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   in a SHA-1 repository, and what a trust layer does about a hash that can
   collide, is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
-- **Packfiles**, where most objects in a real clone live, so the loose
-  reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).
+- **A `refDelta` whose base is not in the pack that names it.** Packs are read
+  — [`packstore/`](packstore/module.f.mjs) answers from the `.idx` and the pack
+  beside it, and `store` reads them beside the loose path — and what is left is
+  a pack `index-pack --fix-thin` did not complete, whose delta names a base
+  stored elsewhere. Refused rather than guessed, because the base may be loose,
+  in another pack or nowhere, and only a reader of the whole store can say:
+  [`todo/packfiles.md`](todo/packfiles.md) and
+  [`todo/object-store.md`](todo/object-store.md). Multi-pack indexes, bitmaps
+  and the reverse index are not needed to read an object and are not here
+  either.
 - **Writing a ref**, with the lock file Git takes, and the reflog, which
   expires and so is no retention: [`todo/ref-writing.md`](todo/ref-writing.md).
   Reading them is done — [`ref/`](ref/module.f.mjs) for the file grammars and

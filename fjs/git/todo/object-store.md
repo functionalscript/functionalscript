@@ -23,7 +23,10 @@ search.
 
 - `read(id)`: the loose path first, then every pack the directory holds,
   answering the `Envelope` or refusing with a channel error that names the
-  id. Finding the directory was its own step and is done:
+  id. Done for one directory, and it is also where a `refDelta` whose base is
+  in another pack or loose would be resolved: `packstore` refuses such a base
+  rather than look outside the pack it was handed, since only a reader of the
+  whole store knows where else to look. See [packfiles.md](./packfiles.md). Finding the directory was its own step and is done:
   [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir` takes a worktree
   of any kind to the common directory `objects/` lives in, by the one rule
   Git uses — `.git` is the repository or a file whose `gitdir:` line names
@@ -60,7 +63,11 @@ search.
       and `oidBytes` in [`fjs/git/store`](../store/module.f.mjs).
 - [x] `tryRead(id)` over loose objects, with the id check on read, in
       `fjs/git/store`.
-- [ ] `tryRead` over packs once [packfiles.md](./packfiles.md) lands.
+- [x] `tryRead` over packs: [`fjs/git/packstore`](../packstore/module.f.mjs)
+      answers from the `.idx` and the pack beside it, and
+      [`fjs/git/store`](../store/module.f.mjs) reads the loose file first and
+      the packs where it cannot answer — which is the order Git's own answers
+      come out in, measured.
 - [x] The common directory found: a linked worktree's `gitdir` and
       `commondir`, in [`fjs/git/repo`](../repo/module.f.mjs).
 - [ ] `alternates`: the directories `objects/info/alternates` adds, which

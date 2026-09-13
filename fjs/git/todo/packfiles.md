@@ -34,7 +34,10 @@ offsets, the lookup from an id to an entry.
   is what `readBytes` is for.
 
 Multi-pack indexes, bitmaps and the reverse index are not needed to read
-objects and are not part of this issue.
+objects and are not part of this issue. The reverse index is where an entry's
+length would come from for free, and its absence is what makes the reader scan
+the index's offsets for the next one up — see `after` in
+[`fjs/git/packidx`](../packidx/module.f.mjs) for that trade, measured.
 
 ### Tasks
 
@@ -42,8 +45,16 @@ objects and are not part of this issue.
 - [x] Pack header and entry framing, the two delta kinds, and the delta
       instructions.
 - [x] A fixture: a small pack Git wrote, captured once, with a delta in it.
-- [ ] `tryRead(id)` over a pack directory, returning what the loose reader
-      returns.
+- [x] `tryRead(id)` over a pack directory, returning what the loose reader
+      returns: [`fjs/git/packstore`](../packstore/module.f.mjs), and
+      `fjs/git/store` reading the loose file and the packs alike.
+- [ ] A `refDelta` whose base is not in the same pack. Such a pack is one
+      `index-pack --fix-thin` did not complete — measured: storing a thin pack
+      appends the bases it lacked, so a pack on disk normally carries its own —
+      and `packstore` refuses one rather than guess where the base lives. The
+      base may be loose, in another pack, or nowhere, so resolving it is the
+      whole store's question and belongs with the `read(id)` of
+      [object-store.md](./object-store.md), not under one pack.
 
 ### Related
 
