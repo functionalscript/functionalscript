@@ -91,10 +91,20 @@ document.querySelector('[data-test-run]').addEventListener(
     () => startBrowserTestSources(root, sources))
 `]
 
-/** @type {(proof: Proof) => Element} */
+/**
+ * One proof in the section's list: its name, or its name and what stops a
+ * browser linking it.
+ *
+ * **A blocked proof is marked**, because it is the one entry a run cannot
+ * repeat. Once a run has results, every runnable entry is a group in the report
+ * above and the stylesheet hides it; a blocked proof never produces a group, so
+ * it stays — otherwise a green count would read as the whole subtree passing.
+ *
+ * @type {(proof: Proof) => Element}
+ */
 const proofItem = proof => proof.blockers.length === 0
     ? ['li', proof.name]
-    : ['li', `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
+    : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
  * The demo section: what this module *does*, if it says.

@@ -356,14 +356,23 @@ const channelFailure = ([source, cause]) => {
 export const runProofs = modules => foldStep(pureOk(modules), null, one)
 
 /**
- * A report's results as the page shows them: one group per module *run*, in
- * the order the runs happened, with each group's counts.
+ * A report's results as the page shows them: one group per unbroken stretch of
+ * a module's results, in the order they ran, with each group's counts.
  *
- * **Consecutive, not keyed.** Two entries may share a label and are two runs
- * (catalog item 6), and a run is sequential, so one run's results are always
- * adjacent: a group starts where the module changes, which is also where the
- * live page starts one. Keying by module would fold two runs into one and
- * reorder whatever ran between them.
+ * **Consecutive, not keyed.** A run is sequential, so one run's results are
+ * always adjacent, and a group starts where the module changes — which is also
+ * where the live page starts one. Two runs that share a label with another run
+ * between them are two groups; keying by module would merge them and move what
+ * ran between them.
+ *
+ * **Two runs of one label with nothing between them share a group**, and that
+ * is a limit of the data rather than a choice. A result carries its module's
+ * label and no run identity, so a finished report cannot tell where one such
+ * run ended and the next began, and neither can the live page, which sees the
+ * same results. Every row is still there, in order, and the counts still add
+ * up. A generated page never meets it: it names each proof source once.
+ * Separating them would need a run identity in `_BrowserTestResult`, which is
+ * the published report's shape.
  *
  * Linear, because the page calls it on a whole suite: the boundaries are found
  * in one pass and each group is a slice, rather than an append that copies
