@@ -26,7 +26,7 @@ if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
 Counts in the current tree (re-verified 2026-08-14):
 
 - 76 `if (...) { throw ... }` lines remain across `**/proof.f.mjs` — down
-  from ~494 when the hand-written JS scanner's proof and the JSON
+  from 425 when the hand-written JS scanner's proof and the JSON
   tokenizer's went and the JS tokenizer's moved proof was converted, which
   took 349 of them, but still the manual pattern.
 - 152 of 162 tracked `proof.f.mjs` files now import `assertEq` — adoption
@@ -86,9 +86,9 @@ it's by far the most common and the lowest-judgement case.
 
 ### Why this qualifies
 
-- **DRY at extreme volume.** Even after 109 of 118 files adopted
-  `assertEq`, ~494 spellings of the same three-token conditional throw
-  remain. Continuing adoption (both in the 9 holdout files and the
+- **DRY at extreme volume.** Even after 152 of 162 files adopted
+  `assertEq`, 76 spellings of the same three-token conditional throw
+  remain. Continuing adoption (both in the 10 holdout files and the
   leftover manual sites within already-migrated files) keeps deleting
   redundant patterns in favour of a single call.
 - **Failure-message quality goes up.** `throw [a, b]` always includes
