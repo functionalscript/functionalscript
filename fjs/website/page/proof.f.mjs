@@ -119,6 +119,13 @@ export const proof = {
             assert(html.includes('<li>./proof.f.mjs</li>'), html)
             assert(html.includes('data-test-run'), html)
             assert(html.includes('<div data-test-results="">'), html)
+            // **The sources list follows the report.** The stylesheet hides it
+            // with a sibling selector once the report has content, and a
+            // sibling selector only looks forward — put the list first and it
+            // would never hide.
+            const results = html.indexOf('<div data-test-results="">')
+            const sources = html.indexOf('<ul data-test-sources="">')
+            assert(sources !== -1 && results < sources, html)
             assert(html.includes("'./proof.f.mjs',"), html)
         },
         /**

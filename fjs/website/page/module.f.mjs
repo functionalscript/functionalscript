@@ -145,7 +145,10 @@ export const testSection = dir => intro => {
         title,
         ...intro,
         ...rest,
-        ['ul', ...dir.proofs.map(proofItem)],
+        // After the report, and marked, so the stylesheet can hide it once the
+        // report has anything in it: from then on every source it names is a
+        // group above it, and the list is the same names a second time.
+        ['ul', { 'data-test-sources': '' }, ...dir.proofs.map(proofItem)],
     ]]
     const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
     if (linkable.length === 0) { return section(['summary', 'Emergent Testing'])([]) }

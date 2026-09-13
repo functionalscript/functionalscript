@@ -76,7 +76,9 @@ as the run moves past it having passed, so what stays open is exactly what needs
 reading. The whole run's counts sit in the section's title, green and red, with
 the time. A failure's message and stack are a tinted box of their own under its
 row. Two runs of the same module are two
-groups, never merged, for the reason the runner's catalog gives.
+groups, never merged, for the reason the runner's catalog gives. The list of
+proof sources under the report is shown until a run puts results in it, and
+hidden from then on, since every source it names is a group above it.
 
 ## A demo shows what a module does
 

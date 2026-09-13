@@ -84,6 +84,12 @@ li[data-status="passed"] { color: var(--muted) }
 [data-count-failed] { background: var(--fail-bg); color: var(--fail) }
 [data-duration] { color: var(--muted); float: right; font-weight: 400; line-height: 1.9rem }
 [data-test-summary]:empty { display: none }
+/* Before a run, the list of proof sources is the only view of what the page
+   will run. Once the report has anything in it, every source the list names is
+   a group above it, so the list is hidden rather than repeated. Pure CSS, keyed
+   on the report having content: it hides as the first group lands and returns
+   when a new run empties the report. */
+[data-test-results]:not(:empty) ~ [data-test-sources] { display: none }
 /* Some elements do not inherit the page's font on their own. A browser's rule
    for pre names a monospace family, and naming one is what triggers the legacy
    shrink to 13.33px; a form control is given the platform's UI face outright,
