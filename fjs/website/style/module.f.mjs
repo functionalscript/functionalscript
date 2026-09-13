@@ -41,9 +41,9 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --pass: #137333; --fail: #b3261e }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82 }
+    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --pass: #81c995; --fail: #f28b82 }
 }
 body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
@@ -51,6 +51,21 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
 [data-test-results] { color: var(--text) }
 [data-status="passed"]::marker { color: var(--pass) }
 [data-status="failed"] { color: var(--fail) }
+/* One group per module, folded when every row in it passed. What a reader
+   scans for is the failure, so a passing row and a passed group recede into
+   the muted colour and a failed group is marked twice: its line in bold, and a
+   rule down its left edge that survives folding it. A failure's error is its
+   own pre block, in the ordinary text colour, so a stack is readable rather
+   than a wall of red — and it may break inside a word, because a stack line is
+   often one long URL, and pre-wrap alone would run it off the page. */
+[data-test-module] { border-left: 3px solid transparent; margin: .25rem 0; padding-left: .5rem }
+[data-test-module][data-status="failed"] { border-left-color: var(--fail) }
+[data-test-module] > summary { cursor: pointer }
+[data-test-module][data-status="passed"] > summary { color: var(--muted) }
+[data-test-module][data-status="failed"] > summary { font-weight: 600 }
+[data-test-module] > ol { margin: .25rem 0 .5rem; padding-left: 2rem }
+li[data-status="passed"] { color: var(--muted) }
+[data-test-error] { border-left: 3px solid var(--fail); color: var(--text); margin: .25rem 0 .5rem; overflow-wrap: anywhere; padding: .25rem .5rem }
 /* Some elements do not inherit the page's font on their own. A browser's rule
    for pre names a monospace family, and naming one is what triggers the legacy
    shrink to 13.33px; a form control is given the platform's UI face outright,

@@ -27,13 +27,17 @@ import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { stylesheetLink } from '../style/module.f.mjs'
 
 /**
- * Where a run's result rows go, unchanged from the page that had only one of
- * them: the runner appends to the list, and the list is a `pre` so a failure's
- * stack keeps its lines.
+ * Where a run's results go: an empty container the runner fills with one
+ * foldable group per module.
+ *
+ * **No longer a `pre` around one list.** Six thousand rows in one list gave a
+ * reader no way to find the one that failed, and the `pre` was only there so a
+ * failure's stack kept its lines — so the runner now gives each failure its own
+ * `pre`, and every other row is ordinary text.
  *
  * @type {Element}
  */
-const report = ['pre', ['ol', { 'data-test-results': '' }]]
+const report = ['div', { 'data-test-results': '' }]
 
 /**
  * The proofs of `dir`'s subtree, named the way a page at `dir` loads them.

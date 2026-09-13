@@ -120,13 +120,22 @@ const dom = () => {
         }
     }
 
-    /** @type {(element: _Element) => readonly (string | undefined)[]} */
-    const statuses = element => element.children.map(child => child.attributes.get('data-status'))
+    /**
+     * Every row of a rendered report, in order, across its module groups — so a
+     * proof about rows reads the same whether or not it is about grouping.
+     *
+     * @type {(results: _Element) => readonly _Element[]}
+     */
+    const rows = results => results.children.flatMap(group =>
+        group.children.find(child => child.tag === 'ol')?.children ?? [])
 
-    return { element, page, statuses }
+    /** @type {(element: _Element) => readonly (string | undefined)[]} */
+    const statuses = element => rows(element).map(child => child.attributes.get('data-status'))
+
+    return { element, page, rows, statuses }
 }
 
-const { element, page, statuses } = dom()
+const { element, page, rows, statuses } = dom()
 
 /** @type {(proof: unknown) => ReturnType<typeof runBrowserProofs>} */
 const run = proof => runBrowserProofs([['proof', proof]])
@@ -477,7 +486,7 @@ export const proof = {
         await startBrowserTests(p.root, [['m', {
             a: () => {
                 seen = [...statuses(p.results)]
-                text = [p.results.children[0]?.textContent]
+                text = [rows(p.results)[0]?.textContent]
             },
         }]])
         assertStructurallySame(seen, ['running'])
@@ -494,8 +503,8 @@ export const proof = {
         /** @type {number[]} */
         let counts = []
         await startBrowserTests(p.root, [['m', {
-            a: () => { counts = [...counts, p.results.children.length] },
-            b: () => { counts = [...counts, p.results.children.length] },
+            a: () => { counts = [...counts, rows(p.results).length] },
+            b: () => { counts = [...counts, rows(p.results).length] },
         }]])
         // One row while `a` runs, two while `b` does: `a`'s verdict landed in
         // the row `a` was already in.
@@ -537,7 +546,73 @@ export const proof = {
             results: [{ module: 'm', path: '.t', name: 'import("m").proof.t()', status: 'passed', duration: 0.5 }],
         })
         assertEq(p.summary.textContent, '1 passed, 0 failed (1.0 ms)')
-        assertEq(p.results.children[0]?.textContent, 'PASS import("m").proof.t() (0.5 ms)')
+        assertEq(rows(p.results)[0]?.textContent, 'PASS import("m").proof.t() (0.5 ms)')
+    },
+    /**
+     * **One group per module, folded when it passed and open when it did
+     * not.** A suite of thousands of rows becomes a list of modules, and the
+     * only groups a reader has to open are the failed ones — which the page
+     * has already opened.
+     */
+    groupsByModule: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined, b: () => undefined }],
+            ['n', { c: () => { throw 'x' } }],
+        ])
+        const groups = p.results.children
+        assertStructurallySame(groups.map(g => g.attributes.get('data-test-module')), ['m', 'n'])
+        assertStructurallySame(groups.map(g => g.attributes.get('data-status')), ['passed', 'failed'])
+        assertStructurallySame(groups.map(g => g.attributes.has('open')), [false, true])
+        assertStructurallySame(groups.map(g => g.children[0]?.textContent), ['m — 2 passed', 'n — 1 failed, 0 passed'])
+    },
+    /**
+     * **A failure's error is a block of its own under its row**, not more text
+     * on the same line: the row stays one line to scan past, and the message
+     * and stack keep their line breaks.
+     */
+    anErrorIsItsOwnBlock: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [['m', { bad: () => { throw new Error('boom') } }]])
+        const row = assertNotNullish(rows(p.results)[0])
+        assert(row.textContent.startsWith('FAIL import("m").proof.bad() ('), row.textContent)
+        const block = assertNotNullish(row.children.find(child => child.attributes.has('data-test-error')))
+        assertEq(block.tag, 'pre')
+        assert(block.textContent.startsWith('boom\n'), block.textContent)
+    },
+    /**
+     * **While the run goes on, a module that passed folds as soon as the next
+     * one starts, and one that failed stays open.** Read from inside the last
+     * module's leaf, because the settled report is rebuilt at the end and would
+     * look the same whether or not the live page ever folded anything.
+     */
+    groupsSettleDuringTheRun: async () => {
+        const p = page()
+        /** @type {readonly (readonly [string | undefined, boolean])[]} */
+        let seen = []
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined }],
+            ['f', { b: () => { throw 'x' } }],
+            ['n', {
+                c: () => {
+                    seen = p.results.children.map(g =>
+                        /** @type {const} */ ([g.attributes.get('data-status'), g.attributes.has('open')]))
+                },
+            }],
+        ])
+        assertStructurallySame(seen, [['passed', false], ['failed', true], ['running', true]])
+    },
+    // Two entries may share a label and are two runs (catalog item 6), so they
+    // are two groups: folding them into one would also reorder what ran
+    // between them.
+    aRepeatedModuleIsTwoGroups: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined }],
+            ['n', { b: () => undefined }],
+            ['m', { c: () => undefined }],
+        ])
+        assertStructurallySame(p.results.children.map(g => g.attributes.get('data-test-module')), ['m', 'n', 'm'])
     },
     sources: async () => {
         const p = page()

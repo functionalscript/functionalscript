@@ -117,7 +117,7 @@ export const proof = {
             assert(html.includes('<summary>Emergent Testing</summary>'), html)
             assert(html.includes('<li>./proof.f.mjs</li>'), html)
             assert(html.includes('data-test-run'), html)
-            assert(html.includes('<ol data-test-results="">'), html)
+            assert(html.includes('<div data-test-results="">'), html)
             assert(html.includes("'./proof.f.mjs',"), html)
         },
         /**

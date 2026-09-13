@@ -493,8 +493,9 @@ export const proof = {
             source)
         // The heading is the project; the suite is one section of its page.
         assert(source.includes('<h1>FunctionalScript</h1>'), source)
-        // The report is what it always was; only the section around it folds.
-        assert(source.includes('<pre><ol data-test-results=""></ol></pre>'), source)
+        // The page ships the report's container empty: the runner fills it
+        // with one group per module.
+        assert(source.includes('<div data-test-results=""></div>'), source)
         /**
          * **The page runs its own proofs and starts nothing on load.** The
          * runner is imported by an absolute path, so a page at any depth

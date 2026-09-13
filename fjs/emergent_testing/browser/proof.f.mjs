@@ -17,7 +17,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { loadProofs, reportOf, runProofs } from './module.f.mjs'
+import { groupByModule, groupLabel, loadProofs, reportOf, runProofs } from './module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
@@ -368,5 +368,39 @@ export const proof = {
         const [events, answered] = working([])(runProofs([]))
         assertEq(events.length, 0)
         assertEq(answered[1], null)
+    },
+    groupByModule: {
+        // No results, no groups — not one empty group.
+        empty: () => assertStructurallySame(groupByModule([]), []),
+        /**
+         * **One group per run of a module, with its counts.** The counts are
+         * folded by the same `addResult` the report's totals are, so a group's
+         * line and the suite's summary cannot disagree about what passed.
+         */
+        counts: () => {
+            const a1 = leaf('passed', 1)
+            const a2 = leaf('failed', 2)
+            const b1 = { ...leaf('passed', 3), module: 'b' }
+            assertStructurallySame(groupByModule([a1, a2, b1]), [
+                { module: 'a', results: [a1, a2], passed: 1, failed: 1 },
+                { module: 'b', results: [b1], passed: 1, failed: 0 },
+            ])
+        },
+        /**
+         * **Consecutive, not keyed.** Two runs that share a label are two
+         * groups (catalog item 6), in the order they ran; keying by module
+         * would merge them and move `b` out from between them.
+         */
+        aRepeatedModuleIsTwoGroups: () => {
+            const a = leaf('passed', 1)
+            const b = { ...leaf('passed', 1), module: 'b' }
+            assertStructurallySame(groupByModule([a, b, a]).map(g => g.module), ['a', 'b', 'a'])
+        },
+    },
+    groupLabel: {
+        // A group that passed says how many, which is all its folded line shows.
+        passed: () => assertEq(groupLabel('./proof.f.mjs', 42, 0), './proof.f.mjs — 42 passed'),
+        // A failure leads, because it is the count a reader is scanning for.
+        failed: () => assertEq(groupLabel('./proof.f.mjs', 14, 1), './proof.f.mjs — 1 failed, 14 passed'),
     },
 }

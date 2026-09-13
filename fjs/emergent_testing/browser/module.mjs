@@ -27,7 +27,7 @@
  */
 
 import {
-    errorDetails, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
+    errorDetails, groupByModule, groupLabel, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
 } from './module.f.mjs'
 // The phrase for a value that will not be read is the runners' shared one:
 // this host meets such a value at its `import` boundary, where the walk cannot.
@@ -396,8 +396,58 @@ export const renderBrowserReport = (root, report) => {
     }
     const output = root.querySelector('[data-test-results]')
     if (output !== null) {
-        output.replaceChildren(...report.results.map(result =>
-            renderResult(root.ownerDocument, result)))
+        output.replaceChildren(...groupByModule(report.results).map(({ module, results, passed, failed }) => {
+            const group = openGroup(root.ownerDocument, module)
+            for (const result of results) { group.list.append(renderResult(root.ownerDocument, result)) }
+            labelGroup(group, module, passed, failed, true)
+            return group.details
+        }))
+    }
+}
+
+/**
+ * A module's group as it starts: open, `running`, and empty.
+ *
+ * **One group per module run, not one list for the suite.** A suite is
+ * thousands of rows and a reader wants the few that failed; a group that
+ * passed folds to one line, so what stays open is what needs reading.
+ *
+ * Open while running so the pending row is on screen — the whole point of
+ * announcing a leaf before running it — and settled by {@link labelGroup}.
+ *
+ * @type {(document: Document, module: string) => { readonly details: HTMLDetailsElement, readonly summary: HTMLElement, readonly list: HTMLOListElement }}
+ */
+const openGroup = (document, module) => {
+    const details = document.createElement('details')
+    details.setAttribute('data-test-module', module)
+    details.setAttribute('data-status', 'running')
+    details.setAttribute('open', '')
+    const summary = document.createElement('summary')
+    summary.textContent = groupLabel(module, 0, 0)
+    const list = document.createElement('ol')
+    details.append(summary)
+    details.append(list)
+    return { details, summary, list }
+}
+
+/**
+ * Writes a group's counts onto its line, and — once nothing more will land in
+ * it — decides whether it folds.
+ *
+ * **A failure marks the group at once; a pass waits to be settled.** A group
+ * that has failed has failed however the rest of it goes, so it says so the
+ * moment it knows. One that has only passed so far may still fail, so it
+ * stays `running` and open until the run moves on to another module.
+ *
+ * @type {(group: { readonly details: Element, readonly summary: Element }, module: string, passed: number, failed: number, settled: boolean) => void}
+ */
+const labelGroup = ({ details, summary }, module, passed, failed, settled) => {
+    summary.textContent = groupLabel(module, passed, failed)
+    if (failed !== 0) {
+        details.setAttribute('data-status', 'failed')
+    } else if (settled) {
+        details.setAttribute('data-status', 'passed')
+        details.removeAttribute('open')
     }
 }
 
@@ -413,8 +463,17 @@ export const renderBrowserReport = (root, report) => {
  */
 const settleResult = (item, result) => {
     item.setAttribute('data-status', result.status)
-    const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
-    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)${detail}`
+    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)`
+    // **The error is a block of its own, not more of the row.** The row stays
+    // one line a reader can scan past, and the message and stack keep their
+    // line breaks in a `pre` — which is why the list around them is no longer
+    // one.
+    if (result.status === 'failed') {
+        const detail = item.ownerDocument.createElement('pre')
+        detail.setAttribute('data-test-error', '')
+        detail.textContent = `${result.message}\n${result.stack}`
+        item.append(detail)
+    }
 }
 
 /** @type {(document: Document, result: _BrowserTestResult) => HTMLLIElement} */
@@ -460,6 +519,27 @@ export const startBrowserTests = (root, modules) => {
     // is one more thing the sequential run does not have to carry.
     /** @type {HTMLLIElement | null} */
     let pending = null
+    // The group rows are landing in. One is enough for the same reason one
+    // pending row is: the run is sequential, so a module's results are adjacent
+    // and the group changes only when the module does.
+    /** @type {{ readonly module: string, readonly details: HTMLDetailsElement, readonly summary: HTMLElement, readonly list: HTMLOListElement, passed: number, failed: number } | null} */
+    let group = null
+    /**
+     * The group for `module`: the current one, or a new one — in which case the
+     * previous group is settled first, so a module that passed folds as soon as
+     * the run has moved past it rather than at the end of the suite.
+     *
+     * @type {(target: Element, module: string) => { readonly module: string, readonly details: HTMLDetailsElement, readonly summary: HTMLElement, readonly list: HTMLOListElement, passed: number, failed: number }}
+     */
+    const groupFor = (target, module) => {
+        const current = group
+        if (current !== null && current.module === module) { return current }
+        if (current !== null) { labelGroup(current, current.module, current.passed, current.failed, true) }
+        const next = { module, ...openGroup(root.ownerDocument, module), passed: 0, failed: 0 }
+        target.append(next.details)
+        group = next
+        return next
+    }
     return publish(root, runBrowserProofs(
         modules,
         result => {
@@ -467,19 +547,22 @@ export const startBrowserTests = (root, modules) => {
             const summary = root.querySelector('[data-test-summary]')
             if (summary !== null) { summary.textContent = `${completed} tests completed…` }
             if (output === null) { return }
+            const into = groupFor(output, result.module)
             // A result with no pending row is a leaf that was never announced —
             // a module that could not be read, or the runner's own failure.
             // Those are rows too, and appending is right for them.
             if (pending === null) {
-                output.append(renderResult(root.ownerDocument, result))
+                into.list.append(renderResult(root.ownerDocument, result))
             } else {
                 settleResult(pending, result)
             }
             pending = null
+            if (result.status === 'passed') { into.passed += 1 } else { into.failed += 1 }
+            labelGroup(into, into.module, into.passed, into.failed, false)
         },
         id => {
             if (output === null) { return }
             pending = renderPending(root.ownerDocument, id)
-            output.append(pending)
+            groupFor(output, id.module).list.append(pending)
         }))
 }

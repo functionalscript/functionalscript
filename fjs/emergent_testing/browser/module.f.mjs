@@ -354,3 +354,43 @@ const channelFailure = ([source, cause]) => {
  * @type {(modules: readonly (readonly [string, unknown])[]) => Effect<Catch | Sandbox | _BrowserReport, _BrowserTestResult | null, never>}
  */
 export const runProofs = modules => foldStep(pureOk(modules), null, one)
+
+/**
+ * A report's results as the page shows them: one group per module *run*, in
+ * the order the runs happened, with each group's counts.
+ *
+ * **Consecutive, not keyed.** Two entries may share a label and are two runs
+ * (catalog item 6), and a run is sequential, so one run's results are always
+ * adjacent: a group starts where the module changes, which is also where the
+ * live page starts one. Keying by module would fold two runs into one and
+ * reorder whatever ran between them.
+ *
+ * Linear, because the page calls it on a whole suite: the boundaries are found
+ * in one pass and each group is a slice, rather than an append that copies
+ * the prefix per result (catalog item 9).
+ *
+ * @type {(results: readonly _BrowserTestResult[]) => readonly { readonly module: string, readonly results: readonly _BrowserTestResult[], readonly passed: number, readonly failed: number }[]}
+ */
+export const groupByModule = results => {
+    const starts = results.flatMap((result, at) =>
+        at === 0 || results[at - 1]?.module !== result.module
+            ? [/** @type {const} */ ([at, result.module])]
+            : [])
+    return starts.map(([start, module], n) => {
+        const group = results.slice(start, starts[n + 1]?.[0] ?? results.length)
+        const { passed, failed } = group.reduce(addResult, zeroTotals)
+        return { module, results: group, passed, failed }
+    })
+}
+
+/**
+ * What a group says about itself on its folded line: the module, and its
+ * counts with the failures first.
+ *
+ * A group that passed is folded, so this line is all a reader sees of it; and
+ * a failure is the one count anybody scans for, so it leads rather than trails.
+ *
+ * @type {(module: string, passed: number, failed: number) => string}
+ */
+export const groupLabel = (module, passed, failed) =>
+    failed === 0 ? `${module} — ${passed} passed` : `${module} — ${failed} failed, ${passed} passed`
