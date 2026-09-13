@@ -35,27 +35,32 @@ corpus's design issue carried it while the corpus was being derived and handed i
 here when that file went; nothing else records it.
 
 `tryStringify` takes `unknown` and refuses several of those values at run time,
-so its parameter admits what the data model does not — and the gap between them
-**cannot be closed inside this repository at all**, which is the fact that makes
-the reconciliation worth doing rather than deferring:
+so its parameter admits what the data model does not. What that gap costs splits
+in two, and saying which half is which is what makes the decision worth taking
+rather than deferring:
 
-- **not by a corpus set**, because a set is a DataJS data module: everything a
-  set can spell is already a value of the data model, so there is nothing
-  outside it for a set to hold. A fourth set was the old answer and it was never
-  possible; the
-  [corpus README](../../../../spec/datajs/vectors/README.md) says so from its own
-  side;
-- **not by a `proof.mjs`**, because [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6
-  forbids proving a `.f.mjs` API against values built by `Object.setPrototypeOf`,
-  `defineProperty` or an accessor, and says a module is proven against the values
-  FunctionalScript can build.
+- **Part of it is proved here, at the top level.** A function, a symbol, a
+  `Date`, a symbol key and a hole are values FunctionalScript can build, so
+  [`../serializer/proof.f.mjs`](../serializer/proof.f.mjs) hands each to
+  `tryStringify` and asserts the message. That is a `proof.f.mjs` table over
+  buildable values, which is exactly what [`fjs/AGENTS.md`](../../../AGENTS.md)
+  §1.6 prescribes.
+- **The host-built residue cannot be covered here at all.** An accessor, a
+  non-enumerable property, an array's extra own property, a cycle, a frozen
+  value, a class instance, a re-pointed prototype each need
+  `Object.setPrototypeOf`, `defineProperty`, an accessor, `Object.freeze` or a
+  class. No corpus set can hold them, since a set is a DataJS data module and
+  everything a set can spell is already a value of the data model — a fourth set
+  was the old answer and it was never possible, which the
+  [corpus README](../../../../spec/datajs/vectors/README.md) says from its own
+  side; and no `proof.mjs` may build them, since §1.6 forbids precisely that. §4
+  says what is proved in their place, one level down: the descriptors, the own
+  names, the graph.
 
-So narrowing the parameter to the data model is the only thing that closes it:
-the gap then has no inputs to reach and `tsc` says so at the call. If the
-parameter stays, the run-time refusals covering the gap stay unprovable here by
-carrier and by policy both, and what *is* proved sits one level down — §4 says
-exactly what. The decision is the owner's; read the paragraph above as what the
-corpus describes today, not as a settled contract.
+So narrowing the parameter to the data model is the only thing that closes the
+gap — it then has no inputs to reach, and `tsc` says so at the call. The
+decision is the owner's; read the paragraph above as what the corpus describes
+today, not as a settled contract.
 
 
 ### Problem
@@ -473,17 +478,22 @@ sees, where the impostor's `export default [];` is a document that denotes
 something else.
 
 What holds the fix is that §3.1's premise and the specification's rule point
-different ways, and reconciling them is not this file's to do. Two ways out,
-either of which closes it, and both the owner's:
+different ways, and reconciling them is not this file's to do. **There is
+exactly one way out, and it is §3.1's owner's**: §3.1 permits `Array.isArray` at
+this one boundary, `readNode` gains one predicate, and the impostor is refused
+as a non-plain object. The cost is a stated exception to a rule whose rationale
+— one realm, one prototype chain — does not cover a value built by
+`Object.create` under `Array.prototype`.
 
-- **§3.1 permits `Array.isArray` at this one boundary.** Then `readNode` gains
-  one predicate and the impostor is refused as a non-plain object. The cost is a
-  stated exception to a rule whose rationale — one realm, one prototype chain —
-  does not cover a value built by `Object.create` under `Array.prototype`.
-- **This module's parameter narrows to the data model.** Then the impostor is not
-  a valid argument at all, `tsc` says so at the call, and the gap closes by
-  having no input to reach — which is the signature question above, and the
-  reason these two are one decision rather than two.
+**Narrowing the parameter is not a second way out**, which an earlier round of
+this file claimed and review corrected. A type cannot stop this: `readNode` is
+unchanged at run time, so a JavaScript caller reaches the array branch whatever
+the signature says — and a *typed* caller does too, because `Unknown` is
+structural. Measured: `{ readonly length: number }` is assignable to `Unknown`,
+`tsc` clean, so `tryStringify({ length: 0 })` type-checks and an impostor
+declared that way passes the call. Narrowing settles what can be *proved* about
+the gap, which is the question above; it settles nothing about a value that
+classifies wrongly.
 
 Until one of them lands, the scope of the defect is exact: no FunctionalScript
 caller can build the value, because the subset has no `Object.create` with a
