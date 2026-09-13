@@ -31,19 +31,25 @@ none of them.
 
 **That last sentence is not yet true of this module's own signature, and the
 reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
-those values at run time, so as long as it does, the corpus owes vectors for
-exactly what it admits. Either the parameter narrows to the data model and the
-refusals go, or the parameter stays and the fourth set comes back — as a set,
-never as recipes. The question is recorded in
-[`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md)
-under the serializer's input domain, and it is the owner's. Read the paragraph
-above as what the corpus describes today, not as a settled contract.
+those values at run time, so its parameter admits what the data model does not —
+and the gap between them **cannot be closed inside this repository at all**,
+which is the fact that makes the reconciliation worth doing rather than
+deferring:
 
-That retired the issue's **decision 6** rather than answering
-it, and
-[`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
-a `.f.mjs` API against such inputs in any case. §4 says what that leaves
-provable in the meantime.
+- **not by a corpus set**, because a set is a DataJS data module: everything a
+  set can spell is already a value of the data model, so there is nothing
+  outside it for a set to hold;
+- **not by a `proof.mjs`**, because [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6
+  forbids proving a `.f.mjs` API against values built by `Object.setPrototypeOf`,
+  `defineProperty` or an accessor, and says a module is proven against the values
+  FunctionalScript can build.
+
+So narrowing the parameter to the data model is the only thing that closes it:
+the gap then has no inputs to reach and `tsc` says so at the call. If the
+parameter stays, the run-time refusals covering the gap stay unprovable here by
+carrier and by policy both, and what *is* proved sits one level down — §4 says
+exactly what. The decision is the owner's; read the paragraph above as what the
+corpus describes today, not as a settled contract.
 
 ### Problem
 
@@ -411,9 +417,11 @@ that no getter is invoked on the way. The refusals themselves are proved here
 against the data such a value would carry — a descriptor, a list of own
 property names, a graph with a forward reference — which is what §1 above
 records and what the exports of
-[`../serializer`](../serializer/module.f.mjs) are shaped for. If this module's
-`unknown` parameter stays, that gap is a set to write rather than a recipe to
-build; if it narrows, the gap closes by having no inputs to reach.
+[`../serializer`](../serializer/module.f.mjs) are shaped for. That is the whole
+of what this repository can prove about the gap: if the parameter narrows, the
+gap closes by having no inputs to reach, and if it stays, the plumbing above
+stays unproven here — a set cannot hold those values and §1.6 will not let a
+`proof.mjs` build them, as the top of this file sets out.
 
 **The one divergence from the specification is closed, and not against the
 writer**: an array under a `null` prototype, which the writer meets at its

@@ -1711,13 +1711,16 @@ or the spec, not only into a thread.
    set was once meant to cover. **It cannot be a set, and the reason is the same
    carrier argument as above rather than a preference**: a set is a DataJS data
    module, so every value a set can spell is already in the data model, and the
-   gap is by definition what is outside it. So the two ways out are narrowing
-   the parameter to the data model — "assume correct types" applied to code, and
-   then the gap has no inputs to reach — or leaving it and answering the gap
-   where §What may be serialized is answered, in the implementation's own tests,
-   in a host that can build those values. Never as a fourth set, and never as
-   host recipes. Either way the corpus is unchanged, and the decision is
-   recorded in
+   gap is by definition what is outside it. Nor by a `proof.mjs`:
+   [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §1.6 forbids proving a `.f.mjs` API
+   against values built by `Object.setPrototypeOf`, `defineProperty` or an
+   accessor, which is what the gap holds. So **narrowing the parameter is the
+   only thing that closes it here** — "assume correct types" applied to code,
+   after which the gap has no inputs to reach — and if the parameter stays, the
+   refusals covering it stay unproven in this repository, exactly as §What may
+   be serialized stays unproven here and is answered by an implementation in a
+   host that can build those values. Never as a fourth set, and never as host
+   recipes. Either way the corpus is unchanged, and the decision is recorded in
    [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md),
    which owns the signature.
 The steps, in order; a step is one pull request unless it says otherwise:
