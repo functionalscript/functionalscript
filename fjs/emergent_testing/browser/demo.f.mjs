@@ -8,17 +8,20 @@
  * stale. So this runs a small example through the same pieces a real run uses:
  * `collectTests` walks it, `defaultTest` sandboxes each leaf, `browserResult`
  * reads a failure, and `reportView` draws the rows. Its failures are real
- * throws, so what is drawn is exactly what a real failure produces.
+ * throws, so what is drawn is exactly what a real failure produces. One module
+ * has no tests at all, so the demo also shows what a real page does with a
+ * source that reported nothing: it has no group, and stays listed as such.
  *
  * **It is not a proof.** The example lives under `demo`, and proofs are
  * discovered by the `proof` export and nothing else, so `fjs t`, CI and the Run
  * button on every page never see it.
  *
  * **It shares the report's markup and none of the runner's hooks.** The runner
- * looks up `data-test-results`, `data-test-counts` and `data-test-summary`
- * across the whole page, and this demo renders above the suite — so it draws
- * into `data-example-report` and `data-example-counts` instead, or a real run on
- * this page would draw its report into the demo.
+ * looks up `data-test-results`, `data-test-counts`, `data-test-summary` and
+ * `data-test-sources` across the whole page, and this demo renders above the
+ * suite — so it draws into `data-example-report`, `data-example-counts` and
+ * `data-example-sources` instead, or a real run on this page would draw its
+ * report into the demo and mark the demo's list.
  *
  * @module
  *
@@ -32,16 +35,17 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { foldStep, mapStep, pureOk, resultStep } from '../../effects/module.f.mjs'
 import { collectTests, defaultTest, testResult } from '../module.f.mjs'
-import { browserResult, countsView, moduleFailure, reportOf, reportView } from './module.f.mjs'
+import { browserResult, countsView, moduleFailure, reportOf, reportView, unreported } from './module.f.mjs'
 
 /** @type {(xs: readonly number[]) => number} */
 const sum = xs => xs.reduce((a, b) => a + b, 0)
 
 /**
- * The example suite: one module that passes, and one that fails two different
+ * The example suite: one module that passes, one that fails two different
  * ways — an assertion that does not hold, and a proof expected to throw that
- * returns instead. Named under `./example/` so no reader mistakes it for a
- * module of this repository.
+ * returns instead — and one with no tests in it, which runs and produces no
+ * result. Named under `./example/` so no reader mistakes it for a module of
+ * this repository.
  *
  * @type {readonly (readonly [string, unknown])[]}
  */
@@ -56,7 +60,11 @@ const example = [
         many: () => assertEq(sum([1, 2, 3]), 7),
         throw: { onEmpty: () => sum([]) },
     }],
+    ['./example/empty.f.mjs', {}],
 ]
+
+/** The example's sources, in the order it runs them. @type {readonly string[]} */
+const sources = example.map(([module]) => module)
 
 /** What a row says when this page cannot sandbox a leaf at all. */
 const refused = 'this page cannot run the example: sandbox is not implemented'
@@ -90,13 +98,32 @@ const runExample = mapStep(
         report: reportOf('example', rows.reduce((total, row) => total + row.duration, 0), rows, null),
     }))
 
+/**
+ * The example's sources, listed as a real page lists its own: every one before
+ * a run, and after it only those that produced no result — each marked
+ * `data-no-tests`, which the stylesheet labels "no tests reported".
+ *
+ * A source that produced results is a group in the report above, so listing
+ * it again would say it twice; one that produced none has no group, so this is
+ * the only place it appears. Decided by the same `unreported` the real page
+ * uses, so the two cannot disagree about which sources those are.
+ *
+ * @type {(state: ReportDemoState) => readonly Element[]}
+ */
+const sourcesView = state => {
+    const listed = state.kind === 'done'
+        ? unreported(sources, state.report.results).map(source => /** @type {Element} */ (['li', { 'data-no-tests': '' }, source]))
+        : sources.map(source => /** @type {Element} */ (['li', source]))
+    return listed.length === 0 ? [] : [/** @type {Element} */ (['ul', { 'data-example-sources': '' }, ...listed])]
+}
+
 /** @type {Demo<ReportDemoState, DemoEvent, Sandbox | Catch>} */
 export const demo = {
     init: { kind: 'idle' },
     update: state => event => event.kind === 'click' && event.name === 'run' ? runExample : pureOk(state),
     view: state => ['div',
-        ['p', 'An example suite, run in this page: one module that passes and one with failures. '
-            + 'It is not one of this repository\'s proofs, so it never turns a real run red.'],
+        ['p', 'An example suite, run in this page: one module that passes, one with failures, '
+            + 'and one with no tests. It is not one of this repository\'s proofs, so it never turns a real run red.'],
         ['p',
             ['button', { type: 'button', name: 'run' }, 'Run the example'],
             ...(state.kind === 'done'
@@ -105,5 +132,6 @@ export const demo = {
         ...(state.kind === 'done'
             ? [/** @type {Element} */ (['div', { 'data-example-report': '' }, ...reportView(state.report.results)])]
             : []),
+        ...sourcesView(state),
     ],
 }

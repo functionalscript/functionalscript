@@ -20,6 +20,7 @@ import { groupByModule, runnerSource } from './module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
@@ -650,6 +651,11 @@ export const proof = {
             'import("./example/failing.f.mjs").proof.throw.onEmpty()',
         ])
         assertEq(failures[1]?.message, 'Expected the proof to throw')
+        // The empty module really ran and produced nothing: no group stands for
+        // it, so it is the one source the demo keeps listed, marked as the real
+        // page marks it.
+        const html = htmlToString(demo.view(state))
+        assert(html.includes('<ul data-example-sources=""><li data-no-tests="">./example/empty.f.mjs</li></ul>'), html)
     },
     /**
      * **A new run's title drops the last run's counts** before it has any of

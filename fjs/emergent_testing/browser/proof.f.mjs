@@ -475,11 +475,38 @@ export const proof = {
             [['span', { 'data-count-passed': '' }, '1 passed'], ['span', { 'data-count-failed': '' }, '1 failed'], ['span', { 'data-duration': '' }, '1.5 s']]),
     },
     demo: {
-        // Before anything runs, the demo is its sentence and its button.
+        // Before anything runs, the demo is its sentence, its button, and the
+        // list of what it will run — as a real page lists its sources.
         idle: () => {
             const html = htmlToString(demo.view(demo.init))
             assert(html.includes('name="run"'), html)
             assert(!html.includes('data-example-report'), html)
+            assert(html.includes('<ul data-example-sources=""><li>./example/passing.f.mjs</li>'
+                + '<li>./example/failing.f.mjs</li><li>./example/empty.f.mjs</li></ul>'), html)
+        },
+        /**
+         * **After a run, only the source that reported nothing stays listed**,
+         * marked as the real page marks it. A source with results is a group in
+         * the report above; one without has no group, so the list is the only
+         * place it appears.
+         */
+        listsOnlyWhatReportedNothing: () => {
+            /** @type {(module: string) => _BrowserTestResult} */
+            const ranIn = module => ({ ...leaf('passed', 1), module })
+            /** @type {ReportDemoState} */
+            const twoReported = {
+                kind: 'done',
+                report: reportOf('example', 1, [ranIn('./example/passing.f.mjs'), ranIn('./example/failing.f.mjs')], null),
+            }
+            const html = htmlToString(demo.view(twoReported))
+            assert(html.includes('<ul data-example-sources=""><li data-no-tests="">./example/empty.f.mjs</li></ul>'), html)
+            // And where every source reported something, there is no list at all.
+            /** @type {ReportDemoState} */
+            const allReported = {
+                kind: 'done',
+                report: reportOf('example', 1, [ranIn('./example/passing.f.mjs'), ranIn('./example/failing.f.mjs'), ranIn('./example/empty.f.mjs')], null),
+            }
+            assert(!htmlToString(demo.view(allReported)).includes('data-example-sources'), 'no list when everything reported')
         },
         // Only the named button runs the example; any other event leaves the
         // state as it was.
@@ -518,7 +545,7 @@ export const proof = {
             }
             const html = htmlToString(demo.view(done))
             assert(html.includes('data-example-report') && html.includes('data-example-counts'), html)
-            for (const hook of ['data-test-results', 'data-test-counts', 'data-test-summary', 'data-test-run']) {
+            for (const hook of ['data-test-results', 'data-test-counts', 'data-test-summary', 'data-test-run', 'data-test-sources']) {
                 assert(!html.includes(hook), [hook, html])
             }
         },
