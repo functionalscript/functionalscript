@@ -1714,13 +1714,20 @@ or the spec, not only into a thread.
    gap is by definition what is outside it. Nor by a `proof.mjs`:
    [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §1.6 forbids proving a `.f.mjs` API
    against values built by `Object.setPrototypeOf`, `defineProperty` or an
-   accessor, which is what the gap holds. So **narrowing the parameter is the
-   only thing that closes it here** — "assume correct types" applied to code,
-   after which the gap has no inputs to reach — and if the parameter stays, the
-   refusals covering it stay unproven in this repository, exactly as §What may
-   be serialized stays unproven here and is answered by an implementation in a
-   host that can build those values. Never as a fourth set, and never as host
-   recipes. Either way the corpus is unchanged, and the decision is recorded in
+   accessor — which is what the gap's **host-built residue** holds. That residue
+   is the part that cannot be covered here at all: an accessor, a non-enumerable
+   property, an array's extra own property, a cycle, a frozen value, a class
+   instance, a re-pointed prototype. The rest of the gap is proved here at the
+   top level, since a function, a symbol, a `Date`, a symbol key and a hole are
+   values FunctionalScript can build and the writer's `proof.f.mjs` hands each
+   one to `tryStringify` — which is what §1.6 prescribes rather than what it
+   forbids. So **narrowing the parameter is the only thing that closes the gap
+   here** — "assume correct types" applied to code, after which it has no inputs
+   to reach — and if the parameter stays, the residue stays unproven in this
+   repository, exactly as §What may be serialized stays unproven here and is
+   answered by an implementation in a host that can build those values. Never as
+   a fourth set, and never as host recipes. Either way the corpus is unchanged,
+   and the decision is recorded in
    [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md),
    which owns the signature.
 The steps, in order; a step is one pull request unless it says otherwise:
@@ -2733,10 +2740,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       That leaves this repository's writer measurably non-conforming for one
       host-built input it cannot receive from a FunctionalScript caller — one and
       not two, since its refusal of the `null`-prototype array is the permitted
-      half — and the two ways out are both the owner's: `fjs/AGENTS.md` §3.1 permits
-      `Array.isArray` here, or the writer's parameter narrows to the data model
-      and the input is not a valid argument at all — the signature question
-      decision 6 leaves open. Recorded, with the measurement, in
+      half — and there is exactly one way out, which is `fjs/AGENTS.md` §3.1's
+      owner's: §3.1 permits `Array.isArray` at that boundary and the impostor is
+      refused as a non-plain object. Narrowing the writer's parameter is **not**
+      a second way, which an earlier round of this file claimed: the
+      classification runs at run time where a type has gone, and `Unknown` is
+      structural besides — measured, `{ readonly length: number }` is assignable
+      to it, so even a typed caller reaches the array branch. Recorded, with the
+      measurement, in
       [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md).
       **And the corpus owes nothing, which the section now says itself — on the
       DataJS axis, not the FunctionalScript one.** A set is a *DataJS* data
