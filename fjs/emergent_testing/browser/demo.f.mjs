@@ -67,7 +67,23 @@ const example = [
 const sources = example.map(([module]) => module)
 
 /** What a row says when this page cannot sandbox a leaf at all. */
-const refused = 'this page cannot run the example: sandbox is not implemented'
+const refused = /** @type {const} */ ('this page cannot run the example: sandbox is not implemented')
+
+/**
+ * Every leaf of the example, paired with its module, in the order a run reaches
+ * them.
+ *
+ * **Collected before anything runs, so the run is one fold.** `collectTests`
+ * walks a proof tree without running any of it, so flattening the modules
+ * first costs nothing and leaves a single sequence of effects — one leaf after
+ * another — rather than a fold over each module's leaves started from inside
+ * the fold over modules. A module with no tests contributes no leaves, which is
+ * exactly why it reports nothing.
+ *
+ * @type {readonly (readonly [string, _TestAndPath])[]}
+ */
+const leaves = example.flatMap(([module, proof]) =>
+    collectTests([], false, proof).map(entry => /** @type {const} */ ([module, entry])))
 
 /**
  * One leaf: sandboxed, judged and read exactly as a real run does it.
@@ -76,27 +92,31 @@ const refused = 'this page cannot run the example: sandbox is not implemented'
  * channel is `never`, so a runtime that does not implement the operation has to
  * be absorbed into what the demo renders.
  *
- * @type {(module: string) => (entry: _TestAndPath) => (rows: readonly _BrowserTestResult[]) => Effect<Sandbox | Catch, readonly _BrowserTestResult[], never>}
+ * @type {(leaf: readonly [string, _TestAndPath]) => (rows: readonly _BrowserTestResult[]) => Effect<Sandbox | Catch, readonly _BrowserTestResult[], never>}
  */
-const runLeaf = module => ([path, entry]) => rows =>
+const runLeaf = ([module, [path, entry]]) => rows =>
     resultStep(defaultTest(module, path, entry), r =>
         r[0] === 'error'
             ? pureOk([...rows, moduleFailure(module, 0, refused, refused)])
             : mapStep(browserResult(testResult(module, path, r[1]), r[1], entry.throws), row => [...rows, row]))
 
 /**
- * The whole example, folded into a report — timed by the leaves' own durations,
- * which are the only clock a demo is given.
+ * Every leaf run in order, each answering its row.
+ *
+ * @type {Effect<Sandbox | Catch, readonly _BrowserTestResult[], never>}
+ */
+const runLeaves = foldStep(pureOk(leaves), /** @type {readonly _BrowserTestResult[]} */ ([]), runLeaf)
+
+/**
+ * The rows folded into a report — timed by the leaves' own durations, which
+ * are the only clock a demo is given.
  *
  * @type {Effect<Sandbox | Catch, ReportDemoState, never>}
  */
-const runExample = mapStep(
-    foldStep(pureOk(example), /** @type {readonly _BrowserTestResult[]} */ ([]), ([module, proof]) => rows =>
-        foldStep(pureOk(collectTests([], false, proof)), rows, runLeaf(module))),
-    rows => ({
-        kind: 'done',
-        report: reportOf('example', rows.reduce((total, row) => total + row.duration, 0), rows, null),
-    }))
+const runExample = mapStep(runLeaves, rows => ({
+    kind: 'done',
+    report: reportOf('example', rows.reduce((total, row) => total + row.duration, 0), rows, null),
+}))
 
 /**
  * The example's sources, listed as a real page lists its own: every one before
