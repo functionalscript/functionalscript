@@ -1,12 +1,13 @@
 ## streaming-recognizer. A payload-free, O(depth) JSON validity recognizer
 
 **Priority:** P3
-**Status:** blocked — the reader it reuses is being redesigned.
-**Blocked by:** [self-contained-tokenizer](./self-contained-tokenizer.md)
+**Status:** open — the design below is written against a reader that no
+longer exists; rebase it on the grammar before starting.
 
 > **The seam this design is built on no longer exists.** It reuses the
-> hand-written `Scan<S>` scanners that
-> [self-contained-tokenizer](./self-contained-tokenizer.md) used to promise, and
+> hand-written `Scan<S>` scanners that the JSON reader's rewrite (stage 3 of
+> [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md),
+> closed) used to promise, and
 > that design was implemented, reverted
 > ([#1895](https://github.com/functionalscript/functionalscript/pull/1895)) and
 > replaced by a reader generated from JSON's EBNF grammar. Nothing exports
@@ -37,10 +38,10 @@ pipeline unfit as a validity check for a size-independent streaming consumer:
    `top`/`stack`, i.e. O(n) memory in the document size — even when the caller
    only wants a yes/no verdict.
 
-2. **The tokenizer buffers token payloads.** The shared `fjs/js` string and
-   number states accumulate their text with `appendChar`
-   (`ParseStringState.value`, `ParseNumberState.value` —
-   `fjs/js/tokenizer/module.f.mjs:436-474,550-556`). A single huge token — e.g.
+2. **The reader materializes token payloads.** The grammar's reader takes a
+   token's text as a slice of the input and decodes a string over it
+   (`lex` and `decodeJsonString` in `fjs/js/tokenizer`), and JSON's own
+   `parse` folds the string rule to its value. A single huge token — e.g.
    `{"x":"⟨1 MB⟩"}` or one very long number — allocates O(token length) even
    before the parser runs. So a recognizer built by discarding only the parser's
    values still buffers whole tokens.
@@ -139,7 +140,7 @@ is the thing being lagged.
 
 **A code unit, not a code point**, and it is `(state, unit)` rather than a
 `Fold` — see the note at the end of this section before wiring it into one.
-The reason for the unit is the seam this design reuses. [self-contained-tokenizer](./self-contained-tokenizer.md) types the
+The reason for the unit is the seam this design reuses. The withdrawn scanner design typed the
 scanners as `Scan<S>` over `U16 | null`, so a caller holding one value for a
 raw astral character such as U+1F600 has nothing it can pass: the scalar is two
 units, and expanding it is the caller's job under either spelling. Taking
@@ -173,10 +174,10 @@ out of scope, even if a test corpus shows it equivalent.
 
 Concretely, reuse the existing grammar rather than writing a fourth JSON
 parser; drop only the accumulation. Where the bullets below say `fjs/js`, read
-`fjs/media/json/tokenizer` once
-[self-contained-tokenizer](./self-contained-tokenizer.md) lands: the string and
-number scanners become JSON's own, which is a better fit for this design, not a
+[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs): the string and
+number rules are JSON's own now, which is a better fit for this design, not a
 worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar.
+The JSON tokenizer the bullets once expected to read is retired.
 
 - **Payload-free scanning.** Reuse the tokenizer's *transition structure*
   (range-map dispatch, escape / `\uXXXX` / surrogate handling, number-shape DFA)
@@ -199,10 +200,9 @@ worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar
   leaving it off keeps them equivalent.
 
 - **Strictness.** Honor RFC 8259 at scan time. The raw-control-in-string
-  rejection already lives in the shared `fjs/js` tokenizer (`parseStringStateOp`),
-  so the recognizer inherits it for free by reusing that scanner's string op
-  (factored over a no-op builder, per the payload-free point above) rather than
-  re-deriving the check.
+  rejection already lives in the grammar's `character` rule
+  (`fjs/ebnf/lib/json`), so the recognizer inherits it for free by running
+  that grammar rather than re-deriving the check.
 
 Because the recognizer and the value-building `parse` run on the same state
 machine over the same grammar, they cannot diverge **by construction** — the

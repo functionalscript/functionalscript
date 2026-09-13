@@ -2,10 +2,9 @@
 
 **Priority:** P3
 **Status:** open — **blocked by nothing.** This issue used to live beside the
-hand-written scanner in `fjs/js/tokenizer` and waited on
-[self-contained-tokenizer](../../../../media/json/todo/self-contained-tokenizer.md),
-because widening that scanner regressed the public JSON tokenizer built over
-it. It moved here when
+hand-written scanner in `fjs/js/tokenizer` and waited on the JSON reader's
+rewrite, because widening that scanner regressed the public JSON tokenizer
+built over it. It moved here when
 [parser-serializer-restructure](../../../../../todo/parser-serializer-restructure.md)
 stage 7 decided that the scanner goes and the grammar is the token layer:
 JSON reads [`ebnf/lib/json`](../../json/module.f.mjs), not this grammar, so
@@ -26,8 +25,9 @@ actually written in stop the grammar, and with it every reader of it:
 ```
 
 Measured over every `.mjs` under `fjs/` and `spec/` (350 files) through
-[`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs)'s `tokenizeJs`, the
-grammar's reader: **336 stop at an error token; 14 tokenize cleanly**, and
+[`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
+grammar's reader (it was `fsc/tokenizer`'s `tokenizeJs` when measured; the
+same code, moved): **336 stop at an error token; 14 tokenize cleanly**, and
 they are the small ones and the data modules — `effects/list`,
 `types/function`, `types/map`, `types/nominal`, `types/range`,
 `types/btree/types`, the two `fsc/examples` fixtures and the six DataJS vector
@@ -86,8 +86,9 @@ The grammar has three readers, and the widening reaches each differently.
   first mechanism already holds: the JS string rule cannot be two LL(1)
   branches by dialect, since both begin with `"`, and one bit on the token
   is what the compiler's fold reads.
-- `fjs/js/tokenizer`, once stage 7 rebuilds it over this grammar as the
-  general JS stream. It is the consumer this issue exists for: the website's
+- [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
+  JS stream over this grammar since stage 7. It is the consumer this issue
+  exists for: the website's
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
   reads it, and a future `fjs lint` would. It refuses nothing the grammar
   recognises.
@@ -95,8 +96,8 @@ The grammar has three readers, and the widening reaches each differently.
   folds [`ebnf/lib/json`](../../json/module.f.mjs), a separate grammar this
   one *imports rules from* and never the reverse, so `'x'` stays
   `unexpected symbol at 0` there whatever this grammar learns. The JSON
-  tokenizer's `escapeJsHasAndJsonDoesNot` proof, which the old issue had to
-  defend, is untouched because that tokenizer never reads this grammar.
+  tokenizer whose `escapeJsHasAndJsonDoesNot` proof the old issue had to
+  defend is retired, with the scanner it wrapped.
 
 What the widening must not do is grow the JSON rules it imports. `string`,
 `escape` and `character` in `ebnf/lib/json` are JSON's and stay JSON's; the JS
@@ -254,7 +255,7 @@ not reconstruct the text it came from, and it anchored each token at its
 **end**, so the old issue spent a section on the slicing rule that recovers
 the text from end positions. The grammar route keeps the first two — a
 `string` token is still its cooked value, and trivia is still valueless — but
-not the third: [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs)
+not the third: [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)
 reads a token's text as "the input between where it began and where it
 ended" and anchors the token at its start, and only an `error` token carries
 an end. Since trivia is emitted rather than skipped, the stream is
@@ -348,6 +349,3 @@ the source view rests on.
   issue settles.
 - [eslint](../../../../../todo/eslint.md) — names this same gap as its reason
   for deferring `fjs lint`; a linter cannot read sources the tokenizer rejects.
-- [self-contained-tokenizer](../../../../media/json/todo/self-contained-tokenizer.md)
-  — the JSON tokenizer's rebuild, which this issue used to wait on and no
-  longer does; the two touch only through the JSON rules this grammar imports.
