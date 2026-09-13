@@ -77,10 +77,12 @@ parser requires too, so a document parses today — `NaN` and the infinities
 included, measured against
 [`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
 which closed the reader-side gap this paragraph used to name. Both surfaces of
-[§Encoding](#encoding) exist: `parse` takes the document as code units, and
-`parseBytes` takes it as bytes — refusing what is not correct UTF-8 and a
-leading BOM before the reader sees a unit, then handing on the code units those
-bytes denote. The corpus's byte-form vectors run through the second.
+[§Encoding](#encoding) exist, on the codec's public
+[`module.f.mjs`](../../fjs/media/datajs/module.f.mjs): `tryParse` takes the
+document as code units, and `tryParseBytes` takes it as bytes — refusing what
+is not correct UTF-8 and a leading BOM before the reader sees a unit, then
+handing on the code units those bytes denote. The corpus's byte-form vectors
+run through the second.
 The writer,
 [`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.mjs),
 writes [normalized form](#normalized-form), and `fjs compile` writes through

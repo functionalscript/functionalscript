@@ -20,19 +20,81 @@ resolution                parser/parse: the statements in order, each const boun
 Unknown                   the graph the document denotes, sharing included
 ```
 
-The reader is [`parser/module.f.mjs`](./parser/module.f.mjs), the writer
-[`serializer/module.f.mjs`](./serializer/module.f.mjs), and the value types
-are in [`types.ts`](./types.ts). The reader takes either surface — `parse` over
-code units, `parseBytes` over UTF-8 bytes, which owes the two document rules a
-string cannot carry. What remains of the codec is two issues: this directory's
-own public `module.f.mjs`, in
-[`todo/parser-serializer.md`](./todo/parser-serializer.md), and what the
-writer still owes, in
-[`todo/serializer.md`](./todo/serializer.md). The codec's proofs come
-from the conformance corpus, [`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
+The public surface is [`module.f.mjs`](./module.f.mjs): `tryParse` and
+`tryParseBytes` read a document into the value it denotes, `trySerialize` and
+`tryStringify` write a value as one, and the value types are in
+[`types.ts`](./types.ts). The reader lives in
+[`parser/module.f.mjs`](./parser/module.f.mjs) and the writer in
+[`serializer/module.f.mjs`](./serializer/module.f.mjs). The reader owes
+nothing further, and its issue is retired into this file; what the writer
+still owes is in [`todo/serializer.md`](./todo/serializer.md). The codec's
+proofs come from the conformance corpus,
+[`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
 [`vectors/`](./vectors/module.f.mjs) holds the record types the corpus is
 typed with and `difference`, the sharing-aware comparison a proof over it
 uses.
+
+## Every entry point is fallible, and the names say so
+
+```text
+fjs/media/datajs/
+    module.f.mjs      the public surface: the four entry points below
+    types.ts          Primitive, Unknown
+    parser/           the reader — tryParse over code units, tryParseBytes over bytes
+    serializer/       the writer — trySerialize as chunks, tryStringify as one string
+    vectors/          the corpus's record types, and difference
+```
+
+A caller may legitimately hand a reader text that is no document, or a writer
+a value outside the data model, so each entry point returns a `Result` and
+refuses rather than approximating — a reader says where the parse failed or
+which rule the document breaks, a writer names what it could not write:
+
+```ts
+export const tryParse:      (text: string)    => Result<Unknown, string>
+export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
+export const trySerialize:  (value: unknown)  => Result<List<string>, string>
+export const tryStringify:  (value: unknown)  => Result<string, string>
+```
+
+The prefix is one decision for all four, taken when the surface landed: the
+reader's two had landed bare, and renaming half of the names before the
+surface existed would have been the inconsistency the surface exists to
+settle. There is no `tokenizer/` — the grammar is the reader, below — and no
+`tryNormalize`, because the one writer *is* the normalized one.
+
+**The byte path is a conformance obligation, not a convenience.** Two rules of
+the specification's §Encoding cannot be reached from a string at all — a
+document **is UTF-8**, and it **has no BOM** — since by the time input is a
+JavaScript string every byte sequence is some sequence of code units and a
+leading BOM is one ordinary character among them. `tryParseBytes` decodes with
+[`fjs/text/utf8`](../../text/utf8/module.f.mjs), refuses what is not correct
+UTF-8, **refuses** a leading `EF BB BF` — a BOM makes the bytes invalid, it is
+not something to strip on the way in, and stripping is exactly the defect the
+corpus's vector catches — and then re-encodes to the code units the grammar
+reads, so a four-byte scalar such as `😀` reaches the reader as the pair
+`D83D DE00`. One reader over one alphabet; the bridge is the decoder's.
+
+## One type-level trap in the value domain
+
+`Unknown` is `Tree<Primitive>` over [JSON's tree type](../json/types.ts), with
+`undefined` among the leaves, and the optional index signature of
+`TreeObject<P>` makes **`{a: undefined}` and `{}` the same type** where the
+specification makes them different documents:
+
+```js
+export default {"a":undefined};   // an object with one member
+export default {};                // an object with none
+```
+
+Only the runtime enumerator tells them apart, which is a proof obligation on
+each side rather than a note. The reader builds a member holding `undefined`
+as a present property — through `Object.fromEntries`, which no type checks, so
+its proof pins it. The writer reads an object through its own property
+descriptors, not through `definedEntries`, which drops such a member before
+any other seam runs, and not through `Object.entries`, which invokes a getter
+while collecting its value — the next two sections say why that one mechanism
+answers both.
 
 ## The writer reads the value into a graph first
 

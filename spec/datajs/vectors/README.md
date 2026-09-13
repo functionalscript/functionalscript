@@ -59,8 +59,8 @@ places, by which role they are about. **The reader's** are with the reader, in
 [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs):
 every accept document read to the graph its vector asserts, and every reject
 document refused — each by the surface its form calls for, a string of code units
-to `parse` and a byte record to `parseBytes`, so a byte record tests the reader's
-byte path rather than the corpus's own decoding. The two rules only bytes can
+to `tryParse` and a byte record to `tryParseBytes`, so a byte record tests the
+reader's byte path rather than the corpus's own decoding. The two rules only bytes can
 break are pinned by message and not only by refusal: a reject naming one of them
 owes exactly that rule's words, which is what tells `byte-bom-first` apart from
 the code-unit refusal of U+FEFF it would otherwise pass on.
