@@ -57,9 +57,10 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    open with a red dot. A failure's error is a tinted, bordered box in the
    ordinary text colour, so a stack is readable rather than a wall of red, and
    it may break inside a word because a stack line is often one long URL. The
-   panel is not drawn until a run has put something in it. */
-[data-test-results] { border: 1px solid var(--border); border-radius: 10px; margin-top: .5rem; overflow: hidden }
-[data-test-results]:empty { display: none }
+   panel is not drawn until a run has put something in it. The runner's demo
+   draws the same report into its own container, so both are the panel. */
+[data-test-results], [data-example-report] { border: 1px solid var(--border); border-radius: 10px; margin-top: .5rem; overflow: hidden }
+[data-test-results]:empty, [data-example-report]:empty { display: none }
 [data-test-module] { color: var(--text) }
 [data-test-module] + [data-test-module] { border-top: 1px solid var(--border) }
 [data-test-module] > summary { align-items: center; cursor: pointer; display: flex; gap: .5rem; list-style: none; padding: .4rem .75rem }
@@ -78,7 +79,7 @@ li[data-status="passed"] { color: var(--muted) }
    red for what failed, and the time at the right edge — so they stay in sight
    with the section folded. The line under the title keeps only what the title
    cannot say, and is not drawn when it has nothing to say. */
-[data-test-counts] { font-size: .8rem; font-weight: 600 }
+[data-test-counts], [data-example-counts] { font-size: .8rem; font-weight: 600 }
 [data-count-passed], [data-count-failed] { border-radius: 999px; margin-left: .5rem; padding: .1rem .5rem; vertical-align: middle }
 [data-count-passed] { background: var(--pass-bg); color: var(--pass) }
 [data-count-failed] { background: var(--fail-bg); color: var(--fail) }

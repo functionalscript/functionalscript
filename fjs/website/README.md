@@ -84,6 +84,16 @@ results is hidden, since it is a group above. Two kinds stay, because no group
 stands for either: a blocked proof, with its reason, and a proof that ran and
 reported no tests, which the runner marks after the run.
 
+**The runner's own page shows a failure on purpose.** A green suite never shows
+the report's failure state, and breaking a real proof would turn every run red.
+So `fjs/emergent_testing/browser` has a demo that runs a small example suite —
+one module passing, one failing, one with no tests — through the same walk,
+sandbox and report views a real run uses, and after the run lists the module
+that reported nothing the way a real page does. It is a `demo`, never a
+`proof`, so no real run sees it. It draws into `data-example-*` hooks, not
+`data-test-*`, because the runner looks those up across the whole page and the
+demo renders above the suite.
+
 ## A demo shows what a module does
 
 A module page can say what a module *is* and whether it *passes*. A demo is the

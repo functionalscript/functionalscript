@@ -19,12 +19,13 @@
  * @module
  *
  * @import {
- *     BrowserTestReport, LeafReporter, Reporter, TestResult, _BrowserEvent,
+ *     BrowserTestReport, LeafReporter, Reporter, TestId, TestResult, _BrowserEvent,
  *     _BrowserReport, _BrowserTestResult, _LoadOutcome, _LoadState, _TestAndPath,
  * } from '../types.ts'
  * @import { Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
  * @import { Effect, Func, IoChannel } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Element } from '../../media/html/types.ts'
  */
 
 import { catch_, import_ } from '../../effects/common/module.f.mjs'
@@ -413,6 +414,86 @@ export const groupLabel = (passed, failed) =>
  * @type {(ms: number) => string}
  */
 export const formatDuration = ms => ms < 1000 ? `${ms.toFixed(1)} ms` : `${(ms / 1000).toFixed(1)} s`
+
+/**
+ * A group's status from its counts: `failed` the moment anything failed,
+ * `passed` once nothing more will land in it, `running` until then.
+ *
+ * One rule for both renderers — the view drawing a finished group and the live
+ * page relabelling one as its rows land — so the two cannot disagree about
+ * when a group has passed.
+ *
+ * @type {(passed: number, failed: number, settled: boolean) => 'failed' | 'passed' | 'running'}
+ */
+export const groupStatus = (passed, failed, settled) =>
+    failed !== 0 ? 'failed' : settled ? 'passed' : 'running'
+
+/**
+ * One row of the report: the verdict, the leaf's name and its time — and, for a
+ * failure, the message and stack as a block of their own under it.
+ *
+ * **The report's markup is these views, and only these views.** The live page
+ * turns them into DOM nodes as rows land, and the runner's demo returns them
+ * for the demo runtime to render, so a row cannot look one way in a real run
+ * and another in the demo: neither of them spells the markup.
+ *
+ * @type {(result: _BrowserTestResult) => Element}
+ */
+export const resultView = result => {
+    const line = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)`
+    return result.status === 'failed'
+        ? ['li', { 'data-status': 'failed' }, line, ['pre', { 'data-test-error': '' }, `${result.message}\n${result.stack}`]]
+        : ['li', { 'data-status': 'passed' }, line]
+}
+
+/**
+ * The row a leaf gets while it runs: its name and no verdict, because there is
+ * none yet. `running` rather than a missing status, so a row left in it after a
+ * run ends is visibly the test that did not finish.
+ *
+ * @type {(id: TestId) => Element}
+ */
+export const pendingView = id => ['li', { 'data-status': 'running' }, `RUN  ${id.name}`]
+
+/**
+ * One module's group: a line of a dot, the module's path and its counts, then
+ * its rows. Open while running or failed, and folded once it has passed, so
+ * what stays open is what needs reading.
+ *
+ * The list is marked `data-rows` so the live page can find it again to append
+ * to without depending on where it sits.
+ *
+ * @type {(group: { readonly module: string, readonly results: readonly _BrowserTestResult[], readonly passed: number, readonly failed: number }, settled: boolean) => Element}
+ */
+export const groupView = ({ module, results, passed, failed }, settled) => {
+    const status = groupStatus(passed, failed, settled)
+    return ['details', { 'data-test-module': module, 'data-status': status, ...(status === 'passed' ? {} : { open: '' }) },
+        ['summary',
+            ['span', { 'data-dot': '' }],
+            ['span', { 'data-path': '' }, module],
+            ['span', { 'data-counts': '' }, groupLabel(passed, failed)]],
+        ['ol', { 'data-rows': '' }, ...results.map(resultView)]]
+}
+
+/**
+ * A finished report's groups, each settled.
+ *
+ * @type {(results: readonly _BrowserTestResult[]) => readonly Element[]}
+ */
+export const reportView = results => groupByModule(results).map(group => groupView(group, true))
+
+/**
+ * A run's counts: green for what passed, red for what failed — only when
+ * something did, so a clean run does not carry a zero in the colour that means
+ * trouble — and the time.
+ *
+ * @type {(report: BrowserTestReport) => readonly Element[]}
+ */
+export const countsView = ({ totals, duration }) => [
+    ['span', { 'data-count-passed': '' }, `${totals.passed} passed`],
+    ...(totals.failed === 0 ? [] : [/** @type {Element} */ (['span', { 'data-count-failed': '' }, `${totals.failed} failed`])]),
+    ['span', { 'data-duration': '' }, formatDuration(duration)],
+]
 
 /**
  * The sources a run was given that produced no result at all, in the order
