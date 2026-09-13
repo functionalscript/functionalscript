@@ -33,6 +33,15 @@
  * bytes that are no object, bytes that hash to another id — tries the packs,
  * and what the loose read said stands only where no pack holds the id.
  *
+ * **Reading packs widens what this asks of its host, and that is a break.** A
+ * loose read needs `readFile` and `inflate`; a packed one adds `readdir` for
+ * the pack directory, `readFile` for an index, `stat` for the pack's length and
+ * `readBytes` for one entry's window. Every one of them is a `NodeOp`, so a
+ * program on the node runner notices nothing — what has to grow is an
+ * interpreter written for exactly the old set, which a mock or a partial runner
+ * is. Both of this repository's own callers were such interpreters and grew
+ * three handlers each, which is the measure of what an importer has to do.
+ *
  * @module
  *
  * @import { Inflate, IoChannel, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
