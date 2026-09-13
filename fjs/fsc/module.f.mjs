@@ -7,7 +7,8 @@
  *
  * @import { List } from '../types/list/types.ts'
  * @import { Result } from '../types/result/types.ts'
- * @import { Array as DjsArray, Object as DjsObject, Unknown, _CompileOp } from '../djs/types.ts'
+ * @import { Unknown, _CompileOp } from '../djs/types.ts'
+ * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect } from '../effects/types.ts'
  */
@@ -15,13 +16,13 @@
 import { transpile } from './transpiler/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
-import { empty, flat, toArray } from '../types/list/module.f.mjs'
+import { empty, flat } from '../types/list/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { resultStep } from '../effects/module.f.mjs'
 import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
-const { entries, values } = Object
+const { entries } = Object
 
 /**
  * Where an error happened, as much of it as is known: the token's
@@ -107,8 +108,8 @@ const jsonMember = ([key, value]) => mapOk(
 /**
  * A value in JSON, or the refusal of a leaf. Members are written in the
  * order the object carries them, the order the module output keeps too.
- * Sharing is not this walk's question: {@link _tryJson} settles it before
- * the walk begins, so the walk carries no state.
+ * Sharing is not this walk's question: the front end answers it from the
+ * module's syntax, so the walk carries no state.
  *
  * @type {(value: Unknown) => Result<List<string>, string>}
  */
@@ -119,50 +120,31 @@ const jsonValue = value => {
         : mapOk(objectWrap)(all(entries(value).map(jsonMember)))
 }
 
-/** @type {(value: DjsArray | DjsObject) => readonly Unknown[]} */
-const children = value => value instanceof Array ? value : values(value)
-
 /**
- * Every container the value reaches, one entry per reference: a container
- * two references reach is listed twice, which is what a shared node is.
- * A list rather than a set, and a lazy one, so that the pass is one walk
- * over the graph with nothing copied — a set threaded through the walk,
- * copied on entering each container, was measured quadratic in the number
- * of containers, and a set mutated in place is what FunctionalScript does
- * not do.
- *
- * @type {(value: Unknown) => List<object>}
- */
-const containers = value => value === null || typeof value !== 'object'
-    ? empty
-    : flat([[value], flat(children(value).map(containers))])
-
-/**
- * Whether two references reach one container. The value is the front end's,
- * which builds every container bottom-up, so the walk is over a DAG and
- * ends; a cycle is not a value this module is ever handed.
- *
- * @type {(value: Unknown) => boolean}
- */
-const isShared = value => {
-    const reached = toArray(containers(value))
-    return new Set(reached).size !== reached.length
-}
-
-/**
- * The value as one JSON text, when it has one: every leaf spelled by JSON
- * and no node shared. JSON denotes a tree, so a container that two
- * references reach is refused: writing it twice would read back as two
- * nodes, and a document denoting a different graph is the silent
- * substitution the module output exists to avoid. Exported for the proofs,
- * which refuse one value at a time; `compile` is what a caller runs, and
- * the `_` says so.
+ * The value as one JSON text, when it has one: every leaf spelled by JSON.
+ * The value is a tree by the front end's word — {@link Denotation} says
+ * whether two references reach one node, decided from the module's syntax
+ * rather than by walking the value by identity — so this walk carries no
+ * state and asks no question about sharing. Exported for the proofs, which
+ * refuse one leaf at a time; `compile` is what a caller runs, and the `_`
+ * says so.
  *
  * @type {(value: Unknown) => Result<string, string>}
  */
-export const _tryJson = value => isShared(value)
-    ? noJson('a shared node')
-    : mapOk(concat)(jsonValue(value))
+export const _tryJson = value => mapOk(concat)(jsonValue(value))
+
+/**
+ * A denotation as JSON. JSON denotes a tree, so a value with a node two
+ * references reach is refused: writing the node twice would read back as
+ * two nodes, and a document denoting a different graph is the silent
+ * substitution the module output exists to avoid.
+ *
+ * @type {(denotation: Denotation) => Result<string, string>}
+ */
+const jsonText = ({ value, shared }) => shared ? noJson('a shared node') : _tryJson(value)
+
+/** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
+const moduleText = ({ value }) => tryStringify(value)
 
 // ── the command ───────────────────────────────────────────────────────────────
 
@@ -186,10 +168,10 @@ export const compile = args => {
     }
     const inputFileName = args[0]
     const outputFileName = args[1]
-    const write = outputFileName.endsWith('.json') ? _tryJson : tryStringify
+    const write = outputFileName.endsWith('.json') ? jsonText : moduleText
     return resultStep(
         transpile(inputFileName),
-        /** @type {(result: Result<Unknown, ParseError>) => Effect<_CompileOp, 0, number>} */
+        /** @type {(result: Result<Denotation, ParseError>) => Effect<_CompileOp, 0, number>} */
         (result) => {
             if (result[0] === 'error') {
                 return errorExit(`${errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)

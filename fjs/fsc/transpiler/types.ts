@@ -4,12 +4,11 @@
  * @module
  */
 
-import type { Unknown } from '../../djs/types.ts'
+import type { Denotation } from '../ast/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 
 /** The evaluated DJS value produced for one successfully transpiled module. */
-export type djsResult = { readonly djs: Unknown }
 
 /**
  * State threaded through the recursive transpilation of a DJS module graph.
@@ -25,6 +24,6 @@ export type djsResult = { readonly djs: Unknown }
  * a context that exists is a context that is still good.
  */
 export type ParseContext = {
-    readonly complete: OrderedMap<djsResult>
+    readonly complete: OrderedMap<Denotation>
     readonly stack: List<string>
 }

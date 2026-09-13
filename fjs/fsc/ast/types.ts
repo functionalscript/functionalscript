@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { Primitive } from '../../djs/types.ts'
+import type { Primitive, Unknown } from '../../djs/types.ts'
 
 /**
  * A parsed DJS module: its imported module specifiers, in source order, and
@@ -57,3 +57,12 @@ export type AstObject = { readonly[k in string]?: AstConst }
  * where `args` are the imported modules.
  */
 export type AstBody = readonly AstConst[]
+
+/**
+ * What a module denotes: the value the front end built for it, and whether
+ * that value's graph has a node two references reach. The second is known
+ * from the module's syntax — a `const` or an import referenced twice — and
+ * is carried beside the value because nothing about a plain object says it
+ * afterwards without walking the graph by identity.
+ */
+export type Denotation = { readonly value: Unknown, readonly shared: boolean }

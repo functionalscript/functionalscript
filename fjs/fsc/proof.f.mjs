@@ -85,6 +85,13 @@ const jsonRefused = source => {
     return state.stderr.trim()
 }
 
+/** Whether the front end finds a shared node in the module at `path`. @type {(root: typeof emptyState.root) => (path: string) => boolean} */
+const sharedOf = root => path => {
+    const [, result] = virtual({ ...emptyState, root })(transpile(path))
+    assert(result[0] === 'ok', result[1])
+    return result[1].shared
+}
+
 /** The module `fjs compile` writes for a value. @type {(value: Unknown) => string} */
 const moduleText = value => unwrap(tryStringify(value))
 
@@ -213,7 +220,7 @@ export const proof = {
         const root = { 'input.f.js': [utf8(source)] }
         const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
         assert(result[0] === 'ok', result[1])
-        assertStructurallySame(result[1], value, source)
+        assertStructurallySame(result[1].value, value, source)
     }),
     // The subset law, FunctionalScript's half: every DataJS accept document
     // is a FunctionalScript module, and the front end reads it to the graph
@@ -255,6 +262,45 @@ export const proof = {
     normalizeFixedPoint: normalizeSet.map(({ id, text }) => () => {
         assertEq(compileSource(text)('output.f.js'), text, id)
     }),
+    // Sharing is decided from the module's syntax, not by walking the value:
+    // a container `const` or import that the export reaches twice, or an
+    // import whose own value is shared. A leaf referenced twice is not a
+    // node, an unreachable `const` is not part of the value, and an inline
+    // literal is a fresh node every time it is written.
+    sharing: {
+        constTwice: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = [1]; export default [a, a];')] })('a.f.js')) },
+        leafTwice: () => {
+            assert(!sharedOf({ 'a.f.js': [utf8('const a = 1; export default [a, a];')] })('a.f.js'))
+            assertEq(compileSource('const a = 1; export default [a, a];')('output.json'), '[1,1]')
+        },
+        unreachable: () => {
+            assert(!sharedOf({ 'a.f.js': [utf8('const a = []; const b = [a, a]; export default [a];')] })('a.f.js'))
+            assertEq(compileSource('const a = []; const b = [a, a]; export default [a];')('output.json'), '[[]]')
+        },
+        alias: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; const b = a; export default [a, b];')] })('a.f.js')) },
+        nested: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; export default [a, [a]];')] })('a.f.js')) },
+        member: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "y": {"z": a}};')] })('a.f.js')) },
+        literals: () => { assert(!sharedOf({ 'a.f.js': [utf8('export default [[1], [1], {"a": {}}];')] })('a.f.js')) },
+        importTwice: () => {
+            assert(sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default [1];')] })('a.f.js'))
+            assert(!sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default 1;')] })('a.f.js'))
+        },
+        importShared: () => {
+            const root = { 'c.f.js': [utf8('const a = []; export default [a, a];')] }
+            assert(sharedOf({ ...root, 'a.f.js': [utf8('import c from "./c.f.js"; export default [c];')] })('a.f.js'))
+            // an import the export never reaches contributes nothing
+            assert(!sharedOf({ ...root, 'a.f.js': [utf8('import c from "./c.f.js"; const x = 1; export default [x];')] })('a.f.js'))
+        },
+        json: () => { assert(!sharedOf({ 'a.json': [utf8('[[1],[1]]')] })('a.json')) },
+        // a node doubled at every `const`: two to the twenty-fourth references
+        // in the value, and one `const` per line in the syntax the answer is
+        // read from — refused at once, where a walk over the value's paths
+        // would not return
+        doubling: () => {
+            const consts = Array.from({ length: 24 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
+            assertEq(jsonRefused(`const a0 = [1]; ${consts} export default a24;`), 'output.json - error: no JSON spelling for a shared node')
+        },
+    },
     // The three numbers JSON cannot spell, end to end: read as the values
     // they name, written back as the same words. `NaN` is checked by
     // `Object.is` directly, which is what `structurallySame` compares leaves
@@ -264,7 +310,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const value = result[1]
+            const { value } = result[1]
             assert(value instanceof Array && value.length === 3, value)
             assert(is(value[0], NaN), value[0])
             assertEq(value[1], Infinity)
@@ -333,7 +379,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default -0;')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            assert(is(result[1], -0), result[1])
+            assert(is(result[1].value, -0), result[1])
         },
         moduleRoundTrip: () => {
             assertEq(compileSource('export default -0;')('output.f.js'), 'export default -0;')
@@ -426,7 +472,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const value = result[1]
+            const { value } = result[1]
             assert(isObject(value), value)
             assertStructurallySame(value, protoValue)
             assertEq(getPrototypeOf(value), objectPrototype)

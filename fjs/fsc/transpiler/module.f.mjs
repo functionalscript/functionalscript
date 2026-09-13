@@ -4,6 +4,7 @@
  * @module
  *
  * @import { Unknown } from '../../djs/types.ts'
+ * @import { Denotation } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { AstModule } from '../ast/types.ts'
@@ -22,7 +23,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { run } from '../ast/module.f.mjs'
+import { run, shared } from '../ast/module.f.mjs'
 import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 
@@ -35,15 +36,18 @@ import { readUtf8File } from '../../effects/node/module.f.mjs'
 const notFound = e =>
     catchStep(e, () => pureError({ message: 'file not found', metadata: null }))
 
-/** @type {(context: ParseContext) => (path: string) => Unknown} */
+/** @type {(context: ParseContext) => (path: string) => Denotation} */
 const mapDjs = context => path => {
     const res = at(path)(context.complete)
     if (res === null)
     {
         throw 'unexpected behaviour'
     }
-    return res.djs
+    return res
 }
+
+/** @type {(denotation: Denotation) => Unknown} */
+const valueOf = ({ value }) => value
 
 /**
  * The front end over a module's text: the tokenizer over its code units, then
@@ -77,12 +81,13 @@ const transpileWithImports = path => module => context => {
     return mapStep(
         x0,
         contextWithImports => {
-            const args = toArray(listMap(mapDjs(contextWithImports))(pathsCombine))
-            const djs = { djs: run(module[1])(args) }
+            const imports = toArray(listMap(mapDjs(contextWithImports))(pathsCombine))
+            /** @type {Denotation} */
+            const denotation = { value: run(module[1])(imports.map(valueOf)), shared: shared(module[1])(imports) }
             return {
                 ...contextWithImports,
                 stack: drop(1)(contextWithImports.stack),
-                complete: setReplace(path)(djs)(contextWithImports.complete),
+                complete: setReplace(path)(denotation)(contextWithImports.complete),
             }
         })
 }
@@ -102,10 +107,10 @@ const foldNextModuleOp = path => context => {
         module => transpileWithImports(path)(module)(context))
 }
 
-/** @type {(path: string) => Effect<ReadFile, Unknown, ParseError>} */
+/** @type {(path: string) => Effect<ReadFile, Denotation, ParseError>} */
 const transpileModule = path => mapStep(
     foldNextModuleOp(path)({ stack: null, complete: null }),
-    context => at(path)(context.complete)?.djs)
+    context => mapDjs(context)(path))
 
 /**
  * A JSON document is a value, not a module: it imports nothing and names
@@ -116,7 +121,9 @@ const transpileModule = path => mapStep(
  * than as metadata, so the `ParseError` has none and `fjs/djs`'s `compile`
  * names the file instead of a line and column.
  *
- * @type {(path: string) => Effect<ReadFile, Unknown, ParseError>}
+ * A JSON value is a tree, so it shares nothing.
+ *
+ * @type {(path: string) => Effect<ReadFile, Denotation, ParseError>}
  */
 const transpileJson = path => step(
     notFound(readUtf8File(path)),
@@ -124,21 +131,22 @@ const transpileJson = path => step(
         const json = jsonParse(text)
         return pure(json[0] === 'error'
             ? error({ message: json[1], metadata: null })
-            : ok(json[1]))
+            : ok({ value: json[1], shared: false }))
     })
 
 /**
- * Transpiles the file at `path` into a single `Unknown` value.
+ * Transpiles the file at `path` into what it denotes: one value, and whether
+ * that value's graph has a node two references reach.
  *
  * The extension names its language: a `.json` file is a JSON document, read by
  * `fjs/media/json`, and anything else is a FunctionalScript module, whose
  * imports are resolved recursively — each of them a module too, whatever it is
  * called ([spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key)).
  *
- * Returns `['ok', value]` on success, or `['error', ParseError]` on a parse
- * failure, a missing file, or a circular dependency.
+ * Returns `['ok', denotation]` on success, or `['error', ParseError]` on a
+ * parse failure, a missing file, or a circular dependency.
  *
- * @type {(path: string) => Effect<ReadFile, Unknown, ParseError>}
+ * @type {(path: string) => Effect<ReadFile, Denotation, ParseError>}
  */
 export const transpile = path => path.endsWith('.json')
     ? transpileJson(path)
