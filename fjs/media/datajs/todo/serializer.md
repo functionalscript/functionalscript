@@ -38,22 +38,28 @@ corpus's design issue carried it while the corpus was being derived and handed i
 here when that file went; nothing else records it.
 
 `tryStringify` takes `unknown` and refuses several of those values at run time,
-so as long as it does, its parameter admits what the data model does not. **That
-gap can never be a corpus set**, and the reason is the carrier rather than a
-preference: a set is a DataJS data module, so everything a set can spell is
-already a value of the data model, and the gap is by definition what lies
-outside it. A fourth set was the old answer and it was never possible; the
-[corpus README](../../../../spec/datajs/vectors/README.md) now says so from its
-own side.
+so its parameter admits what the data model does not — and the gap between them
+**cannot be closed inside this repository at all**, which is the fact that makes
+the reconciliation worth doing rather than deferring:
 
-So the two ways out are narrowing the parameter to the data model — "assume
-correct types" applied to code, after which the gap has no inputs to reach — or
-leaving it and answering the gap here, in this module's own tests, exactly as
-§What may be serialized is answered by an implementation that can build those
-values. Not as host recipes either: [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6
-forbids a `proof.mjs` that proves a `.f.mjs` API against host-built inputs. Read
-the paragraph above as what the corpus describes today, not as a settled
-contract, and §4 says what that leaves provable in the meantime.
+- **not by a corpus set**, because a set is a DataJS data module: everything a
+  set can spell is already a value of the data model, so there is nothing
+  outside it for a set to hold. A fourth set was the old answer and it was never
+  possible; the
+  [corpus README](../../../../spec/datajs/vectors/README.md) says so from its own
+  side;
+- **not by a `proof.mjs`**, because [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6
+  forbids proving a `.f.mjs` API against values built by `Object.setPrototypeOf`,
+  `defineProperty` or an accessor, and says a module is proven against the values
+  FunctionalScript can build.
+
+So narrowing the parameter to the data model is the only thing that closes it:
+the gap then has no inputs to reach and `tsc` says so at the call. If the
+parameter stays, the run-time refusals covering the gap stay unprovable here by
+carrier and by policy both, and what *is* proved sits one level down — §4 says
+exactly what. The decision is the owner's; read the paragraph above as what the
+corpus describes today, not as a settled contract.
+
 
 ### Problem
 
@@ -417,9 +423,11 @@ that no getter is invoked on the way. The refusals themselves are proved here
 against the data such a value would carry — a descriptor, a list of own
 property names, a graph with a forward reference — which is what §1 above
 records and what the exports of
-[`../serializer`](../serializer/module.f.mjs) are shaped for. If this module's
-`unknown` parameter stays, that gap is a set to write rather than a recipe to
-build; if it narrows, the gap closes by having no inputs to reach.
+[`../serializer`](../serializer/module.f.mjs) are shaped for. That is the whole
+of what this repository can prove about the gap: if the parameter narrows, the
+gap closes by having no inputs to reach, and if it stays, the plumbing above
+stays unproven here — a set cannot hold those values and §1.6 will not let a
+`proof.mjs` build them, as the top of this file sets out.
 
 **The one divergence from the specification is closed, and not against the
 writer**: an array under a `null` prototype, which the writer meets at its
@@ -511,13 +519,12 @@ descriptor, so only a host caller reaches it — and a host caller is what the
       `denotesNot` list, which needs no reader. A spelling is asserted only where
       the role permits it, which is `normalize` alone, and `serializer-accept`
       also checks its output has a UTF-8 encoding, which the round trip cannot
-      see. There is no fourth set and
-      no host-input half, and neither is a scheduling question: a set is a DataJS
-      data module, so a set for values outside the data model cannot be written
-      at all, and the question whether a `proof.mjs` may prove this API against
-      host-built inputs was retired rather than answered. If the open `unknown`
-      question above is settled the other way, what closes the gap is this
-      module's own tests.
+      see. There is no fourth set and no host-input half, and neither is a
+      scheduling question: a set is a DataJS data module, so a set for values
+      outside the data model cannot be written at all, and the question whether a
+      `proof.mjs` may prove this API against host-built inputs was retired rather
+      than answered — §1.6 forbids it, so the gap has no proof here at all and
+      narrowing the parameter is what closes it, as the top of this file sets out.
 - [ ] `module.f.mjs`, the public API of
       [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
       path lands beside it — and the `parse` versus `tryParse` naming with it.
