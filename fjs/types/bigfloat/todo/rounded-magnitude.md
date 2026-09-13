@@ -9,14 +9,12 @@ The trickiest arithmetic in the module — scale, round exactly once,
 renormalize — is stated twice in `module.f.mjs`:
 
 ```js
-// :155-162
 export const decToBin = ([dm, de]) => {
     if (dm === 0n) { return [0n, 0] }
     const { precision } = binary64
     return withSign(dm, de)(magnitude =>
         renormalize(precision)(round(1)(scale(precision)(magnitude))))
 }
-// :186-197
 export const tryDecToFormat = ({ precision, minExp, maxExp }) => ([dm, de]) => {
     if (dm === 0n) { return [0n, 0] }
     const scaled = scale(precision)([abs(dm), de])

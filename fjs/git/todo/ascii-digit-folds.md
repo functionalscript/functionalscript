@@ -8,24 +8,23 @@
 Three git modules carry their own arithmetic over ASCII digit *bytes*:
 
 ```js
-// object/module.f.mjs:92-95
+// object/module.f.mjs, decimal
 const decimal = digits => {
     const n = digits.reduce((n, d) => n * 10 + d - 0x30, 0)
     return (digits.length === 1 || digits[0] !== 0x30) && isSafeInteger(n) ? n : null
 }
-// ident/module.f.mjs:68-71
+// ident/module.f.mjs, canonical and decimal
 const canonical = digits => digits.length === 1 || digits[0] !== 0x30
 const decimal = digits => digits.reduce((n, d) => n * 10n + BigInt(d - 0x30), 0n)
-// tree/module.f.mjs:59-60
+// tree/module.f.mjs, octal
 const octal = digits => digits.reduce((n, d) => n * 8n + BigInt(d - 0x30), 0n)
 ```
 
 The digit-class predicates repeat too: `d >= 0x30 && d <= 0x39` in
-`ident/module.f.mjs:120` and `d >= 0x30 && d <= 0x37` in
-`tree/module.f.mjs:57`. The one rule that is genuinely shared semantics —
+`ident`'s `isZone` and `d >= 0x30 && d <= 0x37` in `tree`'s `isMode`. The one rule that is genuinely shared semantics —
 Git refuses a non-canonical decimal spelling, the same rule for an
 envelope size and an ident's time — is stated twice with no link between
-the copies, and the `0x30` magic number lives in five places across three
+the copies, and the `0x30` magic number lives in several places across the three
 files. `fjs/text/ascii` owns this layer (`hexDigitValue`,
 `hexDigitCodePoint`, `digitRange`) but has no decimal/octal fold, so each
 git module reaches past it.

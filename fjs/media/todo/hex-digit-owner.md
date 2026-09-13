@@ -12,12 +12,12 @@ and `'A' - 10` offsets for itself"). Two modules in this subtree rederive
 it anyway:
 
 ```js
-// fjs/media/datajs/vectors/module.f.mjs:45-49
+// fjs/media/datajs/vectors/module.f.mjs
 const hexDigit = unit =>
     unit >= 0x30 && unit <= 0x39 ? unit - 0x30 :
     unit >= 0x61 && unit <= 0x66 ? unit - 0x57 :
     -1
-// fjs/media/json/parser/module.f.mjs:105-111
+// fjs/media/json/parser/module.f.mjs
 const hexBase = /**@type {const}*/({ digit: 0x30, AF: 0x41 - 10, af: 0x61 - 10 })
 const hexDigit = node => {
     const [tag, digit] = unmapped(node)

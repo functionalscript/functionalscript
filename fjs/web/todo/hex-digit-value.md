@@ -8,7 +8,7 @@
 `fjs/text/ascii`'s module doc states the ownership: "It also owns the
 hexadecimal digit codec (`hexDigitValue` / `hexDigitCodePoint`), so no
 consumer has to rederive the `'0'`, `'a' - 10` and `'A' - 10` offsets for
-itself." `fjs/web/module.f.mjs:58-64` rederives it:
+itself." `fjs/web/module.f.mjs` rederives it:
 
 ```js
 const hexDigits = '0123456789abcdef'
@@ -21,7 +21,7 @@ used by `isEscape` and `escapeBytes`. Two codecs for one fact, with two
 target of 5,000 escapes was 140 ms of event loop), yet the per-character
 path is a `toLowerCase()` string allocation plus a scan of a 16-character
 string, twice per escape, where a code-point comparison would do.
-`fjs/web` already imports four other `fjs/text` modules, so no dependency
+`fjs/web` already imports several other `fjs/text` modules, so no dependency
 was being avoided.
 
 ### Proposal

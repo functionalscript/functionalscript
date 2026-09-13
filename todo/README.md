@@ -147,6 +147,20 @@ not the full context. Prefer `# Read large files` over
 `# The problem with reading big files caused by bit vector limitation`.
 A short heading is easier to scan, link to, and reference from other files.
 
+**Describe meaning, not statistics.** An issue says what is wrong and
+why, in terms that stay true while the tree moves under it. Cite code by
+name — the file and the export, function, or type, `fjs/git/oid`'s
+`tryFromHexOf` — never by line number, and label a quoted snippet with
+the function it comes from, not the lines it spanned. Count in words —
+"about a dozen importers", "several emit sites", "a few callers" — never
+in digits. A line number or an exact count is a measurement of the tree
+on the day it was taken: the next merge makes it wrong, nothing checks
+it, and every review then spends its rounds correcting numbers instead
+of reading the design. A name stays right until the code it names is
+renamed, and then the rename is what a reader searches for. Numbers that
+are part of the meaning — a bit width, a `0x30` offset, the two outcomes
+a function has — are not measurements and stay exact.
+
 ```md
 ## Title
 

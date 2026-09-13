@@ -9,10 +9,10 @@
 spelling — but each of the three callers writes the whole `typeof`
 switch, not just the part that varies:
 
-- `fjs/media/json/module.f.mjs:56-63` (`primitiveSerialize`)
-- `fjs/media/json/extended/module.f.mjs:129-137` (`primitiveSerialize`,
+- `fjs/media/json/module.f.mjs` (`primitiveSerialize`)
+- `fjs/media/json/extended/module.f.mjs` (`primitiveSerialize`,
   adds a `bigint` arm)
-- `fjs/media/datajs/serializer/module.f.mjs:94-102` (`leafSerialize`,
+- `fjs/media/datajs/serializer/module.f.mjs` (`leafSerialize`,
   adds `bigint` and `undefined` arms)
 
 The `boolean`, `string`, and `default → null` arms are byte-identical in

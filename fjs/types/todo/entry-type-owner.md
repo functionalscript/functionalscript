@@ -8,9 +8,9 @@
 Two modules define the same string-keyed entry type independently:
 
 ```ts
-// object/types.ts:62
+// object/types.ts
 export type Entry<T> = readonly[string, T]
-// ordered_map/types.ts:9
+// ordered_map/types.ts
 export type Entry<T> = readonly [string, T]
 ```
 
@@ -25,8 +25,8 @@ disambiguate by hand (`fjs/media/json/types.ts` imports
 `Entry as ObjectEntry`).
 
 Two further `Entry<T>` in this subtree mean unrelated things —
-`list/types.ts:46` is `readonly [number, T]` (index/value) and
-`range_map/types.ts:11` is `readonly [T, number]` (value/upper bound, the
+`list/types.ts`'s is `readonly [number, T]` (index/value) and
+`range_map/types.ts`'s is `readonly [T, number]` (value/upper bound, the
 *reverse* tuple) — so the name alone tells a reader nothing about the
 shape.
 

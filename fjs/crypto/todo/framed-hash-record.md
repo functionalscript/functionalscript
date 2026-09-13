@@ -10,7 +10,7 @@ the framing is made once". The *record construction* around it was left
 behind in a private `const` — and `sha1` re-spells it:
 
 ```js
-// sha2/module.f.mjs:277-290 (private)     // sha1/module.f.mjs:180-192 (spelled out)
+// sha2/module.f.mjs, the private factory  // sha1/module.f.mjs, spelled out
 const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
     hashLength,                             export const sha1 = {
     blockLength: chunkLength,                   hashLength,
@@ -26,10 +26,10 @@ const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
 The `hashBytes`/`blockBytes` rounding contract that `sha2/types.ts`
 argues belongs in exactly one place is thus in two; a new `Hash` field or
 a change to the rounding must land twice. Two smaller copies ride along:
-`ch`/`maj` are byte-identical modulo parameter names (`sha2:137,140` vs
-`sha1:57,63`), and the digest packer `a.reduce((p, v) => p << width | v)`
-appears as `fromV8` (`sha2:245`) and `fromV5` (`sha1:158`) — the only two
-instances of that fold in the tree.
+`ch`/`maj` are byte-identical modulo parameter names between `sha2` and
+`sha1`, and the digest packer `a.reduce((p, v) => p << width | v)`
+appears as `sha2`'s `fromV8` and `sha1`'s `fromV5` — the only instances
+of that fold in the tree.
 
 ### Proposal
 

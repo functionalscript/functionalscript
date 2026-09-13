@@ -5,7 +5,7 @@
 
 ### Problem
 
-`module.f.mjs:181-198`:
+In `module.f.mjs`:
 
 ```js
 export const some = find(false)(identity)

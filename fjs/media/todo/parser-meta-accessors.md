@@ -10,7 +10,7 @@ reuse the datajs todos call out — but the accessor that reads what those
 shared mappings produce is copied byte-for-byte:
 
 ```js
-// fjs/media/json/parser/module.f.mjs:79-84      // fjs/media/datajs/parser/module.f.mjs:65-70
+// fjs/media/json/parser/module.f.mjs            // fjs/media/datajs/parser/module.f.mjs
 const textAt = node => {                          const textAt = node => {
     const { meta } = symbolAt(node)                   const { meta } = symbolAt(node)
     assert(meta.id === 'text')                        assert(meta.id === 'text')
@@ -21,13 +21,13 @@ const textAt = node => {                          const textAt = node => {
 The `Text` *type* is already shared (`datajs/parser/types.ts` imports it
 from `json/parser/types.ts`), so the type has one owner and its reader has
 two. The same wrap/read pair repeats with only the `id` changed —
-`jsonSymbol`/`jsonAt` in `json/parser/module.f.mjs:69-91`,
-`valueSymbol`/`nodeAt` in `datajs/parser/module.f.mjs:62-77` — and
+`jsonSymbol`/`jsonAt` in `json/parser/module.f.mjs`,
+`valueSymbol`/`nodeAt` in `datajs/parser/module.f.mjs` — and
 `valueSymbol` is written a third time in
 `fjs/media/datajs/parser/proof.f.mjs`. "Wrap a payload as a symbol under
-an `id`, and read it back asserting that `id`" is one idea with five
+an `id`, and read it back asserting that `id`" is one idea with several
 hand-written instances across two sibling readers; the `id` tag exists
-only to make the assert possible, so nothing stops a sixth copy with a
+only to make the assert possible, so nothing stops another copy with a
 mismatched tag.
 
 ### Proposal

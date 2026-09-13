@@ -9,12 +9,12 @@
 `fjs/web/module.f.mjs`, each with its own half of the grammar and its own
 full prose justification of the same RFC 9110 userinfo rule:
 
-- `parseTarget` (`:186-197`) refuses userinfo, an empty host, and a
+- `parseTarget` refuses userinfo, an empty host, and a
   leading `:` — but knows nothing of brackets, ports, or the trailing
   root dot.
-- `isServedHost` (`:411-431`) re-tests userinfo, then delegates brackets
-  / port suffix / lowercase / root dot to `hostName`/`isPortSuffix`
-  (`:376-409`) — but knows nothing of the empty-host rule.
+- `isServedHost` re-tests userinfo, then delegates brackets
+  / port suffix / lowercase / root dot to `hostName`/`isPortSuffix` —
+  but knows nothing of the empty-host rule.
 
 On the absolute-form path the two meet: `respond` passes
 `target.authority` — a string `parseTarget` has already guaranteed
@@ -43,8 +43,8 @@ implementation. Today `parseTarget` never reads inside the authority, and
 is accepted by `resolve` as long as it is non-empty and carries no
 userinfo: `resolve('.')` answers `ok('./x')` for `http://[::1/x`
 (unclosed bracket), `http://localhost:bad/x` (non-numeric port),
-`http://localhost:65536/x` (port out of range — `isPort` at
-`module.f.mjs:360-375` reads the digits as a number and bounds them),
+`http://localhost:65536/x` (port out of range — `isPort` reads the
+digits as a number and bounds them),
 `http://localhost:8080:999/x` (two ports), and `http://[::1]evil/x`
 (bytes after a literal). `parseAuthority` carries the whole of the
 existing `hostName`/`isPort`/`isPortSuffix` grammar, so under the merged
@@ -64,7 +64,7 @@ today, so the `Host`-header side loosens nothing.
       `http://localhost:65536/x`, `http://localhost:8080:999/x`, and
       `http://[::1]evil/x` — each a declared change from today's
       `ok('./x')`, so the PR carries a `Changelog:` entry — and
-      `isServedHost` still refuses the same five as `Host` values.
+      `isServedHost` still refuses each of them as a `Host` value.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

@@ -34,16 +34,15 @@ separately, with no compile-time guarantee they stay in sync.
 inventory.** The Evo tool entries (`fjs/mcp/evo/module.f.mjs`) and
 `cas_list` are each a name, a description, a schema and one line of
 dispatch — the shape a registry entry should have. The two CAS write/read
-tools are not: `cas_add` (`fjs/mcp/cas/module.f.mjs:201-219`) decodes its
+tools are not: `cas_add` (`fjs/mcp/cas/module.f.mjs`) decodes its
 input, writes the blob, maps the write error, and synchronizes the Evo
-cache inline, and `cas_get` (`:227-301`) is ~75 lines holding the whole
+cache inline, and `cas_get` is dozens of lines holding the whole
 blob-inspection policy — the streaming-vs-buffered decision, the
 `maxLengthBytes` cap and its message, when a dialect refinement is worth a
 second read, the `text`→`fromVec` / `base64`→`base64Encode` split — none of
-it MCP-specific, and the module doc has grown 45 lines of classification
+it MCP-specific, and the module doc has grown paragraphs of classification
 prose to match. Inside the handler, the "materialize then re-classify" step
-is written twice, on the metadata path (`:249-259`) and the inline-content
-path (`:269-281`):
+is written twice, on the metadata path and the inline-content path:
 
 ```js
 return resultStep(
@@ -54,7 +53,7 @@ return resultStep(
         …
 ```
 
-and `no such hash` is spelled at `:238` and `:273`. The shared layer's
+and `no such hash` is spelled in both. The shared layer's
 `get` is where that policy goes, as one typed inspection returning
 `{ length, mimeType, type }` plus optional `text`/`blob` and a tagged error
 (`absent` / `tooLarge(length)`), with the re-read step one private helper

@@ -10,13 +10,11 @@
 statements with the key, the index, the parser, and the panic message
 changed. Three shapes recur:
 
-**Panicking** — `valueAt` → `assertNotNullish` → parse → `assert`, four
-times: `tree` (`fjs/git/commit/module.f.mjs:79-85`), `identAt`
-(`commit:191-197`), `object` (`fjs/git/tag/module.f.mjs:97-103`), `type`
-(`tag:130-136`):
+**Panicking** — `valueAt` → `assertNotNullish` → parse → `assert`, in
+`commit`'s `tree` and `identAt` and `tag`'s `object` and `type`:
 
 ```js
-// commit/module.f.mjs:79-85            // tag/module.f.mjs:97-103
+// commit/module.f.mjs                  // tag/module.f.mjs
 export const tree = c => {              export const object = t => {
     const value = valueAt(c, 0, 'tree')     const value = valueAt(t, 0, 'object')
     assertNotNullish(value, 'no tree')      assertNotNullish(value, 'no object')
@@ -27,22 +25,22 @@ export const tree = c => {              export const object = t => {
 }                                       }
 ```
 
-**Total** — `valueAt` → null-propagate → parse, three times: `tryTree`
-(`commit:97-103`), `tryObject` (`tag:114-120`), `tryType` (`tag:147-150`).
+**Total** — `valueAt` → null-propagate → parse, in `commit`'s `tryTree`
+and `tag`'s `tryObject` and `tryType`.
 
 **Optional but strict** — `null` where the header is absent, a panic where
-it is present and unparsable, once: `tagger` (`tag:228-234`), since very
+it is present and unparsable, in `tag`'s `tagger` alone, since very
 old tags have no `tagger` header but a malformed one is still refused.
 This is a distinct third shape, not the first or second: neither of those
 can express "absent is fine, invalid is not".
 
 Both `validate`s open with the same chain a fourth way, as `valueAt` /
-null-error / parse-error pairs (`commit:294-305`, `tag:252-265`).
+null-error / parse-error pairs.
 
 None of these functions holds per-object logic: only the index, the key,
 the parser, and the message differ. A change to how a positional field is
 read — which [positional-headers.md](./positional-headers.md)'s stopping
-rule will force — has to be repeated in roughly ten places today.
+rule will force — has to be repeated in about a dozen places today.
 
 ### Proposal
 
@@ -108,4 +106,4 @@ stays in `commit`, as it should.
 
 - [positional-headers.md](./positional-headers.md) — will change how the
   positional pass reads lines; with the accessors deduplicated that change
-  lands in one place instead of ten.
+  lands in one place instead of a dozen.

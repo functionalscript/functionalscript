@@ -6,7 +6,7 @@
 ### Problem
 
 "Which of the four types does this run of bytes name" is decided twice.
-`fjs/git/object/module.f.mjs:79-82`:
+`fjs/git/object/module.f.mjs`'s private `typeOf`:
 
 ```js
 const typeOf = w => {
@@ -15,7 +15,7 @@ const typeOf = w => {
 }
 ```
 
-`fjs/git/tag/module.f.mjs:78-84`:
+`fjs/git/tag/module.f.mjs`'s private `typeOf`:
 
 ```js
 const typeOf = value => {
@@ -47,7 +47,7 @@ Export the lookup from `fjs/git/object/module.f.mjs` under the name
 export const tryType: (w: readonly number[]) => Nullable<ObjectType>
 ```
 
-(the envelope reader itself uses it at `object/module.f.mjs:116`). The
+(`object`'s envelope reader itself uses it). The
 name is the contract: `tag` and the packfile reader import `tryType`, not
 a renamed private `typeOf`.
 

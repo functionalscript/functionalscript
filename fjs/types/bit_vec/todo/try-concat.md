@@ -6,7 +6,7 @@
 ### Problem
 
 `bit_vec` states the "concat overflows `maxLength`" rule once, inside the
-private `tryUnpackConcat` monoid (`module.f.mjs:215-218`):
+private `tryUnpackConcat` monoid:
 
 ```js
 operation: a => b =>
@@ -19,15 +19,15 @@ but the exported pairwise `concat` is unchecked, so callers that care
 re-derive the bound:
 
 ```js
-// fjs/basen/cbase32/module.f.mjs:60-64
+// fjs/basen/cbase32/module.f.mjs
 if (head === null || length(head) + length(rest) > maxLength) { return null }
 return concat(head)(rest)
-// fjs/cas/module.f.mjs:84
+// fjs/cas/module.f.mjs
 if (length(acc) + length(first) > maxLength) { … }
 ```
 
-and `fjs/basen/base64/module.f.mjs:63-69` discharges the same obligation
-in seven lines of *prose* ("No `head`/`realBits` overflow check is needed
+and `fjs/basen/base64/module.f.mjs` discharges the same obligation
+in a paragraph of *prose* ("No `head`/`realBits` overflow check is needed
 here: …") ahead of a bare `msb.concat`. Two sibling codecs in one
 directory disagree on whether to check at all, and a comment's arithmetic
 is not re-checked when a chunk width changes.
