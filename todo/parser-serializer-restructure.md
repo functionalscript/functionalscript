@@ -75,7 +75,8 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    below states, is made and its reader landed: the grammar at
    `fjs/ebnf/lib/datajs` mapped to values by `fjs/media/datajs/parser`, the
    token-driven container machine retired for this format rather than widened,
-   so JSON's parser seam is no prerequisite. The byte path remains there. The
+   so JSON's parser seam is no prerequisite. Its byte path has landed too, so
+   what remains there is the directory's public `module.f.mjs`. The
    writer is
    [`fjs/media/datajs/todo/serializer.md`](../fjs/media/datajs/todo/serializer.md),
    split out of it, and has landed as
@@ -870,12 +871,12 @@ throughout.
       `fjs/ebnf/lib/json`, the container machine retired; the public
       `tokenize` that remained beside it, retired with the scanner in
       stage 7, so its error shapes were never owed.
-- [ ] Stage 4: `fjs/media/datajs`; todo filed, reader and serializer landed on
-      the grammar route. What remains is the byte path, the public
-      `fjs/media/datajs/module.f.mjs` surface — which the overview above and both
-      co-located issues still owe — and the proofs over
-      [the corpus](../spec/datajs/vectors/README.md), which has landed and is the
-      proof source.
+- [ ] Stage 4: `fjs/media/datajs`; todo filed, reader, byte path and serializer
+      landed on the grammar route, with the proofs over
+      [the corpus](../spec/datajs/vectors/README.md) running on both sides. What
+      remains is the public `fjs/media/datajs/module.f.mjs` surface, which the
+      overview above and both co-located issues still owe, and the `parse` versus
+      `tryParse` naming it carries.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths.
