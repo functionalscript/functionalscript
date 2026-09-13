@@ -1693,13 +1693,11 @@ or the spec, not only into a thread.
    FunctionalScript can build carries" them, so it agrees about
    reachability and still checks, because its parameter is `unknown` rather
    than a graph. **One recipe it refused that the specification accepted**: an
-   array under a `null` prototype, which the writer meets at its object branch
-   and refuses for `length`, non-enumerable on every array. That disagreement is
-   settled, and the **writer won**: the step below measured all fourteen cases,
-   the value is constructible only through `Object.setPrototypeOf`, and
-   §What may be serialized no longer names it either way. The task it left on
-   [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md)
-   is gone with it.
+   array under a `null` prototype. That disagreement is gone rather than settled
+   — [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §3.1 and §What may be serialized
+   both say a value whose prototype was replaced is outside the domain,
+   undefined behaviour on either side, so there was never a rule for the two to
+   disagree about.
 
    **What is still open is a different question, and it is the writer's rather
    than the specification's.** §What may be serialized owes no vector either
@@ -2692,63 +2690,23 @@ The steps, in order; a step is one pull request unless it says otherwise:
       object and a frozen array all serialize as their data. So the section
       **stays**: it is true of the shipped writer, and it is the only thing that
       makes fourteen real defects errors rather than a silently wrong document.
-      The claim is about the fourteen the section names and nothing wider —
-      review found one input outside them that the writer answers with a
-      plausible wrong value, recorded two paragraphs below.
-      **One case disagreed, and the section gave up the requirement rather than
-      the writer changing.** A `null`-prototype array is refused, with `length
-      is a non-enumerable property`, and the mechanism is exact: `Array.isArray`
-      is true of it and `instanceof Array` is not, so the writer takes the
-      *object* branch, where a `null` prototype is allowed and every own
-      descriptor is read — including the non-enumerable `length` whose exception
-      lives in the array branch this value never reaches. The item is gone from
-      §What may be serialized, and nothing replaces it: whether that refusal is
-      right is left **undecided there, on purpose**, so a host-side serializer
-      may accept such an array without failing the section. The reason is that
-      the only way to build one is `Object.setPrototypeOf`, exactly as a
-      cross-realm array needs a second realm, and the format does not spend a
-      rule on values its own subset cannot construct. So the writer keeps the
-      spelling it chose deliberately and owes no fix.
-      **The mismatch runs the other way too, and review found it after this was
-      written.** Naming those two values "the whole of what `Array.isArray` and
-      `instanceof Array` disagree on" was wrong. A third shape disagrees in the
-      opposite direction:
-      `Object.create(Array.prototype, { length: { value: 0, enumerable: true } })`
-      is not an array — `Array.isArray` is false — while `instanceof Array` is
-      true, so the writer takes its *array* branch and answers `export default
-      [];`, dropping the object's own `length` member rather than refusing a
-      non-plain object. Measured, and worse than the one example shows: with
-      `length` **non-enumerable** the impostor's own descriptors are
-      byte-identical to a frozen array's (`e:false w:false c:false`), and with
-      `{ length: 1, 0: 7 }` it answers `export default [7];`. So **no
-      descriptor-based check can separate the two** — a genuine array's
-      arrayness is an exotic slot, and `Array.isArray` is the only predicate that
-      reads it, which is exactly the spelling
-      [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §3.1 does not allow. The value
-      needs `Object.create` with a descriptor, an API the subset does not have,
-      so nothing in this repository can build one — but it is **not** the same
-      category as the two above, and review was right to press the point. §What
-      may be serialized already refuses it under its first rule, as any other
-      non-plain object, and exempting it would make dropping a member conforming
-      behaviour. So the section does not exempt it, and what it states is
-      one-directional: nothing an implementation writes as an array may be a
-      value `Array.isArray` is false of, while refusing an array whose prototype
-      chain does not reach this realm's `Array.prototype` stays permitted and
-      required of nobody. That refuses the impostor and leaves the
-      `null`-prototype array where decision 6 left it — approximating is
-      forbidden, refusing is not.
-      That leaves this repository's writer measurably non-conforming for one
-      host-built input it cannot receive from a FunctionalScript caller — one and
-      not two, since its refusal of the `null`-prototype array is the permitted
-      half — and there is exactly one way out, which is `fjs/AGENTS.md` §3.1's
-      owner's: §3.1 permits `Array.isArray` at that boundary and the impostor is
-      refused as a non-plain object. Narrowing the writer's parameter is **not**
-      a second way, which an earlier round of this file claimed: the
-      classification runs at run time where a type has gone, and `Unknown` is
-      structural besides — measured, `{ readonly length: number }` is assignable
-      to it, so even a typed caller reaches the array branch. Recorded, with the
-      measurement, in
-      [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md).
+      The one exception is the fifteenth row this step measured, and it is not a
+      disagreement: a `null`-prototype array is refused, for the non-enumerable
+      `length` its object branch reads, and the paragraph below says why that is
+      neither a bug nor a requirement.
+      **A value whose prototype was replaced is not a case at all, which took
+      this file three rounds to say.** Review found the writer answering `export
+      default [];` for `Object.create(Array.prototype, { length: { value: 0,
+      enumerable: true } })`, and rounds went into whether that was a
+      non-conformance, which predicate would fix it, and what the fix would cost
+      `fjs/AGENTS.md` §3.1. The answer is that §3.1 now states what it always
+      meant: a value breaking its premise — a re-pointed prototype, another
+      realm, `Object.create` with a descriptor — is **undefined behaviour** for
+      every `.f.mjs` function, owed no refusal, no proof case and no bug report.
+      §What may be serialized says the same from the format's side, so a
+      `null`-prototype array and its mirror image are both outside the input
+      domain and neither the writer nor the corpus owes anything for them. The
+      measurements stand; what was wrong was treating them as a contract.
       **And the corpus owes nothing, which the section now says itself — on the
       DataJS axis, not the FunctionalScript one.** A set is a *DataJS* data
       module, and DataJS has no functions, no `Symbol`, no `Date`, and no way to
