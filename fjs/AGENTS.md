@@ -373,9 +373,20 @@ The two halves buy the same thing, which is why they are one rule: every value
 an `.f.mjs` function sees was built by this realm's constructors, so
 `instanceof` and the prototype chain are reliable.
 
+**A value that breaks that premise is outside every `.f.mjs` function's domain,
+and behaviour on it is undefined.** An object whose prototype was replaced, one
+from another realm, one built by `Object.create` with a descriptor: no
+FunctionalScript code can construct any of them, so no function owes one a
+refusal, no `proof.f.mjs` owes one a case, and "a host handed this in and the
+answer was wrong" is not a bug report against this repository. A function's
+contract is over the values FunctionalScript can build, and that is the whole of
+it. Where such a value must be handled, the handling is a host boundary, below.
+
 **Detect an array with `a instanceof Array`.** That is the spelling
-FunctionalScript uses. `Array.isArray` is not a more careful version of it
-here, only a longer one guarding against values this rule already excludes.
+FunctionalScript uses. `Array.isArray` is not a more careful version of it here,
+only a longer one guarding against values this rule already excludes: the two
+predicates disagree exactly on values whose prototype chain was re-pointed or
+that belong to another realm, which is to say exactly on undefined behaviour.
 
 A boundary that does take foreign values is a host boundary: it belongs in a
 thin `.mjs` that converts them before any `.f.mjs` sees them.
