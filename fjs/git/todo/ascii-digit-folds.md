@@ -80,6 +80,11 @@ its members rather than assuming a caller validated them, so it answers
 the same for every input whether or not `digitsValue` was called first. An empty list spells no
 number, and a public function that answered `0n` for it would be handing
 out a plausible wrong value ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+A sparse array is not a third case: FunctionalScript has no elision
+(`spec/README.md`, "an array has no holes"), so `readonly number[]` names
+dense arrays, and a module is proven against the values the subset can
+build, not against what an arbitrary JavaScript caller might hand it
+(`fjs/AGENTS.md`, "not a back door").
 The open-coded copies answer the other way — each fold is seeded with
 `0`/`0n`, so an empty run reads as zero, and `[][0] !== 0x30` is `true`,
 so it reads as canonical — which is one more reason to name the rule: today's callers reach the folds only with non-empty input

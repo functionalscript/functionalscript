@@ -39,18 +39,15 @@ small helper **in the same module**, exported beside `textAt`:
 
 ```ts
 import type { Meta } from '../../../ebnf/ast/types.ts'
-import type { Utf16 } from '../../../ebnf/utf16/types.ts'
-/** A node a reader may be handed: a symbol of the input or the layer's output alphabet `O`, or a subtree. */
-type _Readable<O> = Meta<Utf16 | O> | readonly unknown[]
-/**
- * The ids an alphabet may be addressed by: its members' `id`s where every one
- * is a literal, and `never` where any member's `id` is the widened `string`.
- */
-type _LiteralId<O extends { readonly id: string }> = string extends O['id'] ? never : O['id']
-/** The member of the alphabet `O` that `Id` names — computed, never supplied. */
-type _Tagged<O, Id extends string> = Extract<O, { readonly id: Id }>
 /** Whether `T` is a union of two or more members. */
 type _IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never
+/** `true` where some member of `O` has an `id` that is not one literal: the widened `string`, or a union. */
+type _NotSingleton<O extends { readonly id: string }> =
+    O extends unknown ? (string extends O['id'] ? true : _IsUnion<O['id']> extends true ? true : never) : never
+/** The ids an alphabet may be addressed by: its members' `id`s where every one is a single literal, `never` otherwise. */
+type _LiteralId<O extends { readonly id: string }> = [_NotSingleton<O>] extends [never] ? O['id'] : never
+/** The member of the alphabet `O` that `Id` names — computed, never supplied. */
+type _Member<O, Id extends string> = Extract<O, { readonly id: Id }>
 /**
  * The one field of `M` besides `id`, or `never` where `M` has none or more
  * than one — so a member `tagged` cannot build whole has no key to name.
@@ -59,47 +56,89 @@ type _OnlyKey<M> =
     [Exclude<keyof M, 'id'>] extends [never] ? never :
     _IsUnion<Exclude<keyof M, 'id'>> extends true ? never :
     Exclude<keyof M, 'id'>
+/** `true` for each member of `M` that could carry the id `Id` yet is not `T`: a collider the runtime tag test cannot tell from `T`. */
+type _Collides<Id extends string, T, M extends { readonly id: string }> =
+    M extends unknown ? (Id extends M['id'] ? ([M] extends [T] ? never : true) : never) : never
+/** `unknown` where every member of `M` that could carry `Id` is `T` itself; `never` otherwise, so a node over `M` is refused. */
+type _Admits<Id extends string, T, M extends { readonly id: string }> =
+    [_Collides<Id, T, M>] extends [never] ? unknown : never
 /**
- * A tagged output symbol over the layer's output alphabet `O`: the member
- * `Id` names, which must carry exactly one field besides `id`, and that
- * field's key `K`. `symbol` builds `{ symbol: 0, meta: { id, [key]: payload } }`
- * — the whole member, by construction — and `at` reads the payload back,
- * asserting `meta.id === id`.
+ * A tagged output symbol: the member of the alphabet `O` that `Id` names,
+ * which must carry exactly one field besides `id`, and that field's key
+ * `K`. `symbol` builds `{ symbol: 0, meta: { id, [key]: payload } }` — the
+ * whole member, by construction — and `at` reads the payload back from a
+ * node over any alphabet `M` in which nothing but that member can carry
+ * `Id`, asserting `meta.id === id`.
  */
-export const tagged: <O extends { readonly id: string }, Id extends _LiteralId<O>, K extends _OnlyKey<_Tagged<O, Id>>>(id: Id, key: K) => {
-    readonly symbol: (payload: _Tagged<O, Id>[K]) => Meta<_Tagged<O, Id>>
-    readonly at: (node: _Readable<O>) => _Tagged<O, Id>[K]
+export type Tagged<O extends { readonly id: string }, Id extends _LiteralId<O>, K extends _OnlyKey<_Member<O, Id>>> = {
+    readonly symbol: (payload: _Member<O, Id>[K]) => Meta<_Member<O, Id>>
+    readonly at: <M extends { readonly id: string } = never>(node: (Meta<M> | readonly unknown[]) & _Admits<Id, _Member<O, Id>, M>) => _Member<O, Id>[K]
 }
+export const tagged: <O extends { readonly id: string }, Id extends _LiteralId<O>, K extends _OnlyKey<_Member<O, Id>>>(id: Id, key: K) => Tagged<O, Id, K>
 ```
+
+**Every instance is a typed `const`.** `O` appears in no argument, so
+nothing infers it from `(id, key)`: a bare `tagged('text', 'value')`
+resolves `O` to its constraint, whose `_LiteralId` is `never`, and
+`'text'` is refused — checked at this head, `"text" is not assignable to
+never`. What supplies `O` is the annotation: TypeScript infers a call's
+type parameters from its contextual return type, and `Tagged<O, Id, K>`
+names all three, so the four instances are
+
+```js
+/** @type {Tagged<Text, 'text', 'value'>} */
+const text = tagged('text', 'value')
+/** The string a `Text` node carries. */
+export const textAt = text.at
+/** @type {<P>() => Tagged<Out<P>, 'json', 'result'>} */
+const json = () => tagged('json', 'result')
+```
+
+in `json/parser` — the JSON pair is generic in the numeric policy, so it
+is a thunk over `P`, instantiated where `P` is bound, which is exactly
+where `jsonSymbol`/`jsonAt` are used today (inside `mappings(policy)` and
+the value mapping) — and `/** @type {Tagged<Out, 'value', 'node'>} */
+const value = tagged('value', 'node')` in `datajs/parser`, whose `Out` is
+DataJS's alphabet. `Tagged` is public API because every instance names
+it; `_IsUnion`, `_NotSingleton`, `_LiteralId`, `_Member`, `_OnlyKey`,
+`_Collides` and `_Admits` are `_`-prefixed types beside it in
+`json/parser/types.ts` — **not** `private.ts`: `tagged` and `Tagged` are
+exported and their declarations name them, so they are inside the public
+declaration closure and must ship with it; `private.ts` is for types
+outside that closure, and a generated public declaration must never point
+at one (`fjs/AGENTS.md`, "the public declaration closure"). The `_` says
+they are not API; the file says they are reachable. Each pair is then one
+line naming its alphabet, `id`, and field. `datajs/parser` exports its
+pair to the proof as **`_valueSymbol`** — the proof is its only
+cross-module consumer, so the export is linkage, not API, and the `_`
+prefix is what says so (`fjs/AGENTS.md`, "exportability is linkage, not
+API status"); the proof then imports it instead of restating it.
 
 `tagged` is for **single-payload** members, and the type says so rather
 than assuming it: `K` ranges over `_OnlyKey<M>`, which is the member's
 one non-`id` key and `never` otherwise, so for a member such as
 `{ id: 'pair', left: number, right: string }` no `K` exists and
-`tagged<O, 'pair', 'left'>` is refused at compile time — `symbol(1)`
+`Tagged<O, 'pair', 'left'>` is refused at compile time — `symbol(1)`
 cannot advertise a `Meta` of a member it built half of. The `id`
 convention guarantees one metadata type per `id`, not one field per
 type; this constraint adds the second guarantee for the members `tagged`
 takes. All three existing members (`Text`, `Json<P>`, `Value`) are
 single-payload, so nothing today is excluded; a future two-field member
-writes its own pair, as it would have had to anyway. `_IsUnion` and
-`_OnlyKey` are `_`-prefixed types beside `_Tagged` in
-`json/parser/types.ts`.
+writes its own pair, as it would have had to anyway.
 
-The alphabet's ids must be **literal**, and `_LiteralId<O>` enforces
-that where `Extract` alone cannot. An alphabet such as
-`{ id: 'foo', value: string } | { id: string, value: number }` would let
-`_Tagged<O, 'foo'>` select the first member while `_Readable<O>` still
-admitted a `Meta` of the widened second, whose runtime `id` might be
-`'foo'` — the assertion passes and `at` returns a number typed as a
-string. With `Id extends _LiteralId<O>`, any member whose `id` is
-`string` makes `O['id']` widen to `string`, `_LiteralId<O>` collapses to
-`never`, and no `Id` exists: `tagged<O, …>` over such an alphabet does
-not instantiate. The three real alphabets have only literal ids
-(`'text'`, `'json'`, `'value'`), so nothing today is refused. This
-closes for `tagged` what `textAt`'s payload assertion closes for the one
-cross-layer reader; `tagged` needs no runtime check because an alphabet
-is a declared type, and the declaration is where the widening would be.
+The alphabet's ids must be **single literals**, and `_LiteralId<O>`
+enforces that where `Extract` alone cannot. `Extract` selects the members
+whose `id` is assignable to `Id`, so an alphabet such as
+`{ id: 'foo', value: string } | { id: string, value: number }` — or
+`{ id: 'foo', value: string } | { id: 'foo' | 'bar', value: number }` —
+would have `_Member<O, 'foo'>` select the first member alone while a node
+of the second, whose runtime `id` may be `'foo'`, passes the tag test and
+hands back a number typed as a string. `_NotSingleton` is `true` for a
+member whose `id` is the widened `string` or a union, `_LiteralId<O>`
+collapses to `never` for the whole alphabet, and no `Id` exists:
+`Tagged<O, 'foo', 'value'>` over either alphabet does not instantiate
+(checked for both). The three real alphabets have only single literal
+ids (`'text'`, `'json'`, `'value'`), so nothing today is refused.
 
 The metadata type is **computed from the alphabet, not supplied**: the
 caller names `O`, an `Id` drawn from `O['id']`, and a key, and the
@@ -107,69 +146,49 @@ shape is `Extract<O, { id: Id }>` — the alphabet's own member, exactly.
 That closes the structural hole a free `M extends O` left open: there is
 no parameter a wider `Text & { foo: number }` could be passed through,
 so `symbol` builds only what the alphabet declares and `at` returns only
-a field the alphabet's member has. `at`'s input is `Meta<Utf16 | O>`, so
-a `Meta` outside the layer's declared alphabet is a type error too.
-Within `O` the `id` selects one member by the convention
-`fjs/ebnf/ast/README.md` states ("an `id` names one metadata type: two
-shapes under one `id` would be one alphabet with nothing to tell them
-apart"), so `Extract` yields one shape and the runtime `id` assertion is
-exactly the check that convention leaves to make;
-[`mapping-precheck`](../../ebnf/ll1/todo/mapping-precheck.md) is where the
-convention becomes a checked constraint. The instances:
-`tagged<Out, 'value', 'node'>('value', 'node')` gives `datajs`'s pair,
-bound to DataJS's alphabet, and the JSON pair below is bound to JSON's.
-`textAt` is different, because `Text` is the one member both alphabets
-share and the task has DataJS *import* it rather than instantiate its
-own: the exported reader is the single `'text'` instance re-typed
-generically over whatever alphabet surrounds it —
+a field the alphabet's member has. Within `O` the `id` selects one
+member by the convention `fjs/ebnf/ast/README.md` states ("an `id` names
+one metadata type: two shapes under one `id` would be one alphabet with
+nothing to tell them apart"), so `Extract` yields one shape and the
+runtime `id` assertion is exactly the check that convention leaves to
+make; [`mapping-precheck`](../../ebnf/ll1/todo/mapping-precheck.md) is
+where the convention becomes a checked constraint.
 
-```js
-/** @type {<O extends { readonly id: string }>(node: _Readable<Text | ('text' extends O['id'] ? never : O)>) => string} */
-export const textAt = tagged('text', 'value').at
-```
+**What `at` accepts** is decided by the node, not by the layer. `M` is
+inferred from the node's `meta` — the whole alphabet the node is typed
+over, as one union — and `_Admits` walks its members: any member that
+could carry `Id` (a literal `'text'`, a union `'text' | 'x'`, the
+widened `string`) must be the member `tagged` reads, or the parameter
+collapses to `never` and the call is refused. Checked at this head:
+`textAt` accepts every node shape both readers hand it (`Meta<Utf16 |
+Out<P>>`, `Meta<Utf16 | Out>`, `Meta<Utf16>`, `readonly unknown[]`),
+accepts a subtype of `Text` (its `value` is still a string), keeps
+accepting when either alphabet grows a third or fourth member, and
+refuses a literal collider `{ id: 'text', value: number }`, a widened
+`{ id: string, value: number }`, a union-id `{ id: 'text' | 'x', value:
+number }`, and the literal collider hidden in a four-member alphabet.
+That is the guarantee: whatever passes the runtime tag test carries the
+declared payload, so `textAt` returns a string by type and needs no
+runtime payload check. Two earlier forms were tested and are not this
+one. A plain `Exclude<O, { id: 'text' }>` is bypassed by the widened
+member. A conditional in the parameter, `Meta<Utf16 | Text | ('text'
+extends O['id'] ? never : O)>`, infers `O` only by subtraction — the one
+member left after `Text` is matched — so it is right for every alphabet
+today, where each has exactly one other member, and wrong the moment one
+gains a third: two leftover members infer as their common supertype, not
+their union, and the node is refused. The whole-union inference through
+`Meta<M>` has no such edge, which is why `_Admits` replaces it.
 
-— so a JSON node (`O = Json<P>`) and a DataJS node (`O = Value`) are
-both accepted, each alphabet's `Text` being the same declaration, and
-the guarantee that what comes back *is* a string is made in the type.
-The conditional is the same idea as `_LiteralId`, applied to the one
-reader that crosses layers: the surrounding alphabet `O` is admitted
-only if no member of it could carry the id `'text'` — `'text' extends
-O['id']` is true both for a literal collider `{ id: 'text', value:
-number }` and for a widened `{ id: string, value: number }`, and in
-either case the parameter collapses to `_Readable<Text>`, which the
-colliding node is not assignable to. A plain `Exclude<O, { id: 'text'
-}>` was tried first and is bypassed by the widened member; the
-conditional on `O['id']` is not, and it infers `O` from every node shape
-the two readers hand it (checked against all four at this head). No
-runtime payload check is needed, for the reason `tagged` needs none:
-an alphabet is a declared type, and the declaration is where a
-collision would be. The
-runtime is alphabet-agnostic already (it reads `meta.id` and
-`meta.value`); only the type had closed over JSON's `Out<P>`, which a
-`Utf16 | Text | Value` node is not assignable to. `text` (the
-constructor) stays JSON-local: DataJS reuses JSON's string mappings,
-which build `Text` symbols, so it never constructs one itself.
-`_Tagged`, like `_Readable`, is a `_`-prefixed type in
-`json/parser/types.ts`, inside the public closure because the exported
-signature names it. The JSON pair is generic in the numeric
-policy, so it is a thunk over `P` — `/** @type {<P>() => …} */ const
-json = () => tagged<Out<P>, 'json', 'result'>('json', 'result')` — instantiated
-where `P` is bound, which is exactly where `jsonSymbol`/`jsonAt` are used
-today (inside `mappings(policy)` and the value mapping). `_Readable` is
-the node type `unitAt`/`textAt`/`jsonAt` already take, named with the
-`_` prefix because it exists only to spell `tagged`'s declaration — a
-private type, not API. It lives in `json/parser/types.ts`, **not**
-`private.ts`: `tagged.at` is exported and its signature names
-`_Readable`, so the type is inside the public declaration closure and
-must ship with it — `private.ts` is for types outside that closure, and
-a generated public declaration must never point at one (`fjs/AGENTS.md`,
-"the public declaration closure"). The `_` says it is not API; the file
-says it is reachable. Each pair is then
-one line naming its `M`, `id`, and field. `datajs/parser` exports its pair to
-the proof as **`_valueSymbol`** — the proof is its only cross-module
-consumer, so the export is linkage, not API, and the `_` prefix is what
-says so (`fjs/AGENTS.md`, "exportability is linkage, not API status");
-the proof then imports it instead of restating it.
+What that gives up is a nominal bound the runtime never had: `at` no
+longer refuses a node of a *foreign* alphabet that merely does not
+collide — `json`'s `at` accepts a DataJS node, since nothing in `Text |
+Value` can carry `'json'` — where a parameter typed over the layer's own
+alphabet would have. The runtime reads `meta.id` and one field and is
+alphabet-agnostic already; the type now promises exactly what that read
+can be trusted for, and `textAt`, the one reader that crosses layers,
+needs precisely this. `text` (the constructor) stays JSON-local: DataJS
+reuses JSON's string mappings, which build `Text` symbols, so it never
+constructs one itself.
 
 It deliberately does **not** go into `fjs/ebnf/ast`. That library's
 README states that nothing in it reads `meta.id` yet and reserves the
@@ -184,9 +203,10 @@ one-line follow-up rather than a design decision.
 
 ### Tasks
 
-- [ ] Export `textAt` and `tagged` from `json/parser`; drop
-      `datajs/parser`'s copy; rewrite the four wrap/read functions; the
-      proof imports `_valueSymbol` instead of restating it.
+- [ ] Export `textAt`, `tagged`, and the `Tagged` type from
+      `json/parser`; drop `datajs/parser`'s copy; rewrite the four
+      wrap/read functions as typed `const` instances; the proof imports
+      `_valueSymbol` instead of restating it.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

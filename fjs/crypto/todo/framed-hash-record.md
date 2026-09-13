@@ -108,7 +108,11 @@ the fixed-length `V8`/`V5` tuples), so no live path changes; the seeded
 form is chosen because a public function over `readonly bigint[]` must
 answer for every value of that type, and `0n` is the answer that needs no
 special case. The proof pins `fromWords(32n)([]) === 0n` alongside the
-`V5`/`V8` rows. `sha1` then builds its record as
+`V5`/`V8` rows. A sparse array is not among the cases: FunctionalScript
+has no elision (`spec/README.md`, "an array has no holes"), so
+`readonly bigint[]` names dense arrays, and a module is proven against
+the values the subset can build, not against what an arbitrary
+JavaScript caller might hand it (`fjs/AGENTS.md`, "not a back door"). `sha1` then builds its record as
 `framed({ chunkLength, lengthLength, digestLength: hashLength, compress,
 digest: fromWords(wordLength) }, [0x67452301n, …], hashLength)` instead
 of writing the literal — importing `framed` in place of `framing`, the
