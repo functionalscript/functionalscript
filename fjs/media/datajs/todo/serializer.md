@@ -294,10 +294,10 @@ for `root = [parent, parent, child]` with `child` inside `parent`, `child` is
 **The state is threaded, not mutated.** Identity keying means a `Map` or `Set`
 of nodes, and [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 forbids `Map#set` and
 `Set#add` on a value already built. `getConstants` in
-[`fjs/djs/serializer`](../../../djs/serializer/module.f.mjs) shows the shape —
-a fold over a `{ added, consts }` state, rebuilt per node — and also shows its
+`fjs/djs/serializer`, retired since and in git history, showed the shape —
+a fold over a `{ added, consts }` state, rebuilt per node — and also showed its
 cost, a copy per node; the mutable `Refs` beside it is what
-[157](../../../djs/todo/157-json-djs-shared-value-machine.md) warns against
+[157](../../../fsc/todo/157-json-djs-shared-value-machine.md) warns against
 carrying anywhere shared. Pick the simple one first and leave the cost
 measured rather than assumed.
 
@@ -308,13 +308,12 @@ fixed, then `export default` of the root — a `$N` reference when the root is
 itself hoisted.
 
 The walk is the shared value machine of
-[157 §2](../../../djs/todo/157-json-djs-shared-value-machine.md) with its four
+[157 §2](../../../fsc/todo/157-json-djs-shared-value-machine.md) with its four
 seams, and stage 4 is the consumer that issue was waiting for:
 
 1. **a leaf seam** — `stringSerialize`, `boolSerialize` and `nullSerialize`
    from [`fjs/media/json/serializer`](../../json/serializer/module.f.mjs)
-   unchanged; `undefined` as the one-element `['undefined']` that
-   [`fjs/djs/serializer`](../../../djs/serializer/module.f.mjs) already exports;
+   unchanged; `undefined` as the one-element `['undefined']`;
    a bigint through [`fjs/types/bigint`](../../../types/bigint/module.f.mjs)'s
    `serialize`, which is the decimal digits plus `n`. Numbers are **not**
    JSON's `numberSerialize`: it is `JSON.stringify`, which writes `null` for
@@ -325,12 +324,11 @@ seams, and stage 4 is the consumer that issue was waiting for:
 3. **a key seam** — an own enumerable string key `__proto__` is emitted as the
    exact computed form `["__proto__"]`, the only spelling the reader accepts,
    which makes it a requirement of round-tripping rather than a style choice.
-   `jsKeySerialize` in `fjs/djs/serializer` is that function today, private.
 4. **an entry-enumeration seam** — the descriptors of §1, not `definedEntries`
    and not `entries`.
 
 **Settled: DataJS writes its own walk, and 157's extraction is still
-owed.** Of the four seams, `buildSerialize` in `fjs/djs/serializer` takes
+owed.** Of the four seams, `buildSerialize` in the old `fjs/djs/serializer` took
 two as parameters — the key seam and the pre-recursion ref seam — and
 hardcodes the other two: its leaf spelling is a `switch` in the function
 body, where DataJS needs `NaN` and the infinities as words rather than
@@ -500,6 +498,6 @@ divergence to close; that was a category error, and it is not one.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. §Serialization and §Normalized form are what this implements.
 - [`spec/datajs/vectors/README.md`](../../../../spec/datajs/vectors/README.md) — the corpus schema; the writer-side sets are the proof source.
 - [`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md) — the conformance corpus, which owns those sets; its README is the schema and the derivation rules, and states what it cannot carry, this writer's `unknown` parameter included.
-- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. This is its second consumer.
-- [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type, whose optional index signature is why only the runtime enumerator sees a member holding `undefined`.
+- [157](../../../fsc/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. This is its second consumer.
+- [`fjs/media/json/types.ts`](../../json/types.ts) — the tree type, whose optional index signature is why only the runtime enumerator sees a member holding `undefined`.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is the rest of its stage 4.

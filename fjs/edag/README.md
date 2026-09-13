@@ -8,13 +8,13 @@ serialization trick. Evaluation memoizes every node by identity within one
 invocation — shared nodes evaluate once, per the baseline in
 [edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md), and each
 call starts fresh, per the per-invocation memo scope in
-[interpret-edag.md](../djs/todo/interpret-edag.md). There is no normal form: a function's hash is the
+[interpret-edag.md](../fsc/todo/interpret-edag.md). There is no normal form: a function's hash is the
 structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
 decide semantic equivalence. This module owns the data model only: node kinds, operand
 shapes, and their schema. Producers and executors are staged work that will
 consume it — the [FunctionalScript](../fsc/) compiler lowering parsed modules to EDAG
-([compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md)), the
+([compile-modules-to-edag.md](../fsc/todo/compile-modules-to-edag.md)), the
 interpreter and Rust code generation executing it — and the dependency is
 one-way by design: `fjs/edag` imports nothing from them.
 
@@ -355,7 +355,7 @@ need it.
   operation-node identity may be shared only within one function's scope,
   never across a `=>` boundary — goes unchecked. The Stage 2 validator for
   that boundary is tracked in
-  [compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md).
+  [compile-modules-to-edag.md](../fsc/todo/compile-modules-to-edag.md).
   In particular `parse` is not a way to canonicalize a graph: it constructs a
   fresh container at every position it visits, so two edges reaching the same
   input reference come back as two distinct outputs, flattening the one

@@ -69,7 +69,6 @@ same `toDjs(state)` transformation; only the disguise is removed.
 - `fjs/fsc/ast/types.ts:19-21`, `:30-36`, `:48-51` and
   `fjs/fsc/ast/module.f.mjs:18-25` — the types and code
   involved.
-- [197](./197-djs-unknown-shape-walker.md) — the cross-function `Unknown`-walker factory; it lists
-  `toDjs` as a caveat and defers its internals, so this intra-function
-  cleanup is independent of it.
-- [663](./663-json-djs-tree-type.md) — type-only; unaffected.
+- [157](./157-json-djs-shared-value-machine.md) §2 — the walkers over the
+  value tree; `toDjs` walks the syntax tree, a different shape, so this
+  intra-function cleanup is independent of it.

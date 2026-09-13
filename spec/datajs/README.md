@@ -81,21 +81,13 @@ which closed the reader-side gap this paragraph used to name. Both surfaces of
 `parseBytes` takes it as bytes — refusing what is not correct UTF-8 and a
 leading BOM before the reader sees a unit, then handing on the code units those
 bytes denote. The corpus's byte-form vectors run through the second.
-The shipped `fjs/djs` serializer still differs from
-[normalized form](#normalized-form) in three ways, each of them stage 4–6 work
-rather than a bug:
+The writer,
+[`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.mjs),
+writes [normalized form](#normalized-form), and `fjs compile` writes through
+it; the older `fjs/djs` serializer, whose `const c0` output was not a document
+of this format at all, is retired.
 
-| shipped `fjs/djs` | this specification |
-| --- | --- |
-| `const c0 = …` | `const $0=…` |
-| hoists a repeated primitive into a const | primitives always inline |
-| keys sorted lexicographically — `{"10":0,"9":0}` | array-index keys first in numeric order — `"9"` before `"10"` |
-
-The first row is the one that is more than a layout difference: a name must
-start with `$`, so `c0` is not a name this format has at all, and the shipped
-output is invalid rather than merely non-normalized.
-
-The work that closes all of it is staged in
+The work is staged in
 [`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md).
 
 Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for

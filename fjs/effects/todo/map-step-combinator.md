@@ -96,7 +96,7 @@ conversion as one 14-module diff.
 ### Tasks
 
 - [ ] The `NodeProgram` exit-code sites (`fjs/module.f.mjs`, `fjs/cli`, `fjs/ci`,
-      `fjs/djs`, `fjs/website`, `fjs/cas/cli`).
+      `fjs/fsc`, `fjs/website`, `fjs/cas/cli`).
 - [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
 - [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.
 - [ ] `fjs/emergent_testing`, `fjs/dev`.

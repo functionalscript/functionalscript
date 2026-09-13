@@ -7,7 +7,8 @@
  *
  * @import { List } from '../types/list/types.ts'
  * @import { Result } from '../types/result/types.ts'
- * @import { Unknown, _CompileOp } from '../djs/types.ts'
+ * @import { Unknown } from '../media/datajs/types.ts'
+ * @import { _CompileOp } from './types.ts'
  * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect } from '../effects/types.ts'
@@ -16,9 +17,11 @@
 import { transpile } from './transpiler/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
-import { empty, flat } from '../types/list/module.f.mjs'
+import { empty, flat, map } from '../types/list/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
+import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
+import { sort } from '../types/object/module.f.mjs'
 import { resultStep } from '../effects/module.f.mjs'
 import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
@@ -145,6 +148,43 @@ const jsonText = ({ value, shared }) => shared ? noJson('a shared node') : _tryJ
 
 /** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
 const moduleText = ({ value }) => tryStringify(value)
+
+// ── the proofs' dump ──────────────────────────────────────────────────────────
+
+/** @type {(member: readonly [string, Unknown]) => List<string>} */
+const treeMember = ([key, value]) => flat([stringSerialize(key), colon, treeValue(value)])
+
+/** @type {(value: Unknown) => List<string>} */
+const treeValue = value => {
+    switch (typeof value) {
+        case 'boolean': { return boolSerialize(value) }
+        case 'string': { return stringSerialize(value) }
+        case 'number': { return _numberSerialize(value) }
+        case 'bigint': { return [bigintSerialize(value)] }
+        case 'undefined': { return ['undefined'] }
+        default: {
+            if (value === null) { return nullSerialize }
+            return value instanceof Array
+                ? arrayWrap(map(treeValue)(value))
+                : objectWrap(map(treeMember)(sort(entries(value))))
+        }
+    }
+}
+
+/**
+ * A value as one line a proof can pin: JSON's shape over the compiler's
+ * leaves, with an object's members sorted by key. Neither output above is
+ * that line — the module output hoists a shared node and keeps the members'
+ * order, and the JSON output refuses what JSON cannot spell — so this walk
+ * writes a shared node wherever it is reached, a bigint with its `n`, a
+ * number as DataJS spells it, and `undefined` as a leaf, a member holding
+ * it included. Nothing but proofs read it, which the `_` says: the token
+ * streams and syntax trees they compare carry bigints, which
+ * `JSON.stringify` cannot write.
+ *
+ * @type {(value: Unknown) => string}
+ */
+export const _stringifyTree = value => concat(treeValue(value))
 
 // ── the command ───────────────────────────────────────────────────────────────
 

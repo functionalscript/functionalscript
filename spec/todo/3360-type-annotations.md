@@ -202,7 +202,7 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
 
 ## Depends on
 
-- [compile-modules-to-edag](../../fjs/djs/todo/compile-modules-to-edag.md) —
+- [compile-modules-to-edag](../../fjs/fsc/todo/compile-modules-to-edag.md) —
   the `,` anchoring operation for a non-resulting computation. Without it a
   module whose only use of an import is in an annotation is **rejected**, so
   this is a prerequisite of evaluating an annotation, not a later optimization.
