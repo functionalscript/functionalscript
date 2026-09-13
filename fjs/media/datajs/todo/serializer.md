@@ -513,8 +513,9 @@ descriptor, so only a host caller reaches it — and a host caller is what the
       question: a set is a DataJS data module, so a set for values outside the
       data model cannot be written at all, and the question whether a
       `proof.mjs` may prove this API against host-built inputs was retired
-      rather than answered. If the open `unknown` question above is settled the
-      other way, what closes the gap is this module's own tests.
+      rather than answered — §1.6 forbids it, so the gap has no proof here at
+      all and narrowing the parameter is what closes it, as the top of this file
+      sets out.
 - [ ] `module.f.mjs`, the public API of
       [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
       path lands beside it — and the `parse` versus `tryParse` naming with it.

@@ -142,13 +142,14 @@ that section is a rule an implementation answers in its own tests, in whatever
 host can build the value. One question is open on the other side of it: while
 [this repository's writer](../../../fjs/media/datajs/todo/serializer.md) takes
 `unknown` and refuses at run time rather than taking the data model and trusting
-it, its parameter admits values the data model does not. That gap cannot become a
-set here, and the reason is the same carrier fact: everything a set can spell is
-a value of the data model, so what is outside the model is outside the corpus by
-construction. It closes either by narrowing the parameter, after which the gap
-has no inputs, or in that implementation's own tests — exactly as
-§What may be serialized is answered. The decision is recorded in the writer's own
-issue.
+it, its parameter admits values the data model does not. That gap cannot become
+a set, and the reason is the same carrier fact: everything a set can spell is a
+value of the data model, so what is outside the model is outside the corpus by
+construction. What closes it there is narrowing the parameter, after which the
+gap has no inputs to reach — and that is the writer's decision to take, recorded
+in its own issue, which also records why its repository cannot prove the gap
+another way. §What may be serialized is the same shape: a rule an implementation
+answers in a host that can build the values, not something a vector reaches.
 
 **Normalized bytes** are the document as a string, and the set's proof
 compares that string against what the shipped writer emits rather than
