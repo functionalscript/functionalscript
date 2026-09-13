@@ -9,6 +9,15 @@
  * be for the same reason: a relative specifier is resolved against something,
  * and the page is not always that something.
  *
+ * **Except a file a reader opens, when the build knows its commit.** The site
+ * serves every file raw, which is right for a module a page imports and wrong
+ * for one a person reads: no highlighting, and Markdown shown as its source.
+ * Until this site has a source view of its own, GitHub is that view, so a
+ * listed file links to it — at the commit the site was built from, not at a
+ * branch, because a preview outlives its branch and a page's proofs ran that
+ * exact commit. A build that does not know its commit keeps the raw link,
+ * since a GitHub link to a commit nobody pushed opens nothing.
+ *
  * The builder is split in two because the root page is not built here. It
  * carries the site's own heading and the browser test runner, so it takes
  * {@link sections} and keeps its own frame, while every other directory gets
@@ -25,6 +34,14 @@
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { stylesheetLink } from '../style/module.f.mjs'
+
+/**
+ * The repository the site is built from, which is where a file is read when
+ * the site cannot show it itself.
+ *
+ * @type {string}
+ */
+export const repository = 'https://github.com/functionalscript/functionalscript'
 
 /**
  * Where a run's result rows go, unchanged from the page that had only one of
@@ -165,11 +182,19 @@ export const testSection = dir => intro => {
 export const pageHref = path => path === '.' ? '/index.html' : `/${path}/index.html`
 
 /**
- * A file in a directory, as a root-relative URL.
+ * A file in a directory, as a reader opens it: on GitHub at `commit`, or
+ * root-relative on this site when there is no commit to link.
  *
- * @type {(path: string) => (name: string) => string}
+ * Only the links a person follows go through here. A page's proofs and its
+ * demo are imported by the browser from this site, and pointing those at
+ * GitHub would not load them.
+ *
+ * @type {(commit: string | null) => (path: string) => (name: string) => string}
  */
-const fileHref = path => name => path === '.' ? `/${name}` : `/${path}/${name}`
+const fileHref = commit => path => name => {
+    const file = path === '.' ? name : `${path}/${name}`
+    return commit === null ? `/${file}` : `${repository}/blob/${commit}/${file}`
+}
 
 /**
  * One section of a page: a heading a reader can fold the section away under,
@@ -210,15 +235,17 @@ const item = href => text => ['li', ['a', { href }, text]]
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
  *
- * @type {(dir: Dir) => readonly Node[]}
+ * `commit` is where files are read — see {@link fileHref}.
+ *
+ * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
-export const sections = dir => [
+export const sections = commit => dir => [
     ...section('Files')(true)(dir.files.map(name =>
-        item(fileHref(dir.path)(name))(name))),
+        item(fileHref(commit)(dir.path)(name))(name))),
     ...section('Directories')(true)(dir.dirs.map(name =>
         item(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(`${name}/`))),
     ...section('Issues')(false)(dir.todo.map(name =>
-        item(fileHref(dir.path)(`todo/${name}`))(name))),
+        item(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
 ]
 
 /**
@@ -241,9 +268,9 @@ const ancestors = path => {
  * The whole page for a directory below the root: where it sits, what it
  * holds, and what is open against it.
  *
- * @type {(dir: Dir) => Vec}
+ * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
-export const page = dir => htmlUtf8(
+export const page = commit => dir => htmlUtf8(
     ['title', dir.path],
     stylesheetLink,
 )(
@@ -254,7 +281,7 @@ export const page = dir => htmlUtf8(
             return at === 0 ? [link] : [' / ', link]
         })],
         ['h1', dir.path],
-        ...sections(dir),
+        ...sections(commit)(dir),
         ...(dir.demo === null ? [] : demoSection(dir.demo)),
         ...testSection(dir)([]),
     ],

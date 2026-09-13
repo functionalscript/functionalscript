@@ -11,10 +11,17 @@ stops reading it. The chain has a documented fallback if this work cannot wait.
 
 ### Problem
 
-A module page that links to `module.f.mjs` sends the reader to raw text, and a
-reader who wants the module's documentation has nothing to read at all. The
-JSDoc is in the source; the source is on the site; nothing turns either into a
-page.
+A module page that links to `module.f.mjs` sends the reader away to read it,
+and a reader who wants the module's documentation has nothing to read at all.
+The JSDoc is in the source; the source is on the site; nothing turns either
+into a page.
+
+Until this lands, a built site links files to GitHub at the commit it was built
+from, and a local build to the raw file — see
+[`../README.md`](../README.md#a-file-opens-on-github-at-the-commit-the-site-was-built-from).
+That gives highlighting and rendered Markdown now; it does not give a doc view,
+and it takes the reader off the site. When this issue lands, a file link points
+at the site's own view, and GitHub can stay as a second link.
 
 ### Decisions
 

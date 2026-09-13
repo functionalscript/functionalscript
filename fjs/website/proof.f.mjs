@@ -1,15 +1,17 @@
 /**
  * @import { Dir, State, _Entity } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { Env } from '../effects/node/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { main } from './module.f.mjs'
-import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
 import { stylesheet } from './style/module.f.mjs'
+import { repository } from './page/module.f.mjs'
 
 /**
  * A file in the virtual tree, from its text.
@@ -29,20 +31,24 @@ const textOf = (entity, name) => {
  * discovery into FunctionalScript bought: a directory of fixtures in, a site
  * out, no filesystem touched.
  *
- * @type {(tree: Dir) => readonly [State, number]}
+ * `env` is the build's environment, empty unless a case is about what the
+ * build was told.
+ *
+ * @type {(tree: Dir, env?: Env) => readonly [State, number]}
  */
-const run = tree => {
-    const [generated, result] = virtual({ ...emptyState, root: tree })(main())
+const run = (tree, env = {}) => {
+    const [generated, result] = virtual({ ...emptyState, root: tree })(
+        main({ ...defaultNodeProgramOptions, env }))
     return [generated, exitCode(result)]
 }
 
 /**
  * The pages a successful run wrote, and what it said while writing them.
  *
- * @type {(tree: Dir) => { readonly root: Dir, readonly output: string }}
+ * @type {(tree: Dir, env?: Env) => { readonly root: Dir, readonly output: string }}
  */
-const generate = tree => {
-    const [generated, code] = run(tree)
+const generate = (tree, env = {}) => {
+    const [generated, code] = run(tree, env)
     assertEq(code, 0)
     return { root: generated.root, output: generated.stdout }
 }
@@ -63,7 +69,62 @@ const pageAt = (root, path) => textOf(
 
 export const proof = {
     main: () => {
-        assertNotNullish(main(), 'expected a program effect')
+        assertNotNullish(main(defaultNodeProgramOptions), 'expected a program effect')
+    },
+    /**
+     * **A file links to GitHub when the build names its commit, and to this
+     * site when it does not.** The commit comes from `WORKERS_CI_COMMIT_SHA`,
+     * which Cloudflare's builds set; a local build has none, and its unpushed
+     * commits would open nothing on GitHub anyway.
+     */
+    fileLinks: {
+        withoutACommit: () => {
+            const { root, output } = generate({ a: { 'x.md': file('# x') } })
+            assert(pageAt(root, ['a']).includes('<a href="/a/x.md">x.md</a>'), pageAt(root, ['a']))
+            assert(output.includes('file links: this site'), output)
+        },
+        /**
+         * **Linked at the commit, spelled lowercase.** Git reads either case
+         * and GitHub's URLs are lowercase; the id is read and written back by
+         * `git/oid`, which is what normalises it.
+         */
+        atTheCommit: () => {
+            const sha = '0123456789ABCDEF0123456789ABCDEF01234567'
+            const lower = sha.toLowerCase()
+            const { root, output } = generate(
+                { a: { 'x.md': file('# x'), todo: { 'open.md': file('# open') } } },
+                { WORKERS_CI_COMMIT_SHA: sha })
+            const page = pageAt(root, ['a'])
+            assert(page.includes(`<a href="${repository}/blob/${lower}/a/x.md">x.md</a>`), page)
+            assert(page.includes(`<a href="${repository}/blob/${lower}/a/todo/open.md">open.md</a>`), page)
+            assert(output.includes(`file links: GitHub at ${lower}`), output)
+        },
+        /**
+         * **What a page loads stays on this site.** A proof and a demo are
+         * imported by the browser, and GitHub would not serve them as
+         * modules — only the links a reader follows move.
+         */
+        loadsStayHere: () => {
+            const { root } = generate(
+                { a: { 'proof.f.mjs': file('export const proof = []') } },
+                { WORKERS_CI_COMMIT_SHA: '0123456789abcdef0123456789abcdef01234567' })
+            assertStructurallySame(listed(pageAt(root, ['a'])), ['proof.f.mjs'])
+        },
+        /**
+         * **A value that is not a commit id is refused, and the log says so.**
+         * A link built from `main` or a truncated id would be broken on every
+         * page and nothing would report it; a deploy log line does.
+         */
+        notACommit: () => {
+            // `中` is wider than a byte, which is the input `git/oid` throws on
+            // rather than refuses — so it is the one that proves the guard in
+            // front of it is there. `é` fits a byte and is refused either way.
+            for (const value of ['main', '0123456789abcdef', '', '0123456789abcdef0123456789abcdef0123456g', 'é'.repeat(40), '中'.repeat(40)]) {
+                const { root, output } = generate({ a: { 'x.md': file('# x') } }, { WORKERS_CI_COMMIT_SHA: value })
+                assert(pageAt(root, ['a']).includes('<a href="/a/x.md">x.md</a>'), value)
+                assert(output.includes('file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'), output)
+            }
+        },
     },
     selection: {
         // Every `.f.mjs` that exports a `proof` and imports nothing a browser
@@ -474,7 +535,7 @@ export const proof = {
         /** @type {Dir} */
         const root = { '.github': { workflows: {} }, fjs: { website: { 'browser.mjs': file('export const proof = {}') } } }
         const state = { ...emptyState, root }
-        const [generated, result] = virtual(state)(main())
+        const [generated, result] = virtual(state)(main(defaultNodeProgramOptions))
         assertEq(exitCode(result), 0)
         const source = pageAt(generated.root, [])
         assert(source.includes('emergent-testing-in-javascript-e44760d71688'))

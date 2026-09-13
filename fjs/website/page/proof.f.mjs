@@ -6,13 +6,19 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { demoSection, page, pageHref, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, page, pageHref, repository, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
-const sectionsHtml = dir => concat(element(['body', ...sections(dir)]))
+const sectionsHtml = dir => concat(element(['body', ...sections(null)(dir)]))
 
 /** @type {(dir: Dir) => string} */
-const pageHtml = dir => utf8ToString(page(dir))
+const pageHtml = dir => utf8ToString(page(null)(dir))
+
+/** A commit id in the shape the generator hands the builder: 40 lowercase hex. */
+const commit = '0123456789abcdef0123456789abcdef01234567'
+
+/** @type {(dir: Dir) => string} */
+const sectionsAtCommit = dir => concat(element(['body', ...sections(commit)(dir)]))
 
 /** @type {Dir} */
 const empty = { path: '.', files: [], dirs: [], todo: [], proofs: [], demo: null }
@@ -69,6 +75,31 @@ export const proof = {
             sectionsHtml({ ...empty, todo: ['a.md'] }),
             '<body><details data-section=""><summary>Issues</summary>'
             + '<ul><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
+        /**
+         * **With a commit, a file a reader opens is read on GitHub**, at that
+         * commit — highlighted, and Markdown rendered — which the raw link on
+         * this site is neither.
+         */
+        atCommit: {
+            files: () => assertEq(
+                sectionsAtCommit({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
+                '<body><details data-section="" open=""><summary>Files</summary>'
+                + `<ul><li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>`),
+            filesAtRoot: () => assertEq(
+                sectionsAtCommit({ ...empty, files: ['README.md'] }),
+                '<body><details data-section="" open=""><summary>Files</summary>'
+                + `<ul><li><a href="${repository}/blob/${commit}/README.md">README.md</a></li></ul></details></body>`),
+            todo: () => assertEq(
+                sectionsAtCommit({ ...empty, path: 'fjs', todo: ['a.md'] }),
+                '<body><details data-section=""><summary>Issues</summary>'
+                + `<ul><li><a href="${repository}/blob/${commit}/fjs/todo/a.md">a.md</a></li></ul></details></body>`),
+            // A directory is one of this site's pages, which GitHub does not
+            // have, so its link does not move.
+            dirsStayHere: () => assertEq(
+                sectionsAtCommit({ ...empty, path: 'fjs', dirs: ['types'] }),
+                '<body><details data-section="" open=""><summary>Directories</summary>'
+                + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
+        },
     },
     subtree: {
         /**

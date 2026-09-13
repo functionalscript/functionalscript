@@ -22,7 +22,7 @@
  *
  * @module
  *
- * @import { All, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
+ * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
@@ -43,7 +43,8 @@ import { contains, empty as noPaths, set as addPath, values as paths } from '../
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { demoSection, page, sections, subtree, testSection } from './page/module.f.mjs'
+import { demoSection, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
+import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -63,19 +64,16 @@ import { demoSection, page, sections, subtree, testSection } from './page/module
  * page — named for what it is, with the prose that introduces it inside —
  * and the page is the repository's root.
  *
- * @type {(dir: Dir) => Vec}
+ * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
-const rootPage = dir => htmlUtf8(
+const rootPage = commit => dir => htmlUtf8(
     ['title', 'FunctionalScript'],
     stylesheetLink,
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
-        ['p', ['a',
-            { href: 'https://github.com/functionalscript/functionalscript' },
-            'GitHub Repository'
-        ]],
+        ['p', ['a', { href: repository }, 'GitHub Repository']],
         ['h1', 'FunctionalScript'],
-        .../** @type {readonly Node[]} */ (sections(dir)),
+        .../** @type {readonly Node[]} */ (sections(commit)(dir)),
         .../** @type {readonly Node[]} */ (dir.demo === null ? [] : demoSection(dir.demo)),
         .../** @type {readonly Node[]} */ (testSection(dir)([
             ['p',
@@ -499,9 +497,9 @@ const toDir = tree => proofs => demos => walked => ({
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
+ * @type {(commit: string | null) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
  */
-const writePages = tree => proofs => demos => {
+const writePages = commit => tree => proofs => demos => {
     const byPath = tree.reduce(
         (map, walked) => setReplace(walked.path)(walked)(map),
         /** @type {_Tree} */ (emptyMap))
@@ -509,13 +507,51 @@ const writePages = tree => proofs => demos => {
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pathConcat(dir.path)('index.html'),
-            dir.path === '.' ? rootPage(dir) : page(dir))),
+            dir.path === '.' ? rootPage(commit)(dir) : page(commit)(dir))),
         () => log(`directory pages: ${dirs.length}`))
 }
 
-/** @type {Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
-const program = exitStep(mapStep(
-    step(walk('.'), tree => {
+/**
+ * The commit this build is of, as the lowercase hex GitHub links it by, or
+ * `null` when the build does not say.
+ *
+ * **`WORKERS_CI_COMMIT_SHA` is Cloudflare's**, set by Workers Builds on every
+ * build it runs, which is how the published site and every branch preview are
+ * built. A local build has no such variable, so its links stay on the site it
+ * is — which is also the only place its unpushed commits exist.
+ *
+ * **A value that is not a SHA-1 commit id is refused rather than trusted.** A
+ * link built from one is broken on every page, and nothing would say so. The
+ * check is `git/oid`'s own reading of an id at the width this repository uses,
+ * and writing it back is what makes the spelling lowercase.
+ *
+ * @type {(env: Env) => string | null}
+ */
+const commitOf = env => {
+    const value = env.WORKERS_CI_COMMIT_SHA
+    if (value === undefined) { return null }
+    const units = value.split('').map(c => c.charCodeAt(0))
+    // `tryFromHex` reads bytes and throws on anything wider; an environment
+    // variable can hold any text, so a wider unit is refused before it gets
+    // there.
+    if (units.some(u => u > 0x7f)) { return null }
+    const id = tryFromHexOf(20)(units)
+    return id === null ? null : String.fromCharCode(...toArray(toHex(id)))
+}
+
+/**
+ * What the build says about where files link, so a deploy log answers it.
+ *
+ * @type {(env: Env) => (commit: string | null) => string}
+ */
+const linksNote = env => commit =>
+    commit !== null ? `file links: GitHub at ${commit}`
+        : env.WORKERS_CI_COMMIT_SHA === undefined ? 'file links: this site'
+            : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
+
+/** @type {(commit: string | null) => (note: string) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+const program = commit => note => exitStep(mapStep(
+    step(log(note), () => step(walk('.'), tree => {
         const authored = authoredModules(tree)
         return step(proofModules(authored), foundProofs =>
             step(demoModules(authored), foundDemos =>
@@ -526,10 +562,14 @@ const program = exitStep(mapStep(
                         const [demos, refused] = resolveDemos(demoProofs)
                         return step(reportClassification(proofs), () =>
                             step(forEachStep(pureOk(refused), log), () =>
-                                step(writePages(tree)(proofs)(demos), () =>
+                                step(writePages(commit)(tree)(proofs)(demos), () =>
                                     writeUtf8File('_main.css', stylesheet))))
                     })))
-    }),
+    })),
     () => undefined))
 
-export const main = () => program
+/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+export const main = ({ env }) => {
+    const commit = commitOf(env)
+    return program(commit)(linksNote(env)(commit))
+}
