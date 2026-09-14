@@ -25,10 +25,9 @@ The public surface is [`module.f.mjs`](./module.f.mjs): `tryParse` and
 `tryStringify` write a value as one, and the value types are in
 [`types.ts`](./types.ts). The reader lives in
 [`parser/module.f.mjs`](./parser/module.f.mjs) and the writer in
-[`serializer/module.f.mjs`](./serializer/module.f.mjs). The reader owes
-nothing further, and its issue is retired into this file; what the writer
-still owes is in [`todo/serializer.md`](./todo/serializer.md). The codec's
-proofs come from the conformance corpus,
+[`serializer/module.f.mjs`](./serializer/module.f.mjs). Neither owes
+anything further: both issues are retired into this file, which keeps what
+they decided. The codec's proofs come from the conformance corpus,
 [`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
 [`vectors/`](./vectors/module.f.mjs) holds the record types the corpus is
 typed with and `difference`, the sharing-aware comparison a proof over it
@@ -45,17 +44,34 @@ fjs/media/datajs/
     vectors/          the corpus's record types, and difference
 ```
 
-A caller may legitimately hand a reader text that is no document, or a writer
-a value outside the data model, so each entry point returns a `Result` and
-refuses rather than approximating — a reader says where the parse failed or
-which rule the document breaks, a writer names what it could not write:
+A caller may legitimately hand a reader text that is no document, and a
+writer a value its type cannot see the whole of, so each entry point returns
+a `Result` and refuses rather than approximating — a reader says where the
+parse failed or which rule the document breaks, a writer names what it could
+not write:
 
 ```ts
 export const tryParse:      (text: string)    => Result<Unknown, string>
 export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
-export const trySerialize:  (value: unknown)  => Result<List<string>, string>
-export const tryStringify:  (value: unknown)  => Result<string, string>
+export const trySerialize:  (value: Unknown)  => Result<List<string>, string>
+export const tryStringify:  (value: Unknown)  => Result<string, string>
 ```
+
+**The writer takes the data model's `Unknown`, not `unknown`.** Its first
+draft took `unknown`, on the ground that refusing what is outside the model is
+the writer's job and a signature taking `Unknown` would assert what the writer
+has to check. That left a gap nothing could close: a corpus set is a DataJS
+data module, so no vector can carry a function, an accessor or a cycle, and
+[`fjs/AGENTS.md`](../../AGENTS.md) §1.6 keeps host-built values out of a
+`.f.mjs` proof, so the refusals only a host can reach had no proof but the one
+over the data such a value would carry. Narrowing the parameter closes it. The
+type is the contract at the call — a FunctionalScript caller cannot hand the
+writer a value outside the model — and what the type cannot see is still
+refused, a hole, a symbol key, an accessor, a non-enumerable property, an
+extra own property on an array, a non-plain object, a cycle, because the
+specification refuses each and a host that casts is owed a refusal rather
+than a wrong document. The writer's proof hands it those values cast, as a
+host boundary would.
 
 The prefix is one decision for all four, taken when the surface landed: the
 reader's two had landed bare, and renaming half of the names before the
@@ -177,9 +193,12 @@ gets wrong. The consts are named `$0`, `$1`, … in emission order, which is
 post-order, so a name is declared before it is used.
 
 Normalized form being the only layout is why there is no separate
-`tryNormalize`: the two would be one function. A readable layout is the
-second writer the specification's freedom is for, and
-[`todo/serializer.md`](./todo/serializer.md) is where it is tracked.
+`tryNormalize`: the two would be one function. A readable layout — one
+statement per line, indented containers, the default the specification
+recommends for tooling — is the second writer that freedom is for, and it is
+decided not to exist for now: normalized form is what the compiler and
+hashing need, and nothing asks for another layout. When something does, it is
+a new issue, and `tryNormalize` then names this writer.
 
 ## The grammar is the reader
 

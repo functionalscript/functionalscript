@@ -120,7 +120,7 @@ export const proof = {
     // post-order, is wrong about a graph a caller can build. A proof may
     // carry an annotation where a data module may not, so it is pinned here.
     sharedEmptyArray: () => {
-        const child = /** @type {readonly unknown[]} */ ([])
+        const child = /** @type {readonly Unknown[]} */ ([])
         const parent = [child]
         const [tag, out] = tryStringify([parent, parent, child])
         assert(tag === 'ok', `the writer refused a shared empty array: ${String(out)}`)
