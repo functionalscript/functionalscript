@@ -69,16 +69,50 @@ listed, so the skip is per entry rather than the end of the walk. With a writer
 that sends an id and closes, `rev-parse` answers that id — so the lookup treats
 whatever comes out of the pipe as the ref's value.
 
-[`refstore`](../module.f.mjs)'s `looseOf` skips it, on the entry's kind, which is
-Git's listing exactly. `tryResolve` blocks, which is Git's lookup exactly. Both
-halves therefore match Git today, and the gap between them is Git's too — but it
-is a gap a caller can be caught by, and `lstat` closes it here without changing
-what the listing does.
+[`refstore`](../module.f.mjs)'s walk skips it, on the kind a `stat` answers,
+which is Git's listing exactly. `tryResolve` blocks, which is Git's lookup
+exactly. Both halves therefore match Git today, and the gap between them is
+Git's too — but it is a gap a caller can be caught by, and `lstat` closes it here
+without changing what the listing does.
 
 A FIFO `HEAD` is the one place this module is already better than Git rather
 than narrower: `git status` and `git rev-parse HEAD` in a repository whose
 `.git/HEAD` is a writerless FIFO both hang, and `headIsFile` refuses it with
 `headKindCode` at once.
+
+### What the walk does *not* follow: a link to a directory
+
+A `stat` says what an entry finally is, so the walk follows a link to a ref file
+and reads it, as Git does. It stops at a link to a **directory**, with
+`ERR_LINKED_DIR`, and that one is not a gap in the reading — it is a bound.
+
+Git walks in. Measured on Git 2.43.0 in a repository with one branch and
+`refs/heads/up` linked to `..`:
+
+```
+$ git show-ref
+<id> refs/heads/master
+<id> refs/heads/up/heads/master
+<id> refs/heads/up/heads/up/heads/master
+<id> refs/heads/up/heads/up/heads/up/heads/master
+…
+```
+
+— a name per depth, until the path grows too long for the host to open. Git
+*streams* those names and stops at the path limit. `tryRoots` collects its
+answer into one array, so it has neither property: following the link would be an
+unbounded allocation out of a single entry of a repository this module did not
+choose.
+
+Skipping instead of refusing would be the other wrong answer, because this
+function's result is what a `gc` keeps: a silently dropped subtree of refs is
+objects deleted.
+
+So walking into one wants the walk itself bounded first — a depth or a set of
+directories already visited, which is a change to the walk and not to the kind
+test. `lstat` and `readlink` are what tell it that an entry *is* a link at all,
+which is the same operation the rest of this issue wants, so the two belong
+together.
 
 ### Proposal
 
@@ -103,7 +137,8 @@ module reports rather than reads.
 ### Related
 
 - [`fjs/git/refstore`](../module.f.mjs) — `headIsFile`, where the `HEAD` refusal
-  is; `looseOf`, where the walk's kind filter is; and `targetAllowed`, which is
-  the same rule as the first for the other spelling.
+  is; `statted`, where the walk asks what an entry finally is; `linkedDirCode`,
+  the one kind it refuses; and `targetAllowed`, which is the same rule as the
+  first for the other spelling.
 - [byte-ref-names.md](./byte-ref-names.md) — the other place where the listing
   and the lookup can see different things, for the same kind of reason.

@@ -3,10 +3,11 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { ReadFile, Readdir } from '../../effects/node/types.ts'
+ * @import { Dirent, FileStat, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Oid } from '../types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Dirs, Root } from './types.ts'
  */
 
@@ -21,7 +22,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { headKindCode, lossyNameCode, lossyNameMessage, maxLookups, tryResolve, tryRoots } from './module.f.mjs'
+import { headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, tryResolve, tryRoots } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -178,6 +179,61 @@ const nameAt = name => hex =>
         ? { refs: { [name.split('/')[1]]: { [name.split('/')[2]]: ref(hex) } } }
         : { [name]: ref(hex) }
 
+/**
+ * What `stat` answers about an entry, as the two questions it is.
+ *
+ * @type {(isFile: boolean, isDirectory: boolean) => FileStat}
+ */
+const kind = (isFile, isDirectory) => ({ size: 41, isFile, isDirectory })
+
+/** @type {(name: string, parentPath: string, isFile: boolean, isDirectory: boolean) => Dirent} */
+const dirent = (name, parentPath, isFile, isDirectory) => ({ name, parentPath, isFile, isDirectory })
+
+/**
+ * A host whose `refs/heads` holds `master` as a real loose ref and `entry` beside
+ * it as an entry the listing cannot classify — `isFile: false` and
+ * `isDirectory: false`, which is what node answers for a FIFO and for every
+ * symlink alike, since `Dirent` does not follow one. `answer` is what a `stat` of
+ * it says: a kind, or the code the `stat` fails with.
+ *
+ * The virtual filesystem has neither links nor FIFOs, which is why these cases
+ * use a host rather than a `Dir`.
+ *
+ * @type {(entry: string, answer: FileStat | string) => MemOperationMap<ReadFile | Readdir | Stat, readonly string[]>}
+ */
+const kindHost = (entry, answer) => ({
+    readFile: path => log => [
+        [...log, `readFile ${path}`],
+        // the link's target is a ref file, which is what makes `alias` a root and
+        // what a read of the FIFO would never get back to
+        path === 'refs/heads/master' || path === `refs/heads/${entry}`
+            ? ok(toVec(latin1(`${a}\n`)))
+            : error(ioError({ code: 'ENOENT', message: path })),
+    ],
+    readdir: path => log => [
+        [...log, `readdir ${path}`],
+        ok(path === 'refs'
+            ? [dirent('heads', path, false, true)]
+            : path === 'refs/heads'
+                ? [dirent('master', path, true, false), dirent(entry, path, false, false)]
+                : []),
+    ],
+    stat: path => log => [
+        [...log, `stat ${path}`],
+        typeof answer === 'string'
+            ? error(ioError({ code: answer, message: path }))
+            : ok(answer),
+    ],
+})
+
+/**
+ * The roots such a host answers, and the log of what was asked of it.
+ *
+ * @type {(entry: string, answer: FileStat | string) => readonly [readonly string[], Result<Nullable<readonly Root[]>, IoChannel>]}
+ */
+const rootsBy = (entry, answer) =>
+    mockRun(kindHost(entry, answer))(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+
 export const proof = {
     // The loose refs, including one nested two directories down, and no
     // `packed-refs` at all — a repository that has never been packed.
@@ -294,13 +350,14 @@ export const proof = {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
         // Every read but the malformed file fails, and so does every listing, so
         // a chain that goes on after the refusal cannot answer at all.
-        /** @type {MemOperationMap<ReadFile | Readdir, null>} */
+        /** @type {MemOperationMap<ReadFile | Readdir | Stat, null>} */
         const host = {
             readFile: path => state => [
                 state,
                 path === 'packed-refs' ? ok(toVec(latin1('# hello\n'))) : error(denied),
             ],
             readdir: () => state => [state, error(denied)],
+            stat: () => state => [state, error(denied)],
         }
         const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
         assertStructurallySame(r, ok(null))
@@ -319,9 +376,11 @@ export const proof = {
     // answers the listing node would.
     lossyNames: () => {
         const twice = '\uFFFD'
-        /** @type {MemOperationMap<ReadFile | Readdir, null>} */
+        /** @type {MemOperationMap<ReadFile | Readdir | Stat, null>} */
         const host = {
             readFile: path => state => [state, error(ioError({ code: 'ENOENT', message: path }))],
+            // an entry the listing calls a file costs no `stat` either
+            stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
             readdir: path => state => [
                 state,
                 path === 'refs'
@@ -349,26 +408,29 @@ export const proof = {
     // linked to a file beside it holding an id, `rev-parse`, `show-ref` and
     // `status` all answer `not a git repository`.
     //
-    // Nothing in the effects reads a link's target, so the two cannot be told
-    // apart here and both are refused; what makes that the right way round is
-    // that following the link is how a repository makes this module read a file
-    // that is not in it. See `todo/symlink-head.md`.
+    // `HEAD` is judged on the listing alone, where an entry under `refs/` gets a
+    // `stat` — see `linkedRef` below. That is not an inconsistency but Git's own
+    // asymmetry: Git validates where `HEAD`'s link points and validates nothing
+    // about where a ref's link points, and a `stat` cannot tell a caller where a
+    // link went, only what it arrived at. Following `HEAD`'s link is also the one
+    // that escapes the repository by name — `.git/HEAD` naming `/etc/passwd`
+    // would be a detached `HEAD` if its first line read as an id. See
+    // `todo/symlink-head.md`.
     //
-    // The virtual filesystem has no links, so the host below answers the listing
-    // node answers for one: an entry that is neither a file nor a directory.
+    // A FIFO `HEAD` is where this is better than Git rather than narrower: with
+    // `.git/HEAD` a writerless FIFO, `git status` and `git rev-parse HEAD` both
+    // had to be killed, and this refuses at once.
     symlinkHead: () => {
-        /** @type {MemOperationMap<ReadFile | Readdir, null>} */
+        /** @type {MemOperationMap<ReadFile | Readdir | Stat, null>} */
         const host = {
             readFile: path => state => [state, error(ioError({ code: 'ENOENT', message: path }))],
             readdir: path => state => [
                 state,
-                ok(path === 'refs' ? [] : [{
-                    name: 'HEAD',
-                    parentPath: path,
-                    isFile: false,
-                    isDirectory: false,
-                }]),
+                ok(path === 'refs' ? [] : [dirent('HEAD', path, false, false)]),
             ],
+            // `HEAD`'s kind costs no `stat`, and this says so: a `stat` reached
+            // here answers a code the assertions below do not accept.
+            stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
         }
         const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
         assert(r[0] === 'error')
@@ -377,50 +439,87 @@ export const proof = {
         assertEq(e[1].code, headKindCode)
         assertEq(e[1].message, 'HEAD is not a regular file')
     },
-    // An entry under `refs/` that is neither a file nor a directory is skipped,
-    // and the one beside it is still listed.
+    // A link to a loose ref file is followed and listed, which is Git's. Measured
+    // on Git 2.43.0, `refs/heads/alias` linked to `refs/heads/real`:
+    // `show-ref` and `for-each-ref` both list `refs/heads/alias` at the id, and
+    // so does `rev-parse --verify`. Git follows a ref's link with no check on
+    // where it points — a link to a file *outside* the repository holding an id
+    // is listed too.
     //
-    // A FIFO is the case with teeth, because reading one with no writer does not
-    // fail — it waits — so `!isDirectory` read as "read it as a file" would hang
-    // the listing rather than answer wrongly. Measured on Git 2.43.0 with a FIFO
-    // at `refs/heads/pipe` and no writer: `show-ref`, `for-each-ref`, `status`
-    // and `gc --prune=now` all return at once and none of them lists it, and a
-    // FIFO inside a subdirectory of `refs/` is skipped with its siblings still
-    // listed. `rev-parse --verify refs/heads/pipe` blocks until it is killed,
-    // which is the half `tryResolve` shares — see `todo/symlink-head.md`.
+    // The listing cannot see this: node's `Dirent` does not follow a link, so
+    // `alias` arrives as `isFile: false, isDirectory: false` — the same answer a
+    // FIFO gives. One `stat` separates them, because it follows the link without
+    // opening it.
+    linkedRef: () => {
+        const [log, r] = rootsBy('alias', kind(true, false))
+        assert(r[0] === 'ok')
+        sameRoots(r[1], [['refs/heads/master', a], ['refs/heads/alias', a]])
+        // the `stat` is asked for the entry the listing could not name, and not
+        // for the one it could
+        assert(log.includes('stat refs/heads/alias'), log)
+        assert(!log.includes('stat refs/heads/master'), log)
+    },
+    // A FIFO is skipped, and the ref beside it is still listed.
     //
-    // The virtual filesystem has no FIFOs, so the host below answers the listing
-    // node answers for one, and refuses every `readFile` of that path: the case
-    // asserts the read never happens by asserting the answer does not depend on
-    // it.
+    // This is why the question is asked with `stat` and not by reading: opening a
+    // FIFO with no writer does not fail, it *waits*, so a walk that read every
+    // non-directory would hang rather than answer wrongly. `stat` follows a link
+    // and does not open what it finds — measured on node 22, a `stat` of a
+    // writerless FIFO answered in 3 ms.
+    //
+    // Measured on Git 2.43.0 with a FIFO at `refs/heads/pipe` and no writer:
+    // `show-ref`, `for-each-ref`, `status` and `gc --prune=now` all return at
+    // once and none of them lists it, and a FIFO inside a subdirectory of `refs/`
+    // is skipped with its siblings still listed. `rev-parse --verify` on it blocks
+    // until killed, which is the half `tryResolve` shares — see
+    // `todo/symlink-head.md`.
     fifoRef: () => {
-        const pipe = 'refs/heads/pipe'
-        /** @type {MemOperationMap<ReadFile | Readdir, readonly string[]>} */
-        const host = {
-            readFile: path => log => [
-                [...log, `readFile ${path}`],
-                path === 'refs/heads/master'
-                    ? ok(toVec(latin1(`${a}\n`)))
-                    : error(ioError({ code: 'ENOENT', message: path })),
-            ],
-            readdir: path => log => [
-                [...log, `readdir ${path}`],
-                ok(path === 'refs'
-                    ? [
-                        { name: 'heads', parentPath: path, isFile: false, isDirectory: true },
-                    ]
-                    : path === 'refs/heads'
-                        ? [
-                            { name: 'master', parentPath: path, isFile: true, isDirectory: false },
-                            { name: 'pipe', parentPath: path, isFile: false, isDirectory: false },
-                        ]
-                        : []),
-            ],
-        }
-        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        const [log, r] = rootsBy('pipe', kind(false, false))
         assert(r[0] === 'ok')
         sameRoots(r[1], [['refs/heads/master', a]])
-        assert(!log.includes(`readFile ${pipe}`), log)
+        assert(!log.includes('readFile refs/heads/pipe'), log)
+    },
+    // A link to a directory is refused rather than walked into or skipped.
+    //
+    // Git walks into it: measured on Git 2.43.0 with `refs/heads/up` linked to
+    // `..`, `show-ref` lists `refs/heads/up/heads/master`, then
+    // `refs/heads/up/heads/up/heads/master`, and on until the path is too long to
+    // open — a name per depth out of a repository with one branch. Git streams
+    // those; this walk collects them, so following the link is an answer with no
+    // bound, built out of one entry of a repository nobody here chose.
+    //
+    // Skipping would be the other wrong answer: this function's result is what a
+    // `gc` keeps, so a silently dropped subtree of refs is objects deleted. The
+    // refusal names the entry. See `todo/symlink-head.md`.
+    linkedDir: () => {
+        const [, r] = rootsBy('linkdir', kind(false, true))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, linkedDirCode)
+        assertEq(e[1].message, 'refs/heads/linkdir is a link to a directory')
+    },
+    // A link that leads nowhere is skipped, which is Git's. Measured on Git
+    // 2.43.0 with `refs/heads/dangling` linked to a name that is not there and
+    // `refs/heads/loop` linked to itself: `show-ref` and `for-each-ref` list
+    // neither and both exit 0. Node answers `ENOENT` for the first and `ELOOP`
+    // for the second.
+    linkLeadsNowhere: () => {
+        for (const code of ['ENOENT', 'ELOOP']) {
+            const [, r] = rootsBy('gone', code)
+            assert(r[0] === 'ok', code)
+            sameRoots(r[1], [['refs/heads/master', a]])
+        }
+    },
+    // Every other `stat` failure is the channel's, and deliberately not forgiven:
+    // the listing named the entry, so a host that then cannot describe it is a
+    // loose ref this would otherwise drop out of an answer a `gc` reads.
+    linkStatRefused: () => {
+        const [, r] = rootsBy('alias', 'EIO')
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, 'EIO')
     },
     // One name at a time: a loose ref, a packed one, a loose one shadowing
     // a packed one, and a name nothing is stored under.
