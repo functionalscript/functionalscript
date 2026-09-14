@@ -64,8 +64,13 @@ need a memo keyed by node identity to keep sharing; a cache that stores
 `Unresolved` ([cache-compiled-modules](./cache-compiled-modules.md)) is what
 would need that rewrite. `fjs compile` writes the linked graph as a DataJS
 document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
-its value outputs, which are unchanged. What Stage 1 still owes is the
-parser's `a.b` and `a[b]`.
+its value outputs, which are unchanged. The parser reads `a.b` and `a[key]`
+on a reference, the key a string or a number, `__proto__` and `constructor`
+refused at the key, and the lowering carries the access as the EDAG's own
+`['.', base, key]`. What Stage 1 still owes is the access's *value*: `run`
+has none for it, and `transpile` refuses a module holding one, so the value
+outputs of `fjs compile` say so while the EDAG output compiles it — see the
+task below for what the decision involves.
 
 The first missing EDAG operation was property access:
 
@@ -488,9 +493,23 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       number constants, and only later the `Number` numeric-conversion node once it
       exists. Done in [`fjs/edag`](../../edag/module.f.mjs): `dot` over `index`,
       which is a string, a number, or a `Number` cast.
-- [ ] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
+- [x] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
       static-string/number property cases to `.`, and reject runtime-computed strings,
-      prohibited property names, and other unsupported property expressions.
+      prohibited property names, and other unsupported property expressions. Done:
+      the grammar admits an access after a reference only, its key an identifier,
+      a string or a number, so a runtime key is refused at the token; the fold
+      refuses `__proto__` and `constructor` in either spelling; the AST and the
+      lowering carry `['.', base, key]`.
+- [ ] Give a property access its value on the value path — `run`, and so
+      `transpile` and `fjs compile`'s module and JSON outputs, which refuse a
+      module holding one today. The decision the subset law has to witness: an
+      own property read, the prototype chain never (the spec's rule, where
+      JavaScript reads `a.toString` as a function); what a missing member and a
+      `null` or `undefined` base yield, where JavaScript gives `undefined` and
+      throws respectively, and the value path has no throw; and what the sharing
+      sweep says of an access — today it takes one as a container reference to
+      its base, which refuses rather than writes a shared node twice, and is
+      wrong in the safe direction for `[a.x, a.x]` on a leaf `x`.
 - [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema. Done: [`fjs/fsc/edag/types.ts`](../edag/types.ts).
 - [x] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
