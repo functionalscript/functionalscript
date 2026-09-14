@@ -197,6 +197,10 @@ export const proof = {
             expectEdag(program({ 'j.json': file('[true, 2.5]') })('j.json'), ['[]', [true, 2.5]])
             assertEq(linkRefusal({ ...root, 'a.f.js': file('import j from "./j.json"; export default [j];') })('a.f.js'), 'a JSON module needs the import attribute with { type: "json" } at no position')
             assertEq(linkRefusal({ 'a.f.js': file('import j from "./j.f.js" with { type: "json" }; export default [j];'), 'j.f.js': file('[1]') })('a.f.js'), 'only a JSON module is imported with { type: "json" } at no position')
+            // a file met before is refused all the same when a later import
+            // misspells it: the contract is the import's, not the file's
+            assertEq(linkRefusal({ ...root, 'a.f.js': file('import j from "./j.json" with { type: "json" }; import k from "./j.json"; export default [j, k];') })('a.f.js'), 'a JSON module needs the import attribute with { type: "json" } at no position')
+            assertEq(linkRefusal({ 'a.f.js': file('import m from "./m.f.js"; import k from "./m.f.js" with { type: "json" }; export default [m, k];'), 'm.f.js': file('export default 1;') })('a.f.js'), 'only a JSON module is imported with { type: "json" } at no position')
         },
         // the failures `transpile` reports, reported the same way
         refused: () => {

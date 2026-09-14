@@ -173,11 +173,13 @@ const inModule = path => result => result[0] === 'error' ? error({ ...result[1],
  * @type {(source: _Source) => (context: _Link) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
  */
 const link = ({ path, json }) => context => {
+    // the import's own contract, checked before the file's state: a file
+    // met before is refused all the same when this import misspells it
+    const mismatch = _attributeError({ path, json })
+    if (mismatch !== null) { return pureError(mismatch) }
     if (includes(path)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
     const done = at(path)(context.complete)
     if (done !== null) { return pureOk([context, done[0]]) }
-    const mismatch = _attributeError({ path, json })
-    if (mismatch !== null) { return pureError(mismatch) }
     const entered = { ...context, stack: { first: path, tail: context.stack } }
     return json
         ? mapStep(_parseJson(path), completedJson(path)(entered))

@@ -162,6 +162,11 @@ const jsonDone = (path, context) => value => ({ ...context, complete: setReplace
  * @type {(source: _Source) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>}
  */
 const foldNextModuleOp = ({ path, json }) => context => {
+    // the import's own contract, checked before the file's state: a file
+    // met before is refused all the same when this import misspells it
+    const mismatch = _attributeError({ path, json })
+    if (mismatch !== null) { return pureError(mismatch) }
+
     if (includes(path)(context.stack)) {
         return pureError({ message: 'circular dependency', metadata: null, path })
     }
@@ -169,9 +174,6 @@ const foldNextModuleOp = ({ path, json }) => context => {
     if (at(path)(context.complete) !== null) {
         return pureOk(context)
     }
-
-    const mismatch = _attributeError({ path, json })
-    if (mismatch !== null) { return pureError(mismatch) }
 
     if (json) { return mapStep(_parseJson(path), jsonDone(path, context)) }
 

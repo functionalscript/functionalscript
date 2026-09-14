@@ -484,6 +484,13 @@ export const proof = {
             const [incompatibleState, incompatibleCode] = virtual({ ...emptyState, root: incompatible })(compile(['input.f.js', 'output.edag.f.js']))
             assertEq(exitCode(incompatibleCode), 1)
             assertEq(incompatibleState.stderr.trim(), 'm.f.js - error: only a JSON module is imported with { type: "json" }')
+            // a file met before is refused all the same when a later import
+            // misspells it: the contract is the import's, not the file's
+            const twice = { ...root, 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; import e from "./d.json"; export default [d, e];')] }
+            assertEq(stderrOf(twice), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
+            const [twiceState, twiceCode] = virtual({ ...emptyState, root: twice })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(twiceCode), 1)
+            assertEq(twiceState.stderr.trim(), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
         },
         // the sweep reads an access by its keys: `cfg.a` beside `cfg.b` is a
         // tree, `cfg.a` twice or `cfg` beside `cfg.a` is not, and a leaf
