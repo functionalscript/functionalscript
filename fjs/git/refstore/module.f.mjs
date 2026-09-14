@@ -92,6 +92,21 @@
  * *which* name is being resolved cannot live in a reader of one file's bytes,
  * which is why it is here.
  *
+ * **Every effect is bound at one level, and a branch that reads is not a
+ * sequence.** The listing's four links go through `historyStep`, the walk of
+ * `refs/` and the walk down a symbolic chain through `walkStep`, and each read
+ * is bound to a name before the `step` that consumes it — the shapes
+ * [§3.4](../../AGENTS.md) forbids, a `step` inside a `step` and a loop written
+ * as a recursion, are not here.
+ *
+ * What is left inside a continuation is a *choice*, and it cannot be lifted out:
+ * a loose file that turns out to be symbolic is resolved and one that holds an
+ * id is not, a name with no loose file answers from `packed-refs` instead, and
+ * which of those happens is known only once the file has been read. §3.4 says as
+ * much where it explains why the combinators themselves nest — a name cannot be
+ * bound to an effect that has not been produced yet. Binding one anyway would
+ * mean reading a file this module has just decided not to read.
+ *
  * **A `packed-refs` may name one ref twice, and the last line wins.**
  * Measured: `git show-ref` lists both lines and `git rev-parse` answers the
  * last, in either order of the two. Git neither refuses the file nor takes the
@@ -498,11 +513,12 @@ const resolveWith = (dirs, oidBytes, packed) => {
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
  */
-export const tryResolve = (dirs, oidBytes) => name =>
-    step(tryPackedRefs(dirs, oidBytes), packed =>
-        packed === null
-            ? pureOk(null)
-            : resolveWith(dirs, oidBytes, packed)(name, maxLookups))
+export const tryResolve = (dirs, oidBytes) => name => {
+    const read = tryPackedRefs(dirs, oidBytes)
+    return step(read, packed => packed === null
+        ? pureOk(null)
+        : resolveWith(dirs, oidBytes, packed)(name, maxLookups))
+}
 
 /** @type {(state: Nullable<_Found>, items: Nullable<readonly _Entry[]>) => _Walked} */
 const walked = (state, items) => [state, items]
