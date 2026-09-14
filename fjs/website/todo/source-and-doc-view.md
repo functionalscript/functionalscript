@@ -42,8 +42,8 @@ at the site's own view, and GitHub can stay as a second link.
   FunctionalScript, so it loads in a browser like any other module.
   Nothing is written twice. The token stream is
   [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s — the grammar's
-  general JS stream, which the compiler's tokenizer folds — since stage 7
-  of the plan replaced the hand-written scanner behind that path.
+  general JS stream, which the compiler's tokenizer folds — since the
+  grammar replaced the hand-written scanner behind that path.
 - **The grammar must first recognise the sources it will show.** Today its
   string rule is JSON's, the double quote only, and it has no template
   literal: `const a = 'x'` and a template literal alike stop the grammar at

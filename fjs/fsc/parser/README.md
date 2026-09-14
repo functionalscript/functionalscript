@@ -41,9 +41,9 @@ for that, each a conflict the backtracking grammar this replaced had
 - **`;` ends every statement, the export included.** A newline does not: it is
   trivia, read past, so a missing `;` is found at what came instead — the next
   statement's keyword, or the end of input. This is the rule
-  [`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md)
-  settles on for FunctionalScript (stage 5) and what DataJS requires; telling a
-  newline from a `;` reached through newlines took unbounded lookahead.
+  [`spec/README.md`](../../../spec/README.md) states for FunctionalScript and
+  what DataJS requires; telling a newline from a `;` reached through newlines
+  took unbounded lookahead.
 - **A list is right-recursive.** After an item and its comma, the lookahead says
   whether an item or the closing bracket follows, so a trailing comma is a comma
   nothing follows.

@@ -24,8 +24,9 @@ The AST preserves the ordered object-entry representation EDAG requires:
 repeated key written twice, and `run` builds the object JavaScript builds from
 the same literal. It was a plain object until this task's first step, and
 before that it sorted the members through an `OrderedMap`, which the subset law
-over the DataJS corpus found and stage 6 fixed (#2028); a plain object kept the
-written order of ordinary keys and the last value of a repeated one, and could
+over the DataJS corpus found and the normalizer's landing fixed (#2028); a
+plain object kept the written order of ordinary keys and the last value of a
+repeated one, and could
 not keep the position of an integer-like key, which JavaScript lists first, or
 the duplicates themselves. Conversion to `['{}', [...entry]]` reads the members
 as the syntax holds them.
@@ -405,12 +406,11 @@ the sign the way `number` and `bigint` already do. There is no exclusion list to
 implement alongside them: DataJS names begin with `$`, so `$NaN` and
 `$undefined` are ordinary names and the three words are unreachable as bindings
 by the grammar rather than by a rule. Excluding them is **FunctionalScript's**
-policy, whose identifiers have no `$` requirement, and it lands in stage 5 — and
-[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md)
-assigns implementing that spec to **stage 4, under `fjs/media/datajs`**, with the
-reserved-word half following in stage 5 once the front end moves. Patching
-`fjs/djs` for these four values would be reworked by that migration, so the tasks
-below are the requirement, not an instruction to implement them here.
+policy, whose identifiers have no `$` requirement — implementing the spec was
+[`fjs/media/datajs`](../../media/datajs/README.md)'s, with the reserved-word
+half the front end's once it had moved. Patching `fjs/djs` for these four
+values would have been reworked by that migration, so the tasks below were the
+requirement, not an instruction to implement them there.
 
 Measured against the current implementation, so the gap is on record rather than
 rediscovered:
@@ -422,9 +422,8 @@ rediscovered:
 | `Infinity` | `Infinity` | `Infinity` |
 | `-Infinity` | `-Infinity`, one token | `-Infinity` |
 
-**All four are done**, in stage 5 of
-[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md),
-and pinned end to end in `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
+**All four are done**, with the front end's move, and pinned end to end in
+`fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
 separates them. The other three are reserved words with their own token
 kinds, read as primitives by the grammar, the tokenizer folding `-` into

@@ -5,9 +5,8 @@
 longer exists; rebase it on the grammar before starting.
 
 > **The seam this design is built on no longer exists.** It reuses the
-> hand-written `Scan<S>` scanners that the JSON reader's rewrite (stage 3 of
-> [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md),
-> closed) used to promise, and
+> hand-written `Scan<S>` scanners that the JSON reader's rewrite (over the
+> grammar, done) used to promise, and
 > that design was implemented, reverted
 > ([#1895](https://github.com/functionalscript/functionalscript/pull/1895)) and
 > replaced by a reader generated from JSON's EBNF grammar. Nothing exports
