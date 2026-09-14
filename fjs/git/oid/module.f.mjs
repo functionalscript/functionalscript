@@ -131,9 +131,12 @@ export const of = oidBytes => {
  * and it is built on this rather than beside it so that the choice of hash is
  * made in one place.
  *
- * Not every hash Git writes is over an object. A pack and a pack index each end
- * in a checksum over their own preceding bytes, with no framing at all, and a
- * reader that checks one needs the repository's hash without the object rule.
+ * Exported because a reader that is not reading an object needs it. A pack index
+ * ends in a checksum over its own preceding bytes, with no framing at all, and
+ * [`fjs/git/packidx`](../packidx/module.f.mjs)'s `verifyChecksum` is what asks:
+ * it hashes the file up to the trailing id and compares. A pack ends the same
+ * way. This stayed private while nothing outside the module hashed bytes that
+ * are no object, and it is public here because that reader arrives here.
  *
  * @throws If an item of the bytes is not a byte.
  *
