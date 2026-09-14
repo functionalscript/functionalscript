@@ -5,8 +5,8 @@
 hand-written scanner in `fjs/js/tokenizer` and waited on the JSON reader's
 rewrite, because widening that scanner regressed the public JSON tokenizer
 built over it. It moved here when
-[parser-serializer-restructure](../../../../../todo/parser-serializer-restructure.md)
-stage 7 decided that the scanner goes and the grammar is the token layer:
+[the token layer became JavaScript's](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+and the scanner went:
 JSON reads [`ebnf/lib/json`](../../json/module.f.mjs), not this grammar, so
 widening this grammar regresses nothing, and the ordering problem that
 blocked the old issue is gone with the module it was about.
@@ -336,10 +336,10 @@ the source view rests on.
 
 - [source-and-doc-view](../../../../website/todo/source-and-doc-view.md) — the
   consumer this unblocks; its first task is this issue.
-- [parser-serializer-restructure](../../../../../todo/parser-serializer-restructure.md)
-  stage 7 — the decision this issue rests on: the token layer is shared with
-  JavaScript and grows here, the parser stays the subset, and the scanner
-  goes.
+- [The token layer is JavaScript's, the parser is the subset](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+  — the decision this issue rests on: the token layer is shared with
+  JavaScript and grows here, the parser stays the subset, and the scanner is
+  gone.
 - [2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md) —
   the same spellings, as a language feature. Its lexical surface is what this
   issue recognises; its question, whether FunctionalScript *accepts* those

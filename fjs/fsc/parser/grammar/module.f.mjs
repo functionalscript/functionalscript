@@ -25,10 +25,9 @@
  *   begin with it; the classical grammar's statement terminator and the
  *   module's final optional `;` both did.
  * - **`;` ends every statement, the export included.** A newline does
- *   not: it is the design `todo/parser-serializer-restructure.md`
- *   decided for FunctionalScript (stage 5), it is what DataJS requires,
- *   and deciding between a newline and a `;` reached through newlines
- *   took unbounded lookahead.
+ *   not: it is the rule `spec/README.md` states for FunctionalScript, it
+ *   is what DataJS requires, and deciding between a newline and a `;`
+ *   reached through newlines took unbounded lookahead.
  * - **A list is right-recursive.** After an item and its comma, one
  *   symbol of lookahead says whether an item or the closing bracket
  *   follows, so a trailing comma is a comma nothing follows; the classical

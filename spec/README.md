@@ -30,9 +30,8 @@ leaf set gains `undefined`, `bigint`, `NaN` and the infinities — and with a
 DJS described here requires it too), no `import`, no comments, no
 identifier keys and no trailing commas. The data subset
 described in *this* document is wider and is what the compiler accepts today.
-The two converge as
-[`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
-proceeds.
+The compiler bridges the two: `fjs compile` writes a module of the wider
+subset as a DataJS document, through DataJS's own writer.
 
 ## Principles
 
@@ -539,12 +538,15 @@ FunctionalScript module — `const $0=[1];export default [$0,$0];` is normalized
 DataJS, one line, and it parses here. JavaScript accepts the same module with
 the same meaning, so the subset law holds; what FunctionalScript refuses from
 JavaScript is the empty statement and automatic semicolon insertion — a
-statement here ends at a `;`, never at a spot an engine infers. This is the
-rule [`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
-settles on for the compiler-formatted `.f.js` output language (its stage 5),
-landed ahead of that stage with the parser's move to the LL(1) backend, where
-telling a newline from a `;` reached through newlines took unbounded
-lookahead. The compiler writes the `;` after every statement it emits.
+statement here ends at a `;`, never at a spot an engine infers. The rule
+landed with the parser's move to the LL(1) backend, where telling a newline
+from a `;` reached through newlines took unbounded lookahead, and it is the
+rule of the compiler-formatted `.f.js` output language: the compiler writes
+the `;` after every statement it emits. Whether FunctionalScript also
+requires the whitespace DataJS requires after `export` and `default` is its
+own question, and DataJS does not depend on the answer — DataJS requires
+more whitespace than a merging rule would, so every DataJS document parses
+here either way.
 
 |Statement|Form|
 |---------|----|

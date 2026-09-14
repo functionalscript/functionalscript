@@ -46,8 +46,7 @@ That belongs to whichever JSON work needs it, not to a JSON/DJS extraction.
 
 The same recursive `typeof`-dispatch walker over the value tree is written
 three times, and the count is what is left after the old `fjs/djs/serializer`
-was retired in stage 7 of
-[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md):
+was retired:
 
 - `fjs/media/json/serializer/module.f.mjs` — `treeSerialize(leafSerialize)(sort)`,
   a factory. `fjs/media/json`'s `serialize` and the extended codec are two
