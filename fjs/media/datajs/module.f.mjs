@@ -14,10 +14,11 @@
  * `Unknown` is the graph a document denotes, sharing included.
  *
  * **Every entry point is fallible, and the names say so.** A caller may
- * legitimately hand a reader text that is no document, or a writer a value
- * outside the data model, so each returns a `Result` and refuses rather
- * than approximating: a reader reports where the parse failed or which rule
- * the document breaks, a writer names what it could not write.
+ * legitimately hand a reader text that is no document, and a writer — whose
+ * parameter is the data model's `Unknown` — a value its type cannot see the
+ * whole of, a hole or an accessor or a cycle. So each returns a `Result` and
+ * refuses rather than approximating: a reader reports where the parse failed
+ * or which rule the document breaks, a writer names what it could not write.
  *
  * The two readers are one reader over one alphabet. `tryParse` takes the
  * document as UTF-16 code units, which is what the grammar reads.

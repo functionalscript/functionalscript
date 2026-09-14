@@ -13,11 +13,20 @@ import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
 import { _elementNames, _link, _memberValue, trySerialize, tryStringify } from './module.f.mjs'
 
+/**
+ * A value as a host would hand it: the writer's parameter is the data
+ * model's `Unknown`, and what this proof refuses is outside the model, so it
+ * reaches the writer cast, as a host boundary would hand it.
+ *
+ * @type {(value: unknown) => Unknown}
+ */
+const asHanded = value => /** @type {Unknown} */ (value)
+
 /** The document a value is written as. @type {(value: unknown) => string} */
-const text = value => unwrap(tryStringify(value))
+const text = value => unwrap(tryStringify(asHanded(value)))
 
 /** Why a value is refused. Throws the document if it is written instead. @type {(value: unknown) => string} */
-const refused = value => unwrap(invert(tryStringify(value)))
+const refused = value => unwrap(invert(tryStringify(asHanded(value))))
 
 /**
  * Whether every code point of a document is a scalar value — no unpaired
@@ -288,9 +297,9 @@ export const proof = {
             assertEq(text(unwrap(tryParse(document))), document)
         },
         // 2,600 nested arrays is the input that used to throw `RangeError`
-        // out of both passes. A refusal below them is an `error`, as
-        // `todo/serializer.md` §Layout and API promises, and the sharing a
-        // deep chain takes part in is hoisted as any other.
+        // out of both passes. A refusal below them is an `error`, as a
+        // `try*` promises, and the sharing a deep chain takes part in is
+        // hoisted as any other.
         below: () => {
             /** @type {(depth: number, bottom: unknown) => unknown} */
             const nested = (depth, bottom) => Array.from({ length: depth }).reduce(v => [v], bottom)

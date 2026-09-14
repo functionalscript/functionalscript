@@ -103,6 +103,6 @@ Three routes, and the first is the one to rule out first.
 
 - [`../README.md`](../README.md) — the corpus schema; sharing is part of a graph
   is stated there, and this is the one shape it cannot carry.
-- [`fjs/media/datajs/todo/serializer.md`](../../../../fjs/media/datajs/todo/serializer.md)
-  — stage 4's corpus proofs, which serialize the inputs these sets export and so
-  are what a shared empty array would reach.
+- [`fjs/media/datajs`](../../../../fjs/media/datajs/README.md) — the writer,
+  whose corpus proofs serialize the inputs these sets export and so are what a
+  shared empty array would reach.
