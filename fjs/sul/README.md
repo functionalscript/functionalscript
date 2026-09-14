@@ -58,3 +58,11 @@ The hash stack grows dynamically: each time a hash level emits a symbol, it is p
 
 - [level/](level/README.md) — level hierarchy: literal and hash levels
 - [id/](id/README.md) — 256-bit content-addressed identifier
+
+## Research
+
+[Compression and deduplication research](research/README.md) includes comparisons
+with Prolly Trees and content-defined Merkle trees, a lossless grammar/arithmetic
+coding prototype, reproducible benchmarks, and limitations. For large documents,
+the hash root requires reachable node definitions in backing storage; it does not
+contain the document's bits by itself.

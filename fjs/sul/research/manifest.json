@@ -1,0 +1,10 @@
+{
+  "sulCommit": "d16a9ebf39b30a42e1b795bc329774d867196841",
+  "nodeVersion": "v24.19.0",
+  "prototypeArchiveSha256": "a74a82888dde7b0567cbbdf918dfcdcf7a76e7f17b3ce27eabe6069d3467c5d9",
+  "files": {
+    "results.json": "f99391233a94a5966c010c2815378214ca0788bfe1a1b6afc569fc6a0e50706e",
+    "summary.csv": "853af9ad45afa2dc2d3b5c301c4ea15c2b5de97dba0d41057e72422f270dc402",
+    "prototype.md": "5dc9ed9fbf35d37db183db869b091340118dc25ab71b9f02cb6d818257a25e35"
+  }
+}
