@@ -46,5 +46,20 @@
       "order-prototype.md": "6387d5147f14272bde88c2b05973e8ec444b12568739f4f8ac78e6d330ccca87",
       "successor-results.json": "5c732cbe088384ebf2c95fe31d36a0a8255639f04887d7e105ed2a89f7e1c543"
     }
+  },
+  "frequencyProfileExperiment": {
+    "archiveSha256": "d2a57f23de74e810602eb69d7070232bc1cff2fcf1b34f033c334a1d9b33dcfb",
+    "files": {
+      "frequency-profiles.md": "3d72ac1a47a5f47f39f6543d7b0060d66541884313e74bc6b51ad9f0d2f27071",
+      "profile-registry.json": "40f215972aee18e6653e432f98e5d70c8cb7c87293a5fc69db6a6915dfc38174",
+      "profile-results.json": "66a284e43ae4843384c1114b15bf63233e952600f0b82a554c4c6bf218bc367b",
+      "profile-summary.csv": "9b56f934d6a6cb5d443804afab8e6d671960198e942dc6fa54ee49010d39aead",
+      "profile-corpus.json": "42f48ee44f432807a82fa5e81f40aef827e421eaed0d983807050f987ca01488",
+      "profile-prototype.md": "7993a08a2fd8c8e52837587ebd712aeefbb4ba8dcc3aea7e9f1c1e2ac25649e3",
+      "profiles/be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac.json": "be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac",
+      "profiles/84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb.json": "84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb",
+      "profiles/d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9.json": "d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9",
+      "profiles/c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622.json": "c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622"
+    }
   }
 }

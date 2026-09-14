@@ -12,6 +12,10 @@ works, its measurements, and the unresolved design questions.
 
 ## Contents
 
+- [Shared frequency profiles](frequency-profiles.md): an immutable model registry,
+  automatic profile selection, and fixed/prior comparisons on separate real
+  training and test documents. Includes all profiles and their distribution costs.
+
 - [Optimizing the byte alphabet order](byte-ordering.md): search the 256-byte
   comparison order for fewer level-one groups, then measure complete compression.
   Includes all ten permutations and a separate check on previously unused input.

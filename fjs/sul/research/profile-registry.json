@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "dictionaryPolicy": "Unchanged first-occurrence order and raw-byte SUL hierarchy. Profiles describe binary coding contexts, not document-local dictionary identities.",
+  "training": "Count only arithmetic events in the final adaptive encoding, observed by decoding it. Discarded candidates and raw streams supply no events. Use add-one smoothing, at least 16 events per context, weights totaling 4096; unknown contexts use [1,1].",
+  "profiles": [
+    {
+      "name": "generic",
+      "id": "sha256:be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac",
+      "file": "profiles/be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac.json",
+      "bytes": 7537,
+      "rows": 450,
+      "events": 434705,
+      "trainingFiles": [
+        "source-00",
+        "source-01",
+        "source-02",
+        "source-03",
+        "source-04",
+        "source-05",
+        "text-00",
+        "text-01",
+        "text-02",
+        "text-03",
+        "text-04",
+        "text-05",
+        "c-00",
+        "c-01",
+        "c-02",
+        "c-03",
+        "c-04",
+        "c-05",
+        "json-00",
+        "json-01",
+        "json-02",
+        "json-03"
+      ]
+    },
+    {
+      "name": "text",
+      "id": "sha256:84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb",
+      "file": "profiles/84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb.json",
+      "bytes": 3090,
+      "rows": 182,
+      "events": 143059,
+      "trainingFiles": [
+        "text-00",
+        "text-01",
+        "text-02",
+        "text-03",
+        "text-04",
+        "text-05"
+      ]
+    },
+    {
+      "name": "ascii",
+      "id": "sha256:d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9",
+      "file": "profiles/d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9.json",
+      "bytes": 5875,
+      "rows": 352,
+      "events": 230379,
+      "trainingFiles": [
+        "source-02",
+        "source-03",
+        "source-05",
+        "c-00",
+        "c-01",
+        "c-02",
+        "c-03",
+        "c-04",
+        "c-05",
+        "json-00",
+        "json-01",
+        "json-02",
+        "json-03"
+      ]
+    },
+    {
+      "name": "json",
+      "id": "sha256:c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622",
+      "file": "profiles/c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622.json",
+      "bytes": 1897,
+      "rows": 111,
+      "events": 30982,
+      "trainingFiles": [
+        "json-00",
+        "json-01",
+        "json-02",
+        "json-03"
+      ]
+    }
+  ]
+}
