@@ -42,6 +42,11 @@
  * [`fjs/git/refname`](../refname/module.f.mjs)'s `isWholeName` and not a
  * list of file-name conventions.
  *
+ * A name is not the only thing the walk filters on: an entry that is neither a
+ * file nor a directory is skipped as well, which is Git's listing again and which
+ * is what keeps a FIFO under `refs/` from stopping the walk for as long as
+ * nothing writes to it. The measurements are at `looseOf`.
+ *
  * The filter runs before a path is built and not after a file is read, which
  * matters for a name a caller passes in rather than one a directory listing
  * handed over: `..` is one of the byte pairs the rule refuses, so a name like
@@ -582,6 +587,7 @@ const twiceNamed = entries => {
 const childOf = parent => d => ({
     path: under(parent.path, d.name),
     name: `${parent.name}/${d.name}`,
+    isFile: d.isFile,
     isDirectory: d.isDirectory,
 })
 
@@ -625,6 +631,33 @@ const refOf = (readRef, resolve, found, name, names) => bytes => {
  * A file whose name is no ref name is skipped without a word, which is also
  * Git's — see this module's header for the table the two agree on.
  *
+ * **An entry that is neither a file nor a directory is skipped too, and that is
+ * not the same test as `!isDirectory`.** A FIFO, a socket, a device and a symlink
+ * to any of them are all `isFile: false` and `isDirectory: false` at once, so
+ * reading the second question as the negation of the first would open one. A FIFO
+ * is the case with teeth: `readFile` on one with no writer does not fail, it
+ * *waits*, so a listing would never finish. Measured on Git 2.43.0, with a FIFO
+ * at `refs/heads/pipe`:
+ *
+ * ```
+ * $ git show-ref        # lists the other branches and not the FIFO, at once
+ * $ git for-each-ref    # the same
+ * $ git status          # exits 0
+ * $ git gc --prune=now  # exits 0
+ * ```
+ *
+ * and a FIFO inside a subdirectory of `refs/` is skipped with its siblings still
+ * listed, so the skip is per entry and not the end of the walk. So Git's listing
+ * reads the kind and skips what it cannot read, which is what this does.
+ *
+ * {@link tryResolve} does *not* skip it, because it reads one file by name and
+ * never lists a directory — and neither does Git:
+ * `git rev-parse --verify refs/heads/pipe` on that repository blocks until it is
+ * killed, and answers the id if something writes one. So the two halves disagree
+ * here in the same way and for the same reason as
+ * [`todo/symlink-head.md`](./todo/symlink-head.md), which is also where the
+ * operation that would close it is.
+ *
  * The read here is the plain one and not {@link tryBytes}: the walk has just
  * been told the file is there, so a read that cannot find it is a race or a
  * broken host rather than an absence, and the channel is where that belongs.
@@ -655,6 +688,9 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
                     }))
             })
         }
+        // Neither a file nor a directory, so there is nothing here to read as a
+        // ref: skipped, which is what Git's own listing does.
+        if (!item.isFile) { return pureOk(walked(found, null)) }
         if (!keep(item.name)) { return pureOk(walked(found, null)) }
         const name = nameBytes(item.name)
         if (!isWholeName(name)) { return pureOk(walked(found, null)) }
@@ -715,7 +751,7 @@ const refsDir = /** @type {const} */ ('refs')
  */
 const ownRefs = (dirs, entries) => entries
     .filter(d => d.isDirectory && d.name === refsDir)
-    .map(d => ({ path: under(dirs.gitdir, d.name), name: d.name, isDirectory: true }))
+    .map(d => ({ path: under(dirs.gitdir, d.name), name: d.name, isFile: false, isDirectory: true }))
 
 /**
  * The code a repository is refused with when its `HEAD` is not a regular file.
@@ -885,7 +921,7 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  */
 export const tryRoots = (dirs, oidBytes) => {
     /** @type {_Entry} */
-    const shared = { path: under(dirs.common, refsDir), name: refsDir, isDirectory: true }
+    const shared = { path: under(dirs.common, refsDir), name: refsDir, isFile: false, isDirectory: true }
     /** @type {Nullable<_Found>} */
     const init = { roots: [], names: [] }
     // Four effects, one link each and all at one level, so the order they run
