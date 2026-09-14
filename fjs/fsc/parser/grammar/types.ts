@@ -37,14 +37,14 @@ import type {
  * The words that frame a module, which the grammar has to tell apart from an
  * ordinary identifier.
  *
- * The tokenizer emits all five as `{ kind: 'id' }` with the word in `value`, so
+ * The tokenizer emits all six as `{ kind: 'id' }` with the word in `value`, so
  * a parser layer keyed on `kind` alone would give them the same symbol as any
  * other identifier — and a grammar over that alphabet could not distinguish
  * `export default` from two arbitrary names. They therefore get terminals of
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 

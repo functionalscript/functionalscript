@@ -47,6 +47,9 @@ export type _ListNode = readonly [
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
 export type _AccessNode = Unmapped<readonly [string, Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>]>
 
+/** The node of an import's optional attribute: no round, or one holding `with t { t id t : t string t } t`, the key's token at the fifth position and the value's at the ninth. */
+export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, _Leaf, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
+
 /** The names bound so far, each to the reference that names it. */
 export type _Env = OrderedMap<AstModuleRef>
 

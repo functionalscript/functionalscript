@@ -122,13 +122,15 @@ Use the temporary representation:
 
 ```ts
 type Unresolved = {
-    readonly imports: readonly string[]
+    readonly imports: readonly AstImport[]   // { specifier, json }
     readonly edag: EDAG
 }
 ```
 
-`imports` is an **array of module paths, not a map**. Its order defines the import
-parameter positions in `edag`. `edag` is the parameterized computation for the module,
+`imports` is an **array of import records, not a map**: each is the specifier as
+written and whether the import carries `with { type: "json" }`, which selects the
+JSON reader for that import — see [`ast/types.ts`](../ast/types.ts). Its order
+defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
 with `export default` as its root/result.
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
@@ -161,7 +163,7 @@ with temporary unresolved metadata:
 
 ```js
 {
-    imports: ['./a.f.js'],
+    imports: [{ specifier: './a.f.js', json: false }],
     edag,
 }
 ```
@@ -201,8 +203,11 @@ compilation is deliberately a separate task; see
 
 #### Resolve unresolved modules to one EDAG
 
-Recursively resolve the paths in `Unresolved.imports`. Each imported source is compiled
-to its own temporary `Unresolved`, then its imports are resolved in the same way.
+Recursively resolve the records in `Unresolved.imports`: each specifier against the
+importer's path, and each file by the reader its `json` flag selects, refused where
+the flag disagrees with the extension. Each imported source is compiled to its own
+temporary `Unresolved`, then its imports are resolved in the same way; a JSON module
+is the tree its document denotes and has no imports.
 
 Resolution binds the resolved imported module results to the corresponding import
 parameter positions in the importing module EDAG. The import array order therefore
@@ -519,8 +524,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       not to make.
 - [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema. Done: [`fjs/fsc/edag/types.ts`](../edag/types.ts).
-- [x] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
-      and make import parameter positions correspond to its indices. Done; pinned by
+- [x] Keep `Unresolved.imports` as a source-ordered array of import records — the
+      specifier and the `json` flag of `with { type: "json" }` — not a map, and make
+      import parameter positions correspond to its indices. Done; pinned by
       `parameters` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
 - [x] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like

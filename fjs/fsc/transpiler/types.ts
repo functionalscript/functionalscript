@@ -25,3 +25,9 @@ export type ParseContext = {
     readonly complete: OrderedMap<Denotation>
     readonly stack: List<string>
 }
+
+/** A file to read as an import or the root: its path, and whether it is a JSON module — said by the import's attribute. */
+export type _Source = {
+    readonly path: string
+    readonly json: boolean
+}

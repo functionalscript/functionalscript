@@ -6,7 +6,8 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstConst, AstMember, AstModule } from '../ast/types.ts'
+ * @import { AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
+ * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -18,7 +19,7 @@
  */
 
 import { unreached } from '../ast/module.f.mjs'
-import { _importPath, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
+import { _attributeError, _importPath, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
 import { foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
@@ -30,7 +31,7 @@ const args = /** @type {const} */ (['args'])
 /** `undefined` is tagged in an EDAG, because a bare one is a missing tuple position. */
 const undefinedNode = /** @type {const} */ (['undefined'])
 
-/** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(specifier: string, i: number) => Exp} */
+/** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
 const parameter = (_, i) => ['.', args, i]
 
 /** @type {(lower: (ast: AstConst) => Exp) => (member: AstMember) => readonly [':', string, Exp]} */
@@ -83,13 +84,13 @@ const refuse = message => error({ message, metadata: null })
 const lowered = imports => module => {
     const [specifiers, body] = module
     const { consts, imports: unbound } = unreached(module)
-    if (unbound.length !== 0) { return refuse(`unreachable import "${specifiers[unbound[0]]}"`) }
+    if (unbound.length !== 0) { return refuse(`unreachable import "${specifiers[unbound[0]].specifier}"`) }
     if (consts.length !== 0) { return refuse(`unreachable const ${consts[0]}`) }
     const nodes = body.reduce(entry(imports), [])
     return ok(nodes[nodes.length - 1])
 }
 
-/** @type {(imports: readonly string[]) => (edag: Exp) => Unresolved} */
+/** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */
 const over = imports => edag => ({ imports, edag })
 
 /**
@@ -140,8 +141,11 @@ const completedJson = path => context => value => completed(path)(context)(jsonE
 /** @type {(bound: readonly Exp[]) => (linked: readonly [_Link, Exp]) => _Binding} */
 const appended = bound => ([context, edag]) => ({ context, bound: [...bound, edag] })
 
-/** One import resolved and its EDAG appended to the module's bound imports. @type {(path: string) => (binding: _Binding) => Effect<ReadFile, _Binding, ParseError>} */
-const linkImport = path => ({ context, bound }) => mapStep(link(path)(context), appended(bound))
+/** One import resolved and its EDAG appended to the module's bound imports. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile, _Binding, ParseError>} */
+const linkImport = source => ({ context, bound }) => mapStep(link(source)(context), appended(bound))
+
+/** An import as a file to read: its specifier resolved against the importer's path, and what it is. @type {(path: string) => (imported: AstImport) => _Source} */
+const sourceOf = path => ({ specifier, json }) => ({ path: _importPath(path)(specifier), json })
 
 /**
  * A parsed module linked: its imports resolved in source order, each to its
@@ -152,7 +156,7 @@ const linkImport = path => ({ context, bound }) => mapStep(link(path)(context), 
  * @type {(path: string) => (context: _Link) => (module: AstModule) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
  */
 const linkModule = path => context => module => step(
-    foldStep(pureOk(module[0].map(_importPath(path))), { context, bound: [] }, linkImport),
+    foldStep(pureOk(module[0].map(sourceOf(path))), { context, bound: [] }, linkImport),
     ({ context: linked, bound }) => pure(mapOk(completed(path)(linked))(inModule(path)(lowered(bound)(module)))))
 
 /** A refusal of a module named for the module, which the refusal alone does not know. @type {(path: string) => (result: Result<Exp, ParseError>) => Result<Exp, ParseError>} */
@@ -162,16 +166,22 @@ const inModule = path => result => result[0] === 'error' ? error({ ...result[1],
  * The file at `path` resolved to its EDAG within one link: a module met
  * again is the node it resolved to the first time, so a diamond of imports
  * joins at one node, and a module met again while it is still being entered
- * is a cycle.
+ * is a cycle. A JSON module is read as a document, as its import says with
+ * `with { type: "json" }`; a `.json` file imported without it, or another
+ * file imported with it, is refused as JavaScript refuses it.
  *
- * @type {(path: string) => (context: _Link) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
  */
-const link = path => context => {
+const link = ({ path, json }) => context => {
+    // the import's own contract, checked before the file's state: a file
+    // met before is refused all the same when this import misspells it
+    const mismatch = _attributeError({ path, json })
+    if (mismatch !== null) { return pureError(mismatch) }
     if (includes(path)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
     const done = at(path)(context.complete)
     if (done !== null) { return pureOk([context, done[0]]) }
     const entered = { ...context, stack: { first: path, tail: context.stack } }
-    return path.endsWith('.json')
+    return json
         ? mapStep(_parseJson(path), completedJson(path)(entered))
         : step(_parseModule(path), linkModule(path)(entered))
 }
@@ -182,10 +192,11 @@ const edagOf = ([, edag]) => edag
 /**
  * The program at `path` as one EDAG: the module read and parsed, each of
  * its imports resolved the same way, recursively, and every import bound in
- * its parameter's place — a `.json` import as the tree its document
- * denotes, as `transpile` reads it. The result carries no path and no
- * parameter: the `Unresolved` layer is the compiler's, and is gone once the
- * link is done.
+ * its parameter's place — a JSON module, imported `with { type: "json" }`,
+ * as the tree its document denotes, as `transpile` reads one. A `.json`
+ * root is a document, as it is for `transpile`. The result carries no path
+ * and no parameter: the `Unresolved` layer is the compiler's, and is gone
+ * once the link is done.
  *
  * Fails as `transpile` fails, with the same `ParseError`: a parse error
  * where its token is, and a missing file or a circular dependency with no
@@ -194,4 +205,4 @@ const edagOf = ([, edag]) => edag
  *
  * @type {(path: string) => Effect<ReadFile, Exp, ParseError>}
  */
-export const resolve = path => mapStep(link(path)({ complete: null, stack: null }), edagOf)
+export const resolve = path => mapStep(link({ path, json: path.endsWith('.json') })({ complete: null, stack: null }), edagOf)

@@ -26,10 +26,14 @@ The temporary type remains:
 
 ```ts
 type Unresolved = {
-    readonly imports: readonly string[]
+    readonly imports: readonly AstImport[]   // { specifier, json }
     readonly edag: EDAG
 }
 ```
+
+A cached entry carries each import's record whole: the specifier and the `json`
+flag of `with { type: "json" }`, which selects the reader when the linker follows
+the import, so a warm build reads a JSON module as the cold one did.
 
 Source identity and compiler/cache identity belong to the cache machinery, not to
 `Unresolved`.
@@ -99,8 +103,8 @@ source bytes
 ```
 
 If the cache version matches the current compiler, parse and validate the cached
-`Unresolved`. Reuse `imports` and `edag` without parsing the source module only when
-that cache artifact itself is valid.
+`Unresolved`. Reuse `imports` — the records, `json` flags included — and `edag`
+without parsing the source module only when that cache artifact itself is valid.
 
 Any cache read, version-check, parse, schema-validation, or EDAG-validation failure is
 an ordinary **cache miss**. The compiler must fall back to parsing/compiling the

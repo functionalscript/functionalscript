@@ -8,7 +8,8 @@
  * @import { Denotation, Import } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
- * @import { AstModule } from '../ast/types.ts'
+ * @import { AstImport, AstModule } from '../ast/types.ts'
+ * @import { _Source } from './types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -50,6 +51,9 @@ const mapDjs = context => path => {
 
 /** @type {(context: ParseContext) => (path: string) => Import} */
 const importAt = context => path => ({ ...mapDjs(context)(path), id: path })
+
+/** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */
+const jsonDenotation = value => ({ value, shared: false, reaches: [] })
 
 /** @type {(denotation: Denotation) => Unknown} */
 const valueOf = ({ value }) => value
@@ -101,16 +105,39 @@ const done = (path, module, imports, context) => consts => ({
     complete: setReplace(path)({ value: consts[consts.length - 1], ...sharing(module[1])(imports)(consts) })(context.complete),
 })
 
+/**
+ * The disagreement between an import's attribute and the file's extension,
+ * or `null`. JavaScript refuses a `.json` file imported without
+ * `with { type: "json" }`, so that data a program did not declare cannot
+ * stand where it expects a module, and any other file imported with it,
+ * since the attribute declares a file's type and never reinterprets the
+ * file; so does this. Exported for the EDAG linker, which refuses the same
+ * way; the `_` says linkage.
+ *
+ * @type {(source: _Source) => ParseError | null}
+ */
+export const _attributeError = ({ path, json }) => {
+    const isJson = path.endsWith('.json')
+    if (json === isJson) { return null }
+    const message = isJson ? 'a JSON module needs the import attribute with { type: "json" }' : 'only a JSON module is imported with { type: "json" }'
+    return { message, metadata: null, path }
+}
+
+/** An import as a file to read: its specifier resolved against the importer's path, and what it is. @type {(path: string) => (imported: AstImport) => _Source} */
+const sourceOf = path => ({ specifier, json }) => ({ path: _importPath(path)(specifier), json })
+
+/** @type {(source: _Source) => string} */
+const pathOf = ({ path }) => path
+
 /** @type {(path: string) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const transpileWithImports = path => module => context => {
-    const pathsCombine = listMap(_importPath(path))(module[0])
-    const pathsArray = toArray(pathsCombine)
+    const sources = module[0].map(sourceOf(path))
     const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
-    const x0 = foldStep(pureOk(pathsArray), contextWithStack, foldNextModuleOp)
+    const x0 = foldStep(pureOk(sources), contextWithStack, foldNextModuleOp)
     return step(
         x0,
         contextWithImports => {
-            const imports = toArray(listMap(importAt(contextWithImports))(pathsCombine))
+            const imports = sources.map(pathOf).map(importAt(contextWithImports))
             // a body fails on a property read of `null` or `undefined`, as
             // JavaScript throws; the failure has no token, since the value
             // is the module's, not one statement's, and names the module
@@ -121,8 +148,25 @@ const transpileWithImports = path => module => context => {
         })
 }
 
-/** @type {(path: string) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
-const foldNextModuleOp = path => context => {
+/** A JSON module's denotation recorded under its path. @type {(path: string, context: ParseContext) => (value: JsonUnknown) => ParseContext} */
+const jsonDone = (path, context) => value => ({ ...context, complete: setReplace(path)(jsonDenotation(value))(context.complete) })
+
+/**
+ * The next import of a module, or the root: a file met again while it is
+ * being entered is a cycle, one already done is done, a JSON module — its
+ * import says so with `with { type: "json" }` — is read as a document, a
+ * `.json` file imported without the attribute, or another file imported
+ * with it, is refused as JavaScript refuses it, and anything else is parsed
+ * as a module and its own imports followed.
+ *
+ * @type {(source: _Source) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>}
+ */
+const foldNextModuleOp = ({ path, json }) => context => {
+    // the import's own contract, checked before the file's state: a file
+    // met before is refused all the same when this import misspells it
+    const mismatch = _attributeError({ path, json })
+    if (mismatch !== null) { return pureError(mismatch) }
+
     if (includes(path)(context.stack)) {
         return pureError({ message: 'circular dependency', metadata: null, path })
     }
@@ -131,6 +175,8 @@ const foldNextModuleOp = path => context => {
         return pureOk(context)
     }
 
+    if (json) { return mapStep(_parseJson(path), jsonDone(path, context)) }
+
     return step(
         _parseModule(path),
         module => transpileWithImports(path)(module)(context))
@@ -138,7 +184,7 @@ const foldNextModuleOp = path => context => {
 
 /** @type {(path: string) => Effect<ReadFile, Denotation, ParseError>} */
 const transpileModule = path => mapStep(
-    foldNextModuleOp(path)({ stack: null, complete: null }),
+    foldNextModuleOp({ path, json: false })({ stack: null, complete: null }),
     context => mapDjs(context)(path))
 
 /**
@@ -160,9 +206,6 @@ export const _parseJson = path => step(
         return pure(json[0] === 'error' ? error({ message: json[1], metadata: null, path }) : json)
     })
 
-/** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */
-const jsonDenotation = value => ({ value, shared: false, reaches: [] })
-
 /** @type {(path: string) => Effect<ReadFile, Denotation, ParseError>} */
 const transpileJson = path => mapStep(_parseJson(path), jsonDenotation)
 
@@ -170,10 +213,13 @@ const transpileJson = path => mapStep(_parseJson(path), jsonDenotation)
  * Transpiles the file at `path` into what it denotes: one value, and whether
  * that value's graph has a node two references reach.
  *
- * The extension names its language: a `.json` file is a JSON document, read by
- * `fjs/media/json`, and anything else is a FunctionalScript module, whose
- * imports are resolved recursively — each of them a module too, whatever it is
- * called ([spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key)).
+ * The extension names the root's language: a `.json` file is a JSON
+ * document, read by `fjs/media/json`, and anything else is a FunctionalScript
+ * module, whose imports are resolved recursively — each of them a module too,
+ * whatever it is called, unless its import says `with { type: "json" }`, in
+ * which case it is a JSON document, as JavaScript reads one; a `.json` file
+ * imported without the attribute is refused, as JavaScript refuses it
+ * ([spec: JSON input](../../../spec/README.md#json-input)).
  *
  * Returns `['ok', denotation]` on success, or `['error', ParseError]` on a
  * parse failure, a missing file, or a circular dependency.
