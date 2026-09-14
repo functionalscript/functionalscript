@@ -255,6 +255,9 @@ const byId = m => [m.id, m]
 /** The value a chain of keys reaches from a value, by own-property reads; `undefined` past the data. @type {(keys: readonly string[]) => (value: Unknown) => Unknown} */
 const at = keys => value => keys.reduce(own, value)
 
+/** A module's group, apart from every `const`'s: a module's id may spell a number too. @type {(id: string) => string} */
+const moduleGroup = id => `module ${id}`
+
 /**
  * The node a reference reaches, when it is a container: the `const` by its
  * index or the module by its id, and the keys from there. A reference
@@ -264,7 +267,7 @@ const at = keys => value => keys.reduce(own, value)
  * @type {(imports: readonly Import[], consts: readonly Unknown[]) => (ref: _Ref) => readonly _Node[]}
  */
 const containerNode = (imports, consts) => ({ ref: [kind, i], keys }) => {
-    const [group, value] = kind === 'cref' ? [`${i}`, consts[i]] : [imports[i].id, imports[i].value]
+    const [group, value] = kind === 'cref' ? [`const ${i}`, consts[i]] : [moduleGroup(imports[i].id), imports[i].value]
     return isContainer(at(keys)(value)) ? [{ group, keys, aref: kind === 'aref' }] : []
 }
 
@@ -329,7 +332,7 @@ const withinPrevious = sorted => (node, i) => {
 export const sharing = body => imports => consts => {
     const nodes = toArray(reach(memberValues)(body).refs).flatMap(containerNode(imports, consts))
     const sorted = nodes.toSorted(byNode)
-    const reached = [...new Map(imports.map(byId)).values()].filter(m => nodes.some(n => n.aref && n.group === m.id))
+    const reached = [...new Map(imports.map(byId)).values()].filter(m => nodes.some(n => n.aref && n.group === moduleGroup(m.id)))
     const reaches = [...reached.map(m => m.id), ...reached.flatMap(m => m.reaches)]
     const shared = sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
     return { shared, reaches: shared ? [] : reaches }

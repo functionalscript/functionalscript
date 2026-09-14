@@ -70,6 +70,24 @@ const compileSource = source => outputFileName => {
 }
 
 /**
+ * What `fjs compile` prints when the module itself fails: the exit code is
+ * `1`, nothing is written, and the message is against the input.
+ *
+ * @type {(source: string) => string}
+ */
+const moduleRefused = source => {
+    /** @type {typeof emptyState.root} */
+    const root = { 'input.f.js': [utf8(source)] }
+    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+    assertEq(exitCode(code), 1)
+    assertEq(state.root['output.f.js'], undefined)
+    return state.stderr.trim()
+}
+
+/** A source over `cfg`, an object of two arrays and a leaf. @type {(source: string) => string} */
+const withCfg = source => `const cfg = { a: [1], b: [2], c: 3 }; ${source}`
+
+/**
  * What `fjs compile` prints when it refuses to write `.json` for a module:
  * the exit code is `1`, nothing is written, and the message names the output
  * file, because the module is sound and the output is what cannot be.
@@ -413,29 +431,28 @@ export const proof = {
             assertEq(compileSource('const n = 1; const b = true; const g = 2n; export default [n.x, b.x, g.x];')('output.f.js'), 'export default [undefined,undefined,undefined];')
         },
         failure: () => {
-            /** @type {(source: string) => string} */
-            const refused = source => {
-                const root = { 'input.f.js': [utf8(source)] }
-                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
-                assertEq(exitCode(code), 1)
-                assertEq(state.root['output.f.js'], undefined)
-                return state.stderr.trim()
-            }
-            assertEq(refused('const a = null; export default a.x;'), 'input.f.js - error: cannot read property "x" of null')
-            assertEq(refused('const a = { b: 1 }; export default a.c.d;'), 'input.f.js - error: cannot read property "d" of undefined')
+            assertEq(moduleRefused('const a = null; export default a.x;'), 'input.f.js - error: cannot read property "x" of null')
+            assertEq(moduleRefused('const a = { b: 1 }; export default a.c.d;'), 'input.f.js - error: cannot read property "d" of undefined')
         },
         // the sweep reads an access by its keys: `cfg.a` beside `cfg.b` is a
         // tree, `cfg.a` twice or `cfg` beside `cfg.a` is not, and a leaf
         // reached twice is two copies of a leaf
         sharing: () => {
-            const cfg = 'const cfg = { a: [1], b: [2], c: 3 }; '
-            assertEq(compileSource(`${cfg}export default { first: cfg.a, second: cfg.b };`)('output.json'), '{"first":[1],"second":[2]}')
-            assertEq(jsonRefused(`${cfg}export default [cfg.a, cfg.a];`), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(compileSource(`${cfg}export default [cfg.a, cfg.a];`)('output.f.js'), 'const $0=[1];export default [$0,$0];')
-            assertEq(jsonRefused(`${cfg}export default [cfg, cfg.a];`), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(compileSource(`${cfg}export default [cfg.c, cfg.c, cfg.a[0], cfg.a.length];`)('output.json'), '[3,3,1,1]')
+            assertEq(compileSource(withCfg('export default { first: cfg.a, second: cfg.b };'))('output.json'), '{"first":[1],"second":[2]}')
+            assertEq(jsonRefused(withCfg('export default [cfg.a, cfg.a];')), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(withCfg('export default [cfg.a, cfg.a];'))('output.f.js'), 'const $0=[1];export default [$0,$0];')
+            assertEq(jsonRefused(withCfg('export default [cfg, cfg.a];')), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(withCfg('export default [cfg.c, cfg.c, cfg.a[0], cfg.a.length];'))('output.json'), '[3,3,1,1]')
             assertEq(jsonRefused('const o = []; const cfg = { a: o, b: o }; export default [cfg.a, cfg.b];'), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused('const a = [[]]; export default [a[0], a["0"]];'), 'output.json - error: no JSON spelling for a shared node')
+            // a `const` and a module are two groups however they are named:
+            // an import resolved to the path `0` is not `const` 0
+            /** @type {typeof emptyState.root} */
+            const zero = { 'a.f.js': [utf8('import m from "./0"; const c = []; export default [c, m];')], 0: [utf8('export default [];')] }
+            const [zeroState, zeroCode] = virtual({ ...emptyState, root: zero })(compile(['a.f.js', 'output.json']))
+            assertEq(exitCode(zeroCode), 0, zeroState.stderr)
+            assertEq(readOutput(zeroState.root, 'output.json'), '[[],[]]')
+            /** @type {typeof emptyState.root} */
             const m = { 'm.f.js': [utf8('export default { x: [1], y: [2], z: 3 };')] }
             assert(!sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.y, m.z, m.z];')] })('a.f.js'))
             assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.x];')] })('a.f.js'))

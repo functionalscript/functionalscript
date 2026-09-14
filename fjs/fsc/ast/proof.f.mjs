@@ -6,6 +6,9 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 /** Whether the sweep finds a shared node in a body with no imports, given its values. @type {(body: import('./types.ts').AstBody) => boolean} */
 const sharedOf = body => sharing(body)([])(unwrap(values(body)([]))).shared
 
+/** What the sweep says of a body over `imports`, given the values the body has over them. @type {(imports: readonly import('./types.ts').Import[]) => (body: import('./types.ts').AstBody) => import('./types.ts').Sharing} */
+const sharingWith = imports => body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
+
 /** @type {(module: import('./types.ts').AstModule) => string} */
 const unreachedOf = module => {
     const { consts, imports } = unreached(module)
@@ -145,18 +148,22 @@ export const proof = {
         imports: () => {
             /** @type {readonly import('./types.ts').Import[]} */
             const imports = [{ id: 'm', value: { x: [1], y: [2], z: 3 }, shared: false, reaches: [] }]
-            /** @type {(body: import('./types.ts').AstBody) => import('./types.ts').Sharing} */
-            const sharingWith = body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
-            assert(sharingWith([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'x']]]]).shared)
-            assert(!sharingWith([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'y']]]]).shared)
-            assert(!sharingWith([['array', [['.', ['aref', 0], 'z'], ['.', ['aref', 0], 'z']]]]).shared)
-            assert(sharingWith([['array', [['aref', 0], ['.', ['aref', 0], 'x']]]]).shared)
-            assert(!sharingWith([['array', [['aref', 0], ['.', ['aref', 0], 'z']]]]).shared)
-            assertEq(sharingWith([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'y']]]]).reaches.join(), 'm')
-            assertEq(sharingWith([['array', [['.', ['aref', 0], 'z']]]]).reaches.join(), '')
+            const over = sharingWith(imports)
+            assert(over([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'x']]]]).shared)
+            assert(!over([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'y']]]]).shared)
+            assert(!over([['array', [['.', ['aref', 0], 'z'], ['.', ['aref', 0], 'z']]]]).shared)
+            assert(over([['array', [['aref', 0], ['.', ['aref', 0], 'x']]]]).shared)
+            assert(!over([['array', [['aref', 0], ['.', ['aref', 0], 'z']]]]).shared)
+            assertEq(over([['array', [['.', ['aref', 0], 'x'], ['.', ['aref', 0], 'y']]]]).reaches.join(), 'm')
+            assertEq(over([['array', [['.', ['aref', 0], 'z']]]]).reaches.join(), '')
             // an import the export does not reach is not reached, whatever it holds
+            /** @type {readonly import('./types.ts').Import[]} */
             const two = [...imports, { id: 'n', value: [1], shared: false, reaches: [] }]
             assertEq(sharing([['.', ['aref', 0], 'x']])(two)([[1]]).reaches.join(), 'm')
+            // a module's id may spell a `const`'s index, and is another group
+            /** @type {readonly import('./types.ts').Import[]} */
+            const zero = [{ id: '0', value: [], shared: false, reaches: [] }]
+            assert(!sharingWith(zero)([['array', []], ['array', [['cref', 0], ['aref', 0]]]]).shared)
         },
     },
 }
