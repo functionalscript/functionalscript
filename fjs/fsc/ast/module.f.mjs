@@ -11,6 +11,7 @@
 
 import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
+import { todo } from '../../asserts/module.f.mjs'
 
 /** @type {(ast: AstConst) => (state: _RunState) => _RunState} */
 const foldOp = ast => state => {
@@ -27,6 +28,12 @@ const memberValue = evaluate => ([key, value]) => [key, evaluate(value)]
  * JavaScript builds from the same literal: a repeated key keeps its first
  * position and takes its last value, and integer-like keys come first.
  *
+ * A property access has no value here yet: what `a.b` denotes as data —
+ * an own property, a prototype's, `undefined` where JavaScript throws —
+ * is a decision the subset law has to witness, and `transpile` refuses a
+ * module holding one until it is made, so the branch is unreachable
+ * through the compiler and says so.
+ *
  * @type {(state: _RunState) => (ast: AstConst) => Unknown}
  */
 const toDjs = state => ast => {
@@ -35,9 +42,30 @@ const toDjs = state => ast => {
         case 'aref': { return state.args[ast[1]] }
         case 'cref': { return last(null)(take(ast[1] + 1)(state.consts)) }
         case 'array': { return toArray(map(toDjs(state))(ast[1])) }
-        default: { return fromEntries(ast[1].map(memberValue(toDjs(state)))) }
+        case 'object': { return fromEntries(ast[1].map(memberValue(toDjs(state)))) }
+        default: { return todo() }
     }
 }
+
+/** Whether an entry holds a property access anywhere in its literals. @type {(ast: AstConst) => boolean} */
+const holdsAccess = ast => {
+    if (ast === null || typeof ast !== 'object') { return false }
+    switch (ast[0]) {
+        case '.': { return true }
+        case 'array': { return ast[1].some(holdsAccess) }
+        case 'object': { return ast[1].some(([, value]) => holdsAccess(value)) }
+        default: { return false }
+    }
+}
+
+/**
+ * Whether a body holds a property access. `transpile` asks before it runs
+ * the body, since `run` has no value for one yet; the EDAG lowering has,
+ * and asks nothing.
+ *
+ * @type {(body: AstBody) => boolean}
+ */
+export const hasAccess = body => body.some(holdsAccess)
 
 /**
  * Evaluates a module body against its imported modules and returns the value
@@ -96,6 +124,8 @@ const refsOf = members => ast => {
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf(members))) }
         case 'object': { return flat(members(ast[1]).map(refsOf(members))) }
+        // an access reaches its base, and through it whatever the key names
+        case '.': { return refsOf(members)(ast[1]) }
         default: { return [ast] }
     }
 }
@@ -115,6 +145,10 @@ const denotesContainer = imports => (containers, ast) => {
     switch (ast[0]) {
         case 'array':
         case 'object': { return true }
+        // what an access denotes is the value's to say; taken as a
+        // container, which is the answer that refuses rather than the one
+        // that writes a shared node twice
+        case '.': { return true }
         case 'cref': { return (containers & bit(ast[1])) !== 0n }
         default: { return isContainer(imports[ast[1]].value) }
     }

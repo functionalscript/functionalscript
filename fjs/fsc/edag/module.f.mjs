@@ -52,7 +52,9 @@ const lower = nodes => ast => {
         case 'aref': { return nodes.parameters[ast[1]] }
         case 'cref': { return nodes.consts[ast[1]] }
         case 'array': { return ['[]', ast[1].map(lower(nodes))] }
-        default: { return ['{}', ast[1].map(property(lower(nodes)))] }
+        case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
+        // the EDAG's own form already, its key a constant the parser admitted
+        default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
 }
 

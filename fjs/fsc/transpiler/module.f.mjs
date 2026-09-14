@@ -24,7 +24,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { run, sharing } from '../ast/module.f.mjs'
+import { hasAccess, run, sharing } from '../ast/module.f.mjs'
 import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 
@@ -86,8 +86,19 @@ export const _parseModule = path => step(notFound(readUtf8File(path)), text => p
  */
 export const _importPath = path => pathConcat(pathConcat(path)('..'))
 
+/**
+ * A module holding a property access, refused before its imports are read:
+ * what `a.b` denotes as a value is not decided yet — the EDAG carries it as
+ * the operation it is, and `fjs compile` writes that — so the value
+ * outputs say so rather than run it.
+ *
+ * @type {ParseError}
+ */
+const accessNotValued = { message: 'property access is compiled to the EDAG only', metadata: null }
+
 /** @type {(path: string) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const transpileWithImports = path => module => context => {
+    if (hasAccess(module[1])) { return pureError(accessNotValued) }
     const pathsCombine = listMap(_importPath(path))(module[0])
     const pathsArray = toArray(pathsCombine)
     const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }

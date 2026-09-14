@@ -1,6 +1,6 @@
-import { run, unreached } from './module.f.mjs'
+import { run, sharing, unreached } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 /** @type {(module: import('./types.ts').AstModule) => string} */
 const unreachedOf = module => {
@@ -68,10 +68,28 @@ export const proof = {
             assertEq(unreachedOf([[], [['array', []], 1]]), 'consts 0; imports ')
             assertEq(unreachedOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 1,2; imports ')
         },
+        // an access reaches its base
+        access: () => {
+            assertEq(unreachedOf([[], [['object', []], ['.', ['cref', 0], 'x']]]), 'consts ; imports ')
+            assertEq(unreachedOf([['./a'], [['array', [['.', ['aref', 0], 0]]]]]), 'consts ; imports ')
+        },
         imports: () => {
             assertEq(unreachedOf([['./a'], [1]]), 'consts ; imports 0')
             assertEq(unreachedOf([['./a', './b'], [['aref', 1]]]), 'consts ; imports 0')
             assertEq(unreachedOf([['./a', './b'], [['aref', 1], 1]]), 'consts 0; imports 0,1')
         },
+    },
+    // an access is taken as a container by the sharing sweep: what it
+    // denotes is the value's to say, and refusing is the safe answer
+    sharing: {
+        accessTwice: () => {
+            assert(sharing([['object', []], ['.', ['cref', 0], 'x'], ['array', [['cref', 1], ['cref', 1]]]])([]).shared)
+            assert(!sharing([['object', []], ['.', ['cref', 0], 'x'], ['array', [['cref', 1]]]])([]).shared)
+        },
+    },
+    // an access has no value yet: `transpile` refuses a module holding one
+    // before it runs the body, and the branch says so
+    throw: {
+        access: () => run([['object', []], ['.', ['cref', 0], 'x']])([]),
     },
 }

@@ -24,8 +24,9 @@ The AST preserves the ordered object-entry representation EDAG requires:
 repeated key written twice, and `run` builds the object JavaScript builds from
 the same literal. It was a plain object until this task's first step, and
 before that it sorted the members through an `OrderedMap`, which the subset law
-over the DataJS corpus found and stage 6 fixed (#2028); a plain object kept the
-written order of ordinary keys and the last value of a repeated one, and could
+over the DataJS corpus found and the normalizer's landing fixed (#2028); a
+plain object kept the written order of ordinary keys and the last value of a
+repeated one, and could
 not keep the position of an integer-like key, which JavaScript lists first, or
 the duplicates themselves. Conversion to `['{}', [...entry]]` reads the members
 as the syntax holds them.
@@ -61,8 +62,15 @@ importing module is lowered over the imported modules' EDAGs, its parameters
 never built — rather than by rewriting a finished `Unresolved`, which would
 need a memo keyed by node identity to keep sharing; a cache that stores
 `Unresolved` ([cache-compiled-modules](./cache-compiled-modules.md)) is what
-would need that rewrite. What Stage 1 still owes is the parser's `a.b` and
-`a[b]`, and the compiler path that writes the EDAG.
+would need that rewrite. `fjs compile` writes the linked graph as a DataJS
+document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
+its value outputs, which are unchanged. The parser reads `a.b` and `a[key]`
+on a reference, the key a string or a number, `__proto__` and `constructor`
+refused at the key, and the lowering carries the access as the EDAG's own
+`['.', base, key]`. What Stage 1 still owes is the access's *value*: `run`
+has none for it, and `transpile` refuses a module holding one, so the value
+outputs of `fjs compile` say so while the EDAG output compiles it — see the
+task below for what the decision involves.
 
 The first missing EDAG operation was property access:
 
@@ -398,12 +406,11 @@ the sign the way `number` and `bigint` already do. There is no exclusion list to
 implement alongside them: DataJS names begin with `$`, so `$NaN` and
 `$undefined` are ordinary names and the three words are unreachable as bindings
 by the grammar rather than by a rule. Excluding them is **FunctionalScript's**
-policy, whose identifiers have no `$` requirement, and it lands in stage 5 — and
-[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md)
-assigns implementing that spec to **stage 4, under `fjs/media/datajs`**, with the
-reserved-word half following in stage 5 once the front end moves. Patching
-`fjs/djs` for these four values would be reworked by that migration, so the tasks
-below are the requirement, not an instruction to implement them here.
+policy, whose identifiers have no `$` requirement — implementing the spec was
+[`fjs/media/datajs`](../../media/datajs/README.md)'s, with the reserved-word
+half the front end's once it had moved. Patching `fjs/djs` for these four
+values would have been reworked by that migration, so the tasks below were the
+requirement, not an instruction to implement them there.
 
 Measured against the current implementation, so the gap is on record rather than
 rediscovered:
@@ -415,9 +422,8 @@ rediscovered:
 | `Infinity` | `Infinity` | `Infinity` |
 | `-Infinity` | `-Infinity`, one token | `-Infinity` |
 
-**All four are done**, in stage 5 of
-[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md),
-and pinned end to end in `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
+**All four are done**, with the front end's move, and pinned end to end in
+`fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
 separates them. The other three are reserved words with their own token
 kinds, read as primitives by the grammar, the tokenizer folding `-` into
@@ -487,9 +493,23 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       number constants, and only later the `Number` numeric-conversion node once it
       exists. Done in [`fjs/edag`](../../edag/module.f.mjs): `dot` over `index`,
       which is a string, a number, or a `Number` cast.
-- [ ] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
+- [x] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
       static-string/number property cases to `.`, and reject runtime-computed strings,
-      prohibited property names, and other unsupported property expressions.
+      prohibited property names, and other unsupported property expressions. Done:
+      the grammar admits an access after a reference only, its key an identifier,
+      a string or a number, so a runtime key is refused at the token; the fold
+      refuses `__proto__` and `constructor` in either spelling; the AST and the
+      lowering carry `['.', base, key]`.
+- [ ] Give a property access its value on the value path — `run`, and so
+      `transpile` and `fjs compile`'s module and JSON outputs, which refuse a
+      module holding one today. The decision the subset law has to witness: an
+      own property read, the prototype chain never (the spec's rule, where
+      JavaScript reads `a.toString` as a function); what a missing member and a
+      `null` or `undefined` base yield, where JavaScript gives `undefined` and
+      throws respectively, and the value path has no throw; and what the sharing
+      sweep says of an access — today it takes one as a container reference to
+      its base, which refuses rather than writes a shared node twice, and is
+      wrong in the safe direction for `[a.x, a.x]` on a leaf `x`.
 - [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema. Done: [`fjs/fsc/edag/types.ts`](../edag/types.ts).
 - [x] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
@@ -531,9 +551,12 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
       Done: `resolve` returns an `Exp`.
-- [ ] Add a distinct EDAG-producing compiler path/API alongside the current
+- [x] Add a distinct EDAG-producing compiler path/API alongside the current
       value-producing transpiler; do not redirect existing `transpile` / `fjs compile`
-      callers until EDAG execution is available.
+      callers until EDAG execution is available. Done: `resolve` beside `transpile`,
+      and in `fjs compile` an output name ending with `.edag.f.js` or `.edag.f.mjs`
+      selects it, as `.json` selects the JSON writer; the other outputs are as they
+      were.
 
 #### Stage 2
 
@@ -581,12 +604,18 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       policy as a side effect of this task.
 - [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)
       instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
-- [ ] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
-      allow JSON output only when it preserves the EDAG completely.
-- [ ] Preserve the existing value-producing `transpile` / `fjs compile` success output
+- [x] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
+      allow JSON output only when it preserves the EDAG completely. Done for the
+      DataJS form, through `fjs/media/datajs/serializer`, which hoists a shared node
+      as the module output does; no JSON form of the EDAG is offered, since JSON
+      cannot hold a shared node and an EDAG's sharing is its meaning.
+- [x] Preserve the existing value-producing `transpile` / `fjs compile` success output
       — `transpile`'s `Denotation` and `fjs compile`'s bytes — until
-      `interpret-edag.md` integrates EDAG execution behind that API.
-- [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
+      `interpret-edag.md` integrates EDAG execution behind that API. Done: pinned
+      side by side with the EDAG output in `fjs/fsc/proof.f.mjs` (`edagOutput`).
+- [x] Preserve current missing-file, parse-error, and circular-dependency behavior.
+      Done: the linker reads through the transpiler's reader and reports the same
+      `ParseError`; pinned in `fjs/fsc/edag/proof.f.mjs` (`resolve.refused`).
 - [ ] Add Stage 1 proofs that permitted `a.b`, `a['x']`, and numeric `a[0]` forms
       produce property-access EDAGs, while prohibited names and runtime-computed string
       properties are rejected; source-to-`Unresolved` compilation does not read imports,

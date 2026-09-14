@@ -161,6 +161,60 @@ export const proof = {
         const content = readOutput(state.root, 'output.json')
         assertEq(content, '42')
     },
+    // The EDAG output: the program linked into one graph and written as a
+    // DataJS document, its shared node hoisted as the module output hoists
+    // one — the README's example, in both forms, side by side.
+    edagOutput: {
+        graph: () => {
+            const root = {
+                'input.f.js': [utf8('import c from "./m.f.js"; const a = 1; export default [a, a, c, { x: c }];')],
+                'm.f.js': [utf8('export default ["text"];')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.js'), 'const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];')
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.f.js'), 'const $0=["text"];export default [1,1,$0,{"x":$0}];')
+        },
+        // `.edag.f.mjs` asks for the same; `.f.mjs` alone is the module output
+        extension: () => {
+            const root = { 'input.f.js': [utf8('export default { a: undefined };')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.mjs']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.mjs'), 'export default ["{}",[[":","a",["undefined"]]]];')
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.mjs']))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.f.mjs'), 'export default {"a":undefined};')
+        },
+        // a property access compiles to the EDAG, and the value outputs
+        // refuse it until what it denotes as a value is decided
+        access: () => {
+            const root = { 'input.f.js': [utf8('const a = { b: 1 }; export default a.b;')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.js'), 'export default [".",["{}",[[":","b",1]]],"b"];')
+            for (const output of ['output.f.js', 'output.json']) {
+                const [refusedState, refusedCode] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+                assertEq(exitCode(refusedCode), 1)
+                assertEq(refusedState.stderr.trim(), 'input.f.js - error: property access is compiled to the EDAG only')
+                assertEq(refusedState.root[output], undefined)
+            }
+        },
+        // a program the linker refuses is reported against the input, as a
+        // parse error is, and nothing is written; a missing import likewise
+        refused: () => {
+            const root = { 'input.f.js': [utf8('const a = []; export default 1;')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'input.f.js - error: unreachable const 0')
+            assertEq(state.root['output.edag.f.js'], undefined)
+            const missing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
+            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(missingCode), 1)
+            assertEq(missingState.stderr.trim(), 'input.f.js - error: file not found')
+        },
+    },
     // An error with no token to point at names the file being compiled, not
     // `undefined:undefined:undefined`. Each language reports its own missing
     // file: the module reader and the JSON reader read their inputs
@@ -225,12 +279,12 @@ export const proof = {
     // is a FunctionalScript module, and the front end reads it to the graph
     // its vector asserts — sharing and key order included, which is what
     // `difference` compares. The corpus proves the other half against a
-    // JavaScript engine; this is the one stage 5 was done for, and it runs
-    // over the whole set, the eight documents holding an unpaired surrogate
-    // included, since the front end takes code units and owes no byte
-    // encoding. Two things it found: the parser used to sort an object's
-    // keys, and it used to be fed code points by the proofs where
-    // `transpile` feeds it code units.
+    // JavaScript engine; this is the one the front end's move was done
+    // for, and it runs over the whole set, the eight documents holding an
+    // unpaired surrogate included, since the front end takes code units and
+    // owes no byte encoding. Two things it found: the parser used to sort
+    // an object's keys, and it used to be fed code points by the proofs
+    // where `transpile` feeds it code units.
     subsetLaw: acceptSet.map(({ id, document, graph }) => () => {
         const source = documentText(document)
         assert(source !== null, `${id}: the document is not UTF-8`)

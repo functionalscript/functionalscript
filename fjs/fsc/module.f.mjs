@@ -1,7 +1,8 @@
 /**
  * `fjs compile`: a FunctionalScript module read, its imports resolved and
- * inlined, and the value it denotes written out — as normalized DataJS, or
- * as JSON when the output name says so.
+ * inlined, and the value it denotes written out — as normalized DataJS, as
+ * JSON when the output name says so, or as the EDAG the program compiles
+ * to, a DataJS document of the graph.
  *
  * @module
  *
@@ -12,9 +13,11 @@
  * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect } from '../effects/types.ts'
+ * @import { ReadFile } from '../effects/node/types.ts'
  */
 
 import { transpile } from './transpiler/module.f.mjs'
+import { resolve } from './edag/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { empty, flat, map } from '../types/list/module.f.mjs'
@@ -22,7 +25,7 @@ import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { resultStep } from '../effects/module.f.mjs'
+import { mapStep, resultStep } from '../effects/module.f.mjs'
 import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
 const { entries } = Object
@@ -149,6 +152,48 @@ const jsonText = ({ value, shared }) => shared ? noJson('a shared node') : _tryJ
 /** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
 const moduleText = ({ value }) => tryStringify(value)
 
+// ── EDAG output ───────────────────────────────────────────────────────────────
+
+/**
+ * Whether an output name asks for the EDAG: `.edag.f.js` or `.edag.f.mjs`,
+ * a DataJS document like the module output, so the extension alone cannot
+ * tell them apart and the name says which graph it holds.
+ *
+ * @type {(outputFileName: string) => boolean}
+ */
+const isEdag = outputFileName => outputFileName.endsWith('.edag.f.js') || outputFileName.endsWith('.edag.f.mjs')
+
+/**
+ * The program at `path` as the text of its EDAG: linked by `./edag` into
+ * one graph, and written as a DataJS document in normalized form — the
+ * graph is arrays, strings and numbers, and a node two references reach is
+ * hoisted into a `const` as any shared node is, so the document reads back
+ * as the same graph. The writer refuses nothing an EDAG holds.
+ *
+ * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ */
+const edagText = path => mapStep(resolve(path), tryStringify)
+
+/**
+ * The module at `path` as the text `write` makes of what it denotes.
+ *
+ * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ */
+const denotedText = write => path => mapStep(transpile(path), write)
+
+/**
+ * The text an output name asks for, from the input: JSON for `.json`, the
+ * EDAG for `.edag.f.js` and `.edag.f.mjs`, and otherwise the value as a
+ * DataJS module. A refusal of the output — a value JSON cannot spell — is
+ * the inner `Result`; a failure of the input is the effect's.
+ *
+ * @type {(outputFileName: string) => (inputFileName: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ */
+const outputText = outputFileName => {
+    if (outputFileName.endsWith('.json')) { return denotedText(jsonText) }
+    return isEdag(outputFileName) ? edagText : denotedText(moduleText)
+}
+
 // ── the proofs' dump ──────────────────────────────────────────────────────────
 
 /** @type {(member: readonly [string, Unknown]) => List<string>} */
@@ -190,15 +235,20 @@ export const _stringifyTree = value => concat(treeValue(value))
 
 /**
  * Compiles the FunctionalScript module `args[0]` into `args[1]`: JSON when
- * the output name ends with `.json`, and otherwise a DataJS document in
+ * the output name ends with `.json`, the program's EDAG when it ends with
+ * `.edag.f.js` or `.edag.f.mjs`, and otherwise a DataJS document in
  * normalized form — one line, shared nodes hoisted into `$0`, `$1`, … and
- * an object's members in the order the module gave them.
+ * an object's members in the order the module gave them. The EDAG output is
+ * a DataJS document too, of the graph the program compiles to, with its
+ * shared nodes hoisted the same way.
  *
  * Returns the process exit code: `0` once the output file is written, `1` on
- * every failure — too few arguments, a missing input file, a parse error, or
- * a `.json` output asked of a value JSON cannot spell — so a caller can
- * detect a failed compile from the exit status alone. A refused output is
- * reported against the output file, since the module itself is sound.
+ * every failure — too few arguments, a missing input file, a parse error, a
+ * `.json` output asked of a value JSON cannot spell, or an EDAG asked of a
+ * program whose export does not reach every import and `const` — so a caller
+ * can detect a failed compile from the exit status alone. A refused output
+ * is reported against the output file, since the module itself is sound; a
+ * refused program is reported against the input, as a parse error is.
  *
  * @type {(args: readonly string[]) => Effect<_CompileOp, 0, number>}
  */
@@ -208,15 +258,14 @@ export const compile = args => {
     }
     const inputFileName = args[0]
     const outputFileName = args[1]
-    const write = outputFileName.endsWith('.json') ? jsonText : moduleText
     return resultStep(
-        transpile(inputFileName),
-        /** @type {(result: Result<Denotation, ParseError>) => Effect<_CompileOp, 0, number>} */
+        outputText(outputFileName)(inputFileName),
+        /** @type {(result: Result<Result<string, string>, ParseError>) => Effect<_CompileOp, 0, number>} */
         (result) => {
             if (result[0] === 'error') {
                 return errorExit(`${errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)
             }
-            const [tag, content] = write(result[1])
+            const [tag, content] = result[1]
             return tag === 'error'
                 ? errorExit(`${outputFileName} - error: ${content}`)
                 : exitStep(writeUtf8File(outputFileName, content))

@@ -35,12 +35,14 @@ export type ParseError = {
 /**
  * A value as the mappings build it, before names are resolved: a primitive
  * converted from its token, a reference by the identifier token that spells
- * it — its name, and the position an error is anchored at — or a container
- * of its items in the order written.
+ * it — its name, and the position an error is anchored at — a property
+ * access by the token its key is read from, or a container of its items in
+ * the order written.
  */
 export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
+    | readonly ['.', Node, DjsTokenWithMetadata]
     | Container
 
 /** An array of its items, or an object of its members, each in the order written. */
