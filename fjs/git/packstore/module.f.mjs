@@ -77,7 +77,7 @@
  *
  * @module
  *
- * @import { Inflate, IoChannel, ReadBytes, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, Inflate, IoChannel, ReadBytes, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
@@ -90,13 +90,13 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { inflate, isNotFound, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { inflate, isNotFound, leadsNowhere, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
 import { length, maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
-import { after, offsetOf, tryIdx } from '../packidx/module.f.mjs'
+import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
 import { hexText } from '../oid/module.f.mjs'
 
 const toBytes = u8List(msb)
@@ -152,6 +152,29 @@ const entryRefusal = (path, at) => what =>
     pureError(ioError({ code: packEntryCode, message: `${path}:${at} ${what}` }))
 
 /**
+ * One entry of the pack directory that ends in `.idx`, kept where it is a file.
+ *
+ * **A listing cannot classify a symlink, and a pack pair may be one.** Node's
+ * `Dirent` does not follow a link, so a linked `.idx` arrives with both kind
+ * flags false and a filter on `isFile` drops it — and with it every object the
+ * pack holds. Git follows one: measured on Git 2.43.0 with both files of a pair
+ * replaced by links into another directory, `git cat-file -p` answered the blob
+ * and `git count-objects -v` reported `in-pack: 4, packs: 1`.
+ *
+ * So an entry the listing *can* classify costs nothing, and one it cannot costs a
+ * `stat`, which follows the link without opening what it finds. A link that
+ * leads nowhere is skipped, as Git's listing skips one; any other failure is the
+ * channel's, because a pack dropped in silence is every object in it missing.
+ *
+ * @type {(pd: string) => (e: Dirent) => (names: List<string>) => Effect<Stat, List<string>, IoChannel>}
+ */
+const namedIdx = pd => e => names => e.isFile
+    ? pureOk(concat(names)([e.name]))
+    : catchStep(
+        mapStep(stat(under(pd, e.name)), s => s.isFile ? concat(names)([e.name]) : names),
+        c => leadsNowhere(c) ? pureOk(names) : pureError(c))
+
+/**
  * The `.idx` names a pack directory holds, and nothing else in it: the `.pack`
  * files themselves, the `.rev` a newer Git writes beside them, a `.keep`, and a
  * partial file a fetch is still writing are all skipped by the suffix.
@@ -160,12 +183,15 @@ const entryRefusal = (path, at) => what =>
  * makes an empty `objects/pack/`, but a repository is not required to keep one
  * and a caller asking for an object should not have to know whether it does.
  *
- * @type {(pd: string) => Effect<Readdir, List<string>, IoChannel>}
+ * @type {(pd: string) => Effect<Stat | Readdir, List<string>, IoChannel>}
  */
 const idxNames = pd => catchStep(
-    mapStep(
+    step(
         readdir(pd, {}),
-        es => es.filter(e => e.isFile && e.name.endsWith(idxSuffix)).map(e => e.name)),
+        es => foldStep(
+            pureOk(es.filter(e => e.name.endsWith(idxSuffix) && !e.isDirectory)),
+            /** @type {List<string>} */ (null),
+            namedIdx(pd))),
     e => isNotFound(e) ? pureOk(/** @type {List<string>} */ (null)) : pureError(e))
 
 /**
@@ -259,14 +285,22 @@ const applied = (deltas, base) =>
 const baseAt = (idx, at, e) => {
     if (e.kind === 'refDelta') { return offsetOf(idx)(e.baseId) }
     const back = at - e.baseBack
-    return back < headerBytes ? null : back
+    // The distance must land where an entry begins, which is the same check the
+    // id gets one line above — `offsetOf` answers an entry's offset or nothing,
+    // and a distance has to be held to that too. Without it a crafted distance
+    // pointing into the middle of another entry is framed to the next indexed
+    // offset and inflated, and bytes planted there that happen to hash to the id
+    // asked for would be answered as the object. Git refuses the same pack with
+    // `bad offset for revindex` — see {@link holdsEntryAt}, which has the
+    // measurement.
+    return back < headerBytes || !holdsEntryAt(idx)(back) ? null : back
 }
 
-/** @type {(e: _Delta) => string} */
-const missingBase = e =>
+/** @type {(e: _Delta, at: number) => string} */
+const missingBase = (e, at) =>
     e.kind === 'refDelta'
         ? `names a base ${hexText(e.baseId)} the pack does not hold`
-        : 'names a base before the first entry'
+        : `names a base at ${at - e.baseBack} where no entry begins`
 
 /**
  * What one link of the chain does with the entry it read: end the walk at an
@@ -297,7 +331,7 @@ const advance = (idx, path, at, chain, e, data) => {
     }
     const base = baseAt(idx, at, e)
     return base === null
-        ? refuse(missingBase(e))
+        ? refuse(missingBase(e, at))
         : pureOk(/** @type {const} */ ([
             { deltas: concat([data])(chain.deltas), links: chain.links + 1, found: null },
             [base],

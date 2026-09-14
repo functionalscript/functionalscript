@@ -422,3 +422,35 @@ const nextStep = offset => (best, v) =>
  */
 export const after = ({ offsets }) => offset =>
     offsets.reduce(nextStep(offset), /** @type {Nullable<number>} */ (null))
+
+/**
+ * Whether an entry of the pack begins at this offset.
+ *
+ * The index's question for the same reason {@link after} is: every object in the
+ * pack has an entry here, so these offsets are exactly where entries begin, and
+ * a byte position that is not one of them is not the start of anything.
+ *
+ * **A reader of an `ofsDelta` needs this, and Git makes the same check.** That
+ * entry names its base by a distance back rather than by id, and nothing about
+ * the distance says it lands on a boundary — so a corrupt or crafted one can
+ * point into the middle of another entry, where the bytes may still inflate into
+ * something. Measured on Git 2.43.0 by moving one such distance six bytes into
+ * the entry before it and recomputing both checksums, so the pair agrees with
+ * itself and no framing check can tell:
+ *
+ * ```
+ * $ git index-pack --strict bad.pack   # fatal: pack has 1 unresolved delta
+ * $ git cat-file -p <the delta's id>   # error: bad offset for revindex
+ *                                      # fatal: Cannot read object …
+ * $ git verify-pack -v bad.idx         # fatal: pack has 1 unresolved delta
+ * ```
+ *
+ * Git's revindex is this same list in pack order, so `bad offset for revindex`
+ * is exactly the answer this gives.
+ *
+ * A scan, for the reason {@link after}'s is: `offsets` is in id order rather
+ * than pack order, and one pass per link is what a chain pays either way.
+ *
+ * @type {(idx: Idx) => (offset: number) => boolean}
+ */
+export const holdsEntryAt = ({ offsets }) => offset => offsets.includes(offset)

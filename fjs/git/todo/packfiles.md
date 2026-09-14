@@ -5,11 +5,17 @@
 
 ### Problem
 
-[`fjs/git/loose`](../loose/module.f.mjs) reads a loose object, and in a
-fresh clone almost nothing is loose: `git clone` and `git gc` put objects
-in `.git/objects/pack/*.pack`, so the readers in this module read a real
-repository poorly until they can read a pack. The name-resolution and
-signature issues under [`todo/`](../../../todo/) both walk clones.
+[`fjs/git/packstore`](../packstore/module.f.mjs) reads an id out of a pack
+below `objects/pack/`, and `fjs/git/store` reads the loose file and the packs
+alike — so the readers in this module read a fresh clone, where `git clone`
+and `git gc` leave almost nothing loose.
+
+What is left is one pack a reader cannot answer for on its own: a `refDelta`
+whose base is not in the pack that names it. That is a question about where a
+store may look rather than about what it can read, which is why it is the
+remainder of this issue and not a second one. The name-resolution and
+signature issues under [`todo/`](../../../todo/) both walk clones and both
+want it.
 
 ### Proposal
 

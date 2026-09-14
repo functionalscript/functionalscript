@@ -106,8 +106,19 @@ const packPath = /** @type {const} */ ('objects/pack/pack-9a32788c2cd72bdef63b26
 /** @type {(n: string, isFile: boolean) => Dirent} */
 const dirent = (n, isFile) => ({ name: n, parentPath: dirPath, isFile, isDirectory: !isFile })
 
+/**
+ * The same entry as node reports a *symlink*: neither a file nor a directory,
+ * because `Dirent` does not follow one.
+ *
+ * @type {(n: string) => Dirent}
+ */
+const linked = n => ({ name: n, parentPath: dirPath, isFile: false, isDirectory: false })
+
 /** The listing a repository with this one pack gives. */
 const listing = /** @type {readonly Dirent[]} */ ([dirent(`${name}.idx`, true)])
+
+/** The same, with the index a link rather than a file. */
+const linkedListing = /** @type {readonly Dirent[]} */ ([linked(`${name}.idx`)])
 
 /** The bytes of one entry's zlib stream, as the pack holds them. */
 const streamAt = /** @type {(from: number, to: number) => readonly number[]} */ (
@@ -508,7 +519,102 @@ export const proof = {
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
-        assertEq(e.message, `${packPath}:12 names a base before the first entry`)
+        assertEq(e.message, `${packPath}:12 names a base at 4 where no entry begins`)
+    },
+    // An `ofsDelta` whose distance lands *inside* another entry names no entry
+    // either, and that is the case with teeth: a distance before the header is
+    // obviously wrong, where one a few bytes into the entry before it is bytes an
+    // attacker chooses. Framed to the next indexed offset and inflated, whatever
+    // is planted there would be answered as the object if it hashed to the id.
+    //
+    // Git makes the same check and says so. Measured on Git 2.43.0 by moving a
+    // real pack's `ofsDelta` distance six bytes into the entry before it and
+    // recomputing both checksums, so the pair agrees with itself:
+    //
+    //   $ git index-pack --strict bad.pack   # fatal: pack has 1 unresolved delta
+    //   $ git cat-file -p <the delta's id>   # error: bad offset for revindex
+    //                                        # fatal: Cannot read object …
+    //   $ git verify-pack -v bad.idx         # fatal: pack has 1 unresolved delta
+    //
+    // Its revindex is the offsets in pack order, which is what `holdsEntryAt`
+    // asks. The pack below is built: an entry at 12, an `ofsDelta` at 17 naming
+    // four back, and 13 is one byte inside the entry at 12.
+    baseInsideAnEntry: () => {
+        const made = [
+            ...latin1('PACK'), ...u32(2), ...u32(2),
+            // 12: an object of three bytes
+            0x33, 1, 2, 3,
+            // 17 would be the next entry if the one above were five bytes; it is
+            // four, so the delta sits at 16 and names 12 back for offset 4 —
+            // rebuilt below to land at 13 instead
+            0x63, 3, 1, 2, 3,
+            ...idBytes(id(packName)),
+        ]
+        const two = idxOf([
+            ['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 12],
+            ['b00a3b66a7a094e6165bfcd39e0b8524042140db', 16],
+        ])
+        const [, r] = readBy(
+            hostOf(
+                listing,
+                path => path === idxPath ? two : path === packPath ? made : null,
+                inflatedBy([[[1, 2, 3], [4, 5, 6]]])),
+            'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        const e = refusal(r)
+        assertEq(e.code, packEntryCode)
+        assertEq(e.message, `${packPath}:16 names a base at 13 where no entry begins`)
+    },
+    // An index that is a symlink is read, which is Git's. A listing cannot say
+    // what a link is — node's `Dirent` does not follow one — so a filter on
+    // `isFile` dropped it, and with it every object the pack holds. Measured on
+    // Git 2.43.0 with both files of a pair replaced by links into another
+    // directory: `git cat-file -p` answered the blob and `git count-objects -v`
+    // reported `in-pack: 4, packs: 1`.
+    //
+    // The `stat` is asked only for the entry the listing could not name, and it
+    // follows the link without opening what it finds.
+    linkedIdx: () => {
+        const [log, r] = readBy(
+            hostOf(linkedListing, files, inflatedBy(streams)),
+            'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        assertStructurallySame(log.slice(0, 2), [`readdir ${dirPath}`, `stat ${idxPath}`])
+    },
+    // A link that leads nowhere is no pack rather than a failure, as Git's
+    // listing treats one, and every other `stat` failure is the channel's: a pack
+    // dropped in silence is every object in it missing.
+    linkedIdxLeadsNowhere: () => {
+        const [, gone] = readBy(
+            hostOf(linkedListing, () => null, inflatedBy(streams)),
+            'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        assertStructurallySame(gone, ok(null))
+        // a link to something that is no file — a directory, a FIFO — is no pack
+        // either, and costs the same one `stat`
+        const whole = hostOf(linkedListing, files, inflatedBy(streams))
+        const notAFile = {
+            ...whole,
+            stat: /** @type {typeof whole.stat} */ (
+                path => log => [[...log, `stat ${path}`], ok({ size: 0, isFile: false, isDirectory: true })]),
+        }
+        const [, kind] = readBy(notAFile, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        assertStructurallySame(kind, ok(null))
+        // and any other failure is the channel's
+        const refused = {
+            ...whole,
+            stat: /** @type {typeof whole.stat} */ (
+                path => log => [[...log, `stat ${path}`], error(ioError({ code: 'EIO', message: path }))]),
+        }
+        assertEq(refusal(readBy(refused, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')[1]).code, 'EIO')
+    },
+    // A directory named `*.idx` is skipped by the listing alone: the `stat` is
+    // only for an entry the listing could not classify.
+    idxIsADirectory: () => {
+        const asDir = /** @type {readonly Dirent[]} */ ([dirent(`${name}.idx`, false)])
+        const [log, r] = readBy(
+            hostOf(asDir, files, inflatedBy(streams)),
+            'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        assertStructurallySame(r, ok(null))
+        assertStructurallySame(log, [`readdir ${dirPath}`])
     },
     // A chain that comes back to an entry it has already read is refused rather
     // than followed for ever. An `ofsDelta` cannot make one — its base is behind
