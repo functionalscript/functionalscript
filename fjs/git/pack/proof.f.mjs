@@ -164,6 +164,10 @@ export const proof = {
     entryRefDelta: () => {
         const base = id(baseId)
         const e = entry([...header(7, 152), ...idBytes(base), 0x78, 0x01])
+        // The narrowing comes before the pattern and not in it: `baseId` is on
+        // the `refDelta` member alone, so destructuring it out of an `Entry` is
+        // `TS2339` until the guard has run. `kind` is read once, which is the
+        // rule's own exception.
         assert(e !== null && e.kind === 'refDelta')
         const { size, baseId: named, dataAt } = e
         assertEq(size, 152)

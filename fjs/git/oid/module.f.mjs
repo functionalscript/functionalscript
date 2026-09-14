@@ -132,7 +132,7 @@ export const of = oidBytes => {
  *
  * Exported because a reader that is not reading an object needs it. A pack index
  * ends in a checksum over its own preceding bytes, with no framing at all, and
- * [`fjs/git/packidx`](../packidx/module.f.mjs)'s `verifyChecksum` is what asks:
+ * [`fjs/git/packidx`](../packidx/module.f.mjs)'s `checksumAgrees` is what asks:
  * it hashes the file up to the trailing id and compares. A pack ends the same
  * way. This stayed private while nothing outside the module hashed bytes that
  * are no object, and it is public here because that reader arrives here.

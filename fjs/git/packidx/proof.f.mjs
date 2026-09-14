@@ -229,9 +229,7 @@ export const proof = {
     // nothing about what they mean.
     sameAnswer: () => {
         assertStructurallySame(seen(decoded(packIdx1)), seen(decoded(packIdx2)))
-        assertStructurallySame(
-            codePointListToString(toHex(decoded(packIdx1).packChecksum)),
-            codePointListToString(toHex(decoded(packIdx2).packChecksum)))
+        assertEq(packNamed(decoded(packIdx1)), packNamed(decoded(packIdx2)))
     },
     // The lookup finds every id the pack holds, at either version, and
     // answers nothing for an id it does not.
