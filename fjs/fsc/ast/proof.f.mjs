@@ -58,6 +58,12 @@ export const proof = {
             assertEq(unreachedOf([['./a'], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
             assertEq(unreachedOf([['./a'], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
         },
+        // a member a later duplicate shadows is applied by the EDAG's object
+        // constructor, so a reference in it reaches, where for sharing it
+        // does not
+        shadowed: () => {
+            assertEq(unreachedOf([['./a'], [['array', []], ['object', [['x', ['cref', 0]], ['x', ['aref', 0]], ['x', 0]]]]]), 'consts ; imports ')
+        },
         consts: () => {
             assertEq(unreachedOf([[], [['array', []], 1]]), 'consts 0; imports ')
             assertEq(unreachedOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 1,2; imports ')

@@ -47,6 +47,7 @@ repeated key written twice, rather than a plain object: `run` builds the
 object JavaScript builds from the same literal — a repeated key at its first
 position with its last value, integer-like keys first — and the EDAG object
 constructor takes the members as written, which only the syntax still has.
+See [examples/input.f.mjs](./examples/input.f.mjs).
 
 ## EDAG
 
@@ -61,7 +62,9 @@ resolution binds each import's own EDAG in its parameter's place. A module
 whose export does not reach every import and every `const` is refused rather
 than compiled: `transpile` reads and `run` evaluates them all today, and an
 EDAG has no operation yet to anchor a computation whose value nothing takes.
-See [examples/input.f.mjs](./examples/input.f.mjs).
+A member a later duplicate shadows is in the graph, since the constructor
+applies every member written, so a reference in it is reached here where the
+sharing decision, which reads the value, does not count it.
 
 ## Both grammars are LL(1)
 

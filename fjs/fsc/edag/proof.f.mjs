@@ -75,6 +75,15 @@ export const proof = {
         expectEdag(edag, ['[]', [['.', ['args'], 1], ['.', ['args'], 0], ['.', ['args'], 1]]])
         assert(edag instanceof Array && edag[0] === '[]' && edag[1][0] === edag[1][2], edag)
     },
+    // A member a later duplicate shadows is in the graph — the constructor
+    // applies every member written — so a reference in it is reached, and
+    // the module compiles where its value alone would say the `const` is
+    // dropped; the sharing decision, which reads the value, says otherwise
+    // of the same source, and both are right about their own question.
+    shadowed: () => {
+        expectEdag(compile('const s = [1]; export default { a: s, a: 1 };').edag, ['{}', [[':', 'a', ['[]', [1]]], [':', 'a', 1]]])
+        expectEdag(compile('import a from "./a.f.js"; export default { x: a, x: 0 };').edag, ['{}', [[':', 'x', ['.', ['args'], 0]], [':', 'x', 0]]])
+    },
     // What the export does not reach is refused, not dropped: `transpile`
     // reads every import and `run` evaluates every `const`, so a compile
     // that fails today on a broken unused import must not succeed here.
