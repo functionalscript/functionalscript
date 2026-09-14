@@ -137,7 +137,7 @@
  *
  * @module
  *
- * @import { Dirent, FileStat, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, FileStat, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
@@ -149,7 +149,7 @@
  */
 
 import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { isNotFound, readFile, readdir, stat } from '../../effects/node/module.f.mjs'
+import { isNotFound, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
@@ -208,12 +208,30 @@ const sameName = (a, b) => {
  * nothing packed has no `packed-refs`, and one whose refs are all packed has
  * an empty `refs/`. Every other error is the channel's.
  *
+ * A ref file is one line — an id and a newline, or `ref:` and a name — so this
+ * reads it whole through {@link readFile}, whose answer is a `Vec` and so is
+ * bounded at 128 KiB. A loose ref larger than that is refused rather than read;
+ * Git would read it and call it no ref, so this is narrower by a refusal and not
+ * by a wrong answer, and no repository has one by accident. `packed-refs` is the
+ * file whose size *is* unbounded, and it is read by {@link tryWholeBytes}.
+ *
  * @type {(path: string) => Effect<ReadFile, Nullable<Bytes>, IoChannel>}
  */
 const tryBytes = path =>
     catchStep(
         mapStep(readFile(path), toBytes),
         e => isNotFound(e) ? pureOk(null) : pureError(e))
+
+/**
+ * The same, for a file with no bound on its size: read in windows rather than
+ * through a `Vec`.
+ *
+ * @type {(path: string) => Effect<Stat | ReadBytes, Nullable<Bytes>, IoChannel>}
+ */
+const tryWholeBytes = path =>
+    catchStep(
+        readWholeBytes(path),
+        e => isNotFound(e) ? pureOk(/** @type {Nullable<Bytes>} */ (null)) : pureError(e))
 
 /**
  * The `packed-refs` entries, `[]` where the file is not there, and `null`
@@ -224,11 +242,21 @@ const tryBytes = path =>
  * treats them differently — the first is ordinary, the second is
  * `fatal: unexpected line`.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<ReadFile, Nullable<readonly PackedRef[]>, IoChannel>}
+ * **This file does not fit a `Vec`, and an ordinary repository is where it stops
+ * fitting.** A record is an id, a space, a name and a newline — 70 bytes at
+ * `refs/heads/topic/feature-<n>`, measured — so `readFile`'s 131,072 is spent at
+ * about 1,870 refs, and a repository of 4,000 branches writes a 282,939-byte file
+ * that Git reads without comment. Reading it through `readFile` therefore failed
+ * for a repository this module's own notes are tuned for: the remark at
+ * {@link packedId} about 20,000 names is about a file five times past the point
+ * this could open. {@link readWholeBytes} reads it in windows instead, into a
+ * byte list, which is what `tryPacked` takes.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Stat | ReadBytes, Nullable<readonly PackedRef[]>, IoChannel>}
  */
 export const tryPackedRefs = (dirs, oidBytes) => {
     const parse = tryPacked(oidBytes)
-    return mapStep(tryBytes(under(dirs.common, 'packed-refs')), b => b === null ? [] : parse(b))
+    return mapStep(tryWholeBytes(under(dirs.common, 'packed-refs')), b => b === null ? [] : parse(b))
 }
 
 /**
@@ -559,7 +587,7 @@ const resolveWith = (dirs, oidBytes, packed) => {
  * is enforced, because this is the half that knows which name it was asked
  * about. The module doc has the measurement.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<Stat | ReadBytes | ReadFile, Nullable<Oid>, IoChannel>}
  */
 export const tryResolve = (dirs, oidBytes) => name => {
     // Before the read and not inside the walk, which is what the paragraph above
@@ -1045,13 +1073,15 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  * Every other name outside `refs/` stays out: {@link tryResolve} answers one by
  * name for a caller that wants it.
  *
- * **The operation set includes `stat`.** A listing cannot say what a symlink
- * finally is — see {@link looseOf} — so an entry whose kind it could not name
- * costs one `stat`, and an ordinary file or directory costs none. A program on the
- * node runner notices nothing, since `stat` is a `NodeOp` like the other two;
- * what has to grow is an interpreter written for exactly the old pair.
+ * **The operation set includes `stat` and `readBytes`.** A listing cannot say
+ * what a symlink finally is — see {@link looseOf} — so an entry whose kind it
+ * could not name costs one `stat`, and an ordinary file or directory costs none;
+ * and `packed-refs` is read in windows rather than through a `Vec`, for the size
+ * reason {@link tryPackedRefs} measures. A program on the node runner notices
+ * nothing, since both are `NodeOp`s like the other two; what has to grow is an
+ * interpreter written for exactly the old set.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Stat | Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Stat | ReadBytes | Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
  */
 export const tryRoots = (dirs, oidBytes) => {
     /** @type {_Entry} */
