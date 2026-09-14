@@ -468,9 +468,9 @@ import a from "./a.json" with { type: "json" };
 
 - The attribute is `with { type: "json" }`, spelled as JavaScript spells it:
   the key `type` and the string `"json"`, in braces after the path. Any other
-  key or value is an error, as it is in JavaScript. A text import,
-  `with { type: "text" }`, is not recognized
-  ([import-attributes](./todo/2140-import-attributes.md)).
+  key or value is an error, as it is in JavaScript. `"json"` is the one type
+  ECMAScript defines; `"text"` and `"bytes"` are proposals, blocked on their
+  standardization ([import-text-bytes](../todo/blocked/import-text-bytes.md)).
 - The attribute declares the file's language and never reinterprets the file,
   so it must agree with the extension: a `.json` file imported without it, and
   any other file imported with it, are errors — JavaScript refuses both, so
