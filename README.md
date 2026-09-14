@@ -85,7 +85,7 @@ const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];
 ```
 
 With `m.f.js` exporting the string `"text"` instead — a leaf, which is never
-shared — both outputs are trees, and `output.json` is:
+shared — all three outputs are trees, and `output.json` is:
 
 ```json
 [1,1,"text",{"x":"text"}]
