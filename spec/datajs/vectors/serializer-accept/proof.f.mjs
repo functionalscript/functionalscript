@@ -5,8 +5,7 @@
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
-import { parse } from '../../../../fjs/media/datajs/parser/module.f.mjs'
-import { tryStringify } from '../../../../fjs/media/datajs/serializer/module.f.mjs'
+import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
 import { stringToCodePointList } from '../../../../fjs/text/utf16/module.f.mjs'
 import { toArray } from '../../../../fjs/types/list/module.f.mjs'
 import serializerAccept from './data.f.mjs'
@@ -88,7 +87,7 @@ export const proof = {
             const id = named(vector, 'id')
             const [tag, out] = tryStringify(vector.input)
             assert(tag === 'ok', `${id}: the writer refused the input: ${String(out)}`)
-            const [readTag, graph] = parse(out)
+            const [readTag, graph] = tryParse(out)
             assert(readTag === 'ok', `${id}: the writer emitted ${JSON.stringify(out)}, which the reader refuses: ${String(graph)}`)
             const d = difference(vector.input)(/** @type {Unknown} */ (graph))
             assert(d === null, `${id}: the writer emitted ${JSON.stringify(out)}, which denotes another graph: ${d}`)

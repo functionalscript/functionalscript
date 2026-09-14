@@ -8,12 +8,11 @@ import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { _stringifyTree } from '../../fsc/module.f.mjs'
 
 // JsTokenWithMetadata carries bigint fields that JSON.stringify cannot
-// serialize — the DJS tree serializer can, and this is a proof-local dump.
-const stringify = stringifyAsTree(sort)
+// serialize — the compiler's proof dump can.
+const stringify = _stringifyTree
 
 /**
  * The tokens of a text as one string, positions left out — `error` where

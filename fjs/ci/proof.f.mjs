@@ -1,7 +1,7 @@
 /**
  * @import { Job, MetaStep, Os, GitHubAction, Step } from './common/types.ts'
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
- * @import { Unknown } from '../djs/types.ts'
+ * @import { Unknown } from '../media/datajs/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'

@@ -76,26 +76,20 @@ exactly one byte sequence.
 parser requires too, so a document parses today — `NaN` and the infinities
 included, measured against
 [`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
-which closed the reader-side gap this paragraph used to name. That entry
-point takes a string, so what parses today is the document as code units; the
-byte path of [§Encoding](#encoding), which refuses invalid UTF-8 and a leading
-BOM before the reader sees a unit, is still to come and is what the corpus's
-byte-form vectors require.
-The shipped `fjs/djs` serializer still differs from
-[normalized form](#normalized-form) in three ways, each of them stage 4–6 work
-rather than a bug:
+which closed the reader-side gap this paragraph used to name. Both surfaces of
+[§Encoding](#encoding) exist, on the codec's public
+[`module.f.mjs`](../../fjs/media/datajs/module.f.mjs): `tryParse` takes the
+document as code units, and `tryParseBytes` takes it as bytes — refusing what
+is not correct UTF-8 and a leading BOM before the reader sees a unit, then
+handing on the code units those bytes denote. The corpus's byte-form vectors
+run through the second.
+The writer,
+[`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.mjs),
+writes [normalized form](#normalized-form), and `fjs compile` writes through
+it; the older `fjs/djs` serializer, whose `const c0` output was not a document
+of this format at all, is retired.
 
-| shipped `fjs/djs` | this specification |
-| --- | --- |
-| `const c0 = …` | `const $0=…` |
-| hoists a repeated primitive into a const | primitives always inline |
-| keys sorted lexicographically — `{"10":0,"9":0}` | array-index keys first in numeric order — `"9"` before `"10"` |
-
-The first row is the one that is more than a layout difference: a name must
-start with `$`, so `c0` is not a name this format has at all, and the shipped
-output is invalid rather than merely non-normalized.
-
-The work that closes all of it is staged in
+The work is staged in
 [`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md).
 
 Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for
@@ -552,68 +546,23 @@ frozen array and a `null`-prototype array — need a class, `Object.freeze` or
 `Object.setPrototypeOf`, none of which the subset has, so nothing in this
 repository builds them and a host that can owes the rule on its own.
 
-A `null`-prototype **array** is one of those four, and the list above
-leaves it out rather than requiring anything either way. `Array.isArray` is true
-of it and `instanceof Array` is not, so a serializer classifying arrays by the
-prototype chain meets it at its object branch and refuses it for its
-non-enumerable `length` — the `length` exception above belongs to the array
-branch, which this value never reaches. Whether that refusal is right is
-**undecided here, on purpose**: the value exists only as an artifact of
-`Object.setPrototypeOf`, as a cross-realm array does of another realm, and this
-format does not spend a rule on values its own subset cannot construct. A
-host-side serializer may accept such an array as its elements; nothing above
-requires it to, and the paragraphs below say so again where they say what a
-serializer must never write as an array.
+**A value whose prototype chain says one kind and whose construction says
+another is outside this section's input domain.** An object under
+`Array.prototype` that no array literal or constructor made —
+`Object.create(Array.prototype, …)`, or one re-pointed there by
+`Object.setPrototypeOf` — an array re-pointed away from it, and an array from
+another realm are all of that kind. None of them can be built by this format's
+own subset, which has no prototype operations at all, and no rule above reaches
+them: what a serializer does with such a value is **undefined**, and an
+implementation owes nothing either way. That is why the list above speaks of
+values as built — a `null`-prototype object from `Object.create(null)`, an
+`Array` subclass instance, a frozen array — and never of what a host can make
+the chain say afterwards.
 
-**The mirror image is not left open, and it is what settles how a serializer
-must classify.** `Object.create(Array.prototype, { length: { value: 0,
-enumerable: true } })` is not an array — `Array.isArray` is false — while
-`instanceof Array` is true. It is a **non-plain object**, so the first rule
-above rejects it, and nothing here exempts it: writing it as `export default
-[];` drops its own `length` member, which is the silent approximation this
-section exists to refuse.
-
-Measured, no descriptor separates it from a genuine array: with a non-enumerable
-`length` its own descriptors are identical to `Object.freeze([])`'s, and a
-frozen array serializes as its data. So a serializer has exactly one instrument
-that sees the difference, the exotic array slot `Array.isArray` reads, and what
-this section requires of it is one-directional:
-
-**Nothing an implementation writes as an array may be a value `Array.isArray` is
-false of.** Such a value is an object, and its members — `length` among them —
-are its data; writing it as elements drops them, which is the silent
-approximation this section refuses. One predicate is the whole cost.
-
-**A serializer may refuse an array `instanceof Array` is false of, and nothing
-requires it to.** That predicate is the family, and it is exactly the arrays
-whose prototype chain does not reach this realm's `Array.prototype`: one built
-here and re-pointed with `Object.setPrototypeOf` — to `null`, to `{}`, to
-`Object.prototype`, or by severing a subclass's own prototype — and one built in
-another realm. Each needs an API or a realm this format's own subset has not
-got, and a refusal is an error rather than a wrong document, which is why the
-permission costs nothing to a caller staying inside the model.
-
-**Where the permission and the list above name the same value, the permission
-wins.** The list requires an `Array` subclass to serialize as its data, and it
-means one of this realm as built: its chain runs through `A.prototype` to this
-realm's `Array.prototype`, so it is `instanceof Array` and the permission does
-not reach it. Two things take a subclass instance out of that: re-pointing a
-prototype, and building it in another realm — a subclass instance from a second
-realm is a subclass *and* a foreign array, and it is the permission that decides
-it. Neither is something a caller staying inside this format's subset can do,
-which is why the list can speak of values as built and leave the rest to the
-predicate.
-
-So the reading is one predicate throughout: `instanceof Array` true, and the
-list decides — a plain array, a frozen one, a subclass of this realm are all
-data. `instanceof Array` false, and the permission decides — a re-pointed array,
-a foreign array, a foreign subclass may be refused, and nothing requires it.
-
-So the two shapes are not symmetric, and the asymmetry is the section's whole
-subject: **approximating is forbidden, refusing is not**. A serializer
-classifying arrays by `Array.isArray` satisfies both rules as it stands; one
-classifying by the prototype chain satisfies the second and breaks the first,
-and the input that shows it is the impostor above.
+The practical consequence is worth one line, since implementations differ here
+and none of them is wrong: a serializer classifying arrays by the prototype
+chain and one classifying by `Array.isArray` disagree on exactly these values,
+and both conform.
 
 ### Normalized form
 

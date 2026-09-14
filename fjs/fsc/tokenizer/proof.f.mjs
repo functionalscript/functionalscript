@@ -2,12 +2,11 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tokenize } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
-import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { _stringifyTree } from '../module.f.mjs'
 
 // DjsTokenWithMetadata carries bigint fields that JSON.stringify cannot
-// serialize — the DJS tree serializer can, and this is a proof-local dump.
-const stringify = stringifyAsTree(sort)
+// serialize — the compiler's proof dump can.
+const stringify = _stringifyTree
 
 export const proof = {
     // DJS-level: keyword remapping and '-'-folding on top of the JS tokenizer. Doesn't re-test

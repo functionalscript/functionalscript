@@ -1,20 +1,17 @@
 ## DataJS serializer
 
-**Priority:** P1 — it is what is left of stage 4 beside the reader's byte path,
-and stage 4 is the deliverable
+**Priority:** P1 — it is what is left of stage 4, and stage 4 is the
+deliverable
 [the coordinating plan](../../../../todo/parser-serializer-restructure.md)
 calls the one everything else is waiting for.
 **Status:** wip — **the writer landed**, as
 [`fjs/media/datajs/serializer`](../serializer/module.f.mjs): `trySerialize`
 and `tryStringify` over the three passes of §1–§3, with every rule of §1 proved
-and the two worked examples of the hoisting and naming rules pinned. It refuses
-everything the specification refuses but **one host-built shape** — the
-`Array.prototype` impostor of §4, which no FunctionalScript caller can construct
-and which closes with either of the two decisions §4 names. The corpus proofs of
-§4 are done — all three writer-side sets run this writer — so what remains is
-the module's own `module.f.mjs`, the explicit-stack walk, the two quadratic
-steps measured, a readable layout if one is wanted (§3), and the impostor
-decision.
+and the two worked examples of the hoisting and naming rules pinned, refusing
+everything the specification refuses. The corpus proofs of §4 are done — all
+three writer-side sets run this writer — so what remains is the module's own
+`module.f.mjs`, the explicit-stack walk, the two quadratic steps measured, and a
+readable layout if one is wanted (§3).
 **Blocked by:** nothing, for what is left of the implementation. What landed
 proves itself against the specification by hand, as
 [the reader](../parser/proof.f.mjs) does — that was the interim proof source, and
@@ -68,9 +65,10 @@ today, not as a settled contract.
 
 ### Problem
 
-The reader landed on the grammar route and
-[`parser-serializer.md`](./parser-serializer.md) keeps what remains of it —
-`tryParseBytes` and the corpus proofs. This file is the other half: the
+The reader landed on the grammar route, its byte path, its corpus proofs and
+the directory's public `module.f.mjs` with it, and its issue is retired into
+[the module README](../README.md), which keeps what both roles share — the
+public surface and the value domain. This file is what remains of stage 4: the
 writer, which landed as described under **Status** above. What is written
 below is the design it was built to; where a section is done, it says so and
 records what the implementation settled.
@@ -103,9 +101,9 @@ fjs/media/datajs/
 ```
 
 Two of the four entry points
-[`parser-serializer.md`](./parser-serializer.md#layout) lists are this
-file's, and both landed. A third, `tryNormalize`, is deliberately not a
-function:
+[the module README](../README.md#every-entry-point-is-fallible-and-the-names-say-so)
+lists are this file's, and both landed. A third, `tryNormalize`, is
+deliberately not a function:
 
 ```ts
 export const trySerialize: (value: unknown) => Result<List<string>, string>
@@ -121,10 +119,10 @@ recommends for tooling — it is the second entry point and `tryNormalize`
 names this one. Until then `tryStringify`'s output is byte-exact normalized
 form, and its proof pins the bytes.
 
-The module's own `module.f.mjs`, the public surface both roles share, is
-still owed and is where the naming question `parse` versus `tryParse` gets
-settled; the writer is reached at `serializer/module.f.mjs` today, as the
-reader is at `parser/module.f.mjs`.
+The module's own [`module.f.mjs`](../module.f.mjs), the public surface both
+roles share, has landed, and settled the naming for all four names at once:
+`try*`, the reader's two renamed to `tryParse` and `tryParseBytes` to match
+these two.
 
 `trySerialize` yields chunks and `tryStringify` is its `concat`, mirroring
 [`fjs/media/json`](../../json/module.f.mjs)'s pair. The input is `unknown`
@@ -189,7 +187,7 @@ change it.
 **Depth is a defect rather than a cost.** `read` and `write` recurse on the
 call stack, where the reader walks an explicit one and keeps a 5,000-level
 depth contract — so the writer cannot write back every document the reader
-accepts. Measured: a value of 2,600 nested arrays, one `parse` itself
+accepts. Measured: a value of 2,600 nested arrays, one `tryParse` itself
 returns, makes `tryStringify` throw
 `RangeError: Maximum call stack size exceeded` instead of returning an
 `error`. §Layout and API says rejection is a `try*` and not a panic, and an
@@ -250,7 +248,8 @@ data descriptors' `value`s are followed. Nothing outside the model is ever
 read.
 
 The same mechanism answers the present-versus-absent problem of
-[`parser-serializer.md`](./parser-serializer.md) §1: a descriptor exists if and
+[the module README](../README.md#one-type-level-trap-in-the-value-domain): a
+descriptor exists if and
 only if the property does, so a member holding `undefined` is distinguishable
 from an absent one without reading any value. `definedEntries`, which
 [`treeSerialize`](../../json/serializer/module.f.mjs) reads objects through,
@@ -296,10 +295,10 @@ for `root = [parent, parent, child]` with `child` inside `parent`, `child` is
 **The state is threaded, not mutated.** Identity keying means a `Map` or `Set`
 of nodes, and [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 forbids `Map#set` and
 `Set#add` on a value already built. `getConstants` in
-[`fjs/djs/serializer`](../../../djs/serializer/module.f.mjs) shows the shape —
-a fold over a `{ added, consts }` state, rebuilt per node — and also shows its
+`fjs/djs/serializer`, retired since and in git history, showed the shape —
+a fold over a `{ added, consts }` state, rebuilt per node — and also showed its
 cost, a copy per node; the mutable `Refs` beside it is what
-[157](../../../djs/todo/157-json-djs-shared-value-machine.md) warns against
+[157](../../../fsc/todo/157-json-djs-shared-value-machine.md) warns against
 carrying anywhere shared. Pick the simple one first and leave the cost
 measured rather than assumed.
 
@@ -310,13 +309,12 @@ fixed, then `export default` of the root — a `$N` reference when the root is
 itself hoisted.
 
 The walk is the shared value machine of
-[157 §2](../../../djs/todo/157-json-djs-shared-value-machine.md) with its four
+[157 §2](../../../fsc/todo/157-json-djs-shared-value-machine.md) with its four
 seams, and stage 4 is the consumer that issue was waiting for:
 
 1. **a leaf seam** — `stringSerialize`, `boolSerialize` and `nullSerialize`
    from [`fjs/media/json/serializer`](../../json/serializer/module.f.mjs)
-   unchanged; `undefined` as the one-element `['undefined']` that
-   [`fjs/djs/serializer`](../../../djs/serializer/module.f.mjs) already exports;
+   unchanged; `undefined` as the one-element `['undefined']`;
    a bigint through [`fjs/types/bigint`](../../../types/bigint/module.f.mjs)'s
    `serialize`, which is the decimal digits plus `n`. Numbers are **not**
    JSON's `numberSerialize`: it is `JSON.stringify`, which writes `null` for
@@ -327,12 +325,11 @@ seams, and stage 4 is the consumer that issue was waiting for:
 3. **a key seam** — an own enumerable string key `__proto__` is emitted as the
    exact computed form `["__proto__"]`, the only spelling the reader accepts,
    which makes it a requirement of round-tripping rather than a style choice.
-   `jsKeySerialize` in `fjs/djs/serializer` is that function today, private.
 4. **an entry-enumeration seam** — the descriptors of §1, not `definedEntries`
    and not `entries`.
 
 **Settled: DataJS writes its own walk, and 157's extraction is still
-owed.** Of the four seams, `buildSerialize` in `fjs/djs/serializer` takes
+owed.** Of the four seams, `buildSerialize` in the old `fjs/djs/serializer` took
 two as parameters — the key seam and the pre-recursion ref seam — and
 hardcodes the other two: its leaf spelling is a `switch` in the function
 body, where DataJS needs `NaN` and the infinities as words rather than
@@ -434,74 +431,19 @@ gap closes by having no inputs to reach, and if it stays, the plumbing above
 stays unproven here — a set cannot hold those values and §1.6 will not let a
 `proof.mjs` build them, as the top of this file sets out.
 
-**The one divergence from the specification is closed, and not against the
-writer**: an array under a `null` prototype, which the writer meets at its
-object branch and refuses for its non-enumerable `length`, because
-`Array.isArray` is true of it and `instanceof Array` is not. §What may be
-serialized used to serialize it as its data; it now leaves the value out rather
-than requiring anything either way, because the only way to build one is
-`Object.setPrototypeOf` — an API the subset does not have, as with a cross-realm
-array. So there is no bug here to fix, and no vector to owe: a conformance set
-is a DataJS data module and cannot spell the value at all.
+**Values whose prototype was replaced are outside this module's domain, and that
+is a rule rather than a gap.** [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 says a
+value that breaks its premise — a re-pointed prototype, another realm, an object
+built by `Object.create` with a descriptor — is undefined behaviour for every
+`.f.mjs` function: no refusal is owed, no proof case, and no bug report. So
+`instanceof Array` is the classification and nothing here owes `Array.isArray`,
+whatever the two disagree on.
 
-**What that left behind is the other direction of the same mismatch, and here
-the specification does not give way — this module is measurably wrong.** Review
-found it and it is measured:
-`Object.create(Array.prototype, { length: { value: 0, enumerable: true } })` is
-not an array — `Array.isArray` is false — while `instanceof Array` is true, so
-`readNode` takes the array branch and `tryStringify` answers `export default
-[];`, dropping the object's own `length` member instead of refusing a non-plain
-object. With `{ length: 1, 0: 7 }` it answers `export default [7];`.
-
-No check in this module's style closes it. With `length` non-enumerable the
-impostor's own descriptors are identical to a frozen array's — `e:false w:false
-c:false`, measured on both — and a frozen array must serialize as its data, so
-enumerability cannot separate them and neither can any other attribute. A
-genuine array's arrayness is an exotic slot, and `Array.isArray` is the only
-predicate that reads it, which is the spelling
-[`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 does not allow: it mandates
-`instanceof Array` on the premise that every value an `.f.mjs` sees was built by
-this realm's constructors, and calls `Array.isArray` "a longer one guarding
-against values this rule already excludes".
-
-§What may be serialized refuses the value under its first rule, as any other
-non-plain object, and it now states the consequence as a one-directional rule:
-**nothing an implementation writes as an array may be a value `Array.isArray` is
-false of**, because writing the impostor as its elements drops a member, which
-is the silent approximation that section exists to refuse. So this is a **known
-non-conformance**, not a case the format leaves open, and it is stated here
-rather than left to be rediscovered.
-
-It is the only one, and the direction is why. The same section permits refusing
-an array whose prototype chain does not reach this realm's `Array.prototype` and
-requires nothing either way, so this writer's refusal of a `null`-prototype
-array — the other half of the same mismatch — is conforming as it stands.
-Approximating is forbidden, refusing is not: a refusal is an error a caller
-sees, where the impostor's `export default [];` is a document that denotes
-something else.
-
-What holds the fix is that §3.1's premise and the specification's rule point
-different ways, and reconciling them is not this file's to do. **There is
-exactly one way out, and it is §3.1's owner's**: §3.1 permits `Array.isArray` at
-this one boundary, `readNode` gains one predicate, and the impostor is refused
-as a non-plain object. The cost is a stated exception to a rule whose rationale
-— one realm, one prototype chain — does not cover a value built by
-`Object.create` under `Array.prototype`.
-
-**Narrowing the parameter is not a second way out**, which an earlier round of
-this file claimed and review corrected. A type cannot stop this: `readNode` is
-unchanged at run time, so a JavaScript caller reaches the array branch whatever
-the signature says — and a *typed* caller does too, because `Unknown` is
-structural. Measured: `{ readonly length: number }` is assignable to `Unknown`,
-`tsc` clean, so `tryStringify({ length: 0 })` type-checks and an impostor
-declared that way passes the call. Narrowing settles what can be *proved* about
-the gap, which is the question above; it settles nothing about a value that
-classifies wrongly.
-
-Until one of them lands, the scope of the defect is exact: no FunctionalScript
-caller can build the value, because the subset has no `Object.create` with a
-descriptor, so only a host caller reaches it — and a host caller is what the
-`unknown` parameter admits and the data model would not.
+§What may be serialized says the same from the format's side — such a value is
+outside its input domain, and a serializer classifying arrays either way
+conforms — so the two rules agree and neither this module nor the corpus owes
+anything for one. Earlier rounds of this file recorded such a value as a
+divergence to close; that was a category error, and it is not one.
 
 ### Tasks
 
@@ -537,22 +479,10 @@ descriptor, so only a host caller reaches it — and a host caller is what the
       proof here and narrowing the parameter is what closes it, as the top of this
       file sets out. The rest of the gap is proved at the top level, by the
       `refusals` table in [`../serializer/proof.f.mjs`](../serializer/proof.f.mjs).
-- [ ] `module.f.mjs`, the public API of
-      [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
-      path lands beside it — and the `parse` versus `tryParse` naming with it.
+- [x] [`module.f.mjs`](../module.f.mjs), the public surface, and the naming
+      with it: `try*` on all four, the reader's two renamed to match.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
-- [ ] **Close the `Array.prototype` impostor**, a measured non-conformance
-      recorded in §4: an object created under `Array.prototype` with an own
-      `length` is written as its elements rather than refused as a non-plain
-      object, and only `Array.isArray` — the spelling
-      [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 forbids — separates it from a
-      frozen array, whose own descriptors are identical. It closes either way:
-      §3.1 permits that predicate at this boundary, or the parameter narrows to
-      the data model and the input becomes impossible. Both are the owner's, and
-      the second is the signature question above, so this box and that one are
-      one decision. Only a host caller can reach the value, which is the scope
-      and not an excuse.
 - [ ] **Walk both passes on an explicit stack**, so that a document the
       reader accepts is one the writer can write: 2,600 nested arrays make
       `tryStringify` throw `RangeError` today, where it owes an `error` at
@@ -563,10 +493,10 @@ descriptor, so only a host caller reaches it — and a host caller is what the
 
 ### Related
 
-- [`parser-serializer.md`](./parser-serializer.md) — the reader half of stage 4 and the shared public API; this file was split out of it.
+- [the module README](../README.md) — the reader, done, and the public surface both roles share; this file was split out of the reader's issue, since retired into it.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. §Serialization and §Normalized form are what this implements.
 - [`spec/datajs/vectors/README.md`](../../../../spec/datajs/vectors/README.md) — the corpus schema; the writer-side sets are the proof source.
 - [`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md) — the conformance corpus, which owns those sets; its README is the schema and the derivation rules, and states what it cannot carry, this writer's `unknown` parameter included.
-- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. This is its second consumer.
-- [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type, whose optional index signature is why only the runtime enumerator sees a member holding `undefined`.
+- [157](../../../fsc/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. This is its second consumer.
+- [`fjs/media/json/types.ts`](../../json/types.ts) — the tree type, whose optional index signature is why only the runtime enumerator sees a member holding `undefined`.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is the rest of its stage 4.

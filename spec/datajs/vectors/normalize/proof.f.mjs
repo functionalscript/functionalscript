@@ -5,8 +5,7 @@
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
-import { parse } from '../../../../fjs/media/datajs/parser/module.f.mjs'
-import { tryStringify } from '../../../../fjs/media/datajs/serializer/module.f.mjs'
+import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
 import normalize from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -85,7 +84,7 @@ export const proof = {
     denotes: () => {
         for (const vector of set) {
             const id = named(vector, 'id')
-            const [tag, result] = parse(vector.text)
+            const [tag, result] = tryParse(vector.text)
             assert(tag === 'ok', `${id}: the text is not a document the reader takes: ${String(result)}`)
             const d = difference(vector.input)(/** @type {Unknown} */ (result))
             assert(d === null, `${id}: the text does not denote the input: ${d}`)

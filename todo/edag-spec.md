@@ -26,7 +26,7 @@ nothing precise to be checked against.
 The working semantic design lives in
 [`edag-stage1-discussion.md`](./edag-stage1-discussion.md). The concrete DJS
 rollout is staged separately in
-[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md):
+[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md):
 Stage 1 adds property access and unresolved modules; Stage 2 adds non-capturing
 functions and calls. Those TODOs define implementation order, while this file
 owns the eventual complete schema.
@@ -96,7 +96,7 @@ for CAVM hashing) covers it — see the P3 task and open question in
 references are a serialization mechanism for semantic node sharing, not a
 separate `const_ref` EDAG operation. DJS `.f.js` parser/serializer rollout,
 including special-number round trips, belongs to
-[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md);
+[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md);
 standard JSON numeric policy remains separate in
 [`number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md).
 
@@ -114,7 +114,7 @@ standard JSON numeric policy remains separate in
       forms decided in [`edag-stage1-discussion.md`](./edag-stage1-discussion.md),
       including semantic node sharing without a `const_ref` EDAG node.
 - [ ] Keep the schema compatible with the staged DJS implementation in
-      [`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
+      [`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md)
       while allowing later operations to be added without changing existing
       canonical forms.
 - [ ] Implement a Rust code generator from RTTI schemas: EDAG types +
@@ -128,10 +128,10 @@ standard JSON numeric policy remains separate in
 
 - [`edag-stage1-discussion.md`](./edag-stage1-discussion.md) — working EDAG
   semantics, operation vocabulary, validation rules, and staging decisions.
-- [`fjs/djs/todo/compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
+- [`fjs/fsc/todo/compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md)
   — concrete parser/module rollout for Stage 1 and Stage 2; it consumes the
   canonical definitions from `fjs/edag/`.
-- [`fjs/djs/todo/157-json-djs-shared-value-machine.md`](../fjs/djs/todo/157-json-djs-shared-value-machine.md) — existing JSON/DJS
+- [`fjs/fsc/todo/157-json-djs-shared-value-machine.md`](../fjs/fsc/todo/157-json-djs-shared-value-machine.md) — existing JSON/DJS
   parser/serializer structural deduplication work.
 - [`fjs/media/json/todo/number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md)
   — existing owner of standard JSON numeric edge-case policy.

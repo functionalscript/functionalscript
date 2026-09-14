@@ -14,9 +14,9 @@ host's:
 - **115 call sites call `JSON.stringify` directly** — and one of them is
   `fjs/media/json/serializer/module.f.mjs`, so the FunctionalScript serializer
   itself still bottoms out in the host. `numberSerialize` is `JSON.stringify`
-  with a different name, and `fjs/djs/serializer/module.f.mjs:15` imports it, so
-  *every number* this repository serializes — JSON and DJS alike — is still
-  formatted by the host. `stringSerialize` no longer is: phase 1 below has
+  with a different name, and `fjs/media/datajs/serializer`'s `_numberSerialize`
+  is `ToString` with `-0` kept, so *every number* this repository serializes —
+  JSON and DataJS alike — is still formatted by the host. `stringSerialize` no longer is: phase 1 below has
   shipped.
 
 Three reasons to finish the job:
@@ -40,7 +40,7 @@ Three reasons to finish the job:
 | --- | --- | --- | --- |
 | **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.mjs` | FunctionalScript number formatting — blocks everything below |
 | Expected-output comparison | 20 | `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/fsc/tokenizer/proof.f.mjs` (8), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` — 53 more went with the classical `fjs/bnf` proofs | `stringify(identity)` |
-| Assertion messages | 33 | `fjs/fsc/tokenizer/proof.f.mjs` (31), `fjs/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
+| Assertion messages | 33 | `fjs/fsc/tokenizer/proof.f.mjs` (31), `fjs/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/fsc`'s `_stringifyTree` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.mjs:282,303,318`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
 | JSON line framing | 2 | `fjs/emergent_testing/proof.f.mjs:47`, `fjs/mcp/proof.f.mjs:128` | `stringify(identity)` |
 | Pretty-printed file output | 1 | `fjs/ci/module.f.mjs:83` | needs indentation support, which `serialize` does not have |
@@ -56,7 +56,7 @@ Three semantic differences to respect while migrating, none of them blocking:
   `Unknown`, which excludes `undefined` outright, and `definedEntries` does the
   dropping — so `fjs/protocol/mcp/stdio/proof.f.mjs:119`'s omission test keeps
   its meaning. `bigint` values (the DJS token payloads behind the 31 message
-  sites) need `fjs/djs`'s serializer, which already handles them.
+  sites) need `fjs/fsc`'s `_stringifyTree`, which already handles them.
 - **Types.** `serialize` demands `Unknown`; the proof sites pass domain types
   (`dm`, `mr`, `emptyTags`). Confirm each is structurally assignable rather
   than reaching for `as` — where it isn't, that is a finding about the domain
@@ -110,8 +110,8 @@ instead of duplicating the decision. The assertion-message row is the cheapest:
 wrong, so most of those 33 sites can pass the value itself — but note that the
 reporter renders a failure payload with `String(v)`
 (`fjs/emergent_testing/module.f.mjs:346`), so passing a raw object degrades the
-message. Either serialize with `fjs/djs`'s `stringify` (it handles the `bigint`
-token payloads) or improve the reporter's rendering first.
+message. Either serialize with `fjs/fsc`'s `_stringifyTree` (it handles the
+`bigint` token payloads) or improve the reporter's rendering first.
 
 **4. Indentation for `fjs/ci/module.f.mjs:83`**, the only site asking for
 something `serialize` cannot do (`JSON.stringify(gha, null, '  ')`). Add an

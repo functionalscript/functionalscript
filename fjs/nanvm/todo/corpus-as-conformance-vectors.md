@@ -105,7 +105,7 @@ ship as serialized data instead. Either way this is what keeps the interpreter
 and the generated code in agreement — the point the roadmap's test-generation
 item makes — and the JavaScript side's counterpart is replacing `amnesia`
 with the EDAG interpreter
-([interpret-edag](../../djs/todo/interpret-edag.md)), which owes the same
+([interpret-edag](../../fsc/todo/interpret-edag.md)), which owes the same
 identity-memoization contract the corpus already relies on. The proof's own
 inline evaluator is already gone: `amnesia` takes the corpus's shared nodes
 as `Context`'s `memo`, so what is left to migrate is the evaluator itself,
@@ -139,7 +139,7 @@ not a second one beside it.
   conformance test vectors this completes.
 - [`../../../nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)
   — the interpreter and remaining-operators items this feeds.
-- [`../../djs/todo/interpret-edag.md`](../../djs/todo/interpret-edag.md) — the
+- [`../../fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md) — the
   FunctionalScript executor that replaces `amnesia` here.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness, and the future `throw` node the non-establishment

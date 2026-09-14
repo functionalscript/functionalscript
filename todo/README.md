@@ -5,7 +5,7 @@
 Issues live **next to the code they describe**, as one file per issue in a
 `todo/` directory co-located with the relevant module:
 
-- `fjs/djs/todo/{slug-kebab}.md` — todos specific to the `fjs/djs/` module
+- `fjs/fsc/todo/{slug-kebab}.md` — todos specific to the `fjs/fsc/` module
 - `fjs/ci/todo/{slug-kebab}.md` — CI tooling todos
 - `nanvm-lib/todo/{slug-kebab}.md` — NaN-VM (Rust) todos
 - … and so on.
