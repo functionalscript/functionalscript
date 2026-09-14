@@ -19,14 +19,16 @@ EDAG alone is not enough to represent an unresolved parsed module: module resolu
 also needs the module paths imported by that source file. Keep that information in a
 small temporary wrapper rather than adding module metadata to EDAG itself.
 
-The current parser/AST cannot fully preserve the ordered object-entry representation
-required by EDAG. Object parsing builds a plain `AstObject` in source order — it
-used to sort the members through an `OrderedMap`, which the subset law over the
-DataJS corpus found and stage 6 fixed (#2028) — so a repeated key keeps its first position
-and takes its last value, as in JavaScript. What a plain object still cannot keep
-is the written order of integer-like keys, which JavaScript lists first, and the
-duplicates themselves. This task must preserve object entries as an ordered
-sequence in the parser/AST until they are converted to `['{}', [...entry]]`.
+The AST preserves the ordered object-entry representation EDAG requires:
+`AstObject` is `['object', members]`, the members in the order written, a
+repeated key written twice, and `run` builds the object JavaScript builds from
+the same literal. It was a plain object until this task's first step, and
+before that it sorted the members through an `OrderedMap`, which the subset law
+over the DataJS corpus found and stage 6 fixed (#2028); a plain object kept the
+written order of ordinary keys and the last value of a repeated one, and could
+not keep the position of an integer-like key, which JavaScript lists first, or
+the duplicates themselves. Conversion to `['{}', [...entry]]` reads the members
+as the syntax holds them.
 
 ### Proposal
 
@@ -477,9 +479,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       the EDAG schema.
 - [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
       and make import parameter positions correspond to its indices.
-- [ ] Change the DJS parser/AST object representation to retain an ordered entry list
+- [x] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
-      keys through a plain JavaScript object/`OrderedMap` representation.
+      keys through a plain JavaScript object/`OrderedMap` representation. Done:
+      `AstObject` is `['object', members]`, pinned by `membersAsWritten` in
+      `fjs/fsc/parser/proof.f.mjs`.
 - [ ] Convert a parsed source module to `Unresolved { imports, edag }` without reading
       or resolving any imported module.
 - [ ] Do not silently drop required body evaluation. Until an anchoring/sequencing

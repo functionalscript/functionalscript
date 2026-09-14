@@ -24,7 +24,7 @@ export const proof = {
         assertEq(result, '[14,4]')
     },
     testObj: () => {
-        const djs = run([1, 2, 3, 4, 5, {"key": { "key2": ['array', [['aref', 3], ['cref', 3]]]}}])([11, 12, 13, 14, 15])
+        const djs = run([1, 2, 3, 4, 5, ['object', [['key', ['object', [['key2', ['array', [['aref', 3], ['cref', 3]]]]]]]]]])([11, 12, 13, 14, 15])
         const result = _stringifyTree(djs)
         if (result !== '{"key":{"key2":[14,4]}}') { throw result }
     },

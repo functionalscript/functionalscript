@@ -41,6 +41,12 @@ holding the same reference must yield the same object, not two equal copies —
 so the AST keeps the constants addressable and refers to them by index
 instead of inlining them. That is also what makes serialization a real
 choice: a value referenced more than once is emitted as a `const` and reused.
+
+An object is `['object', members]`, the members in the order written and a
+repeated key written twice, rather than a plain object: `run` builds the
+object JavaScript builds from the same literal — a repeated key at its first
+position with its last value, integer-like keys first — and the EDAG object
+constructor takes the members as written, which only the syntax still has.
 See [examples/input.f.mjs](./examples/input.f.mjs).
 
 ## Both grammars are LL(1)

@@ -5,14 +5,12 @@
  *
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { AstConst, AstBody, AstModuleRef, Import, Sharing } from './types.ts'
- * @import { _FoldObjectState, _Reach, _RunState } from './private.ts'
+ * @import { AstConst, AstBody, AstMember, AstModuleRef, Import, Sharing } from './types.ts'
+ * @import { _Reach, _RunState } from './private.ts'
  */
 
 import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
-
-const { entries, values } = Object
 
 /** @type {(ast: AstConst) => (state: _RunState) => _RunState} */
 const foldOp = ast => state => {
@@ -20,32 +18,24 @@ const foldOp = ast => state => {
     return { ...state, consts: concat(state.consts)([djs]) }
 }
 
-/** @type {(entry: [string, AstConst]) => (state: _FoldObjectState) => _FoldObjectState} */
-const foldAstObjectOp = entry => state => {
-    const e = concat(state.entries)([[entry[0], (toDjs(state.runState)(entry[1]))]])
-    return { ...state, entries: e }
-}
+/** A member with its value evaluated, by the evaluator given first. @type {(evaluate: (ast: AstConst) => Unknown) => (member: AstMember) => readonly [string, Unknown]} */
+const memberValue = evaluate => ([key, value]) => [key, evaluate(value)]
 
-/** @type {(state: _RunState) => (ast: AstConst) => Unknown} */
+/**
+ * The value of one entry. An object's members are written into a plain
+ * object in the order the syntax holds them, so the result is the object
+ * JavaScript builds from the same literal: a repeated key keeps its first
+ * position and takes its last value, and integer-like keys come first.
+ *
+ * @type {(state: _RunState) => (ast: AstConst) => Unknown}
+ */
 const toDjs = state => ast => {
-    switch (typeof ast) {
-        case 'boolean':
-        case 'number':
-        case 'string':
-        case 'bigint': { return ast }
-        default: {
-            if (ast === null) { return ast }
-            if (ast === undefined) { return ast }
-            if (ast instanceof Array) {
-                switch (ast[0]) {
-                    case 'aref': { return state.args[ast[1]] }
-                    case 'cref': { return last(null)(take(ast[1] + 1)(state.consts)) }
-                    case 'array': { return toArray(map(toDjs(state))(ast[1])) }
-                }
-            }
-            const e = fold(foldAstObjectOp)({ runState: state, entries: null })(entries(ast)).entries
-            return fromEntries(e)
-        }
+    if (ast === null || typeof ast !== 'object') { return ast }
+    switch (ast[0]) {
+        case 'aref': { return state.args[ast[1]] }
+        case 'cref': { return last(null)(take(ast[1] + 1)(state.consts)) }
+        case 'array': { return toArray(map(toDjs(state))(ast[1])) }
+        default: { return fromEntries(ast[1].map(memberValue(toDjs(state)))) }
     }
 }
 
@@ -73,19 +63,32 @@ export const run = body => args => {
 const bit = i => 1n << BigInt(i)
 
 /**
+ * The values an object's members leave in the value: one per key, the last
+ * written. A member a later duplicate shadows is syntax the value never
+ * holds, so a reference in it reaches nothing. `Map` keeps the last value
+ * per key, as `fromEntries` does in `toDjs`.
+ *
+ * @type {(members: readonly AstMember[]) => readonly AstConst[]}
+ */
+const memberValues = members => [...new Map(members).values()]
+
+/**
  * The references one entry makes directly: its `cref`s and `aref`s, however
  * deep inside its own literals, and nothing behind them — a referenced
  * `const` is an entry of its own, visited once as such, which is what keeps
- * this a walk over the syntax rather than over the value's paths.
+ * this a walk over the syntax rather than over the value's paths. A member
+ * a later duplicate shadows is not in the value, so its references are not
+ * counted.
  *
  * @type {(ast: AstConst) => List<AstModuleRef>}
  */
 const refsOf = ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
-    if (ast instanceof Array) {
-        return ast[0] === 'array' ? flat(ast[1].map(refsOf)) : [ast]
+    switch (ast[0]) {
+        case 'array': { return flat(ast[1].map(refsOf)) }
+        case 'object': { return flat(memberValues(ast[1]).map(refsOf)) }
+        default: { return [ast] }
     }
-    return flat(values(ast).map(refsOf))
 }
 
 /** @type {(value: Unknown) => boolean} */
@@ -100,9 +103,9 @@ const isContainer = value => value !== null && typeof value === 'object'
  */
 const denotesContainer = imports => (containers, ast) => {
     if (ast === null || typeof ast !== 'object') { return false }
-    if (!(ast instanceof Array)) { return true }
     switch (ast[0]) {
-        case 'array': { return true }
+        case 'array':
+        case 'object': { return true }
         case 'cref': { return (containers & bit(ast[1])) !== 0n }
         default: { return isContainer(imports[ast[1]].value) }
     }

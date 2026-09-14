@@ -280,6 +280,16 @@ export const proof = {
         nested: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; export default [a, [a]];')] })('a.f.js')) },
         member: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "y": {"z": a}};')] })('a.f.js')) },
         literals: () => { assert(!sharedOf({ 'a.f.js': [utf8('export default [[1], [1], {"a": {}}];')] })('a.f.js')) },
+        // A member a later duplicate shadows is not in the value, so a
+        // reference in it is not a reference to the node: `{x: a, x: 0, y: a}`
+        // holds `a` once, and `{a: s, a: s}` once, along a const or an import.
+        shadowed: () => {
+            assert(!sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "x": 0, "y": a};')] })('a.f.js'))
+            assertEq(compileSource('const a = {}; export default {"x": a, "x": 0, "y": a};')('output.json'), '{"x":0,"y":{}}')
+            assert(!sharedOf({ 'a.f.js': [utf8('const s = [1]; export default {"a": s, "a": s};')] })('a.f.js'))
+            assert(!sharedOf({ 'a.f.js': [utf8('import m from "./m.f.js"; export default {"a": m, "a": m};')], 'm.f.js': [utf8('export default [1];')] })('a.f.js'))
+            assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": 0, "x": a, "y": a};')] })('a.f.js'))
+        },
         importTwice: () => {
             assert(sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default [1];')] })('a.f.js'))
             assert(!sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default 1;')] })('a.f.js'))
