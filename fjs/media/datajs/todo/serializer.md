@@ -494,9 +494,13 @@ divergence to close; that was a category error, and it is not one.
       2,600 nested arrays that threw `RangeError` write, and the reader's
       5,000-level document writes back byte for byte (§1).
 - [ ] Decide whether the two quadratic steps of §1 are worth changing. The
-      measurement is in §1: the `started` copy is 85% of a 5,000-deep write's
-      1.1 s, and `indexOf` the rest of what grows; a document with enough
-      containers, deep or wide, is what would change it.
+      measurement is in §1: the `started` copy is 0.98 s of a 5,000-deep
+      write's 1.1 s, and `indexOf` the rest of what grows; a document with
+      enough containers, deep or wide, is what would change it. The depth
+      proof waits on the same decision: its 5,000-level leaf pins the contract
+      and little above it — a regression costing one call frame per level
+      passes it and breaks only near 9,000 — and pinning higher costs this
+      step's time until the step goes.
 - [ ] Delete this file in the PR that finishes it.
 
 ### Related

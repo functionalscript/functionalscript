@@ -287,8 +287,8 @@ export const proof = {
         },
         // 2,600 nested arrays is the input that used to throw `RangeError`
         // out of both passes. A refusal below them is an `error`, as
-        // §Layout and API promises, and the sharing a deep chain takes part
-        // in is hoisted as any other.
+        // `todo/serializer.md` §Layout and API promises, and the sharing a
+        // deep chain takes part in is hoisted as any other.
         below: () => {
             /** @type {(depth: number, bottom: unknown) => unknown} */
             const nested = (depth, bottom) => Array.from({ length: depth }).reduce(v => [v], bottom)
