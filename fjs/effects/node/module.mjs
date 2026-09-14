@@ -340,8 +340,25 @@ const runNodeEffect = asyncRun({
         const fh = await open(path, 'r')
         try {
             const buffer = Buffer.alloc(size)
-            const { bytesRead } = await fh.read(buffer, 0, size, offset)
-            return toVec(buffer.subarray(0, bytesRead))
+            // One `read` may answer less than it was asked for without the file
+            // being at its end: a positional read of `/proc/self/maps` answers
+            // 4,007 bytes for a 1 MiB request and 4,034 more at the next offset,
+            // measured on node 22, and a network or virtual filesystem may do the
+            // same for a file a caller believes is ordinary. So the window is
+            // filled rather than read once, and a short answer then means the end
+            // of the file — which is what every caller of this operation already
+            // assumes. `fjs/cas`'s streams advance by a whole chunk and stop only
+            // on an empty read, so without the loop a short read there would drop
+            // bytes out of the middle of a content-addressed file.
+            let taken = 0
+            while (taken < size) {
+                const { bytesRead } = await fh.read(buffer, taken, size - taken, offset + taken)
+                if (bytesRead === 0) {
+                    break
+                }
+                taken += bytesRead
+            }
+            return toVec(buffer.subarray(0, taken))
         } finally {
             await fh.close()
         }

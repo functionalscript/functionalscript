@@ -17,7 +17,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
-import { packEntryCode, packFileCode, packIdxCode, tryRead } from './module.f.mjs'
+import { packEntryCode, packFileCode, packIdxCode, shortReadCode, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -669,6 +669,39 @@ export const proof = {
             `stat ${idxPath}`,
             `readBytes ${idxPath} 0 ${Number(maxLengthBytes)}`,
             `readBytes ${idxPath} ${Number(maxLengthBytes)} ${Number(maxLengthBytes)}`,
+        ])
+    },
+    // A host that answers a window short of the end of the file is refused, and
+    // not carried on from the next fixed window start — which would skip the bytes
+    // it did not answer and hand `tryIdx` an index with a run missing out of its
+    // middle, so a file Git reads would be reported as no pack index at all.
+    //
+    // One `read` is allowed to do this. Measured on node 22, a positional read of
+    // `/proc/self/maps` answers 4,007 bytes for a 1 MiB request and 4,034 more at
+    // the next offset; a regular local file filled the buffer and came back short
+    // only at its end. `fjs/effects/node` fills the window for that reason, so the
+    // host below is the one this module cannot assume it is running on.
+    shortWindow: () => {
+        const many = idxOf(Array.from(
+            { length: 5000 },
+            (_, k) => [`${k.toString(16).padStart(8, '0')}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
+        assert(many.length > Number(maxLengthBytes))
+        const whole = hostOf(listing, withIdx(many, 5000), inflatedBy(streams))
+        const short = {
+            ...whole,
+            // one byte less than asked for, on the first window only
+            readBytes: /** @type {typeof whole.readBytes} */ (
+                (path, at, size) => whole.readBytes(path, at, at === 0 ? size - 1 : size)),
+        }
+        const [log, r] = readBy(short, `00000000${'0'.repeat(32)}`)
+        const e = refusal(r)
+        assertEq(e.code, shortReadCode)
+        assertEq(e.message, `${idxPath}:0 ${Number(maxLengthBytes) - 1} bytes of ${Number(maxLengthBytes)}`)
+        // and the second window is never asked for
+        assertStructurallySame(log, [
+            `readdir ${dirPath}`,
+            `stat ${idxPath}`,
+            `readBytes ${idxPath} 0 ${Number(maxLengthBytes) - 1}`,
         ])
     },
     // An index with no pack beside it is the channel's, at the `stat` that asks

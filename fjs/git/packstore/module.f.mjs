@@ -137,6 +137,12 @@ export const packIdxCode = /** @type {const} */ ('ERR_PACK_IDX')
  */
 export const packEntryCode = /** @type {const} */ ('ERR_PACK_ENTRY')
 
+/**
+ * The code a file read in windows is refused with when the windows do not cover
+ * it: a read answered short of the end of the file. See {@link windowOf}.
+ */
+export const shortReadCode = /** @type {const} */ ('ERR_SHORT_READ')
+
 /** @type {(path: string) => string} */
 const idxMessage = path => `${path} is no pack index`
 
@@ -185,13 +191,45 @@ const windowsOf = size => Array.from({ length: Math.ceil(size / windowBytes) }, 
  * One window of a file, appended to the bytes already read.
  *
  * The window asked for is the whole allowance every time, even for the last one:
- * `readBytes` answers what is there and stops at the end of the file, so the
- * length decides itself and no arithmetic has to agree with it.
+ * a read answers what is there and stops at the end of the file, so the length
+ * decides itself and no arithmetic has to agree with it.
  *
- * @type {(path: string) => (at: number) => (bytes: Bytes) => Effect<ReadBytes, Bytes, IoChannel>}
+ * **A window that comes back short of the end of the file is refused, not
+ * ignored.** The sentence above is a claim about the host, and one `read` is not
+ * obliged to honour it: a positional read of `/proc/self/maps` answers 4,007
+ * bytes for a 1 MiB request and 4,034 more at the next offset, measured on node
+ * 22, and a network or virtual filesystem may answer short for a file a caller
+ * believes is ordinary. [`fjs/effects/node`](../../effects/node/module.mjs) fills
+ * the window for that reason, so on that host a short answer does mean the end of
+ * the file — but this module runs on whatever host it is given, and the window
+ * starts are fixed multiples of the allowance, so a host that answered short
+ * would leave a gap the next window skips over. The bytes would then be an index
+ * missing a run out of its middle, and `tryIdx` would call a file Git reads no
+ * pack index at all: a wrong diagnosis out of a silent loss, which is the kind of
+ * answer [DESIGN.md](../../../DESIGN.md)'s §10 says to refuse rather than give.
+ *
+ * A file that shrinks between the `stat` and the reads is refused by the same
+ * check, and it is the same thing: the bytes no longer cover what was measured.
+ *
+ * @type {(path: string, size: number) => (at: number) => (bytes: Bytes) => Effect<ReadBytes, Bytes, IoChannel>}
  */
-const windowOf = path => at => bytes =>
-    mapStep(readBytes(path, at, windowBytes), v => concat(bytes)(toBytes(v)))
+const windowOf = (path, size) => at => {
+    // The allowance, or what is left of the file where that is less — which is
+    // only the last window, and is why the read may legitimately come back short
+    // of what it asked for.
+    const want = Math.min(windowBytes, size - at)
+    return bytes => step(
+        readBytes(path, at, windowBytes),
+        v => {
+            const got = Number(length(v)) / 8
+            return got < want
+                ? pureError(ioError({
+                    code: shortReadCode,
+                    message: `${path}:${at} ${got} bytes of ${want}`,
+                }))
+                : pureOk(concat(bytes)(toBytes(v)))
+        })
+}
 
 /**
  * A whole file as bytes, in windows.
@@ -216,7 +254,7 @@ const wholeOf = path => {
     return step(sized, size => foldStep(
         pureOk(windowsOf(size)),
         /** @type {Bytes} */ (null),
-        windowOf(path)))
+        windowOf(path, size)))
 }
 
 /**
