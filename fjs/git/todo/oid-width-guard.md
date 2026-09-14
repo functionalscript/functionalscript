@@ -46,15 +46,25 @@ bind `isOidOf(oidBytes)` once and assert on it, keeping their shared
 message in one place; `tree`'s serializer asserts through the same
 predicate instead of reaching for `bitLength`.
 
-While there: `const hex = id => codePointListToString(toHex(id))` is
-written out in both `fjs/git/store/module.f.mjs` and
-`fjs/git/walk/proof.f.mjs`; it belongs beside `toHex` in `oid` as
-`toHexString`.
+**The spelling half of this is done.** `const hex = id =>
+codePointListToString(toHex(id))`, written out in `fjs/git/store` and
+`fjs/git/walk`'s proof, is now `hexText` in
+[`fjs/git/oid`](../oid/module.f.mjs) — beside `toHex`, where this issue asked
+for it under the name `toHexString`. `store`, `packstore` and `walk`'s proof
+use it, and a new caller takes it rather than writing the line again. What is
+left of this issue is the width, which is the harder half and the reason it was
+filed: an `Oid`'s width is still re-derived at four sites.
+
+Other proofs spell their own variants of the same call — a name and an id
+(`ref`), an index's ids and its pack checksum (`packidx`), the id of what a read
+answered (`packstore`) — and those are their own shapes rather than this one
+helper, so they are not part of this.
 
 ### Tasks
 
-- [ ] Export `oidBits`/`isOidOf` (and `toHexString`) from
-      `fjs/git/oid/module.f.mjs` with proofs.
+- [x] A hex spelling beside `toHex` in `fjs/git/oid`, with a proof — landed as
+      `hexText`, and its importers take it.
+- [ ] Export `oidBits`/`isOidOf` from `fjs/git/oid/module.f.mjs` with proofs.
 - [ ] Use them in `oid.tryFromHexOf`, `store.tryRead`, `walk.peel`, and
       `tree`'s entry serializer.
 - [ ] `tsc`, `fjs test`.
