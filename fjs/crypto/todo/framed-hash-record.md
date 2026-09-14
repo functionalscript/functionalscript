@@ -1,0 +1,140 @@
+## framed-hash-record. `sha1` hand-rolls the record `sha2`'s private factory builds
+
+**Priority:** P4
+**Status:** open
+
+### Problem
+
+`framing` was deliberately extracted and exported from `sha2` so "a fix to
+the framing is made once". The *record construction* around it was left
+behind in a private `const` — and `sha1` re-spells it:
+
+```js
+// sha2/module.f.mjs, the private factory  // sha1/module.f.mjs, spelled out
+const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
+    hashLength,                             export const sha1 = {
+    blockLength: chunkLength,                   hashLength,
+    hashBytes: divUp8(hashLength),              blockLength: chunkLength,
+    blockBytes: divUp8(chunkLength),            hashBytes: divUp8(hashLength),
+    init: { hash, len: 0n, remainder: empty },  blockBytes: divUp8(chunkLength),
+    append,                                     init: { hash: [0x67452301n, …], len: 0n, remainder: empty },
+    end: end(hashLength),                       append,
+})                                              end: end(hashLength),
+                                            }
+```
+
+The `hashBytes`/`blockBytes` rounding contract that `sha2/types.ts`
+argues belongs in exactly one place is thus in two; a new `Hash` field or
+a change to the rounding must land twice. Two smaller copies ride along:
+`ch`/`maj` are byte-identical modulo parameter names between `sha2` and
+`sha1`, and the digest packer `a.reduce((p, v) => p << width | v)`
+appears as `sha2`'s `fromV8` and `sha1`'s `fromV5` — the only instances
+of that fold in the tree.
+
+### Proposal
+
+Export three names from `fjs/crypto/sha2/module.f.mjs` beside `framing`:
+
+```ts
+import type { FramingInit, Framed, Hash } from './types.ts'
+/**
+ * The `Hash` over a framing this builds from `init` and the initial words —
+ * the one place the `hashBytes`/`blockBytes` rounding and the
+ * `{ hash, len: 0n, remainder: empty }` initial state are spelled. `H` is
+ * the hash value's shape (`V8`, `V5`).
+ * @throws unless `0n < hashLength && hashLength <= init.digestLength` — a
+ *   caller error no data can cause.
+ */
+export const framed: <H>(init: FramingInit<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>
+/** The bigint the words spell, most significant first, each `wordLength` bits wide; `[]` is `0n`. */
+export const fromWords: (wordLength: bigint) => (words: readonly bigint[]) => bigint
+export const ch: (x: bigint, y: bigint, z: bigint) => bigint
+export const maj: (x: bigint, y: bigint, z: bigint) => bigint
+```
+
+`framed` takes the **`FramingInit<H>`** — the same record `framing`
+takes — plus the initial words and the `hashLength` that `end` is
+closed over, and calls `framing(init)` itself; the state it returns is
+`Framed<H>` and its `R` is the default `Vec`. That is what makes the
+block length coupled **by construction and not by field**: the width
+`framed` advertises as `blockLength`/`blockBytes` is `init.chunkLength`,
+and the `append`/`end` it uses were built from that same `init`, so no
+caller can pair 1024-bit metadata with 512-bit closures — there is no
+value in which the two exist separately. A structural
+`Framing<H> & { chunkLength }` was tried and does not give this: a
+caller can write `{ ...framing(init512), chunkLength: 1024n }` and the
+type is satisfied, which would have had `hmac` pad keys to a width the
+framing never used. `Framing<H>` is therefore **left as it is** — no new
+member, no break. `framed` is exactly the private `sha2` factory with
+`framing` folded in and `V8` generalized to `H`; `sha2`'s `base` keeps
+its `FramingInit<V8>` as a module-scope value beside the exported
+record, and each variant is `framed(init32, hash, hashLength)` — a
+framing built per variant rather than per width, six closures instead
+of two, which is simplicity over an optimization nothing measured.
+
+`hashLength` is **asserted against the init** before anything is built:
+`0n < hashLength && hashLength <= init.digestLength`. The digest `end`
+answers is the high `hashLength` bits of a `digestLength`-bit value, so
+a `hashLength` past the digest has no bits to answer with — today's
+`end` would compute a negative offset, which JavaScript's `>>` turns
+into a left shift, and hand back a "300-bit" SHA-256 padded with zeros
+that `hmac` would then accept as a hash. Every real variant satisfies
+the bound (`sha224` is 224 of 256, `sha512x224` is 224 of 512, `sha1` is
+160 of 160), no data can violate it, and a violation is a panic, not a
+plausible wrong digest. **Nothing about `Base` changes** — neither the exported type
+nor the exported values `base32`/`base64`, whose shape stays
+`{ bitLength, chunkLength, compress, fromV8, append, end }`: `fjs/sul/id`
+imports `base32` and the SHA-2 proof reads `fromV8`, `compress`, and
+`chunkLength` off both, so that shape is pinned, and this issue declares
+**no breaking change**. `Base.fromV8` is `fromWords(bitLength)` bound
+once per width, the same field with one owner behind it. `fromWords` is what
+`fromV8` and `fromV5` both are, with the width as a parameter, so
+`sha2`'s `fromV8` becomes `fromWords(bitLength)` and `sha1`'s `fromV5`
+becomes `fromWords(wordLength)`. `ch`/`maj` keep their three-argument
+shape; `sha1` imports them instead of restating them over `b, c, d`.
+
+`fromWords` is **total over its domain, and its domain is asserted**:
+`wordLength` is positive, and every word is `0n <= word < 1n << wordLength`;
+either violated is a caller error no data can cause (the words are hash
+state, masked by `compress`), so it **throws** — `fromWords(0n)`,
+`fromWords(-8n)`, and `fromWords(8n)([0x100n, 0n])` all panic rather
+than answering the `65536n` a bare shift-or would, which two 8-bit words
+cannot spell. Within the domain the fold is seeded with `0n`, so
+`fromWords(w)([])` is `0n` — the number an empty run of words spells, and
+the identity of the shift-or fold, the same way an empty `listToVec` is
+`empty`. Today's `fromV8`/`fromV5` call `reduce` with no seed and would
+throw on `[]`, but that case is unreachable through them (their inputs are
+the fixed-length `V8`/`V5` tuples), so no live path changes; the seeded
+form is chosen because a public function over `readonly bigint[]` must
+answer for every value of that type, and `0n` is the answer that needs no
+special case. The proof pins `fromWords(32n)([]) === 0n` alongside the
+`V5`/`V8` rows. A sparse array is not among the cases: FunctionalScript
+has no elision (`spec/README.md`, "an array has no holes"), so
+`readonly bigint[]` names dense arrays, and a module is proven against
+the values the subset can build, not against what an arbitrary
+JavaScript caller might hand it (`fjs/AGENTS.md`, "not a back door"). `sha1` then builds its record as
+`framed({ chunkLength, lengthLength, digestLength: hashLength, compress,
+digest: fromWords(wordLength) }, [0x67452301n, …], hashLength)` instead
+of writing the literal — importing `framed` in place of `framing`, the
+block length stated once, in the init, and nowhere else.
+
+### Tasks
+
+- [ ] Export `framed`, `fromWords`, `ch`, `maj` from
+      `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
+      through them; pin `fromWords`'s empty case at `0n` and its
+      out-of-range word and non-positive width as panics; pin
+      `framed`'s `hashLength` bound (`0n` and `digestLength + 1n` panic,
+      `digestLength` passes); `Base`, `base32`,
+      `base64`, and `Framing<H>` keep their exact shape and the SHA-2
+      proof's field reads pass unchanged — no `Changelog:` entry.
+- [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
+      unchanged.
+- [ ] `tsc`, `fjs test`.
+
+### Related
+
+- [sha1.md](./sha1.md) — asked for "the shape of `sha2`" when `sha1` was
+  written; this issue shares the constructor of that shape.
+- [../../sul/todo/186-sul-id-reuse-sha2-fromv8.md](../../sul/todo/186-sul-id-reuse-sha2-fromv8.md)
+  — a third would-be consumer of `fromWords`.
