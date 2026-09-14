@@ -1,0 +1,2954 @@
+{
+  "version": 3,
+  "node": "v24.19.0",
+  "sulCommit": "d16a9ebf39b30a42e1b795bc329774d867196841",
+  "order": "first occurrence",
+  "variants": [
+    "native bit SUL (previous run)",
+    "raw-bit SUL control",
+    "raw-byte SUL experiment"
+  ],
+  "arithmetic": "unchanged adaptive binary coder and contexts from ordered experiment",
+  "fixtures": [
+    {
+      "name": "source_code",
+      "description": "First 64 KiB of sorted concatenated vendored FunctionalScript modules, including proofs.",
+      "inputBytes": 65536,
+      "sha256": "dfe1737c7cb30f0b568909e9437548e20bad6d83a1c2dca5f6802501a8c209da",
+      "nativeBitFlatBytes": 44679,
+      "nativeBitRecursiveBytes": 44254,
+      "previousHybridBytes": 43540,
+      "arithmeticOnlyBytes": 46738,
+      "gzip9Bytes": 19231,
+      "brotli11Bytes": 15869,
+      "zstd19Bytes": 17963,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 1174.808534,
+        "paddedBits": 538549,
+        "paddingSymbols": 14261,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 538549,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 241055,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 101351,
+            "unique": 115
+          },
+          {
+            "level": 3,
+            "symbols": 39888,
+            "unique": 4218
+          },
+          {
+            "level": 4,
+            "symbols": 16333,
+            "unique": 6319
+          },
+          {
+            "level": 5,
+            "symbols": 6490,
+            "unique": 3951
+          },
+          {
+            "level": 6,
+            "symbols": 2478,
+            "unique": 2028
+          },
+          {
+            "level": 7,
+            "symbols": 955,
+            "unique": 821
+          },
+          {
+            "level": 8,
+            "symbols": 367,
+            "unique": 309
+          },
+          {
+            "level": 9,
+            "symbols": 139,
+            "unique": 113
+          },
+          {
+            "level": 10,
+            "symbols": 53,
+            "unique": 41
+          },
+          {
+            "level": 11,
+            "symbols": 21,
+            "unique": 16
+          },
+          {
+            "level": 12,
+            "symbols": 8,
+            "unique": 7
+          },
+          {
+            "level": 13,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 14,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 44193,
+        "hierarchicalBytes": 44193,
+        "encodeMs": 702.684403,
+        "decodeMs": 36.56115,
+        "states": 1,
+        "layers": [
+          {
+            "level": 4,
+            "symbols": 16333,
+            "entries": 6319,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 17176,
+            "dictionaryBits": 269287,
+            "dictionaryBytes": 27003
+          }
+        ],
+        "literalBits": 269287,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 26
+      },
+      "rawBitRecursive": {
+        "bytes": 43862,
+        "hierarchicalBytes": 43862,
+        "encodeMs": 2662.2628010000003,
+        "decodeMs": 41.0647170000002,
+        "states": 14,
+        "layers": [
+          {
+            "level": 10,
+            "symbols": 53,
+            "entries": 41,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 96,
+            "dictionaryBits": 526261,
+            "dictionaryBytes": 43752
+          },
+          {
+            "level": 4,
+            "symbols": 15565,
+            "entries": 6319,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 16749,
+            "dictionaryBits": 269287,
+            "dictionaryBytes": 27003
+          }
+        ],
+        "literalBits": 269287,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 182
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 345.2192890000006,
+        "paddedBits": 552632,
+        "paddingSymbols": 3543,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 69079,
+            "unique": 106
+          },
+          {
+            "level": 1,
+            "symbols": 26592,
+            "unique": 3849
+          },
+          {
+            "level": 2,
+            "symbols": 10614,
+            "unique": 5138
+          },
+          {
+            "level": 3,
+            "symbols": 4212,
+            "unique": 3023
+          },
+          {
+            "level": 4,
+            "symbols": 1670,
+            "unique": 1390
+          },
+          {
+            "level": 5,
+            "symbols": 644,
+            "unique": 529
+          },
+          {
+            "level": 6,
+            "symbols": 252,
+            "unique": 199
+          },
+          {
+            "level": 7,
+            "symbols": 98,
+            "unique": 72
+          },
+          {
+            "level": 8,
+            "symbols": 39,
+            "unique": 27
+          },
+          {
+            "level": 9,
+            "symbols": 16,
+            "unique": 11
+          },
+          {
+            "level": 10,
+            "symbols": 7,
+            "unique": 5
+          },
+          {
+            "level": 11,
+            "symbols": 3,
+            "unique": 3
+          },
+          {
+            "level": 12,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 38448,
+        "hierarchicalBytes": 38448,
+        "encodeMs": 509.39876000000004,
+        "decodeMs": 25.44062699999995,
+        "states": 1,
+        "layers": [
+          {
+            "level": 1,
+            "symbols": 26592,
+            "entries": 3849,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 27778,
+            "dictionaryBits": 102456,
+            "dictionaryBytes": 10656
+          }
+        ],
+        "literalBits": 102456,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 22
+      },
+      "rawByteRecursive": {
+        "bytes": 35024,
+        "hierarchicalBytes": 35024,
+        "encodeMs": 1050.6734569999999,
+        "decodeMs": 17.841515000000072,
+        "states": 12,
+        "layers": [
+          {
+            "level": 8,
+            "symbols": 39,
+            "entries": 27,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 66,
+            "dictionaryBits": 528056,
+            "dictionaryBytes": 34944
+          },
+          {
+            "level": 2,
+            "symbols": 9846,
+            "entries": 5138,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 9702,
+            "dictionaryBits": 320976,
+            "dictionaryBytes": 25242
+          },
+          {
+            "level": 1,
+            "symbols": 14418,
+            "entries": 3849,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 16105,
+            "dictionaryBits": 102456,
+            "dictionaryBytes": 9137
+          },
+          {
+            "level": 0,
+            "symbols": 12807,
+            "entries": 106,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 9028,
+            "dictionaryBits": 848,
+            "dictionaryBytes": 109
+          }
+        ],
+        "literalBits": 848,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 132
+      },
+      "totalMs": 6580.079129
+    },
+    {
+      "name": "json_records",
+      "description": "640 generated JSON records with changing numeric fields.",
+      "inputBytes": 59164,
+      "sha256": "1a97cee0f7a61547e6a19427fafcac77f3fb5a49af6efcd0a73e860be2b586b3",
+      "nativeBitFlatBytes": 16636,
+      "nativeBitRecursiveBytes": 14726,
+      "previousHybridBytes": 15498,
+      "arithmeticOnlyBytes": 31432,
+      "gzip9Bytes": 5835,
+      "brotli11Bytes": 3175,
+      "zstd19Bytes": 4109,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 932.5299349999996,
+        "paddedBits": 483573,
+        "paddingSymbols": 10261,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 483573,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 214383,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 81096,
+            "unique": 72
+          },
+          {
+            "level": 3,
+            "symbols": 31375,
+            "unique": 810
+          },
+          {
+            "level": 4,
+            "symbols": 12706,
+            "unique": 1898
+          },
+          {
+            "level": 5,
+            "symbols": 4408,
+            "unique": 1853
+          },
+          {
+            "level": 6,
+            "symbols": 1662,
+            "unique": 1315
+          },
+          {
+            "level": 7,
+            "symbols": 613,
+            "unique": 534
+          },
+          {
+            "level": 8,
+            "symbols": 239,
+            "unique": 201
+          },
+          {
+            "level": 9,
+            "symbols": 90,
+            "unique": 72
+          },
+          {
+            "level": 10,
+            "symbols": 36,
+            "unique": 28
+          },
+          {
+            "level": 11,
+            "symbols": 14,
+            "unique": 11
+          },
+          {
+            "level": 12,
+            "symbols": 5,
+            "unique": 4
+          },
+          {
+            "level": 13,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 14,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 17060,
+        "hierarchicalBytes": 17060,
+        "encodeMs": 419.54429400000026,
+        "decodeMs": 9.544815000000199,
+        "states": 1,
+        "layers": [
+          {
+            "level": 4,
+            "symbols": 12706,
+            "entries": 1898,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 10172,
+            "dictionaryBits": 94010,
+            "dictionaryBytes": 6874
+          }
+        ],
+        "literalBits": 94010,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 26
+      },
+      "rawBitRecursive": {
+        "bytes": 15664,
+        "hierarchicalBytes": 15664,
+        "encodeMs": 1982.5699640000012,
+        "decodeMs": 14.561094999999113,
+        "states": 14,
+        "layers": [
+          {
+            "level": 10,
+            "symbols": 36,
+            "entries": 28,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 70,
+            "dictionaryBits": 475381,
+            "dictionaryBytes": 15580
+          },
+          {
+            "level": 5,
+            "symbols": 4152,
+            "entries": 1853,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 3553,
+            "dictionaryBits": 239305,
+            "dictionaryBytes": 12027
+          },
+          {
+            "level": 4,
+            "symbols": 6079,
+            "entries": 1898,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 5153,
+            "dictionaryBits": 94010,
+            "dictionaryBytes": 6874
+          }
+        ],
+        "literalBits": 94010,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 182
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 354.7059900000004,
+        "paddedBits": 523400,
+        "paddingSymbols": 6261,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 65425,
+            "unique": 34
+          },
+          {
+            "level": 1,
+            "symbols": 24772,
+            "unique": 603
+          },
+          {
+            "level": 2,
+            "symbols": 9546,
+            "unique": 1954
+          },
+          {
+            "level": 3,
+            "symbols": 3615,
+            "unique": 1618
+          },
+          {
+            "level": 4,
+            "symbols": 1484,
+            "unique": 1071
+          },
+          {
+            "level": 5,
+            "symbols": 605,
+            "unique": 412
+          },
+          {
+            "level": 6,
+            "symbols": 246,
+            "unique": 150
+          },
+          {
+            "level": 7,
+            "symbols": 103,
+            "unique": 56
+          },
+          {
+            "level": 8,
+            "symbols": 46,
+            "unique": 23
+          },
+          {
+            "level": 9,
+            "symbols": 21,
+            "unique": 10
+          },
+          {
+            "level": 10,
+            "symbols": 9,
+            "unique": 5
+          },
+          {
+            "level": 11,
+            "symbols": 4,
+            "unique": 3
+          },
+          {
+            "level": 12,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 14354,
+        "hierarchicalBytes": 14354,
+        "encodeMs": 365.76257499999883,
+        "decodeMs": 9.564524999999776,
+        "states": 1,
+        "layers": [
+          {
+            "level": 2,
+            "symbols": 9546,
+            "entries": 1954,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 6630,
+            "dictionaryBits": 123192,
+            "dictionaryBytes": 7710
+          }
+        ],
+        "literalBits": 123192,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 24
+      },
+      "rawByteRecursive": {
+        "bytes": 11536,
+        "hierarchicalBytes": 11536,
+        "encodeMs": 783.6572860000015,
+        "decodeMs": 9.601230000000214,
+        "states": 13,
+        "layers": [
+          {
+            "level": 9,
+            "symbols": 21,
+            "entries": 10,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 34,
+            "dictionaryBits": 478344,
+            "dictionaryBytes": 11488
+          },
+          {
+            "level": 3,
+            "symbols": 2911,
+            "entries": 1618,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 2588,
+            "dictionaryBits": 271856,
+            "dictionaryBytes": 8900
+          },
+          {
+            "level": 2,
+            "symbols": 4680,
+            "entries": 1954,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 3449,
+            "dictionaryBits": 123192,
+            "dictionaryBytes": 5451
+          },
+          {
+            "level": 1,
+            "symbols": 5022,
+            "entries": 603,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 4299,
+            "dictionaryBits": 18432,
+            "dictionaryBytes": 1152
+          }
+        ],
+        "literalBits": 18432,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 156
+      },
+      "totalMs": 4892.424717
+    },
+    {
+      "name": "repeated_phrase",
+      "description": "One 108-byte phrase repeated and truncated.",
+      "inputBytes": 65536,
+      "sha256": "be9755e4a7f57054b99f3584c4b39a41c00ac7dd1bffd8982c1742b38f17eb25",
+      "nativeBitFlatBytes": 319,
+      "nativeBitRecursiveBytes": 186,
+      "previousHybridBytes": 187,
+      "arithmeticOnlyBytes": 33626,
+      "gzip9Bytes": 348,
+      "brotli11Bytes": 81,
+      "zstd19Bytes": 99,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 1362.3523190000014,
+        "paddedBits": 665253,
+        "paddingSymbols": 140965,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 665253,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 298641,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 125046,
+            "unique": 46
+          },
+          {
+            "level": 3,
+            "symbols": 50386,
+            "unique": 52
+          },
+          {
+            "level": 4,
+            "symbols": 21551,
+            "unique": 25
+          },
+          {
+            "level": 5,
+            "symbols": 9258,
+            "unique": 11
+          },
+          {
+            "level": 6,
+            "symbols": 4022,
+            "unique": 6
+          },
+          {
+            "level": 7,
+            "symbols": 1707,
+            "unique": 4
+          },
+          {
+            "level": 8,
+            "symbols": 853,
+            "unique": 4
+          },
+          {
+            "level": 9,
+            "symbols": 426,
+            "unique": 4
+          },
+          {
+            "level": 10,
+            "symbols": 213,
+            "unique": 4
+          },
+          {
+            "level": 11,
+            "symbols": 106,
+            "unique": 4
+          },
+          {
+            "level": 12,
+            "symbols": 52,
+            "unique": 4
+          },
+          {
+            "level": 13,
+            "symbols": 25,
+            "unique": 4
+          },
+          {
+            "level": 14,
+            "symbols": 12,
+            "unique": 4
+          },
+          {
+            "level": 15,
+            "symbols": 6,
+            "unique": 4
+          },
+          {
+            "level": 16,
+            "symbols": 3,
+            "unique": 3
+          },
+          {
+            "level": 17,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 253,
+        "hierarchicalBytes": 253,
+        "encodeMs": 378.1024639999996,
+        "decodeMs": 0.7317240000011225,
+        "states": 1,
+        "layers": [
+          {
+            "level": 7,
+            "symbols": 1707,
+            "entries": 4,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 21,
+            "dictionaryBits": 2725,
+            "dictionaryBytes": 218
+          }
+        ],
+        "literalBits": 2725,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 32
+      },
+      "rawBitRecursive": {
+        "bytes": 184,
+        "hierarchicalBytes": 184,
+        "encodeMs": 1040.2339520000005,
+        "decodeMs": 0.8685210000003281,
+        "states": 17,
+        "layers": [
+          {
+            "level": 7,
+            "symbols": 1707,
+            "entries": 4,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 21,
+            "dictionaryBits": 2725,
+            "dictionaryBytes": 149
+          },
+          {
+            "level": 5,
+            "symbols": 30,
+            "entries": 11,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 31,
+            "dictionaryBits": 1189,
+            "dictionaryBytes": 118
+          }
+        ],
+        "literalBits": 1189,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 272
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 241.8776229999985,
+        "paddedBits": 554104,
+        "paddingSymbols": 3727,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 69263,
+            "unique": 28
+          },
+          {
+            "level": 1,
+            "symbols": 24315,
+            "unique": 41
+          },
+          {
+            "level": 2,
+            "symbols": 8821,
+            "unique": 18
+          },
+          {
+            "level": 3,
+            "symbols": 2893,
+            "unique": 8
+          },
+          {
+            "level": 4,
+            "symbols": 840,
+            "unique": 5
+          },
+          {
+            "level": 5,
+            "symbols": 419,
+            "unique": 4
+          },
+          {
+            "level": 6,
+            "symbols": 209,
+            "unique": 4
+          },
+          {
+            "level": 7,
+            "symbols": 104,
+            "unique": 4
+          },
+          {
+            "level": 8,
+            "symbols": 52,
+            "unique": 4
+          },
+          {
+            "level": 9,
+            "symbols": 25,
+            "unique": 4
+          },
+          {
+            "level": 10,
+            "symbols": 12,
+            "unique": 4
+          },
+          {
+            "level": 11,
+            "symbols": 6,
+            "unique": 4
+          },
+          {
+            "level": 12,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 13,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 255,
+        "hierarchicalBytes": 255,
+        "encodeMs": 128.69155200000023,
+        "decodeMs": 0.5602050000015879,
+        "states": 1,
+        "layers": [
+          {
+            "level": 4,
+            "symbols": 840,
+            "entries": 5,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 23,
+            "dictionaryBits": 2680,
+            "dictionaryBytes": 218
+          }
+        ],
+        "literalBits": 2680,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 24
+      },
+      "rawByteRecursive": {
+        "bytes": 188,
+        "hierarchicalBytes": 188,
+        "encodeMs": 189.65214300000116,
+        "decodeMs": 0.7527460000001156,
+        "states": 13,
+        "layers": [
+          {
+            "level": 4,
+            "symbols": 840,
+            "entries": 5,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 23,
+            "dictionaryBits": 2680,
+            "dictionaryBytes": 151
+          },
+          {
+            "level": 2,
+            "symbols": 45,
+            "entries": 18,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 40,
+            "dictionaryBits": 1120,
+            "dictionaryBytes": 111
+          }
+        ],
+        "literalBits": 1120,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 156
+      },
+      "totalMs": 3354.6775799999996
+    },
+    {
+      "name": "repeated_random_block",
+      "description": "A generated 4 KiB pseudorandom block repeated 32 times.",
+      "inputBytes": 131072,
+      "sha256": "760f0851d6cf9639179b915fde00a3b296af6aa649339a2185e967f61b4ab48b",
+      "nativeBitFlatBytes": 5126,
+      "nativeBitRecursiveBytes": 4431,
+      "previousHybridBytes": 4246,
+      "arithmeticOnlyBytes": 130601,
+      "gzip9Bytes": 5127,
+      "brotli11Bytes": 4131,
+      "zstd19Bytes": 4121,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 2124.7356360000013,
+        "paddedBits": 1109415,
+        "paddingSymbols": 60839,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 1109415,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 496595,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 203273,
+            "unique": 117
+          },
+          {
+            "level": 3,
+            "symbols": 78740,
+            "unique": 1648
+          },
+          {
+            "level": 4,
+            "symbols": 30233,
+            "unique": 829
+          },
+          {
+            "level": 5,
+            "symbols": 11564,
+            "unique": 305
+          },
+          {
+            "level": 6,
+            "symbols": 4278,
+            "unique": 107
+          },
+          {
+            "level": 7,
+            "symbols": 1786,
+            "unique": 45
+          },
+          {
+            "level": 8,
+            "symbols": 747,
+            "unique": 20
+          },
+          {
+            "level": 9,
+            "symbols": 277,
+            "unique": 8
+          },
+          {
+            "level": 10,
+            "symbols": 122,
+            "unique": 5
+          },
+          {
+            "level": 11,
+            "symbols": 60,
+            "unique": 4
+          },
+          {
+            "level": 12,
+            "symbols": 30,
+            "unique": 4
+          },
+          {
+            "level": 13,
+            "symbols": 15,
+            "unique": 4
+          },
+          {
+            "level": 14,
+            "symbols": 7,
+            "unique": 4
+          },
+          {
+            "level": 15,
+            "symbols": 3,
+            "unique": 3
+          },
+          {
+            "level": 16,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 5242,
+        "hierarchicalBytes": 5242,
+        "encodeMs": 709.1874289999978,
+        "decodeMs": 1.1333100000010745,
+        "states": 1,
+        "layers": [
+          {
+            "level": 8,
+            "symbols": 747,
+            "entries": 20,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 397,
+            "dictionaryBits": 38612,
+            "dictionaryBytes": 4831
+          }
+        ],
+        "literalBits": 38612,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 30
+      },
+      "rawBitRecursive": {
+        "bytes": 4426,
+        "hierarchicalBytes": 4426,
+        "encodeMs": 1534.1966949999987,
+        "decodeMs": 1.2517789999983506,
+        "states": 16,
+        "layers": [
+          {
+            "level": 11,
+            "symbols": 60,
+            "entries": 4,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 20,
+            "dictionaryBits": 103847,
+            "dictionaryBytes": 4392
+          },
+          {
+            "level": 9,
+            "symbols": 24,
+            "entries": 8,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 32,
+            "dictionaryBits": 44949,
+            "dictionaryBytes": 4360
+          },
+          {
+            "level": 6,
+            "symbols": 161,
+            "entries": 107,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 188,
+            "dictionaryBits": 33340,
+            "dictionaryBytes": 4172
+          }
+        ],
+        "literalBits": 33340,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 240
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 570.7783190000009,
+        "paddedBits": 1157608,
+        "paddingSymbols": 13629,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 144701,
+            "unique": 256
+          },
+          {
+            "level": 1,
+            "symbols": 55550,
+            "unique": 1515
+          },
+          {
+            "level": 2,
+            "symbols": 21358,
+            "unique": 564
+          },
+          {
+            "level": 3,
+            "symbols": 8390,
+            "unique": 212
+          },
+          {
+            "level": 4,
+            "symbols": 3346,
+            "unique": 81
+          },
+          {
+            "level": 5,
+            "symbols": 1320,
+            "unique": 31
+          },
+          {
+            "level": 6,
+            "symbols": 532,
+            "unique": 13
+          },
+          {
+            "level": 7,
+            "symbols": 266,
+            "unique": 8
+          },
+          {
+            "level": 8,
+            "symbols": 117,
+            "unique": 5
+          },
+          {
+            "level": 9,
+            "symbols": 58,
+            "unique": 4
+          },
+          {
+            "level": 10,
+            "symbols": 29,
+            "unique": 4
+          },
+          {
+            "level": 11,
+            "symbols": 14,
+            "unique": 4
+          },
+          {
+            "level": 12,
+            "symbols": 6,
+            "unique": 4
+          },
+          {
+            "level": 13,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 14,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 4768,
+        "hierarchicalBytes": 4768,
+        "encodeMs": 423.0979980000011,
+        "decodeMs": 4.734195000000909,
+        "states": 1,
+        "layers": [
+          {
+            "level": 6,
+            "symbols": 532,
+            "entries": 13,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 242,
+            "dictionaryBits": 36656,
+            "dictionaryBytes": 4512
+          }
+        ],
+        "literalBits": 36656,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 26
+      },
+      "rawByteRecursive": {
+        "bytes": 4441,
+        "hierarchicalBytes": 4441,
+        "encodeMs": 657.8728790000023,
+        "decodeMs": 1.1476320000001579,
+        "states": 14,
+        "layers": [
+          {
+            "level": 9,
+            "symbols": 58,
+            "entries": 4,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 20,
+            "dictionaryBits": 104936,
+            "dictionaryBytes": 4407
+          },
+          {
+            "level": 7,
+            "symbols": 21,
+            "entries": 8,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 30,
+            "dictionaryBits": 41776,
+            "dictionaryBytes": 4377
+          },
+          {
+            "level": 4,
+            "symbols": 113,
+            "entries": 81,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 123,
+            "dictionaryBits": 34000,
+            "dictionaryBytes": 4254
+          }
+        ],
+        "literalBits": 34000,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 182
+      },
+      "totalMs": 6044.296692999998
+    },
+    {
+      "name": "edited_versions",
+      "description": "32 versions of that 4 KiB block; each has one independent byte substitution.",
+      "inputBytes": 131072,
+      "sha256": "76752d7b003fe830884b570d243bd0de03a75b107061e8b99c78bfb31327eb26",
+      "nativeBitFlatBytes": 9231,
+      "nativeBitRecursiveBytes": 6023,
+      "previousHybridBytes": 5583,
+      "arithmeticOnlyBytes": 130602,
+      "gzip9Bytes": 5255,
+      "brotli11Bytes": 4325,
+      "zstd19Bytes": 4270,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 2017.5187430000005,
+        "paddedBits": 1069991,
+        "paddingSymbols": 21415,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 1069991,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 476885,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 193421,
+            "unique": 117
+          },
+          {
+            "level": 3,
+            "symbols": 73811,
+            "unique": 1689
+          },
+          {
+            "level": 4,
+            "symbols": 27766,
+            "unique": 884
+          },
+          {
+            "level": 5,
+            "symbols": 10328,
+            "unique": 347
+          },
+          {
+            "level": 6,
+            "symbols": 3664,
+            "unique": 149
+          },
+          {
+            "level": 7,
+            "symbols": 1475,
+            "unique": 85
+          },
+          {
+            "level": 8,
+            "symbols": 587,
+            "unique": 63
+          },
+          {
+            "level": 9,
+            "symbols": 200,
+            "unique": 49
+          },
+          {
+            "level": 10,
+            "symbols": 79,
+            "unique": 41
+          },
+          {
+            "level": 11,
+            "symbols": 34,
+            "unique": 25
+          },
+          {
+            "level": 12,
+            "symbols": 15,
+            "unique": 12
+          },
+          {
+            "level": 13,
+            "symbols": 5,
+            "unique": 5
+          },
+          {
+            "level": 14,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 15,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 9338,
+        "hierarchicalBytes": 9338,
+        "encodeMs": 773.0244160000002,
+        "decodeMs": 2.461714999997639,
+        "states": 1,
+        "layers": [
+          {
+            "level": 6,
+            "symbols": 3664,
+            "entries": 149,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 3325,
+            "dictionaryBits": 47959,
+            "dictionaryBytes": 5999
+          }
+        ],
+        "literalBits": 47959,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 26
+      },
+      "rawBitRecursive": {
+        "bytes": 6153,
+        "hierarchicalBytes": 6153,
+        "encodeMs": 2301.898860999998,
+        "decodeMs": 2.031706000001577,
+        "states": 14,
+        "layers": [
+          {
+            "level": 9,
+            "symbols": 200,
+            "entries": 49,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 187,
+            "dictionaryBits": 320815,
+            "dictionaryBytes": 5952
+          },
+          {
+            "level": 7,
+            "symbols": 401,
+            "entries": 85,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 377,
+            "dictionaryBits": 72475,
+            "dictionaryBytes": 5575
+          },
+          {
+            "level": 6,
+            "symbols": 232,
+            "entries": 149,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 286,
+            "dictionaryBits": 47959,
+            "dictionaryBytes": 5289
+          },
+          {
+            "level": 5,
+            "symbols": 436,
+            "entries": 347,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 484,
+            "dictionaryBits": 38404,
+            "dictionaryBytes": 4805
+          }
+        ],
+        "literalBits": 38404,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 182
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 499.69297500000175,
+        "paddedBits": 1095144,
+        "paddingSymbols": 5821,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 136893,
+            "unique": 256
+          },
+          {
+            "level": 1,
+            "symbols": 51646,
+            "unique": 1546
+          },
+          {
+            "level": 2,
+            "symbols": 19406,
+            "unique": 596
+          },
+          {
+            "level": 3,
+            "symbols": 7414,
+            "unique": 244
+          },
+          {
+            "level": 4,
+            "symbols": 2859,
+            "unique": 113
+          },
+          {
+            "level": 5,
+            "symbols": 1077,
+            "unique": 68
+          },
+          {
+            "level": 6,
+            "symbols": 414,
+            "unique": 55
+          },
+          {
+            "level": 7,
+            "symbols": 190,
+            "unique": 47
+          },
+          {
+            "level": 8,
+            "symbols": 76,
+            "unique": 42
+          },
+          {
+            "level": 9,
+            "symbols": 32,
+            "unique": 22
+          },
+          {
+            "level": 10,
+            "symbols": 14,
+            "unique": 10
+          },
+          {
+            "level": 11,
+            "symbols": 6,
+            "unique": 5
+          },
+          {
+            "level": 12,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 13,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 8375,
+        "hierarchicalBytes": 8375,
+        "encodeMs": 602.6937109999999,
+        "decodeMs": 3.2394289999974717,
+        "states": 1,
+        "layers": [
+          {
+            "level": 4,
+            "symbols": 2859,
+            "entries": 113,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 2319,
+            "dictionaryBits": 48304,
+            "dictionaryBytes": 6042
+          }
+        ],
+        "literalBits": 48304,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 24
+      },
+      "rawByteRecursive": {
+        "bytes": 5789,
+        "hierarchicalBytes": 5789,
+        "encodeMs": 1225.3810720000001,
+        "decodeMs": 1.913237000000663,
+        "states": 13,
+        "layers": [
+          {
+            "level": 7,
+            "symbols": 190,
+            "entries": 47,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 171,
+            "dictionaryBits": 369496,
+            "dictionaryBytes": 5604
+          },
+          {
+            "level": 5,
+            "symbols": 325,
+            "entries": 68,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 299,
+            "dictionaryBits": 82608,
+            "dictionaryBytes": 5305
+          },
+          {
+            "level": 4,
+            "symbols": 199,
+            "entries": 113,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 227,
+            "dictionaryBits": 48304,
+            "dictionaryBytes": 5078
+          },
+          {
+            "level": 2,
+            "symbols": 824,
+            "entries": 596,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 725,
+            "dictionaryBits": 34792,
+            "dictionaryBytes": 4353
+          }
+        ],
+        "literalBits": 34792,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 156
+      },
+      "totalMs": 7446.005129000001
+    },
+    {
+      "name": "recursive_sequence",
+      "description": "16 Thue-Morse expansion rounds, stored as ASCII 0/1.",
+      "inputBytes": 65536,
+      "sha256": "4f9a6fea70121fad9f397d1bb3341647b712190c0f72b01c909b6dca45de2dc6",
+      "nativeBitFlatBytes": 366,
+      "nativeBitRecursiveBytes": 187,
+      "previousHybridBytes": 158,
+      "arithmeticOnlyBytes": 7568,
+      "gzip9Bytes": 435,
+      "brotli11Bytes": 103,
+      "zstd19Bytes": 153,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 1069.0750079999998,
+        "paddedBits": 539047,
+        "paddingSymbols": 14759,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 539047,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 269523,
+            "unique": 4
+          },
+          {
+            "level": 2,
+            "symbols": 134761,
+            "unique": 4
+          },
+          {
+            "level": 3,
+            "symbols": 67380,
+            "unique": 5
+          },
+          {
+            "level": 4,
+            "symbols": 28229,
+            "unique": 8
+          },
+          {
+            "level": 5,
+            "symbols": 8653,
+            "unique": 8
+          },
+          {
+            "level": 6,
+            "symbols": 2961,
+            "unique": 9
+          },
+          {
+            "level": 7,
+            "symbols": 1139,
+            "unique": 9
+          },
+          {
+            "level": 8,
+            "symbols": 398,
+            "unique": 9
+          },
+          {
+            "level": 9,
+            "symbols": 156,
+            "unique": 11
+          },
+          {
+            "level": 10,
+            "symbols": 57,
+            "unique": 8
+          },
+          {
+            "level": 11,
+            "symbols": 22,
+            "unique": 8
+          },
+          {
+            "level": 12,
+            "symbols": 9,
+            "unique": 7
+          },
+          {
+            "level": 13,
+            "symbols": 4,
+            "unique": 4
+          },
+          {
+            "level": 14,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 15,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 360,
+        "hierarchicalBytes": 360,
+        "encodeMs": 228.08861700000125,
+        "decodeMs": 4.211645999999746,
+        "states": 1,
+        "layers": [
+          {
+            "level": 8,
+            "symbols": 398,
+            "entries": 9,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 152,
+            "dictionaryBits": 12383,
+            "dictionaryBytes": 194
+          }
+        ],
+        "literalBits": 12383,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 26
+      },
+      "rawBitRecursive": {
+        "bytes": 185,
+        "hierarchicalBytes": 185,
+        "encodeMs": 510.3730829999986,
+        "decodeMs": 0.50682500000039,
+        "states": 14,
+        "layers": [
+          {
+            "level": 10,
+            "symbols": 57,
+            "entries": 8,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 42,
+            "dictionaryBits": 83367,
+            "dictionaryBytes": 129
+          },
+          {
+            "level": 8,
+            "symbols": 58,
+            "entries": 9,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 44,
+            "dictionaryBits": 12383,
+            "dictionaryBytes": 85
+          },
+          {
+            "level": 6,
+            "symbols": 71,
+            "entries": 9,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 44,
+            "dictionaryBits": 1599,
+            "dictionaryBytes": 41
+          }
+        ],
+        "literalBits": 1599,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 182
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 229.91783700000087,
+        "paddedBits": 545448,
+        "paddingSymbols": 2645,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 68181,
+            "unique": 4
+          },
+          {
+            "level": 1,
+            "symbols": 28629,
+            "unique": 7
+          },
+          {
+            "level": 2,
+            "symbols": 8854,
+            "unique": 9
+          },
+          {
+            "level": 3,
+            "symbols": 3062,
+            "unique": 11
+          },
+          {
+            "level": 4,
+            "symbols": 1189,
+            "unique": 11
+          },
+          {
+            "level": 5,
+            "symbols": 509,
+            "unique": 10
+          },
+          {
+            "level": 6,
+            "symbols": 212,
+            "unique": 11
+          },
+          {
+            "level": 7,
+            "symbols": 85,
+            "unique": 12
+          },
+          {
+            "level": 8,
+            "symbols": 31,
+            "unique": 7
+          },
+          {
+            "level": 9,
+            "symbols": 12,
+            "unique": 8
+          },
+          {
+            "level": 10,
+            "symbols": 6,
+            "unique": 5
+          },
+          {
+            "level": 11,
+            "symbols": 3,
+            "unique": 3
+          },
+          {
+            "level": 12,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 407,
+        "hierarchicalBytes": 407,
+        "encodeMs": 94.11861099999805,
+        "decodeMs": 0.8882699999994657,
+        "states": 1,
+        "layers": [
+          {
+            "level": 5,
+            "symbols": 509,
+            "entries": 10,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 204,
+            "dictionaryBits": 11760,
+            "dictionaryBytes": 189
+          }
+        ],
+        "literalBits": 11760,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 22
+      },
+      "rawByteRecursive": {
+        "bytes": 209,
+        "hierarchicalBytes": 209,
+        "encodeMs": 141.58097100000305,
+        "decodeMs": 0.5651829999987967,
+        "states": 12,
+        "layers": [
+          {
+            "level": 8,
+            "symbols": 31,
+            "entries": 7,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 33,
+            "dictionaryBits": 164520,
+            "dictionaryBytes": 162
+          },
+          {
+            "level": 6,
+            "symbols": 58,
+            "entries": 11,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 50,
+            "dictionaryBits": 28144,
+            "dictionaryBytes": 112
+          },
+          {
+            "level": 4,
+            "symbols": 62,
+            "entries": 11,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 48,
+            "dictionaryBits": 4872,
+            "dictionaryBytes": 64
+          },
+          {
+            "level": 2,
+            "symbols": 81,
+            "entries": 9,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 42,
+            "dictionaryBits": 504,
+            "dictionaryBytes": 22
+          }
+        ],
+        "literalBits": 504,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 132
+      },
+      "totalMs": 2290.4280050000016
+    },
+    {
+      "name": "biased_bits",
+      "description": "Generated sparse bytes: approximately 1% of bits are set.",
+      "inputBytes": 65536,
+      "sha256": "f2ec24e397f70953b3f9b80f657ee287db29fd0767b97af8efe9c6220dff1d2f",
+      "nativeBitFlatBytes": 5168,
+      "nativeBitRecursiveBytes": 5168,
+      "previousHybridBytes": 5168,
+      "arithmeticOnlyBytes": 5168,
+      "gzip9Bytes": 7040,
+      "brotli11Bytes": 6634,
+      "zstd19Bytes": 6858,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 1204.895330000003,
+        "paddedBits": 582361,
+        "paddingSymbols": 58073,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 582361,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 289911,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 143723,
+            "unique": 17
+          },
+          {
+            "level": 3,
+            "symbols": 70633,
+            "unique": 65
+          },
+          {
+            "level": 4,
+            "symbols": 34153,
+            "unique": 257
+          },
+          {
+            "level": 5,
+            "symbols": 16030,
+            "unique": 723
+          },
+          {
+            "level": 6,
+            "symbols": 7179,
+            "unique": 1326
+          },
+          {
+            "level": 7,
+            "symbols": 3012,
+            "unique": 1425
+          },
+          {
+            "level": 8,
+            "symbols": 1198,
+            "unique": 873
+          },
+          {
+            "level": 9,
+            "symbols": 468,
+            "unique": 353
+          },
+          {
+            "level": 10,
+            "symbols": 184,
+            "unique": 129
+          },
+          {
+            "level": 11,
+            "symbols": 72,
+            "unique": 45
+          },
+          {
+            "level": 12,
+            "symbols": 32,
+            "unique": 19
+          },
+          {
+            "level": 13,
+            "symbols": 14,
+            "unique": 8
+          },
+          {
+            "level": 14,
+            "symbols": 6,
+            "unique": 4
+          },
+          {
+            "level": 15,
+            "symbols": 3,
+            "unique": 3
+          },
+          {
+            "level": 16,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 5168,
+        "hierarchicalBytes": 5195,
+        "encodeMs": 396.0199539999994,
+        "decodeMs": 13.520104999999603,
+        "states": 1,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "arithmetic",
+        "container": "document",
+        "candidateCount": 30
+      },
+      "rawBitRecursive": {
+        "bytes": 5168,
+        "hierarchicalBytes": 5195,
+        "encodeMs": 2115.4918,
+        "decodeMs": 14.208023999999568,
+        "states": 16,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "arithmetic",
+        "container": "document",
+        "candidateCount": 240
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 298.4149869999965,
+        "paddedBits": 558824,
+        "paddingSymbols": 4317,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 69853,
+            "unique": 9
+          },
+          {
+            "level": 1,
+            "symbols": 33689,
+            "unique": 149
+          },
+          {
+            "level": 2,
+            "symbols": 15758,
+            "unique": 628
+          },
+          {
+            "level": 3,
+            "symbols": 7031,
+            "unique": 1285
+          },
+          {
+            "level": 4,
+            "symbols": 2923,
+            "unique": 1435
+          },
+          {
+            "level": 5,
+            "symbols": 1146,
+            "unique": 924
+          },
+          {
+            "level": 6,
+            "symbols": 446,
+            "unique": 380
+          },
+          {
+            "level": 7,
+            "symbols": 168,
+            "unique": 136
+          },
+          {
+            "level": 8,
+            "symbols": 65,
+            "unique": 50
+          },
+          {
+            "level": 9,
+            "symbols": 23,
+            "unique": 16
+          },
+          {
+            "level": 10,
+            "symbols": 9,
+            "unique": 7
+          },
+          {
+            "level": 11,
+            "symbols": 4,
+            "unique": 4
+          },
+          {
+            "level": 12,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 13,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 5168,
+        "hierarchicalBytes": 5194,
+        "encodeMs": 204.73852500000066,
+        "decodeMs": 14.51521800000046,
+        "states": 1,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "arithmetic",
+        "container": "document",
+        "candidateCount": 22
+      },
+      "rawByteRecursive": {
+        "bytes": 5168,
+        "hierarchicalBytes": 5194,
+        "encodeMs": 516.3701490000021,
+        "decodeMs": 16.032686999998987,
+        "states": 12,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "arithmetic",
+        "container": "document",
+        "candidateCount": 132
+      },
+      "totalMs": 4802.626455999998
+    },
+    {
+      "name": "uniform_random",
+      "description": "Xorshift32 pseudorandom byte stream; incompressibility control.",
+      "inputBytes": 65536,
+      "sha256": "2b96eebdee6e38b010f144a9bb72030f922b45b9a400e27a4fc4656a534b3916",
+      "nativeBitFlatBytes": 65550,
+      "nativeBitRecursiveBytes": 65550,
+      "previousHybridBytes": 65550,
+      "arithmeticOnlyBytes": 65693,
+      "gzip9Bytes": 65576,
+      "brotli11Bytes": 65540,
+      "zstd19Bytes": 65546,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 1178.7441919999983,
+        "paddedBits": 537341,
+        "paddingSymbols": 13053,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 537341,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 239627,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 97621,
+            "unique": 129
+          },
+          {
+            "level": 3,
+            "symbols": 36848,
+            "unique": 16381
+          },
+          {
+            "level": 4,
+            "symbols": 13829,
+            "unique": 13001
+          },
+          {
+            "level": 5,
+            "symbols": 5200,
+            "unique": 4795
+          },
+          {
+            "level": 6,
+            "symbols": 1944,
+            "unique": 1743
+          },
+          {
+            "level": 7,
+            "symbols": 748,
+            "unique": 649
+          },
+          {
+            "level": 8,
+            "symbols": 285,
+            "unique": 237
+          },
+          {
+            "level": 9,
+            "symbols": 116,
+            "unique": 93
+          },
+          {
+            "level": 10,
+            "symbols": 46,
+            "unique": 36
+          },
+          {
+            "level": 11,
+            "symbols": 17,
+            "unique": 13
+          },
+          {
+            "level": 12,
+            "symbols": 7,
+            "unique": 6
+          },
+          {
+            "level": 13,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 14,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 65550,
+        "hierarchicalBytes": 65891,
+        "encodeMs": 704.5012100000022,
+        "decodeMs": 7.480429999995977,
+        "states": 1,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "raw",
+        "container": "document",
+        "candidateCount": 26
+      },
+      "rawBitRecursive": {
+        "bytes": 65550,
+        "hierarchicalBytes": 65887,
+        "encodeMs": 3107.093384,
+        "decodeMs": 9.646878999999899,
+        "states": 14,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "raw",
+        "container": "document",
+        "candidateCount": 182
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 490.69150799999625,
+        "paddedBits": 554520,
+        "paddingSymbols": 3779,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 69315,
+            "unique": 256
+          },
+          {
+            "level": 1,
+            "symbols": 26078,
+            "unique": 22198
+          },
+          {
+            "level": 2,
+            "symbols": 9822,
+            "unique": 8879
+          },
+          {
+            "level": 3,
+            "symbols": 3733,
+            "unique": 3262
+          },
+          {
+            "level": 4,
+            "symbols": 1445,
+            "unique": 1210
+          },
+          {
+            "level": 5,
+            "symbols": 565,
+            "unique": 448
+          },
+          {
+            "level": 6,
+            "symbols": 222,
+            "unique": 164
+          },
+          {
+            "level": 7,
+            "symbols": 91,
+            "unique": 63
+          },
+          {
+            "level": 8,
+            "symbols": 38,
+            "unique": 25
+          },
+          {
+            "level": 9,
+            "symbols": 14,
+            "unique": 9
+          },
+          {
+            "level": 10,
+            "symbols": 6,
+            "unique": 4
+          },
+          {
+            "level": 11,
+            "symbols": 3,
+            "unique": 3
+          },
+          {
+            "level": 12,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 65550,
+        "hierarchicalBytes": 65872,
+        "encodeMs": 570.221623999998,
+        "decodeMs": 8.720311000004585,
+        "states": 1,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "raw",
+        "container": "document",
+        "candidateCount": 22
+      },
+      "rawByteRecursive": {
+        "bytes": 65550,
+        "hierarchicalBytes": 65872,
+        "encodeMs": 1337.8559079999977,
+        "decodeMs": 7.274958999994851,
+        "states": 12,
+        "layers": [],
+        "literalBits": 524288,
+        "literalMode": "raw",
+        "container": "document",
+        "candidateCount": 132
+      },
+      "totalMs": 7431.276936999995
+    },
+    {
+      "name": "repeated_sentences",
+      "description": "768 sentences drawn from 16 distinct sentences in deterministic mixed order; common phrases across sentence definitions.",
+      "inputBytes": 67872,
+      "sha256": "067b6b7037c7226884cbf80afa1fe68a2571bb1ca4bc00f23ed1fcc4b8a8e898",
+      "nativeBitFlatBytes": 1344,
+      "nativeBitRecursiveBytes": 511,
+      "previousHybridBytes": 451,
+      "arithmeticOnlyBytes": 35246,
+      "gzip9Bytes": 565,
+      "brotli11Bytes": 156,
+      "zstd19Bytes": 189,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 1050.2528759999987,
+        "paddedBits": 556541,
+        "paddingSymbols": 13565,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 556541,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 240687,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 93679,
+            "unique": 48
+          },
+          {
+            "level": 3,
+            "symbols": 34239,
+            "unique": 61
+          },
+          {
+            "level": 4,
+            "symbols": 13999,
+            "unique": 42
+          },
+          {
+            "level": 5,
+            "symbols": 5128,
+            "unique": 30
+          },
+          {
+            "level": 6,
+            "symbols": 2180,
+            "unique": 36
+          },
+          {
+            "level": 7,
+            "symbols": 802,
+            "unique": 42
+          },
+          {
+            "level": 8,
+            "symbols": 281,
+            "unique": 32
+          },
+          {
+            "level": 9,
+            "symbols": 104,
+            "unique": 16
+          },
+          {
+            "level": 10,
+            "symbols": 38,
+            "unique": 9
+          },
+          {
+            "level": 11,
+            "symbols": 14,
+            "unique": 6
+          },
+          {
+            "level": 12,
+            "symbols": 5,
+            "unique": 4
+          },
+          {
+            "level": 13,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 2022,
+        "hierarchicalBytes": 2022,
+        "encodeMs": 309.6866149999987,
+        "decodeMs": 1.494886000000406,
+        "states": 1,
+        "layers": [
+          {
+            "level": 6,
+            "symbols": 2180,
+            "entries": 36,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 1312,
+            "dictionaryBits": 9184,
+            "dictionaryBytes": 696
+          }
+        ],
+        "literalBits": 9184,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 26
+      },
+      "rawBitRecursive": {
+        "bytes": 652,
+        "hierarchicalBytes": 652,
+        "encodeMs": 737.6306450000047,
+        "decodeMs": 1.0222629999989294,
+        "states": 14,
+        "layers": [
+          {
+            "level": 11,
+            "symbols": 14,
+            "entries": 6,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 25,
+            "dictionaryBits": 274813,
+            "dictionaryBytes": 613
+          },
+          {
+            "level": 9,
+            "symbols": 45,
+            "entries": 16,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 59,
+            "dictionaryBits": 98133,
+            "dictionaryBytes": 554
+          },
+          {
+            "level": 7,
+            "symbols": 134,
+            "entries": 42,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 136,
+            "dictionaryBits": 33623,
+            "dictionaryBytes": 418
+          },
+          {
+            "level": 6,
+            "symbols": 126,
+            "entries": 36,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 114,
+            "dictionaryBits": 9184,
+            "dictionaryBytes": 304
+          },
+          {
+            "level": 5,
+            "symbols": 88,
+            "entries": 30,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 76,
+            "dictionaryBits": 3090,
+            "dictionaryBytes": 228
+          },
+          {
+            "level": 4,
+            "symbols": 72,
+            "entries": 42,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 67,
+            "dictionaryBits": 1757,
+            "dictionaryBytes": 161
+          }
+        ],
+        "literalBits": 1757,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 182
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 265.45753200000036,
+        "paddedBits": 570632,
+        "paddingSymbols": 3457,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 71329,
+            "unique": 36
+          },
+          {
+            "level": 1,
+            "symbols": 26305,
+            "unique": 50
+          },
+          {
+            "level": 2,
+            "symbols": 10081,
+            "unique": 31
+          },
+          {
+            "level": 3,
+            "symbols": 4272,
+            "unique": 24
+          },
+          {
+            "level": 4,
+            "symbols": 1752,
+            "unique": 20
+          },
+          {
+            "level": 5,
+            "symbols": 690,
+            "unique": 29
+          },
+          {
+            "level": 6,
+            "symbols": 269,
+            "unique": 30
+          },
+          {
+            "level": 7,
+            "symbols": 116,
+            "unique": 18
+          },
+          {
+            "level": 8,
+            "symbols": 48,
+            "unique": 9
+          },
+          {
+            "level": 9,
+            "symbols": 23,
+            "unique": 6
+          },
+          {
+            "level": 10,
+            "symbols": 9,
+            "unique": 4
+          },
+          {
+            "level": 11,
+            "symbols": 4,
+            "unique": 4
+          },
+          {
+            "level": 12,
+            "symbols": 2,
+            "unique": 2
+          },
+          {
+            "level": 13,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 1283,
+        "hierarchicalBytes": 1283,
+        "encodeMs": 151.20652400000108,
+        "decodeMs": 1.1554340000002412,
+        "states": 1,
+        "layers": [
+          {
+            "level": 4,
+            "symbols": 1752,
+            "entries": 20,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 760,
+            "dictionaryBits": 7112,
+            "dictionaryBytes": 509
+          }
+        ],
+        "literalBits": 7112,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 22
+      },
+      "rawByteRecursive": {
+        "bytes": 430,
+        "hierarchicalBytes": 430,
+        "encodeMs": 204.40283600000112,
+        "decodeMs": 0.8481399999946007,
+        "states": 12,
+        "layers": [
+          {
+            "level": 8,
+            "symbols": 48,
+            "entries": 9,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 45,
+            "dictionaryBits": 117152,
+            "dictionaryBytes": 371
+          },
+          {
+            "level": 5,
+            "symbols": 140,
+            "entries": 29,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 114,
+            "dictionaryBits": 26856,
+            "dictionaryBytes": 257
+          },
+          {
+            "level": 4,
+            "symbols": 77,
+            "entries": 20,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 54,
+            "dictionaryBits": 7112,
+            "dictionaryBytes": 203
+          },
+          {
+            "level": 2,
+            "symbols": 104,
+            "entries": 31,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 68,
+            "dictionaryBits": 1400,
+            "dictionaryBytes": 135
+          }
+        ],
+        "literalBits": 1400,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 132
+      },
+      "totalMs": 2731.566589999995
+    },
+    {
+      "name": "unique_sentences",
+      "description": "768 unique sentences with changing sensor numbers and common phrases; no identical full sentence.",
+      "inputBytes": 67474,
+      "sha256": "b8008c0689841ff9f06db8c5359f145d1835334d1953c77b3616df694da62a88",
+      "nativeBitFlatBytes": 7267,
+      "nativeBitRecursiveBytes": 5904,
+      "previousHybridBytes": 7718,
+      "arithmeticOnlyBytes": 35430,
+      "gzip9Bytes": 2238,
+      "brotli11Bytes": 992,
+      "zstd19Bytes": 935,
+      "rawBitTree": {
+        "width": 1,
+        "treeMs": 1069.935715000007,
+        "paddedBits": 558733,
+        "paddingSymbols": 18941,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 558733,
+            "unique": 2
+          },
+          {
+            "level": 1,
+            "symbols": 242803,
+            "unique": 5
+          },
+          {
+            "level": 2,
+            "symbols": 94457,
+            "unique": 68
+          },
+          {
+            "level": 3,
+            "symbols": 34733,
+            "unique": 337
+          },
+          {
+            "level": 4,
+            "symbols": 13937,
+            "unique": 439
+          },
+          {
+            "level": 5,
+            "symbols": 5584,
+            "unique": 437
+          },
+          {
+            "level": 6,
+            "symbols": 2453,
+            "unique": 434
+          },
+          {
+            "level": 7,
+            "symbols": 915,
+            "unique": 770
+          },
+          {
+            "level": 8,
+            "symbols": 344,
+            "unique": 273
+          },
+          {
+            "level": 9,
+            "symbols": 137,
+            "unique": 103
+          },
+          {
+            "level": 10,
+            "symbols": 53,
+            "unique": 37
+          },
+          {
+            "level": 11,
+            "symbols": 21,
+            "unique": 14
+          },
+          {
+            "level": 12,
+            "symbols": 10,
+            "unique": 8
+          },
+          {
+            "level": 13,
+            "symbols": 4,
+            "unique": 4
+          },
+          {
+            "level": 14,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawBitFlat": {
+        "bytes": 6689,
+        "hierarchicalBytes": 6689,
+        "encodeMs": 471.2361279999968,
+        "decodeMs": 4.2577650000021094,
+        "states": 1,
+        "layers": [
+          {
+            "level": 5,
+            "symbols": 5584,
+            "entries": 437,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 3667,
+            "dictionaryBits": 50361,
+            "dictionaryBytes": 3008
+          }
+        ],
+        "literalBits": 50361,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 26
+      },
+      "rawBitRecursive": {
+        "bytes": 4893,
+        "hierarchicalBytes": 4893,
+        "encodeMs": 1721.584222999998,
+        "decodeMs": 4.605130000003555,
+        "states": 14,
+        "layers": [
+          {
+            "level": 11,
+            "symbols": 21,
+            "entries": 14,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 42,
+            "dictionaryBits": 544397,
+            "dictionaryBytes": 4837
+          },
+          {
+            "level": 6,
+            "symbols": 2229,
+            "entries": 434,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 1898,
+            "dictionaryBits": 115849,
+            "dictionaryBytes": 2939
+          },
+          {
+            "level": 5,
+            "symbols": 989,
+            "entries": 437,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 800,
+            "dictionaryBits": 50361,
+            "dictionaryBytes": 2139
+          },
+          {
+            "level": 4,
+            "symbols": 1141,
+            "entries": 439,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 889,
+            "dictionaryBits": 17516,
+            "dictionaryBytes": 1250
+          }
+        ],
+        "literalBits": 17516,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 182
+      },
+      "rawByteTree": {
+        "width": 8,
+        "treeMs": 268.32779299999675,
+        "paddedBits": 570648,
+        "paddingSymbols": 3857,
+        "levels": [
+          {
+            "level": 0,
+            "symbols": 71331,
+            "unique": 36
+          },
+          {
+            "level": 1,
+            "symbols": 26114,
+            "unique": 154
+          },
+          {
+            "level": 2,
+            "symbols": 9790,
+            "unique": 784
+          },
+          {
+            "level": 3,
+            "symbols": 4322,
+            "unique": 776
+          },
+          {
+            "level": 4,
+            "symbols": 1386,
+            "unique": 772
+          },
+          {
+            "level": 5,
+            "symbols": 616,
+            "unique": 498
+          },
+          {
+            "level": 6,
+            "symbols": 239,
+            "unique": 181
+          },
+          {
+            "level": 7,
+            "symbols": 96,
+            "unique": 68
+          },
+          {
+            "level": 8,
+            "symbols": 38,
+            "unique": 25
+          },
+          {
+            "level": 9,
+            "symbols": 15,
+            "unique": 9
+          },
+          {
+            "level": 10,
+            "symbols": 6,
+            "unique": 4
+          },
+          {
+            "level": 11,
+            "symbols": 3,
+            "unique": 3
+          },
+          {
+            "level": 12,
+            "symbols": 1,
+            "unique": 1
+          }
+        ]
+      },
+      "rawByteFlat": {
+        "bytes": 8139,
+        "hierarchicalBytes": 8139,
+        "encodeMs": 319.0557650000046,
+        "decodeMs": 4.69421400000283,
+        "states": 1,
+        "layers": [
+          {
+            "level": 2,
+            "symbols": 9790,
+            "entries": 784,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 6181,
+            "dictionaryBits": 30864,
+            "dictionaryBytes": 1944
+          }
+        ],
+        "literalBits": 30864,
+        "literalMode": "arithmetic",
+        "container": "layers",
+        "candidateCount": 22
+      },
+      "rawByteRecursive": {
+        "bytes": 5025,
+        "hierarchicalBytes": 5025,
+        "encodeMs": 645.8061919999964,
+        "decodeMs": 3.056292000001122,
+        "states": 12,
+        "layers": [
+          {
+            "level": 9,
+            "symbols": 15,
+            "entries": 9,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 32,
+            "dictionaryBits": 546072,
+            "dictionaryBytes": 4979
+          },
+          {
+            "level": 3,
+            "symbols": 3938,
+            "entries": 776,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 2296,
+            "dictionaryBits": 135640,
+            "dictionaryBytes": 2683
+          },
+          {
+            "level": 2,
+            "symbols": 2322,
+            "entries": 784,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 1161,
+            "dictionaryBits": 30864,
+            "dictionaryBytes": 1522
+          },
+          {
+            "level": 1,
+            "symbols": 1578,
+            "entries": 154,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 1242,
+            "dictionaryBits": 3480,
+            "dictionaryBytes": 280
+          },
+          {
+            "level": 0,
+            "symbols": 435,
+            "entries": 36,
+            "recipeMode": "arithmetic",
+            "recipeBytes": 241,
+            "dictionaryBits": 288,
+            "dictionaryBytes": 39
+          }
+        ],
+        "literalBits": 288,
+        "literalMode": "raw",
+        "container": "layers",
+        "candidateCount": 132
+      },
+      "totalMs": 4520.834575000001
+    }
+  ],
+  "fullCandidateCosts": "byte-prototype.zip: sul-byte-experiment/results/results.json"
+}

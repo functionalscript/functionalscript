@@ -15,5 +15,14 @@
       "ordered-summary.csv": "4d232a99871b17c45e4384848e1206028acedb86815e7c10358949904a7b42c7",
       "ordered-prototype.md": "a3234c93698885eb261a45cbfe6536de6e2f2a2d86618eccdd0e6d10011c756a"
     }
+  },
+  "byteExperiment": {
+    "archiveSha256": "501eb65cf159ba727b8104565678dda70618e7a670918af851faff1735dcc657",
+    "files": {
+      "byte-alphabet.md": "9f144aa4d666c6671cdc999f1e4d394be99058e5329be4e598dd3ef37fdf6d9b",
+      "byte-results.json": "99a836c5563e8a46c018d00a3d43db0e18cb901d6f3f9c03060674a0b53e7819",
+      "byte-summary.csv": "40d1b62176f94f9284c1ca5865325270be485a08bfe2a9fcac3cee3a5769bb72",
+      "byte-prototype.md": "8fd8217aa176ebe632d876b2697a9cc5ca13d2fa64b431f9b23b2fa760028f3f"
+    }
   }
 }

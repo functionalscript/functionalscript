@@ -12,6 +12,10 @@ works, its measurements, and the unresolved design questions.
 
 ## Contents
 
+- [Byte symbols at level zero](byte-alphabet.md): test a byte-alphabet word/hash
+  variant against both native SUL and a matched bit control, using the same
+  ordered dictionaries and adaptive coder. Includes all ten fixture results.
+
 - [Ordered dictionaries at lower levels](ordered-dictionaries.md): the follow-up
   experiment, with first-occurrence order, full keep/skip size comparisons,
   adaptive coding, and a control that disables dictionary recursion. Includes
