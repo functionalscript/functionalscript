@@ -55,8 +55,9 @@ export default [a, a, c, { x: c }];
 The output file extension picks the format:
 
 ```bash
-fjs compile input.f.js output.f.js   # DataJS, a JavaScript module
-fjs compile input.f.js output.json   # JSON
+fjs compile input.f.js output.f.js        # DataJS, a JavaScript module
+fjs compile input.f.js output.json        # JSON
+fjs compile input.f.js output.edag.f.js   # the program's EDAG, as DataJS
 ```
 
 `output.f.js` is a [DataJS](spec/datajs/README.md) document in normalized
@@ -75,8 +76,16 @@ a file that reads back as something else. For the module above it refuses:
 output.json - error: no JSON spelling for a shared node
 ```
 
+`output.edag.f.js` is the program compiled to an [EDAG](fjs/edag/README.md),
+the graph of what it computes rather than its value, written as a DataJS
+document with the same sharing kept:
+
+```js
+const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];
+```
+
 With `m.f.js` exporting the string `"text"` instead — a leaf, which is never
-shared — both outputs are trees, and `output.json` is:
+shared — all three outputs are trees, and `output.json` is:
 
 ```json
 [1,1,"text",{"x":"text"}]

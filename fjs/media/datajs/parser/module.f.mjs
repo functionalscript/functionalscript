@@ -1,10 +1,10 @@
 /**
  * The DataJS reader: the rewrite set that folds the tree of the grammar in
  * `../../../ebnf/lib/datajs` into a value as the LL(1) backend builds it,
- * and {@link parse}, the reader over a whole document.
+ * and {@link tryParse}, the reader over a whole document.
  *
  * ```text
- * DataJS text -> grammar -> parse -> Unknown
+ * DataJS text -> grammar -> tryParse -> Unknown
  * ```
  *
  * A mapping sees one value and no environment, so the fold builds a
@@ -33,6 +33,8 @@
  *
  * @module
  *
+ * @import { List } from '../../../types/list/types.ts'
+ * @import { U8 } from '../../../text/utf8/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
@@ -53,6 +55,9 @@ import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
+import { isValidCodePoint } from '../../../text/code_point/module.f.mjs'
+import { toCodePointList } from '../../../text/utf8/module.f.mjs'
+import { codePointListToString } from '../../../text/utf16/module.f.mjs'
 import { items } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
 import { lexeme, stringMappings, syntaxError } from '../../json/parser/module.f.mjs'
@@ -280,9 +285,60 @@ const parseDocument = parser(wholeDocument, mappings)
  *
  * @type {(text: string) => Result<Unknown, string>}
  */
-export const parse = text => {
+export const tryParse = text => {
     const match = parseDocument(units(text))
     return match[0] === 'error'
         ? error(syntaxError(text)(match[1]))
         : document(unmapped(unmapped(match[1][0])[0]))
+}
+
+/** The BOM, which a document does not begin with. */
+const bom = 0xfeff
+
+/**
+ * The two document rules only bytes can break, spelled as the corpus's
+ * reject vectors spell them, so a harness reading a `rule` and a reader
+ * reporting one say the same words.
+ */
+const utf8Rule = 'document: a document is UTF-8'
+
+const bomRule = 'document: a document has no BOM'
+
+/**
+ * Parses UTF-8 bytes as a DataJS document.
+ *
+ * The two rules of §Encoding a code-unit string cannot carry are this
+ * path's and nothing else's: **a document is UTF-8**, and **it has no
+ * BOM**. By the time input is a JavaScript string both are gone — every
+ * string is some sequence of code units, and a leading BOM is one ordinary
+ * character among them — so {@link tryParse} can neither implement nor refuse
+ * them, and a reader taking bytes owes both.
+ *
+ * Strictness is the decoder's, and it is the same pair `fromVec` in
+ * [`fjs/text/utf8`](../../../text/utf8/module.f.mjs) uses:
+ * `toCodePointList` marks a malformed sequence with an error code, and
+ * `isValidCodePoint` refuses what a code point may not be — a surrogate,
+ * which `ED A0 80` decodes to, and anything past U+10FFFF. Measured, that
+ * catches a truncated sequence, a lone continuation byte, an overlong form,
+ * a surrogate encoding and an out-of-range lead alike, which is the whole
+ * of what "correct UTF-8" excludes.
+ *
+ * The order of the two checks is the layering: a BOM inside bytes that do
+ * not decode is refused for the UTF-8 rule, since there is no first
+ * character to be a BOM until the bytes decode to one.
+ *
+ * Then the bridge back: the reader's symbols are UTF-16 code units, so the
+ * code points are re-encoded with `codePointListToString` before the
+ * grammar sees one. A four-byte scalar decodes to a single code point —
+ * `F0 90 80 80` is U+10000 — and the grammar must receive the pair
+ * `D800 DC00`, which the corpus's four-byte vector requires to succeed.
+ * One reader over one alphabet; the bridge is the decoder's.
+ *
+ * @type {(bytes: List<U8>) => Result<Unknown, string>}
+ */
+export const tryParseBytes = bytes => {
+    const codePoints = toArray(toCodePointList(bytes))
+    if (!codePoints.every(isValidCodePoint)) { return error(utf8Rule) }
+    if (codePoints[0] === bom) { return error(bomRule) }
+    return tryParse(codePointListToString(codePoints))
 }

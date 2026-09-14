@@ -1,12 +1,11 @@
 /**
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { Unknown } from '../types.ts'
  * @import { Accept, Document, Reject } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { fromVec } from '../../../text/utf8/module.f.mjs'
-import { msb, u8ListToVec } from '../../../types/bit_vec/module.f.mjs'
-import { parse } from '../parser/module.f.mjs'
+import { tryParse, tryParseBytes } from '../module.f.mjs'
 import { bytes, difference, isDocument } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
@@ -18,20 +17,18 @@ const acceptSet = /** @type {readonly Accept[]} */ (accept)
 const rejectSet = /** @type {readonly Reject[]} */ (reject)
 
 /**
- * The text a document carries: the string itself, or its bytes decoded as
- * UTF-8, `null` where they are not UTF-8. The reader has no byte path yet,
- * so the corpus decodes with `fjs/text/utf8` and reads the units; a BOM as
- * the first byte reaches the reader as U+FEFF, which it refuses as
- * whitespace, and the document rule's own refusal is asserted once stage
- * 4's byte-accepting parser lands and reruns the set through it.
+ * A document read by the path its form calls for: `tryParse` over a string
+ * of code units, `tryParseBytes` over the bytes a byte record spells. Each
+ * vector reaches the codec's public surface by its form, which is what makes
+ * a byte record a test of the byte path rather than of the corpus's decoder.
  *
- * @type {(id: string, document: Document) => string | null}
+ * @type {(id: string, document: Document) => Result<Unknown, string>}
  */
-const text = (id, document) => {
-    if (typeof document === 'string') { return document }
+const read = (id, document) => {
+    if (typeof document === 'string') { return tryParse(document) }
     const b = bytes(document[1])
     assert(b !== null, `${id}: the hex spelling is not the one the schema admits`)
-    return fromVec(u8ListToVec(msb)(b))
+    return tryParseBytes(b)
 }
 
 /**
@@ -41,35 +38,40 @@ const text = (id, document) => {
  * @type {(vector: Accept) => void}
  */
 const accepted = ({ id, document, graph }) => {
-    const t = text(id, document)
-    assert(t !== null, `${id}: not UTF-8`)
-    const [tag, result] = parse(t)
+    const [tag, result] = read(id, document)
     assert(tag === 'ok', `${id}: refused: ${result}`)
-    const d = difference(graph)(result)
+    const d = difference(graph)(/** @type {Unknown} */ (result))
     assert(d === null, `${id}: ${d}`)
 }
 
-/** The one rule a byte document breaks before any reader sees it, as the set spells it. */
-const utf8Rule = 'document: a document is UTF-8'
+/**
+ * The two rules only bytes can break, as the set spells them. A reject
+ * vector naming one of these owes not just a refusal but *this* refusal:
+ * they are the reader's byte path's own, and every other rule is answered
+ * over code units where neither can be seen.
+ *
+ * @type {readonly string[]}
+ */
+const byteRules = ['document: a document is UTF-8', 'document: a document has no BOM']
 
 /**
  * One reject vector against the reader: the document is refused. What the
- * refusal says is the reader's own; the vector names the rule broken, and
+ * refusal says is the reader's own, and the vector names the rule broken —
  * a document valid but for that one defect is refused for it or not at all.
+ *
+ * A byte rule is the exception, and the sharper case: the layer is part of
+ * the claim, so the message is compared. `byte-bom-first` decodes to a
+ * perfectly good string that the code-unit reader refuses anyway, as
+ * U+FEFF is no whitespace — which would pass a refusal check while
+ * testing the wrong rule, and is what this comparison catches.
  *
  * @type {(vector: Reject) => void}
  */
 const rejected = ({ id, document, rule }) => {
-    const t = text(id, document)
-    // Which layer refuses it is the rule's, not a free choice: the UTF-8
-    // rule is the decoder's, and those bytes decode to nothing; every other
-    // rule is the reader's, on the text the bytes or the units spell. A
-    // vector that swapped them would be refused all the same and test the
-    // other layer, so the proof pins the layer before the refusal.
-    assert((t === null) === (rule === utf8Rule), `${id}: ${t === null ? 'the decoder refused it, though' : 'it decodes, though'} ${rule}`)
-    if (t === null) { return }
-    const [tag] = parse(t)
+    const [tag, message] = read(id, document)
     assert(tag === 'error', `${id}: accepted, though ${rule}`)
+    if (!byteRules.includes(rule)) { return }
+    assertEq(message, rule, id)
 }
 
 /** Two graphs that must compare equal. @type {(expected: Unknown, actual: Unknown) => void} */
@@ -226,12 +228,15 @@ export const proof = {
         differ({ a: 1, b: [2] }, { a: 1, b: [2, 3] }, 'at $["b"]: expected 1 elements, got 2')
     },
     // The reader accept set: the reader accepts every document to the graph
-    // the vector expects. The set's shape — ids one of a kind, every vector
-    // named and classed — is proved beside the set, in
-    // `spec/datajs/vectors/accept/proof.f.mjs`.
+    // the vector expects, each through the path its form calls for — the
+    // byte record among them through `tryParseBytes`, which is what makes the
+    // four widths a test of the decoder's bridge to code units. The set's
+    // shape — ids one of a kind, every vector named and classed — is proved
+    // beside the set, in `spec/datajs/vectors/accept/proof.f.mjs`.
     accept: () => { for (const vector of acceptSet) { accepted(vector) } },
-    // The reader reject set: the reader refuses every document. The set's
-    // shape, the host verdict among it, is proved beside the set, in
-    // `spec/datajs/vectors/reject/proof.f.mjs`.
+    // The reader reject set: the reader refuses every document, and for the
+    // two rules only bytes can break it refuses with that rule's own words.
+    // The set's shape, the host verdict among it, is proved beside the set,
+    // in `spec/datajs/vectors/reject/proof.f.mjs`.
     reject: () => { for (const vector of rejectSet) { rejected(vector) } },
 }

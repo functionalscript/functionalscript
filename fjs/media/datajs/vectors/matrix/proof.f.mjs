@@ -4,6 +4,7 @@
  * @import { Vec } from '../../../../types/bit_vec/types.ts'
  * @import { State } from '../../../../effects/node/virtual/types.ts'
  * @import { Corpus, Scope } from './types.ts'
+ * @import { Unknown } from '../../types.ts'
  */
 
 import { assert, assertEq } from '../../../../asserts/module.f.mjs'
@@ -97,9 +98,15 @@ const writeSource = ([name, text]) => () => {
 const withSources = sources =>
     virtual(emptyState)(foldStep(pureOk(sources), null, writeSource))[0]
 
-/** Each data module's source as the writer spells it. @type {readonly (readonly [string, string])[]} */
+/**
+ * Each data module's source as the writer spells it. A data module's default
+ * is a value of the data model by the corpus's own rule, and `unknown` only
+ * because it arrives through `import`, so it is handed to the writer as one.
+ *
+ * @type {readonly (readonly [string, string])[]}
+ */
 const written = modules(corpus).map(([name, imported]) =>
-    /** @type {readonly [string, string]} */ ([name, unwrap(tryStringify(imported))]))
+    /** @type {readonly [string, string]} */ ([name, unwrap(tryStringify(/** @type {Unknown} */ (imported)))]))
 
 /** The exit code the real program gives against a filesystem. @type {(state: State) => number} */
 const run = state => exitCode(virtual(state)(main(defaultNodeProgramOptions))[1])

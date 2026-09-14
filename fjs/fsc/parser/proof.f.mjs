@@ -8,14 +8,14 @@ import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
+import { _stringifyTree } from '../module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(s: string) => readonly DjsTokenWithMetadata[]} */
 const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 
-const stringifyDjsModule = stringifyAsTree(sort)
+const stringifyDjsModule = _stringifyTree
 
 /**
  * `count` copies of `element`, comma-joined.
@@ -71,16 +71,16 @@ export const proof = {
                 ["export default [[]];", "[[],[[\"array\",[[\"array\",[]]]]]]"],
                 ["export default [0,[1,[2,[]]],3];", "[[],[[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]"],
                 ["export default [1234567890n];", "[[],[[\"array\",[1234567890n]]]]"],
-                ["export default {};", "[[],[{}]]"],
-                ["export default {\"a\":1};", "[[],[{\"a\":1}]]"],
-                ["export default {a: 1};", "[[],[{\"a\":1}]]"],
-                ["export default {\"a\":1,};", "[[],[{\"a\":1}]]"],
-                ["export default {[\"a\"]:1};", "[[],[{\"a\":1}]]"],
-                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[{\"a\":1,\"b\":2,\"c\":3}]]"],
-                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[{\"a\":{\"b\":{\"c\":[\"array\",[\"d\"]]}}}]]"],
-                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[{\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}]]"],
-                ["export default {a:1,a:2};", "[[],[{\"a\":2}]]"],
-                ["export default {[\"__proto__\"]: 1};", "[[],[{\"__proto__\":1}]]"],
+                ["export default {};", "[[],[[\"object\",[]]]]"],
+                ["export default {\"a\":1};", "[[],[[\"object\",[[\"a\",1]]]]]"],
+                ["export default {a: 1};", "[[],[[\"object\",[[\"a\",1]]]]]"],
+                ["export default {\"a\":1,};", "[[],[[\"object\",[[\"a\",1]]]]]"],
+                ["export default {[\"a\"]:1};", "[[],[[\"object\",[[\"a\",1]]]]]"],
+                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[[\"object\",[[\"a\",1],[\"b\",2],[\"c\",3]]]]]"],
+                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[[\"object\",[[\"a\",[\"object\",[[\"b\",[\"object\",[[\"c\",[\"array\",[\"d\"]]]]]]]]]]]]]"],
+                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[[\"object\",[[\"a\",true],[\"b\",false],[\"c\",null],[\"d\",undefined]]]]]"],
+                ["export default {a:1,a:2};", "[[],[[\"object\",[[\"a\",1],[\"a\",2]]]]]"],
+                ["export default {[\"__proto__\"]: 1};", "[[],[[\"object\",[[\"__proto__\",1]]]]]"],
                 ["const a = 1;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
                 ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"array\",[[\"cref\",0],[\"cref\",1]]]]]"],
                 ["import x from \"m\";\nexport default x;", "[[\"m\"],[[\"aref\",0]]]"],
@@ -90,7 +90,7 @@ export const proof = {
                 ["/* c */ export default 1;", "[[],[1]]"],
                 ["\n\n export default 1; \n\n", "[[],[1]]"],
                 ["const export = 1;\nexport default export;", "[[],[1,[\"cref\",0]]]"],
-                ["export default { from: 2, default: 3 };", "[[],[{\"default\":3,\"from\":2}]]"],
+                ["export default { from: 2, default: 3 };", "[[],[[\"object\",[[\"from\",2],[\"default\",3]]]]]"],
                 // `;` ends every statement and a newline does not, as DataJS
                 // has it (spec/README.md, module structure); a `;` on its own
                 // line, or several statements on one, are the same module.
@@ -336,8 +336,18 @@ export const proof = {
     // and takes its last value. The parser used to sort them, which the
     // subset law over the DataJS corpus found: the graph a module denotes
     // has an order, and a reader that changes it reads another graph. The
-    // stringified module proofs above cannot see this, since they serialize
-    // sorted, so it is pinned on the evaluated value.
+    // syntax keeps more than the value: the members as written, an
+    // integer-like key where it stands and a repeated key twice, which
+    // EDAG's object constructor takes and a plain object cannot hold.
+    membersAsWritten: () => {
+        const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
+        assert(tag === 'ok', tag)
+        assertEq(stringifyDjsModule(value), '[[],[["object",[["b",1],["1",2],["b",3]]]]]')
+        const object = run(value[1])([])
+        assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
+        assertEq(Object.keys(object).join(), '1,b')
+        assertEq(object.b, 3)
+    },
     memberOrder: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
@@ -461,35 +471,35 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{}]]') { throw result }
+            if (result !== '[[],[["object",[]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["array",[{}]]]]') { throw result }
+            if (result !== '[[],[["array",[["object",[]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{"a":true,"b":false,"c":null,"d":undefined}]]') { throw result }
+            if (result !== '[[],[["object",[["a",true],["b",false],["c",null],["d",undefined]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{"a":{"b":{"c":["array",["d"]]}}}]]') { throw result }
+            if (result !== '[[],[["object",[["a",["object",[["b",["object",[["c",["array",["d"]]]]]]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{"a":1}]]') { throw result }
+            if (result !== '[[],[["object",[["a",1]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n;')
@@ -517,7 +527,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{"a":1}]]') { throw result }
+            if (result !== '[[],[["object",[["a",1]]]]]') { throw result }
         }
     ],
     // A computed key `["a"]` is a third spelling of an ordinary key, next to
@@ -528,7 +538,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[{"a":1}]]')
+            assertEq(result, '[[],[["object",[["a",1]]]]]')
         },
         () => {
             // all three spellings in one object, plus a trailing comma
@@ -536,7 +546,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[{"a":1,"b":2,"c":3}]]')
+            assertEq(result, '[[],[["object",[["a",1],["b",2],["c",3]]]]]')
         },
         () => {
             // trivia is trivia inside the brackets too
@@ -544,7 +554,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[{"a":1}]]')
+            assertEq(result, '[[],[["object",[["a",1]]]]]')
         },
         () => {
             // the key that has no other spelling
@@ -552,7 +562,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[{"__proto__":{"a":42}}]]')
+            assertEq(result, '[[],[["object",[["__proto__",["object",[["a",42]]]]]]]]')
         },
     ],
     invalidComputedKey: [
@@ -896,7 +906,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{"a":0,"b":1}]]') { throw result }
+            if (result !== '[[],[["object",[["a",0],["b",1]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
@@ -910,7 +920,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{"a":0,"b":1}]]') { throw result }
+            if (result !== '[[],[["object",[["a",0],["b",1]]]]]') { throw result }
         },
     ],
     // A JSON document is not a module: a statement begins with `import`,
@@ -1044,7 +1054,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[1,2,{"1st":["cref",1],"2nd":["cref",0],"3rd":["cref",1]}]]') { throw result }
+            if (result !== '[[],[1,2,["object",[["1st",["cref",1]],["2nd",["cref",0]],["3rd",["cref",1]]]]]]') { throw result }
         },
     ],
     invalidWithConst:[

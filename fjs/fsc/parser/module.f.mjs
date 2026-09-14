@@ -43,11 +43,10 @@
  * @import { Children, Meta } from '../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../ebnf/types.ts'
- * @import { Primitive } from '../../djs/types.ts'
+ * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstArray, AstConst, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
- * @import { Entry as ObjectEntry } from '../../types/object/types.ts'
  * @import { Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
@@ -56,7 +55,6 @@
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
-import { fromEntries } from '../../types/object/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
@@ -429,18 +427,18 @@ const badKey = ([kind, items], index) => {
  * at its index among the resolved values, which are the leading parameter
  * so that the step lives here rather than closing over them.
  *
- * @type {(done: readonly AstConst[]) => (member: Entry, index: number) => ObjectEntry<AstConst>}
+ * @type {(done: readonly AstConst[]) => (member: Entry, index: number) => AstMember}
  */
 const memberEntry = done => ({ name }, index) => [name, done[index]]
 
 /**
  * A container of the values its items resolved to: an array, or an object
- * with a property per member, in the order the members are written — the
- * order JavaScript gives the same literal, which is the order the graph a
- * module denotes has, so it is not the parser's to change. A repeated key
- * keeps its first position and takes its last value, as it does there:
- * `fromEntries` creates each property where its key first appears and
- * writes the later value over it, in one pass over the members.
+ * of its members in the order they are written, a repeated key written
+ * twice. The order is not the parser's to change — it is the order the
+ * graph a module denotes has, as JavaScript reads the same literal — and
+ * the duplicates are not its to collapse: `run` builds the object
+ * JavaScript builds, and EDAG's object constructor takes the members as
+ * written, which the syntax alone still has.
  *
  * @type {(container: Container, done: readonly AstConst[]) => AstConst}
  */
@@ -450,7 +448,9 @@ const close = ([kind, members], done) => {
         const array = ['array', done]
         return array
     }
-    return fromEntries(members.map(memberEntry(done)))
+    /** @type {AstObject} */
+    const object = ['object', members.map(memberEntry(done))]
+    return object
 }
 
 /**
