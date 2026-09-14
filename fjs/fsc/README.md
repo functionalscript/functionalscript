@@ -62,7 +62,10 @@ resolved the same way, recursively, and bound in its parameter's place — the
 binding happens where a reference is lowered, so the graph is built once with
 the imported module's node where its parameter would be — and a module met
 twice in one link is one node, so a diamond of imports joins where it should.
-A `.json` import is the tree its document denotes, as `transpile` reads it. A
+A `.json` import is the tree its document denotes, as `transpile` reads it.
+`fjs compile` writes the linked graph when the output name ends with
+`.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
+hoisted as the module output's are. A
 module whose export does not reach every import and every `const` is refused
 rather than compiled: `transpile` reads and `run` evaluates them all today,
 and an EDAG has no operation yet to anchor a computation whose value nothing

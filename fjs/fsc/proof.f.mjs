@@ -161,6 +161,46 @@ export const proof = {
         const content = readOutput(state.root, 'output.json')
         assertEq(content, '42')
     },
+    // The EDAG output: the program linked into one graph and written as a
+    // DataJS document, its shared node hoisted as the module output hoists
+    // one — the README's example, in both forms, side by side.
+    edagOutput: {
+        graph: () => {
+            const root = {
+                'input.f.js': [utf8('import c from "./m.f.js"; const a = 1; export default [a, a, c, { x: c }];')],
+                'm.f.js': [utf8('export default ["text"];')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.js'), 'const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];')
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.f.js'), 'const $0=["text"];export default [1,1,$0,{"x":$0}];')
+        },
+        // `.edag.f.mjs` asks for the same; `.f.mjs` alone is the module output
+        extension: () => {
+            const root = { 'input.f.js': [utf8('export default { a: undefined };')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.mjs']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.mjs'), 'export default ["{}",[[":","a",["undefined"]]]];')
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.mjs']))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.f.mjs'), 'export default {"a":undefined};')
+        },
+        // a program the linker refuses is reported against the input, as a
+        // parse error is, and nothing is written; a missing import likewise
+        refused: () => {
+            const root = { 'input.f.js': [utf8('const a = []; export default 1;')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'input.f.js - error: unreachable const 0')
+            assertEq(state.root['output.edag.f.js'], undefined)
+            const missing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
+            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(missingCode), 1)
+            assertEq(missingState.stderr.trim(), 'input.f.js - error: file not found')
+        },
+    },
     // An error with no token to point at names the file being compiled, not
     // `undefined:undefined:undefined`. Each language reports its own missing
     // file: the module reader and the JSON reader read their inputs

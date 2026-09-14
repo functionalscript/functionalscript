@@ -62,8 +62,10 @@ importing module is lowered over the imported modules' EDAGs, its parameters
 never built — rather than by rewriting a finished `Unresolved`, which would
 need a memo keyed by node identity to keep sharing; a cache that stores
 `Unresolved` ([cache-compiled-modules](./cache-compiled-modules.md)) is what
-would need that rewrite. What Stage 1 still owes is the parser's `a.b` and
-`a[b]`, and the compiler path that writes the EDAG.
+would need that rewrite. `fjs compile` writes the linked graph as a DataJS
+document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
+its value outputs, which are unchanged. What Stage 1 still owes is the
+parser's `a.b` and `a[b]`.
 
 The first missing EDAG operation was property access:
 
@@ -530,9 +532,12 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
       Done: `resolve` returns an `Exp`.
-- [ ] Add a distinct EDAG-producing compiler path/API alongside the current
+- [x] Add a distinct EDAG-producing compiler path/API alongside the current
       value-producing transpiler; do not redirect existing `transpile` / `fjs compile`
-      callers until EDAG execution is available.
+      callers until EDAG execution is available. Done: `resolve` beside `transpile`,
+      and in `fjs compile` an output name ending with `.edag.f.js` or `.edag.f.mjs`
+      selects it, as `.json` selects the JSON writer; the other outputs are as they
+      were.
 
 #### Stage 2
 
@@ -580,12 +585,18 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       policy as a side effect of this task.
 - [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)
       instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
-- [ ] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
-      allow JSON output only when it preserves the EDAG completely.
-- [ ] Preserve the existing value-producing `transpile` / `fjs compile` success output
+- [x] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
+      allow JSON output only when it preserves the EDAG completely. Done for the
+      DataJS form, through `fjs/media/datajs/serializer`, which hoists a shared node
+      as the module output does; no JSON form of the EDAG is offered, since JSON
+      cannot hold a shared node and an EDAG's sharing is its meaning.
+- [x] Preserve the existing value-producing `transpile` / `fjs compile` success output
       — `transpile`'s `Denotation` and `fjs compile`'s bytes — until
-      `interpret-edag.md` integrates EDAG execution behind that API.
-- [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
+      `interpret-edag.md` integrates EDAG execution behind that API. Done: pinned
+      side by side with the EDAG output in `fjs/fsc/proof.f.mjs` (`edagOutput`).
+- [x] Preserve current missing-file, parse-error, and circular-dependency behavior.
+      Done: the linker reads through the transpiler's reader and reports the same
+      `ParseError`; pinned in `fjs/fsc/edag/proof.f.mjs` (`resolve.refused`).
 - [ ] Add Stage 1 proofs that permitted `a.b`, `a['x']`, and numeric `a[0]` forms
       produce property-access EDAGs, while prohibited names and runtime-computed string
       properties are rejected; source-to-`Unresolved` compilation does not read imports,
