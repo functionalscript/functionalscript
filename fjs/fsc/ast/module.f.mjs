@@ -63,10 +63,22 @@ export const run = body => args => {
 const bit = i => 1n << BigInt(i)
 
 /**
+ * The values an object's members leave in the value: one per key, the last
+ * written. A member a later duplicate shadows is syntax the value never
+ * holds, so a reference in it reaches nothing. `Map` keeps the last value
+ * per key, as `fromEntries` does in `toDjs`.
+ *
+ * @type {(members: readonly AstMember[]) => readonly AstConst[]}
+ */
+const memberValues = members => [...new Map(members).values()]
+
+/**
  * The references one entry makes directly: its `cref`s and `aref`s, however
  * deep inside its own literals, and nothing behind them — a referenced
  * `const` is an entry of its own, visited once as such, which is what keeps
- * this a walk over the syntax rather than over the value's paths.
+ * this a walk over the syntax rather than over the value's paths. A member
+ * a later duplicate shadows is not in the value, so its references are not
+ * counted.
  *
  * @type {(ast: AstConst) => List<AstModuleRef>}
  */
@@ -74,7 +86,7 @@ const refsOf = ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf)) }
-        case 'object': { return flat(ast[1].map(([, value]) => refsOf(value))) }
+        case 'object': { return flat(memberValues(ast[1]).map(refsOf)) }
         default: { return [ast] }
     }
 }
