@@ -50,7 +50,15 @@ This task should reuse and cross-reference those decisions rather than duplicate
 
 ### Stage 1: property access and unresolved modules
 
-The first missing EDAG operation is property access:
+**Where it stands.** The EDAG side is there — `['.', object, property]` is in
+[`fjs/edag`](../../edag/module.f.mjs)'s schema, `dot`, with the index
+restriction below — and so is the unresolved module:
+[`fjs/fsc/edag`](../edag/module.f.mjs) compiles a parsed module to
+`Unresolved { imports, edag }`, refusing what the export does not reach. What
+Stage 1 still owes is the parser's `a.b` and `a[b]`, the resolution of
+unresolved modules into one EDAG, and the compiler path that writes it.
+
+The first missing EDAG operation was property access:
 
 ```js
 ['.', object, property]
@@ -468,32 +476,39 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 1
 
-- [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema,
+- [x] Introduce `['.', object, property]` into EDAG and its validation/type schema,
       enforcing the canonical property-operand restriction: permitted string constants,
       number constants, and only later the `Number` numeric-conversion node once it
-      exists.
+      exists. Done in [`fjs/edag`](../../edag/module.f.mjs): `dot` over `index`,
+      which is a string, a number, or a `Number` cast.
 - [ ] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions.
-- [ ] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
-      the EDAG schema.
-- [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
-      and make import parameter positions correspond to its indices.
+- [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
+      the EDAG schema. Done: [`fjs/fsc/edag/types.ts`](../edag/types.ts).
+- [x] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
+      and make import parameter positions correspond to its indices. Done; pinned by
+      `parameters` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
 - [x] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation. Done:
       `AstObject` is `['object', members]`, pinned by `membersAsWritten` in
       `fjs/fsc/parser/proof.f.mjs`.
-- [ ] Convert a parsed source module to `Unresolved { imports, edag }` without reading
-      or resolving any imported module.
-- [ ] Do not silently drop required body evaluation. Until an anchoring/sequencing
+- [x] Convert a parsed source module to `Unresolved { imports, edag }` without reading
+      or resolving any imported module. Done: `unresolved` in
+      [`fjs/fsc/edag`](../edag/module.f.mjs), a function of the AST alone.
+- [x] Do not silently drop required body evaluation. Until an anchoring/sequencing
       operation is available, reject a Stage 1 source module if conversion would omit
-      an unreachable potentially throwing body computation.
-- [ ] Until anchoring exists, reject a Stage 1 source module when any import parameter
+      an unreachable potentially throwing body computation. Done as a reachability
+      rule: a `const` the export does not reach refuses the module, `unreachable
+      const <index>`, whatever it holds.
+- [x] Until anchoring exists, reject a Stage 1 source module when any import parameter
       is unreachable from its EDAG root; do not silently discard eager imported-module
-      evaluation just because the binding is unused.
-- [ ] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
-      with shared EDAG node identity.
+      evaluation just because the binding is unused. Done: `unreachable import
+      "<specifier>"`, the import named before any `const`.
+- [x] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
+      with shared EDAG node identity. Done: one parameter node per import, one node
+      per `const`, pinned by `example`, `chain` and `parameters` in the proof.
 - [ ] Resolve imported `Unresolved` values recursively and bind each resolved result
       to the corresponding **module-scope** import parameter position; when Stage 2
       functions exist, do not descend into nested `=>` bodies while substituting imports.

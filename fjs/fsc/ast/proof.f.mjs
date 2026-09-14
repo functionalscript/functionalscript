@@ -1,6 +1,12 @@
-import { run } from './module.f.mjs'
+import { run, unreached } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
+
+/** @type {(module: import('./types.ts').AstModule) => string} */
+const unreachedOf = module => {
+    const { consts, imports } = unreached(module)
+    return `consts ${consts.join()}; imports ${imports.join()}`
+}
 
 export const proof = {
     test: () => {
@@ -43,5 +49,23 @@ export const proof = {
     },
     testUndefined: () => {
         assertEq(_stringifyTree(run([undefined])([])), 'undefined')
+    },
+    // what the sweep from the export leaves out, by index
+    unreached: {
+        nothing: () => {
+            assertEq(unreachedOf([[], [1]]), 'consts ; imports ')
+            assertEq(unreachedOf([['./a'], [['aref', 0]]]), 'consts ; imports ')
+            assertEq(unreachedOf([['./a'], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
+            assertEq(unreachedOf([['./a'], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
+        },
+        consts: () => {
+            assertEq(unreachedOf([[], [['array', []], 1]]), 'consts 0; imports ')
+            assertEq(unreachedOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 1,2; imports ')
+        },
+        imports: () => {
+            assertEq(unreachedOf([['./a'], [1]]), 'consts ; imports 0')
+            assertEq(unreachedOf([['./a', './b'], [['aref', 1]]]), 'consts ; imports 0')
+            assertEq(unreachedOf([['./a', './b'], [['aref', 1], 1]]), 'consts 0; imports 0,1')
+        },
     },
 }

@@ -5,7 +5,7 @@
  *
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { AstConst, AstBody, AstMember, AstModuleRef, Import, Sharing } from './types.ts'
+ * @import { AstConst, AstBody, AstMember, AstModule, AstModuleRef, Import, Sharing, Unreached } from './types.ts'
  * @import { _Reach, _RunState } from './private.ts'
  */
 
@@ -133,6 +133,38 @@ const reachEntry = (reach, ast, i) => {
     return { reachable: refs.reduce(reachStep, reach.reachable), refs: concat(reach.refs)(refs) }
 }
 
+/**
+ * The sweep from the export downwards over a whole body: which entries it
+ * reaches, and every reference those entries make.
+ *
+ * @type {(body: AstBody) => _Reach}
+ */
+const reach = body => body.reduceRight(reachEntry, { reachable: bit(body.length - 1), refs: empty })
+
+/** @type {(args: bigint, ref: AstModuleRef) => bigint} */
+const argStep = (args, [kind, i]) => kind === 'aref' ? args | bit(i) : args
+
+/** The indices a set of `n` leaves out. @type {(set: bigint) => (n: number) => readonly number[]} */
+const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (set & bit(i)) === 0n)
+
+/**
+ * What the export does not reach, by index: the body entries no chain of
+ * references from the last entry leads to, and the imports likewise — the
+ * sweep {@link sharing} runs, read for what it left out. `run` evaluates
+ * every entry and `transpile` reads every import whether the export reaches
+ * them or not, so a compiler that follows references alone would drop what
+ * this names, and asks first.
+ *
+ * @type {(module: AstModule) => Unreached}
+ */
+export const unreached = ([specifiers, body]) => {
+    const { reachable, refs } = reach(body)
+    return {
+        consts: missing(reachable)(body.length),
+        imports: missing(toArray(refs).reduce(argStep, 0n))(specifiers.length),
+    }
+}
+
 /** Whether a list names something twice. @type {(xs: readonly string[]) => boolean} */
 const repeats = xs => new Set(xs).size !== xs.length
 
@@ -161,10 +193,7 @@ const byId = m => [m.id, m]
  */
 export const sharing = body => imports => {
     const containers = body.reduce(containerStep(imports), 0n)
-    /** @type {_Reach} */
-    const start = { reachable: bit(body.length - 1), refs: empty }
-    const { refs } = body.reduceRight(reachEntry, start)
-    const nodes = toArray(refs)
+    const nodes = toArray(reach(body).refs)
     const consts = nodes.flatMap(([kind, i]) => kind === 'cref' && (containers & bit(i)) !== 0n ? [`${i}`] : [])
     const reached = nodes.flatMap(([kind, i]) => kind === 'aref' && isContainer(imports[i].value) ? [imports[i]] : [])
     const distinct = [...new Map(reached.map(byId)).values()]
