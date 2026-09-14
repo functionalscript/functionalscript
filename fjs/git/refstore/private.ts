@@ -51,12 +51,11 @@ export type _Entry = {
  * `concat` copies nothing, and the one place that needs an array — the listing
  * this all feeds — materialises each once at the end.
  *
- * Measured in isolation, 10,000 appends cost 111 ms as array copies and 13 ms as
- * `concat` plus one `toArray`, and 20,000 cost 1194 ms and 13 ms — the first
- * more than decuples while the second does not move. End to end the gain is
- * smaller, since reading the files dominates at that size: a walk of 10,000
- * loose refs went from 1608 ms to 1293 ms. The shape is what matters, not the
- * present size of the constant.
+ * Measured in isolation at ten and twenty thousand appends, the copying shape
+ * more than decuples between the two while this one does not move. End to end
+ * the gain is smaller, since reading the files dominates at that size — the
+ * shape is what matters and not the present size of the constant, and the
+ * figures are in the pull request that took this shape.
  */
 export type _Found = {
     readonly roots: List<Root>

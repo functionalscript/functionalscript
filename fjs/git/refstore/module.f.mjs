@@ -192,9 +192,9 @@ const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
  *
  * That matters at the size a repository reaches. Comparing every packed line
  * against every other is quadratic in the count and allocates a tail array per
- * line: in isolation over 20,000 names the pairwise shape takes 1636 ms and this
- * one 8 ms, and `git pack-refs` on a busy repository writes more lines than
- * that.
+ * line, where this is one pass and a lookup each: measured over 20,000 names,
+ * the pairwise shape is two orders of magnitude slower, and `git pack-refs` on
+ * a busy repository writes more lines than that.
  *
  * @type {(name: Bytes) => string}
  */
