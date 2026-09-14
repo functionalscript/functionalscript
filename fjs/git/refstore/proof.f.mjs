@@ -377,6 +377,51 @@ export const proof = {
         assertEq(e[1].code, headKindCode)
         assertEq(e[1].message, 'HEAD is not a regular file')
     },
+    // An entry under `refs/` that is neither a file nor a directory is skipped,
+    // and the one beside it is still listed.
+    //
+    // A FIFO is the case with teeth, because reading one with no writer does not
+    // fail — it waits — so `!isDirectory` read as "read it as a file" would hang
+    // the listing rather than answer wrongly. Measured on Git 2.43.0 with a FIFO
+    // at `refs/heads/pipe` and no writer: `show-ref`, `for-each-ref`, `status`
+    // and `gc --prune=now` all return at once and none of them lists it, and a
+    // FIFO inside a subdirectory of `refs/` is skipped with its siblings still
+    // listed. `rev-parse --verify refs/heads/pipe` blocks until it is killed,
+    // which is the half `tryResolve` shares — see `todo/symlink-head.md`.
+    //
+    // The virtual filesystem has no FIFOs, so the host below answers the listing
+    // node answers for one, and refuses every `readFile` of that path: the case
+    // asserts the read never happens by asserting the answer does not depend on
+    // it.
+    fifoRef: () => {
+        const pipe = 'refs/heads/pipe'
+        /** @type {MemOperationMap<ReadFile | Readdir, readonly string[]>} */
+        const host = {
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'refs/heads/master'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs'
+                    ? [
+                        { name: 'heads', parentPath: path, isFile: false, isDirectory: true },
+                    ]
+                    : path === 'refs/heads'
+                        ? [
+                            { name: 'master', parentPath: path, isFile: true, isDirectory: false },
+                            { name: 'pipe', parentPath: path, isFile: false, isDirectory: false },
+                        ]
+                        : []),
+            ],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        assert(r[0] === 'ok')
+        sameRoots(r[1], [['refs/heads/master', a]])
+        assert(!log.includes(`readFile ${pipe}`), log)
+    },
     // One name at a time: a loose ref, a packed one, a loose one shadowing
     // a packed one, and a name nothing is stored under.
     resolve: () => {
