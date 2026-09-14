@@ -9,13 +9,14 @@
  *
  * Every claim below was measured against Git 2.43.0 on packs it wrote.
  *
- * **Reading a large index is dominated by building its ids.** Measured on a
- * synthetic 100,000-object index of 2.80 MB, `tryIdx` costs 3498 ms, of which
- * 2122 ms is the checksum hash and 1161 ms is materialising the ids as bit
- * vectors. Two scans that used to cost the rest are gone — see {@link upTo} and
- * {@link differsAt} — and the eager ids are the shape of {@link Idx} rather than
- * a mistake in a loop, so they are
- * [`todo/lazy-index-ids.md`](./todo/lazy-index-ids.md) and not a change here.
+ * **Reading an index costs the whole file, whatever a caller wants from it.**
+ * Hashing the whole file to check its trailer and materialising every id as a
+ * bit vector are both linear in the index and neither is optional: the first is
+ * what refuses a corrupt file, and the second is the shape of {@link Idx} rather
+ * than a mistake in a loop. Together they dominate the read, and a lookup uses
+ * about `log2(n)` of the ids it built. That is
+ * [`todo/lazy-index-ids.md`](./todo/lazy-index-ids.md) and not a change here;
+ * the figures are there, pinned to the commit they were taken at.
  *
  * **Two versions are live, and the second is not a superset of the first.**
  * Version 2 begins with the four bytes `\377tOc` and a version word; version
@@ -106,10 +107,9 @@ const oidAt = (b, at, width) => toVec(b.slice(at, at + width))
  *
  * A recursion over the width rather than a `find` over an array of positions,
  * because the array was allocated once per *pair of ids*: on a 100,000-object
- * index that is a hundred thousand throwaway arrays of twenty numbers. In
- * isolation over 100,000 pairs, the array shape takes 137 ms and this 4 ms. The
- * depth is the id width — 20 or 32 — so it is bounded by the format and not by
- * the file.
+ * index that is a hundred thousand throwaway arrays of twenty numbers, and it
+ * measured tens of times slower than this. The depth is the id width — 20 or
+ * 32 — so it is bounded by the format and not by the file.
  *
  * @type {(b: readonly number[], x: number, y: number, width: number, k: number) => number}
  */
@@ -124,9 +124,9 @@ const differsAt = (b, x, y, width, k) =>
  * ascend. That is a real dependency and not a coincidence: this function is
  * wrong on an unsorted list, and the only caller checks the order first.
  *
- * A filter per bucket instead is 256 full passes over the ids, which is the shape
- * this replaced. In isolation on 100,000 first bytes, the 256 filters take
- * 427 ms and the 256 searches 1 ms.
+ * A filter per bucket instead is 256 full passes over the ids, which is the
+ * shape this replaced: linear in the index per bucket against logarithmic, and
+ * measured hundreds of times slower on an index of a hundred thousand.
  *
  * The range it searches is a parameter rather than a capture, as `k` and the list
  * are, so this is closed and lives at module scope like {@link differsAt}: one
