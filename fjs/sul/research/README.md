@@ -12,6 +12,11 @@ works, its measurements, and the unresolved design questions.
 
 ## Contents
 
+- [Ordered dictionaries at lower levels](ordered-dictionaries.md): the follow-up
+  experiment, with first-occurrence order, full keep/skip size comparisons,
+  adaptive coding, and a control that disables dictionary recursion. Includes
+  both word generations and finer Patricia frontiers, plus sentence fixtures.
+
 - [Background and comparisons](background.md): SUL's construction, backing
   storage requirements, deduplication potential, Prolly Trees, CDMT, and possible
   applications.

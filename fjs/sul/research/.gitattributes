@@ -1,2 +1,3 @@
 # Preserve the pinned experiment archive under the repository's text default.
 prototype.zip -text
+ordered-prototype.zip -text

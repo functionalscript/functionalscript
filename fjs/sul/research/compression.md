@@ -1,5 +1,9 @@
 # SUL compression research and prototype
 
+For the subsequent first-occurrence dictionary experiment, see
+[ordered dictionaries at lower levels](ordered-dictionaries.md). The measurements
+below remain the original depth-first grammar baseline.
+
 **Finding:** A SUL-derived grammar can compress a document substantially when it contains repeated subtrees. Compact local references eliminate the need to transmit a cryptographic hash for every node. Arithmetic coding can then reduce the grammar stream further. This prototype demonstrates the mechanism, but does not establish superiority over modern compressors: high-quality Brotli and Zstandard generally produced smaller outputs on the tested examples.
 
 This research uses FunctionalScript SUL at commit `d16a9ebf39b30a42e1b795bc329774d867196841`. The comparison is a mechanism experiment on eight small inputs, not a standard-corpus compression ranking.

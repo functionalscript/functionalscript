@@ -6,5 +6,14 @@
     "results.json": "f99391233a94a5966c010c2815378214ca0788bfe1a1b6afc569fc6a0e50706e",
     "summary.csv": "853af9ad45afa2dc2d3b5c301c4ea15c2b5de97dba0d41057e72422f270dc402",
     "prototype.md": "5dc9ed9fbf35d37db183db869b091340118dc25ab71b9f02cb6d818257a25e35"
+  },
+  "orderedExperiment": {
+    "archiveSha256": "2fa43f33e1f590d07c2451d9dbb59f1645e40e210fd6ada979305e3506bdab0e",
+    "files": {
+      "ordered-dictionaries.md": "411ff91f79a4d7623990b4258ef03ac8500dcd7723fa2178fc85211c3a9f26bb",
+      "ordered-results.json": "e13960310f7e234acfe99a920207d2be6746a635f7f66794a2fa344dbfa4a68a",
+      "ordered-summary.csv": "4d232a99871b17c45e4384848e1206028acedb86815e7c10358949904a7b42c7",
+      "ordered-prototype.md": "a3234c93698885eb261a45cbfe6536de6e2f2a2d86618eccdd0e6d10011c756a"
+    }
   }
 }
