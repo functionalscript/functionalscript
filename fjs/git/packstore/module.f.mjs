@@ -93,7 +93,7 @@ import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError,
 import { inflate, isNotFound, leadsNowhere, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { length, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'

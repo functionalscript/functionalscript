@@ -6,7 +6,7 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, u8List, vec } from '../../types/bit_vec/module.f.mjs'
 import { cycle, take, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
-import { of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
+import { hexText, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
@@ -22,6 +22,21 @@ const of20 = of(20)
 const of32 = of(32)
 
 export const proof = {
+    // The same spelling as a *string*, which is what a message or a path wants
+    // and what `toHex`'s code-point list is not. Both widths, and the leading
+    // zero a byte below 0x10 keeps — the one an unpadded conversion drops.
+    hexText: () => {
+        const sha1 = '0123456789abcdef'.repeat(2) + 'fedcba98'
+        const id = tryFromHex(latin1(sha1))
+        assertEq(id !== null && hexText(id), sha1)
+        const sha256 = 'ab'.repeat(31) + '01'
+        const wide = tryFromHex(latin1(sha256))
+        assertEq(wide !== null && hexText(wide), sha256)
+        const low = tryFromHex(latin1('0f' + '00'.repeat(19)))
+        assertEq(low !== null && hexText(low), '0f' + '00'.repeat(19))
+        // and it is the string of what `toHex` lists, so the two cannot drift
+        assertEq(id !== null && hexText(id), id !== null && hex(id))
+    },
     // A 20-byte id and a 32-byte one, and back to the same text.
     widths: () => {
         assertStructurallySame(bytes('00ff10a5' + '0'.repeat(32)), [0, 0xFF, 0x10, 0xA5, ...Array(16).fill(0)])
