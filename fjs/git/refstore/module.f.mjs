@@ -149,7 +149,7 @@
  */
 
 import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { isNotFound, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
@@ -737,24 +737,6 @@ export const linkedDirCode = /** @type {const} */ ('ERR_LINKED_DIR')
 
 /** @type {(path: string) => string} */
 const linkedDirMessage = path => `${path} is a link to a directory`
-
-/**
- * Whether a `stat` that could not answer means the entry is no ref rather than a
- * host in trouble: a link that leads nowhere, or one that leads to itself.
- *
- * Both are entries Git's listing passes over. Measured on Git 2.43.0, with
- * `refs/heads/dangling` linked to a name that is not there and
- * `refs/heads/loop` linked to itself, `git show-ref` and `git for-each-ref` list
- * neither and both exit 0. Node answers `ENOENT` for the first and `ELOOP` for
- * the second.
- *
- * Only those two, and not every failure: an entry that the listing named and the
- * host then cannot describe for any other reason is a loose ref this function
- * would be dropping from an answer a `gc` reads.
- *
- * @type {(e: IoChannel) => boolean}
- */
-const leadsNowhere = e => isNotFound(e) || (e[0] === 'ioError' && e[1].code === 'ELOOP')
 
 /**
  * What the walk makes of an entry whose kind the listing could not name.
