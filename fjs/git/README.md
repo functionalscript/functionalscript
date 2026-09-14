@@ -430,11 +430,15 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. Where it binds today is the
-  boundary: the host's `inflate` takes a `Vec` and gives one, and
-  `readFile` ahead of it takes one too, so a loose object is refused on
-  either side of its stream — a file over the bound before inflating, a
-  stream that inflates past it — and never cut short. The inflater issue
-  lifts both sides.
+  boundary: the host's `inflate` takes a `Vec` and gives one, so an object
+  is refused on either side of its stream — too large going in, or
+  inflating past the bound — and never cut short. That is **both** readers
+  and not the loose path's alone: [`loose/`](loose/module.f.mjs) hands
+  `inflate` a `readFile`'s `Vec`, and [`packstore/`](packstore/module.f.mjs)
+  hands it an entry's window as one, per *link* of a delta chain. A delta's
+  own output has a third bound of the same size, for the reason
+  [`todo/inflate.md`](../../todo/inflate.md) gives — and that issue lifts all
+  three.
 
   A *whole file* is not bound by it any more, which is the half that used to
   fail on ordinary repositories rather than extreme ones.
