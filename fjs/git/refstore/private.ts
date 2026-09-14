@@ -40,6 +40,11 @@ export type _Entry = {
  * name — otherwise a name whose loose file replaced a packed one comes back
  * with the stale packed id, which is the opposite of what the loose file says.
  *
+ * The `HEAD` file records its name here too, and that one does not shadow: a
+ * packed line naming `HEAD` is a root Git keeps beside the file's, so the name
+ * being here is what *refuses* the listing rather than what hides the line. See
+ * `packedHeadCode` in the module.
+ *
  * Both are lists and not arrays because the walk appends to them once per file
  * it visits. A fresh array per step copies everything found so far, so a
  * repository with many loose refs pays the square of their count in copying;

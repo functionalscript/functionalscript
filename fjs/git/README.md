@@ -382,7 +382,11 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   *reflog* is not, which is why `tryRoots` answers the refs and not everything
   the repository is keeping: a reflog entry keeps an object alive until it
   expires, measured, so a caller must not prune by that list
-  ([`refstore/todo/reflog-roots.md`](refstore/todo/reflog-roots.md)).
+  ([`refstore/todo/reflog-roots.md`](refstore/todo/reflog-roots.md)). The one
+  repository that list cannot describe at all is refused: a `packed-refs` line
+  naming `HEAD` is a root Git keeps beside the `HEAD` file's, and one entry per
+  name holds neither answer
+  ([`refstore/todo/packed-head.md`](refstore/todo/packed-head.md)).
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. Where it binds today is the

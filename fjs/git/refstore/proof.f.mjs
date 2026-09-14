@@ -22,7 +22,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, tryResolve, tryRoots } from './module.f.mjs'
+import { headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, packedHeadCode, tryResolve, tryRoots } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -1228,31 +1228,59 @@ export const proof = {
             run({ refs: { heads: { master: ref(a) }, bisect: { good: ref(b) } } }, tryRoots(one(''), 20)),
             [['refs/heads/master', a], ['refs/bisect/good', b]])
     },
-    // A `packed-refs` line naming `HEAD` is shadowed by the `HEAD` file, which is
-    // this module's shadowing rule applied to the one name outside `refs/`.
-    // Measured on Git 2.43.0 with both present: `show-ref --head` prints two
-    // `HEAD` lines and `rev-list --all` keeps both ids, while `rev-parse HEAD`
-    // answers the file and `for-each-ref` lists neither — so Git does hold two,
-    // and the file is what the name means. `git pack-refs` never writes such a
-    // line, so this is a file made by hand either way.
+    // A `packed-refs` line naming `HEAD` beside a `HEAD` file refuses the
+    // listing, because Git keeps *both* and one entry per name can hold neither
+    // answer. Measured on Git 2.43.0 with both present: `show-ref --head` prints
+    // two `HEAD` lines, `rev-list --all` lists both ids, `fsck` calls neither
+    // unreachable, and `gc --prune=now` after
+    // `reflog expire --expire=now --expire-unreachable=now --all` keeps the
+    // packed line's commit — while `rev-parse HEAD` answers the file and
+    // `for-each-ref` lists neither. A shadowed name under `refs/` is the
+    // opposite: with `refs/heads/x` loose and packed at two ids, `show-ref` and
+    // `rev-list --all` answer only the loose one and that same `gc` prunes the
+    // packed commit. So shadowing is right there and drops a live root here.
+    //
+    // `git pack-refs --all` writes no such line — measured with a detached
+    // `HEAD` and an `ORIG_HEAD` set — so the collision is a file made by hand,
+    // though `git gc` carries one forward once it is there.
     packedHead: () => {
-        /** @type {Dir} */
-        const detached = { 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} }
-        sameRoots(run(detached, tryRoots(one(''), 20)), [['HEAD', a]])
-        // The file wins even when it adds no root of its own: an attached `HEAD`
-        // shadows the packed line and contributes nothing, so the name is gone
-        // rather than stale.
-        /** @type {Dir} */
-        const attached = {
-            'packed-refs': file(`${b} HEAD\n`),
-            HEAD: file('ref: refs/heads/master\n'),
-            refs: { heads: { master: ref(t) } },
+        /** @type {(root: Dir, dirs: Dirs, message: string) => void} */
+        const refuses = (root, dirs, message) => {
+            const [, r] = virtual({ ...emptyState, root })(tryRoots(dirs, 20))
+            assert(r[0] === 'error')
+            const e = r[1]
+            assert(e[0] === 'ioError')
+            assertEq(e[1].code, packedHeadCode)
+            assertEq(e[1].message, message)
         }
-        sameRoots(run(attached, tryRoots(one(''), 20)), [['refs/heads/master', t]])
-        // With no `HEAD` file the packed line is all there is, so it is listed:
-        // the shadow is the file existing, here as everywhere else.
+        refuses(
+            { repo: { 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} } },
+            one('repo'),
+            'repo/packed-refs names HEAD beside repo/HEAD')
+        // An attached `HEAD` is refused too. It adds no root of its own — the
+        // branch is the root — and the packed id is still one nothing else
+        // names, so answering the branch alone would lose it.
+        //
+        // The two paths come from the two directories, which is what a linked
+        // worktree shows: `packed-refs` is the shared one's and `HEAD` is the
+        // worktree's own.
+        refuses(
+            {
+                wt: { HEAD: file('ref: refs/heads/master\n') },
+                repo: { 'packed-refs': file(`${b} HEAD\n`), refs: { heads: { master: ref(t) } } },
+            },
+            { gitdir: 'wt', common: 'repo' },
+            'repo/packed-refs names HEAD beside wt/HEAD')
+        // With no `HEAD` file there is no collision to refuse: the packed line
+        // is all there is about the name, and it is listed.
         sameRoots(run({ 'packed-refs': file(`${b} HEAD\n`), refs: {} }, tryRoots(one(''), 20)), [['HEAD', b]])
-        // And the lookup answers the file, which is what `rev-parse` does.
-        assertEq(hexOf(detached, 'HEAD'), a)
+        // And a `packed-refs` that does not name `HEAD` is the ordinary
+        // repository, answered rather than refused.
+        sameRoots(
+            run({ 'packed-refs': file(`${b} refs/heads/other\n`), HEAD: ref(a), refs: {} }, tryRoots(one(''), 20)),
+            [['HEAD', a], ['refs/heads/other', b]])
+        // The lookup is not the listing and does not refuse: it answers the
+        // file, which is what `rev-parse HEAD` does.
+        assertEq(hexOf({ 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} }, 'HEAD'), a)
     },
 }

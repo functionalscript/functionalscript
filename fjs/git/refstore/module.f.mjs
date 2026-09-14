@@ -24,6 +24,12 @@
  * is there, and this module reads it the same way: a loose file that is no
  * ref leaves the name with no value rather than with the packed one.
  *
+ * That rule holds for every name under `refs/` and for no other, which is
+ * measured rather than assumed: a shadowed packed line is unreachable and
+ * `git gc --prune=now` prunes its commit, while a packed line named `HEAD`
+ * beside the `HEAD` file is a root Git keeps. So the one collision outside
+ * `refs/` is refused rather than shadowed — see {@link packedHeadCode}.
+ *
  * **A ref name that is no ref name is not a ref.** Git's own walk of
  * `refs/` skips such a file without a word, and the rule it skips by is the
  * ref-name rule. Measured by writing each of these into `refs/heads/` and
@@ -243,6 +249,9 @@ const tryWholeBytes = path =>
         readWholeBytes(path),
         e => isNotFound(e) ? pureOk(/** @type {Nullable<Bytes>} */ (null)) : pureError(e))
 
+/** The one file a repository's packed refs are in, beside `refs/` in the shared directory. */
+const packedRefs = /** @type {const} */ ('packed-refs')
+
 /**
  * The `packed-refs` entries, `[]` where the file is not there, and `null`
  * where it is there and is one Git refuses.
@@ -266,7 +275,7 @@ const tryWholeBytes = path =>
  */
 export const tryPackedRefs = (dirs, oidBytes) => {
     const parse = tryPacked(oidBytes)
-    return mapStep(tryWholeBytes(under(dirs.common, 'packed-refs')), b => b === null ? [] : parse(b))
+    return mapStep(tryWholeBytes(under(dirs.common, packedRefs)), b => b === null ? [] : parse(b))
 }
 
 /**
@@ -868,6 +877,21 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
 }
 
 /**
+ * Whether the `HEAD` file and `packed-refs` both name `HEAD`.
+ *
+ * The head's own findings are what say the file is there: {@link tryHeadFound}
+ * records the name whichever the file holds, so a non-empty `names` is the file
+ * and nothing else. This is the one collision the answer cannot carry, and
+ * {@link packedHeadCode} is what it refuses with — the argument, and Git's
+ * behaviour on both halves, are at {@link tryHeadFound}.
+ *
+ * @type {(headFound: _Found, packed: readonly PackedRef[]) => boolean}
+ */
+const packedHeadCollision = (headFound, packed) =>
+    toArray(headFound.names).some(n => sameName(n, headName))
+    && packed.some(p => sameName(p.name, headName))
+
+/**
  * The roots the walk found, then the packed lines nothing hides.
  *
  * A packed line is dropped for either of two reasons. A loose file of the same
@@ -960,6 +984,22 @@ export const headKindCode = /** @type {const} */ ('ERR_HEAD_KIND')
 const headKindMessage = path => `${path} is not a regular file`
 
 /**
+ * The code a listing is refused with when `packed-refs` names `HEAD` and a
+ * `HEAD` file is there too.
+ *
+ * Git keeps both — the file is what the name means and the packed line is a
+ * retention root of its own — and one entry per name can carry neither answer
+ * without losing the other. {@link tryHeadFound} has the measurements, and
+ * [`todo/packed-head.md`](./todo/packed-head.md) the representation that would
+ * hold both.
+ */
+export const packedHeadCode = /** @type {const} */ ('ERR_PACKED_HEAD')
+
+/** @type {(dirs: Dirs) => string} */
+const packedHeadMessage = dirs =>
+    `${under(dirs.common, packedRefs)} names ${head} beside ${under(dirs.gitdir, head)}`
+
+/**
  * Whether the gitdir's listing shows a `HEAD` this module may read: absent is
  * fine, a regular file is fine, and anything else is not.
  *
@@ -1001,16 +1041,29 @@ const headName = nameBytes(head)
  * only the detached spelling is a root, and `tryRoots`' doc has the measurements
  * for both.
  *
- * **The name is recorded whichever it holds, so the file shadows a `packed-refs`
- * line naming `HEAD`.** That is the module's shadowing rule — a loose file wins
- * by existing — applied to the one name that is not under `refs/`, and without it
- * the listing carried two entries called `HEAD`. Git has both: measured on Git
- * 2.43.0 with a packed `HEAD` line beside a detached `HEAD` file,
- * `git show-ref --head` prints two `HEAD` lines and `git rev-list --all` keeps
- * both ids, while `git rev-parse HEAD` answers the file and `git for-each-ref`
- * lists neither. So the file is what the name *means*, which is the winner this
- * defines; and `git pack-refs` never writes such a line, so the collision only
- * arises in a file made by hand.
+ * **The name is recorded whichever it holds, and it is what refuses a
+ * `packed-refs` line naming `HEAD`.** The module's shadowing rule — a loose file
+ * wins by existing — is right for a name under `refs/` and wrong for this one,
+ * because Git keeps *both* of these. Measured on Git 2.43.0 with a packed `HEAD`
+ * line beside a detached `HEAD` file: `git show-ref --head` prints two `HEAD`
+ * lines, `git rev-list --all` lists both ids, `git fsck` calls neither
+ * unreachable, and `git gc --prune=now` after
+ * `git reflog expire --expire=now --expire-unreachable=now --all` keeps the
+ * packed line's commit — while `git rev-parse HEAD` answers the file and
+ * `git for-each-ref` lists neither. A `HEAD` file naming a *branch* is the same:
+ * both ids survive that `gc`. A loose ref under `refs/` is the opposite, which is
+ * what makes the shadowing rule a rule: with `refs/heads/x` loose and packed at
+ * two ids, `show-ref` and `rev-list --all` answer only the loose one, `fsck`
+ * calls the packed commit unreachable and the same `gc` prunes it.
+ *
+ * So the file is what the name *means* and the packed line is a root nothing
+ * else holds, and one entry per name cannot say both — shadowing dropped an id
+ * the repository is keeping. {@link packedHeadCode} refuses the listing instead,
+ * and [`todo/packed-head.md`](./todo/packed-head.md) is the representation that
+ * would answer both. The collision only arises in a file made by hand:
+ * `git pack-refs --all` writes no `HEAD` line, measured with a detached `HEAD`
+ * and an `ORIG_HEAD` set — though `git gc` carries one forward once it is there,
+ * so a repository does not lose it by being packed again.
  *
  * Its kind comes from the gitdir's listing rather than from another `stat`: see
  * {@link headIsFile}, which is where the refusal is argued.
@@ -1077,6 +1130,15 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  *
  * One name, one entry, whatever the files do: a `packed-refs` naming a ref
  * twice contributes its last line and not both.
+ *
+ * **`HEAD` is the one name that rule cannot answer, and it refuses rather than
+ * answer it wrongly.** A packed line naming `HEAD` beside the `HEAD` file is a
+ * root Git keeps — unlike a shadowed line under `refs/`, which it prunes, both
+ * measured at {@link tryHeadFound} — so dropping it would leave an id the
+ * repository is keeping out of a list whose purpose is to name them. The
+ * refusal is the channel's, with {@link packedHeadCode}, because Git reads such
+ * a repository and this cannot: it is narrower than Git by a refusal and not by
+ * a wrong answer, the way a symlinked `HEAD` is at {@link headKindCode}.
  *
  * The order is the walk's and then the file's, and it means nothing: Git
  * sorts its own listing and this does not, because a caller that wants an
@@ -1171,11 +1233,21 @@ export const tryRoots = (dirs, oidBytes) => {
         : tryHeadFound(dirs, oidBytes, entries))
     // newest first, and the shared walk's own answer is skipped because the
     // worktree's walk carried it forward as its starting state
-    return mapStep(headRead, ([h, found, , , packed]) =>
-        packed === null || found === null || h === null
-            ? null
-            : combine({
-                roots: concat(found.roots)(h.roots),
-                names: concat(found.names)(h.names),
-            }, packed))
+    return step(headRead, ([h, found, , , packed]) => {
+        if (packed === null || found === null || h === null) {
+            return pureOk(/** @type {Nullable<readonly Root[]>} */ (null))
+        }
+        // The one collision that is neither a shadow nor an answer. See
+        // {@link packedHeadCollision}.
+        if (packedHeadCollision(h, packed)) {
+            return pureError(ioError({
+                code: packedHeadCode,
+                message: packedHeadMessage(dirs),
+            }))
+        }
+        return pureOk(combine({
+            roots: concat(found.roots)(h.roots),
+            names: concat(found.names)(h.names),
+        }, packed))
+    })
 }
