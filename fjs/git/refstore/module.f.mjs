@@ -426,6 +426,40 @@ const nameText = name => fromVec(toVec(name))
 const answered = id => [{ id, left: 0 }, null]
 
 /**
+ * The path spelling of a name this module can answer for, or `null` where it
+ * cannot — which is one answer and not two, because both reasons mean the same
+ * thing to a caller: no file of this repository is that ref's.
+ *
+ * Asked *before* anything is read, by both callers. {@link tryResolve} promises
+ * that a name which is no ref name is `null` "before any file is opened", and
+ * that promise was not kept: the `packed-refs` read came first, so a
+ * `packed-refs` the host refuses for any reason other than absence made the
+ * answer for `../secret` a channel error rather than `null` — a value known not
+ * to be a ref, answered out of the filesystem's state.
+ *
+ * @type {(name: Bytes) => Nullable<string>}
+ */
+const askable = name => {
+    const dense = byteArray(name)
+    // A name that is no ref name never reaches the filesystem. `..` is
+    // one of the byte pairs `isWholeName` refuses, so this is also what
+    // keeps `../secret` from being joined below either directory and read: a path
+    // that leaves the repository is not a ref this can answer for, and
+    // the file at the other end of it could begin with something that
+    // looks like an id.
+    if (!isWholeName(dense)) { return null }
+    // No path can name this ref's loose file, so whether one exists is not a
+    // question this host can put to the filesystem — and a loose file
+    // shadows a packed line by existing, so the packed line is the answer
+    // only if there is no loose file. Unknowable, not absent: answering the
+    // packed line would be a stale id whenever the loose file is there, and
+    // that state cannot even be constructed in a proof here, since the
+    // virtual filesystem spells a directory entry as a string too.
+    // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
+    return nameText(dense)
+}
+
+/**
  * One link of the walk down a symbolic chain: the file the name sits in, read,
  * and then either the id it holds or the next name to look up.
  *
@@ -454,23 +488,10 @@ const answered = id => [{ id, left: 0 }, null]
  */
 const lookupOf = (dirs, packed, readRef) => name => state => {
     if (state.left <= 0) { return pureOk(answered(null)) }
-    const dense = byteArray(name)
-    // A name that is no ref name never reaches the filesystem. `..` is
-    // one of the byte pairs `isWholeName` refuses, so this is also what
-    // keeps `../secret` from being joined below either directory and read: a path
-    // that leaves the repository is not a ref this can answer for, and
-    // the file at the other end of it could begin with something that
-    // looks like an id.
-    if (!isWholeName(dense)) { return pureOk(answered(null)) }
-    const text = nameText(dense)
-    // No path can name this ref's loose file, so whether one exists is not a
-    // question this host can put to the filesystem — and a loose file
-    // shadows a packed line by existing, so the packed line is the answer
-    // only if there is no loose file. Unknowable, not absent: answering the
-    // packed line would be a stale id whenever the loose file is there, and
-    // that state cannot even be constructed in a proof here, since the
-    // virtual filesystem spells a directory entry as a string too.
-    // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
+    // Every link's name is asked about, not only the caller's: a symbolic ref
+    // names its target, and the target is as much from outside the repository as
+    // the name a caller typed.
+    const text = askable(name)
     if (text === null) { return pureOk(answered(null)) }
     // Which directory the name's file sits in is the name's own question,
     // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
@@ -541,6 +562,11 @@ const resolveWith = (dirs, oidBytes, packed) => {
  * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
  */
 export const tryResolve = (dirs, oidBytes) => name => {
+    // Before the read and not inside the walk, which is what the paragraph above
+    // promises: otherwise a `packed-refs` the host refuses answers `../secret`
+    // with a channel error, making a value known not to be a ref depend on the
+    // repository's filesystem. See {@link askable}.
+    if (askable(name) === null) { return pureOk(/** @type {Nullable<Oid>} */ (null)) }
     const read = tryPackedRefs(dirs, oidBytes)
     return step(read, packed => packed === null
         ? pureOk(null)
@@ -821,11 +847,39 @@ const refsDir = /** @type {const} */ ('refs')
  * The listing is the caller's because `HEAD`'s kind comes out of the same one —
  * see {@link headIsFile} — so a walk of a worktree reads the directory once.
  *
- * @type {(dirs: Dirs, entries: readonly Dirent[]) => readonly _Entry[]}
+ * **The entry's kind is asked for rather than read off the listing, because this
+ * one may be a link.** A `$GIT_DIR/refs` that is a symlink to a directory is a
+ * worktree Git reads: measured on Git 2.43.0, with a linked worktree's `refs`
+ * replaced by a link to a directory holding `bisect/bad`, `git show-ref` and
+ * `git for-each-ref` both list `refs/bisect/bad` and `git rev-parse --verify`
+ * answers its id. A listing reports that entry with both kind flags false — it
+ * does not follow a link — so a filter on `isDirectory` dropped the worktree's
+ * whole ref tree without a word.
+ *
+ * The link is *followed* here, where {@link statted} refuses one below: the
+ * difference is what makes it safe. Every link inside the tree is refused, so
+ * following the root buys exactly one level and no cycle — `refs` linked to `..`
+ * lists the gitdir, whose own `refs` is that same link and is refused there.
+ * Following the root also matches the shared walk, which reaches its `refs`
+ * through a `readdir` that follows links whatever the entry is.
+ *
+ * A `refs` that is a regular file, or a link to anything but a directory, is a
+ * worktree with no refs of its own — which is what most of them are.
+ *
+ * @type {(dirs: Dirs, entries: readonly Dirent[]) => Effect<Stat, readonly _Entry[], IoChannel>}
  */
-const ownRefs = (dirs, entries) => entries
-    .filter(d => d.isDirectory && d.name === refsDir)
-    .map(d => ({ path: under(dirs.gitdir, d.name), name: d.name, isFile: false, isDirectory: true }))
+const ownRefs = (dirs, entries) => {
+    const d = entries.find(e => e.name === refsDir)
+    if (d === undefined) { return pureOk(/** @type {readonly _Entry[]} */ ([])) }
+    const path = under(dirs.gitdir, refsDir)
+    /** @type {readonly _Entry[]} */
+    const walk = [{ path, name: refsDir, isFile: false, isDirectory: true }]
+    if (d.isDirectory) { return pureOk(walk) }
+    if (d.isFile) { return pureOk(/** @type {readonly _Entry[]} */ ([])) }
+    return catchStep(
+        mapStep(stat(path), s => s.isDirectory ? walk : /** @type {readonly _Entry[]} */ ([])),
+        e => leadsNowhere(e) ? pureOk(/** @type {readonly _Entry[]} */ ([])) : pureError(e))
+}
 
 /**
  * The code a repository is refused with when its `HEAD` is not a regular file.
@@ -1042,7 +1096,7 @@ export const tryRoots = (dirs, oidBytes) => {
     const ownWalk = historyStep(listed, (entries, found, packed) => packed === null || found === null
         ? pureOk(found)
         : walkStep(
-            pureOk(ownRefs(dirs, entries)),
+            ownRefs(dirs, entries),
             found,
             looseOf(dirs, oidBytes, packed, isPerWorktree)))
     const headRead = historyStep(ownWalk, (found, entries) => found === null
