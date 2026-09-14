@@ -57,7 +57,7 @@
  *
  * @import { List } from '../../../types/list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
- * @import { Primitive } from '../types.ts'
+ * @import { Primitive, Unknown } from '../types.ts'
  * @import { _Graph, _Member, _Node, _Read, _Value } from './types.ts'
  * @import { _Frame, _Stack, _State, _Step, _Todo, _Walk } from './private.ts'
  */
@@ -415,24 +415,25 @@ const write = graph => {
 // ── entry points ──────────────────────────────────────────────────────────────
 
 /**
- * A value of the caller's as the chunks of a DataJS document, or why it is
- * not one.
+ * A value of the data model as the chunks of a DataJS document, or why it
+ * is not one.
  *
- * Fallible by its name, because a caller may legitimately hand a writer a
- * value outside the data model, and the specification refuses such a value
- * rather than approximating it: a leaf outside the leaf set, a hole, a
- * symbol key, an accessor, a non-enumerable property, an array carrying
- * anything besides its elements, a non-plain object, or a cycle. What
- * `JSON.stringify` does with the same values — `null` for a function, `null`
- * for a hole, a symbol-keyed member dropped without a word — is the
- * silently wrong document this refuses instead.
+ * The parameter is `Unknown`, the data model's own type, so a
+ * FunctionalScript caller cannot hand this a value outside the model and
+ * `tsc` says so at the call. The refusals stay, because the type cannot see
+ * everything the specification refuses — a hole, a symbol key, an accessor,
+ * a non-enumerable property, an array carrying anything besides its
+ * elements, a non-plain object, a cycle — and a host that casts is refused
+ * rather than approximated. What `JSON.stringify` does with the same values
+ * — `null` for a function, `null` for a hole, a symbol-keyed member dropped
+ * without a word — is the silently wrong document this refuses instead.
  *
  * It takes no mapping over an object's members, which JSON's `serialize`
  * does: observable key order is part of a DataJS value, so a caller
  * reordering it would get back a valid document denoting a different
  * object.
  *
- * @type {(value: unknown) => Result<List<string>, string>}
+ * @type {(value: Unknown) => Result<List<string>, string>}
  */
 export const trySerialize = value => okThen(
     /** @type {(step: _Step) => Result<List<string>, string>} */
@@ -443,6 +444,6 @@ export const trySerialize = value => okThen(
  * {@link trySerialize} as one string: the document in normalized form, the
  * bytes a caller asks for to hash or compare documents.
  *
- * @type {(value: unknown) => Result<string, string>}
+ * @type {(value: Unknown) => Result<string, string>}
  */
 export const tryStringify = value => mapOk(concat)(trySerialize(value))

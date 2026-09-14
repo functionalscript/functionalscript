@@ -79,6 +79,5 @@ define its accepted language and scalar semantics before implementation.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — defines the
   DataJS value model and DAG identity semantics.
 - [`fjs/media/datajs`](../../datajs/README.md) — the
-  native DataJS codec, and
-  [its serializer](../../datajs/todo/serializer.md), which holds the
-  validation rules.
+  native DataJS codec; the validation rules are the specification's
+  [§What may be serialized](../../../../spec/datajs/README.md#what-may-be-serialized).

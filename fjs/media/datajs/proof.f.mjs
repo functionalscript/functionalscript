@@ -33,8 +33,8 @@ export const proof = {
     signatures: () => {
         /** @typedef {Assert<Equal<typeof tryParse, (text: string) => Result<Unknown, string>>>} _TryParse */
         /** @typedef {Assert<Equal<typeof tryParseBytes, (bytes: List<U8>) => Result<Unknown, string>>>} _TryParseBytes */
-        /** @typedef {Assert<Equal<typeof trySerialize, (value: unknown) => Result<List<string>, string>>>} _TrySerialize */
-        /** @typedef {Assert<Equal<typeof tryStringify, (value: unknown) => Result<string, string>>>} _TryStringify */
+        /** @typedef {Assert<Equal<typeof trySerialize, (value: Unknown) => Result<List<string>, string>>>} _TrySerialize */
+        /** @typedef {Assert<Equal<typeof tryStringify, (value: Unknown) => Result<string, string>>>} _TryStringify */
     },
     // Writing what was read gives the document back: normalized form is one
     // spelling per value, and the reader keeps the sharing the writer hoists.
@@ -48,6 +48,8 @@ export const proof = {
     refused: {
         text: () => assertEq(tryParse('export default [1,]')[0], 'error'),
         bytes: () => assertEq(tryParseBytes([0xef, 0xbb, 0xbf])[0], 'error'),
-        value: () => assertEq(tryStringify(() => 1)[0], 'error'),
+        // a value outside the model reaches the writer as a host would hand
+        // it, cast; a FunctionalScript caller cannot hand one at all
+        value: () => assertEq(tryStringify(/** @type {Unknown} */ (/** @type {unknown} */ (() => 1)))[0], 'error'),
     },
 }

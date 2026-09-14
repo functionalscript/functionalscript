@@ -167,17 +167,14 @@ non-enumerable property, an array with an extra own property and a cycle — and
 no functions, no `Symbol`, no `Date`, and no way to spell a hole, an accessor or
 a class. That is a property of the carrier rather than an omission, which is why
 that section is a rule an implementation answers in its own tests, in whatever
-host can build the value. One question is open on the other side of it: while
-[this repository's writer](../../../fjs/media/datajs/todo/serializer.md) takes
-`unknown` and refuses at run time rather than taking the data model and trusting
-it, its parameter admits values the data model does not. That gap cannot become
-a set, and the reason is the same carrier fact: everything a set can spell is a
-value of the data model, so what is outside the model is outside the corpus by
-construction. What closes it there is narrowing the parameter, after which the
-gap has no inputs to reach — and that is the writer's decision to take, recorded
-in its own issue, which also records which half of the gap its own proofs cover
-and which half no proof there may build. §What may be serialized is the same shape: a rule an implementation
-answers in a host that can build the values, not something a vector reaches.
+host can build the value. [This repository's writer](../../../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so)
+takes the data model's own type, so from FunctionalScript there is no input
+outside the model to reach its refusals, and it keeps them for what a host
+hands it cast; its first draft took `unknown`, which admitted values no set
+could carry — the same carrier fact — and narrowing the parameter is what
+closed that. §What may be serialized is the same shape: a rule an
+implementation answers in a host that can build the values, not something a
+vector reaches.
 
 **Normalized bytes** are the document as a string, and the set's proof
 compares that string against what the shipped writer emits rather than
