@@ -1,8 +1,7 @@
 /**
- * A module as an EDAG over its imports, compiled before any import is read:
- * the first half of Stage 1 in `../todo/compile-modules-to-edag.md`, the
- * second being the resolution that binds each import's own EDAG in place of
- * its parameter.
+ * A module as an EDAG: over its imports, compiled before any import is read,
+ * and with its imports resolved into one graph — Stage 1 of
+ * `../todo/compile-modules-to-edag.md`, both halves.
  *
  * @module
  *
@@ -10,12 +9,21 @@
  * @import { AstConst, AstMember, AstModule } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
+ * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Nodes } from './private.ts'
+ * @import { _Binding, _Link, _Nodes } from './private.ts'
  */
 
 import { unreached } from '../ast/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { _importPath, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
+import { error, mapOk, ok } from '../../types/result/module.f.mjs'
+import { foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
+import { drop, includes } from '../../types/list/module.f.mjs'
+import { definedEntries } from '../../types/object/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
 
@@ -55,9 +63,9 @@ const entry = parameters => (consts, ast) => [...consts, lower({ parameters, con
 const refuse = message => error({ message, metadata: null })
 
 /**
- * The module as an EDAG over its imports, or the refusal. The body is
- * lowered entry by entry, each `cref` taking the node of the entry it
- * names, and the last entry's node is the export.
+ * The module as an EDAG over the nodes given for its imports, or the
+ * refusal. The body is lowered entry by entry, each `cref` taking the node
+ * of the entry it names, and the last entry's node is the export.
  *
  * Refused is a module whose export does not reach every import and every
  * `const`: `transpile` reads each import and `run` evaluates each entry
@@ -68,13 +76,117 @@ const refuse = message => error({ message, metadata: null })
  * whose value nothing takes; nothing decides here whether the dropped
  * part could fail, only whether it is reached.
  *
+ * @type {(imports: readonly Exp[]) => (module: AstModule) => Result<Exp, ParseError>}
+ */
+const lowered = imports => module => {
+    const [specifiers, body] = module
+    const { consts, imports: unbound } = unreached(module)
+    if (unbound.length !== 0) { return refuse(`unreachable import "${specifiers[unbound[0]]}"`) }
+    if (consts.length !== 0) { return refuse(`unreachable const ${consts[0]}`) }
+    const nodes = body.reduce(entry(imports), [])
+    return ok(nodes[nodes.length - 1])
+}
+
+/** @type {(imports: readonly string[]) => (edag: Exp) => Unresolved} */
+const over = imports => edag => ({ imports, edag })
+
+/**
+ * The module as an EDAG over its imports, before any of them is read: each
+ * import is its parameter node, and the specifiers ride beside the graph
+ * for the resolution to read.
+ *
  * @type {(module: AstModule) => Result<Unresolved, ParseError>}
  */
-export const unresolved = module => {
-    const [specifiers, body] = module
-    const { consts, imports } = unreached(module)
-    if (imports.length !== 0) { return refuse(`unreachable import "${specifiers[imports[0]]}"`) }
-    if (consts.length !== 0) { return refuse(`unreachable const ${consts[0]}`) }
-    const nodes = body.reduce(entry(specifiers.map(parameter)), [])
-    return ok({ imports: specifiers, edag: nodes[nodes.length - 1] })
+export const unresolved = module => mapOk(over(module[0]))(lowered(module[0].map(parameter))(module))
+
+// ── resolution ────────────────────────────────────────────────────────────────
+
+/** @type {(member: Entry<JsonUnknown>) => readonly [':', string, Exp]} */
+const jsonMember = ([key, value]) => [':', key, jsonEdag(value)]
+
+/**
+ * A JSON document's value as an EDAG: a tree with JSON's leaves, its
+ * members in the order the reader built them. `transpile` reads a `.json`
+ * import as a value, so the linker does too.
+ *
+ * @type {(value: JsonUnknown) => Exp}
+ */
+const jsonEdag = value => {
+    if (value === null || typeof value !== 'object') { return value }
+    return value instanceof Array
+        ? ['[]', value.map(jsonEdag)]
+        : ['{}', definedEntries(value).map(jsonMember)]
 }
+
+/** An EDAG boxed for the record of resolved modules, which cannot hold a bare `null`. @type {(edag: Exp) => readonly [Exp]} */
+const boxed = edag => [edag]
+
+/**
+ * A module's EDAG recorded under its path, and the chain of imports left as
+ * it was before the module was entered.
+ *
+ * @type {(path: string) => (context: _Link) => (edag: Exp) => readonly [_Link, Exp]}
+ */
+const completed = path => context => edag => [{
+    complete: setReplace(path)(boxed(edag))(context.complete),
+    stack: drop(1)(context.stack),
+}, edag]
+
+/** @type {(path: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, Exp]} */
+const completedJson = path => context => value => completed(path)(context)(jsonEdag(value))
+
+/** @type {(bound: readonly Exp[]) => (linked: readonly [_Link, Exp]) => _Binding} */
+const appended = bound => ([context, edag]) => ({ context, bound: [...bound, edag] })
+
+/** One import resolved and its EDAG appended to the module's bound imports. @type {(path: string) => (binding: _Binding) => Effect<ReadFile, _Binding, ParseError>} */
+const linkImport = path => ({ context, bound }) => mapStep(link(path)(context), appended(bound))
+
+/**
+ * A parsed module linked: its imports resolved in source order, each to its
+ * own EDAG, and the module lowered over them — the binding happens where a
+ * reference is lowered, so the graph is built once, with the imported
+ * module's node where its parameter would be.
+ *
+ * @type {(path: string) => (context: _Link) => (module: AstModule) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
+ */
+const linkModule = path => context => module => step(
+    foldStep(pureOk(module[0].map(_importPath(path))), { context, bound: [] }, linkImport),
+    ({ context: linked, bound }) => pure(mapOk(completed(path)(linked))(lowered(bound)(module))))
+
+/**
+ * The file at `path` resolved to its EDAG within one link: a module met
+ * again is the node it resolved to the first time, so a diamond of imports
+ * joins at one node, and a module met again while it is still being entered
+ * is a cycle.
+ *
+ * @type {(path: string) => (context: _Link) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
+ */
+const link = path => context => {
+    if (includes(path)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null }) }
+    const done = at(path)(context.complete)
+    if (done !== null) { return pureOk([context, done[0]]) }
+    const entered = { ...context, stack: { first: path, tail: context.stack } }
+    return path.endsWith('.json')
+        ? mapStep(_parseJson(path), completedJson(path)(entered))
+        : step(_parseModule(path), linkModule(path)(entered))
+}
+
+/** @type {(linked: readonly [_Link, Exp]) => Exp} */
+const edagOf = ([, edag]) => edag
+
+/**
+ * The program at `path` as one EDAG: the module read and parsed, each of
+ * its imports resolved the same way, recursively, and every import bound in
+ * its parameter's place — a `.json` import as the tree its document
+ * denotes, as `transpile` reads it. The result carries no path and no
+ * parameter: the `Unresolved` layer is the compiler's, and is gone once the
+ * link is done.
+ *
+ * Fails as `transpile` fails, with the same `ParseError`: a parse error
+ * where its token is, and a missing file or a circular dependency with no
+ * position; and as `unresolved` refuses, on a module whose export does not
+ * reach every import and every `const`.
+ *
+ * @type {(path: string) => Effect<ReadFile, Exp, ParseError>}
+ */
+export const resolve = path => mapStep(link(path)({ complete: null, stack: null }), edagOf)

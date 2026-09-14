@@ -52,11 +52,17 @@ This task should reuse and cross-reference those decisions rather than duplicate
 
 **Where it stands.** The EDAG side is there — `['.', object, property]` is in
 [`fjs/edag`](../../edag/module.f.mjs)'s schema, `dot`, with the index
-restriction below — and so is the unresolved module:
+restriction below — and so are the unresolved module and its resolution:
 [`fjs/fsc/edag`](../edag/module.f.mjs) compiles a parsed module to
-`Unresolved { imports, edag }`, refusing what the export does not reach. What
-Stage 1 still owes is the parser's `a.b` and `a[b]`, the resolution of
-unresolved modules into one EDAG, and the compiler path that writes it.
+`Unresolved { imports, edag }`, refusing what the export does not reach, and
+`resolve` links a program from its root path into one EDAG, memoized by path
+within the link. The binding is done where a reference is lowered — the
+importing module is lowered over the imported modules' EDAGs, its parameters
+never built — rather than by rewriting a finished `Unresolved`, which would
+need a memo keyed by node identity to keep sharing; a cache that stores
+`Unresolved` ([cache-compiled-modules](./cache-compiled-modules.md)) is what
+would need that rewrite. What Stage 1 still owes is the parser's `a.b` and
+`a[b]`, and the compiler path that writes the EDAG.
 
 The first missing EDAG operation was property access:
 
@@ -509,15 +515,22 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
       with shared EDAG node identity. Done: one parameter node per import, one node
       per `const`, pinned by `example`, `chain` and `parameters` in the proof.
-- [ ] Resolve imported `Unresolved` values recursively and bind each resolved result
+- [x] Resolve imported `Unresolved` values recursively and bind each resolved result
       to the corresponding **module-scope** import parameter position; when Stage 2
       functions exist, do not descend into nested `=>` bodies while substituting imports.
-- [ ] Apply the same function-scope boundary to module-import reachability checks so
+      Done: `resolve` in [`fjs/fsc/edag`](../edag/module.f.mjs) binds where a
+      reference is lowered, so no substitution descends into anything; a
+      function body, when there is one, is lowered by the same rule.
+- [x] Apply the same function-scope boundary to module-import reachability checks so
       nested function-local `['args']` nodes are never interpreted as import parameters.
-- [ ] Memoize resolved modules during one link operation by canonical module path so
-      repeated/diamond imports reuse the same resolved EDAG node identities.
-- [ ] Remove the temporary `Unresolved` layer after resolution so the root compilation
+      Done by construction: reachability is read from the syntax (`unreached`), where
+      an import is an `aref`, never from `['args']` nodes.
+- [x] Memoize resolved modules during one link operation by canonical module path so
+      repeated/diamond imports reuse the same resolved EDAG node identities. Done;
+      pinned by `resolve.diamond` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
+- [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
+      Done: `resolve` returns an `Exp`.
 - [ ] Add a distinct EDAG-producing compiler path/API alongside the current
       value-producing transpiler; do not redirect existing `transpile` / `fjs compile`
       callers until EDAG execution is available.
