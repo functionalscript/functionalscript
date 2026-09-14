@@ -130,6 +130,14 @@ against that data directly. They carry the `_` prefix because that export is
 linkage rather than API: `trySerialize` and `tryStringify` are what the
 module promises.
 
+Both passes keep the reader's depth contract, so a document the reader
+accepts is one the writer writes back. The read walks an explicit stack, a
+frame per container being read, as the reader's resolution does. The write
+needs none: the linked graph is in post-order, so each node's chunks are
+built from the chunks of nodes already built, and a reference to an inline
+node is a thunk over that node's chunks, forced only as the document is read
+out — which the list's iteration does without recursion.
+
 ## Nothing is read before it is known to be data
 
 Reading the caller's graph means following its edges, and following an edge

@@ -275,4 +275,26 @@ export const proof = {
         assertEq(concat(unwrap(trySerialize(value))), text(value))
         assertEq(text(value), 'export default [1,{"a":2}];')
     },
+    // Nesting depth is the input's, not the call stack's: the read walks an
+    // explicit stack and the write reads the linked graph in its post-order,
+    // so both keep the reader's 5,000-level contract and a document the
+    // reader accepts is one the writer writes back.
+    depth: {
+        writesBack: () => {
+            const n = 5000
+            const document = `export default ${'['.repeat(n)}${']'.repeat(n)};`
+            assertEq(text(unwrap(tryParse(document))), document)
+        },
+        // 2,600 nested arrays is the input that used to throw `RangeError`
+        // out of both passes. A refusal below them is an `error`, as
+        // §Layout and API promises, and the sharing a deep chain takes part
+        // in is hoisted as any other.
+        below: () => {
+            /** @type {(depth: number, bottom: unknown) => unknown} */
+            const nested = (depth, bottom) => Array.from({ length: depth }).reduce(v => [v], bottom)
+            assertEq(refused(nested(2600, () => 1)), 'a function is not a DataJS value')
+            const chain = nested(2600, emptyArray)
+            assertEq(text([chain, chain]).slice(0, 12), 'const $0=[[[')
+        },
+    },
 }
