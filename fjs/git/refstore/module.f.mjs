@@ -680,8 +680,20 @@ const tryHeadFound = (dirs, oidBytes) => {
 
 /**
  * Every ref the repository holds, as a name and the id it effectively
- * names: the retention roots, and the ids a search for candidate commits
- * may start from.
+ * names: the ids a search for candidate commits may start from, and the roots
+ * a *ref* keeps an object alive by.
+ *
+ * **Not every root Git has, and so not a prune list.** A reflog entry keeps an
+ * object too, until the entry expires: measured on Git 2.43.0, a commit left
+ * only in `HEAD`'s reflog by `git reset --hard HEAD~1` survives
+ * `git gc --prune=now`, and the same commit is gone after
+ * `git reflog expire --expire=now --expire-unreachable=now --all` and another
+ * `gc --prune=now`. `git fsck` treats the reflog the same way, which is what
+ * `--no-reflogs` turns off. So a caller that deletes what this list does not
+ * name deletes history Git would have given back, and this answers refs rather
+ * than everything the repository is currently keeping —
+ * [`todo/reflog-roots.md`](./todo/reflog-roots.md) is the other half, and the
+ * shape it needs.
  *
  * `null` where the ref files are ones Git refuses — a `packed-refs` it
  * would call `unexpected line`, or a loose file under `refs/` that is no

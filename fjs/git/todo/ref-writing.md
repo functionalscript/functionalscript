@@ -27,12 +27,23 @@ Deleting a ref is the harder half, because a name can be in two files: the
 loose file must go *and* the `packed-refs` line with it, or the packed line
 reappears as the ref. Git rewrites `packed-refs` under its own lock for that.
 
-**The reflog is not retention.** `logs/refs/heads/x` records where a ref has
-pointed, and entries expire — `gc.reflogExpire` defaults to 90 days — so an
-id reachable only from a reflog is not kept. That is why
-[`refstore`](../refstore/module.f.mjs)'s `tryRoots` answers refs and not
-reflogs, and a writer that appends to one must not treat the entries it
-writes as roots.
+**The reflog is retention with a clock on it.** `logs/refs/heads/x` records
+where a ref has pointed, and Git keeps an object an entry names until that entry
+expires — `gc.reflogExpire` defaults to 90 days and
+`gc.reflogExpireUnreachable` to 30. Measured on Git 2.43.0: a commit left only
+in the reflog by `git reset --hard HEAD~1` survives `git gc --prune=now`, and is
+gone after `git reflog expire --expire=now --expire-unreachable=now --all` and
+another `gc --prune=now`.
+
+An earlier revision of this file said the opposite — "the reflog is not
+retention", reasoning from expiry to irrelevance — and the measurement above is
+the case that breaks it. What follows for a writer is not that its entries are
+not roots, but that they are roots that stop being ones on a clock this side does
+not control: appending to a reflog does not make an object safe to depend on, and
+deleting a ref does not make its objects collectable while the reflog still names
+them. [`refstore`](../refstore/module.f.mjs)'s `tryRoots` answers refs only, and
+that is now what its doc says; reading the reflog for the roots it holds is
+[`refstore/todo/reflog-roots.md`](../refstore/todo/reflog-roots.md).
 
 ### The bound this is under
 
