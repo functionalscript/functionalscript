@@ -34,13 +34,19 @@
  * and what the loose read said stands only where no pack holds the id.
  *
  * **Reading packs widens what this asks of its host, and that is a break.** A
- * loose read needs `readFile` and `inflate`; a packed one adds `readdir` for
- * the pack directory, `readFile` for an index, `stat` for the pack's length and
- * `readBytes` for one entry's window. Every one of them is a `NodeOp`, so a
- * program on the node runner notices nothing — what has to grow is an
- * interpreter written for exactly the old set, which a mock or a partial runner
- * is. Both of this repository's own callers were such interpreters and grew
- * three handlers each, which is the measure of what an importer has to do.
+ * loose read needs `readFile` and `inflate`; a packed one adds exactly three —
+ * `readdir` for the pack directory, and `stat` and `readBytes` for the two files
+ * of a pack pair. The index is read *whole*, since its size is the pack's object
+ * count and no `Vec` holds it: `stat` for the length, `readBytes` per window.
+ * The pack is read at known offsets: `stat` for its length, then `readBytes` for
+ * its header, its trailer and one entry's window. `readFile` is not among the
+ * three — an index does not go through it, and the loose path already needed it.
+ *
+ * Every one of the three is a `NodeOp`, so a program on the node runner notices
+ * nothing — what has to grow is an interpreter written for exactly the old set,
+ * which a mock or a partial runner is. Both of this repository's own callers
+ * were such interpreters and grew three handlers each, which is the measure of
+ * what an importer has to do.
  *
  * @module
  *
