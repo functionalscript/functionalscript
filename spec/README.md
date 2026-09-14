@@ -543,13 +543,16 @@ landed with the parser's move to the LL(1) backend, where telling a newline
 from a `;` reached through newlines took unbounded lookahead, and it is the
 rule of the compiler-formatted `.f.js` output language: the compiler writes
 the `;` after every statement it emits. Trivia between tokens — whitespace
-or a comment — is optional here, `export default[1];` and
-`export default{};` included. After `const` and `export` some trivia is
-needed, since `const$0` and `exportdefault` each lex as one identifier, and
-a comment separates as a space does: `const/**/a=1;` parses. After `default`
-nothing is needed. DataJS requires a space in all three positions and admits
-no comment, more than this language asks, so every DataJS document parses
-here.
+or a comment — is optional here, `export default[1];`, `export default{};`
+and `import a from"./a.f.js";` included. Where two words would otherwise
+lex as one identifier some trivia is needed — after `const`, `export` and
+`import`, and between an import's name and `from`, since `const$0`,
+`exportdefault`, `importa` and `afrom` are each one identifier — and a
+comment separates as a space does: `const/**/a=1;` and
+`import/**/a/**/from/**/"./a.f.js";` parse. After `default`, and before an
+import's string, nothing is needed. DataJS requires a space after `const`,
+`export` and `default` and admits no comment, more than this language asks,
+so every DataJS document parses here.
 
 |Statement|Form|
 |---------|----|
