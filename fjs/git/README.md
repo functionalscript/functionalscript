@@ -435,6 +435,18 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   either side of its stream — a file over the bound before inflating, a
   stream that inflates past it — and never cut short. The inflater issue
   lifts both sides.
+
+  A *whole file* is not bound by it any more, which is the half that used to
+  fail on ordinary repositories rather than extreme ones.
+  [`fjs/effects/node`](../effects/node/module.f.mjs)'s `readWholeBytes` reads
+  one in windows — a `stat` for the length, a `readBytes` per window, joined
+  into a byte list — and refuses a window that comes back short of the end of
+  the file rather than skipping the gap. `packed-refs` is read that way: a
+  record is 70 bytes at `refs/heads/topic/feature-<n>`, measured, so
+  `readFile` was spent at about 1,870 refs and a repository of 4,000 branches
+  writes a 282,939-byte file that Git reads without comment. A *ref file* is
+  still read whole, because it is one line and an extra `stat` per lookup
+  would double the walk's syscalls.
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.
