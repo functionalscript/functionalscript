@@ -22,8 +22,10 @@ Unknown                   the graph the document denotes, sharing included
 
 The reader is [`parser/module.f.mjs`](./parser/module.f.mjs), the writer
 [`serializer/module.f.mjs`](./serializer/module.f.mjs), and the value types
-are in [`types.ts`](./types.ts). What remains of the codec is two issues:
-the byte path, in
+are in [`types.ts`](./types.ts). The reader takes either surface — `parse` over
+code units, `parseBytes` over UTF-8 bytes, which owes the two document rules a
+string cannot carry. What remains of the codec is two issues: this directory's
+own public `module.f.mjs`, in
 [`todo/parser-serializer.md`](./todo/parser-serializer.md), and what the
 writer still owes, in
 [`todo/serializer.md`](./todo/serializer.md). The codec's proofs come

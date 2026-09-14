@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { Primitive, Unknown } from '../../djs/types.ts'
+import type { Primitive, Unknown } from '../../media/datajs/types.ts'
 
 /**
  * A parsed DJS module: its imported module specifiers, in source order, and

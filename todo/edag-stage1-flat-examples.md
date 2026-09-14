@@ -20,7 +20,7 @@ The normative places were corrected in
 review found the design and the schema disagreeing: the structural-operations
 table, subject 4's resolution and history, the object-constructor validation
 rule, and the three forms in
-[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md).
+[`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md).
 The examples were left because they do not all want the same treatment, and
 deciding per site is a judgement about what each passage is for — which is
 this issue.

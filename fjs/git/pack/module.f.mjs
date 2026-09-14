@@ -124,14 +124,42 @@ export const tryHeader = input => {
  * to `readBytes`, which takes a `number`, so a value above 2^53 - 1 is refused
  * rather than rounded.
  *
+ * **A group of no bits is added and not multiplied.** The encoding lets a value
+ * be padded with continuation bytes that carry nothing, and Git reads such a
+ * varint — measured on 2.43.0, where `git index-pack --strict` accepts a one-blob
+ * pack whose entry header is `0xb1` and 146 bytes of `0x80` before its
+ * terminator, an entry of size 1 spelled the long way. Multiplying would refuse
+ * it: the scale doubles seven bits per group, so the 147th group's scale is past
+ * what a double holds, `0 * Infinity` is `NaN`, and the bound above would refuse
+ * a value that is still 1. A group that is *not* zero at that scale names a value
+ * no repository has, and the bound refuses it, which is what the check is for.
+ *
+ * **A loop and not a recursion**, because after the rule above the number of
+ * groups is the input's rather than the bound's: a window of `0x80` bytes is read
+ * to its end, and a `readBytes` window reaches 128 KiB. As a recursion that was
+ * one frame per byte, so reading a padded varint would have traded a wrong
+ * refusal for a stack overflow — measured on node 22, the recursive form read
+ * 5,500 groups and died with `RangeError` at 6,000, where this reads 100,000
+ * without noticing. Depth is constant, and
+ * the bound left is the one the format has: a value that does not fit a `number`.
+ *
  * @type {(b: readonly number[], at: number, value: number, scale: number) => Nullable<readonly [number, number]>}
  */
 const littleVarint = (b, at, value, scale) => {
-    if (at >= b.length) { return null }
-    const c = b[at]
-    const next = value + (c % 128) * scale
-    if (!Number.isSafeInteger(next)) { return null }
-    return c < 128 ? [next, at + 1] : littleVarint(b, at + 1, next, scale * 128)
+    let i = at
+    let v = value
+    let s = scale
+    while (true) {
+        if (i >= b.length) { return null }
+        const c = b[i]
+        const group = c % 128
+        const next = group === 0 ? v : v + group * s
+        if (!Number.isSafeInteger(next)) { return null }
+        if (c < 128) { return [next, i + 1] }
+        v = next
+        s = s * 128
+        i += 1
+    }
 }
 
 /**
@@ -180,9 +208,13 @@ export const tryEntry = oidBytes => input => {
     if (sized === null) { return null }
     const [bytes, after] = sized
     if (code === 6) {
-        const back = backVarint(b, after, 0)
-        if (back === null || back[0] === 0) { return null }
-        return { kind: 'ofsDelta', size: bytes, baseBack: back[0], dataAt: back[1] }
+        const walked = backVarint(b, after, 0)
+        if (walked === null) { return null }
+        const [baseBack, dataAt] = walked
+        // a distance of nothing back is the entry itself, which no encoder
+        // writes and which would make a chain that cannot end
+        if (baseBack === 0) { return null }
+        return { kind: 'ofsDelta', size: bytes, baseBack, dataAt }
     }
     if (code === 7) {
         if (b.length < after + oidBytes) { return null }
@@ -290,13 +322,15 @@ const deltaPieces = (d, src, at, want) => {
         }
         const offset = selected(d, i + 1, c, 4, 0, 0)
         if (offset === null) { return null }
-        const size = selected(d, offset[1], Math.floor(c / 16), 3, 0, 0)
+        const [from, afterOffset] = offset
+        const size = selected(d, afterOffset, Math.floor(c / 16), 3, 0, 0)
         if (size === null) { return null }
-        const length = size[0] === 0 ? wholeCopy : size[0]
-        if (offset[0] + length > src.length || total + length > want) { return null }
-        found = concat(found)([src.slice(offset[0], offset[0] + length)])
+        const [count, afterSize] = size
+        const length = count === 0 ? wholeCopy : count
+        if (from + length > src.length || total + length > want) { return null }
+        found = concat(found)([src.slice(from, from + length)])
         total += length
-        i = size[1]
+        i = afterSize
     }
 }
 
@@ -321,8 +355,10 @@ export const tryApplyDelta = (base, delta) => {
     const src = byteArray(base)
     const d = byteArray(delta)
     const sourceSize = littleVarint(d, 0, 0, 1)
-    if (sourceSize === null || sourceSize[0] !== src.length) { return null }
-    const targetSize = littleVarint(d, sourceSize[1], 0, 1)
+    if (sourceSize === null) { return null }
+    const [source, afterSource] = sourceSize
+    if (source !== src.length) { return null }
+    const targetSize = littleVarint(d, afterSource, 0, 1)
     if (targetSize === null) { return null }
     const [want, start] = targetSize
     const named = deltaPieces(d, src, start, want)

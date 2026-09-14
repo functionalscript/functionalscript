@@ -130,8 +130,8 @@ design:
 ## Serialization
 
 The form is plain immutable data — no functions — so it serializes with the
-repository's data serializers. DJS
-([`fjs/djs/serializer`](../../djs/serializer/module.f.mjs)) covers the
+repository's data serializers. DataJS
+([`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)) covers the
 whole form, including `bigint` literal sets; plain `JSON.stringify` works
 only when no `bigint` literals are involved. One corner is shared by both:
 JSON's number model writes a `NaN` literal member as `null` and drops `-0`'s

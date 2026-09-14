@@ -9,7 +9,7 @@
 
 import type { TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
-import type { Primitive } from '../../djs/types.ts'
+import type { Primitive } from '../../media/datajs/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 
 /**

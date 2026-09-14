@@ -655,9 +655,9 @@ not apply here, and answering it needs no erasure rule.
 A FunctionalScript module compiles to an [EDAG](./edag-spec.md), and source is
 serialized back **out of the graph**, by reference count, emitting only what is
 reachable —
-[`fjs/djs/serializer`](../fjs/djs/serializer/module.f.mjs) already does exactly
-this for DataJS values, counting references, hoisting shared ones to `const cN`,
-and emitting nothing for what nothing points at. A schema imported and named
+[`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs)
+already does exactly this for DataJS values, counting references, hoisting
+shared ones to `const $N`, and emitting nothing for what nothing points at. A schema imported and named
 only to be mentioned in `//: myType` annotations has no edge from anything the
 program evaluates: the annotation is a comment, the compiler consumed it at
 compile time, and no node refers to the binding, so **the schema is not built in
@@ -697,7 +697,7 @@ the module the schema was imported from: the transpiler evaluates every imported
 module before the importing body, even when the binding is never referenced, so
 an import whose module has a throwing top-level computation is observable
 precisely by throwing. Dropping such an import would delete a failure from the
-program. [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
+program. [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
 is explicit about it and takes the conservative branch: Stage 1 **rejects** a
 source module when an import parameter is not reachable from the module EDAG
 root — "deliberately a reachability rule, not an effect analysis" — until the
@@ -717,7 +717,7 @@ An annotation-only import is exactly that shape. So, stated honestly:
   that rejects unreachable imports applies inside the body — a potentially
   throwing entry must be preserved, and a module is rejected rather than have
   one discarded
-  ([compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)) — so
+  ([compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)) — so
   an annotation-only local schema from such a call is in exactly the position
   stage 12 addresses. **Stage 12 covers both** — imported roots and local
   initializers — so the work is owned; what stays open is whether the local
@@ -1503,14 +1503,14 @@ are stated instead:
       leaves behind** — both **imported module roots** and **local
       initializers** — so that an annotation-only schema neither is rejected
       nor silently deletes a failure. This is the `','` anchoring operation
-      [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
+      [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
       defers, read from this epic's side. It makes such a schema **legal**, not
       free: an anchored computation is still evaluated, which is the point of
       anchoring.
 
       **This is a prerequisite, not a side quest, and an earlier draft of this
       file said otherwise.** The rule in
-      [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
+      [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
       *rejects* a module whose import parameter is unreachable from the EDAG
       root, and equally requires a potentially throwing body entry to be
       preserved rather than discarded. Once the compiler consumes an
@@ -1769,7 +1769,7 @@ splits around inference, so the runnable order is 668's representation half
   its whole initializer is total**, which the RTTI constructors are and an
   arbitrary call is not.
 - [serialization](../spec/todo/serialization.md) and
-  [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — code
+  [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md) — code
   as an FJS value, and the rollout that brings the above from DataJS values to
   modules.
 - [134-nominal-types-proposal](./134-nominal-types-proposal.md) — stage 9.

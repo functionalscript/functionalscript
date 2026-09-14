@@ -1,5 +1,7 @@
 /**
+ * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Oid } from '../types.ts'
+ * @import { Entry } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -77,6 +79,15 @@ const littleVarint = v => v < 128 ? [v] : [v % 128 + 128, ...littleVarint(Math.f
  * module keeps its own copy of the number private.
  */
 const wholeCopy = /** @type {const} */ (65536)
+
+/**
+ * A blob entry of one byte whose size varint is padded with `n` groups that
+ * carry nothing: `0xB1` is the continuation bit, the type code 3 and a low group
+ * of 1, then `n` bytes of `0x80`, then the terminator.
+ *
+ * @type {(n: number) => Nullable<Entry>}
+ */
+const paddedEntry = n => entry([0xB1, ...Array.from({ length: n }, () => 0x80), 0x00])
 
 export const proof = {
     // The header of a pack Git 2.43.0 wrote.
@@ -176,6 +187,32 @@ export const proof = {
         // a distance back that keeps going
         assertEq(entry([...header(6, 1), ...continued, 0x7F]), null)
     },
+    // A size spelled the long way. The encoding lets a value carry groups of no
+    // bits, and Git reads one: measured on 2.43.0, `index-pack --strict` accepts
+    // a one-blob pack whose entry header is `0xB1` and 146 `0x80` bytes before
+    // its terminator — an entry of size 1, in 148 bytes.
+    //
+    // 146 is where it used to break and where the two rules meet. The scale
+    // doubles seven bits a group, so the 147th group's scale is past what a
+    // double holds and `0 * Infinity` is `NaN`, which the value bound then
+    // refused for a value that is still 1; a group of no bits is added rather
+    // than multiplied now. And after that rule the group count is the window's
+    // rather than the scale's, so the reader is a loop: 20,000 groups read here,
+    // where the recursion died with `RangeError` at 6,000, measured.
+    paddedSize: () => {
+        for (const n of [1, 145, 146, 147, 500, 20000]) {
+            const e = paddedEntry(n)
+            assert(e !== null)
+            assertEq(e.kind, 'object')
+            assertEq(e.size, 1)
+            // every padding byte is part of the header, so the stream begins
+            // after all of them
+            assertEq(e.dataAt, n + 2)
+        }
+        // A group that is *not* zero where the scale has run out is a value no
+        // repository has, and is still refused — the bound the check is for.
+        assertEq(entry([0xB1, ...Array.from({ length: 150 }, () => 0x80), 0x01]), null)
+    },
     // The delta from that pack applied to its base, checked by hashing rather
     // than against a stored copy: the result is the commit
     // `6b031e45…`, which is the id `git verify-pack -v` gives the entry, so a
@@ -196,6 +233,11 @@ export const proof = {
     applyDeltaSizes: () => {
         assertEq(tryApplyDelta([...packDeltaBase, 0], packDelta), null)
         assertEq(tryApplyDelta(packDeltaBase.slice(0, 474), packDelta), null)
+        // a delta with no source size at all, and one whose source size runs off
+        // the end: there is nothing to check the base against, which is a
+        // refusal before either size is compared
+        assertEq(tryApplyDelta(packDeltaBase, []), null)
+        assertEq(tryApplyDelta(packDeltaBase, [0x80]), null)
         // a target size one too large, with the instructions unchanged
         const [, ...rest] = packDelta.slice(2)
         assertEq(tryApplyDelta(packDeltaBase, [...packDelta.slice(0, 2), packDelta[2] + 1, ...rest]), null)

@@ -58,8 +58,12 @@ than one to come, and every set is now run against it. The runs are in two
 places, by which role they are about. **The reader's** are with the reader, in
 [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs):
 every accept document read to the graph its vector asserts, and every reject
-document refused, with the layer each `rule` belongs to pinned before the
-refusal.
+document refused — each by the surface its form calls for, a string of code units
+to `parse` and a byte record to `parseBytes`, so a byte record tests the reader's
+byte path rather than the corpus's own decoding. The two rules only bytes can
+break are pinned by message and not only by refusal: a reject naming one of them
+owes exactly that rule's words, which is what tells `byte-bom-first` apart from
+the code-unit refusal of U+FEFF it would otherwise pass on.
 
 **The writer's** are in each set's own proof, since what they check is the claim
 the record makes. `serializer-accept` hands every input to the writer, and the
@@ -119,8 +123,10 @@ nothing in the set marks it otherwise, and nothing should, since a consumer
 reads it the same way. What differs is how much a harness can conclude from it,
 and that depends on the harness: at the document level it cannot fail, for the
 reason the rule below gives, while a harness that can see where a refusal
-happened does get an answer from it. This repository's reader proof is one, and
-pins that those bytes do not decode.
+happened does get an answer from it. This repository's reader proof is one: it
+hands the bytes to the byte path and requires the UTF-8 rule's own message, so a
+decoder that substituted U+FFFD would be caught refusing the document for the
+wrong reason, or not at all.
 
 A reject vector names the one `rule` it breaks and what the `host` does with
 the same text, measured: a document JavaScript `accepts` is a narrowing
@@ -404,13 +410,13 @@ or read a passing corpus as more than it is.
   A harness that can see *where* a refusal happened concludes more, and one
   exists: the reader proof in
   [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs)
-  reads every reject vector's `rule` and asserts the layer — the UTF-8 rule is
-  the decoder's and those bytes must decode to nothing, every other rule is the
-  reader's on the text they spell. Under that check the vector does
-  discriminate: a decoder that substitutes U+FFFD instead of refusing makes the
-  bytes decode and fails it. Nothing in the record says which kind of harness is
-  reading it, and nothing needs to — the record is an ordinary reject either
-  way.
+  hands a byte record to the reader's byte path and, for the two rules only
+  bytes can break, requires that rule's own words rather than any refusal. Under
+  that check the vector does discriminate: a decoder that substitutes U+FFFD
+  instead of refusing makes the bytes decode, and the document is then refused
+  for an unterminated string — a different message, so the vector fails. Nothing
+  in the record says which kind of harness is reading it, and nothing needs to —
+  the record is an ordinary reject either way.
 
   The other two byte records are not exceptions at all. `byte-bom-first` has one
   defect and discriminates at the document level: its bytes are valid UTF-8 and

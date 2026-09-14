@@ -102,11 +102,12 @@
  * @import { Dirent, ReadFile, Readdir } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
  * @import { PackedRef, Ref } from '../ref/types.ts'
  * @import { Dirs, Root } from './types.ts'
- * @import { _Entry, _Found, _Walked } from './private.ts'
+ * @import { _Entry, _Found, _Lookup, _Walked } from './private.ts'
  */
 
 import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
@@ -372,34 +373,45 @@ const targetAllowed = (text, r) =>
 const nameText = name => fromVec(toVec(name))
 
 /**
- * One lookup of a name, and the lookup after it where what was read is a
- * symbolic ref: the loose file where there is one, its `packed-refs` line where
- * there is not, and `null` for everything else — a name that is no ref name, a
- * name no path can spell, bytes that are no ref, a target `HEAD` may not have,
- * and a chain longer than the `left` it was given.
+ * A chain that has its answer: the id, and no lookups left to spend and no name
+ * left to walk.
+ *
+ * Every way a resolution can end goes through this, an id and a refusal alike,
+ * so a link that answers reads the same whichever it is.
+ *
+ * @type {(id: Nullable<Oid>) => readonly [_Lookup, List<Bytes>]}
+ */
+const answered = id => [{ id, left: 0 }, null]
+
+/**
+ * One link of the walk down a symbolic chain: the file the name sits in, read,
+ * and then either the id it holds or the next name to look up.
+ *
+ * The answers are the walk's state and the item it produces. An id ends the
+ * chain, and so does every way a name can fail to name one — a name that is no
+ * ref name, a name no path can spell, bytes that are no ref, a target `HEAD` may
+ * not have, no loose file and no packed line, and a chain that has spent the
+ * lookups it was given. A symbolic ref produces its target as the one item to
+ * walk next.
  *
  * The loose file decides the name by existing. Where it is there and holds
  * bytes that are no ref, the answer is `null` and **not** the packed line,
  * which is Git's reading: it refuses such a name outright rather than
  * falling back.
  *
- * **One effect per lookup, and the lookup after it is a self-call.** Everything
- * this needs is a parameter, so it is closed and at module scope (§3.3) and the
- * recursion is a plain self-call rather than one inside a closure. It stays a
- * recursion rather than becoming a `walkStep` because the number of lookups is
- * bounded by the format at {@link maxLookups} — Git follows four hops and
- * refuses the fifth, measured — so a resolution performs at most five reads and
- * nests at most five deep. That is the difference from the two loops in this
- * module and the two in [`fjs/git/walk`](../walk/module.f.mjs), which are walks
- * because their lengths are the repository's: a `refs/` of any size, a tag chain
- * Git puts no bound on. If the bound here ever stops being a small constant,
- * this has to become a walk for the reason `_walkLoop` exists — a `Read` that
- * answers values resumes inside its own caller, so depth follows the chain.
+ * **A walk and not a recursion**, which is this module's other loop's shape and
+ * `fjs/git/walk`'s: one effect per link, all at one level, and the next link is
+ * an item rather than a call from inside this one's continuation (§3.4). The
+ * bound rides in the state — `left` is how many lookups remain, five at the
+ * start, which is Git's own limit and measured: it follows four hops and refuses
+ * the fifth. Written as a self-call the effects were flat within a link and
+ * nested across links, and the bound made that harmless rather than right;
+ * nothing about the loop needed the recursion, so it is gone.
  *
- * @type {(dirs: Dirs, packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>, name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>) => (name: Bytes) => (state: _Lookup) => Effect<ReadFile, readonly [_Lookup, List<Bytes>], IoChannel>}
  */
-const lookupIn = (dirs, packed, readRef, name, left) => {
-    if (left <= 0) { return pureOk(null) }
+const lookupOf = (dirs, packed, readRef) => name => state => {
+    if (state.left <= 0) { return pureOk(answered(null)) }
     const dense = byteArray(name)
     // A name that is no ref name never reaches the filesystem. `..` is
     // one of the byte pairs `isWholeName` refuses, so this is also what
@@ -407,7 +419,7 @@ const lookupIn = (dirs, packed, readRef, name, left) => {
     // that leaves the repository is not a ref this can answer for, and
     // the file at the other end of it could begin with something that
     // looks like an id.
-    if (!isWholeName(dense)) { return pureOk(null) }
+    if (!isWholeName(dense)) { return pureOk(answered(null)) }
     const text = nameText(dense)
     // No path can name this ref's loose file, so whether one exists is not a
     // question this host can put to the filesystem — and a loose file
@@ -417,32 +429,49 @@ const lookupIn = (dirs, packed, readRef, name, left) => {
     // that state cannot even be constructed in a proof here, since the
     // virtual filesystem spells a directory entry as a string too.
     // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
-    if (text === null) { return pureOk(null) }
+    if (text === null) { return pureOk(answered(null)) }
     // Which directory the name's file sits in is the name's own question,
     // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
     // the repository's. See {@link dirOf}.
-    return step(tryBytes(under(dirOf(dirs, text), text)), bytes => {
-        if (bytes === null) { return pureOk(special.includes(text) ? null : packedId(packed, name)) }
-        const r = readRef(bytes)
-        if (r === null) { return pureOk(null) }
-        // The one rule about *which* file a ref was read from, which the
-        // grammar over one file's bytes cannot know. See {@link targetAllowed}.
-        if (!targetAllowed(text, r)) { return pureOk(null) }
-        if (r.kind === 'direct') { return pureOk(r.id) }
-        return lookupIn(dirs, packed, readRef, r.target, left - 1)
-    })
+    const read = tryBytes(under(dirOf(dirs, text), text))
+    return mapStep(read, bytes => stepped(packed, readRef, text, name, state, bytes))
 }
 
 /**
- * The id a name resolves to, given the packed refs already read: {@link lookupIn}
- * with the repository's directories, its packed lines and a reader of one ref
- * file bound once, so a resolution builds the reader once rather than per lookup.
+ * What one link makes of the bytes its read answered: the state the walk carries
+ * on with, and the names it has left to walk.
+ *
+ * Pure, and at module scope with everything it reads as a parameter, so the link
+ * above is one effect and a projection over it rather than a continuation with a
+ * body (§3.3).
+ *
+ * @type {(packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>, text: string, name: Bytes, state: _Lookup, bytes: Nullable<Bytes>) => readonly [_Lookup, List<Bytes>]}
+ */
+const stepped = (packed, readRef, text, name, state, bytes) => {
+    if (bytes === null) { return answered(special.includes(text) ? null : packedId(packed, name)) }
+    const r = readRef(bytes)
+    if (r === null) { return answered(null) }
+    // The one rule about *which* file a ref was read from, which the
+    // grammar over one file's bytes cannot know. See {@link targetAllowed}.
+    if (!targetAllowed(text, r)) { return answered(null) }
+    if (r.kind === 'direct') { return answered(r.id) }
+    return [{ id: null, left: state.left - 1 }, [r.target]]
+}
+
+/**
+ * The id a name resolves to, given the packed refs already read: the walk of
+ * {@link lookupOf}, from the name asked about, with the lookups it may spend.
+ *
+ * The ref reader is bound once here rather than per link, and the walk's state
+ * carries the answer, so the id it ends with is the id the chain named.
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[]) => (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
  */
 const resolveWith = (dirs, oidBytes, packed) => {
-    const readRef = tryRef(oidBytes)
-    return (name, left) => lookupIn(dirs, packed, readRef, name, left)
+    const link = lookupOf(dirs, packed, tryRef(oidBytes))
+    return (name, left) => mapStep(
+        walkStep(pureOk(/** @type {List<Bytes>} */ ([name])), /** @type {_Lookup} */ ({ id: null, left }), link),
+        s => s.id)
 }
 
 /**
@@ -521,6 +550,35 @@ const childOf = parent => d => ({
 })
 
 /**
+ * What the walk of `refs/` makes of a loose ref file's bytes: the root it names,
+ * or none, and the names seen either way.
+ *
+ * A ref file that is no ref makes the whole listing `null`, which is
+ * {@link looseOf}'s stickiness rather than this function's opinion. A symbolic
+ * one is resolved, and one that resolves nowhere leaves the name recorded with
+ * no root — the shadowing rule, which is why `names` comes in already carrying
+ * this name.
+ *
+ * Everything it needs is a leading parameter, so it is closed and at module
+ * scope: the reader of one file's bytes, the resolver, what the walk has found,
+ * the name, and the names (§3.3).
+ *
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>, found: _Found, name: readonly number[], names: List<readonly number[]>) => (bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>}
+ */
+const refOf = (readRef, resolve, found, name, names) => bytes => {
+    const r = readRef(bytes)
+    if (r === null) { return pureOk(walked(null, null)) }
+    if (r.kind === 'direct') {
+        return pureOk(walked({ roots: concat(found.roots)([{ name, id: r.id }]), names }, null))
+    }
+    return mapStep(
+        resolve(r.target, maxLookups - 1),
+        id => walked(
+            { roots: id === null ? found.roots : concat(found.roots)([{ name, id }]), names },
+            null))
+}
+
+/**
  * The body of the walk of `refs/`: a directory gives its entries to walk
  * next, and a file gives a root or nothing.
  *
@@ -567,20 +625,8 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
         // the name is recorded whatever the file turns out to hold, because
         // that is what shadows the packed line
         const names = concat(found.names)([name])
-        /** @type {(bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>} */
-        const cont = bytes => {
-            const r = readRef(bytes)
-            if (r === null) { return pureOk(walked(null, null)) }
-            if (r.kind === 'direct') {
-                return pureOk(walked({ roots: concat(found.roots)([{ name, id: r.id }]), names }, null))
-            }
-            return mapStep(
-                resolve(r.target, maxLookups - 1),
-                id => walked(
-                    { roots: id === null ? found.roots : concat(found.roots)([{ name, id }]), names },
-                    null))
-        }
-        return step(mapStep(readFile(item.path), toBytes), cont)
+        const read = mapStep(readFile(item.path), toBytes)
+        return step(read, refOf(readRef, resolve, found, name, names))
     }
 }
 
@@ -680,8 +726,20 @@ const tryHeadFound = (dirs, oidBytes) => {
 
 /**
  * Every ref the repository holds, as a name and the id it effectively
- * names: the retention roots, and the ids a search for candidate commits
- * may start from.
+ * names: the ids a search for candidate commits may start from, and the roots
+ * a *ref* keeps an object alive by.
+ *
+ * **Not every root Git has, and so not a prune list.** A reflog entry keeps an
+ * object too, until the entry expires: measured on Git 2.43.0, a commit left
+ * only in `HEAD`'s reflog by `git reset --hard HEAD~1` survives
+ * `git gc --prune=now`, and the same commit is gone after
+ * `git reflog expire --expire=now --expire-unreachable=now --all` and another
+ * `gc --prune=now`. `git fsck` treats the reflog the same way, which is what
+ * `--no-reflogs` turns off. So a caller that deletes what this list does not
+ * name deletes history Git would have given back, and this answers refs rather
+ * than everything the repository is currently keeping —
+ * [`todo/reflog-roots.md`](./todo/reflog-roots.md) is the other half, and the
+ * shape it needs.
  *
  * `null` where the ref files are ones Git refuses — a `packed-refs` it
  * would call `unexpected line`, or a loose file under `refs/` that is no

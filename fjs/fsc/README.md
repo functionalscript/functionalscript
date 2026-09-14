@@ -5,9 +5,10 @@ The front end: a grammar-based tokenizer over
 [parser](./parser/README.md), the [AST](./ast/module.f.mjs), and the
 [transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
 from `fjs/djs` as stage 5a of
-[`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md);
-what stayed there is the old serializer and the value types, and the issues in
-`fjs/djs/todo/`, which follow once stage 4 lands. `fjs compile` writes through
+[`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md),
+and its issues followed into [`todo/`](./todo/) in stage 7, when the old
+serializer was retired and `fjs/djs` emptied; the value model is DataJS's,
+[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes through
 [`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs)
 since stage 6: its module output is a DataJS document in normalized form, and
 its `.json` output refuses what JSON cannot spell rather than approximating

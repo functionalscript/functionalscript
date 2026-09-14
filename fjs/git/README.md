@@ -416,10 +416,14 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`todo/object-store.md`](todo/object-store.md). Multi-pack indexes, bitmaps
   and the reverse index are not needed to read an object and are not here
   either.
-- **Writing a ref**, with the lock file Git takes, and the reflog, which
-  expires and so is no retention: [`todo/ref-writing.md`](todo/ref-writing.md).
-  Reading them is done — [`ref/`](ref/module.f.mjs) for the file grammars and
-  [`refstore/`](refstore/module.f.mjs) over the effects.
+- **Writing a ref**, with the lock file Git takes, and the reflog:
+  [`todo/ref-writing.md`](todo/ref-writing.md). Reading the refs is done —
+  [`ref/`](ref/module.f.mjs) for the file grammars and
+  [`refstore/`](refstore/module.f.mjs) over the effects — and reading the
+  *reflog* is not, which is why `tryRoots` answers the refs and not everything
+  the repository is keeping: a reflog entry keeps an object alive until it
+  expires, measured, so a caller must not prune by that list
+  ([`refstore/todo/reflog-roots.md`](refstore/todo/reflog-roots.md)).
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. Where it binds today is the
