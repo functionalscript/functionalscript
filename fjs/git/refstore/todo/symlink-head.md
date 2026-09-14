@@ -1,6 +1,6 @@
-## A symlink `HEAD` is refused, and one spelling of it is one Git reads
+## The listing reads an entry's kind and the lookup cannot
 
-**Priority:** P4
+**Priority:** P3
 **Status:** open
 
 ### Problem
@@ -46,12 +46,49 @@ other end of the link. That is the same shape as
 cannot — and it has the same cause: a path API that answers only about the file
 a name finally reaches.
 
+### The same gap, at a FIFO under `refs/`
+
+A symlink is not the only kind the listing can see and the lookup cannot, and
+the second one is worse than a wrong answer. A FIFO read with no writer does not
+fail — it *waits* — so a reader that treats every non-directory as a file stops
+there for as long as nothing writes.
+
+Git's listing skips it and Git's lookup blocks on it. Measured on Git 2.43.0
+with a FIFO at `refs/heads/pipe` and no writer:
+
+```
+$ git show-ref                            # the other branches, at once
+$ git for-each-ref                        # the same
+$ git status                              # exits 0
+$ git gc --prune=now                      # exits 0
+$ git rev-parse --verify refs/heads/pipe  # blocks until killed
+```
+
+A FIFO inside a subdirectory of `refs/` is skipped with its siblings still
+listed, so the skip is per entry rather than the end of the walk. With a writer
+that sends an id and closes, `rev-parse` answers that id — so the lookup treats
+whatever comes out of the pipe as the ref's value.
+
+[`refstore`](../module.f.mjs)'s `looseOf` skips it, on the entry's kind, which is
+Git's listing exactly. `tryResolve` blocks, which is Git's lookup exactly. Both
+halves therefore match Git today, and the gap between them is Git's too — but it
+is a gap a caller can be caught by, and `lstat` closes it here without changing
+what the listing does.
+
+A FIFO `HEAD` is the one place this module is already better than Git rather
+than narrower: `git status` and `git rev-parse HEAD` in a repository whose
+`.git/HEAD` is a writerless FIFO both hang, and `headIsFile` refuses it with
+`headKindCode` at once.
+
 ### Proposal
 
 - A `readlink` operation in [`fjs/effects/node`](../../../effects/node/module.f.mjs),
   answering the link's target as text — or `lstat`, which answers the kind
   without following. Node has both; nothing in this repository asks for either
   yet.
+- `lstat` also lets `tryResolve` skip a FIFO and every other kind
+  it cannot read, which is the half the listing already has. A lookup that can
+  ask about the entry does not have to open it to find out.
 - With it, `HEAD` as a link under `refs/` reads as the symbolic ref it is: the
   target is a ref name, and the rest of the resolution is the one this module
   already does, `targetAllowed` included. A link anywhere else stays refused,
@@ -65,7 +102,8 @@ module reports rather than reads.
 
 ### Related
 
-- [`fjs/git/refstore`](../module.f.mjs) — `headIsFile`, where the refusal is,
-  and `targetAllowed`, which is the same rule for the other spelling.
+- [`fjs/git/refstore`](../module.f.mjs) — `headIsFile`, where the `HEAD` refusal
+  is; `looseOf`, where the walk's kind filter is; and `targetAllowed`, which is
+  the same rule as the first for the other spelling.
 - [byte-ref-names.md](./byte-ref-names.md) — the other place where the listing
   and the lookup can see different things, for the same kind of reason.

@@ -11,7 +11,12 @@ import type { Root } from './types.ts'
 
 /**
  * One entry of the walk of `refs/`: where the file is, the ref name it would
- * be, and whether to descend into it.
+ * be, and its kind.
+ *
+ * Both halves of the kind, because the two questions are not each other's
+ * negation. A FIFO, a socket, a device and a symlink to any of them are all
+ * `isFile: false` and `isDirectory: false` alike, so a walk that read
+ * `!isDirectory` as "read it as a file" would open one — see `looseOf`.
  *
  * The name is carried down beside the path rather than recovered from it
  * afterwards. A path and a ref name are spelled differently — the path is the
@@ -21,6 +26,7 @@ import type { Root } from './types.ts'
 export type _Entry = {
     readonly path: string
     readonly name: string
+    readonly isFile: boolean
     readonly isDirectory: boolean
 }
 
