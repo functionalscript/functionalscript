@@ -130,15 +130,17 @@ export const of = oidBytes => {
  * and it is built on this rather than beside it so that the choice of hash is
  * made in one place.
  *
- * Not every hash Git writes is over an object. A pack and a pack index each end
- * in a checksum over their own preceding bytes, with no framing at all, and a
- * reader that checks one needs the repository's hash without the object rule.
+ * Private until something outside this module hashes bytes that are no object.
+ * A pack and a pack index each end in a checksum over their own preceding bytes,
+ * with no framing at all, so a reader of either wants this — and those readers
+ * are not in this change. The export moves with them rather than waiting here for
+ * a consumer, which is the one-feature rule applied to an API of one line.
  *
  * @throws If an item of the bytes is not a byte.
  *
  * @type {(oidBytes: OidBytes) => (bytes: Bytes) => Oid}
  */
-export const digestOf = oidBytes => {
+const digestOf = oidBytes => {
     const hash = oidBytes === 20 ? computeSync(sha1) : computeSync(sha256)
     return bytes => hash(chunks(bytes))
 }

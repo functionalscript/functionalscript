@@ -21,7 +21,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { lossyNameCode, lossyNameMessage, maxLookups, tryResolve, tryRoots } from './module.f.mjs'
+import { headKindCode, lossyNameCode, lossyNameMessage, maxLookups, tryResolve, tryRoots } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -340,6 +340,42 @@ export const proof = {
         assert(e[0] === 'ioError')
         assertEq(e[1].code, lossyNameCode)
         assertEq(e[1].message, lossyNameMessage('refs', twice))
+    },
+    // A `HEAD` that is not a regular file is refused, which is the legacy
+    // symlink spelling of a symbolic ref. Git still reads one that points under
+    // `refs/` — measured on 2.43.0, `.git/HEAD` linked to `refs/heads/master`
+    // answers `rev-parse HEAD` and `symbolic-ref HEAD` — and refuses the
+    // repository outright when the link points elsewhere: with `.git/HEAD`
+    // linked to a file beside it holding an id, `rev-parse`, `show-ref` and
+    // `status` all answer `not a git repository`.
+    //
+    // Nothing in the effects reads a link's target, so the two cannot be told
+    // apart here and both are refused; what makes that the right way round is
+    // that following the link is how a repository makes this module read a file
+    // that is not in it. See `todo/symlink-head.md`.
+    //
+    // The virtual filesystem has no links, so the host below answers the listing
+    // node answers for one: an entry that is neither a file nor a directory.
+    symlinkHead: () => {
+        /** @type {MemOperationMap<ReadFile | Readdir, null>} */
+        const host = {
+            readFile: path => state => [state, error(ioError({ code: 'ENOENT', message: path }))],
+            readdir: path => state => [
+                state,
+                ok(path === 'refs' ? [] : [{
+                    name: 'HEAD',
+                    parentPath: path,
+                    isFile: false,
+                    isDirectory: false,
+                }]),
+            ],
+        }
+        const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, headKindCode)
+        assertEq(e[1].message, 'HEAD is not a regular file')
     },
     // One name at a time: a loose ref, a packed one, a loose one shadowing
     // a packed one, and a name nothing is stored under.

@@ -112,6 +112,22 @@
  * last, in either order of the two. Git neither refuses the file nor takes the
  * first, so the earlier lines are dead and one name still has one value.
  *
+ * **The `sorted` trait is not read, so a lookup here scans.** The file's header
+ * may promise that its records are in lexical order, and Git's lookup bisects on
+ * that promise: measured with the trait claimed and `refs/heads/z` written before
+ * `refs/heads/a`, `git rev-parse --verify refs/heads/z` fails and
+ * `git show-ref --verify` calls it not a valid ref, while `show-ref` and
+ * `for-each-ref` both list it. A scan finds it, so this module answers what the
+ * file says and what Git's own iteration says.
+ *
+ * That difference is left rather than imitated, because Git's answer on such a
+ * file is not a rule: which records a bisection of an unsorted file finds depends
+ * on its probe sequence, so two readers that both honour the trait can disagree
+ * about the same bytes. What is worth taking from the trait is the lookup that
+ * does not scan, and that wants the traits carried out of
+ * [`fjs/git/ref`](../ref/module.f.mjs) —
+ * [`todo/packed-refs-sorted.md`](./todo/packed-refs-sorted.md).
+ *
  * @module
  *
  * @import { Dirent, ReadFile, Readdir } from '../../effects/node/types.ts'
@@ -247,6 +263,10 @@ const special = /** @type {readonly string[]} */ (['FETCH_HEAD', 'MERGE_HEAD'])
  * first: measured on Git 2.43.0, `git show-ref` lists both lines and
  * `git rev-parse` answers the last, in either order of the two. So the last
  * line is the effective value and the ones above it are dead.
+ *
+ * A scan and not a bisection, which the module doc argues: the `sorted` trait
+ * that would justify one is not read yet, and a scan finds every record the file
+ * holds rather than the ones a bisection's probes happen to reach.
  *
  * @type {(packed: readonly PackedRef[], name: Bytes) => Nullable<Oid>}
  */
@@ -681,22 +701,64 @@ const refsDir = /** @type {const} */ ('refs')
  * A worktree's own `refs/` as the walk's first item, or nothing where it has
  * none.
  *
- * Found by listing the worktree's directory rather than by reading `refs/`
- * and forgiving an absence, because a worktree has a `refs/` of its own only
- * while a bisect or a rebase is running — most of the time there is nothing
- * there — and this module's rule everywhere else is that a `readdir` which
- * cannot find what a *listing* named is the channel's. Asking the listing keeps
- * that rule rather than making an exception to it: the directory is there if the
- * listing says so.
+ * Taken from the gitdir's listing rather than by reading `refs/` and forgiving
+ * an absence, because a worktree has a `refs/` of its own only while a bisect or
+ * a rebase is running — most of the time there is nothing there — and this
+ * module's rule everywhere else is that a `readdir` which cannot find what a
+ * *listing* named is the channel's. Asking the listing keeps that rule rather
+ * than making an exception to it: the directory is there if the listing says so.
  *
- * @type {(dirs: Dirs) => Effect<Readdir, readonly _Entry[], IoChannel>}
+ * The listing is the caller's because `HEAD`'s kind comes out of the same one —
+ * see {@link headIsFile} — so a walk of a worktree reads the directory once.
+ *
+ * @type {(dirs: Dirs, entries: readonly Dirent[]) => readonly _Entry[]}
  */
-const ownRefs = dirs =>
-    mapStep(
-        readdir(dirs.gitdir, {}),
-        entries => entries
-            .filter(d => d.isDirectory && d.name === refsDir)
-            .map(d => ({ path: under(dirs.gitdir, d.name), name: d.name, isDirectory: true })))
+const ownRefs = (dirs, entries) => entries
+    .filter(d => d.isDirectory && d.name === refsDir)
+    .map(d => ({ path: under(dirs.gitdir, d.name), name: d.name, isDirectory: true }))
+
+/**
+ * The code a repository is refused with when its `HEAD` is not a regular file.
+ *
+ * The listing is what sees it, because every other way this module can ask about
+ * a path follows a link: `readFile` reads what the link names and `stat` answers
+ * for the file at the other end, where a directory entry carries the kind of the
+ * entry itself.
+ */
+export const headKindCode = /** @type {const} */ ('ERR_HEAD_KIND')
+
+/** @type {(path: string) => string} */
+const headKindMessage = path => `${path} is not a regular file`
+
+/**
+ * Whether the gitdir's listing shows a `HEAD` this module may read: absent is
+ * fine, a regular file is fine, and anything else is not.
+ *
+ * **A symlink `HEAD` is the case this refuses, and Git refuses most of it too.**
+ * The legacy spelling of a symbolic ref is a symlink, and Git still reads one
+ * that points under `refs/` — measured on 2.43.0, where `.git/HEAD` linked to
+ * `refs/heads/master` answers both `rev-parse HEAD` and `symbolic-ref HEAD`. A
+ * link pointing anywhere else stops the directory being a repository at all:
+ * with `.git/HEAD` linked to a file beside it holding an id, every one of
+ * `rev-parse HEAD`, `show-ref` and `status` answers
+ * `not a git repository`.
+ *
+ * This reader cannot tell those two apart, because nothing in the effects it has
+ * reads a link's target: `readFile` follows it, and the bytes that come back are
+ * the bytes at the other end. So it refuses both, which is narrower than Git for
+ * a spelling Git has not written since before 1.5 — and the alternative is worse
+ * than narrow. Following the link is how a repository makes this module read a
+ * file that is not in it: `.git/HEAD` naming `/etc/passwd` would be answered as
+ * a detached `HEAD` if its first line happened to read as an id, which is the
+ * boundary this module's header claims two rules earlier and a link walks
+ * straight through.
+ *
+ * [`todo/symlink-head.md`](./todo/symlink-head.md) is what a `readlink` would buy
+ * back, and the half of this that the lookup cannot see.
+ *
+ * @type {(entries: readonly Dirent[]) => boolean}
+ */
+const headIsFile = entries => entries.every(d => d.name !== head || d.isFile)
 
 /** The ref name `HEAD` is, as the bytes the rest of this module compares. */
 const headName = nameBytes(head)
@@ -721,10 +783,19 @@ const headName = nameBytes(head)
  * defines; and `git pack-refs` never writes such a line, so the collision only
  * arises in a file made by hand.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<ReadFile, Nullable<_Found>, IoChannel>}
+ * Its kind comes from the gitdir's listing rather than from another `stat`: see
+ * {@link headIsFile}, which is where the refusal is argued.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes, entries: readonly Dirent[]) => Effect<ReadFile, Nullable<_Found>, IoChannel>}
  */
-const tryHeadFound = (dirs, oidBytes) => {
+const tryHeadFound = (dirs, oidBytes, entries) => {
     const readRef = tryRef(oidBytes)
+    if (!headIsFile(entries)) {
+        return pureError(ioError({
+            code: headKindCode,
+            message: headKindMessage(under(dirs.gitdir, head)),
+        }))
+    }
     return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
         if (bytes === null) { return { roots: [], names: [] } }
         const r = readRef(bytes)
@@ -842,15 +913,28 @@ export const tryRoots = (dirs, oidBytes) => {
     // The refusals are tested oldest first, which is not a style choice: a later
     // one implies every earlier one, so asking about an earlier refusal after a
     // later one is a question with only one answer — a branch no input reaches.
-    const ownWalk = historyStep(sharedWalk, (found, packed) => packed === null || found === null
+    // The gitdir's listing is a link of its own because two of them need it: the
+    // worktree's walk takes the `refs` entry from it, and `HEAD`'s kind is in it
+    // too — see {@link headIsFile}, which is the only way this module can ask
+    // whether a path is a link rather than what it points at. A skipped listing
+    // is no entries rather than `null`, because the links after it are skipped by
+    // the same refusal that skipped this one — the walk's `null` reaches them on
+    // its own — and a `null` here would add a test nothing can reach.
+    const listed = historyStep(sharedWalk, found => found === null
+        ? pureOk(/** @type {readonly Dirent[]} */ ([]))
+        : readdir(dirs.gitdir, {}))
+    const ownWalk = historyStep(listed, (entries, found, packed) => packed === null || found === null
         ? pureOk(found)
-        : walkStep(ownRefs(dirs), found, looseOf(dirs, oidBytes, packed, isPerWorktree)))
-    const headRead = historyStep(ownWalk, found => found === null
+        : walkStep(
+            pureOk(ownRefs(dirs, entries)),
+            found,
+            looseOf(dirs, oidBytes, packed, isPerWorktree)))
+    const headRead = historyStep(ownWalk, (found, entries) => found === null
         ? pureOk(/** @type {Nullable<_Found>} */ (null))
-        : tryHeadFound(dirs, oidBytes))
+        : tryHeadFound(dirs, oidBytes, entries))
     // newest first, and the shared walk's own answer is skipped because the
     // worktree's walk carried it forward as its starting state
-    return mapStep(headRead, ([h, found, , packed]) =>
+    return mapStep(headRead, ([h, found, , , packed]) =>
         packed === null || found === null || h === null
             ? null
             : combine({
