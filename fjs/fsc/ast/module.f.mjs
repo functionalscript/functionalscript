@@ -18,6 +18,8 @@ import { at as routesAt, empty as noRoutes, setReplace } from '../../types/order
 
 const { hasOwn } = Object
 
+const { isInteger } = Number
+
 /**
  * The own property `key` of `base`, or `undefined` where there is none —
  * never the prototype chain: a member of an object, an element or the
@@ -260,6 +262,21 @@ const valueAt = keys => value => keys.reduce(own, value)
 const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')
 
 /**
+ * The position a key names in an array literal, or `undefined` when it
+ * names none: only the canonical spelling of a non-negative integer is an
+ * index — `'-1'`, `'01'`, `'1.5'`, `'1e3'` and `'length'` are properties an
+ * array literal does not spell — and round-tripping the number back
+ * through a string is what refuses every other spelling at once, as
+ * `fjs/rtti/common` reads an index too.
+ *
+ * @type {(key: string) => number | undefined}
+ */
+const arrayIndex = key => {
+    const n = Number(key)
+    return isInteger(n) && n >= 0 && `${n}` === key ? n : undefined
+}
+
+/**
  * The literal one key into a container literal: an object's member of that
  * name, the last written, or an array's element at that index; `undefined`
  * where the literal has none — a member the object lacks, `length`, an
@@ -269,7 +286,7 @@ const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (as
  */
 const literalAt = (ast, key) => ast[0] === 'object'
     ? ast[1].findLast(([name]) => name === key)?.[1]
-    : /^(0|[1-9][0-9]*)$/.test(key) ? ast[1][Number(key)] : undefined
+    : ast[1][arrayIndex(key) ?? ast[1].length]
 
 /** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })
@@ -327,12 +344,11 @@ const routeEntry = (state, ast, i) => {
     return { routes: found.reduce(routeStep, state.routes), refs: concat(state.refs)(found) }
 }
 
+/** The one route to an entry reached whole. @type {List<readonly string[]>} */
+const whole = [[]]
+
 /** The routes to the export: the whole of the last entry. @type {(body: AstBody) => _Routes} */
-const exported = body => {
-    /** @type {List<readonly string[]>} */
-    const whole = [[]]
-    return { routes: setReplace(`${body.length - 1}`)(whole)(noRoutes), refs: empty }
-}
+const exported = body => ({ routes: setReplace(`${body.length - 1}`)(whole)(noRoutes), refs: empty })
 
 /** A module's group, apart from every `const`'s: a module's id may spell a number too. @type {(id: string) => string} */
 const moduleGroup = id => `module ${id}`

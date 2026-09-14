@@ -87,6 +87,9 @@ const moduleRefused = source => {
 /** A source over `cfg`, an object of two arrays and a leaf. @type {(source: string) => string} */
 const withCfg = source => `const cfg = { a: [1], b: [2], c: 3 }; ${source}`
 
+/** A source over `a`, whose `other` member shares a node its `selected` member does not reach. @type {(source: string) => string} */
+const withSelected = source => `const x = []; const a = { selected: 1, other: [x, x] }; ${source}`
+
 /**
  * What `fjs compile` prints when it refuses to write `.json` for a module:
  * the exit code is `1`, nothing is written, and the message names the output
@@ -448,12 +451,13 @@ export const proof = {
             // an entry reached only through an access is in the value only
             // where the access selects: sharing under another member is
             // nothing to it, and a route through a reference follows it
-            const selected = 'const x = []; const a = { selected: 1, other: [x, x] }; '
-            assertEq(compileSource(`${selected}export default a.selected;`)('output.json'), '1')
-            assertEq(compileSource(`${selected}export default a.other[0];`)('output.json'), '[]')
-            assertEq(jsonRefused(`${selected}export default a.other;`), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused(`${selected}export default [a.selected, a.other];`), 'output.json - error: no JSON spelling for a shared node')
-            assertEq(jsonRefused(`${selected}export default [a.other[0], a.other[1]];`), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(withSelected('export default a.selected;'))('output.json'), '1')
+            assertEq(compileSource(withSelected('export default a.other[0];'))('output.json'), '[]')
+            // a key that is not an index's canonical spelling names no element
+            assertEq(compileSource(withSelected('export default [a.other["01"], a.other[1.5], a.other[-1], a.other["1e0"]];'))('output.f.js'), 'export default [undefined,undefined,undefined,undefined];')
+            assertEq(jsonRefused(withSelected('export default a.other;')), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused(withSelected('export default [a.selected, a.other];')), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused(withSelected('export default [a.other[0], a.other[1]];')), 'output.json - error: no JSON spelling for a shared node')
             assertEq(compileSource('const b = { y: [] }; const a = { x: b }; export default a.x.y;')('output.json'), '[]')
             assertEq(jsonRefused('const b = { y: [] }; const a = { x: b }; export default [a.x.y, b.y];'), 'output.json - error: no JSON spelling for a shared node')
             // a `const` and a module are two groups however they are named:
