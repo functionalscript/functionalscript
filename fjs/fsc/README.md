@@ -24,8 +24,9 @@ throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
 node it is. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
-`m.selected` included, since where in the module's value that node sits is
-not carried, and refusing is the answer that never writes a node twice. The classical grammars this package once
+`m.selected` included, and the modules it reaches count under any route
+too, since where in the module's value a node sits is not carried, and
+refusing is the answer that never writes a node twice. The classical grammars this package once
 held were deleted rather than kept: nothing imported them, no proof covered
 them, and their FunctionalScript half separated statements by newline where
 the language requires `;`. Do not restore them; git history has them.

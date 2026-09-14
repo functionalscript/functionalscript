@@ -512,10 +512,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `{ x: cfg.a, y: cfg.b }` is a tree and `[cfg.a, cfg.a]` is not. Pinned in
       `fjs/fsc/proof.f.mjs` (`access`) and `fjs/fsc/ast/proof.f.mjs`. Left
       coarse, in the safe direction: a module whose own value holds a shared
-      node is shared under any route an importer takes into it, since the
-      sweep does not carry where in the module's value the node sits; the
-      precise answer there is an identity walk of the selected sub-value,
-      which the sweep exists not to make.
+      node is shared under any route an importer takes into it, and the
+      modules it reaches count under any route too, since the sweep does not
+      carry where in the module's value a node sits; the precise answer there
+      is an identity walk of the selected sub-value, which the sweep exists
+      not to make.
 - [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema. Done: [`fjs/fsc/edag/types.ts`](../edag/types.ts).
 - [x] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,

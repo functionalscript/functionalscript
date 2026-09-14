@@ -496,6 +496,9 @@ export const proof = {
             // any route into it — the coarse answer, in the safe direction
             const partly = { 'm.f.js': [utf8('const x = []; export default { selected: [], other: [x, x] };')] }
             assert(sharedOf({ ...partly, 'a.f.js': [utf8('import m from "./m.f.js"; export default m.selected;')] })('a.f.js'))
+            // and the modules a module reaches count under any route too
+            const reaching = { 'n.f.js': [utf8('export default [];')], 'm.f.js': [utf8('import n from "./n.f.js"; export default { selected: [], other: n };')] }
+            assert(sharedOf({ ...reaching, 'a.f.js': [utf8('import m from "./m.f.js"; import n from "./n.f.js"; export default [m.selected, n];')] })('a.f.js'))
             // reached through two modules, an import's node is one node: the
             // importer of both sees the module twice
             assert(sharedOf({ ...m, 'b.f.js': [utf8('import m from "./m.f.js"; export default { p: m.x };')], 'a.f.js': [utf8('import b from "./b.f.js"; import m from "./m.f.js"; export default [b, m.y];')] })('a.f.js'))

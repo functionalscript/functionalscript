@@ -84,8 +84,9 @@ export type AstBody = readonly AstConst[]
  * that an importer can see a module reached along two import edges as one
  * node reached twice. A shared module reaches nothing worth listing: every
  * importer of it is shared already — under any route it takes into the
- * module, since where in the module's value the shared node sits is not
- * carried, and refusing is the answer that never writes a node twice.
+ * module, and the modules it reaches count under any route too, since
+ * where in the module's value a node sits is not carried, and refusing is
+ * the answer that never writes a node twice.
  */
 export type Sharing = {
     readonly shared: boolean
