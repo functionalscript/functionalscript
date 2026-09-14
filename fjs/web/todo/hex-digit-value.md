@@ -17,8 +17,9 @@ const hexDigit = c => hexDigits.indexOf(c.toLowerCase())
 
 used by `isEscape` and `escapeBytes`. Two codecs for one fact, with two
 "not a digit" conventions (`-1` here, `null` there) — and this one costs:
-`percentDecode`'s own doc makes linearity a stated requirement (a 15 KB
-target of 5,000 escapes was 140 ms of event loop), yet the per-character
+`percentDecode`'s own doc makes linearity a stated requirement — it
+records a quadratic decode of a large, escape-dense target costing a
+visible slice of the event loop per request — yet the per-character
 path is a `toLowerCase()` string allocation plus a scan of a 16-character
 string, twice per escape, where a code-point comparison would do.
 `fjs/web` already imports several other `fjs/text` modules, so no dependency

@@ -88,14 +88,15 @@ shared calls; MCP maps JSON-RPC tool args to the same calls.
 
 #### `add` operation — unified design
 
-The shared layer defines a single `add` input type. Inline content is shared by
-both transports; the file-path source is **CLI-only** (per the scope note above,
-the MCP server never opens a caller-supplied path):
+The shared layer owns the inline `add` — decode, then write. Each transport
+has one source today, and this issue changes neither: inline content is
+MCP's, the file path is the CLI's (per the scope note above, the MCP server
+never opens a caller-supplied path), and no new CLI syntax is proposed:
 
 | Source | CLI | MCP |
 |--------|-----|-----|
-| Inline content (bytes / text / base64 string) | `cas add <content>` | `cas_add { content, type? }` |
-| File path | any path allowed | *not available* — MCP has no file-path source |
+| Inline content (text / base64 string) | *not offered* — `cas add` takes a path and stays so | `cas_add { content, type? }` |
+| File path | `cas add <path>` | *not available* — MCP has no file-path source |
 
 **Path handling** (CLI only) reuses the store's existing streaming write —
 `fileCas.write` already stages under `~/.cas/_stage/` (random staging names,
@@ -127,8 +128,9 @@ accepted as-is, the same as `cp`.
       expose typed operations independent of transport. The inline
       (`text`/`base64`) `add` and the hash/store/error plumbing are shared; the
       file-path `add` is a CLI-only entry point, not part of the MCP surface.
-- [ ] Refactor CLI `commands` to delegate to the shared layer (inline + the
-      CLI-only file-path `add`).
+- [ ] Refactor CLI `commands` to delegate to the shared layer for the
+      hash/store/error plumbing; its `add` stays the CLI-only file-path
+      entry point through `casAddFile`, with no inline source.
 - [ ] Refactor `casToolRegistry` to delegate to the shared layer (inline only —
       no file-path source; MCP `type:'url'` has already been removed).
       `cas_get` collapses to registry shape — a `toolResultStep` over the
