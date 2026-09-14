@@ -38,13 +38,24 @@ detached `HEAD` if that file's first line read as an id, which is the boundary
 [`refstore`](../module.f.mjs)'s header claims — a path that leaves the
 repository is not a ref — and which a link walks straight through.
 
-`tryResolve` does not refuse it at all, because it reads one file by name and
-never lists a directory. The two halves therefore disagree about a symlink
-`HEAD`: the listing refuses the repository and the lookup answers the id at the
-other end of the link. That is the same shape as
-[byte-ref-names.md](./byte-ref-names.md) — one half can look and the other
-cannot — and it has the same cause: a path API that answers only about the file
-a name finally reaches.
+`tryResolve` refuses it now as well, and pays for the answer the only way it
+can: a `readdir` of the gitdir, for the name `HEAD` alone. The two halves no
+longer disagree about that name, and the cost is one listing on a lookup that
+would otherwise be a single read.
+
+That is the *cost* this issue would remove rather than a gap it would close. An
+`lstat` answers the same question about one path, so the lookup would stop
+listing a directory to learn about a file — and the walk would stop refusing the
+spelling Git reads, which is the part still outstanding.
+
+The narrower rule stays where it is: only `HEAD` is asked about, because only
+`HEAD` is a name Git refuses a link at. Measured on Git 2.43.0 with each
+pointing at the same file outside the repository, `git rev-parse HEAD` answers
+`not a git repository` and `git rev-parse ORIG_HEAD` answers the id.
+
+What still has the shape of [byte-ref-names.md](./byte-ref-names.md) — one half
+able to look and the other not — is the FIFO below, where the lookup has no name
+to special-case.
 
 ### The same gap, at a FIFO under `refs/`
 
@@ -73,7 +84,8 @@ whatever comes out of the pipe as the ref's value.
 which is Git's listing exactly. `tryResolve` blocks, which is Git's lookup
 exactly. Both halves therefore match Git today, and the gap between them is
 Git's too — but it is a gap a caller can be caught by, and `lstat` closes it here
-without changing what the listing does.
+without changing what the listing does. The `HEAD` listing above does not help:
+a FIFO can be at any name under `refs/`, so there is no one name to ask about.
 
 A FIFO `HEAD` is the one place this module is already better than Git rather
 than narrower: `git status` and `git rev-parse HEAD` in a repository whose

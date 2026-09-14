@@ -12,34 +12,13 @@ import { empty, isVec, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, notAFileCode } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { run } from '../mock/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-
-/** How many bytes of a file one `readBytes` may take. */
-const window = Number(maxLengthBytes)
-
-/**
- * A host holding one file `f`: `stat` answers its length and `readBytes` the
- * slice asked for, which is what {@link readWholeBytes} composes.
- *
- * @type {(bytes: readonly number[]) => MemOperationMap<ReadBytes | Stat, readonly string[]>}
- */
-const sizedHost = bytes => ({
-    stat: path => log => [
-        [...log, `stat ${path}`],
-        ok({ size: bytes.length, isFile: true, isDirectory: false }),
-    ],
-    readBytes: (path, at, size) => log => [
-        [...log, `readBytes ${path} ${at}`],
-        ok(u8ListToVec(msb)(bytes.slice(at, at + size))),
-    ],
-})
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key

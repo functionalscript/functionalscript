@@ -360,12 +360,6 @@ export const writeFromStream = (path, e) =>
 /** @type {Func<Stat>} */
 export const stat = do_('stat')
 
-/**
- * How many bytes of a file one {@link readBytes} may take: a `Vec` holds 2^20
- * bits, and the operation refuses a larger window before a host sees it.
- */
-const windowBytes = Number(maxLengthBytes)
-
 /** @type {Func<ReadWhole>} */
 export const readWhole = do_('readWhole')
 

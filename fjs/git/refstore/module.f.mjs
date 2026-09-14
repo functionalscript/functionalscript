@@ -498,6 +498,49 @@ const askable = name => {
 }
 
 /**
+ * `HEAD`'s bytes, or a refusal where it is not a regular file.
+ *
+ * **The lookup refuses a symlink `HEAD` because following one reads a file
+ * outside the repository.** Measured on Git 2.43.0, and the rule is `HEAD`'s
+ * alone:
+ *
+ * ```
+ * $ ln -s /elsewhere/holding-an-id .git/HEAD
+ * $ git rev-parse HEAD        # fatal: not a git repository
+ * $ ln -s /elsewhere/holding-an-id .git/ORIG_HEAD
+ * $ git rev-parse ORIG_HEAD   # the id
+ * ```
+ *
+ * So Git refuses the *repository* over `HEAD` and follows the link for every
+ * other name in the same directory — which is why this asks about one name and
+ * not about a kind of name. Without it, `.git/HEAD` naming a file whose first
+ * line reads as an id answered that id: a plausible value from the other side of
+ * the boundary this module's header claims, which is the answer
+ * [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) says
+ * to refuse.
+ *
+ * A listing is what sees it, for the reason {@link headIsFile} gives — every
+ * other way to ask about a path follows the link. So this is where the lookup
+ * pays a `readdir` it otherwise would not, once, and only for `HEAD`:
+ * {@link tryRoots} was already paying it, which is why the two halves used to
+ * disagree ([`todo/symlink-head.md`](./todo/symlink-head.md)). An `lstat` would
+ * answer the same question without the listing.
+ *
+ * A gitdir that is not there is no `HEAD` rather than a failure, which is what
+ * the read it replaces answered.
+ *
+ * @type {(dirs: Dirs) => Effect<Readdir | ReadFile, Nullable<Bytes>, IoChannel>}
+ */
+const headBytes = dirs => catchStep(
+    step(readdir(dirs.gitdir, {}), entries => headIsFile(entries)
+        ? tryBytes(under(dirs.gitdir, head))
+        : pureError(ioError({
+            code: headKindCode,
+            message: headKindMessage(under(dirs.gitdir, head)),
+        }))),
+    e => isNotFound(e) ? pureOk(/** @type {Nullable<Bytes>} */ (null)) : pureError(e))
+
+/**
  * One link of the walk down a symbolic chain: the file the name sits in, read,
  * and then either the id it holds or the next name to look up.
  *
@@ -522,7 +565,7 @@ const askable = name => {
  * nested across links, and the bound made that harmless rather than right;
  * nothing about the loop needed the recursion, so it is gone.
  *
- * @type {(dirs: Dirs, packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>) => (name: Bytes) => (state: _Lookup) => Effect<ReadFile, readonly [_Lookup, List<Bytes>], IoChannel>}
+ * @type {(dirs: Dirs, packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>) => (name: Bytes) => (state: _Lookup) => Effect<Readdir | ReadFile, readonly [_Lookup, List<Bytes>], IoChannel>}
  */
 const lookupOf = (dirs, packed, readRef) => name => state => {
     if (state.left <= 0) { return pureOk(answered(null)) }
@@ -534,7 +577,9 @@ const lookupOf = (dirs, packed, readRef) => name => state => {
     // Which directory the name's file sits in is the name's own question,
     // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
     // the repository's. See {@link dirOf}.
-    const read = tryBytes(under(dirOf(dirs, text), text))
+    const read = text === head
+        ? headBytes(dirs)
+        : tryBytes(under(dirOf(dirs, text), text))
     return mapStep(read, bytes => stepped(packed, readRef, text, name, state, bytes))
 }
 
@@ -566,7 +611,7 @@ const stepped = (packed, readRef, text, name, state, bytes) => {
  * The ref reader is bound once here rather than per link, and the walk's state
  * carries the answer, so the id it ends with is the id the chain named.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[]) => (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[]) => (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>}
  */
 const resolveWith = (dirs, oidBytes, packed) => {
     const link = lookupOf(dirs, packed, tryRef(oidBytes))
@@ -597,7 +642,7 @@ const resolveWith = (dirs, oidBytes, packed) => {
  * is enforced, because this is the half that knows which name it was asked
  * about. The module doc has the measurement.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadWhole | ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadWhole | Readdir | ReadFile, Nullable<Oid>, IoChannel>}
  */
 export const tryResolve = (dirs, oidBytes) => name => {
     // Before the read and not inside the walk, which is what the paragraph above
@@ -671,7 +716,7 @@ const childOf = parent => d => ({
  * scope: the reader of one file's bytes, the resolver, what the walk has found,
  * the name, and the names (§3.3).
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>, found: _Found, name: readonly number[], names: List<readonly number[]>) => (bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>, found: _Found, name: readonly number[], names: List<readonly number[]>) => (bytes: Bytes) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
  */
 const refOf = (readRef, resolve, found, name, names) => bytes => {
     const r = readRef(bytes)
@@ -710,7 +755,7 @@ const descendInto = (item, found) =>
  *
  * The captures are leading parameters and this sits at module scope (§3.3).
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<ReadFile, _Walked, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
  */
 const readAsRef = (readRef, resolve, keep, item, found) => {
     if (!keep(item.name)) { return pureOk(walked(found, null)) }
@@ -759,7 +804,7 @@ const linkedDirMessage = path => `${path} is a link to a directory`
  * `isFile` for a link to a ref file, `isDirectory` for a link to a directory, and
  * neither for a FIFO and for a link to one.
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
  */
 const statted = (readRef, resolve, keep, item, found) => step(
     // The catch is around the `stat` and nothing else: a `readFile` below that

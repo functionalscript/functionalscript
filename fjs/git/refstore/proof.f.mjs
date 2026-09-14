@@ -197,14 +197,6 @@ const missing = path => state => [state, error(ioError({ code: 'ENOENT', message
  */
 const kind = (isFile, isDirectory) => ({ size: 41, isFile, isDirectory })
 
-/**
- * A regular file of a given length, for the one read that asks how long a file
- * is before reading it.
- *
- * @type {(size: number) => FileStat}
- */
-const kindOf = size => ({ size, isFile: true, isDirectory: false })
-
 /** @type {(name: string, parentPath: string, isFile: boolean, isDirectory: boolean) => Dirent} */
 const dirent = (name, parentPath, isFile, isDirectory) => ({ name, parentPath, isFile, isDirectory })
 
@@ -358,19 +350,21 @@ export const proof = {
     readError: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
         // the loose read refuses, with `packed-refs` simply not there
-        /** @type {MemOperationMap<ReadWhole | ReadFile, null>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir, null>} */
         const loose = {
             readFile: () => state => [state, error(denied)],
             readWhole: missing,
+            readdir: missing,
         }
         assertStructurallySame(
             mockRun(loose)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
             error(denied))
         // and the whole-file read refuses
-        /** @type {MemOperationMap<ReadWhole | ReadFile, null>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir, null>} */
         const packed = {
             readFile: () => state => [state, error(denied)],
             readWhole: () => state => [state, error(denied)],
+            readdir: missing,
         }
         assertStructurallySame(
             mockRun(packed)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
@@ -701,10 +695,11 @@ export const proof = {
     // the repository into a path that leaves it.
     resolveBadNameReadsNothing: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
-        /** @type {MemOperationMap<ReadWhole | ReadFile, readonly string[]>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir, readonly string[]>} */
         const host = {
             readFile: path => log => [[...log, `readFile ${path}`], error(denied)],
             readWhole: path => log => [[...log, `readWhole ${path}`], error(denied)],
+            readdir: path => log => [[...log, `readdir ${path}`], error(denied)],
         }
         for (const name of ['../secret', '.hidden', 'x.lock', 'a..b', 'has space']) {
             const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
@@ -789,12 +784,13 @@ export const proof = {
         const text = latin1(`# pack-refs with: peeled fully-peeled sorted \n${lines.join('')}`)
         const chunk = Number(maxLengthBytes)
         assert(text.length > chunk * 2, text.length)
-        /** @type {MemOperationMap<ReadWhole | ReadFile, readonly string[]>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir, readonly string[]>} */
         const host = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
                 error(ioError({ code: 'ENOENT', message: path })),
             ],
+            readdir: missing,
             // what one open answers: the file in `Vec`-sized pieces, which is
             // the only shape that cannot be a join of two different files
             readWhole: path => log => [
@@ -816,6 +812,67 @@ export const proof = {
             `readWhole ${packedRefs}`,
             'readFile refs/heads/topic/feature-3999',
         ])
+    },
+    // The *lookup* refuses a symlink `HEAD` too, which it used to follow.
+    //
+    // Measured on Git 2.43.0, and the rule is `HEAD`'s alone:
+    //
+    //   $ ln -s /elsewhere/holding-an-id .git/HEAD
+    //   $ git rev-parse HEAD        # fatal: not a git repository
+    //   $ ln -s /elsewhere/holding-an-id .git/ORIG_HEAD
+    //   $ git rev-parse ORIG_HEAD   # the id
+    //
+    // So Git refuses the repository over `HEAD` and follows the link for every
+    // other name in the same directory. Before this, `.git/HEAD` naming a file
+    // whose first line reads as an id answered that id — a value from the other
+    // side of the boundary this module claims.
+    //
+    // The listing is what sees it, so the lookup pays one `readdir`, and only
+    // for `HEAD`: `readFile` follows the link and `stat` answers for what is at
+    // the other end.
+    symlinkHeadLookup: () => {
+        const outside = latin1(`${b}\n`)
+        /** @type {(headIsFile: boolean) => MemOperationMap<ReadWhole | ReadFile | Readdir, null>} */
+        const host = headIsFile => ({
+            // the read follows the link, which is the whole problem
+            readFile: path => state => [
+                state,
+                path === 'HEAD' || path === 'ORIG_HEAD'
+                    ? ok(toVec(outside))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readWhole: missing,
+            readdir: path => state => [
+                state,
+                ok(path === '' ? [
+                    dirent('HEAD', path, headIsFile, false),
+                    dirent('ORIG_HEAD', path, false, false),
+                ] : []),
+            ],
+        })
+        const [, r] = mockRun(host(false))(null)(tryResolve(one(''), 20)(latin1('HEAD')))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, headKindCode)
+        assertEq(e[1].message, 'HEAD is not a regular file')
+        // an ordinary `HEAD` still reads, so the refusal is the kind's
+        const [, ok_] = mockRun(host(true))(null)(tryResolve(one(''), 20)(latin1('HEAD')))
+        assert(ok_[0] === 'ok' && ok_[1] !== null)
+        assertEq(codePointListToString(toHex(ok_[1])), b)
+        // and `ORIG_HEAD`, a link in the same listing, is followed — which is
+        // Git's answer and why this asks about one name rather than a kind
+        const [, orig] = mockRun(host(true))(null)(tryResolve(one(''), 20)(latin1('ORIG_HEAD')))
+        assert(orig[0] === 'ok' && orig[1] !== null)
+        assertEq(codePointListToString(toHex(orig[1])), b)
+    },
+    // A gitdir that is not there is no `HEAD` rather than a failure, which is
+    // what the plain read this replaced answered.
+    symlinkHeadNoGitdir: () => {
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir, null>} */
+        const host = { readFile: missing, readWhole: missing, readdir: missing }
+        const [, r] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('HEAD')))
+        assertStructurallySame(r, ok(null))
     },
     // A packed name that is also a directory resolves to the packed id.
     //
