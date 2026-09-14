@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/fsc/ast/module.f.mjs`: the AST shape `run`
  * evaluates — `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`,
- * `AstMember`, `AstObject`, and `AstBody`.
+ * `AstMember`, `AstObject`, `AstAccess`, and `AstBody`.
  *
  * @module
  */
@@ -16,8 +16,8 @@ import type { Primitive, Unknown } from '../../media/datajs/types.ts'
  */
 export type AstModule = readonly [readonly string[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, or an object. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject
+/** A value in a module body: a primitive, a reference, an array, an object, or a property access. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess
 
 /**
  * A reference to a value defined outside this `AstConst`.
@@ -52,6 +52,15 @@ export type AstMember = readonly [string, AstConst]
  * written, duplicates and all, which only the syntax still has.
  */
 export type AstObject = readonly ['object', readonly AstMember[]]
+
+/**
+ * A property access, `base.key` or `base[key]`: the base a reference and
+ * the accesses before it, the key the constant written — a string, or a
+ * number from `[0]`. The EDAG's own form, `['.', object, index]`, so the
+ * lowering carries it as it is. A key naming the prototype chain,
+ * `__proto__` or `constructor`, is refused by the parser.
+ */
+export type AstAccess = readonly ['.', AstConst, string | number]
 
 /**
  * The constants of a module body, in declaration order. The **last** entry is

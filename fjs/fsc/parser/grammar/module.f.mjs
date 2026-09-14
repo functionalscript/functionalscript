@@ -157,17 +157,49 @@ export const primitive = /** @type {const} */ ({
 
 /**
  * A comma-separated list of items, at least one, a trailing comma allowed.
+ * An item ends with its own trivia — every item is a value or ends in one —
+ * so none stands between an item and its comma.
  *
  * @type {<const I extends Rule>(item: I) => Items<I>}
  */
 export const items = item => {
     /** @type {Items<typeof item>} */
-    const list = () => ['const', [item, trivia, option([sym(','), trivia, option(list)])]]
+    const list = () => ['const', [item, option([sym(','), trivia, option(list)])]]
     return list
 }
 
-/** @type {Value} */
-export const value = () => ['const', { primitive, ref: identifier, array, object }]
+/** The constants an index may be: a string, or a number. */
+export const index = /** @type {const} */ ({
+    string: sym('string'),
+    number: sym('number'),
+})
+
+/**
+ * One step of a property access after a reference: `.name`, the name any
+ * identifier, or `[key]`, the key a constant. What the two spellings may
+ * name is the fold's to check, since the name is a word the grammar does
+ * not see. Each step ends with its trivia, as a value does.
+ */
+export const access = /** @type {const} */ ({
+    property: [sym('.'), trivia, identifier, trivia],
+    index: [sym('['), trivia, index, trivia, sym(']'), trivia],
+})
+
+/**
+ * A value ends with its own trivia, so that a reference may be followed by
+ * an access, which the trivia after the reference would otherwise have to
+ * lead — and a rule trivia leads is a rule one symbol of lookahead cannot
+ * enter. Every value's last token is followed by trivia exactly once, here,
+ * and what follows a value adds none.
+ *
+ * @type {Value}
+ */
+export const value = () => ['const', {
+    primitive: [primitive, trivia],
+    ref: [identifier, trivia, repeatFrom0(access)],
+    array,
+    object,
+}]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({
@@ -185,9 +217,9 @@ export const values = items(value)
 /** The members of an object, likewise. */
 export const members = items(member)
 
-export const array = /** @type {const} */ ([sym('['), trivia, option(values), sym(']')])
+export const array = /** @type {const} */ ([sym('['), trivia, option(values), sym(']'), trivia])
 
-export const object = /** @type {const} */ ([sym('{'), trivia, option(members), sym('}')])
+export const object = /** @type {const} */ ([sym('{'), trivia, option(members), sym('}'), trivia])
 
 /** A statement's terminator: `;`, then the trivia after it. */
 const end = /** @type {const} */ ([sym(';'), trivia])
@@ -197,11 +229,11 @@ export const importStatement = /** @type {const} */ ([
 ])
 
 export const constStatement = /** @type {const} */ ([
-    sym('const'), trivia, identifier, trivia, sym('='), trivia, value, trivia, ...end,
+    sym('const'), trivia, identifier, trivia, sym('='), trivia, value, ...end,
 ])
 
 export const exportStatement = /** @type {const} */ ([
-    sym('export'), trivia, sym('default'), trivia, value, trivia, ...end,
+    sym('export'), trivia, sym('default'), trivia, value, ...end,
 ])
 
 /**

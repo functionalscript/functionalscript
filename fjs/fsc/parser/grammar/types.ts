@@ -9,13 +9,14 @@
  */
 
 import type { Assert } from '../../../asserts/types.ts'
-import type { Option, Rule } from '../../../ebnf/types.ts'
+import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { DjsToken } from '../../tokenizer/types.ts'
 import type {
     _framingKeywords,
     _ordinaryTokenNames,
     _tokenKindNames,
+    access,
     identifier,
     key,
     primitive,
@@ -84,24 +85,24 @@ type _EofIsNotAName = Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>
  */
 export type Items<Item extends Rule> = () => readonly ['const', readonly [
     Item,
-    typeof trivia,
     Option<readonly [number, typeof trivia, Option<Rule>]>,
 ]]
 
-/** An opening symbol, trivia, an optional list, and the closing symbol. */
-export type Container<Item extends Rule> = readonly [number, typeof trivia, Option<Items<Item>>, number]
+/** An opening symbol, trivia, an optional list, the closing symbol, and the trivia after it. */
+export type Container<Item extends Rule> = readonly [number, typeof trivia, Option<Items<Item>>, number, typeof trivia]
 
 /** A key, trivia, `:`, trivia, and a value. */
 export type Member = readonly [typeof key, typeof trivia, number, typeof trivia, Value]
 
 /**
- * A value: a primitive token, a reference, an array of values, or an
- * object of members — a `const` thunk whose payload names the thunk, which
- * is what lets a type alias name itself.
+ * A value: a primitive token, a reference and the accesses after it, an
+ * array of values, or an object of members, each ending with its trivia —
+ * a `const` thunk whose payload names the thunk, which is what lets a type
+ * alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly primitive: typeof primitive
-    readonly ref: typeof identifier
+    readonly primitive: readonly [typeof primitive, typeof trivia]
+    readonly ref: readonly [typeof identifier, typeof trivia, RepeatFrom<0, typeof access>]
     readonly array: Container<Value>
     readonly object: Container<Member>
 }]

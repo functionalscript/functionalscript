@@ -45,11 +45,11 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstArray, AstConst, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstConst, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -246,7 +246,7 @@ const optionalItems = itemsAt => node => {
 }
 
 /**
- * The items of a list node, `item t [ ',' t [ items ] ]`: the item, then
+ * The items of a list node, `item [ ',' t [ items ] ]`: the item, then
  * the items the nested list's mapping already returned — so a list of any
  * length costs one step at each of its nodes, and the tree, as deep as the
  * list is long, is never walked.
@@ -255,7 +255,7 @@ const optionalItems = itemsAt => node => {
  */
 const listOf = (itemAt, itemsAt) => {
     const rest = optionalItems(itemsAt)
-    return ([item, , more]) => {
+    return ([item, more]) => {
         const rounds = unmapped(more)
         // no round, or the one holding the comma, its trivia and the optional rest
         const tail = rounds.length === 0 ? null : rest(unmapped(rounds[0])[2])
@@ -279,16 +279,34 @@ const membersOf = listOf(memberAt, membersAt)
 const symbol = out => ({ symbol: 0, meta: out })
 
 /**
+ * The token an access names its key by: `.name`'s identifier, or `[key]`'s
+ * constant — at the third position of either branch, under the identifier's
+ * or the constant's own alternative.
+ *
+ * @type {(round: _AccessNode) => DjsTokenWithMetadata}
+ */
+const accessKey = round => tokenAt(unmapped(unmapped(unmapped(round)[1])[2])[1])
+
+/** One access applied to the node before it. @type {(base: Node, round: _AccessNode) => Node} */
+const accessed = (base, round) => ['.', base, accessKey(round)]
+
+/**
  * A value is the node its branch made: a primitive converted from its
- * token, a reference by its token, and a container of the items its list
- * returned — `[ open t [ items ] close ]`, the list at the third position.
+ * token, a reference by its token with each access after it applied in
+ * turn, and a container of the items its list returned —
+ * `[ open t [ items ] close t ]`, the list at the third position.
  *
  * @type {(node: Children<Value, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = ([tag, branch]) => {
     switch (tag) {
-        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(branch))] }) }
-        case 'ref': { return symbol({ id: 'value', node: ['ref', tokenAt(unmapped(branch)[1])] }) }
+        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(unmapped(branch)[0]))] }) }
+        case 'ref': {
+            const [name, , accesses] = unmapped(branch)
+            /** @type {Node} */
+            const ref = ['ref', tokenAt(unmapped(name)[1])]
+            return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, ref) })
+        }
         case 'array': {
             return symbol({ id: 'value', node: ['array', toArray(valueItems(unmapped(branch)[2]))] })
         }
@@ -400,6 +418,40 @@ const constNotFound = foldError('const not found')
 /** A name bound twice, at the second binding. */
 const duplicateId = foldError('duplicate id')
 
+/**
+ * A key that names the prototype chain, at the key. `__proto__` and
+ * `constructor` reach a function's constructor through any object, which
+ * [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
+ * prohibits in either spelling; the bare and quoted spellings alike.
+ */
+const prohibitedKey = foldError('prohibited property name')
+
+/** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
+const keyNamed = ({ token }) => {
+    switch (token.kind) {
+        case 'id': { return token.value }
+        case 'string': { return token.value }
+        default: {
+            assert(token.kind === 'number')
+            return parseFloat(token.value)
+        }
+    }
+}
+
+/**
+ * An access closed over its base: the AST's `['.', base, key]`, or the
+ * refusal of a key that names the prototype chain.
+ *
+ * @type {(key: DjsTokenWithMetadata, base: AstConst) => Result<AstConst, ParseError>}
+ */
+const accessClosed = (key, base) => {
+    const named = keyNamed(key)
+    if (named === protoKey || named === 'constructor') { return error(prohibitedKey(key)) }
+    /** @type {AstAccess} */
+    const access = ['.', base, named]
+    return ok(access)
+}
+
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
     kind === 'array' ? items[index] : items[index].value
@@ -457,7 +509,7 @@ const close = ([kind, members], done) => {
  * The next item of a container, its key checked first, or the container
  * closed when none is left.
  *
- * @type {(stack: _Stack, frame: _Frame) => _State}
+ * @type {(stack: _Stack, frame: _ContainerFrame) => _State}
  */
 const round = (stack, frame) => {
     const { container, index, done } = frame
@@ -470,26 +522,37 @@ const round = (stack, frame) => {
 
 /**
  * Enters a node: a primitive is its value, a reference the binding `env`
- * holds for its name, and a container the first round of a new frame.
+ * holds for its name, an access its base under a frame holding the key,
+ * and a container the first round of a new frame.
  *
  * @type {(env: _Env, stack: _Stack, node: Node) => _State}
  */
 const enter = (env, stack, node) => {
-    const [tag, payload] = node
-    switch (tag) {
-        case 'primitive': { return [stack, ok(payload)] }
+    switch (node[0]) {
+        case 'primitive': { return [stack, ok(node[1])] }
         case 'ref': {
-            const ref = at(nameOf(payload))(env)
-            return [stack, ref === null ? error(constNotFound(payload)) : ok(ref)]
+            const ref = at(nameOf(node[1]))(env)
+            return [stack, ref === null ? error(constNotFound(node[1])) : ok(ref)]
         }
+        case '.': { return [{ top: { key: node[2] }, rest: stack }, ['enter', node[1]]] }
         default: { return round(stack, { container: node, index: 0, done: null }) }
     }
 }
 
 /**
+ * A value handed to the frame on top: the next round of a container with
+ * the value among its items, or an access closed over its base.
+ *
+ * @type {(stack: _Stack, frame: _Frame, value: AstConst) => _State}
+ */
+const returned = (stack, frame, value) => 'container' in frame
+    ? round(stack, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
+    : [stack, accessClosed(frame.key, value)]
+
+/**
  * The value a node denotes under `env`, or the first error met in document
- * order: a reference to a name `env` does not bind, or a plain `__proto__`
- * key.
+ * order: a reference to a name `env` does not bind, a plain `__proto__`
+ * key, or an access naming the prototype chain.
  *
  * Over an explicit stack: a frame per container being built, its items
  * resolved in order, so that a value nested as deep as the input allows
@@ -509,8 +572,7 @@ const evaluate = env => root => {
         } else if (stack === null) {
             return ok(payload)
         } else {
-            const { top, rest } = stack
-            state = round(rest, { ...top, index: top.index + 1, done: concat(top.done)([payload]) })
+            state = returned(stack.rest, stack.top, payload)
         }
     }
 }
