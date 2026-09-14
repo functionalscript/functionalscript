@@ -255,6 +255,21 @@ const readFile = path => readOperation((dir, p) => {
     return ok(result)
 })(path)
 
+/**
+ * The file's chunks as the fixture holds them, which is what one open would have
+ * answered: this filesystem has no descriptors, and a `Dir` entry cannot change
+ * while an operation runs, so a fixture is a snapshot by construction.
+ *
+ * Unlike {@link readFile} there is no cap to apply — the chunks stay chunks, each
+ * already a `Vec`, and the caller joins them into a byte list.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<readonly Vec[]>]}
+ */
+const readWhole = path => readOperation((dir, p) => {
+    const resolved = resolveFile(jsModuleUnsupported('readWhole'))(dir, p)
+    return resolved[0] === 'error' ? resolved : ok(resolved[1])
+})(path)
+
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Module>]} */
 const import_ = readOperation((dir, path) => {
     if (path.length !== 1) { return fail('no such file') }
@@ -750,6 +765,7 @@ const map = {
     readBytes: readBytesOp,
     createExclusive,
     writeBytes: writeBytesOp,
+    readWhole,
     stat: statOp,
     createServer,
     listen,

@@ -137,7 +137,7 @@
  *
  * @module
  *
- * @import { Dirent, FileStat, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, FileStat, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
@@ -236,7 +236,7 @@ const tryBytes = path =>
  * The same, for a file with no bound on its size: read in windows rather than
  * through a `Vec`.
  *
- * @type {(path: string) => Effect<Stat | ReadBytes, Nullable<Bytes>, IoChannel>}
+ * @type {(path: string) => Effect<ReadWhole, Nullable<Bytes>, IoChannel>}
  */
 const tryWholeBytes = path =>
     catchStep(
@@ -262,7 +262,7 @@ const tryWholeBytes = path =>
  * this could open. {@link readWholeBytes} reads it in windows instead, into a
  * byte list, which is what `tryPacked` takes.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Stat | ReadBytes, Nullable<readonly PackedRef[]>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<ReadWhole, Nullable<readonly PackedRef[]>, IoChannel>}
  */
 export const tryPackedRefs = (dirs, oidBytes) => {
     const parse = tryPacked(oidBytes)
@@ -597,7 +597,7 @@ const resolveWith = (dirs, oidBytes, packed) => {
  * is enforced, because this is the half that knows which name it was asked
  * about. The module doc has the measurement.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<Stat | ReadBytes | ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadWhole | ReadFile, Nullable<Oid>, IoChannel>}
  */
 export const tryResolve = (dirs, oidBytes) => name => {
     // Before the read and not inside the walk, which is what the paragraph above
@@ -1065,15 +1065,15 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  * Every other name outside `refs/` stays out: {@link tryResolve} answers one by
  * name for a caller that wants it.
  *
- * **The operation set includes `stat` and `readBytes`.** A listing cannot say
+ * **The operation set includes `stat` and `readWhole`.** A listing cannot say
  * what a symlink finally is — see {@link looseOf} — so an entry whose kind it
  * could not name costs one `stat`, and an ordinary file or directory costs none;
- * and `packed-refs` is read in windows rather than through a `Vec`, for the size
+ * and `packed-refs` is read whole rather than through a `Vec`, for the size
  * reason {@link tryPackedRefs} measures. A program on the node runner notices
  * nothing, since both are `NodeOp`s like the other two; what has to grow is an
  * interpreter written for exactly the old set.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Stat | ReadBytes | Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Stat | ReadWhole | Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
  */
 export const tryRoots = (dirs, oidBytes) => {
     /** @type {_Entry} */

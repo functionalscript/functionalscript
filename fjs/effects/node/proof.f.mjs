@@ -3,15 +3,16 @@
  * @import { IoChannel, IoError, IoResult, ReadBytes, ReadFile, Stat } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
+ * @import { List as List_ } from "../../types/list/types.ts"
  * @import { OperationMap } from "../types.ts"
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { empty, isVec, maxLengthBytes, msb, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { empty, isVec, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, shortReadCode, notAFileCode } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, notAFileCode } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -525,108 +526,42 @@ export const proof = {
         },
     },
     readWholeBytes: {
-        // A file of one window and a file of more than one read the same, and
-        // the windows are asked for in order from a `stat`'s length.
+        // A file of one chunk and a file of more read the same, and the chunks
+        // come back joined into one byte list. The virtual filesystem holds a
+        // file as its chunks already, so this is the shape a real open answers.
         whole: () => {
-            for (const size of [0, 1, 5, window + 1, window * 2, window * 2 + 3]) {
-                const bytes = Array.from({ length: size }, (_, i) => i % 251)
-                const [log, r] = run(sizedHost(bytes))([])(readWholeBytes('f'))
-                assert(r[0] === 'ok', r)
-                assertStructurallySame(toArray(r[1]), bytes)
-                assertStructurallySame(log, [
-                    'stat f',
-                    ...Array.from({ length: Math.ceil(size / window) }, (_, k) => `readBytes f ${k * window}`),
-                ])
+            for (const chunks of [
+                /** @type {readonly Vec[]} */ ([]),
+                [vec8(0x2An)],
+                [vec8(0x01n), vec8(0x02n)],
+                [u8ListToVec(msb)([1, 2, 3]), u8ListToVec(msb)([4, 5])],
+            ]) {
+                const [, [t, result]] = virtual({ ...emptyState, root: { file: chunks } })(
+                    readWholeBytes('file'))
+                assert(t === 'ok', result)
+                assertStructurallySame(
+                    toArray(/** @type {List_<number>} */ (result)),
+                    chunks.flatMap(v => toArray(u8List(msb)(v))))
             }
         },
-        // A window that comes back short of the end of the file is refused, not
-        // carried on from the next fixed window start — which would skip the
-        // bytes the host did not answer and hand a parser a file with a run
-        // missing out of its middle, so a file its own writer wrote would be
-        // reported malformed.
-        //
-        // One `read` is allowed to answer short: measured on node 22, a
-        // positional read of `/proc/self/maps` answers 4,007 bytes for a 1 MiB
-        // request and 4,034 more at the next offset, while a regular local file
-        // filled the buffer and came back short only at its end. The node runner
-        // fills the window for that reason, so this is about every other host.
-        shortWindow: () => {
-            const bytes = Array.from({ length: window * 2 }, (_, i) => i % 251)
-            const whole = sizedHost(bytes)
-            /** @type {MemOperationMap<ReadBytes | Stat, readonly string[]>} */
-            const host = {
-                ...whole,
-                // one byte less than asked for, on the first window only
-                readBytes: (path, at, size) => whole.readBytes(path, at, at === 0 ? size - 1 : size),
-            }
-            const [log, r] = run(host)([])(readWholeBytes('f'))
-            assert(r[0] === 'error')
-            const e = r[1]
-            assert(e[0] === 'ioError')
-            assertEq(e[1].code, shortReadCode)
-            assertEq(e[1].message, `f:0 ${window - 1} bytes of ${window}`)
-            // and the second window is never asked for
-            assertStructurallySame(log, ['stat f', 'readBytes f 0'])
+        // A whole file is not bounded by a `Vec`, which is the reason the
+        // operation answers chunks: `readFile` refuses the same fixture.
+        pastTheVecCap: () => {
+            const big = Array.from({ length: 3 }, () => u8ListToVec(msb)(Array.from(
+                { length: Number(maxLengthBytes) },
+                (_, i) => i % 251)))
+            const root = { file: big }
+            const [, [t, result]] = virtual({ ...emptyState, root })(readWholeBytes('file'))
+            assert(t === 'ok', result)
+            assertEq(toArray(/** @type {List_<number>} */ (result)).length, Number(maxLengthBytes) * 3)
+            // and the bounded read of the same file refuses
+            const [, [rt]] = virtual({ ...emptyState, root })(readFile('file'))
+            assertEq(rt, 'error')
         },
-        // The last window is legitimately short, and is not refused: it is the
-        // one whose own length is less than the allowance.
-        lastWindowIsShort: () => {
-            const bytes = Array.from({ length: window + 1 }, (_, i) => i % 251)
-            const [, r] = run(sizedHost(bytes))([])(readWholeBytes('f'))
-            assert(r[0] === 'ok', r)
-            assertEq(toArray(r[1]).length, window + 1)
-        },
-        // A window *longer* than the file's own size said it would be is refused
-        // too: the file grew between the `stat` and the read — `packed-refs`
-        // replaced atomically by a longer one, say. The windows past the measured
-        // size were never scheduled, so accepting it would answer a prefix of the
-        // new file, and a prefix that ends on a record boundary is one a parser
-        // takes without complaint.
-        grewUnderTheRead: () => {
-            const bytes = Array.from({ length: 5 }, (_, i) => i % 251)
-            const whole = sizedHost(bytes)
-            /** @type {MemOperationMap<ReadBytes | Stat, readonly string[]>} */
-            const host = {
-                ...whole,
-                // the file is 5 bytes when it is measured and 9 when it is read
-                readBytes: (path, at, size) => log => [
-                    [...log, `readBytes ${path} ${at}`],
-                    ok(u8ListToVec(msb)(Array.from({ length: 9 }, (_, i) => i).slice(at, at + size))),
-                ],
-            }
-            const [, r] = run(host)([])(readWholeBytes('f'))
-            assert(r[0] === 'error')
-            const e = r[1]
-            assert(e[0] === 'ioError')
-            assertEq(e[1].code, shortReadCode)
-            assertEq(e[1].message, 'f:0 9 bytes of 5')
-        },
-        // A path that is no regular file is refused rather than read as empty.
-        //
-        // A FIFO, a device and a procfs file all `stat` as nought bytes and still
-        // produce content when opened, so scheduling from the size alone would
-        // answer an empty file — measured on node 22, a `stat` of a writerless
-        // FIFO returns in 3 ms with `size: 0`, `isFile: false`. A caller would
-        // then read a `packed-refs` with no records where it cannot read the path
-        // at all, which for `fjs/git/refstore` is every packed root dropped in
-        // silence.
-        notAFile: () => {
-            /** @type {MemOperationMap<ReadBytes | Stat, readonly string[]>} */
-            const host = {
-                ...sizedHost([]),
-                stat: path => log => [
-                    [...log, `stat ${path}`],
-                    ok({ size: 0, isFile: false, isDirectory: false }),
-                ],
-            }
-            const [log, r] = run(host)([])(readWholeBytes('f'))
-            assert(r[0] === 'error')
-            const e = r[1]
-            assert(e[0] === 'ioError')
-            assertEq(e[1].code, notAFileCode)
-            assertEq(e[1].message, 'f is not a regular file')
-            // and nothing is read
-            assertStructurallySame(log, ['stat f'])
+        // A path that is not there is the channel's, as every other read is.
+        missingFile: () => {
+            const [, [t]] = virtual(emptyState)(readWholeBytes('missing'))
+            assertEq(t, 'error')
         },
     },
     randomInt: {
