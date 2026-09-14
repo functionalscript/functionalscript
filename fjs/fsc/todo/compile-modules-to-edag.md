@@ -24,8 +24,9 @@ The AST preserves the ordered object-entry representation EDAG requires:
 repeated key written twice, and `run` builds the object JavaScript builds from
 the same literal. It was a plain object until this task's first step, and
 before that it sorted the members through an `OrderedMap`, which the subset law
-over the DataJS corpus found and stage 6 fixed (#2028); a plain object kept the
-written order of ordinary keys and the last value of a repeated one, and could
+over the DataJS corpus found and the normalizer's landing fixed (#2028); a
+plain object kept the written order of ordinary keys and the last value of a
+repeated one, and could
 not keep the position of an integer-like key, which JavaScript lists first, or
 the duplicates themselves. Conversion to `['{}', [...entry]]` reads the members
 as the syntax holds them.

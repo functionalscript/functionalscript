@@ -8,8 +8,8 @@ from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
 and `fjs/djs` emptied; the value model is DataJS's,
 [`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes through
-[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs)
-since stage 6: its module output is a DataJS document in normalized form, and
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs):
+its module output is a DataJS document in normalized form, and
 its `.json` output refuses what JSON cannot spell rather than approximating
 it — see [`module.f.mjs`](./module.f.mjs).
 
@@ -406,10 +406,12 @@ without a reason. The grammar's tokens,
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) read by
 [`fjs/js/tokenizer`](../js/tokenizer/module.f.mjs), grow toward the whole
 JavaScript lexical surface, because everything that reads a `.f.mjs` — this
-compiler, the website's highlighter, a linter, JSON's reader through the
-shared rules — needs the same tokens, and a token that is recognised is not
-thereby accepted: the compiler's fold and grammar refuse what the language
-does not admit, at the token, as they refuse `-NaN`. The parser stays the
+compiler, the website's highlighter, a linter — needs the same tokens, and a
+token that is recognised is not thereby accepted: the compiler's fold and
+grammar refuse what the language does not admit, at the token, as they refuse
+`-NaN`. The rules the grammar shares with JSON flow the other way — it imports
+JSON's digit and string rules from `fjs/ebnf/lib/json`, and no codec reads
+this grammar — so widening it regresses no codec. The parser stays the
 FunctionalScript grammar, LL(1) over those tokens, and grows one production
 at a time as the EDAG stages ask.
 

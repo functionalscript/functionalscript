@@ -52,8 +52,10 @@ The difference is between *recognising* a spelling and *accepting* it.
 Displaying a module needs the tokenizer to find where a string starts and ends
 so the text can be coloured. It does not need FunctionalScript to admit the
 string as valid, and it does not need a substitution's type decided — a source
-view never evaluates anything. That is the division stage 7 states: the token
-layer is JavaScript's, and what the language accepts is decided above it, at
+view never evaluates anything. That is the division
+[`fjs/fsc/README.md`](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+states: the token layer is JavaScript's, and what the language accepts is
+decided above it, at
 the token — the way the compiler's fold already refuses `-NaN` and a number
 followed by a word, both of which the grammar reads without complaint.
 
@@ -87,7 +89,7 @@ The grammar has three readers, and the widening reaches each differently.
   branches by dialect, since both begin with `"`, and one bit on the token
   is what the compiler's fold reads.
 - [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
-  JS stream over this grammar since stage 7. It is the consumer this issue
+  JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
   reads it, and a future `fjs lint` would. It refuses nothing the grammar

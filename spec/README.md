@@ -542,11 +542,12 @@ statement here ends at a `;`, never at a spot an engine infers. The rule
 landed with the parser's move to the LL(1) backend, where telling a newline
 from a `;` reached through newlines took unbounded lookahead, and it is the
 rule of the compiler-formatted `.f.js` output language: the compiler writes
-the `;` after every statement it emits. Whether FunctionalScript also
-requires the whitespace DataJS requires after `export` and `default` is its
-own question, and DataJS does not depend on the answer — DataJS requires
-more whitespace than a merging rule would, so every DataJS document parses
-here either way.
+the `;` after every statement it emits. Whitespace between tokens is
+optional here, `export default[1];` and `export default{};` included — after
+`const` and `export` the lexer forces it, since `const$0` and
+`exportdefault` are each one identifier, and after `default` nothing does.
+DataJS requires a space in all three positions, more than this language
+does, so every DataJS document parses here.
 
 |Statement|Form|
 |---------|----|

@@ -135,8 +135,8 @@ asked for is done by deletion.
       survives of the parser sub-task, and it is not a DJS concern.
 - [x] Collapse the two DJS serializer variants through an optional ref hook —
       landed as `buildSerialize` in `fjs/djs/serializer/module.f.mjs`, and
-      retired with that module in stage 7; the compiler's dump kept the
-      half without seams.
+      retired with that module; the compiler's dump kept the half without
+      seams.
 - [ ] Extract the serializer walker independently, shared between JSON's
       `serialize`, the compiler's `_stringifyTree` and DataJS's walk — three
       consumers, and the entry-enumeration seam has to be a parameter for
