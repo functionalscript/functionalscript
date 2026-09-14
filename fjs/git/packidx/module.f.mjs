@@ -33,7 +33,8 @@
  * | magic and version | absent | `\377tOc`, then `2` |
  * | fanout | 256 words at 0 | 256 words at 8 |
  * | ids and offsets | interleaved, offset first | two tables, ids then CRCs then offsets |
- * | offsets over 2 GiB | cannot be spelled | a second table of 8-byte offsets |
+ * | largest offset | just under 4 GiB | any, through a second table |
+ * | how | the whole 4-byte word | the high bit indexes 8-byte offsets |
  *
  * **The fanout is a cumulative count, not a count.** `fanout[k]` is how many
  * ids have a first byte of `k` or less, so `fanout[255]` is the object count
@@ -210,6 +211,11 @@ const checksumAgrees = (b, oidBytes) => {
  * There is no second offset table, so a version 1 index cannot name a byte
  * past 4 GiB at all. That is the reason version 2 exists and not a gap in
  * this reader.
+ *
+ * The whole word is the offset, with no bit reserved: `0x80000001` is 2 GiB and
+ * one byte here, where the same word in a version 2 index is an *index* into the
+ * 8-byte table — see {@link largeOffsetFlag}. So version 1's ceiling is higher
+ * than version 2's 4-byte table and lower than what version 2 can reach at all.
  *
  * @type {(b: readonly number[], oidBytes: OidBytes) => Nullable<Idx>}
  */

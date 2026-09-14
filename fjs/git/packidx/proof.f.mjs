@@ -335,6 +335,31 @@ export const proof = {
         // the same file with index 0 reads, so the refusal is the index's
         assertEq(offsetOf(decoded(built))(small), 12)
     },
+    // The whole 4-byte word is a version 1 offset, with no bit reserved: the
+    // same word that means "an index into the 8-byte table" in a version 2 index
+    // is 2 GiB and one byte here.
+    //
+    // So version 1's ceiling is higher than version 2's 4-byte table and lower
+    // than what version 2 can reach at all — it has no second table, so it
+    // cannot name a byte at or past 4 GiB. Built rather than captured, because
+    // Git writes such an index only for a pack over 2 GiB.
+    version1WholeWord: () => {
+        const only = id('1800000000000000000000000000000000000000')
+        const oid = idBytes(only)
+        /** @type {(offset: readonly number[]) => readonly number[]} */
+        const v1 = offset => sealed([
+            ...Array.from({ length: 256 }, (_, k) => k).flatMap(k => u32(k < oid[0] ? 0 : 1)),
+            ...offset,
+            ...oid,
+            ...Array.from({ length: width }, () => 0),
+        ])
+        // the high bit set is an offset and not a flag
+        assertEq(offsetOf(decoded(v1(u32(0x80000001))))(only), 0x80000001)
+        // and the largest word a version 1 index can hold, one byte short of 4 GiB
+        assertEq(offsetOf(decoded(v1(u32(0xFFFFFFFF))))(only), 0xFFFFFFFF)
+        // where the same word in a version 2 index names the table instead —
+        // `largeOffsetPastTable` above reads it that way
+    },
     // The 8-byte table is exactly as long as the words that name it ask for.
     // Git derives its length from the file's length alone, so a spare block
     // before the checksums divides evenly and reads — and that block is not
