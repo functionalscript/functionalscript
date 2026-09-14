@@ -54,7 +54,7 @@ import { assertNotNullish } from '../../../../asserts/module.f.mjs'
 import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
 import { errorExit, exitStep, mkdir, readFile, writeUtf8File } from '../../../../effects/node/module.f.mjs'
 import { fromVec } from '../../../../text/utf8/module.f.mjs'
-import { parse } from '../../parser/module.f.mjs'
+import { tryParse } from '../../module.f.mjs'
 import { difference } from '../module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
 import { error, ok } from '../../../../types/result/module.f.mjs'
@@ -648,7 +648,7 @@ export const sourceDefect = (name, bytes, imported) => {
     if (text === null) {
         return [`the set ${name}: its own source is not correct UTF-8`]
     }
-    const [tag, value] = parse(text)
+    const [tag, value] = tryParse(text)
     if (tag === 'error') {
         return [`the set ${name}: its own source is not a DataJS document, ${value}`]
     }

@@ -19,14 +19,16 @@ EDAG alone is not enough to represent an unresolved parsed module: module resolu
 also needs the module paths imported by that source file. Keep that information in a
 small temporary wrapper rather than adding module metadata to EDAG itself.
 
-The current parser/AST cannot fully preserve the ordered object-entry representation
-required by EDAG. Object parsing builds a plain `AstObject` in source order — it
-used to sort the members through an `OrderedMap`, which the subset law over the
-DataJS corpus found and stage 6 fixed (#2028) — so a repeated key keeps its first position
-and takes its last value, as in JavaScript. What a plain object still cannot keep
-is the written order of integer-like keys, which JavaScript lists first, and the
-duplicates themselves. This task must preserve object entries as an ordered
-sequence in the parser/AST until they are converted to `['{}', [...entry]]`.
+The AST preserves the ordered object-entry representation EDAG requires:
+`AstObject` is `['object', members]`, the members in the order written, a
+repeated key written twice, and `run` builds the object JavaScript builds from
+the same literal. It was a plain object until this task's first step, and
+before that it sorted the members through an `OrderedMap`, which the subset law
+over the DataJS corpus found and stage 6 fixed (#2028); a plain object kept the
+written order of ordinary keys and the last value of a repeated one, and could
+not keep the position of an integer-like key, which JavaScript lists first, or
+the duplicates themselves. Conversion to `['{}', [...entry]]` reads the members
+as the syntax holds them.
 
 ### Proposal
 
@@ -48,7 +50,23 @@ This task should reuse and cross-reference those decisions rather than duplicate
 
 ### Stage 1: property access and unresolved modules
 
-The first missing EDAG operation is property access:
+**Where it stands.** The EDAG side is there — `['.', object, property]` is in
+[`fjs/edag`](../../edag/module.f.mjs)'s schema, `dot`, with the index
+restriction below — and so are the unresolved module and its resolution:
+[`fjs/fsc/edag`](../edag/module.f.mjs) compiles a parsed module to
+`Unresolved { imports, edag }`, refusing what the export does not reach, and
+`resolve` links a program from its root path into one EDAG, memoized by path
+within the link. The binding is done where a reference is lowered — the
+importing module is lowered over the imported modules' EDAGs, its parameters
+never built — rather than by rewriting a finished `Unresolved`, which would
+need a memo keyed by node identity to keep sharing; a cache that stores
+`Unresolved` ([cache-compiled-modules](./cache-compiled-modules.md)) is what
+would need that rewrite. `fjs compile` writes the linked graph as a DataJS
+document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
+its value outputs, which are unchanged. What Stage 1 still owes is the
+parser's `a.b` and `a[b]`.
+
+The first missing EDAG operation was property access:
 
 ```js
 ['.', object, property]
@@ -466,42 +484,61 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 1
 
-- [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema,
+- [x] Introduce `['.', object, property]` into EDAG and its validation/type schema,
       enforcing the canonical property-operand restriction: permitted string constants,
       number constants, and only later the `Number` numeric-conversion node once it
-      exists.
+      exists. Done in [`fjs/edag`](../../edag/module.f.mjs): `dot` over `index`,
+      which is a string, a number, or a `Number` cast.
 - [ ] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions.
-- [ ] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
-      the EDAG schema.
-- [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
-      and make import parameter positions correspond to its indices.
-- [ ] Change the DJS parser/AST object representation to retain an ordered entry list
+- [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
+      the EDAG schema. Done: [`fjs/fsc/edag/types.ts`](../edag/types.ts).
+- [x] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
+      and make import parameter positions correspond to its indices. Done; pinned by
+      `parameters` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
+- [x] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
-      keys through a plain JavaScript object/`OrderedMap` representation.
-- [ ] Convert a parsed source module to `Unresolved { imports, edag }` without reading
-      or resolving any imported module.
-- [ ] Do not silently drop required body evaluation. Until an anchoring/sequencing
+      keys through a plain JavaScript object/`OrderedMap` representation. Done:
+      `AstObject` is `['object', members]`, pinned by `membersAsWritten` in
+      `fjs/fsc/parser/proof.f.mjs`.
+- [x] Convert a parsed source module to `Unresolved { imports, edag }` without reading
+      or resolving any imported module. Done: `unresolved` in
+      [`fjs/fsc/edag`](../edag/module.f.mjs), a function of the AST alone.
+- [x] Do not silently drop required body evaluation. Until an anchoring/sequencing
       operation is available, reject a Stage 1 source module if conversion would omit
-      an unreachable potentially throwing body computation.
-- [ ] Until anchoring exists, reject a Stage 1 source module when any import parameter
+      an unreachable potentially throwing body computation. Done as a reachability
+      rule: a `const` the export does not reach refuses the module, `unreachable
+      const <index>`, whatever it holds.
+- [x] Until anchoring exists, reject a Stage 1 source module when any import parameter
       is unreachable from its EDAG root; do not silently discard eager imported-module
-      evaluation just because the binding is unused.
-- [ ] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
-      with shared EDAG node identity.
-- [ ] Resolve imported `Unresolved` values recursively and bind each resolved result
+      evaluation just because the binding is unused. Done: `unreachable import
+      "<specifier>"`, the import named before any `const`.
+- [x] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
+      with shared EDAG node identity. Done: one parameter node per import, one node
+      per `const`, pinned by `example`, `chain` and `parameters` in the proof.
+- [x] Resolve imported `Unresolved` values recursively and bind each resolved result
       to the corresponding **module-scope** import parameter position; when Stage 2
       functions exist, do not descend into nested `=>` bodies while substituting imports.
-- [ ] Apply the same function-scope boundary to module-import reachability checks so
+      Done: `resolve` in [`fjs/fsc/edag`](../edag/module.f.mjs) binds where a
+      reference is lowered, so no substitution descends into anything; a
+      function body, when there is one, is lowered by the same rule.
+- [x] Apply the same function-scope boundary to module-import reachability checks so
       nested function-local `['args']` nodes are never interpreted as import parameters.
-- [ ] Memoize resolved modules during one link operation by canonical module path so
-      repeated/diamond imports reuse the same resolved EDAG node identities.
-- [ ] Remove the temporary `Unresolved` layer after resolution so the root compilation
+      Done by construction: reachability is read from the syntax (`unreached`), where
+      an import is an `aref`, never from `['args']` nodes.
+- [x] Memoize resolved modules during one link operation by canonical module path so
+      repeated/diamond imports reuse the same resolved EDAG node identities. Done;
+      pinned by `resolve.diamond` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
+- [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
-- [ ] Add a distinct EDAG-producing compiler path/API alongside the current
+      Done: `resolve` returns an `Exp`.
+- [x] Add a distinct EDAG-producing compiler path/API alongside the current
       value-producing transpiler; do not redirect existing `transpile` / `fjs compile`
-      callers until EDAG execution is available.
+      callers until EDAG execution is available. Done: `resolve` beside `transpile`,
+      and in `fjs compile` an output name ending with `.edag.f.js` or `.edag.f.mjs`
+      selects it, as `.json` selects the JSON writer; the other outputs are as they
+      were.
 
 #### Stage 2
 
@@ -549,12 +586,18 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       policy as a side effect of this task.
 - [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)
       instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
-- [ ] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
-      allow JSON output only when it preserves the EDAG completely.
-- [ ] Preserve the existing value-producing `transpile` / `fjs compile` success output
+- [x] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
+      allow JSON output only when it preserves the EDAG completely. Done for the
+      DataJS form, through `fjs/media/datajs/serializer`, which hoists a shared node
+      as the module output does; no JSON form of the EDAG is offered, since JSON
+      cannot hold a shared node and an EDAG's sharing is its meaning.
+- [x] Preserve the existing value-producing `transpile` / `fjs compile` success output
       — `transpile`'s `Denotation` and `fjs compile`'s bytes — until
-      `interpret-edag.md` integrates EDAG execution behind that API.
-- [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
+      `interpret-edag.md` integrates EDAG execution behind that API. Done: pinned
+      side by side with the EDAG output in `fjs/fsc/proof.f.mjs` (`edagOutput`).
+- [x] Preserve current missing-file, parse-error, and circular-dependency behavior.
+      Done: the linker reads through the transpiler's reader and reports the same
+      `ParseError`; pinned in `fjs/fsc/edag/proof.f.mjs` (`resolve.refused`).
 - [ ] Add Stage 1 proofs that permitted `a.b`, `a['x']`, and numeric `a[0]` forms
       produce property-access EDAGs, while prohibited names and runtime-computed string
       properties are rejected; source-to-`Unresolved` compilation does not read imports,

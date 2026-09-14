@@ -5,7 +5,7 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { parse, parseBytes } from '../parser/module.f.mjs'
+import { tryParse, tryParseBytes } from '../module.f.mjs'
 import { bytes, difference, isDocument } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
@@ -17,18 +17,18 @@ const acceptSet = /** @type {readonly Accept[]} */ (accept)
 const rejectSet = /** @type {readonly Reject[]} */ (reject)
 
 /**
- * A document read by the path its form calls for: `parse` over a string of
- * code units, `parseBytes` over the bytes a byte record spells. Each vector
- * reaches the reader's own public surface for its form, which is what makes
+ * A document read by the path its form calls for: `tryParse` over a string
+ * of code units, `tryParseBytes` over the bytes a byte record spells. Each
+ * vector reaches the codec's public surface by its form, which is what makes
  * a byte record a test of the byte path rather than of the corpus's decoder.
  *
  * @type {(id: string, document: Document) => Result<Unknown, string>}
  */
 const read = (id, document) => {
-    if (typeof document === 'string') { return parse(document) }
+    if (typeof document === 'string') { return tryParse(document) }
     const b = bytes(document[1])
     assert(b !== null, `${id}: the hex spelling is not the one the schema admits`)
-    return parseBytes(b)
+    return tryParseBytes(b)
 }
 
 /**
@@ -229,7 +229,7 @@ export const proof = {
     },
     // The reader accept set: the reader accepts every document to the graph
     // the vector expects, each through the path its form calls for — the
-    // byte record among them through `parseBytes`, which is what makes the
+    // byte record among them through `tryParseBytes`, which is what makes the
     // four widths a test of the decoder's bridge to code units. The set's
     // shape — ids one of a kind, every vector named and classed — is proved
     // beside the set, in `spec/datajs/vectors/accept/proof.f.mjs`.

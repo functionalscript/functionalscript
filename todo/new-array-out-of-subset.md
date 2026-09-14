@@ -153,10 +153,11 @@ module they live in.
       both go or both stay, depending on whether it defends a FunctionalScript
       caller or the published package's JavaScript surface. Leaving the proof
       entry while removing the guard turns it red.
-- [ ] **`fjs/media/datajs/serializer`**, last, because it waits on a decision
-      of its own: whether its input parameter stays `unknown`. Separate the
-      hole half of its array check from the extra-own-property half before
-      touching either.
+- [ ] **`fjs/media/datajs/serializer`**, last. The decision it waited on is
+      taken: its parameter is the data model's `Unknown`, decided in
+      [the module README](../fjs/media/datajs/README.md#every-entry-point-is-fallible-and-the-names-say-so),
+      so a hole is a value only a host can hand it. Separate the hole half of
+      its array check from the extra-own-property half before touching either.
 - [ ] **The prose sweep.** Eight sites mention `new Array` in explanation.
       Rewrite each to say which caller it is about, and fix the one in
       `fjs/types/range_set` that reads as though `new Array(1)` were an
@@ -172,8 +173,9 @@ module they live in.
 - [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
   — already states that FunctionalScript cannot build a sparse array, and
   assumes dense operands on that basis.
-- [`fjs/media/datajs/todo/serializer.md`](../fjs/media/datajs/todo/serializer.md)
-  — where the same argument was made, acted on, and reversed; its open question
-  about the serializer's `unknown` parameter gates the last task here. The corpus
-  that argument was about is [`spec/datajs/vectors`](../spec/datajs/vectors/README.md),
-  whose README records the gap from its own side.
+- [`fjs/media/datajs`](../fjs/media/datajs/README.md) — where the same
+  argument was made, acted on, and reversed; the question about the
+  serializer's `unknown` parameter, which gated the last task here, is decided
+  there. The corpus that argument was about is
+  [`spec/datajs/vectors`](../spec/datajs/vectors/README.md), whose README
+  records the gap from its own side.

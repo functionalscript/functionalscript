@@ -11,7 +11,7 @@ import { empty, isVec, maxLengthBytes, msb, u8ListToVec, uint, vec, vec8 } from 
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, shortReadCode } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, shortReadCode, notAFileCode } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -575,6 +575,58 @@ export const proof = {
             const [, r] = run(sizedHost(bytes))([])(readWholeBytes('f'))
             assert(r[0] === 'ok', r)
             assertEq(toArray(r[1]).length, window + 1)
+        },
+        // A window *longer* than the file's own size said it would be is refused
+        // too: the file grew between the `stat` and the read — `packed-refs`
+        // replaced atomically by a longer one, say. The windows past the measured
+        // size were never scheduled, so accepting it would answer a prefix of the
+        // new file, and a prefix that ends on a record boundary is one a parser
+        // takes without complaint.
+        grewUnderTheRead: () => {
+            const bytes = Array.from({ length: 5 }, (_, i) => i % 251)
+            const whole = sizedHost(bytes)
+            /** @type {MemOperationMap<ReadBytes | Stat, readonly string[]>} */
+            const host = {
+                ...whole,
+                // the file is 5 bytes when it is measured and 9 when it is read
+                readBytes: (path, at, size) => log => [
+                    [...log, `readBytes ${path} ${at}`],
+                    ok(u8ListToVec(msb)(Array.from({ length: 9 }, (_, i) => i).slice(at, at + size))),
+                ],
+            }
+            const [, r] = run(host)([])(readWholeBytes('f'))
+            assert(r[0] === 'error')
+            const e = r[1]
+            assert(e[0] === 'ioError')
+            assertEq(e[1].code, shortReadCode)
+            assertEq(e[1].message, 'f:0 9 bytes of 5')
+        },
+        // A path that is no regular file is refused rather than read as empty.
+        //
+        // A FIFO, a device and a procfs file all `stat` as nought bytes and still
+        // produce content when opened, so scheduling from the size alone would
+        // answer an empty file — measured on node 22, a `stat` of a writerless
+        // FIFO returns in 3 ms with `size: 0`, `isFile: false`. A caller would
+        // then read a `packed-refs` with no records where it cannot read the path
+        // at all, which for `fjs/git/refstore` is every packed root dropped in
+        // silence.
+        notAFile: () => {
+            /** @type {MemOperationMap<ReadBytes | Stat, readonly string[]>} */
+            const host = {
+                ...sizedHost([]),
+                stat: path => log => [
+                    [...log, `stat ${path}`],
+                    ok({ size: 0, isFile: false, isDirectory: false }),
+                ],
+            }
+            const [log, r] = run(host)([])(readWholeBytes('f'))
+            assert(r[0] === 'error')
+            const e = r[1]
+            assert(e[0] === 'ioError')
+            assertEq(e[1].code, notAFileCode)
+            assertEq(e[1].message, 'f is not a regular file')
+            // and nothing is read
+            assertStructurallySame(log, ['stat f'])
         },
     },
     randomInt: {

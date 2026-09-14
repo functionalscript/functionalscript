@@ -41,7 +41,39 @@ holding the same reference must yield the same object, not two equal copies —
 so the AST keeps the constants addressable and refers to them by index
 instead of inlining them. That is also what makes serialization a real
 choice: a value referenced more than once is emitted as a `const` and reused.
+
+An object is `['object', members]`, the members in the order written and a
+repeated key written twice, rather than a plain object: `run` builds the
+object JavaScript builds from the same literal — a repeated key at its first
+position with its last value, integer-like keys first — and the EDAG object
+constructor takes the members as written, which only the syntax still has.
 See [examples/input.f.mjs](./examples/input.f.mjs).
+
+## EDAG
+
+A parsed module also compiles to an [EDAG](../edag/README.md) —
+[edag/module.f.mjs](./edag/module.f.mjs), Stage 1 of
+[compile-modules-to-edag](./todo/compile-modules-to-edag.md). `unresolved`
+compiles it over its imports, before any import is read: import `i` is the
+parameter `['.', ['args'], i]`, a `const` is one node however many references
+reach it, and the export is the root; the specifiers ride beside the graph as
+`Unresolved`, a compiler's structure and no part of EDAG. `resolve` links a
+program from its root path into one EDAG: each import is read, parsed and
+resolved the same way, recursively, and bound in its parameter's place — the
+binding happens where a reference is lowered, so the graph is built once with
+the imported module's node where its parameter would be — and a module met
+twice in one link is one node, so a diamond of imports joins where it should.
+A `.json` import is the tree its document denotes, as `transpile` reads it.
+`fjs compile` writes the linked graph when the output name ends with
+`.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
+hoisted as the module output's are. A
+module whose export does not reach every import and every `const` is refused
+rather than compiled: `transpile` reads and `run` evaluates them all today,
+and an EDAG has no operation yet to anchor a computation whose value nothing
+takes.
+A member a later duplicate shadows is in the graph, since the constructor
+applies every member written, so a reference in it is reached here where the
+sharing decision, which reads the value, does not count it.
 
 ## Both grammars are LL(1)
 

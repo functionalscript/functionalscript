@@ -837,6 +837,61 @@ export const proof = {
             'readFile refs/heads/topic/feature-3999',
         ])
     },
+    // A packed name that is also a directory resolves to the packed id.
+    //
+    // A ref name can be a prefix of other ref names, so `refs/heads` is both a
+    // name a `packed-refs` line may carry and the directory the loose refs live
+    // in. Measured on Git 2.43.0 with `<id> refs/heads` packed beside an ordinary
+    // `refs/heads/master`: `git rev-parse --verify refs/heads` answers the id and
+    // `git show-ref` lists both names. Node answers `EISDIR` for a read of the
+    // directory, and forgiving only `ENOENT` made that a channel error — a name
+    // Git resolves that this could not resolve at all.
+    //
+    // The rule the read is stating is "no loose file shadows the packed line",
+    // and a directory is not one.
+    packedNameIsADirectory: () => {
+        const packed = latin1(`${b} refs/heads\n`)
+        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, null>} */
+        const host = {
+            // what node answers for a read of a directory
+            readFile: path => state => [
+                state,
+                path === 'refs/heads'
+                    ? error(ioError({ code: 'EISDIR', message: path }))
+                    : path === 'refs/heads/master'
+                        ? ok(toVec(latin1(`${a}\n`)))
+                        : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => state => [
+                state,
+                ok(path === 'refs'
+                    ? [dirent('heads', path, false, true)]
+                    : path === 'refs/heads'
+                        ? [dirent('master', path, true, false)]
+                        : []),
+            ],
+            stat: path => state => [
+                state,
+                path === packedRefs
+                    ? ok(kindOf(packed.length))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readBytes: (path, at, size) => state => [
+                state,
+                path === packedRefs
+                    ? ok(toVec(packed.slice(at, at + size)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [, r] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('refs/heads')))
+        assert(r[0] === 'ok' && r[1] !== null, r)
+        assertEq(codePointListToString(toHex(r[1])), b)
+        // and the loose ref below it still resolves, so the fallback did not
+        // swallow the directory's contents
+        const [, m] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))
+        assert(m[0] === 'ok' && m[1] !== null, m)
+        assertEq(codePointListToString(toHex(m[1])), a)
+    },
     // A loose file that is no ref answers `null` and not the packed line,
     // the same refusal `tryRoots` makes for the whole listing.
     resolveBroken: () => {
