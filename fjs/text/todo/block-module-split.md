@@ -17,7 +17,9 @@ Every production importer of the module — about a dozen: `cas/evo`,
 `utf8ToString`. (`crypto/hmac` is not one: its only mention outside its proof is a
 doc-comment `@example` importing a `msbUtf8` the module does not export —
 a stale example, not an importer.) The sole importer of `flat` is `fjs/text/proof.f.mjs`,
-and the sole reference to `Block` outside `types.ts` is the same proof —
+and, outside `fjs/text` itself — `types.ts`, and the module's own doc
+line, `@import`, and `flat`'s type — the sole reference to `Block` is the
+same proof —
 an exported capability with no consumer, the shape
 [../sgr/todo/inplace-writer-split.md](../sgr/todo/inplace-writer-split.md)
 already flags one directory over.
