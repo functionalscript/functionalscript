@@ -456,14 +456,34 @@ export const proof = {
             assertEq(stderrOf(importing), 'm.f.js - error: file not found')
             assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('import i from "./input.f.js"; export default [i];')] }), 'input.f.js - error: circular dependency')
             assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('export default @')] }), 'm.f.js:1:16-17 - error: unexpected token')
-            // a malformed `.json` import likewise, where the EDAG output reads
-            // one as a document: the value outputs read every import as a
-            // module, so there the failure is the module reader's, at its token
-            const json = { 'input.f.js': [utf8('import d from "./d.json"; export default [d];')], 'd.json': [utf8('{')] }
+            // a malformed JSON module likewise, under both readers
+            const json = { 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; export default [d];')], 'd.json': [utf8('{')] }
             const [edagState, edagCode] = virtual({ ...emptyState, root: json })(compile(['input.f.js', 'output.edag.f.js']))
             assertEq(exitCode(edagCode), 1)
             assertEq(edagState.stderr.trim(), 'd.json - error: unexpected end')
-            assertEq(stderrOf(json), 'd.json:1:1 - error: unexpected token')
+            assertEq(stderrOf(json), 'd.json - error: unexpected end')
+        },
+        // a JSON module is imported `with { type: "json" }`, as JavaScript
+        // has it; a `.json` file imported without the attribute, or a module
+        // imported with it, is refused under both readers
+        jsonImport: () => {
+            const root = { 'input.f.js': [utf8('import d from "./d.json" with { type: "json" }; export default [d, 1];')], 'd.json': [utf8('{"a": [null]}')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+            assertEq(exitCode(code), 0)
+            assertEq(readOutput(state.root, 'output.json'), '[{"a":[null]},1]')
+            const [edagState, edagCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(edagCode), 0)
+            assertEq(readOutput(edagState.root, 'output.edag.f.js'), 'export default ["[]",[["{}",[[":","a",["[]",[null]]]]],1]];')
+            const missing = { ...root, 'input.f.js': [utf8('import d from "./d.json"; export default [d, 1];')] }
+            assertEq(stderrOf(missing), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
+            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(missingCode), 1)
+            assertEq(missingState.stderr.trim(), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
+            const incompatible = { 'input.f.js': [utf8('import m from "./m.f.js" with { type: "json" }; export default [m];')], 'm.f.js': [utf8('export default 1;')] }
+            assertEq(stderrOf(incompatible), 'm.f.js - error: only a JSON module is imported with { type: "json" }')
+            const [incompatibleState, incompatibleCode] = virtual({ ...emptyState, root: incompatible })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(incompatibleCode), 1)
+            assertEq(incompatibleState.stderr.trim(), 'm.f.js - error: only a JSON module is imported with { type: "json" }')
         },
         // the sweep reads an access by its keys: `cfg.a` beside `cfg.b` is a
         // tree, `cfg.a` twice or `cfg` beside `cfg.a` is not, and a leaf
@@ -650,20 +670,17 @@ export const proof = {
             assertEq(module, 'export default {["__proto__"]:{"a":42}};')
             assertEq(compileSource(module)('out.json'), document)
         },
-        // The extension speaks for the file named on the command line and for
-        // no other: an import is resolved as a FunctionalScript module, and a
-        // JSON document is not one — a statement never begins with a value —
-        // so importing JSON fails until an import can say
-        // `with { type: "json" }` (spec/todo/2140).
-        jsonImportRejected: () => {
+        // A JSON module imported `with { type: "json" }` is read by the JSON
+        // reader too, so its `"__proto__"` key is the data key `JSON.parse`
+        // makes of it, through the import and out again.
+        jsonImportRoundTrip: () => {
             const root = {
-                'main.f.js': [utf8('import a from "./a.json";\nexport default [a];')],
-                'a.json': [utf8('{"a":42}')],
+                'main.f.js': [utf8('import a from "./a.json" with { type: "json" };\nexport default [a];')],
+                'a.json': [utf8('{"__proto__":{"a":42}}')],
             }
             const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
-            assertEq(exitCode(code), 1)
-            assert(state.stderr.includes('a.json:1:1 - error: unexpected token'), state.stderr)
-            assertEq(state.root['out.json'], undefined)
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'out.json'), '[{"__proto__":{"a":42}}]')
         },
         // A `.json` input is read as JSON, and an identifier key is no JSON
         // document's key — so this one fails in the JSON reader, which names

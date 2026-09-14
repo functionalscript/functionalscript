@@ -9,12 +9,22 @@
 import type { Primitive, Unknown } from '../../media/datajs/types.ts'
 
 /**
- * A parsed DJS module: its imported module specifiers, in source order, and
- * its body.
- *
- * The specifier list indexes `['aref', i]`.
+ * An import as the module records it: the specifier as written, and
+ * whether the import carries `with { type: "json" }`, which JavaScript
+ * requires of a JSON module and which makes the file a document to read
+ * rather than a module to parse.
  */
-export type AstModule = readonly [readonly string[], AstBody]
+export type AstImport = {
+    readonly specifier: string
+    readonly json: boolean
+}
+
+/**
+ * A parsed DJS module: its imports, in source order, and its body.
+ *
+ * The import list indexes `['aref', i]`.
+ */
+export type AstModule = readonly [readonly AstImport[], AstBody]
 
 /** A value in a module body: a primitive, a reference, an array, an object, or a property access. */
 export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess

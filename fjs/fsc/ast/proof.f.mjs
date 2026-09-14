@@ -9,6 +9,12 @@ const sharedOf = body => sharing(body)([])(unwrap(values(body)([]))).shared
 /** What the sweep says of a body over `imports`, given the values the body has over them. @type {(imports: readonly import('./types.ts').Import[]) => (body: import('./types.ts').AstBody) => import('./types.ts').Sharing} */
 const sharingWith = imports => body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
 
+/** @type {import('./types.ts').AstImport} */
+const a = { specifier: './a', json: false }
+
+/** @type {import('./types.ts').AstImport} */
+const b = { specifier: './b', json: false }
+
 /** @type {(module: import('./types.ts').AstModule) => string} */
 const unreachedOf = module => {
     const { consts, imports } = unreached(module)
@@ -61,15 +67,15 @@ export const proof = {
     unreached: {
         nothing: () => {
             assertEq(unreachedOf([[], [1]]), 'consts ; imports ')
-            assertEq(unreachedOf([['./a'], [['aref', 0]]]), 'consts ; imports ')
-            assertEq(unreachedOf([['./a'], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
-            assertEq(unreachedOf([['./a'], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
+            assertEq(unreachedOf([[a], [['aref', 0]]]), 'consts ; imports ')
+            assertEq(unreachedOf([[a], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
+            assertEq(unreachedOf([[a], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
         },
         // a member a later duplicate shadows is applied by the EDAG's object
         // constructor, so a reference in it reaches, where for sharing it
         // does not
         shadowed: () => {
-            assertEq(unreachedOf([['./a'], [['array', []], ['object', [['x', ['cref', 0]], ['x', ['aref', 0]], ['x', 0]]]]]), 'consts ; imports ')
+            assertEq(unreachedOf([[a], [['array', []], ['object', [['x', ['cref', 0]], ['x', ['aref', 0]], ['x', 0]]]]]), 'consts ; imports ')
         },
         consts: () => {
             assertEq(unreachedOf([[], [['array', []], 1]]), 'consts 0; imports ')
@@ -78,12 +84,12 @@ export const proof = {
         // an access reaches its base
         access: () => {
             assertEq(unreachedOf([[], [['object', []], ['.', ['cref', 0], 'x']]]), 'consts ; imports ')
-            assertEq(unreachedOf([['./a'], [['array', [['.', ['aref', 0], 0]]]]]), 'consts ; imports ')
+            assertEq(unreachedOf([[a], [['array', [['.', ['aref', 0], 0]]]]]), 'consts ; imports ')
         },
         imports: () => {
-            assertEq(unreachedOf([['./a'], [1]]), 'consts ; imports 0')
-            assertEq(unreachedOf([['./a', './b'], [['aref', 1]]]), 'consts ; imports 0')
-            assertEq(unreachedOf([['./a', './b'], [['aref', 1], 1]]), 'consts 0; imports 0,1')
+            assertEq(unreachedOf([[a], [1]]), 'consts ; imports 0')
+            assertEq(unreachedOf([[a, b], [['aref', 1]]]), 'consts ; imports 0')
+            assertEq(unreachedOf([[a, b], [['aref', 1], 1]]), 'consts 0; imports 0,1')
         },
     },
     // a property access reads its base's own property — never the

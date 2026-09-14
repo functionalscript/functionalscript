@@ -79,17 +79,19 @@ export const _tokenKindNames = /** @type {const} */ ([
  * the word in `value`. Kept as its own list because {@link symbolOf} has to
  * recognize exactly these values, not merely encode them.
  *
- * **A grammar over this alphabet owes them an identifier rule.** None of the
- * five is reserved: outside the framing positions a module accepts them as
- * ordinary identifiers, so `const export = 1;`, `export default export;`
- * and `{ from: 2, default: 3 }` all parse. Once each carries its own
- * symbol, a rule whose identifier terminal is the bare `id` symbol rejects
- * every one of them, which is what {@link identifier} is for.
+ * **A grammar over this alphabet owes them an identifier rule.** Once each
+ * carries its own symbol, a rule whose identifier terminal is the bare `id`
+ * symbol rejects every one of them, which is what {@link identifier} is
+ * for: the union of `id` and the six. Which of them a position may hold is
+ * the fold's to say, since it is a property of the word — JavaScript
+ * reserves five and `from` alone is ordinary, and it lets every reserved
+ * word stand as a key or after `.`, so `{ default: 3 }` and `a.with` parse
+ * and `const export = 1;` is refused by the fold, as `const if = 1;` is.
  *
  * Giving a word its own symbol narrows where it is *required*, never where
  * it is *allowed*.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -130,7 +132,11 @@ export const trivia = repeatFrom0({
     blockComment: sym('/*'),
 })
 
-/** Every word that may stand where an identifier is expected: none of the framing keywords is reserved. */
+/**
+ * Every word that may stand where an identifier is expected: `id`, and the
+ * framing keywords, which arrive as `id` tokens too. Whether the word is
+ * reserved there is the fold's to check, as it is for every other keyword.
+ */
 export const identifier = /** @type {const} */ ({
     id: sym('id'),
     import: sym('import'),
@@ -138,6 +144,7 @@ export const identifier = /** @type {const} */ ({
     export: sym('export'),
     default: sym('default'),
     from: sym('from'),
+    with: sym('with'),
 })
 
 /** A value that is one token. */
@@ -223,8 +230,19 @@ export const object = /** @type {const} */ ([sym('{'), trivia, option(members), 
 /** A statement's terminator: `;`, then the trivia after it. */
 const end = /** @type {const} */ ([sym(';'), trivia])
 
+/**
+ * An import's attribute, `with { type: "json" }` as JavaScript spells the
+ * one attribute it defines: the key any identifier and the value any
+ * string here, since the grammar sees symbols and the fold reads the words
+ * — the key has to be `type` and the value `json`, and the fold says which
+ * is not.
+ */
+export const attribute = /** @type {const} */ ([
+    sym('with'), trivia, sym('{'), trivia, sym('id'), trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
+])
+
 export const importStatement = /** @type {const} */ ([
-    sym('import'), trivia, identifier, trivia, sym('from'), trivia, sym('string'), trivia, ...end,
+    sym('import'), trivia, identifier, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
 ])
 
 export const constStatement = /** @type {const} */ ([

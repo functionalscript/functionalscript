@@ -21,8 +21,10 @@
  * The grammar sees symbols and the fold sees text, which is the line that
  * decides where a check belongs: every check that has to read a *word* is
  * the fold's — a reference to a name nothing binds, a name bound twice by
- * `import` or `const`, which share one map, and a bare or string
- * `__proto__` key, which JavaScript reads as an instruction to replace the
+ * `import` or `const`, which share one map, a JavaScript keyword bound or
+ * referenced, since the tokenizer hands every keyword over as an
+ * identifier and a key or the name after `.` may be one, and a bare or
+ * string `__proto__` key, which JavaScript reads as an instruction to replace the
  * prototype; the computed spelling `{ ["__proto__"]: v }` denotes an
  * ordinary property and is accepted. The error reported is the first met
  * in document order, and a match that fails builds no module: a malformed
@@ -45,17 +47,18 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstConst, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstConst, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
+import { keywords } from '../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
@@ -346,9 +349,23 @@ const toMember = ([k, , , , v]) => {
     return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
 }
 
+/**
+ * An import's attribute, when the optional list holds one round: the key at
+ * the fifth position of `with t { t id t : t string t } t`, the value at the
+ * ninth.
+ *
+ * @type {(node: _AttributeNode) => Import['attribute']}
+ */
+const attributeOf = node => {
+    const rounds = unmapped(node)
+    if (rounds.length === 0) { return null }
+    const round = unmapped(rounds[0])
+    return [tokenAt(round[4]), tokenAt(round[8])]
+}
+
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toImport = ([, , name, , , , module]) =>
-    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)) } })
+const toImport = ([, , name, , , , module, , attribute]) =>
+    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)), attribute: attributeOf(attribute) } })
 
 /** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([, , name, , , , v]) =>
@@ -417,6 +434,48 @@ const constNotFound = foldError('const not found')
 
 /** A name bound twice, at the second binding. */
 const duplicateId = foldError('duplicate id')
+
+/** A keyword where JavaScript wants an identifier, at the word. */
+const reservedWord = foldError('reserved word')
+
+/** @type {ReadonlySet<string>} */
+const keywordSet = new Set(keywords)
+
+/**
+ * The word an identifier token spells where JavaScript wants an identifier
+ * — a name bound or referenced — refusing every keyword: the tokenizer
+ * demotes them all to `id`, so that a key or the name after `.` may be one,
+ * and here is where the distinction is made. `const if = 1;` is a syntax
+ * error in JavaScript, so it is an error here.
+ *
+ * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ */
+const identifierOf = name => {
+    const word = nameOf(name)
+    return keywordSet.has(word) ? error(reservedWord(name)) : ok(word)
+}
+
+/** An attribute key the language does not know, at the key: `type` is the one JavaScript defines. */
+const unknownAttribute = foldError('unknown import attribute')
+
+/** A module type the language does not read, at the value: `json` is the one JavaScript defines. */
+const unknownType = foldError('unknown import type')
+
+/**
+ * An import as the AST records it: its specifier, and whether its attribute
+ * names a JSON module — the one attribute JavaScript defines, `type`, with
+ * the one value it reads, `json`; any other key or value is refused where
+ * it stands.
+ *
+ * @type {(statement: Import) => Result<AstImport, ParseError>}
+ */
+const imported = ({ module, attribute }) => {
+    if (attribute === null) { return ok({ specifier: module, json: false }) }
+    const [key, value] = attribute
+    if (nameOf(key) !== 'type') { return error(unknownAttribute(key)) }
+    if (textOf(value) !== 'json') { return error(unknownType(value)) }
+    return ok({ specifier: module, json: true })
+}
 
 /**
  * A key that names the prototype chain, at the key. `__proto__` and
@@ -531,7 +590,9 @@ const enter = (env, stack, node) => {
     switch (node[0]) {
         case 'primitive': { return [stack, ok(node[1])] }
         case 'ref': {
-            const ref = at(nameOf(node[1]))(env)
+            const [tag, word] = identifierOf(node[1])
+            if (tag === 'error') { return [stack, error(word)] }
+            const ref = at(word)(env)
             return [stack, ref === null ? error(constNotFound(node[1])) : ok(ref)]
         }
         case '.': { return [{ top: { key: node[2] }, rest: stack }, ['enter', node[1]]] }
@@ -551,8 +612,8 @@ const returned = (stack, frame, value) => 'container' in frame
 
 /**
  * The value a node denotes under `env`, or the first error met in document
- * order: a reference to a name `env` does not bind, a plain `__proto__`
- * key, or an access naming the prototype chain.
+ * order: a reference to a keyword or to a name `env` does not bind, a plain
+ * `__proto__` key, or an access naming the prototype chain.
  *
  * Over an explicit stack: a frame per container being built, its items
  * resolved in order, so that a value nested as deep as the input allows
@@ -578,13 +639,15 @@ const evaluate = env => root => {
 }
 
 /**
- * Binds a name to a reference, refusing one already bound. `import` and
- * `const` share the one map, so a name taken by either is taken for both.
+ * Binds a name to a reference, refusing a keyword and a name already bound.
+ * `import` and `const` share the one map, so a name taken by either is
+ * taken for both.
  *
  * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef) => Result<_Env, ParseError>}
  */
 const bind = env => (name, ref) => {
-    const word = nameOf(name)
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
     return at(word)(env) !== null
         ? error(duplicateId(name))
         : ok(setReplace(word)(ref)(env))
@@ -602,15 +665,17 @@ const bind = env => (name, ref) => {
 const foldModule = ({ imports, consts, exported }) => {
     /** @type {_Env} */
     let env = empty
-    /** @type {readonly string[]} */
+    /** @type {readonly AstImport[]} */
     let modules = []
     /** @type {readonly AstConst[]} */
     let body = []
-    for (const { name, module } of imports) {
-        const [tag, bound] = bind(env)(name, ['aref', modules.length])
+    for (const statement of imports) {
+        const [tag, bound] = bind(env)(statement.name, ['aref', modules.length])
         if (tag === 'error') { return error(bound) }
+        const [read, record] = imported(statement)
+        if (read === 'error') { return error(record) }
         env = bound
-        modules = [...modules, module]
+        modules = [...modules, record]
     }
     for (const { name, value: node } of consts) {
         const [resolved, value] = evaluate(env)(node)

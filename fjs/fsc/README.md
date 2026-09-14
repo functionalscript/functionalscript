@@ -77,7 +77,10 @@ twice in one link is one node, so a diamond of imports joins where it should.
 A property access, `a.b` or `a[0]`, is the EDAG's `['.', base, key]`, its
 key a constant the parser admitted — `__proto__` and `constructor` refused at
 the key.
-A `.json` import is the tree its document denotes, as `transpile` reads it.
+A JSON module, imported `with { type: "json" }`, is the tree its document
+denotes, as `transpile` reads it; a `.json` file imported without the
+attribute, or another file imported with it, is refused as JavaScript refuses
+it.
 `fjs compile` writes the linked graph when the output name ends with
 `.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
 hoisted as the module output's are. A

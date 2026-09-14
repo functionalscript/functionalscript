@@ -14,7 +14,7 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, constStatement, djsModule,
+    _ordinaryTokenNames as names, access, array, attribute, constStatement, djsModule,
     exportStatement, identifier, importStatement, index, items, key, member, object, primitive, sym, symbolOf, trivia,
     value,
 } from './module.f.mjs'
@@ -66,6 +66,7 @@ export const proof = {
         parser(/** @type {Rule} */ (value))
         parser(/** @type {Rule} */ (array))
         parser(/** @type {Rule} */ (object))
+        parser(attribute)
         parser(/** @type {Rule} */ (importStatement))
         parser(/** @type {Rule} */ (constStatement))
         parser(/** @type {Rule} */ (exportStatement))
@@ -98,7 +99,19 @@ export const proof = {
         assertStructurallySame(read('export default 1;'), ['ok'])
         assertStructurallySame(read(' /* c */ export default [1, [2,], {a: 1, "b": 2, ["c"]: 3,},] ; // c\n'), ['ok'])
         assertStructurallySame(read('import x from "m";\nconst a = [x];\nconst b = { a: a, };\nexport default [x, a, b];\n'), ['ok'])
+        // a framing keyword is an identifier's symbol wherever a name may
+        // stand, JavaScript's reserved ones included: which words are
+        // reserved is the fold's to say, as for every other keyword
         assertStructurallySame(read('const export = 1;export default export;'), ['ok'])
+        assertStructurallySame(read('const with = 1;export default { with: with.with };'), ['ok'])
+        assertStructurallySame(read('const if = 1;export default if;'), ['ok'])
+        // the import attribute: `with`, a key, a string, the braces
+        assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with { "type": "json" };export default x;'), ['error', 'string'])
+        assertStructurallySame(read('import x from "m" with { type: json };export default x;'), ['error', 'json'])
+        assertStructurallySame(read('import x from "m" with { type: "json", };export default x;'), ['error', ','])
+        assertStructurallySame(read('import x from "m" with {};export default x;'), ['error', '}'])
         assertStructurallySame(read('export default\n1\n;'), ['ok'])
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])

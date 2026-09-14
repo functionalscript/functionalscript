@@ -21,9 +21,8 @@ below is this directory's own; the specification has no section numbers.
 
 ### 2.1. Module structure
 
-1. [ ] [import-attributes](./2140-import-attributes.md) — `with { type: "json" }`,
-   which JavaScript requires of a JSON import and the parser does not accept,
-   and `with { type: "text" }`, a file imported as a string.
+1. [ ] [import-attributes](./2140-import-attributes.md) — `with { type: "text" }`,
+   a file imported as a string; `with { type: "json" }` is in the language.
 
 ### 2.2. Priority 1
 

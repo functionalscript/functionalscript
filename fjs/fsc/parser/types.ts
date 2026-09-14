@@ -69,10 +69,16 @@ export type Entry = {
     readonly value: Node
 }
 
-/** An `import`: the token naming what it binds, and the module specifier. */
+/**
+ * An `import`: the token naming what it binds, the module specifier, and
+ * its attribute when it has one — the tokens its key and value are read
+ * from, which anchor the error a key or value the language does not know
+ * earns.
+ */
 export type Import = {
     readonly name: DjsTokenWithMetadata
     readonly module: string
+    readonly attribute: readonly [DjsTokenWithMetadata, DjsTokenWithMetadata] | null
 }
 
 /** A `const`: the token naming what it binds, and its value. */
