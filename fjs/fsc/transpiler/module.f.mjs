@@ -30,12 +30,13 @@ import { readUtf8File } from '../../effects/node/module.f.mjs'
 
 /**
  * Reads a file, reporting any failure as the one `ParseError` a caller can act
- * on. Both readers want this and neither wants the node channel's vocabulary.
+ * on, naming the file. Both readers want this and neither wants the node
+ * channel's vocabulary.
  *
- * @type {<O extends Operation>(e: Effect<O, string, IoChannel>) => Effect<O, string, ParseError>}
+ * @type {(path: string) => <O extends Operation>(e: Effect<O, string, IoChannel>) => Effect<O, string, ParseError>}
  */
-const notFound = e =>
-    catchStep(e, () => pureError({ message: 'file not found', metadata: null }))
+const notFound = path => e =>
+    catchStep(e, () => pureError({ message: 'file not found', metadata: null, path }))
 
 /** @type {(context: ParseContext) => (path: string) => Denotation} */
 const mapDjs = context => path => {
@@ -75,7 +76,7 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
  *
  * @type {(path: string) => Effect<ReadFile, AstModule, ParseError>}
  */
-export const _parseModule = path => step(notFound(readUtf8File(path)), text => pure(parse(path)(text)))
+export const _parseModule = path => step(notFound(path)(readUtf8File(path)), text => pure(parse(path)(text)))
 
 /**
  * The path an import names, resolved against the importing module's:
@@ -112,10 +113,10 @@ const transpileWithImports = path => module => context => {
             const imports = toArray(listMap(importAt(contextWithImports))(pathsCombine))
             // a body fails on a property read of `null` or `undefined`, as
             // JavaScript throws; the failure has no token, since the value
-            // is the module's, not one statement's
+            // is the module's, not one statement's, and names the module
             const [tag, consts] = values(module[1])(imports.map(valueOf))
             return tag === 'error'
-                ? pureError({ message: consts, metadata: null })
+                ? pureError({ message: consts, metadata: null, path })
                 : pureOk(done(path, module, imports, contextWithImports)(consts))
         })
 }
@@ -123,7 +124,7 @@ const transpileWithImports = path => module => context => {
 /** @type {(path: string) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const foldNextModuleOp = path => context => {
     if (includes(path)(context.stack)) {
-        return pureError({ message: 'circular dependency', metadata: null })
+        return pureError({ message: 'circular dependency', metadata: null, path })
     }
 
     if (at(path)(context.complete) !== null) {
@@ -153,7 +154,7 @@ const transpileModule = path => mapStep(
  * @type {(path: string) => Effect<ReadFile, JsonUnknown, ParseError>}
  */
 export const _parseJson = path => step(
-    notFound(readUtf8File(path)),
+    notFound(path)(readUtf8File(path)),
     text => {
         const json = jsonParse(text)
         return pure(json[0] === 'error' ? error({ message: json[1], metadata: null }) : json)

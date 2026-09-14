@@ -229,7 +229,7 @@ export const proof = {
             const missing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
             const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.f.js']))
             assertEq(exitCode(missingCode), 1)
-            assertEq(missingState.stderr.trim(), 'input.f.js - error: file not found')
+            assertEq(missingState.stderr.trim(), 'm.f.js - error: file not found')
         },
     },
     // An error with no token to point at names the file being compiled, not
@@ -437,6 +437,22 @@ export const proof = {
             assertEq(moduleRefused('const a = null; export default a.x;'), 'input.f.js - error: cannot read property "x" of null')
             assertEq(moduleRefused('const a = { b: 1 }; export default a.c.d;'), 'input.f.js - error: cannot read property "d" of undefined')
         },
+        // a failure with no token names the file it is in: an imported
+        // module's body, a missing import, a cycle met at an import
+        failureInImport: () => {
+            /** @type {(root: typeof emptyState.root) => string} */
+            const stderrOf = root => {
+                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+                assertEq(exitCode(code), 1)
+                assertEq(state.root['output.f.js'], undefined)
+                return state.stderr.trim()
+            }
+            const importing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
+            assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('const n = null; export default n.a;')] }), 'm.f.js - error: cannot read property "a" of null')
+            assertEq(stderrOf(importing), 'm.f.js - error: file not found')
+            assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('import i from "./input.f.js"; export default [i];')] }), 'input.f.js - error: circular dependency')
+            assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('export default @')] }), 'm.f.js:1:16-17 - error: unexpected token')
+        },
         // the sweep reads an access by its keys: `cfg.a` beside `cfg.b` is a
         // tree, `cfg.a` twice or `cfg` beside `cfg.a` is not, and a leaf
         // reached twice is two copies of a leaf
@@ -448,6 +464,9 @@ export const proof = {
             assertEq(compileSource(withCfg('export default [cfg.c, cfg.c, cfg.a[0], cfg.a.length];'))('output.json'), '[3,3,1,1]')
             assertEq(jsonRefused('const o = []; const cfg = { a: o, b: o }; export default [cfg.a, cfg.b];'), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused('const a = [[]]; export default [a[0], a["0"]];'), 'output.json - error: no JSON spelling for a shared node')
+            // `"00"` is not an index's spelling, so it reaches no node: the
+            // refusal is `undefined`'s, not a shared node's
+            assertEq(jsonRefused('const a = [[]]; export default [a[0], a["00"]];'), 'output.json - error: no JSON spelling for undefined')
             // an entry reached only through an access is in the value only
             // where the access selects: sharing under another member is
             // nothing to it, and a route through a reference follows it
@@ -473,6 +492,10 @@ export const proof = {
             assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.x];')] })('a.f.js'))
             assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m.x];')] })('a.f.js'))
             assert(!sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m.z];')] })('a.f.js'))
+            // a module whose own value holds a shared node is shared under
+            // any route into it — the coarse answer, in the safe direction
+            const partly = { 'm.f.js': [utf8('const x = []; export default { selected: [], other: [x, x] };')] }
+            assert(sharedOf({ ...partly, 'a.f.js': [utf8('import m from "./m.f.js"; export default m.selected;')] })('a.f.js'))
             // reached through two modules, an import's node is one node: the
             // importer of both sees the module twice
             assert(sharedOf({ ...m, 'b.f.js': [utf8('import m from "./m.f.js"; export default { p: m.x };')], 'a.f.js': [utf8('import b from "./b.f.js"; import m from "./m.f.js"; export default [b, m.y];')] })('a.f.js'))
