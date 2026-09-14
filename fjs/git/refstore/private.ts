@@ -6,6 +6,7 @@
 
 import type { List } from '../../types/list/types.ts'
 import type { Nullable } from '../../types/nullable/types.ts'
+import type { Oid } from '../types.ts'
 import type { Root } from './types.ts'
 
 /**
@@ -60,3 +61,18 @@ export type _Found = {
  * for the pair each branch infers its own literal type and none of them unify.
  */
 export type _Walked = readonly [Nullable<_Found>, Nullable<readonly _Entry[]>]
+
+/**
+ * What the walk down a symbolic chain carries: the id once a link has one, and
+ * how many lookups the chain may still spend.
+ *
+ * One state and not two answers, because the walk ends by producing no further
+ * item and the state is what it hands back. `left` at nought is both how the
+ * bound is spent and how a link that has answered says there is nothing more to
+ * walk — a chain that ran out of lookups and one that found its id both stop,
+ * and the `id` is what tells them apart.
+ */
+export type _Lookup = {
+    readonly id: Nullable<Oid>
+    readonly left: number
+}
