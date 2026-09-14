@@ -17,7 +17,7 @@ import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
-import { emptyHost, emptyHostError, ioError, nodeCommands } from '../module.f.mjs'
+import { emptyHost, emptyHostError, ioError, nodeCommands, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
@@ -184,6 +184,21 @@ const jsModuleUnsupported = op => name => { throw new Error(`'${name}' is a JsMo
 const jsModuleNotAFile = name => fail(`'${name}' is not a file`)
 
 /**
+ * What `readWhole` answers for the same name, and it carries the *node runner's*
+ * code rather than this runner's own.
+ *
+ * The difference from {@link jsModuleNotAFile} beside it is which runner has a
+ * counterpart. A write to a FIFO fails on a real host with whatever the OS says,
+ * so `writeBytes` above states a failure in this runner's own words. A `readWhole`
+ * of one is refused by the node runner *before it opens the path*, with
+ * {@link notAFileCode} — so answering anything else here would give a caller a
+ * branch it cannot reach on the host it ships against.
+ *
+ * @type {(name: string) => Error<IoError>}
+ */
+const jsModuleNotRegular = name => error(ioError({ code: notAFileCode, message: notAFileMessage(name) }))
+
+/**
  * The chunk list the entry `p` names holds, or the `IoResult` error that says
  * why there is none. Every operation whose subject is a *file* — `readFile`,
  * `readBytes`, `writeBytes` — starts here, so the three answer one question
@@ -263,10 +278,22 @@ const readFile = path => readOperation((dir, p) => {
  * Unlike {@link readFile} there is no cap to apply — the chunks stay chunks, each
  * already a `Vec`, and the caller joins them into a byte list.
  *
+ * **A `JsModule` is a value here and not a panic**, which is where this parts
+ * company with `readFile` and `readBytes`. Those two panic because a module has
+ * no bytes and their contract is to produce some, so a fixture pointing them at
+ * one is a fixture bug and reaches a human. `readWhole` has an answer for that
+ * input: a `JsModule` stands in for a host's FIFO, device or socket (see
+ * {@link notRegular}), and the node runner refuses exactly those with
+ * {@link notAFileCode} rather than reading them. A caller's branch for that
+ * refusal can only be reached — let alone proven — against this runner if the
+ * runner returns it, which is the argument {@link jsModuleNotAFile} already
+ * makes for `writeBytes`. It carries node's code rather than this runner's, for
+ * the reason {@link jsModuleNotRegular} gives.
+ *
  * @type {(path: string) => (state: State) => readonly [State, IoResult<readonly Vec[]>]}
  */
 const readWhole = path => readOperation((dir, p) => {
-    const resolved = resolveFile(jsModuleUnsupported('readWhole'))(dir, p)
+    const resolved = resolveFile(jsModuleNotRegular)(dir, p)
     return resolved[0] === 'error' ? resolved : ok(resolved[1])
 })(path)
 

@@ -34,8 +34,8 @@ import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
-    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage, toIoError,
-    usesInlineTestContext,
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage,
+    notAFileCode, notAFileMessage, toIoError, usesInlineTestContext,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -367,9 +367,7 @@ const runNodeEffect = asyncRun({
     readWhole: path => io(async () => {
         const s = await stat(path)
         if (!s.isFile()) {
-            throw Object.assign(
-                new Error(`${path} is not a regular file`),
-                { code: 'ERR_NOT_A_FILE' })
+            throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
         }
         const fh = await open(path, 'r')
         try {

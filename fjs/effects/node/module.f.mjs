@@ -28,13 +28,13 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
-    foldStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
@@ -373,6 +373,18 @@ export const readWhole = do_('readWhole')
  * one. So the kind is asked before the open, and this is the refusal.
  */
 export const notAFileCode = /** @type {const} */ ('ERR_NOT_A_FILE')
+
+/**
+ * The message beside {@link notAFileCode}: the path that is no regular file.
+ *
+ * Declared here rather than in a runner, so the two that raise it — the node
+ * one's `readWhole` and the virtual one's, for a `JsModule` — say the same
+ * thing, and a caller matching on either gets the same answer. This is the pair
+ * {@link inflateTrailingCode} and {@link inflateTrailingMessage} already are.
+ *
+ * @type {(path: string) => string}
+ */
+export const notAFileMessage = path => `${path} is not a regular file`
 
 /**
  * A whole file as a byte *list*.

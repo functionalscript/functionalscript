@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen } from '../module.f.mjs'
+import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -221,6 +221,23 @@ export const proof = {
             const root = { 'a.f.ts': () => ({}) }
             virtual({ ...emptyState, root })(readBytes('a.f.ts', 0, 1))
         },
+    },
+    // `readWhole` of a `JsModule` is that same `IoResult` and not a panic, and it
+    // carries the *node runner's* code: that runner refuses a FIFO, a device and
+    // a procfs file before it opens the path, with `ERR_NOT_A_FILE`, so a caller
+    // that branches on it must be able to reach the branch here too. The two
+    // reads beside it, `readFile` and `readBytes`, still panic — their contract
+    // is to produce bytes and a module has none, so a fixture aiming them at one
+    // is a fixture bug.
+    readWholeOnJsModule: () => {
+        /** @type {Dir} */
+        const root = { 'a.f.ts': () => ({}) }
+        const [, result] = virtual({ ...emptyState, root })(readWhole('a.f.ts'))
+        assert(result[0] === 'error')
+        const e = result[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, notAFileCode)
+        assertEq(e[1].message, notAFileMessage('a.f.ts'))
     },
     writeBytesOnJsModule: () => {
         // writeBytes shares `resolveFile` with the two reads but not their
