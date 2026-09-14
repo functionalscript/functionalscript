@@ -5,6 +5,7 @@
  */
 
 import type { List } from '../../types/list/types.ts'
+import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Array, Unknown } from '../../media/datajs/types.ts'
 import type { AstBody, AstModuleRef } from './types.ts'
 
@@ -32,6 +33,17 @@ export type _Ref = {
  */
 export type _Reach = {
     readonly reachable: bigint
+    readonly refs: List<_Ref>
+}
+
+/**
+ * The sweep the sharing decision runs: the routes by which the export
+ * reaches each entry, under the entry's index — a route the keys of the
+ * accesses along it, none for the whole entry — and every reference found
+ * along those routes.
+ */
+export type _Routes = {
+    readonly routes: OrderedMap<List<readonly string[]>>
     readonly refs: List<_Ref>
 }
 

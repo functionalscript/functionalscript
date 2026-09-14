@@ -137,6 +137,19 @@ export const proof = {
             assert(!sharedOf([['object', [['x', 1]]], ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
             assert(!sharedOf([['object', []], ['array', [['.', ['cref', 0], 'x'], ['.', ['cref', 0], 'x']]]]))
         },
+        // an entry reached through an access is walked along the access's
+        // keys only: what lies under another member is not in the value
+        routes: () => {
+            /** @type {readonly import('./types.ts').AstConst[]} */
+            const a = [['array', []], ['object', [['s', 1], ['o', ['array', [['cref', 0], ['cref', 0]]]]]]]
+            assert(!sharedOf([...a, ['.', ['cref', 1], 's']]))
+            assert(sharedOf([...a, ['.', ['cref', 1], 'o']]))
+            assert(sharedOf([...a, ['cref', 1]]))
+            assert(!sharedOf([...a, ['.', ['.', ['cref', 1], 'o'], 0]]))
+            assert(!sharedOf([...a, ['array', [['.', ['cref', 1], 's'], ['.', ['cref', 1], 's']]]]))
+            assert(!sharedOf([...a, ['.', ['cref', 1], 'length']]))
+            assert(!sharedOf([['array', [['array', []]]], ['.', ['.', ['cref', 0], 'length'], 0]]))
+        },
         // `0` and `"0"` name one element; a node inside another is reached
         // twice when both are; one node under two keys is a `const`
         // referenced twice inside the base, counted there

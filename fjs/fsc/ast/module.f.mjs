@@ -6,14 +6,15 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstConst, AstBody, AstMember, AstModule, AstModuleRef, Import, Sharing, Unreached } from './types.ts'
- * @import { _Node, _Reach, _Ref, _RunState } from './private.ts'
+ * @import { AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Unreached } from './types.ts'
+ * @import { _Node, _Reach, _Ref, _Routes, _RunState } from './private.ts'
  */
 
 import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
 import { cmp as stringCmp } from '../../types/string/module.f.mjs'
+import { at as routesAt, empty as noRoutes, setReplace } from '../../types/ordered_map/module.f.mjs'
 
 const { hasOwn } = Object
 
@@ -253,7 +254,85 @@ const repeats = xs => new Set(xs).size !== xs.length
 const byId = m => [m.id, m]
 
 /** The value a chain of keys reaches from a value, by own-property reads; `undefined` past the data. @type {(keys: readonly string[]) => (value: Unknown) => Unknown} */
-const at = keys => value => keys.reduce(own, value)
+const valueAt = keys => value => keys.reduce(own, value)
+
+/** Whether a literal is a container literal — an array or an object written out — rather than a primitive or a reference. @type {(ast: AstConst) => ast is AstArray | AstObject} */
+const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')
+
+/**
+ * The literal one key into a container literal: an object's member of that
+ * name, the last written, or an array's element at that index; `undefined`
+ * where the literal has none — a member the object lacks, `length`, an
+ * index past the end.
+ *
+ * @type {(ast: AstArray | AstObject, key: string) => AstConst}
+ */
+const literalAt = (ast, key) => ast[0] === 'object'
+    ? ast[1].findLast(([name]) => name === key)?.[1]
+    : /^(0|[1-9][0-9]*)$/.test(key) ? ast[1][Number(key)] : undefined
+
+/** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
+const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })
+
+/**
+ * The references an entry makes along one route: the route walked into
+ * the entry's literals as far as they go, and every reference in what the
+ * walk ends at — the literal the route selects, when the route is spent,
+ * or the reference the route ran into, with the rest of the route as its
+ * keys, since what those keys select lies behind that reference; a
+ * primitive the route runs into holds no reference at all.
+ *
+ * @type {(ast: AstConst, route: readonly string[]) => List<_Ref>}
+ */
+const refsAlong = (ast, route) => route.length === 0 || !isContainerLiteral(ast)
+    ? map(deeperBy(route))(refsOf(memberValues)(ast))
+    : refsAlong(literalAt(ast, route[0]), route.slice(1))
+
+/** @type {(ast: AstConst) => (route: readonly string[]) => List<_Ref>} */
+const refsAlongEntry = ast => route => refsAlong(ast, route)
+
+/** One route as text, for telling routes apart: each key by its length, so no key runs into the next. @type {(route: readonly string[]) => string} */
+const routeText = route => route.map(key => `${key.length}:${key}`).join('')
+
+/**
+ * The routes to walk of those by which an entry is reached: the whole
+ * entry alone, when it is reached whole, since every other route lies
+ * within it; and otherwise each route once.
+ *
+ * @type {(routes: List<readonly string[]>) => readonly (readonly string[])[]}
+ */
+const routesToWalk = routes => {
+    const all = toArray(routes)
+    return all.some(route => route.length === 0) ? [[]] : [...new Map(all.map(route => [routeText(route), route])).values()]
+}
+
+/** A reference to a `const` adds its keys to the routes by which that entry is reached. @type {(routes: _Routes['routes'], ref: _Ref) => _Routes['routes']} */
+const routeStep = (routes, { ref: [kind, i], keys }) => kind === 'cref'
+    ? setReplace(`${i}`)(concat(routesAt(`${i}`)(routes) ?? empty)([keys]))(routes)
+    : routes
+
+/**
+ * One entry of the sweep the sharing decision runs, from the export
+ * downwards: an entry no route reaches is not in the value; one that is
+ * makes the references along its routes, each of which routes the entry it
+ * names. A `cref` names an earlier entry, so by the time the sweep arrives
+ * at an entry every route to it is known.
+ *
+ * @type {(state: _Routes, ast: AstConst, i: number) => _Routes}
+ */
+const routeEntry = (state, ast, i) => {
+    const routes = routesAt(`${i}`)(state.routes)
+    if (routes === null) { return state }
+    const found = toArray(flat(routesToWalk(routes).map(refsAlongEntry(ast))))
+    return { routes: found.reduce(routeStep, state.routes), refs: concat(state.refs)(found) }
+}
+
+/** The routes to the export: the whole of the last entry. @type {(body: AstBody) => _Routes} */
+const exported = body => {
+    /** @type {List<readonly string[]>} */
+    const whole = [[]]
+    return { routes: setReplace(`${body.length - 1}`)(whole)(noRoutes), refs: empty }
+}
 
 /** A module's group, apart from every `const`'s: a module's id may spell a number too. @type {(id: string) => string} */
 const moduleGroup = id => `module ${id}`
@@ -268,7 +347,7 @@ const moduleGroup = id => `module ${id}`
  */
 const containerNode = (imports, consts) => ({ ref: [kind, i], keys }) => {
     const [group, value] = kind === 'cref' ? [`const ${i}`, consts[i]] : [moduleGroup(imports[i].id), imports[i].value]
-    return isContainer(at(keys)(value)) ? [{ group, keys, aref: kind === 'aref' }] : []
+    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' }] : []
 }
 
 /**
@@ -318,19 +397,23 @@ const withinPrevious = sorted => (node, i) => {
  * Two references reach one node when one's keys are the other's or a prefix
  * of them: `a` beside `a.x`, `a.x` twice, `a.x` beside `a.x.y`; `a.x`
  * beside `a.y` reach two nodes — one node under both would be a `const` or
- * a module referenced twice inside `a`, which the sweep counts there.
+ * a module referenced twice inside `a`, which the sweep counts there. And
+ * an entry reached only through accesses is in the value only where they
+ * select: the sweep walks each route into the entry's literals and counts
+ * the references there, so what `a.other` holds is nothing to `a.selected`.
  *
  * Linear in the size of the module and in the modules it reaches, up to
- * the sort: each entry is read once and a reference is counted rather than
- * followed, so a module that doubles a node at every `const` costs its
- * length, not its two-to-the-length; and a reached module lists each module
- * it reaches once, or is shared and lists none, so a diamond of modules is
- * found at its join and the lists stay sets.
+ * the sort and the routes' map: each entry is read once, along each route
+ * that reaches it, and a reference is counted rather than followed, so a
+ * module that doubles a node at every `const` costs its length, not its
+ * two-to-the-length; and a reached module lists each module it reaches
+ * once, or is shared and lists none, so a diamond of modules is found at
+ * its join and the lists stay sets.
  *
  * @type {(body: AstBody) => (imports: readonly Import[]) => (consts: readonly Unknown[]) => Sharing}
  */
 export const sharing = body => imports => consts => {
-    const nodes = toArray(reach(memberValues)(body).refs).flatMap(containerNode(imports, consts))
+    const nodes = toArray(body.reduceRight(routeEntry, exported(body)).refs).flatMap(containerNode(imports, consts))
     const sorted = nodes.toSorted(byNode)
     const reached = [...new Map(imports.map(byId)).values()].filter(m => nodes.some(n => n.aref && n.group === moduleGroup(m.id)))
     const reaches = [...reached.map(m => m.id), ...reached.flatMap(m => m.reaches)]

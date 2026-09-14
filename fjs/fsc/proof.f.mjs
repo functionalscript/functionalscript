@@ -445,6 +445,17 @@ export const proof = {
             assertEq(compileSource(withCfg('export default [cfg.c, cfg.c, cfg.a[0], cfg.a.length];'))('output.json'), '[3,3,1,1]')
             assertEq(jsonRefused('const o = []; const cfg = { a: o, b: o }; export default [cfg.a, cfg.b];'), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused('const a = [[]]; export default [a[0], a["0"]];'), 'output.json - error: no JSON spelling for a shared node')
+            // an entry reached only through an access is in the value only
+            // where the access selects: sharing under another member is
+            // nothing to it, and a route through a reference follows it
+            const selected = 'const x = []; const a = { selected: 1, other: [x, x] }; '
+            assertEq(compileSource(`${selected}export default a.selected;`)('output.json'), '1')
+            assertEq(compileSource(`${selected}export default a.other[0];`)('output.json'), '[]')
+            assertEq(jsonRefused(`${selected}export default a.other;`), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused(`${selected}export default [a.selected, a.other];`), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused(`${selected}export default [a.other[0], a.other[1]];`), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const b = { y: [] }; const a = { x: b }; export default a.x.y;')('output.json'), '[]')
+            assertEq(jsonRefused('const b = { y: [] }; const a = { x: b }; export default [a.x.y, b.y];'), 'output.json - error: no JSON spelling for a shared node')
             // a `const` and a module are two groups however they are named:
             // an import resolved to the path `0` is not `const` 0
             /** @type {typeof emptyState.root} */
