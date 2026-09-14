@@ -39,7 +39,9 @@
  * Both passes keep the reader's depth contract: the read walks an explicit
  * stack, a frame per container, and the write reads the linked graph in the
  * post-order `_link` left it in, so nesting as deep as the reader accepts
- * costs no call stack on the way back out.
+ * costs no call stack on the way back out. Neither squares the number of
+ * containers: the containers entered are a persistent set with a
+ * logarithmic add, and the shared nodes are read off sorted occurrences.
  *
  * The rules the specification states are each a function over data here —
  * `_memberValue`, `_elementNames`, `_link` — and exported. That is what makes
@@ -63,7 +65,9 @@
 import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
 import { empty, flat, toArray } from '../../../types/list/module.f.mjs'
+import { cmp } from '../../../types/number/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../../types/result/module.f.mjs'
+import { add, empty as noneStarted, has } from '../../../types/set/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../../json/serializer/module.f.mjs'
 
@@ -165,7 +169,7 @@ export const _elementNames = (names, length) =>
     && names.every((name, i) => name === (i === length ? 'length' : `${i}`))
 
 /** @type {_Walk} */
-const start = { started: new Set(), finished: empty }
+const start = { started: noneStarted, finished: empty }
 
 /** @type {(value: Primitive) => _Value<object>} */
 const leaf = value => ['leaf', value]
@@ -257,11 +261,11 @@ const enter = (stack, walk, value) => {
         case 'undefined': { return [stack, walk, ok(leaf(value))] }
         case 'object': {
             if (value === null) { return [stack, walk, ok(leaf(null))] }
-            if (walk.started.has(value)) { return [stack, walk, ok(['ref', value])] }
+            if (has(value)(walk.started)) { return [stack, walk, ok(['ref', value])] }
             const frame = open(value)
             return frame[0] === 'error'
                 ? [stack, walk, frame]
-                : round(stack, { started: new Set([...walk.started, value]), finished: walk.finished }, frame[1])
+                : round(stack, { started: add(value)(walk.started), finished: walk.finished }, frame[1])
         }
         default: { return [stack, walk, error(`a ${typeof value} is not a DataJS value`)] }
     }
@@ -346,11 +350,17 @@ export const _link = (finished, root) => {
  * them, and counting them by value would raise the `0`/`-0` and `NaN`
  * questions the `Object.is` guarantee forbids answering.
  *
+ * The occurrences are sorted and a repeat is a neighbour equal to the one
+ * before it, so the count costs a sort rather than an `indexOf` per
+ * occurrence.
+ *
  * @type {(graph: _Graph) => ReadonlySet<number>}
  */
 const shared = ({ nodes, root }) => {
-    const refs = [root, ...nodes.flatMap(nodeValues)].flatMap(value => value[0] === 'ref' ? [value[1]] : [])
-    return new Set(refs.filter((ref, i) => refs.indexOf(ref) !== i))
+    const refs = [root, ...nodes.flatMap(nodeValues)]
+        .flatMap(value => value[0] === 'ref' ? [value[1]] : [])
+        .toSorted((a, b) => cmp(a)(b))
+    return new Set(refs.filter((ref, i) => i > 0 && refs[i - 1] === ref))
 }
 
 /**

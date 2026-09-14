@@ -9,9 +9,9 @@ calls the one everything else is waiting for.
 and `tryStringify` over the three passes of §1–§3, with every rule of §1 proved
 and the two worked examples of the hoisting and naming rules pinned, refusing
 everything the specification refuses. The corpus proofs of §4 are done — all
-three writer-side sets run this writer — and both passes keep the reader's
-depth contract, so what remains is the two quadratic steps decided and a
-readable layout if one is wanted (§3).
+three writer-side sets run this writer — both passes keep the reader's depth
+contract and cost a sort rather than a square, so what remains is a readable
+layout if one is wanted (§3).
 **Blocked by:** nothing, for what is left of the implementation. What landed
 proves itself against the specification by hand, as
 [the reader](../parser/proof.f.mjs) does — that was the interim proof source, and
@@ -178,14 +178,20 @@ descriptor and over a list of names, for the same reason:
 host value can trigger has to be a function over the data that value would
 carry.
 
-One cost is now measured rather than assumed: the read rebuilds `started`
-per container (`new Set([...prev, value])`), and `shared` counts occurrences
-with `indexOf`, so both are quadratic in the number of containers. That is a
-simple-first choice, and a document with enough containers is what would
-change it. Measured, once depth stopped throwing first: 2,600 nested arrays
-write in 0.3 s, 5,000 in 1.1 s and 20,000 in 23 s, and the `started` copy
-alone is 0.98 s of the 1.1 s — so the copy is the step that would go, and
-the decision is the task below.
+**The cost is a sort, not a square.** Two steps of the first draft were
+quadratic in the number of containers, and `fjs compile` writes every module
+through this writer, so a document with enough containers was the compiler's
+own output: the read rebuilt `started` per container with
+`new Set([...prev, value])`, and `shared` counted occurrences with an
+`indexOf` per occurrence. Measured once depth stopped throwing first, 5,000
+nested arrays wrote in 1.1 s — 0.98 s of it the `started` copy — and 20,000
+in 23 s. Now `started` is [`fjs/types/set`](../../../types/set/module.f.mjs),
+a persistent set with `Set`'s equality laid out as the binary representation
+of its size, so an add carries like a counter and costs a logarithm
+amortized; and `shared` sorts the occurrences and takes a repeat to be a
+neighbour equal to the one before it. Measured after: 5,000 nested arrays
+write in 87 ms, 20,000 in 0.3 s and 100,000 in 1.3 s; 100,000 empty objects
+in one array in 1.1 s, and 100,000 references to one object in 0.5 s.
 
 **Depth is the input's, not the call stack's.** The reader walks an explicit
 stack and keeps a 5,000-level depth contract, and both passes here keep it,
@@ -493,14 +499,11 @@ divergence to close; that was a category error, and it is not one.
       explicit stack, the write over the linked graph's post-order, so the
       2,600 nested arrays that threw `RangeError` write, and the reader's
       5,000-level document writes back byte for byte (§1).
-- [ ] Decide whether the two quadratic steps of §1 are worth changing. The
-      measurement is in §1: the `started` copy is 0.98 s of a 5,000-deep
-      write's 1.1 s, and `indexOf` the rest of what grows; a document with
-      enough containers, deep or wide, is what would change it. The depth
-      proof waits on the same decision: its 5,000-level leaf pins the contract
-      and little above it — a regression costing one call frame per level
-      passes it and breaks only near 9,000 — and pinning higher costs this
-      step's time until the step goes.
+- [x] The two quadratic steps of §1 changed: `started` is a persistent set
+      with a logarithmic add, `fjs/types/set`, and `shared` sorts its
+      occurrences. With the cost gone, the depth proof pins 20,000 levels —
+      four times the contract, so a regression costing one call frame per
+      level, which 5,000 would survive, is caught.
 - [ ] Delete this file in the PR that finishes it.
 
 ### Related

@@ -7,6 +7,7 @@
 
 import type { List } from '../../../types/list/types.ts'
 import type { Result } from '../../../types/result/types.ts'
+import type { PersistentSet } from '../../../types/set/types.ts'
 import type { _Member, _Read, _Value } from './types.ts'
 
 /**
@@ -17,10 +18,12 @@ import type { _Member, _Read, _Value } from './types.ts'
  * rather than two nodes of equal shape, and it holds a container from
  * before its members are read, so the read never re-enters one and
  * terminates on a cyclic value rather than refusing it here — `link` is
- * where a cycle is refused, over the finished graph.
+ * where a cycle is refused, over the finished graph. It is a persistent
+ * set with a logarithmic add, since one is added per container and
+ * `new Set([...prev, value])` would copy every container so far each time.
  */
 export type _Walk = {
-    readonly started: ReadonlySet<object>
+    readonly started: PersistentSet<object>
     readonly finished: List<_Read>
 }
 
