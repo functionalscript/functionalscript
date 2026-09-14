@@ -164,6 +164,20 @@ const chain = hops => {
     return { refs: { heads } }
 }
 
+/**
+ * A directory holding one ref of the given name at the given id: under `refs/`
+ * where the name has slashes in it, and at the top otherwise.
+ *
+ * The name is a leading parameter rather than a capture of the loop that walks
+ * the names, so this is closed and at module scope (§3.3).
+ *
+ * @type {(name: string) => (hex: string) => Dir}
+ */
+const nameAt = name => hex =>
+    name.includes('/')
+        ? { refs: { [name.split('/')[1]]: { [name.split('/')[2]]: ref(hex) } } }
+        : { [name]: ref(hex) }
+
 export const proof = {
     // The loose refs, including one nested two directories down, and no
     // `packed-refs` at all — a repository that has never been packed.
@@ -562,10 +576,7 @@ export const proof = {
             'REVERT_HEAD', 'REBASE_HEAD', 'BISECT_HEAD', 'AUTO_MERGE',
             'refs/bisect/good', 'refs/worktree/x', 'refs/rewritten/y',
         ]) {
-            const at = /** @type {(hex: string) => Dir} */ (hex =>
-                name.includes('/')
-                    ? { refs: { [name.split('/')[1]]: { [name.split('/')[2]]: ref(hex) } } }
-                    : { [name]: ref(hex) })
+            const at = nameAt(name)
             /** @type {Dir} */
             const root = { wt: at(b), repo: { ...at(t), refs: { ...at(t).refs, heads: {} } } }
             assertEq(codePointListToString(toHex(/** @type {Oid} */ (

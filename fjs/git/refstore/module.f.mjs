@@ -373,6 +373,17 @@ const targetAllowed = (text, r) =>
 const nameText = name => fromVec(toVec(name))
 
 /**
+ * A chain that has its answer: the id, and no lookups left to spend and no name
+ * left to walk.
+ *
+ * Every way a resolution can end goes through this, an id and a refusal alike,
+ * so a link that answers reads the same whichever it is.
+ *
+ * @type {(id: Nullable<Oid>) => readonly [_Lookup, List<Bytes>]}
+ */
+const answered = id => [{ id, left: 0 }, null]
+
+/**
  * One link of the walk down a symbolic chain: the file the name sits in, read,
  * and then either the id it holds or the next name to look up.
  *
@@ -400,9 +411,7 @@ const nameText = name => fromVec(toVec(name))
  * @type {(dirs: Dirs, packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>) => (name: Bytes) => (state: _Lookup) => Effect<ReadFile, readonly [_Lookup, List<Bytes>], IoChannel>}
  */
 const lookupOf = (dirs, packed, readRef) => name => state => {
-    /** @type {(id: Nullable<Oid>) => Effect<never, readonly [_Lookup, List<Bytes>], IoChannel>} */
-    const done = id => pureOk([{ id, left: 0 }, null])
-    if (state.left <= 0) { return done(null) }
+    if (state.left <= 0) { return pureOk(answered(null)) }
     const dense = byteArray(name)
     // A name that is no ref name never reaches the filesystem. `..` is
     // one of the byte pairs `isWholeName` refuses, so this is also what
@@ -410,7 +419,7 @@ const lookupOf = (dirs, packed, readRef) => name => state => {
     // that leaves the repository is not a ref this can answer for, and
     // the file at the other end of it could begin with something that
     // looks like an id.
-    if (!isWholeName(dense)) { return done(null) }
+    if (!isWholeName(dense)) { return pureOk(answered(null)) }
     const text = nameText(dense)
     // No path can name this ref's loose file, so whether one exists is not a
     // question this host can put to the filesystem — and a loose file
@@ -420,7 +429,7 @@ const lookupOf = (dirs, packed, readRef) => name => state => {
     // that state cannot even be constructed in a proof here, since the
     // virtual filesystem spells a directory entry as a string too.
     // Refused instead. See {@link nameText} and `todo/byte-ref-names.md`.
-    if (text === null) { return done(null) }
+    if (text === null) { return pureOk(answered(null)) }
     // Which directory the name's file sits in is the name's own question,
     // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
     // the repository's. See {@link dirOf}.
@@ -439,15 +448,13 @@ const lookupOf = (dirs, packed, readRef) => name => state => {
  * @type {(packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>, text: string, name: Bytes, state: _Lookup, bytes: Nullable<Bytes>) => readonly [_Lookup, List<Bytes>]}
  */
 const stepped = (packed, readRef, text, name, state, bytes) => {
-    /** @type {(id: Nullable<Oid>) => readonly [_Lookup, List<Bytes>]} */
-    const done = id => [{ id, left: 0 }, null]
-    if (bytes === null) { return done(special.includes(text) ? null : packedId(packed, name)) }
+    if (bytes === null) { return answered(special.includes(text) ? null : packedId(packed, name)) }
     const r = readRef(bytes)
-    if (r === null) { return done(null) }
+    if (r === null) { return answered(null) }
     // The one rule about *which* file a ref was read from, which the
     // grammar over one file's bytes cannot know. See {@link targetAllowed}.
-    if (!targetAllowed(text, r)) { return done(null) }
-    if (r.kind === 'direct') { return done(r.id) }
+    if (!targetAllowed(text, r)) { return answered(null) }
+    if (r.kind === 'direct') { return answered(r.id) }
     return [{ id: null, left: state.left - 1 }, [r.target]]
 }
 
@@ -543,6 +550,35 @@ const childOf = parent => d => ({
 })
 
 /**
+ * What the walk of `refs/` makes of a loose ref file's bytes: the root it names,
+ * or none, and the names seen either way.
+ *
+ * A ref file that is no ref makes the whole listing `null`, which is
+ * {@link looseOf}'s stickiness rather than this function's opinion. A symbolic
+ * one is resolved, and one that resolves nowhere leaves the name recorded with
+ * no root — the shadowing rule, which is why `names` comes in already carrying
+ * this name.
+ *
+ * Everything it needs is a leading parameter, so it is closed and at module
+ * scope: the reader of one file's bytes, the resolver, what the walk has found,
+ * the name, and the names (§3.3).
+ *
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>, found: _Found, name: readonly number[], names: List<readonly number[]>) => (bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>}
+ */
+const refOf = (readRef, resolve, found, name, names) => bytes => {
+    const r = readRef(bytes)
+    if (r === null) { return pureOk(walked(null, null)) }
+    if (r.kind === 'direct') {
+        return pureOk(walked({ roots: concat(found.roots)([{ name, id: r.id }]), names }, null))
+    }
+    return mapStep(
+        resolve(r.target, maxLookups - 1),
+        id => walked(
+            { roots: id === null ? found.roots : concat(found.roots)([{ name, id }]), names },
+            null))
+}
+
+/**
  * The body of the walk of `refs/`: a directory gives its entries to walk
  * next, and a file gives a root or nothing.
  *
@@ -589,20 +625,8 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
         // the name is recorded whatever the file turns out to hold, because
         // that is what shadows the packed line
         const names = concat(found.names)([name])
-        /** @type {(bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>} */
-        const cont = bytes => {
-            const r = readRef(bytes)
-            if (r === null) { return pureOk(walked(null, null)) }
-            if (r.kind === 'direct') {
-                return pureOk(walked({ roots: concat(found.roots)([{ name, id: r.id }]), names }, null))
-            }
-            return mapStep(
-                resolve(r.target, maxLookups - 1),
-                id => walked(
-                    { roots: id === null ? found.roots : concat(found.roots)([{ name, id }]), names },
-                    null))
-        }
-        return step(mapStep(readFile(item.path), toBytes), cont)
+        const read = mapStep(readFile(item.path), toBytes)
+        return step(read, refOf(readRef, resolve, found, name, names))
     }
 }
 

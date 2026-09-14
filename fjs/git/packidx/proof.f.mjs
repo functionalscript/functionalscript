@@ -175,6 +175,29 @@ const v2With = ids => {
 
 const only = id('1881c433d8e416edcd0de9c5ee468185bc1987cd')
 
+/**
+ * A version 2 index over two ids, one offset word each as the caller spells
+ * them, and an 8-byte table of two slots holding 12 and 24.
+ *
+ * The two ids are leading parameters rather than captures, so this is closed and
+ * at module scope beside the other builders here (§3.3). What varies between the
+ * cases below is the offset words, which is what the returned function takes.
+ *
+ * @type {(low: Oid, high: Oid) => (words: readonly number[]) => readonly number[]}
+ */
+const withTwoSlots = (low, high) => {
+    const firsts = [low, high].map(o => idBytes(o)[0])
+    return words => sealed([
+        0xFF, 0x74, 0x4F, 0x63, ...u32(2),
+        ...Array.from({ length: 256 }, (_, k) => u32(firsts.filter(v => v <= k).length)).flat(),
+        ...idBytes(low), ...idBytes(high),
+        ...u32(0), ...u32(0),
+        ...words,
+        ...u32(0), ...u32(12), ...u32(0), ...u32(24),
+        ...idBytes(low),
+    ])
+}
+
 export const proof = {
     // A version 2 index as Git 2.43.0 wrote it, read against what
     // `git verify-pack -v` says is in the pack beside it. The trailer's
@@ -339,19 +362,7 @@ export const proof = {
     largeOffsetSlots: () => {
         const low = id('1800000000000000000000000000000000000000')
         const high = id('2500000000000000000000000000000000000000')
-        /** Two ids, one offset word each, and a two-slot table of 12 and 24. */
-        const twoSlots = /** @type {(words: readonly number[]) => readonly number[]} */ (words => {
-            const firsts = [low, high].map(o => idBytes(o)[0])
-            return sealed([
-                0xFF, 0x74, 0x4F, 0x63, ...u32(2),
-                ...Array.from({ length: 256 }, (_, k) => u32(firsts.filter(v => v <= k).length)).flat(),
-                ...idBytes(low), ...idBytes(high),
-                ...u32(0), ...u32(0),
-                ...words,
-                ...u32(0), ...u32(12), ...u32(0), ...u32(24),
-                ...idBytes(low),
-            ])
-        })
+        const twoSlots = withTwoSlots(low, high)
         // In order, so the file itself is readable and the refusals below are
         // about which slots the words name and nothing else.
         const good = twoSlots([...u32(0x80000000), ...u32(0x80000001)])
