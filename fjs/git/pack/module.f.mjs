@@ -45,7 +45,7 @@
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { concat, flat, toArray } from '../../types/list/module.f.mjs'
 
 const toVec = u8ListToVec(msb)
@@ -328,6 +328,15 @@ const deltaPieces = (d, src, at, want) => {
 }
 
 /**
+ * The longest object a delta may build: what a `Vec` holds, 128 KiB.
+ *
+ * Not a number of this module's choosing — it is the bound the host effects
+ * around it already impose on every other object, and the one
+ * [`todo/inflate.md`](../../../todo/inflate.md) lifts.
+ */
+const maxTargetBytes = Number(maxLengthBytes)
+
+/**
  * The object a delta builds from its base, or `null` where the delta does not
  * describe it: a size that disagrees with the base or with the result, an
  * instruction that runs off the end, a copy outside the base, or an insert of
@@ -339,6 +348,25 @@ const deltaPieces = (d, src, at, want) => {
  * base is the wrong object — the thing a `refDelta` chain gets wrong when an
  * id collides or a pack is stitched together — and the target size is the only
  * statement of what the result should be.
+ *
+ * **A target past {@link maxTargetBytes} is refused before anything is built.**
+ * The instruction bound added earlier stops a delta from building *more* than it
+ * declared; it does nothing about one that declares the amplification honestly.
+ * A hundred bytes of copy instructions against a 64 KiB base can name 6.5 MB and
+ * be telling the truth, and measured on node 22 that read raised RSS from 54 MiB
+ * to 222 MiB — a byte of object costs about ten of heap here, since `Bytes` is a
+ * list of numbers and the pieces are held while they are joined. Joining them
+ * differently does not help: the same delta through `toArray(named).flat()`
+ * instead of a list flatten runs faster, 246 ms against 747, and dies at exactly
+ * the same size — under a 256 MiB heap both build 6.5 MB and neither builds 25.
+ *
+ * So the answer is a ceiling rather than a cleverer join, and the ceiling is the
+ * one the rest of this layer already has: `inflate` and `readFile` each answer a
+ * `Vec`, so a loose object over 128 KiB is refused, and so is a packed one
+ * stored whole. Only a delta could exceed it, which made this the one path that
+ * could build an object the reader beside it could not have read. Lifting the
+ * bound is [`todo/inflate.md`](../../../todo/inflate.md), and it lifts all three
+ * together.
  *
  * @throws If either input is not a list of bytes.
  *
@@ -354,6 +382,7 @@ export const tryApplyDelta = (base, delta) => {
     const targetSize = littleVarint(d, afterSource, 0, 1)
     if (targetSize === null) { return null }
     const [want, start] = targetSize
+    if (want > maxTargetBytes) { return null }
     const named = deltaPieces(d, src, start, want)
     return named === null ? null : toArray(flat(named))
 }

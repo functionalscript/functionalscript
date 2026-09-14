@@ -26,6 +26,17 @@ That is the right first step and the wrong last one, for two reasons:
   bound is larger compressed than plain. A decoder fed a window at a time
   through `readBytes` lifts the input side as the byte list lifts the
   output side.
+
+  A third place now holds the same ceiling on purpose:
+  [`fjs/git/pack`](../fjs/git/pack/module.f.mjs)'s `tryApplyDelta` refuses a
+  delta whose declared target is over 128 KiB. A delta is the one reader here
+  whose *output* is not bounded by what the host handed it — a hundred bytes of
+  copy instructions against a 64 KiB base can truthfully name 6.5 MB, and
+  measured on node 22 that cost 168 MiB of resident memory, since a byte of
+  object is about ten bytes of heap as a list of numbers. Without the ceiling
+  the delta path would build objects the loose path beside it cannot read. So
+  this issue lifts three bounds at once, and the delta's is the one that also
+  wants a representation cheaper than a number per byte.
 - **The host.** Every other reader in `fjs/git` runs anywhere
   FunctionalScript runs, the virtual runner included, which answers
   `inflate` with `notImplemented`. A repository cannot be read under it.

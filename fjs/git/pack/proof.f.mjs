@@ -89,6 +89,14 @@ const wholeCopy = /** @type {const} */ (65536)
  */
 const paddedEntry = n => entry([0xB1, ...Array.from({ length: n }, () => 0x80), 0x00])
 
+/**
+ * A value as the little-endian varint a delta's header spells it with, seven
+ * bits a byte and the continuation bit on every byte but the last.
+ *
+ * @type {(v: number) => readonly number[]}
+ */
+const sizeVarint = v => v < 128 ? [v] : [(v % 128) + 128, ...sizeVarint(Math.floor(v / 128))]
+
 export const proof = {
     // The header of a pack Git 2.43.0 wrote.
     header: () => {
@@ -241,6 +249,34 @@ export const proof = {
         // a target size one too large, with the instructions unchanged
         const [, ...rest] = packDelta.slice(2)
         assertEq(tryApplyDelta(packDeltaBase, [...packDelta.slice(0, 2), packDelta[2] + 1, ...rest]), null)
+    },
+    // A delta that names more than the layer can hold is refused before it
+    // builds anything. The instruction bound stops a delta building more than it
+    // declared; this is the one that declares the amplification honestly — a
+    // hundred bare copies against a 64 KiB base name 6.5 MB and are telling the
+    // truth. Measured on node 22, that read cost 168 MiB of RSS and a byte of
+    // object costs about ten of heap, so the ceiling is the one `inflate` and
+    // `readFile` already put on every other object here: 128 KiB.
+    applyDeltaTooLarge: () => {
+        const base = Array.from({ length: 65536 }, (_, i) => i % 251)
+        // source 65536, target 6553600, then the hundred bare copies that fill
+        // it exactly: the delta is telling the truth about its size
+        const huge = [
+            ...sizeVarint(65536), ...sizeVarint(6553600),
+            ...Array.from({ length: 100 }, () => 0x80),
+        ]
+        assertEq(tryApplyDelta(base, huge), null)
+        // and the largest target it does build, one byte over the bound and one
+        // byte under it, with the instructions that would fill it
+        const at = /** @type {(n: number) => readonly number[]} */ (n => [
+            ...sizeVarint(65536),
+            ...sizeVarint(n),
+            ...Array.from({ length: Math.ceil(n / 65536) }, () => 0x80),
+        ])
+        assertEq(tryApplyDelta(base, at(131073)), null)
+        const ok = tryApplyDelta(base, at(131072))
+        assert(ok !== null)
+        assertEq(ok.length, 131072)
     },
     // A copy of size zero means 65536, the one number the format spells by
     // leaving every size byte out. Built, because a real delta only copies
