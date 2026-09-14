@@ -56,16 +56,12 @@ import { assert } from '../../asserts/module.f.mjs'
 import { ioError, mapStep, pureOk, resultMapStep, resultStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
 import { tryRead as readLoose } from '../loose/module.f.mjs'
-import { of, toHex } from '../oid/module.f.mjs'
+import { hexText, of } from '../oid/module.f.mjs'
 import { packDir, tryRead as readPacked } from '../packstore/module.f.mjs'
-
-/** @type {(id: Oid) => string} */
-const hex = id => codePointListToString(toHex(id))
 
 /**
  * Where a loose object lives: `objects/`, a directory named by the first
@@ -80,7 +76,7 @@ const hex = id => codePointListToString(toHex(id))
  * @type {(dir: string) => (id: Oid) => string}
  */
 export const objectPath = dir => id => {
-    const h = hex(id)
+    const h = hexText(id)
     return under(dir, join('objects', h.slice(0, 2), h.slice(2)))
 }
 
@@ -130,7 +126,7 @@ const checkedAt = (idOf, p, id) => r => {
     if (e === null) { return ok(null) }
     const { type, payload } = e
     const actual = idOf(type, payload)
-    return actual === id ? ok(e) : error(ioError({ code: objectIdCode, message: objectIdMessage(p, hex(actual)) }))
+    return actual === id ? ok(e) : error(ioError({ code: objectIdCode, message: objectIdMessage(p, hexText(actual)) }))
 }
 
 /**

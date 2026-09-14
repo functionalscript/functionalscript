@@ -68,46 +68,40 @@
  * a caller told `null` for the second would go looking elsewhere for an object
  * that is right here and broken.
  *
- * **Nothing here checks the pack against its index, and one thing does.** The
- * `.idx` carries the checksum of the pack it belongs to, and verifying it means
- * hashing the whole pack — per read, for a file a `git gc` may have made
- * gigabytes long. `fjs/git/store` hashes what comes back and refuses an object
- * whose bytes are not the id asked for, which is the check that catches a
- * mismatched pair on the only path that matters: an index paired with the wrong
- * pack gives offsets into unrelated bytes, and those bytes do not frame, do not
- * inflate, or do not hash.
+ * **The pack is checked against the index that named it**, which is four things
+ * Git checks when it opens one and none of them a hash: the signature, the
+ * version, the object count against the index's, and the pack's trailing
+ * checksum against the one the index recorded. See {@link framingOf} for what Git
+ * says to each and what an earlier revision of this module got wrong by skipping
+ * them.
  *
  * @module
  *
- * @import { Inflate, IoChannel, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Inflate, IoChannel, ReadBytes, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Envelope } from '../object/types.ts'
  * @import { Entry } from '../pack/types.ts'
  * @import { Idx } from '../packidx/types.ts'
- * @import { Oid, OidBytes } from '../types.ts'
+ * @import { Bytes, Oid, OidBytes } from '../types.ts'
  * @import { _Chain, _Delta } from './private.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { inflate, isNotFound, readBytes, readFile, readdir, stat } from '../../effects/node/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { inflate, isNotFound, readBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { length, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { headerBytes, tryApplyDelta, tryEntry } from '../pack/module.f.mjs'
+import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, offsetOf, tryIdx } from '../packidx/module.f.mjs'
-import { toHex } from '../oid/module.f.mjs'
+import { hexText } from '../oid/module.f.mjs'
 
 const toBytes = u8List(msb)
 
 const toVec = u8ListToVec(msb)
-
-/** @type {(id: Oid) => string} */
-const hex = id => codePointListToString(toHex(id))
 
 /** What a pack index is called, and so what a listing of the directory looks for. */
 const idxSuffix = /** @type {const} */ ('.idx')
@@ -175,12 +169,63 @@ const idxNames = pd => catchStep(
     e => isNotFound(e) ? pureOk(/** @type {List<string>} */ (null)) : pureError(e))
 
 /**
+ * How many bytes of a file one read may take: a `Vec` holds 2^20 bits, and
+ * `readBytes` refuses a larger window before the host sees it.
+ */
+const windowBytes = Number(maxLengthBytes)
+
+/**
+ * Where each window of a file of this length begins.
+ *
+ * @type {(size: number) => List<number>}
+ */
+const windowsOf = size => Array.from({ length: Math.ceil(size / windowBytes) }, (_, k) => k * windowBytes)
+
+/**
+ * One window of a file, appended to the bytes already read.
+ *
+ * The window asked for is the whole allowance every time, even for the last one:
+ * `readBytes` answers what is there and stops at the end of the file, so the
+ * length decides itself and no arithmetic has to agree with it.
+ *
+ * @type {(path: string) => (at: number) => (bytes: Bytes) => Effect<ReadBytes, Bytes, IoChannel>}
+ */
+const windowOf = path => at => bytes =>
+    mapStep(readBytes(path, at, windowBytes), v => concat(bytes)(toBytes(v)))
+
+/**
+ * A whole file as bytes, in windows.
+ *
+ * **An index does not fit a `Vec`.** A `readFile` answers one, 128 KiB at most,
+ * and a version 2 SHA-1 index outgrows that at 4,643 objects — 28 bytes an
+ * object over a 1,072-byte frame. This repository's own `objects/pack` holds
+ * indexes of 161,764 bytes and more, so reading one through `readFile` failed
+ * for the ordinary case rather than an extreme one. A byte *list* has no such
+ * bound, and `readBytes` fills it a window at a time; `concat` joins the windows
+ * without copying either side, and `tryIdx` reads a list.
+ *
+ * The bound that remains is memory and the host's own: an index is as long as
+ * the pack it names has objects, and the whole of it is held while it is decoded.
+ * Reading only the fanout and one bucket is what
+ * [`todo/lazy-index-ids.md`](../packidx/todo/lazy-index-ids.md) is for.
+ *
+ * @type {(path: string) => Effect<Stat | ReadBytes, Bytes, IoChannel>}
+ */
+const wholeOf = path => {
+    const sized = mapStep(stat(path), s => s.size)
+    return step(sized, size => foldStep(
+        pureOk(windowsOf(size)),
+        /** @type {Bytes} */ (null),
+        windowOf(path)))
+}
+
+/**
  * The index at `path`, or a refusal naming it.
  *
- * @type {(path: string, oidBytes: OidBytes) => Effect<ReadFile, Idx, IoChannel>}
+ * @type {(path: string, oidBytes: OidBytes) => Effect<Stat | ReadBytes, Idx, IoChannel>}
  */
 const idxAt = (path, oidBytes) => {
-    const read = mapStep(readFile(path), v => tryIdx(oidBytes)(toBytes(v)))
+    const read = mapStep(wholeOf(path), b => tryIdx(oidBytes)(b))
     return step(read, i => i === null
         ? pureError(ioError({ code: packIdxCode, message: idxMessage(path) }))
         : pureOk(i))
@@ -258,7 +303,7 @@ const baseAt = (idx, at, e) => {
 /** @type {(e: _Delta) => string} */
 const missingBase = e =>
     e.kind === 'refDelta'
-        ? `names a base ${hex(e.baseId)} the pack does not hold`
+        ? `names a base ${hexText(e.baseId)} the pack does not hold`
         : 'names a base before the first entry'
 
 /**
@@ -318,6 +363,80 @@ const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
 const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, found: null })
 
 /**
+ * The code a `.pack` is refused with when it is not the pack its index belongs
+ * to: a signature that is not `PACK`, a version this does not read, an object
+ * count that is not the index's, a trailing checksum that is not the one the
+ * index recorded, or a file too short to hold a header and a checksum at all.
+ */
+export const packFileCode = /** @type {const} */ ('ERR_PACK_FILE')
+
+/**
+ * Whether the pack's framing agrees with the index that named it, and its
+ * length once it does.
+ *
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx, size: number, front: readonly number[], tail: readonly number[]) => Effect<never, number, IoChannel>}
+ */
+const agrees = (path, oidBytes, idx, size, front, tail) => {
+    /** @type {(what: string) => Effect<never, never, IoChannel>} */
+    const refuse = what => pureError(ioError({ code: packFileCode, message: `${path} ${what}` }))
+    const h = tryHeader(front)
+    if (h === null) { return refuse('is no pack file') }
+    if (h.count !== idx.ids.length) {
+        return refuse(`holds ${h.count} objects where its index names ${idx.ids.length}`)
+    }
+    return toVec(tail) === idx.packChecksum
+        ? pureOk(size)
+        : refuse(`does not match the index, whose pack checksum is ${hexText(idx.packChecksum)}`)
+}
+
+/**
+ * The pack's length, once the file has been checked against the index that named
+ * it: its header read, its object count compared, and its trailing checksum
+ * compared with the one the index recorded.
+ *
+ * **Git checks all four when it opens a pack to read an object**, and each costs
+ * a few bytes rather than a hash. Measured on 2.43.0 by damaging one thing at a
+ * time in a pack and asking `git cat-file -p` for an object in it:
+ *
+ * | damage | Git |
+ * | --- | --- |
+ * | the signature | `is not a GIT packfile` |
+ * | the version word | `is version 9 and not supported` |
+ * | the object count | `claims to have 10 objects while index indicates 3 objects` |
+ * | the trailing checksum | `does not match index` |
+ *
+ * An earlier revision of this module skipped all four, arguing that verifying a
+ * pack means hashing it and that `fjs/git/store`'s hash check catches a
+ * mismatched pair anyway. The first half confused two different checks: nothing
+ * here hashes the pack, and the index already carries the checksum the pack ends
+ * with, so comparing them is a read of an id's width at a known offset. The
+ * second half was true and not the point — an object that hashes to the id asked
+ * for is that object, so what was lost was not a wrong answer but the report
+ * that the repository is damaged, which is the one thing a reader of a corrupt
+ * pack must not swallow.
+ *
+ * Three reads a pack rather than three a link: the header and the trailer are the
+ * file's, not an entry's, so a delta chain pays for them once. Git pays once per
+ * *open* and keeps the pack mapped; nothing here caches, so a reader that walks
+ * many objects pays per object — which the index read above already dominates.
+ *
+ * @type {(path: string, oidBytes: OidBytes, idx: Idx) => Effect<Stat | ReadBytes, number, IoChannel>}
+ */
+const framingOf = (path, oidBytes, idx) => {
+    const sized = history(mapStep(stat(path), s => s.size))
+    const front = historyStep(sized, size => size < headerBytes + oidBytes
+        ? pureError(ioError({
+            code: packFileCode,
+            message: `${path} is ${size} bytes, too short to be a pack file`,
+        }))
+        : mapStep(readBytes(path, 0, headerBytes), v => byteArray(toBytes(v))))
+    const back = historyStep(front, (_, size) => mapStep(
+        readBytes(path, size - oidBytes, oidBytes),
+        v => byteArray(toBytes(v))))
+    return step(back, ([tail, head, size]) => agrees(path, oidBytes, idx, size, head, tail))
+}
+
+/**
  * The object whose entry begins at `at` in the pack at `path`: the entry and
  * every base behind it, walked, and the deltas applied.
  *
@@ -328,8 +447,8 @@ const chainStart = /** @type {_Chain} */ ({ deltas: null, links: 0, found: null 
  * @type {(path: string, oidBytes: OidBytes, idx: Idx, at: number) => Effect<Stat | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
  */
 const objectAt = (path, oidBytes, idx, at) => {
-    const sized = mapStep(stat(path), s => s.size)
-    const walked = step(sized, n => walkStep(
+    const checked = framingOf(path, oidBytes, idx)
+    const walked = step(checked, n => walkStep(
         pureOk(/** @type {List<number>} */ ([at])),
         chainStart,
         linkOf(path, oidBytes, idx, n)))
@@ -345,7 +464,7 @@ const objectAt = (path, oidBytes, idx, at) => {
  * `.idx` under another suffix, which is how Git names the pair and the only way
  * to find one from the other.
  *
- * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Envelope>) => Effect<ReadFile | Stat | ReadBytes | Inflate, readonly [Nullable<Envelope>, List<string>], IoChannel>}
+ * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Envelope>) => Effect<Stat | ReadBytes | Inflate, readonly [Nullable<Envelope>, List<string>], IoChannel>}
  */
 const packOf = (pd, oidBytes, id) => name => found => {
     if (found !== null) { return pureOk(/** @type {const} */ ([found, null])) }
@@ -371,7 +490,7 @@ const packOf = (pd, oidBytes, id) => name => found => {
  * @throws On an id that is not `oidBytes` wide: a caller that mixes the widths
  * has a bug, not a missing object.
  *
- * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
  */
 export const tryRead = (dir, oidBytes) => {
     const pd = packDir(dir)

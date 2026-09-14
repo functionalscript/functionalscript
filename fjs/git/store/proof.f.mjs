@@ -8,7 +8,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
-import { msb, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, msb, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
@@ -140,6 +140,22 @@ const host = hostOf(files)
 
 const runHost = run(host)([])
 
+/** What reading the one pack's index costs, in windows of the host's bound. */
+const idxRead = /** @type {readonly string[]} */ ([
+    `stat repo/objects/pack/${packName}.idx`,
+    `readBytes repo/objects/pack/${packName}.idx 0 ${Number(maxLengthBytes)}`,
+])
+
+/**
+ * And what checking the pack's framing against it costs: the length, the header,
+ * and the trailing checksum the index recorded.
+ */
+const packFraming = /** @type {readonly string[]} */ ([
+    `stat repo/objects/pack/${packName}.pack`,
+    `readBytes repo/objects/pack/${packName}.pack 0 12`,
+    `readBytes repo/objects/pack/${packName}.pack 561 20`,
+])
+
 const read = tryRead('repo', 20)
 
 export const proof = {
@@ -199,7 +215,7 @@ export const proof = {
             `readFile ${p}`,
             'inflate',
             'readdir repo/objects/pack',
-            `readFile repo/objects/pack/${packName}.idx`,
+            ...idxRead,
         ])
         assert(r[0] === 'error')
         const e = r[1]
@@ -231,8 +247,8 @@ export const proof = {
         assertStructurallySame(log, [
             `readFile ${objectPath('repo')(id(packedId))}`,
             'readdir repo/objects/pack',
-            `readFile repo/objects/pack/${packName}.idx`,
-            `stat repo/objects/pack/${packName}.pack`,
+            ...idxRead,
+            ...packFraming,
             `readBytes repo/objects/pack/${packName}.pack 508 17`,
             'inflate',
         ])
@@ -250,8 +266,8 @@ export const proof = {
             `readFile ${p}`,
             'inflate',
             'readdir repo/objects/pack',
-            `readFile repo/objects/pack/${packName}.idx`,
-            `stat repo/objects/pack/${packName}.pack`,
+            ...idxRead,
+            ...packFraming,
             `readBytes repo/objects/pack/${packName}.pack 508 17`,
             'inflate',
         ])

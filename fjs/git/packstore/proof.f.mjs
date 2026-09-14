@@ -12,12 +12,12 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
-import { packEntryCode, packIdxCode, tryRead } from './module.f.mjs'
+import { packEntryCode, packFileCode, packIdxCode, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -47,6 +47,12 @@ const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
     v % 256,
 ])
 
+/** The checksum {@link packMixed} ends with, which is also what Git named it. */
+const packName = /** @type {const} */ ('9a32788c2cd72bdef63b26b7320c2fc2729359bf')
+
+/** The name both of its files carry. */
+const name = /** @type {const} */ ('pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf')
+
 /**
  * A version 2 index over the ids and offsets given, ascending by id, with its
  * own checksum over it so the reader accepts it.
@@ -68,13 +74,27 @@ const idxOf = named => {
         ...ids.flat(),
         ...named.map(() => u32(0)).flat(),
         ...named.map(([, at]) => u32(at)).flat(),
-        ...Array.from({ length: width }, () => 0),
+        // the pack's checksum, which the reader compares with the pack's own
+        // trailer, so a built index has to carry the fixture's
+        ...idBytes(id(packName)),
     ]
     return [...bytes, ...idBytes(digestOf(width)(bytes))]
 }
 
-/** The name Git gave the pack {@link packMixed} is, and so both of its files. */
-const name = /** @type {const} */ ('pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf')
+/**
+ * {@link packMixed} with the object count in its header replaced.
+ *
+ * A built index names fewer objects than the fixture pack holds, and the reader
+ * compares the two — as Git does, which reports
+ * `claims to have N objects while index indicates M objects`. So a case about
+ * what a *wrong index* does to a read serves a pack whose count agrees with the
+ * index it built, and the one byte that differs from Git's bytes is this one.
+ *
+ * @type {(count: number) => readonly number[]}
+ */
+const packCounting = count => [
+    ...packMixed.slice(0, 8), ...u32(count), ...packMixed.slice(12),
+]
 
 const dirPath = /** @type {const} */ ('objects/pack')
 
@@ -189,9 +209,15 @@ const files = /** @type {(path: string) => Nullable<readonly number[]>} */ (path
         : path === packPath ? packMixed
         : null)
 
-/** The same, with another index in front of the real pack. */
-const withIdx = /** @type {(idx: readonly number[]) => (path: string) => Nullable<readonly number[]>} */ (
-    idx => path => path === idxPath ? idx : path === packPath ? packMixed : null)
+/**
+ * The same, with a built index in front of the fixture pack, and the pack's
+ * header count set to the number of objects that index names — see
+ * {@link packCounting} for why the count has to agree.
+ *
+ * @type {(idx: readonly number[], count: number) => (path: string) => Nullable<readonly number[]>}
+ */
+const withIdx = (idx, count) => path =>
+    path === idxPath ? idx : path === packPath ? packCounting(count) : null
 
 const read = tryRead('', width)
 
@@ -251,6 +277,22 @@ const chainedIdx = [
     ['f21ff1cae7f0e9897eef760f163b1c86a822bcb1', 545],
 ]
 
+/** What reading an index costs, in windows of the host's bound. */
+const idxRead = /** @type {readonly string[]} */ ([
+    `stat ${idxPath}`,
+    `readBytes ${idxPath} 0 ${Number(maxLengthBytes)}`,
+])
+
+/**
+ * What checking a pack's framing costs: its length, its header, and the trailing
+ * checksum the index recorded.
+ */
+const packFraming = /** @type {readonly string[]} */ ([
+    `stat ${packPath}`,
+    `readBytes ${packPath} 0 12`,
+    `readBytes ${packPath} 561 20`,
+])
+
 /** The host every case over the untouched fixture uses. */
 const host = hostOf(listing, files, inflatedBy(streams))
 
@@ -266,8 +308,8 @@ export const proof = {
         assertEq(hashed(e), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(log, [
             `readdir ${dirPath}`,
-            `readFile ${idxPath}`,
-            `stat ${packPath}`,
+            ...idxRead,
+            ...packFraming,
             `readBytes ${packPath} 508 17`,
             'inflate',
         ])
@@ -290,8 +332,8 @@ export const proof = {
         assertEq(hashed(e), 'bf53712eef030d4401e03fbcf0f5a190a8026d97')
         assertStructurallySame(log, [
             `readdir ${dirPath}`,
-            `readFile ${idxPath}`,
-            `stat ${packPath}`,
+            ...idxRead,
+            ...packFraming,
             `readBytes ${packPath} 525 20`,
             'inflate',
             `readBytes ${packPath} 508 17`,
@@ -309,8 +351,8 @@ export const proof = {
         assertEq(hashed(e), '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         assertStructurallySame(log, [
             `readdir ${dirPath}`,
-            `readFile ${idxPath}`,
-            `stat ${packPath}`,
+            ...idxRead,
+            ...packFraming,
             `readBytes ${packPath} 470 38`,
             'inflate',
             `readBytes ${packPath} 545 16`,
@@ -322,7 +364,7 @@ export const proof = {
     missing: () => {
         const [log, r] = readBy(host, '0000000000000000000000000000000000000000')
         assertStructurallySame(r, ok(null))
-        assertStructurallySame(log, [`readdir ${dirPath}`, `readFile ${idxPath}`])
+        assertStructurallySame(log, [`readdir ${dirPath}`, ...idxRead])
     },
     // No pack directory at all is no packs, which is the ordinary state of a
     // repository whose objects are all loose.
@@ -366,7 +408,7 @@ export const proof = {
     // names the objects of the pack beside it, so nothing there is reachable.
     notAnIdx: () => {
         const [, r] = readBy(
-            hostOf(listing, withIdx(latin1('junk')), inflatedBy(streams)),
+            hostOf(listing, withIdx(latin1('junk'), 6), inflatedBy(streams)),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         const e = refusal(r)
         assertEq(e.code, packIdxCode)
@@ -377,19 +419,21 @@ export const proof = {
     noRoomForAnEntry: () => {
         const one = idxOf([['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 561]])
         const [log, r] = readBy(
-            hostOf(listing, withIdx(one), inflatedBy(streams)),
+            hostOf(listing, withIdx(one, 1), inflatedBy(streams)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
         assertEq(e.message, `${packPath}:561 is not where an entry begins`)
-        assert(!log.some(c => c.startsWith('readBytes')))
+        // the framing of the pack is read and no window into it: the refusal is
+        // the index's arithmetic and happens before any entry is asked for
+        assertStructurallySame(log, [`readdir ${dirPath}`, ...idxRead, ...packFraming])
     },
     // An index naming an offset inside the pack's own header frames no entry:
     // the byte there is a type code the format does not use.
     notAnEntry: () => {
         const one = idxOf([['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 4]])
         const [log, r] = readBy(
-            hostOf(listing, withIdx(one), inflatedBy(streams)),
+            hostOf(listing, withIdx(one, 1), inflatedBy(streams)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -433,7 +477,7 @@ export const proof = {
             ['b00a3b66a7a094e6165bfcd39e0b8524042140db', 508],
         ])
         const [, r] = readBy(
-            hostOf(listing, withIdx(two), inflatedBy(streams)),
+            hostOf(listing, withIdx(two, 2), inflatedBy(streams)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -451,7 +495,8 @@ export const proof = {
         const made = [
             ...latin1('PACK'), ...u32(2), ...u32(1),
             0x63, 8, 1, 2, 3,
-            ...Array.from({ length: width }, () => 0),
+            // the checksum the built index names, which the reader compares
+            ...idBytes(id(packName)),
         ]
         const one = idxOf([['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 12]])
         const [, r] = readBy(
@@ -475,7 +520,7 @@ export const proof = {
             ['e83defc90b8bb9314cc0933b04446ec93e205485', 470],
         ])
         const [log, r] = readBy(
-            hostOf(listing, withIdx(cyclic), inflatedBy(streams)),
+            hostOf(listing, withIdx(cyclic, 3), inflatedBy(streams)),
             '38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85')
         const e = refusal(r)
         assertEq(e.code, packEntryCode)
@@ -500,7 +545,7 @@ export const proof = {
         // 302 in, 5 out: three copies from the front of the base
         const top = /** @type {readonly number[]} */ ([0xAE, 2, 5, 0x90, 2, 0x90, 2, 0x90, 1])
         const [log, r] = readBy(
-            hostOf(listing, withIdx(twoDeep), inflatedBy([
+            hostOf(listing, withIdx(twoDeep, 4), inflatedBy([
                 [streamAt(491, 508), top],
                 [streamAt(527, 545), hexBytes('ae02ae02b02c0102430a')],
                 [streamAt(510, 525), yd],
@@ -511,8 +556,8 @@ export const proof = {
         assertStructurallySame(toArray(e.payload), latin1('yyyyy'))
         assertStructurallySame(log, [
             `readdir ${dirPath}`,
-            `readFile ${idxPath}`,
-            `stat ${packPath}`,
+            ...idxRead,
+            ...packFraming,
             `readBytes ${packPath} 470 38`,
             'inflate',
             `readBytes ${packPath} 525 20`,
@@ -528,7 +573,7 @@ export const proof = {
     chainRefusedMidway: () => {
         const twoDeep = idxOf(chainedIdx)
         const [, r] = readBy(
-            hostOf(listing, withIdx(twoDeep), inflatedBy([
+            hostOf(listing, withIdx(twoDeep, 4), inflatedBy([
                 [streamAt(491, 508), hexBytes('ae0205909029001001')],
                 [streamAt(527, 545), Array.from({ length: 10 }, () => 255)],
                 [streamAt(510, 525), yd],
@@ -551,6 +596,81 @@ export const proof = {
         const [, r] = readBy(host, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(r, error(denied))
     },
+    // The four ways a `.pack` can disagree with the index that named it, each
+    // one Git reports when it opens the pack to read an object — measured on
+    // 2.43.0 by damaging one thing at a time in a pack and asking
+    // `git cat-file -p` for an object in it:
+    //
+    // | damage | Git |
+    // | --- | --- |
+    // | the signature | `is not a GIT packfile` |
+    // | the version word | `is version 9 and not supported` |
+    // | the object count | `claims to have 10 objects while index indicates 3 objects` |
+    // | the trailing checksum | `does not match index` |
+    //
+    // The entry at 508 still inflates and still hashes to the id asked for in
+    // every one of them, which is what makes this a refusal about the *file*
+    // rather than about the object: read on, a caller would be told the
+    // repository is fine.
+    packFraming: () => {
+        /** @type {(bytes: readonly number[]) => string} */
+        const refusedFor = bytes => {
+            const [, r] = readBy(
+                hostOf(
+                    listing,
+                    path => path === idxPath ? packMixedIdx : path === packPath ? bytes : null,
+                    inflatedBy(streams)),
+                'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+            const e = refusal(r)
+            assertEq(e.code, packFileCode)
+            return e.message
+        }
+        const flipped = /** @type {(at: number, to: number) => readonly number[]} */ (
+            (at, to) => [...packMixed.slice(0, at), to, ...packMixed.slice(at + 1)])
+        // the signature, and the version word
+        assertEq(refusedFor(flipped(0, 0x58)), `${packPath} is no pack file`)
+        assertEq(refusedFor(flipped(7, 9)), `${packPath} is no pack file`)
+        // the object count, which the index's own count answers
+        assertEq(
+            refusedFor(packCounting(7)),
+            `${packPath} holds 7 objects where its index names 6`)
+        // the trailing checksum, whose byte the index recorded
+        assertEq(
+            refusedFor(flipped(580, 0)),
+            `${packPath} does not match the index, whose pack checksum is ${packName}`)
+        // and a file too short to hold a header and a checksum at all, which is
+        // refused before either is read
+        assertEq(
+            refusedFor(packMixed.slice(0, 31)),
+            `${packPath} is 31 bytes, too short to be a pack file`)
+    },
+    // An index larger than a `Vec` is read in windows. A version 2 SHA-1 index
+    // outgrows 128 KiB at 4,643 objects — 28 bytes an object over a 1,072-byte
+    // frame — and this repository's own `objects/pack` holds indexes of 161,764
+    // bytes and more, so this is the ordinary case and not an extreme one.
+    //
+    // The index here is built at 5,000 objects, one window and a bit: what the
+    // case pins is that the windows are asked for in order, that the bytes they
+    // carry are joined into one list, and that the lookup then answers from it.
+    bigIdx: () => {
+        // every id but the first sits at 525, which is what closes the window of
+        // the entry at 508 — an index whose offsets are all one number leaves the
+        // first entry running to the pack's checksum
+        const many = idxOf(Array.from(
+            { length: 5000 },
+            (_, k) => [`${k.toString(16).padStart(8, '0')}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
+        assert(many.length > Number(maxLengthBytes))
+        const [log, r] = readBy(
+            hostOf(listing, withIdx(many, 5000), inflatedBy(streams)),
+            `00000000${'0'.repeat(32)}`)
+        assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        assertStructurallySame(log.slice(0, 4), [
+            `readdir ${dirPath}`,
+            `stat ${idxPath}`,
+            `readBytes ${idxPath} 0 ${Number(maxLengthBytes)}`,
+            `readBytes ${idxPath} ${Number(maxLengthBytes)} ${Number(maxLengthBytes)}`,
+        ])
+    },
     // An index with no pack beside it is the channel's, at the `stat` that asks
     // the pack for its length.
     packMissing: () => {
@@ -560,7 +680,7 @@ export const proof = {
         assertEq(refusal(r).code, 'ENOENT')
         assertStructurallySame(log, [
             `readdir ${dirPath}`,
-            `readFile ${idxPath}`,
+            ...idxRead,
             `stat ${packPath}`,
         ])
     },
