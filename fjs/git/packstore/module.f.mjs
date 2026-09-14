@@ -90,7 +90,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { inflate, isNotFound, readBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { inflate, isNotFound, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
 import { length, maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
@@ -137,12 +137,6 @@ export const packIdxCode = /** @type {const} */ ('ERR_PACK_IDX')
  */
 export const packEntryCode = /** @type {const} */ ('ERR_PACK_ENTRY')
 
-/**
- * The code a file read in windows is refused with when the windows do not cover
- * it: a read answered short of the end of the file. See {@link windowOf}.
- */
-export const shortReadCode = /** @type {const} */ ('ERR_SHORT_READ')
-
 /** @type {(path: string) => string} */
 const idxMessage = path => `${path} is no pack index`
 
@@ -175,96 +169,25 @@ const idxNames = pd => catchStep(
     e => isNotFound(e) ? pureOk(/** @type {List<string>} */ (null)) : pureError(e))
 
 /**
- * How many bytes of a file one read may take: a `Vec` holds 2^20 bits, and
- * `readBytes` refuses a larger window before the host sees it.
- */
-const windowBytes = Number(maxLengthBytes)
-
-/**
- * Where each window of a file of this length begins.
+ * The index at `path`, or a refusal naming it.
  *
- * @type {(size: number) => List<number>}
- */
-const windowsOf = size => Array.from({ length: Math.ceil(size / windowBytes) }, (_, k) => k * windowBytes)
-
-/**
- * One window of a file, appended to the bytes already read.
- *
- * The window asked for is the whole allowance every time, even for the last one:
- * a read answers what is there and stops at the end of the file, so the length
- * decides itself and no arithmetic has to agree with it.
- *
- * **A window that comes back short of the end of the file is refused, not
- * ignored.** The sentence above is a claim about the host, and one `read` is not
- * obliged to honour it: a positional read of `/proc/self/maps` answers 4,007
- * bytes for a 1 MiB request and 4,034 more at the next offset, measured on node
- * 22, and a network or virtual filesystem may answer short for a file a caller
- * believes is ordinary. [`fjs/effects/node`](../../effects/node/module.mjs) fills
- * the window for that reason, so on that host a short answer does mean the end of
- * the file — but this module runs on whatever host it is given, and the window
- * starts are fixed multiples of the allowance, so a host that answered short
- * would leave a gap the next window skips over. The bytes would then be an index
- * missing a run out of its middle, and `tryIdx` would call a file Git reads no
- * pack index at all: a wrong diagnosis out of a silent loss, which is the kind of
- * answer [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
- * says to refuse rather than give.
- *
- * A file that shrinks between the `stat` and the reads is refused by the same
- * check, and it is the same thing: the bytes no longer cover what was measured.
- *
- * @type {(path: string, size: number) => (at: number) => (bytes: Bytes) => Effect<ReadBytes, Bytes, IoChannel>}
- */
-const windowOf = (path, size) => at => {
-    // The allowance, or what is left of the file where that is less — which is
-    // only the last window, and is why the read may legitimately come back short
-    // of what it asked for.
-    const want = Math.min(windowBytes, size - at)
-    return bytes => step(
-        readBytes(path, at, windowBytes),
-        v => {
-            const got = Number(length(v)) / 8
-            return got < want
-                ? pureError(ioError({
-                    code: shortReadCode,
-                    message: `${path}:${at} ${got} bytes of ${want}`,
-                }))
-                : pureOk(concat(bytes)(toBytes(v)))
-        })
-}
-
-/**
- * A whole file as bytes, in windows.
- *
- * **An index does not fit a `Vec`.** A `readFile` answers one, 128 KiB at most,
- * and a version 2 SHA-1 index outgrows that at 4,643 objects — 28 bytes an
- * object over a 1,072-byte frame. This repository's own `objects/pack` holds
- * indexes of 161,764 bytes and more, so reading one through `readFile` failed
- * for the ordinary case rather than an extreme one. A byte *list* has no such
- * bound, and `readBytes` fills it a window at a time; `concat` joins the windows
- * without copying either side, and `tryIdx` reads a list.
+ * **An index does not fit a `Vec`, which is why this is not a `readFile`.** That
+ * answers one, 128 KiB at most, and a version 2 SHA-1 index outgrows it at 4,643
+ * objects — 28 bytes an object over a 1,072-byte frame. This repository's own
+ * `objects/pack` holds indexes of 161,764 bytes and more, so reading one through
+ * `readFile` failed for the ordinary case rather than an extreme one.
+ * [`readWholeBytes`](../../effects/node/module.f.mjs) reads it in windows into a
+ * byte list, which has no such bound and is what `tryIdx` takes.
  *
  * The bound that remains is memory and the host's own: an index is as long as
  * the pack it names has objects, and the whole of it is held while it is decoded.
  * Reading only the fanout and one bucket is what
  * [`todo/lazy-index-ids.md`](../packidx/todo/lazy-index-ids.md) is for.
  *
- * @type {(path: string) => Effect<Stat | ReadBytes, Bytes, IoChannel>}
- */
-const wholeOf = path => {
-    const sized = mapStep(stat(path), s => s.size)
-    return step(sized, size => foldStep(
-        pureOk(windowsOf(size)),
-        /** @type {Bytes} */ (null),
-        windowOf(path, size)))
-}
-
-/**
- * The index at `path`, or a refusal naming it.
- *
  * @type {(path: string, oidBytes: OidBytes) => Effect<Stat | ReadBytes, Idx, IoChannel>}
  */
 const idxAt = (path, oidBytes) => {
-    const read = mapStep(wholeOf(path), b => tryIdx(oidBytes)(b))
+    const read = mapStep(readWholeBytes(path), b => tryIdx(oidBytes)(b))
     return step(read, i => i === null
         ? pureError(ioError({ code: packIdxCode, message: idxMessage(path) }))
         : pureOk(i))

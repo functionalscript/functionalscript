@@ -10,6 +10,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
+import { shortReadCode } from '../../effects/node/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
@@ -17,7 +18,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
-import { packEntryCode, packFileCode, packIdxCode, shortReadCode, tryRead } from './module.f.mjs'
+import { packEntryCode, packFileCode, packIdxCode, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
