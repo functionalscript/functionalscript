@@ -82,7 +82,8 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    split out of it, and has landed as
    [`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs) —
    normalized form included, the corpus proofs run, both passes keeping the
-   reader's depth contract — leaving that issue the quadratic decision.
+   reader's depth contract at the cost of a sort — leaving that issue the
+   readable-layout decision.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
 4. **Then stages 5–7**, in order, as listed below. Stages 5 and 6 are done —
@@ -877,8 +878,8 @@ throughout.
       [the corpus](../spec/datajs/vectors/README.md) running on both sides and
       the four names settled as `try*`. The reader's issue is retired into
       [the module README](../fjs/media/datajs/README.md); what remains is the
-      writer's, [`serializer.md`](../fjs/media/datajs/todo/serializer.md) — the
-      quadratic decision, a readable layout if one is wanted — and stage 4 is
+      writer's, [`serializer.md`](../fjs/media/datajs/todo/serializer.md) — a
+      readable layout if one is wanted, which is a decision — and stage 4 is
       done when it goes.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry

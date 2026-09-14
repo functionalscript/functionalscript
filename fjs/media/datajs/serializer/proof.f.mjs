@@ -278,10 +278,12 @@ export const proof = {
     // Nesting depth is the input's, not the call stack's: the read walks an
     // explicit stack and the write reads the linked graph in its post-order,
     // so both keep the reader's 5,000-level contract and a document the
-    // reader accepts is one the writer writes back.
+    // reader accepts is one the writer writes back. Pinned at four times the
+    // contract, so that a regression costing one call frame per level — which
+    // 5,000 levels would survive — is caught.
     depth: {
         writesBack: () => {
-            const n = 5000
+            const n = 20000
             const document = `export default ${'['.repeat(n)}${']'.repeat(n)};`
             assertEq(text(unwrap(tryParse(document))), document)
         },
