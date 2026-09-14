@@ -1,0 +1,85 @@
+[
+  {
+    "name": "source_code",
+    "description": "Next available source bytes after the 64 KiB fitting sample; not used by order search.",
+    "inputBytes": 65536,
+    "sha256": "152c9383fb7fdd5cbeac9855300459af7607cea9578199b20a63c3a50a05827b",
+    "natural": {
+      "groups": 24614,
+      "complete": 24613,
+      "pendingBytes": 3,
+      "unique": 2223,
+      "meanLength": 2.6625497684244737,
+      "longest": 8,
+      "histogram": {
+        "2": 11612,
+        "3": 10131,
+        "4": 2486,
+        "5": 339,
+        "6": 44,
+        "8": 2
+      }
+    },
+    "fittedOrder": {
+      "groups": 23441,
+      "complete": 23440,
+      "pendingBytes": 2,
+      "unique": 2679,
+      "meanLength": 2.7957851627490293,
+      "longest": 12,
+      "histogram": {
+        "2": 13541,
+        "3": 5835,
+        "4": 1616,
+        "5": 1153,
+        "6": 570,
+        "7": 567,
+        "8": 115,
+        "9": 34,
+        "10": 6,
+        "11": 3,
+        "12": 1
+      }
+    }
+  },
+  {
+    "name": "uniform_random",
+    "description": "Independent xorshift32 stream, seed 0x81ac339b; not used by order search.",
+    "inputBytes": 65536,
+    "sha256": "eb54173a3ad6edc1ae2ce7a40b5cb702a950bdfd195e9b4628a8a769d93f2809",
+    "natural": {
+      "groups": 24216,
+      "complete": 24215,
+      "pendingBytes": 2,
+      "unique": 22243,
+      "meanLength": 2.7063098777667656,
+      "longest": 8,
+      "histogram": {
+        "2": 12238,
+        "3": 8078,
+        "4": 2909,
+        "5": 793,
+        "6": 163,
+        "7": 33,
+        "8": 2
+      }
+    },
+    "fittedOrder": {
+      "groups": 24142,
+      "complete": 24142,
+      "pendingBytes": 0,
+      "unique": 22179,
+      "meanLength": 2.7146052522574764,
+      "longest": 9,
+      "histogram": {
+        "2": 12105,
+        "3": 8033,
+        "4": 3042,
+        "5": 750,
+        "6": 177,
+        "7": 34,
+        "9": 1
+      }
+    }
+  }
+]

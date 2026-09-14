@@ -34,5 +34,17 @@
       "brotli-summary.csv": "540271c08b9844a6e6f4fc7dd60a94632d2b486589d21099a900bb09145b6f56",
       "brotli-prototype.md": "3ae545fc1f6fb63e394b7b479f2c796693bb58a10adf98ea6d2bcbfa222ee229"
     }
+  },
+  "byteOrderExperiment": {
+    "archiveSha256": "808a60e98c111ef4ec875b93bd19cd1a86e06ae720229a752920162d49124818",
+    "files": {
+      "byte-ordering.md": "8380ea54b601d88bd2d7bc534157e5747d4d60a788eed18f15c2962baeee847b",
+      "order-results.json": "bc4b7e94c20cf53a617f428966793ad6e802529e3485fb110bea65f3ff5fb41e",
+      "order-summary.csv": "02bbb17b5123f82f989a8f1254e28d001403fcc396248f9a5271c926ff369250",
+      "order-heldout.json": "c34b785918f80703498e21590412865e4acf6f97d533fb892005ad1aaba376f2",
+      "byte-orders.json": "4b86026f39e2635f277814dfdf9f8434625bf07d58cb0483f58b383a988140d0",
+      "order-prototype.md": "6387d5147f14272bde88c2b05973e8ec444b12568739f4f8ac78e6d330ccca87",
+      "successor-results.json": "5c732cbe088384ebf2c95fe31d36a0a8255639f04887d7e105ed2a89f7e1c543"
+    }
   }
 }

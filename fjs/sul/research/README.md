@@ -12,6 +12,10 @@ works, its measurements, and the unresolved design questions.
 
 ## Contents
 
+- [Optimizing the byte alphabet order](byte-ordering.md): search the 256-byte
+  comparison order for fewer level-one groups, then measure complete compression.
+  Includes all ten permutations and a separate check on previously unused input.
+
 - [Brotli dictionary at level zero](brotli-dictionary.md): test shared base
   entries and the full transform vocabulary with literal-byte fallback, direct
   coding, and recursive SUL dictionaries, including two short-document examples.
