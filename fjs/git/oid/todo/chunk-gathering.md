@@ -22,29 +22,30 @@ which allocates an array of 65,536 and calls `next` 65,536 times whatever the
 list holds — an object of seven bytes costs the same walk as one of 64 KiB,
 because the loop runs to the array's length rather than to the end of the list.
 
-Measured on node 22, each figure the mean of repeated calls after a warm-up:
+Measured at `52565769` on node 22, each figure the mean of repeated calls after
+a warm-up:
 
 | what | cost |
 | --- | --- |
-| `digestOf(20)([])` — no bytes at all | 4.1 ms |
-| `digestOf(20)` over 64 KiB | 45 ms |
-| `digestOf(20)` over 64 KiB + 1, so two chunks | 43 ms |
-| `of(20)('blob', payload)` where `payload` is what `fjs/git/object`'s reader hands back for the empty blob | 68 ms |
-| the same bytes as an array | 9.6 ms |
-| the same over a 3,000-byte payload from the reader | 8.9 ms |
+| `digestOf(20)(null)` — no bytes at all | 3.5 ms |
+| `digestOf(20)` over 64 KiB | 56.0 ms |
+| `digestOf(20)` over 64 KiB + 1, so two chunks | 61.3 ms |
+| `of(20)('blob', payload)` where `payload` is what `fjs/git/object`'s reader hands back for the empty blob | 85.2 ms |
+| the same bytes as an array | 14.2 ms |
+| the same over a 3,000-byte payload from the reader | 12.1 ms |
 
 The two rows that do not fit a cost-per-byte story are the point. Hashing
-*nothing* costs 4 ms, and hashing the empty blob as the envelope reader hands it
-over costs more than hashing a 3,000-byte one: the fixed 65,536 calls dominate,
-and what each call costs depends on the shape of the list they are made on. A
-list already exhausted answers `null` cheaply when it is an array's tail and
-expensively when it is a `take` over a lazily built one, which is what the
-reader produces.
+*nothing* costs milliseconds, and hashing the empty blob as the envelope reader
+hands it over costs more than hashing a 3,000-byte one: the fixed 65,536 calls
+dominate, and what each call costs depends on the shape of the list they are
+made on. A list already exhausted answers `null` cheaply when it is an array's
+tail and expensively when it is a `take` over a lazily built one, which is what
+the reader produces.
 
-End to end, one `fjs/git/store` read of the empty blob through the mock host
-took 570 ms, against 38 ms for a 3,285-byte commit in the same run. Every read
-of a loose object pays this, since the store hashes what it reads and checks the
-id.
+End to end the same shape shows through `fjs/git/store`: a read of the *empty*
+blob through the mock host cost more than ten times a 3,285-byte commit read in
+the same run. Every read of a loose object pays this, since the store hashes
+what it reads and checks the id.
 
 ### Proposal
 
