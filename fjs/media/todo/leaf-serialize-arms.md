@@ -94,7 +94,7 @@ only its `numberSerialize` and `{}`; extended adds `bigint`; DataJS adds
 
 ### Related
 
-- [../../djs/todo/157-json-djs-shared-value-machine.md](../../djs/todo/157-json-djs-shared-value-machine.md)
+- [../../fsc/todo/157-json-djs-shared-value-machine.md](../../fsc/todo/157-json-djs-shared-value-machine.md)
   — shares the *container walker* and names `leafSerialize` as the seam
   that legitimately differs; this issue shares the unvarying arms of that
   seam.

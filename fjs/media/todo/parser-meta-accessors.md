@@ -211,9 +211,10 @@ one-line follow-up rather than a design decision.
 
 ### Related
 
-- [../datajs/todo/parser-serializer.md](../datajs/todo/parser-serializer.md)
-  — established the rule/mapping reuse this issue extends to the
-  accessors.
+- [`fjs/media/datajs/parser/module.f.mjs`](../datajs/parser/module.f.mjs)
+  — imports `stringMappings` from `json/parser`: the rule/mapping reuse
+  this issue extends to the accessors, shipped (its issue file,
+  `parser-serializer`, is deleted).
 - [../../ebnf/ll1/todo/mapping-precheck.md](../../ebnf/ll1/todo/mapping-precheck.md)
   — owns the first library reader of `meta.id`; `tagged` moves into
   `fjs/ebnf/ast` only after it.

@@ -14,7 +14,7 @@ Every production importer of the module — about a dozen: `cas/evo`,
 `effects/common`, `effects/node`, `effects/node/virtual`, `mcp/cas`,
 `media/html`, `protocol/mcp/stdio`, `sul/id`, `text/sgr`,
 `types/uint8array`, `web`, and `website` — imports only `utf8`/`tryUtf8`/
-`utf8ToString`. (`crypto/hmac` is not one: its only mention is a
+`utf8ToString`. (`crypto/hmac` is not one: its only mention outside its proof is a
 doc-comment `@example` importing a `msbUtf8` the module does not export —
 a stale example, not an importer.) The sole importer of `flat` is `fjs/text/proof.f.mjs`,
 and the sole reference to `Block` outside `types.ts` is the same proof —
