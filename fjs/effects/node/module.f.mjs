@@ -131,6 +131,29 @@ export const isNotFound = ([tag, payload]) =>
     tag === 'ioError' && payload.code === 'ENOENT'
 
 /**
+ * Whether a failure means the path leads nowhere rather than that the host is in
+ * trouble: nothing at the other end of a link, or a link that leads to itself.
+ *
+ * The pair a caller wants after a `stat` of a *directory entry*, where the entry
+ * exists — a listing named it — and following it is what failed. Node answers
+ * `ENOENT` for a dangling link and `ELOOP` for a cycle, and both are entries
+ * Git's own listings pass over: measured on Git 2.43.0 with
+ * `refs/heads/dangling` linked to a name that is not there and
+ * `refs/heads/loop` linked to itself, `git show-ref` and `git for-each-ref`
+ * list neither and both exit 0.
+ *
+ * Those two and no others, which is the point of having it rather than catching
+ * every failure: an entry a listing named and the host then cannot describe for
+ * any other reason is a file the caller would be dropping in silence.
+ *
+ * Beside {@link isNotFound} and node's for the same reason — both read POSIX
+ * codes no browser reports.
+ *
+ * @type {(e: IoChannel) => boolean}
+ */
+export const leadsNowhere = e => isNotFound(e) || (e[0] === 'ioError' && e[1].code === 'ELOOP')
+
+/**
  * `NodeOp`'s commands as data, so a runner that implements only part of them
  * can still tell an operation it lacks from a `Do` node whose `command` was
  * never a `NodeOp` at all — see `CommandSet` in `../types.ts` for why the
