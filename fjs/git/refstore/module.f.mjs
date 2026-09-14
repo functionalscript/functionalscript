@@ -42,10 +42,12 @@
  * [`fjs/git/refname`](../refname/module.f.mjs)'s `isWholeName` and not a
  * list of file-name conventions.
  *
- * A name is not the only thing the walk filters on: an entry that is neither a
- * file nor a directory is skipped as well, which is Git's listing again and which
- * is what keeps a FIFO under `refs/` from stopping the walk for as long as
- * nothing writes to it. The measurements are at `looseOf`.
+ * A name is not the only thing the walk judges an entry on. A listing answers
+ * `isFile: false, isDirectory: false` for a FIFO and for every symlink alike,
+ * because it does not follow one, and those two want opposite answers: Git skips
+ * the FIFO and follows the link. So an entry a listing cannot classify costs one
+ * `stat`, which follows the link without opening what it finds. The
+ * measurements are at `looseOf` and {@link statted}.
  *
  * The filter runs before a path is built and not after a file is read, which
  * matters for a name a caller passes in rather than one a directory listing
@@ -135,7 +137,7 @@
  *
  * @module
  *
- * @import { Dirent, ReadFile, Readdir } from '../../effects/node/types.ts'
+ * @import { Dirent, FileStat, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
@@ -147,7 +149,7 @@
  */
 
 import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { isNotFound, readFile, readdir } from '../../effects/node/module.f.mjs'
+import { isNotFound, readFile, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
@@ -621,6 +623,117 @@ const refOf = (readRef, resolve, found, name, names) => bytes => {
 }
 
 /**
+ * A directory's entries as the walk's next items, or a refusal where the host
+ * answered one name twice.
+ *
+ * @type {(item: _Entry, found: _Found) => Effect<Readdir, _Walked, IoChannel>}
+ */
+const descendInto = (item, found) =>
+    step(readdir(item.path, {}), entries => {
+        // a name the host answered twice is two files it cannot tell
+        // apart; see the module doc
+        const twice = twiceNamed(entries)
+        return twice === null
+            ? pureOk(walked(found, entries.map(childOf(item))))
+            : pureError(ioError({
+                code: lossyNameCode,
+                message: lossyNameMessage(item.path, twice),
+            }))
+    })
+
+/**
+ * The root a loose ref file names, and the name it adds to the walk either way.
+ *
+ * The captures are leading parameters and this sits at module scope (§3.3).
+ *
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<ReadFile, _Walked, IoChannel>}
+ */
+const readAsRef = (readRef, resolve, keep, item, found) => {
+    if (!keep(item.name)) { return pureOk(walked(found, null)) }
+    const name = nameBytes(item.name)
+    if (!isWholeName(name)) { return pureOk(walked(found, null)) }
+    // the name is recorded whatever the file turns out to hold, because
+    // that is what shadows the packed line
+    const names = concat(found.names)([name])
+    const read = mapStep(readFile(item.path), toBytes)
+    return step(read, refOf(readRef, resolve, found, name, names))
+}
+
+/**
+ * The code an entry under `refs/` is refused with when it is a link to a
+ * directory.
+ *
+ * Git walks into one, and this does not, for a reason the walk cannot get around
+ * on its own: a link to a directory can name a directory the walk is already
+ * inside. Measured on Git 2.43.0 with `refs/heads/up` linked to `..`,
+ * `git show-ref` lists `refs/heads/up/heads/master`, then
+ * `refs/heads/up/heads/up/heads/master`, and so on until the path grows too long
+ * for the host to open — a name for every depth, out of a repository holding one
+ * branch. Git streams those names and stops at the path limit; a walk that
+ * *collects* them, as this one does, has neither property, so following the link
+ * would be an unbounded answer built out of one entry of an untrusted
+ * repository.
+ *
+ * Refused rather than skipped because a skip loses ref names silently, and this
+ * function's answer is what a `gc` would keep — see {@link tryRoots}. A refusal
+ * says which entry it was. [`todo/symlink-head.md`](./todo/symlink-head.md) is
+ * what walking into one needs first.
+ */
+export const linkedDirCode = /** @type {const} */ ('ERR_LINKED_DIR')
+
+/** @type {(path: string) => string} */
+const linkedDirMessage = path => `${path} is a link to a directory`
+
+/**
+ * Whether a `stat` that could not answer means the entry is no ref rather than a
+ * host in trouble: a link that leads nowhere, or one that leads to itself.
+ *
+ * Both are entries Git's listing passes over. Measured on Git 2.43.0, with
+ * `refs/heads/dangling` linked to a name that is not there and
+ * `refs/heads/loop` linked to itself, `git show-ref` and `git for-each-ref` list
+ * neither and both exit 0. Node answers `ENOENT` for the first and `ELOOP` for
+ * the second.
+ *
+ * Only those two, and not every failure: an entry that the listing named and the
+ * host then cannot describe for any other reason is a loose ref this function
+ * would be dropping from an answer a `gc` reads.
+ *
+ * @type {(e: IoChannel) => boolean}
+ */
+const leadsNowhere = e => isNotFound(e) || (e[0] === 'ioError' && e[1].code === 'ELOOP')
+
+/**
+ * What the walk makes of an entry whose kind the listing could not name.
+ *
+ * `stat` is the question to ask, and the one thing it does that `readFile` must
+ * not is follow the link *without opening it*: a writerless FIFO stats in 3 ms
+ * and reads forever. So one `stat` separates the three cases the listing could
+ * not — measured on node 22 over a directory holding each, where `readdir`
+ * answers `isFile: false, isDirectory: false` for all of them and `stat` answers
+ * `isFile` for a link to a ref file, `isDirectory` for a link to a directory, and
+ * neither for a FIFO and for a link to one.
+ *
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ */
+const statted = (readRef, resolve, keep, item, found) => step(
+    // The catch is around the `stat` and nothing else: a `readFile` below that
+    // cannot find what the listing named is a race or a broken host, and this
+    // module's rule is that such a read is the channel's.
+    catchStep(
+        mapStep(stat(item.path), /** @type {(s: FileStat) => Nullable<FileStat>} */ (s => s)),
+        e => leadsNowhere(e)
+            ? pureOk(/** @type {Nullable<FileStat>} */ (null))
+            : pureError(e)),
+    s => s === null || !(s.isFile || s.isDirectory)
+        // a link that leads nowhere, or a FIFO, a socket or a device — every one
+        // of them an entry Git's listing skips, and the FIFO one this must not
+        // open
+        ? pureOk(walked(found, null))
+        : s.isFile
+            ? readAsRef(readRef, resolve, keep, item, found)
+            : pureError(ioError({ code: linkedDirCode, message: linkedDirMessage(item.path) })))
+
+/**
  * The body of the walk of `refs/`: a directory gives its entries to walk
  * next, and a file gives a root or nothing.
  *
@@ -631,32 +744,14 @@ const refOf = (readRef, resolve, found, name, names) => bytes => {
  * A file whose name is no ref name is skipped without a word, which is also
  * Git's — see this module's header for the table the two agree on.
  *
- * **An entry that is neither a file nor a directory is skipped too, and that is
- * not the same test as `!isDirectory`.** A FIFO, a socket, a device and a symlink
- * to any of them are all `isFile: false` and `isDirectory: false` at once, so
- * reading the second question as the negation of the first would open one. A FIFO
- * is the case with teeth: `readFile` on one with no writer does not fail, it
- * *waits*, so a listing would never finish. Measured on Git 2.43.0, with a FIFO
- * at `refs/heads/pipe`:
- *
- * ```
- * $ git show-ref        # lists the other branches and not the FIFO, at once
- * $ git for-each-ref    # the same
- * $ git status          # exits 0
- * $ git gc --prune=now  # exits 0
- * ```
- *
- * and a FIFO inside a subdirectory of `refs/` is skipped with its siblings still
- * listed, so the skip is per entry and not the end of the walk. So Git's listing
- * reads the kind and skips what it cannot read, which is what this does.
- *
- * {@link tryResolve} does *not* skip it, because it reads one file by name and
- * never lists a directory — and neither does Git:
- * `git rev-parse --verify refs/heads/pipe` on that repository blocks until it is
- * killed, and answers the id if something writes one. So the two halves disagree
- * here in the same way and for the same reason as
- * [`todo/symlink-head.md`](./todo/symlink-head.md), which is also where the
- * operation that would close it is.
+ * **The kind is two questions and not one, because `isDirectory` is not
+ * `!isFile`.** A FIFO, a socket, a device and a symlink to anything at all are
+ * every one of them `isFile: false` and `isDirectory: false` in a listing, which
+ * `Dirent` answers without following a link. Reading the second question as the
+ * negation of the first would open a FIFO, and reading it as "skip" would drop a
+ * symlinked ref — so neither answer is in the listing and {@link statted} asks
+ * one more question about exactly those entries. What a listing *can* say it
+ * says, so an ordinary file and an ordinary directory cost nothing more.
  *
  * The read here is the plain one and not {@link tryBytes}: the walk has just
  * been told the file is there, so a read that cannot find it is a race or a
@@ -667,7 +762,7 @@ const refOf = (readRef, resolve, found, name, names) => bytes => {
  * neither lists one twice. In a main worktree both walks read the same
  * directory, and the division is still exactly one walk per name.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], keep: (text: string) => boolean) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], keep: (text: string) => boolean) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
  */
 const looseOf = (dirs, oidBytes, packed, keep) => {
     const readRef = tryRef(oidBytes)
@@ -675,30 +770,9 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
     return item => state => {
         if (state === null) { return pureOk(walked(null, null)) }
         const found = state
-        if (item.isDirectory) {
-            return step(readdir(item.path, {}), entries => {
-                // a name the host answered twice is two files it cannot tell
-                // apart; see the module doc
-                const twice = twiceNamed(entries)
-                return twice === null
-                    ? pureOk(walked(found, entries.map(childOf(item))))
-                    : pureError(ioError({
-                        code: lossyNameCode,
-                        message: lossyNameMessage(item.path, twice),
-                    }))
-            })
-        }
-        // Neither a file nor a directory, so there is nothing here to read as a
-        // ref: skipped, which is what Git's own listing does.
-        if (!item.isFile) { return pureOk(walked(found, null)) }
-        if (!keep(item.name)) { return pureOk(walked(found, null)) }
-        const name = nameBytes(item.name)
-        if (!isWholeName(name)) { return pureOk(walked(found, null)) }
-        // the name is recorded whatever the file turns out to hold, because
-        // that is what shadows the packed line
-        const names = concat(found.names)([name])
-        const read = mapStep(readFile(item.path), toBytes)
-        return step(read, refOf(readRef, resolve, found, name, names))
+        if (item.isDirectory) { return descendInto(item, found) }
+        if (item.isFile) { return readAsRef(readRef, resolve, keep, item, found) }
+        return statted(readRef, resolve, keep, item, found)
     }
 }
 
@@ -917,7 +991,13 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  * Every other name outside `refs/` stays out: {@link tryResolve} answers one by
  * name for a caller that wants it.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
+ * **The operation set includes `stat`.** A listing cannot say what a symlink
+ * finally is — see {@link looseOf} — so an entry whose kind it could not name
+ * costs one `stat`, and an ordinary file or directory costs none. A program on the
+ * node runner notices nothing, since `stat` is a `NodeOp` like the other two;
+ * what has to grow is an interpreter written for exactly the old pair.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Stat | Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
  */
 export const tryRoots = (dirs, oidBytes) => {
     /** @type {_Entry} */
