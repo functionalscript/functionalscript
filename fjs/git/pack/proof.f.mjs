@@ -150,8 +150,10 @@ export const proof = {
     entrySizes: () => {
         for (const size of [0, 1, 15, 16, 17, 127, 128, 2047, 2048, 1048576]) {
             const e = entry([...header(3, size), 0x78, 0x01])
-            assert(e !== null && e.kind === 'object')
-            assertEq(e.size, size)
+            assert(e !== null)
+            const { kind, size: read } = e
+            assertEq(kind, 'object')
+            assertEq(read, size)
         }
     },
     // A `refDelta` names its base by id rather than by distance. Git 2.43.0
@@ -163,9 +165,10 @@ export const proof = {
         const base = id(baseId)
         const e = entry([...header(7, 152), ...idBytes(base), 0x78, 0x01])
         assert(e !== null && e.kind === 'refDelta')
-        assertEq(e.size, 152)
-        assertEq(hex(e.baseId), baseId)
-        assertEq(e.dataAt, 2 + 20)
+        const { size, baseId: named, dataAt } = e
+        assertEq(size, 152)
+        assertEq(hex(named), baseId)
+        assertEq(dataAt, 2 + 20)
     },
     // Type codes 0 and 5 are unused and reserved, so an entry claiming either
     // is refused rather than read as some other kind.
@@ -211,11 +214,12 @@ export const proof = {
         for (const n of [1, 145, 146, 147, 500, 20000]) {
             const e = paddedEntry(n)
             assert(e !== null)
-            assertEq(e.kind, 'object')
-            assertEq(e.size, 1)
+            const { kind, size, dataAt } = e
+            assertEq(kind, 'object')
+            assertEq(size, 1)
             // every padding byte is part of the header, so the stream begins
             // after all of them
-            assertEq(e.dataAt, n + 2)
+            assertEq(dataAt, n + 2)
         }
         // A group that is *not* zero where the scale has run out is a value no
         // repository has, and is still refused — the bound the check is for.
@@ -261,10 +265,10 @@ export const proof = {
         const base = Array.from({ length: 65536 }, (_, i) => i % 251)
         // source 65536, target 6553600, then the hundred bare copies that fill
         // it exactly: the delta is telling the truth about its size
-        const huge = [
+        const huge = /** @type {readonly number[]} */ ([
             ...sizeVarint(65536), ...sizeVarint(6553600),
             ...Array.from({ length: 100 }, () => 0x80),
-        ]
+        ])
         assertEq(tryApplyDelta(base, huge), null)
         // and the largest target it does build, one byte over the bound and one
         // byte under it, with the instructions that would fill it
