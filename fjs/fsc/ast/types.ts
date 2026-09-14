@@ -92,3 +92,12 @@ export type Denotation = Sharing & { readonly value: Unknown }
 
 /** An imported module as the sweep sees it: what it denotes, under the id an importer names it by — its resolved path. */
 export type Import = Denotation & { readonly id: string }
+
+/**
+ * What the export does not reach, each by index: the body entries no chain
+ * of references from the last entry leads to, and the imports likewise.
+ */
+export type Unreached = {
+    readonly consts: readonly number[]
+    readonly imports: readonly number[]
+}

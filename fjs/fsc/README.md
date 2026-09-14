@@ -49,6 +49,23 @@ position with its last value, integer-like keys first — and the EDAG object
 constructor takes the members as written, which only the syntax still has.
 See [examples/input.f.mjs](./examples/input.f.mjs).
 
+## EDAG
+
+A parsed module also compiles to an [EDAG](../edag/README.md) over its
+imports, before any import is read — [edag/module.f.mjs](./edag/module.f.mjs),
+the first half of Stage 1 in
+[compile-modules-to-edag](./todo/compile-modules-to-edag.md). Import `i` is
+the parameter `['.', ['args'], i]`, a `const` is one node however many
+references reach it, and the export is the root; the specifiers ride beside
+the graph as `Unresolved`, a compiler's structure and no part of EDAG, until
+resolution binds each import's own EDAG in its parameter's place. A module
+whose export does not reach every import and every `const` is refused rather
+than compiled: `transpile` reads and `run` evaluates them all today, and an
+EDAG has no operation yet to anchor a computation whose value nothing takes.
+A member a later duplicate shadows is in the graph, since the constructor
+applies every member written, so a reference in it is reached here where the
+sharing decision, which reads the value, does not count it.
+
 ## Both grammars are LL(1)
 
 The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs),
