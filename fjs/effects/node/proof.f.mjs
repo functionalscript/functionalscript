@@ -1,21 +1,44 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoChannel, IoError, IoResult, ReadFile } from "./types.ts"
+ * @import { IoChannel, IoError, IoResult, ReadBytes, ReadFile, Stat } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { OperationMap } from "../types.ts"
+ * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { empty, isVec, maxLengthBytes, msb, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, shortReadCode } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
+import { run } from '../mock/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
+
+/** How many bytes of a file one `readBytes` may take. */
+const window = Number(maxLengthBytes)
+
+/**
+ * A host holding one file `f`: `stat` answers its length and `readBytes` the
+ * slice asked for, which is what {@link readWholeBytes} composes.
+ *
+ * @type {(bytes: readonly number[]) => MemOperationMap<ReadBytes | Stat, readonly string[]>}
+ */
+const sizedHost = bytes => ({
+    stat: path => log => [
+        [...log, `stat ${path}`],
+        ok({ size: bytes.length, isFile: true, isDirectory: false }),
+    ],
+    readBytes: (path, at, size) => log => [
+        [...log, `readBytes ${path} ${at}`],
+        ok(u8ListToVec(msb)(bytes.slice(at, at + size))),
+    ],
+})
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
@@ -499,6 +522,59 @@ export const proof = {
         missingFile: () => {
             const [_, [t, result]] = virtual(emptyState)(readBytes('missing', 0, 4))
             assert(t === 'error', result)
+        },
+    },
+    readWholeBytes: {
+        // A file of one window and a file of more than one read the same, and
+        // the windows are asked for in order from a `stat`'s length.
+        whole: () => {
+            for (const size of [0, 1, 5, window + 1, window * 2, window * 2 + 3]) {
+                const bytes = Array.from({ length: size }, (_, i) => i % 251)
+                const [log, r] = run(sizedHost(bytes))([])(readWholeBytes('f'))
+                assert(r[0] === 'ok', r)
+                assertStructurallySame(toArray(r[1]), bytes)
+                assertStructurallySame(log, [
+                    'stat f',
+                    ...Array.from({ length: Math.ceil(size / window) }, (_, k) => `readBytes f ${k * window}`),
+                ])
+            }
+        },
+        // A window that comes back short of the end of the file is refused, not
+        // carried on from the next fixed window start — which would skip the
+        // bytes the host did not answer and hand a parser a file with a run
+        // missing out of its middle, so a file its own writer wrote would be
+        // reported malformed.
+        //
+        // One `read` is allowed to answer short: measured on node 22, a
+        // positional read of `/proc/self/maps` answers 4,007 bytes for a 1 MiB
+        // request and 4,034 more at the next offset, while a regular local file
+        // filled the buffer and came back short only at its end. The node runner
+        // fills the window for that reason, so this is about every other host.
+        shortWindow: () => {
+            const bytes = Array.from({ length: window * 2 }, (_, i) => i % 251)
+            const whole = sizedHost(bytes)
+            /** @type {MemOperationMap<ReadBytes | Stat, readonly string[]>} */
+            const host = {
+                ...whole,
+                // one byte less than asked for, on the first window only
+                readBytes: (path, at, size) => whole.readBytes(path, at, at === 0 ? size - 1 : size),
+            }
+            const [log, r] = run(host)([])(readWholeBytes('f'))
+            assert(r[0] === 'error')
+            const e = r[1]
+            assert(e[0] === 'ioError')
+            assertEq(e[1].code, shortReadCode)
+            assertEq(e[1].message, `f:0 ${window - 1} bytes of ${window}`)
+            // and the second window is never asked for
+            assertStructurallySame(log, ['stat f', 'readBytes f 0'])
+        },
+        // The last window is legitimately short, and is not refused: it is the
+        // one whose own length is less than the allowance.
+        lastWindowIsShort: () => {
+            const bytes = Array.from({ length: window + 1 }, (_, i) => i % 251)
+            const [, r] = run(sizedHost(bytes))([])(readWholeBytes('f'))
+            assert(r[0] === 'ok', r)
+            assertEq(toArray(r[1]).length, window + 1)
         },
     },
     randomInt: {

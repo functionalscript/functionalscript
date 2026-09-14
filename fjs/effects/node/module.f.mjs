@@ -20,20 +20,21 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
+ * @import { List as List_ } from '../../types/list/types.ts'
  * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { reverse } from '../../types/list/module.f.mjs'
-import { length } from '../../types/bit_vec/module.f.mjs'
+import { concat, reverse } from '../../types/list/module.f.mjs'
+import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
-    mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    foldStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
@@ -320,6 +321,91 @@ export const writeFromStream = (path, e) =>
 
 /** @type {Func<Stat>} */
 export const stat = do_('stat')
+
+/**
+ * How many bytes of a file one {@link readBytes} may take: a `Vec` holds 2^20
+ * bits, and the operation refuses a larger window before a host sees it.
+ */
+const windowBytes = Number(maxLengthBytes)
+
+/**
+ * The code {@link readWholeBytes} refuses with when a window comes back short of
+ * the end of the file.
+ */
+export const shortReadCode = /** @type {const} */ ('ERR_SHORT_READ')
+
+/**
+ * Where each window of a file of this length begins.
+ *
+ * @type {(size: number) => List_<number>}
+ */
+const windowsOf = size => Array.from({ length: Math.ceil(size / windowBytes) }, (_, k) => k * windowBytes)
+
+/**
+ * One window of a file, appended to the bytes already read.
+ *
+ * The window asked for is the whole allowance every time, even for the last one:
+ * a read answers what is there and stops at the end of the file, so the length
+ * decides itself and no arithmetic has to agree with it.
+ *
+ * **A window that comes back short of the end of the file is refused, not
+ * ignored.** The sentence above is a claim about the host, and one `read` is not
+ * obliged to honour it: a positional read of `/proc/self/maps` answers 4,007
+ * bytes for a 1 MiB request and 4,034 more at the next offset, measured on node
+ * 22, and a network or virtual filesystem may answer short for a file a caller
+ * believes is ordinary. [The node runner](./module.mjs) fills the window for that
+ * reason, so on that host a short answer does mean the end of the file — but this
+ * runs on whatever host it is given, and the window starts are fixed multiples of
+ * the allowance, so a host that answered short would leave a gap the next window
+ * skips over. The bytes would then be a file missing a run out of its middle, and
+ * whatever parses them would call a file its own format's writer wrote malformed:
+ * a wrong diagnosis out of a silent loss.
+ *
+ * A file that shrinks between the `stat` and the reads is refused by the same
+ * check, and it is the same thing: the bytes no longer cover what was measured.
+ *
+ * @type {(path: string, size: number) => (at: number) => (bytes: List_<number>) => Effect<ReadBytes, List_<number>, IoChannel>}
+ */
+const windowOf = (path, size) => at => {
+    // The allowance, or what is left of the file where that is less — which is
+    // only the last window, and is why the read may legitimately come back short
+    // of what it asked for.
+    const want = Math.min(windowBytes, size - at)
+    return bytes => ioStep(
+        readBytes(path, at, windowBytes),
+        v => {
+            const got = Number(length(v)) / 8
+            return got < want
+                ? pureError(ioError({
+                    code: shortReadCode,
+                    message: `${path}:${at} ${got} bytes of ${want}`,
+                }))
+                : pureOk(concat(bytes)(u8List(msb)(v)))
+        })
+}
+
+/**
+ * A whole file as a byte *list*, read in windows.
+ *
+ * **{@link readFile} cannot read a large file, and that bound is the `Vec`'s
+ * rather than the format's.** It answers a `Vec`, 128 KiB at most, and the node
+ * runner refuses a larger file before reading it — so any format whose files
+ * outgrow that is unreadable through it. A byte list has no such bound:
+ * {@link readBytes} fills it a window at a time and `concat` joins the windows
+ * without copying either side, so a parser that reads a list reads any size.
+ *
+ * The bound that remains is memory and the host's own: the whole file is held
+ * while it is parsed.
+ *
+ * @type {(path: string) => Effect<Stat | ReadBytes, List_<number>, IoChannel>}
+ */
+export const readWholeBytes = path => {
+    const sized = ioMapStep(stat(path), s => s.size)
+    return ioStep(sized, size => foldStep(
+        pureOk(windowsOf(size)),
+        /** @type {List_<number>} */ (null),
+        windowOf(path, size)))
+}
 
 // createServer
 
