@@ -187,6 +187,20 @@ export const proof = {
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.f.mjs'), 'export default {"a":undefined};')
         },
+        // a property access compiles to the EDAG, and the value outputs
+        // refuse it until what it denotes as a value is decided
+        access: () => {
+            const root = { 'input.f.js': [utf8('const a = { b: 1 }; export default a.b;')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.js'), 'export default [".",["{}",[[":","b",1]]],"b"];')
+            for (const output of ['output.f.js', 'output.json']) {
+                const [refusedState, refusedCode] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+                assertEq(exitCode(refusedCode), 1)
+                assertEq(refusedState.stderr.trim(), 'input.f.js - error: property access is compiled to the EDAG only')
+                assertEq(refusedState.root[output], undefined)
+            }
+        },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written; a missing import likewise
         refused: () => {

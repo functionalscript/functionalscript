@@ -348,6 +348,50 @@ export const proof = {
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
     },
+    // A property access is `['.', base, key]`, the base a reference and the
+    // accesses before it, the key the constant written; a key naming the
+    // prototype chain is refused at the key, in either spelling, and the
+    // errors come in document order as everywhere else.
+    access: {
+        forms: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('const a = {}; export default a.b;', '[[],[["object",[]],[".",["cref",0],"b"]]]')
+            expect('const a = {}; export default a["b c"];', '[[],[["object",[]],[".",["cref",0],"b c"]]]')
+            expect('const a = []; export default a[0];', '[[],[["array",[]],[".",["cref",0],0]]]')
+            expect('const a = []; export default a[-1.5];', '[[],[["array",[]],[".",["cref",0],-1.5]]]')
+            expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],[".",[".",[".",["cref",0],"b"],1],"default"]]]')
+            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[["./m.f.js"],[["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]')
+        },
+        prohibited: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'prohibited property name')
+                assertEq(value.metadata?.column, column)
+            }
+            expect('const a = {}; export default a.__proto__;', 32)
+            expect('const a = {}; export default a["__proto__"];', 32)
+            expect('const a = {}; export default a.constructor;', 32)
+            expect('const a = {}; export default a["constructor"];', 32)
+            expect('const a = {}; export default a.b.constructor.c;', 34)
+        },
+        // the base is resolved first, so an unbound base is reported before
+        // a prohibited key, and a prohibited key before an unbound name after it
+        order: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('export default [b.__proto__, a];'))
+            assert(tag === 'error', tag)
+            assertEq(`${value.message} at ${value.metadata?.column}`, 'const not found at 17')
+            const [tag2, value2] = parseFromTokens(tokenizeString('const b = {}; export default [b.__proto__, a];'))
+            assert(tag2 === 'error', tag2)
+            assertEq(`${value2.message} at ${value2.metadata?.column}`, 'prohibited property name at 33')
+        },
+    },
     memberOrder: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)

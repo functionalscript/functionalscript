@@ -89,6 +89,14 @@ export const proof = {
         assert(b instanceof Array && b[0] === ':' && b[2] instanceof Array && b[2][0] === '[]', b)
         assert(b[2][1][0] === a, edag)
     },
+    // a property access is the EDAG's own form, its key the constant written
+    access: () => {
+        expectEdag(compile('const a = { b: [1] }; export default a.b;').edag, ['.', ['{}', [[':', 'b', ['[]', [1]]]]], 'b'])
+        expectEdag(compile('const a = [[1]]; export default a[0][0];').edag, ['.', ['.', ['[]', [['[]', [1]]]], 0], 0])
+        expectEdag(compile('import m from "./m.f.js"; export default m["x"].y;').edag, ['.', ['.', ['.', ['args'], 0], 'x'], 'y'])
+        const root = { 'a.f.js': file('import m from "./m.f.js"; export default m.x;'), 'm.f.js': file('export default { x: 1 };') }
+        expectEdag(program(root)('a.f.js'), ['.', ['{}', [[':', 'x', 1]]], 'x'])
+    },
     // imports take their positions from the source, and one import is one
     // parameter node however many references reach it
     parameters: () => {
