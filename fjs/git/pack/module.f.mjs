@@ -363,11 +363,12 @@ const maxTargetBytes = Number(maxLengthBytes)
  * declared; it does nothing about one that declares the amplification honestly.
  * A hundred bytes of copy instructions against a 64 KiB base can name 6.5 MB and
  * be telling the truth, and measured on node 22 that read raised RSS from 54 MiB
- * to 222 MiB — a byte of object costs about ten of heap here, since `Bytes` is a
- * list of numbers and the pieces are held while they are joined. Joining them
- * differently does not help: the same delta through `toArray(named).flat()`
- * instead of a list flatten runs faster, 246 ms against 747, and dies at exactly
- * the same size — under a 256 MiB heap both build 6.5 MB and neither builds 25.
+ * to 222 MiB — a byte of object costs about eight of heap here, measured over
+ * 20,000 byte values, since `Bytes` is a list of numbers and the pieces are held
+ * while they are joined. Joining them differently does not help: the same delta
+ * through `toArray(named).flat()` instead of a list flatten runs faster, 246 ms
+ * against 747, and dies at exactly the same size — under a 256 MiB heap both
+ * build 6.5 MB and neither builds 25.
  *
  * So the answer is a ceiling rather than a cleverer join, and the ceiling is the
  * one the rest of this layer already has: `inflate` and `readFile` each answer a

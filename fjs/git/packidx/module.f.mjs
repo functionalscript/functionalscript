@@ -311,12 +311,22 @@ const tryV2 = (b, oidBytes) => {
  * not 2, a fanout that disagrees with the ids, or an 8-byte offset too large to
  * be one.
  *
- * **That is a stricter subset than Git's, in one place, on purpose.** A version 2
- * index whose 8-byte offset table is longer than any 4-byte word refers to is a
- * file Git reads and this refuses — see {@link tryV2}, where the reason is that
- * the spare block turns an index *past* the table into one inside it and the
- * garbage there reads as an offset. So `null` here means "not one of the indexes
- * this reads", and a caller that needs Git's exact set needs that case too.
+ * **That is a stricter subset than Git's, in three places, each on purpose.**
+ * Each is a file Git reads and this refuses, measured on a 42-object index:
+ *
+ * - a version 2 index whose 8-byte offset table is longer than any 4-byte word
+ *   refers to — see {@link tryV2}: the spare block turns an index *past* the
+ *   table into one inside it, and the garbage there reads as an offset;
+ * - a file whose own trailing checksum does not match its bytes — Git maps the
+ *   file and trusts it, verifying only under `index-pack --strict` and
+ *   `verify-pack`, and reads all 42 objects out of a corrupted one where this
+ *   answers `null`. See {@link checksumAgrees} for why the price is paid here;
+ * - a file whose ids do not ascend inside a fanout bucket — Git's bisection
+ *   leans on the order without re-deriving it and still found 41 of the 42,
+ *   quietly missing one, where this answers `null`. See {@link fanoutAgrees}.
+ *
+ * So `null` here means "not one of the indexes this reads", and a caller that
+ * needs Git's exact set needs all three cases.
  *
  * The width is the repository's, the same argument every reader here takes,
  * and reading a SHA-256 index at 20 bytes refuses rather than mis-parses —

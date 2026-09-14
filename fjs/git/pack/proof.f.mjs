@@ -263,7 +263,7 @@ export const proof = {
     // declared; this is the one that declares the amplification honestly — a
     // hundred bare copies against a 64 KiB base name 6.5 MB and are telling the
     // truth. Measured on node 22, that read cost 168 MiB of RSS and a byte of
-    // object costs about ten of heap, so the ceiling is the one `inflate` and
+    // object costs about eight of heap, so the ceiling is the one `inflate` and
     // `readFile` already put on every other object here: 128 KiB.
     applyDeltaTooLarge: () => {
         const base = Array.from({ length: 65536 }, (_, i) => i % 251)

@@ -7,11 +7,12 @@
 
 [`tryIdx`](../module.f.mjs) answers an [`Idx`](../types.ts) whose `ids` is an
 array of `Oid`, so every id in the file becomes a bit vector — a `bigint` — as
-the file is read. A lookup then uses `Math.floor(n / 2)` of them and none of the
-rest.
+the file is read. A lookup is a bisection and visits about `log2(n)` of them,
+so every one of the rest was built for nothing.
 
-Measured at `fe723022`, on node 22, over a synthetic 100,000-object version 2
-index of 2.80 MB:
+Measured at `fe723022` — a commit of the branch of #2026, which stays reachable
+through that pull request's refs after a squash — on node 22, over a synthetic
+100,000-object version 2 index of 2.80 MB:
 
 | step | cost |
 | --- | --- |

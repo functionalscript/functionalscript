@@ -34,9 +34,10 @@ That is the right first step and the wrong last one, for two reasons:
   copy instructions against a 64 KiB base can truthfully name 6.5 MB, which is
   arithmetic on the format rather than a measurement. What that costs is the
   measurement, and it is an order of magnitude more heap than bytes: at
-  `fe723022` on node 22, 20,000 byte values held as a list of numbers cost about
-  156 KiB of heap, eight bytes per byte — so such an object is tens of
-  megabytes live, and the build peaks well above it while it is joined. Without
+  `fe723022` (a commit of #2026's branch) on node 22, 20,000 byte values held
+  as a list of numbers cost about 156 KiB of heap, eight bytes per byte — so
+  such an object is tens of megabytes live, and the build peaks well above it
+  while it is joined. Without
   the ceiling the delta path would build objects the loose path beside it cannot
   read. So this issue lifts three bounds at once, and the delta's is the one
   that also wants a representation cheaper than a number per byte.

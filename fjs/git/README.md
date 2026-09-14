@@ -405,8 +405,12 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   boundary: the host's `inflate` takes a `Vec` and gives one, and
   `readFile` ahead of it takes one too, so a loose object is refused on
   either side of its stream — a file over the bound before inflating, a
-  stream that inflates past it — and never cut short. The inflater issue
-  lifts both sides.
+  stream that inflates past it — and never cut short. A delta's *output* has a
+  third bound of the same size: [`pack/`](pack/module.f.mjs)'s `tryApplyDelta`
+  refuses a declared target over 128 KiB, since a hundred bytes of copy
+  instructions against a 64 KiB base can honestly name 6.5 MB. The inflater
+  issue lifts all three — [`todo/inflate.md`](../../todo/inflate.md) says so in
+  the same words.
 
   A *whole file* is not bound by it any more, which is the half that used to
   fail on ordinary repositories rather than extreme ones.
