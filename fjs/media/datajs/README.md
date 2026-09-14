@@ -20,19 +20,97 @@ resolution                parser/parse: the statements in order, each const boun
 Unknown                   the graph the document denotes, sharing included
 ```
 
-The reader is [`parser/module.f.mjs`](./parser/module.f.mjs), the writer
-[`serializer/module.f.mjs`](./serializer/module.f.mjs), and the value types
-are in [`types.ts`](./types.ts). The reader takes either surface — `parse` over
-code units, `parseBytes` over UTF-8 bytes, which owes the two document rules a
-string cannot carry. What remains of the codec is two issues: this directory's
-own public `module.f.mjs`, in
-[`todo/parser-serializer.md`](./todo/parser-serializer.md), and what the
-writer still owes, in
-[`todo/serializer.md`](./todo/serializer.md). The codec's proofs come
-from the conformance corpus, [`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
+The public surface is [`module.f.mjs`](./module.f.mjs): `tryParse` and
+`tryParseBytes` read a document into the value it denotes, `trySerialize` and
+`tryStringify` write a value as one, and the value types are in
+[`types.ts`](./types.ts). The reader lives in
+[`parser/module.f.mjs`](./parser/module.f.mjs) and the writer in
+[`serializer/module.f.mjs`](./serializer/module.f.mjs). Neither owes
+anything further: both issues are retired into this file, which keeps what
+they decided. The codec's proofs come from the conformance corpus,
+[`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
 [`vectors/`](./vectors/module.f.mjs) holds the record types the corpus is
 typed with and `difference`, the sharing-aware comparison a proof over it
 uses.
+
+## Every entry point is fallible, and the names say so
+
+```text
+fjs/media/datajs/
+    module.f.mjs      the public surface: the four entry points below
+    types.ts          Primitive, Unknown
+    parser/           the reader — tryParse over code units, tryParseBytes over bytes
+    serializer/       the writer — trySerialize as chunks, tryStringify as one string
+    vectors/          the corpus's record types, and difference
+```
+
+A caller may legitimately hand a reader text that is no document, and a
+writer a value its type cannot see the whole of, so each entry point returns
+a `Result` and refuses rather than approximating — a reader says where the
+parse failed or which rule the document breaks, a writer names what it could
+not write:
+
+```ts
+export const tryParse:      (text: string)    => Result<Unknown, string>
+export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
+export const trySerialize:  (value: Unknown)  => Result<List<string>, string>
+export const tryStringify:  (value: Unknown)  => Result<string, string>
+```
+
+**The writer takes the data model's `Unknown`, not `unknown`.** Its first
+draft took `unknown`, on the ground that refusing what is outside the model is
+the writer's job and a signature taking `Unknown` would assert what the writer
+has to check. That left a gap nothing could close: a corpus set is a DataJS
+data module, so no vector can carry a function, an accessor or a cycle, and
+[`fjs/AGENTS.md`](../../AGENTS.md) §1.6 keeps host-built values out of a
+`.f.mjs` proof, so the refusals only a host can reach had no proof but the one
+over the data such a value would carry. Narrowing the parameter closes it. The
+type is the contract at the call — a FunctionalScript caller cannot hand the
+writer a value outside the model — and what the type cannot see is still
+refused, a hole, a symbol key, an accessor, a non-enumerable property, an
+extra own property on an array, a non-plain object, a cycle, because the
+specification refuses each and a host that casts is owed a refusal rather
+than a wrong document. The writer's proof hands it those values cast, as a
+host boundary would.
+
+The prefix is one decision for all four, taken when the surface landed: the
+reader's two had landed bare, and renaming half of the names before the
+surface existed would have been the inconsistency the surface exists to
+settle. There is no `tokenizer/` — the grammar is the reader, below — and no
+`tryNormalize`, because the one writer *is* the normalized one.
+
+**The byte path is a conformance obligation, not a convenience.** Two rules of
+the specification's §Encoding cannot be reached from a string at all — a
+document **is UTF-8**, and it **has no BOM** — since by the time input is a
+JavaScript string every byte sequence is some sequence of code units and a
+leading BOM is one ordinary character among them. `tryParseBytes` decodes with
+[`fjs/text/utf8`](../../text/utf8/module.f.mjs), refuses what is not correct
+UTF-8, **refuses** a leading `EF BB BF` — a BOM makes the bytes invalid, it is
+not something to strip on the way in, and stripping is exactly the defect the
+corpus's vector catches — and then re-encodes to the code units the grammar
+reads, so a four-byte scalar such as `😀` reaches the reader as the pair
+`D83D DE00`. One reader over one alphabet; the bridge is the decoder's.
+
+## One type-level trap in the value domain
+
+`Unknown` is `Tree<Primitive>` over [JSON's tree type](../json/types.ts), with
+`undefined` among the leaves, and the optional index signature of
+`TreeObject<P>` makes **`{a: undefined}` and `{}` the same type** where the
+specification makes them different documents:
+
+```js
+export default {"a":undefined};   // an object with one member
+export default {};                // an object with none
+```
+
+Only the runtime enumerator tells them apart, which is a proof obligation on
+each side rather than a note. The reader builds a member holding `undefined`
+as a present property — through `Object.fromEntries`, which no type checks, so
+its proof pins it. The writer reads an object through its own property
+descriptors, not through `definedEntries`, which drops such a member before
+any other seam runs, and not through `Object.entries`, which invokes a getter
+while collecting its value — the next two sections say why that one mechanism
+answers both.
 
 ## The writer reads the value into a graph first
 
@@ -68,6 +146,24 @@ against that data directly. They carry the `_` prefix because that export is
 linkage rather than API: `trySerialize` and `tryStringify` are what the
 module promises.
 
+Both passes keep the reader's depth contract, so a document the reader
+accepts is one the writer writes back. The read walks an explicit stack, a
+frame per container being read, as the reader's resolution does. The write
+needs none: the linked graph is in post-order, so each node's chunks are
+built from the chunks of nodes already built, and a reference to an inline
+node is a thunk over that node's chunks, forced only as the document is read
+out — which the list's iteration does without recursion.
+
+Neither pass squares the number of containers. The set of containers entered
+grows by one per container, and `new Set([...prev, value])` would copy every
+container so far each time, so it is [`fjs/types/set`](../../types/set/module.f.mjs),
+a persistent set whose add carries like a binary counter and costs a
+logarithm amortized; and which nodes are shared is read off the sorted
+reference occurrences rather than by an `indexOf` per occurrence. `fjs
+compile` writes every module through this writer, which is why a document
+with a hundred thousand containers has to be a second's work rather than a
+minute's.
+
 ## Nothing is read before it is known to be data
 
 Reading the caller's graph means following its edges, and following an edge
@@ -97,9 +193,12 @@ gets wrong. The consts are named `$0`, `$1`, … in emission order, which is
 post-order, so a name is declared before it is used.
 
 Normalized form being the only layout is why there is no separate
-`tryNormalize`: the two would be one function. A readable layout is the
-second writer the specification's freedom is for, and
-[`todo/serializer.md`](./todo/serializer.md) is where it is tracked.
+`tryNormalize`: the two would be one function. A readable layout — one
+statement per line, indented containers, the default the specification
+recommends for tooling — is the second writer that freedom is for, and it is
+decided not to exist for now: normalized form is what the compiler and
+hashing need, and nothing asks for another layout. When something does, it is
+a new issue, and `tryNormalize` then names this writer.
 
 ## The grammar is the reader
 

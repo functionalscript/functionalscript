@@ -5,8 +5,7 @@
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
-import { parse } from '../../../../fjs/media/datajs/parser/module.f.mjs'
-import { tryStringify } from '../../../../fjs/media/datajs/serializer/module.f.mjs'
+import { tryParse, tryStringify } from '../../../../fjs/media/datajs/module.f.mjs'
 import graphEquivalence from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -28,7 +27,7 @@ const named = (vector, name) => {
 
 /** The graph a document denotes, or a failure naming the vector and the document. @type {(id: string, document: string) => Unknown} */
 const read = (id, document) => {
-    const [tag, result] = parse(document)
+    const [tag, result] = tryParse(document)
     assert(tag === 'ok', `${id}: ${JSON.stringify(document)} is not a document the reader takes: ${String(result)}`)
     return /** @type {Unknown} */ (result)
 }

@@ -149,7 +149,7 @@
  */
 
 import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
@@ -202,11 +202,21 @@ const sameName = (a, b) => {
 }
 
 /**
- * The bytes of a file, or `null` where there is none.
+ * The bytes of a file, or `null` where there is no loose *file* at that name.
  *
  * A missing file is an answer here rather than a failure: a repository with
  * nothing packed has no `packed-refs`, and one whose refs are all packed has
  * an empty `refs/`. Every other error is the channel's.
+ *
+ * **A directory at the name is that same answer, and not a failure.** A ref name
+ * can be a prefix of other ref names, so `refs/heads` is both a name a
+ * `packed-refs` line may carry and the directory the loose ones live in — and
+ * node answers `EISDIR` for a read of it. Measured on Git 2.43.0 with
+ * `<id> refs/heads` packed: `git rev-parse --verify refs/heads` answers the id
+ * and `git show-ref` lists it beside `refs/heads/master`. Forgiving only `ENOENT`
+ * turned that into a channel error, so a name Git resolves could not be resolved
+ * here at all — and the rule this function is stating is "no loose file shadows
+ * the packed line", which a directory does not.
  *
  * A ref file is one line — an id and a newline, or `ref:` and a name — so this
  * reads it whole through {@link readFile}, whose answer is a `Vec` and so is
@@ -220,7 +230,7 @@ const sameName = (a, b) => {
 const tryBytes = path =>
     catchStep(
         mapStep(readFile(path), toBytes),
-        e => isNotFound(e) ? pureOk(null) : pureError(e))
+        e => isNotFound(e) || isDirectory(e) ? pureOk(null) : pureError(e))
 
 /**
  * The same, for a file with no bound on its size: read in windows rather than

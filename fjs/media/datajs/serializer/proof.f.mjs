@@ -9,15 +9,24 @@ import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { parse } from '../parser/module.f.mjs'
+import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
 import { _elementNames, _link, _memberValue, trySerialize, tryStringify } from './module.f.mjs'
 
+/**
+ * A value as a host would hand it: the writer's parameter is the data
+ * model's `Unknown`, and what this proof refuses is outside the model, so it
+ * reaches the writer cast, as a host boundary would hand it.
+ *
+ * @type {(value: unknown) => Unknown}
+ */
+const asHanded = value => /** @type {Unknown} */ (value)
+
 /** The document a value is written as. @type {(value: unknown) => string} */
-const text = value => unwrap(tryStringify(value))
+const text = value => unwrap(tryStringify(asHanded(value)))
 
 /** Why a value is refused. Throws the document if it is written instead. @type {(value: unknown) => string} */
-const refused = value => unwrap(invert(tryStringify(value)))
+const refused = value => unwrap(invert(tryStringify(asHanded(value))))
 
 /**
  * Whether every code point of a document is a scalar value — no unpaired
@@ -45,7 +54,7 @@ const isUtf8 = text => toArray(stringToCodePointList(text)).every(codePoint => (
 const denotes = value => {
     const document = text(value)
     assert(isUtf8(document), document)
-    assertEq(difference(value)(unwrap(parse(document))), null)
+    assertEq(difference(value)(unwrap(tryParse(document))), null)
 }
 
 /** An empty array a `const` may hold, which `[]` alone types as an evolving array. @type {Unknown} */
@@ -274,5 +283,29 @@ export const proof = {
         const value = [1, { a: 2 }]
         assertEq(concat(unwrap(trySerialize(value))), text(value))
         assertEq(text(value), 'export default [1,{"a":2}];')
+    },
+    // Nesting depth is the input's, not the call stack's: the read walks an
+    // explicit stack and the write reads the linked graph in its post-order,
+    // so both keep the reader's 5,000-level contract and a document the
+    // reader accepts is one the writer writes back. Pinned at four times the
+    // contract, so that a regression costing one call frame per level — which
+    // 5,000 levels would survive — is caught.
+    depth: {
+        writesBack: () => {
+            const n = 20000
+            const document = `export default ${'['.repeat(n)}${']'.repeat(n)};`
+            assertEq(text(unwrap(tryParse(document))), document)
+        },
+        // 2,600 nested arrays is the input that used to throw `RangeError`
+        // out of both passes. A refusal below them is an `error`, as a
+        // `try*` promises, and the sharing a deep chain takes part in is
+        // hoisted as any other.
+        below: () => {
+            /** @type {(depth: number, bottom: unknown) => unknown} */
+            const nested = (depth, bottom) => Array.from({ length: depth }).reduce(v => [v], bottom)
+            assertEq(refused(nested(2600, () => 1)), 'a function is not a DataJS value')
+            const chain = nested(2600, emptyArray)
+            assertEq(text([chain, chain]).slice(0, 12), 'const $0=[[[')
+        },
     },
 }

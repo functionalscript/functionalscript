@@ -2,10 +2,8 @@
 
 **Priority:** P1 — stage 4 is urgent and stage 1b, which feeds it, has landed;
 see [Priority](#priority-stages-3-and-4-come-first).
-**Status:** wip — stages 1a, 1b, 2, 3, 5, 6 and 7 done. **Stage 4 is what is
-left**: its proof source exists now, in
-[`spec/datajs/vectors`](../spec/datajs/vectors/README.md); stage 4's grammar
-route consumes nothing from stage 3.
+**Status:** done — every stage, 4 included, has landed; what is left below is
+this file's own bookkeeping, and the file itself goes with it.
 Stage 5 is done in all three parts: 5a, the rename; 5b, the syntax and the
 special numbers; and 5c, the tokenizer's types and helpers off the hand-written
 scanner. Stage 6 is done: the compiler writes normalized DataJS, refuses what
@@ -66,23 +64,23 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    It is P1 and gates stage 4, where 3b is P2 with its error shapes undecided,
    and it is blocked on nothing — it needs no DataJS reader, and it does not
    care whether that reader is eventually hand-written or generated.
-3. **Then: stage 4, `fjs/media/datajs`.** Design is filed:
-   [`fjs/media/datajs/todo/parser-serializer.md`](../fjs/media/datajs/todo/parser-serializer.md).
-   The normative
+3. **Then: stage 4, `fjs/media/datajs`.** The normative
    behavior is already settled in
    [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
    spec, it does not redesign it. Its first task, the decision the stage list
    below states, is made and its reader landed: the grammar at
    `fjs/ebnf/lib/datajs` mapped to values by `fjs/media/datajs/parser`, the
    token-driven container machine retired for this format rather than widened,
-   so JSON's parser seam is no prerequisite. Its byte path has landed too, so
-   what remains there is the directory's public `module.f.mjs`. The
-   writer is
-   [`fjs/media/datajs/todo/serializer.md`](../fjs/media/datajs/todo/serializer.md),
-   split out of it, and has landed as
+   so JSON's parser seam is no prerequisite. Its byte path and the directory's
+   public `module.f.mjs` have landed too, so the reader's issue is retired into
+   [the module README](../fjs/media/datajs/README.md), which keeps the public
+   surface and the value domain. The
+   writer's issue was split out of it, and the writer has landed as
    [`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs) —
-   normalized form included — leaving that issue the corpus proofs and the
-   module's own public surface.
+   normalized form included, the corpus proofs run, both passes keeping the
+   reader's depth contract at the cost of a sort. That issue is retired into
+   the module README too, with the readable layout decided against for now
+   and the writer's parameter narrowed to the data model's `Unknown`.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
 4. **Then stages 5–7**, in order, as listed below. Stages 5 and 6 are done —
@@ -220,8 +218,9 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   three issues written against the withdrawn rule — bnf-grammar-single-owner
   (since retired, its grammars at `fjs/ebnf/lib`),
   [207-bnf-semantic-actions](../fjs/ebnf/todo/207-bnf-semantic-actions.md) and
-  [`fjs/media/datajs`](../fjs/media/datajs/todo/parser-serializer.md) — were
-  edited to match rather than left to be read as live instructions.
+  [`fjs/media/datajs`](../fjs/media/datajs/README.md), whose issue has since
+  been retired — were edited to match rather than left to be read as live
+  instructions.
 
 ### The DataJS format (decision record)
 
@@ -645,7 +644,7 @@ throughout.
    widened `value` thunk needs like JSON's; the token route keeps it by
    construction and is what today's code is shaped for.
    It is settled, above, and recorded in
-   [its own issue](../fjs/media/datajs/todo/parser-serializer.md).
+   [the module README](../fjs/media/datajs/README.md).
 
    The serializer is unaffected either way, since nothing generates one from a
    grammar. It is the shared walker of
@@ -871,12 +870,13 @@ throughout.
       `fjs/ebnf/lib/json`, the container machine retired; the public
       `tokenize` that remained beside it, retired with the scanner in
       stage 7, so its error shapes were never owed.
-- [ ] Stage 4: `fjs/media/datajs`; todo filed, reader, byte path and serializer
-      landed on the grammar route, with the proofs over
-      [the corpus](../spec/datajs/vectors/README.md) running on both sides. What
-      remains is the public `fjs/media/datajs/module.f.mjs` surface, which the
-      overview above and both co-located issues still owe, and the `parse` versus
-      `tryParse` naming it carries.
+- [x] Stage 4: `fjs/media/datajs`; reader, byte path, serializer and the public
+      `module.f.mjs` landed on the grammar route, with the proofs over
+      [the corpus](../spec/datajs/vectors/README.md) running on both sides and
+      the four names settled as `try*`. Both co-located issues are retired
+      into [the module README](../fjs/media/datajs/README.md), the writer's
+      last with its two decisions taken there: no readable layout for now,
+      and the parameter narrowed to the data model's `Unknown`.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths.

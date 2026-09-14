@@ -14,21 +14,21 @@ import { unwrap } from '../../../types/result/module.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { value } from '../../../ebnf/lib/datajs/module.f.mjs'
-import { mappings, parse, parseBytes } from './module.f.mjs'
+import { mappings, tryParse, tryParseBytes } from './module.f.mjs'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object
 
 /** The value a document spells, where it spells one. @type {(text: string) => Unknown} */
-const parsed = text => unwrap(parse(text))
+const parsed = text => unwrap(tryParse(text))
 
 /** The value `export default` of a text is. @type {(text: string) => Unknown} */
 const exported = text => parsed(`export default ${text};`)
 
 /** @type {(text: string) => Result<Unknown, string>} */
-const exporting = text => parse(`export default ${text};`)
+const exporting = text => tryParse(`export default ${text};`)
 
 /** A document that is no DataJS, by the message it is refused with. @type {(text: string, message: string) => void} */
-const refused = (text, message) => assertStructurallySame(parse(text), ['error', message])
+const refused = (text, message) => assertStructurallySame(tryParse(text), ['error', message])
 
 /**
  * A byte document, written the way the corpus writes one: lowercase hex
@@ -41,11 +41,11 @@ const refused = (text, message) => assertStructurallySame(parse(text), ['error',
 const bytesOf = hex => hex === '' ? [] : hex.split(' ').map(pair => parseInt(pair, 16))
 
 /** The value bytes spell, where they spell one. @type {(hex: string) => Unknown} */
-const parsedBytes = hex => unwrap(parseBytes(bytesOf(hex)))
+const parsedBytes = hex => unwrap(tryParseBytes(bytesOf(hex)))
 
 /** Bytes that are no DataJS document, by the message. @type {(hex: string, message: string) => void} */
 const refusedBytes = (hex, message) =>
-    assertStructurallySame(parseBytes(bytesOf(hex)), ['error', message])
+    assertStructurallySame(tryParseBytes(bytesOf(hex)), ['error', message])
 
 /** @type {(value: Unknown) => readonly Unknown[]} */
 const asArray = value => {
@@ -341,10 +341,10 @@ export const proof = {
                 ['__proto__', ['error', 'a "__proto__" key is spelled ["__proto__"]']],
             ]]), 39]])
     },
-    // `parse` is total over strings: what it returns is a value or a
+    // `tryParse` is total over strings: what it returns is a value or a
     // message, and nothing it is given makes it throw.
     contract: () => {
-        /** @typedef {Assert<Equal<typeof parse, (text: string) => Result<Unknown, string>>>} _Parse */
+        /** @typedef {Assert<Equal<typeof tryParse, (text: string) => Result<Unknown, string>>>} _Parse */
         assertEq(exporting('[')[0], 'error')
         assertEq(exporting('1')[0], 'ok')
     },

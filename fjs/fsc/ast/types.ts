@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/fsc/ast/module.f.mjs`: the AST shape `run`
  * evaluates — `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`,
- * `AstObject`, and `AstBody`.
+ * `AstMember`, `AstObject`, and `AstBody`.
  *
  * @module
  */
@@ -40,8 +40,18 @@ export type AstModuleRef = readonly ['aref' | 'cref', number]
 /** An array value; its elements are evaluated in order. */
 export type AstArray = readonly ['array', readonly AstConst[]]
 
-/** An object value, keyed by property name. */
-export type AstObject = { readonly[k in string]?: AstConst }
+/** One member of an object: the key it is written under — spelled bare, quoted or computed — and its value. */
+export type AstMember = readonly [string, AstConst]
+
+/**
+ * An object value: its members in the order they are written, a repeated
+ * key written twice. The syntax keeps what the value cannot: `run` builds
+ * the object JavaScript builds from the same literal — a repeated key at its
+ * first position with its last value, integer-like keys first in numeric
+ * order — and EDAG's object constructor, `['{}', …]`, takes the members as
+ * written, duplicates and all, which only the syntax still has.
+ */
+export type AstObject = readonly ['object', readonly AstMember[]]
 
 /**
  * The constants of a module body, in declaration order. The **last** entry is
@@ -82,3 +92,12 @@ export type Denotation = Sharing & { readonly value: Unknown }
 
 /** An imported module as the sweep sees it: what it denotes, under the id an importer names it by — its resolved path. */
 export type Import = Denotation & { readonly id: string }
+
+/**
+ * What the export does not reach, each by index: the body entries no chain
+ * of references from the last entry leads to, and the imports likewise.
+ */
+export type Unreached = {
+    readonly consts: readonly number[]
+    readonly imports: readonly number[]
+}

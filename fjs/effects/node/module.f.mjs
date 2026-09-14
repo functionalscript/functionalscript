@@ -27,7 +27,7 @@
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { concat, reverse } from '../../types/list/module.f.mjs'
+import { concat } from '../../types/list/module.f.mjs'
 import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
@@ -152,6 +152,21 @@ export const isNotFound = ([tag, payload]) =>
  * @type {(e: IoChannel) => boolean}
  */
 export const leadsNowhere = e => isNotFound(e) || (e[0] === 'ioError' && e[1].code === 'ELOOP')
+
+/**
+ * Whether a failure is a read of a *directory*.
+ *
+ * Node answers `EISDIR` for a `readFile` of one, and a caller that asked for a
+ * file's contents by name often wants that to mean "no file here" rather than a
+ * failure — `fjs/git/refstore` does, because a ref name can be both a packed
+ * line and the directory the loose refs below it live in.
+ *
+ * Beside {@link isNotFound} for the same reason: a POSIX code no browser reports.
+ *
+ * @type {(e: IoChannel) => boolean}
+ */
+export const isDirectory = ([tag, payload]) =>
+    tag === 'ioError' && payload.code === 'EISDIR'
 
 /**
  * `NodeOp`'s commands as data, so a runner that implements only part of them
@@ -352,60 +367,66 @@ export const stat = do_('stat')
 const windowBytes = Number(maxLengthBytes)
 
 /**
- * The code {@link readWholeBytes} refuses with when a window comes back short of
- * the end of the file.
+ * The code {@link readWholeBytes} refuses with when a window does not come back
+ * the length the file's own size said it would be.
  */
 export const shortReadCode = /** @type {const} */ ('ERR_SHORT_READ')
 
 /**
- * Where each window of a file of this length begins.
- *
- * @type {(size: number) => List_<number>}
+ * The code {@link readWholeBytes} refuses with when the path is no regular file.
  */
-const windowsOf = size => Array.from({ length: Math.ceil(size / windowBytes) }, (_, k) => k * windowBytes)
+export const notAFileCode = /** @type {const} */ ('ERR_NOT_A_FILE')
+
+/** @type {(path: string) => string} */
+const notAFileMessage = path => `${path} is not a regular file`
+
+/**
+ * Where each window of a file of this length begins, and how long that window
+ * is: the allowance, or what is left of the file where that is less.
+ *
+ * The length rides with the offset so the fold has both without reaching back
+ * for the size — which is what lets {@link readWholeBytes} be two names rather
+ * than a read sequence built inside a continuation.
+ *
+ * @type {(size: number) => List_<readonly [number, number]>}
+ */
+const windowsOf = size => Array.from(
+    { length: Math.ceil(size / windowBytes) },
+    (_, k) => [k * windowBytes, Math.min(windowBytes, size - k * windowBytes)])
 
 /**
  * One window of a file, appended to the bytes already read.
  *
- * The window asked for is the whole allowance every time, even for the last one:
- * a read answers what is there and stops at the end of the file, so the length
- * decides itself and no arithmetic has to agree with it.
+ * The read asks for the whole allowance every time, even for the last window,
+ * and what comes back is checked against the length that window should be.
  *
- * **A window that comes back short of the end of the file is refused, not
- * ignored.** The sentence above is a claim about the host, and one `read` is not
- * obliged to honour it: a positional read of `/proc/self/maps` answers 4,007
- * bytes for a 1 MiB request and 4,034 more at the next offset, measured on node
- * 22, and a network or virtual filesystem may answer short for a file a caller
- * believes is ordinary. [The node runner](./module.mjs) fills the window for that
- * reason, so on that host a short answer does mean the end of the file — but this
- * runs on whatever host it is given, and the window starts are fixed multiples of
- * the allowance, so a host that answered short would leave a gap the next window
- * skips over. The bytes would then be a file missing a run out of its middle, and
- * whatever parses them would call a file its own format's writer wrote malformed:
- * a wrong diagnosis out of a silent loss.
+ * **Exactly that length, neither less nor more, because the file can change
+ * under the read.** A window *shorter* than its length is a host that answered
+ * before the end of the file: one `read` is not obliged to fill a buffer — a
+ * positional read of `/proc/self/maps` answers 4,007 bytes for a 1 MiB request
+ * and 4,034 more at the next offset, measured on node 22 — and since the window
+ * starts are fixed, the next one would skip the gap and hand a parser a file with
+ * a run missing out of its middle. A window *longer* than its length is a file
+ * that grew between the `stat` and the read: `packed-refs` replaced atomically by
+ * a longer one, say. The windows after it were never scheduled, so the answer
+ * would be a prefix of the new file — and a prefix that ends on a record boundary
+ * is one a parser accepts, which is the silent half of the same loss.
  *
- * A file that shrinks between the `stat` and the reads is refused by the same
- * check, and it is the same thing: the bytes no longer cover what was measured.
+ * A file that shrinks is caught by the same comparison from the other side.
  *
- * @type {(path: string, size: number) => (at: number) => (bytes: List_<number>) => Effect<ReadBytes, List_<number>, IoChannel>}
+ * @type {(path: string) => (window: readonly [number, number]) => (bytes: List_<number>) => Effect<ReadBytes, List_<number>, IoChannel>}
  */
-const windowOf = (path, size) => at => {
-    // The allowance, or what is left of the file where that is less — which is
-    // only the last window, and is why the read may legitimately come back short
-    // of what it asked for.
-    const want = Math.min(windowBytes, size - at)
-    return bytes => ioStep(
-        readBytes(path, at, windowBytes),
-        v => {
-            const got = Number(length(v)) / 8
-            return got < want
-                ? pureError(ioError({
-                    code: shortReadCode,
-                    message: `${path}:${at} ${got} bytes of ${want}`,
-                }))
-                : pureOk(concat(bytes)(u8List(msb)(v)))
-        })
-}
+const windowOf = path => ([at, want]) => bytes => ioStep(
+    readBytes(path, at, windowBytes),
+    v => {
+        const got = Number(length(v)) / 8
+        return got === want
+            ? pureOk(concat(bytes)(u8List(msb)(v)))
+            : pureError(ioError({
+                code: shortReadCode,
+                message: `${path}:${at} ${got} bytes of ${want}`,
+            }))
+    })
 
 /**
  * A whole file as a byte *list*, read in windows.
@@ -417,17 +438,24 @@ const windowOf = (path, size) => at => {
  * {@link readBytes} fills it a window at a time and `concat` joins the windows
  * without copying either side, so a parser that reads a list reads any size.
  *
+ * **A path that is no regular file is refused rather than read as empty.** A
+ * FIFO, a device and a procfs file all `stat` as nought bytes while still
+ * producing content when opened, so taking the size alone would schedule no reads
+ * and answer an empty file — a caller would then see a `packed-refs` with no
+ * records rather than a path it cannot read. The kind is the same question
+ * `FileStat` documents for exactly this, and {@link readFile} ahead of it does
+ * not have to ask because it opens the file itself.
+ *
  * The bound that remains is memory and the host's own: the whole file is held
  * while it is parsed.
  *
  * @type {(path: string) => Effect<Stat | ReadBytes, List_<number>, IoChannel>}
  */
 export const readWholeBytes = path => {
-    const sized = ioMapStep(stat(path), s => s.size)
-    return ioStep(sized, size => foldStep(
-        pureOk(windowsOf(size)),
-        /** @type {List_<number>} */ (null),
-        windowOf(path, size)))
+    const windows = ioStep(stat(path), s => s.isFile
+        ? pureOk(windowsOf(s.size))
+        : pureError(ioError({ code: notAFileCode, message: notAFileMessage(path) })))
+    return foldStep(windows, /** @type {List_<number>} */ (null), windowOf(path))
 }
 
 // createServer

@@ -4,6 +4,7 @@
  * @module
  *
  * @import { Unknown } from '../../media/datajs/types.ts'
+ * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Denotation, Import } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
@@ -15,7 +16,7 @@
  * @import { ParseContext } from './types.ts'
  */
 
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error } from '../../types/result/module.f.mjs'
 import { drop, map as listMap, toArray, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
@@ -68,16 +69,26 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
  * `catchStep` rather than a branch on the read's `Result`: however the read
  * failed — missing file, unreadable, a runner without `readFile` — the answer
  * a transpiler gives is the same `ParseError`, so the node channel is
- * translated once here rather than travelling any further.
+ * translated once here rather than travelling any further. Exported for the
+ * EDAG linker in `../edag`, which reads a module the same way; the `_` says
+ * that export is linkage rather than API.
  *
  * @type {(path: string) => Effect<ReadFile, AstModule, ParseError>}
  */
-const parseModule = path => step(notFound(readUtf8File(path)), text => pure(parse(path)(text)))
+export const _parseModule = path => step(notFound(readUtf8File(path)), text => pure(parse(path)(text)))
+
+/**
+ * The path an import names, resolved against the importing module's:
+ * `./b.f.js` from `dir/a.f.js` is `dir/b.f.js`. Exported for the EDAG
+ * linker, as `_parseModule` is.
+ *
+ * @type {(path: string) => (specifier: string) => string}
+ */
+export const _importPath = path => pathConcat(pathConcat(path)('..'))
 
 /** @type {(path: string) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const transpileWithImports = path => module => context => {
-    const dir = pathConcat(path)('..')
-    const pathsCombine = listMap(pathConcat(dir))(module[0])
+    const pathsCombine = listMap(_importPath(path))(module[0])
     const pathsArray = toArray(pathsCombine)
     const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
     const x0 = foldStep(pureOk(pathsArray), contextWithStack, foldNextModuleOp)
@@ -106,7 +117,7 @@ const foldNextModuleOp = path => context => {
     }
 
     return step(
-        parseModule(path),
+        _parseModule(path),
         module => transpileWithImports(path)(module)(context))
 }
 
@@ -122,20 +133,23 @@ const transpileModule = path => mapStep(
  *
  * That reader reports where it failed as an offset in its message rather
  * than as metadata, so the `ParseError` has none and `fjs/fsc`'s `compile`
- * names the file instead of a line and column.
+ * names the file instead of a line and column. Exported for the EDAG
+ * linker, as `_parseModule` is.
  *
- * A JSON value is a tree, so it shares nothing and reaches no module.
- *
- * @type {(path: string) => Effect<ReadFile, Denotation, ParseError>}
+ * @type {(path: string) => Effect<ReadFile, JsonUnknown, ParseError>}
  */
-const transpileJson = path => step(
+export const _parseJson = path => step(
     notFound(readUtf8File(path)),
     text => {
         const json = jsonParse(text)
-        return pure(json[0] === 'error'
-            ? error({ message: json[1], metadata: null })
-            : ok({ value: json[1], shared: false, reaches: [] }))
+        return pure(json[0] === 'error' ? error({ message: json[1], metadata: null }) : json)
     })
+
+/** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */
+const jsonDenotation = value => ({ value, shared: false, reaches: [] })
+
+/** @type {(path: string) => Effect<ReadFile, Denotation, ParseError>} */
+const transpileJson = path => mapStep(_parseJson(path), jsonDenotation)
 
 /**
  * Transpiles the file at `path` into what it denotes: one value, and whether

@@ -7,8 +7,7 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { _tryJson, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { run } from './ast/module.f.mjs'
-import { parse as parseDataJs } from '../media/datajs/parser/module.f.mjs'
-import { tryStringify } from '../media/datajs/serializer/module.f.mjs'
+import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -162,6 +161,46 @@ export const proof = {
         const content = readOutput(state.root, 'output.json')
         assertEq(content, '42')
     },
+    // The EDAG output: the program linked into one graph and written as a
+    // DataJS document, its shared node hoisted as the module output hoists
+    // one — the README's example, in both forms, side by side.
+    edagOutput: {
+        graph: () => {
+            const root = {
+                'input.f.js': [utf8('import c from "./m.f.js"; const a = 1; export default [a, a, c, { x: c }];')],
+                'm.f.js': [utf8('export default ["text"];')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.js'), 'const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];')
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.f.js'), 'const $0=["text"];export default [1,1,$0,{"x":$0}];')
+        },
+        // `.edag.f.mjs` asks for the same; `.f.mjs` alone is the module output
+        extension: () => {
+            const root = { 'input.f.js': [utf8('export default { a: undefined };')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.mjs']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.edag.f.mjs'), 'export default ["{}",[[":","a",["undefined"]]]];')
+            const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.mjs']))
+            assertEq(exitCode(moduleCode), 0, moduleState.stderr)
+            assertEq(readOutput(moduleState.root, 'output.f.mjs'), 'export default {"a":undefined};')
+        },
+        // a program the linker refuses is reported against the input, as a
+        // parse error is, and nothing is written; a missing import likewise
+        refused: () => {
+            const root = { 'input.f.js': [utf8('const a = []; export default 1;')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'input.f.js - error: unreachable const 0')
+            assertEq(state.root['output.edag.f.js'], undefined)
+            const missing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
+            const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(missingCode), 1)
+            assertEq(missingState.stderr.trim(), 'input.f.js - error: file not found')
+        },
+    },
     // An error with no token to point at names the file being compiled, not
     // `undefined:undefined:undefined`. Each language reports its own missing
     // file: the module reader and the JSON reader read their inputs
@@ -281,6 +320,16 @@ export const proof = {
         nested: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = []; export default [a, [a]];')] })('a.f.js')) },
         member: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "y": {"z": a}};')] })('a.f.js')) },
         literals: () => { assert(!sharedOf({ 'a.f.js': [utf8('export default [[1], [1], {"a": {}}];')] })('a.f.js')) },
+        // A member a later duplicate shadows is not in the value, so a
+        // reference in it is not a reference to the node: `{x: a, x: 0, y: a}`
+        // holds `a` once, and `{a: s, a: s}` once, along a const or an import.
+        shadowed: () => {
+            assert(!sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": a, "x": 0, "y": a};')] })('a.f.js'))
+            assertEq(compileSource('const a = {}; export default {"x": a, "x": 0, "y": a};')('output.json'), '{"x":0,"y":{}}')
+            assert(!sharedOf({ 'a.f.js': [utf8('const s = [1]; export default {"a": s, "a": s};')] })('a.f.js'))
+            assert(!sharedOf({ 'a.f.js': [utf8('import m from "./m.f.js"; export default {"a": m, "a": m};')], 'm.f.js': [utf8('export default [1];')] })('a.f.js'))
+            assert(sharedOf({ 'a.f.js': [utf8('const a = {}; export default {"x": 0, "x": a, "y": a};')] })('a.f.js'))
+        },
         importTwice: () => {
             assert(sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default [1];')] })('a.f.js'))
             assert(!sharedOf({ 'a.f.js': [utf8('import c from "./c.f.js"; export default [c, c];')], 'c.f.js': [utf8('export default 1;')] })('a.f.js'))
