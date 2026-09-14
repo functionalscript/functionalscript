@@ -30,6 +30,13 @@ export type ParseError = {
     readonly message: string,
     readonly metadata: TokenMetadata | null
     readonly end?: TokenPosition | undefined
+    /**
+     * The file a failure with no token is in, when the failure knows one: a
+     * missing file, a cycle, a body that fails to evaluate — each in an
+     * imported module as readily as in the one being compiled, which
+     * `metadata: null` alone would name.
+     */
+    readonly path?: string | undefined
 }
 
 /**

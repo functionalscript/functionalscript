@@ -10,6 +10,7 @@ import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(s: string) => readonly DjsTokenWithMetadata[]} */
@@ -343,7 +344,7 @@ export const proof = {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
         assert(tag === 'ok', tag)
         assertEq(stringifyDjsModule(value), '[[],[["object",[["b",1],["1",2],["b",3]]]]]')
-        const object = run(value[1])([])
+        const object = unwrap(run(value[1])([]))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
@@ -395,7 +396,7 @@ export const proof = {
     memberOrder: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
-        const object = run(value[1])([])
+        const object = unwrap(run(value[1])([]))
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), 'b,a,c')
         assertEq(object.b, 3)

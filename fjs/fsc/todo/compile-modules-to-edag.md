@@ -67,10 +67,10 @@ document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
 its value outputs, which are unchanged. The parser reads `a.b` and `a[key]`
 on a reference, the key a string or a number, `__proto__` and `constructor`
 refused at the key, and the lowering carries the access as the EDAG's own
-`['.', base, key]`. What Stage 1 still owes is the access's *value*: `run`
-has none for it, and `transpile` refuses a module holding one, so the value
-outputs of `fjs compile` say so while the EDAG output compiles it — see the
-task below for what the decision involves.
+`['.', base, key]`. On the value path an access reads an own property, never
+the prototype chain; `undefined` where there is none; and a `null` or
+`undefined` base fails the module as JavaScript's throw does, which is what
+made `run` fallible. **Stage 1 is done.**
 
 The first missing EDAG operation was property access:
 
@@ -500,16 +500,23 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       a string or a number, so a runtime key is refused at the token; the fold
       refuses `__proto__` and `constructor` in either spelling; the AST and the
       lowering carry `['.', base, key]`.
-- [ ] Give a property access its value on the value path — `run`, and so
-      `transpile` and `fjs compile`'s module and JSON outputs, which refuse a
-      module holding one today. The decision the subset law has to witness: an
-      own property read, the prototype chain never (the spec's rule, where
-      JavaScript reads `a.toString` as a function); what a missing member and a
-      `null` or `undefined` base yield, where JavaScript gives `undefined` and
-      throws respectively, and the value path has no throw; and what the sharing
-      sweep says of an access — today it takes one as a container reference to
-      its base, which refuses rather than writes a shared node twice, and is
-      wrong in the safe direction for `[a.x, a.x]` on a leaf `x`.
+- [x] Give a property access its value on the value path — `run`, and so
+      `transpile` and `fjs compile`'s module and JSON outputs. Done: an own
+      property read, the prototype chain never (the spec's rule, where JavaScript
+      reads `a.toString` as a function); `undefined` for a missing member, as
+      JavaScript; a `null` or `undefined` base fails the module, as JavaScript
+      throws — `run` returns a `Result` now, and `fjs compile` reports the failure
+      against the input; and the sharing sweep reads an access by its keys — two
+      references share a node when one's keys are the other's or a prefix of
+      them and the node is a container, which the values say — so
+      `{ x: cfg.a, y: cfg.b }` is a tree and `[cfg.a, cfg.a]` is not. Pinned in
+      `fjs/fsc/proof.f.mjs` (`access`) and `fjs/fsc/ast/proof.f.mjs`. Left
+      coarse, in the safe direction: a module whose own value holds a shared
+      node is shared under any route an importer takes into it, and the
+      modules it reaches count under any route too, since the sweep does not
+      carry where in the module's value a node sits; the precise answer there
+      is an identity walk of the selected sub-value, which the sweep exists
+      not to make.
 - [x] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema. Done: [`fjs/fsc/edag/types.ts`](../edag/types.ts).
 - [x] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,

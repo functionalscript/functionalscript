@@ -153,7 +153,10 @@ const linkImport = path => ({ context, bound }) => mapStep(link(path)(context), 
  */
 const linkModule = path => context => module => step(
     foldStep(pureOk(module[0].map(_importPath(path))), { context, bound: [] }, linkImport),
-    ({ context: linked, bound }) => pure(mapOk(completed(path)(linked))(lowered(bound)(module))))
+    ({ context: linked, bound }) => pure(mapOk(completed(path)(linked))(inModule(path)(lowered(bound)(module)))))
+
+/** A refusal of a module named for the module, which the refusal alone does not know. @type {(path: string) => (result: Result<Exp, ParseError>) => Result<Exp, ParseError>} */
+const inModule = path => result => result[0] === 'error' ? error({ ...result[1], path }) : result
 
 /**
  * The file at `path` resolved to its EDAG within one link: a module met
@@ -164,7 +167,7 @@ const linkModule = path => context => module => step(
  * @type {(path: string) => (context: _Link) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
  */
 const link = path => context => {
-    if (includes(path)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null }) }
+    if (includes(path)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
     const done = at(path)(context.complete)
     if (done !== null) { return pureOk([context, done[0]]) }
     const entered = { ...context, stack: { first: path, tail: context.stack } }

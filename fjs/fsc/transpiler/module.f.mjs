@@ -24,18 +24,19 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { hasAccess, run, sharing } from '../ast/module.f.mjs'
+import { sharing, values } from '../ast/module.f.mjs'
 import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 
 /**
  * Reads a file, reporting any failure as the one `ParseError` a caller can act
- * on. Both readers want this and neither wants the node channel's vocabulary.
+ * on, naming the file. Both readers want this and neither wants the node
+ * channel's vocabulary.
  *
- * @type {<O extends Operation>(e: Effect<O, string, IoChannel>) => Effect<O, string, ParseError>}
+ * @type {(path: string) => <O extends Operation>(e: Effect<O, string, IoChannel>) => Effect<O, string, ParseError>}
  */
-const notFound = e =>
-    catchStep(e, () => pureError({ message: 'file not found', metadata: null }))
+const notFound = path => e =>
+    catchStep(e, () => pureError({ message: 'file not found', metadata: null, path }))
 
 /** @type {(context: ParseContext) => (path: string) => Denotation} */
 const mapDjs = context => path => {
@@ -75,7 +76,7 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
  *
  * @type {(path: string) => Effect<ReadFile, AstModule, ParseError>}
  */
-export const _parseModule = path => step(notFound(readUtf8File(path)), text => pure(parse(path)(text)))
+export const _parseModule = path => step(notFound(path)(readUtf8File(path)), text => pure(parse(path)(text)))
 
 /**
  * The path an import names, resolved against the importing module's:
@@ -87,40 +88,43 @@ export const _parseModule = path => step(notFound(readUtf8File(path)), text => p
 export const _importPath = path => pathConcat(pathConcat(path)('..'))
 
 /**
- * A module holding a property access, refused before its imports are read:
- * what `a.b` denotes as a value is not decided yet — the EDAG carries it as
- * the operation it is, and `fjs compile` writes that — so the value
- * outputs say so rather than run it.
+ * The context once a module's body has run: what it denotes recorded under
+ * its path — the last value, and what the sweep says of the graph given
+ * every value — and the chain of imports left as it was before the module
+ * was entered.
  *
- * @type {ParseError}
+ * @type {(path: string, module: AstModule, imports: readonly Import[], context: ParseContext) => (consts: readonly Unknown[]) => ParseContext}
  */
-const accessNotValued = { message: 'property access is compiled to the EDAG only', metadata: null }
+const done = (path, module, imports, context) => consts => ({
+    ...context,
+    stack: drop(1)(context.stack),
+    complete: setReplace(path)({ value: consts[consts.length - 1], ...sharing(module[1])(imports)(consts) })(context.complete),
+})
 
 /** @type {(path: string) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const transpileWithImports = path => module => context => {
-    if (hasAccess(module[1])) { return pureError(accessNotValued) }
     const pathsCombine = listMap(_importPath(path))(module[0])
     const pathsArray = toArray(pathsCombine)
     const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
     const x0 = foldStep(pureOk(pathsArray), contextWithStack, foldNextModuleOp)
-    return mapStep(
+    return step(
         x0,
         contextWithImports => {
             const imports = toArray(listMap(importAt(contextWithImports))(pathsCombine))
-            /** @type {Denotation} */
-            const denotation = { value: run(module[1])(imports.map(valueOf)), ...sharing(module[1])(imports) }
-            return {
-                ...contextWithImports,
-                stack: drop(1)(contextWithImports.stack),
-                complete: setReplace(path)(denotation)(contextWithImports.complete),
-            }
+            // a body fails on a property read of `null` or `undefined`, as
+            // JavaScript throws; the failure has no token, since the value
+            // is the module's, not one statement's, and names the module
+            const [tag, consts] = values(module[1])(imports.map(valueOf))
+            return tag === 'error'
+                ? pureError({ message: consts, metadata: null, path })
+                : pureOk(done(path, module, imports, contextWithImports)(consts))
         })
 }
 
 /** @type {(path: string) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const foldNextModuleOp = path => context => {
     if (includes(path)(context.stack)) {
-        return pureError({ message: 'circular dependency', metadata: null })
+        return pureError({ message: 'circular dependency', metadata: null, path })
     }
 
     if (at(path)(context.complete) !== null) {
@@ -150,10 +154,10 @@ const transpileModule = path => mapStep(
  * @type {(path: string) => Effect<ReadFile, JsonUnknown, ParseError>}
  */
 export const _parseJson = path => step(
-    notFound(readUtf8File(path)),
+    notFound(path)(readUtf8File(path)),
     text => {
         const json = jsonParse(text)
-        return pure(json[0] === 'error' ? error({ message: json[1], metadata: null }) : json)
+        return pure(json[0] === 'error' ? error({ message: json[1], metadata: null, path }) : json)
     })
 
 /** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */

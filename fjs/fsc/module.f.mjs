@@ -32,10 +32,13 @@ const { entries } = Object
 
 /**
  * Where an error happened, as much of it as is known: the token's
- * `path:line:column` when the reader tracks positions, and otherwise the name
- * of the file being compiled. A `.json` input is read by `fjs/media/json`,
- * whose errors carry no position, and a missing file or a circular dependency
- * has no token to point at either.
+ * `path:line:column` when the reader tracks positions; otherwise the file
+ * the error names, when it names one — a missing import, a cycle, a body
+ * that fails to evaluate, in an imported module as readily as in the input;
+ * and otherwise the name of the file being compiled — which nothing
+ * `compile` runs produces any more, every reader naming its file, and
+ * which the parser's one contract failure, a token list with no end,
+ * still can; exported for that case's proof, the `_` saying so.
  *
  * An error that knows how far the offending source runs renders as a span,
  * `path:line:column-column` within one line and `path:line:column-line:column`
@@ -44,8 +47,8 @@ const { entries } = Object
  *
  * @type {(inputFileName: string) => (parseError: ParseError) => string}
  */
-const errorLocation = inputFileName => ({ metadata, end }) => {
-    if (metadata === null) { return inputFileName }
+export const _errorLocation = inputFileName => ({ metadata, end, path }) => {
+    if (metadata === null) { return path ?? inputFileName }
     const start = `${metadata.path}:${metadata.line}:${metadata.column}`
     if (end === undefined) { return start }
     // the path is printed once — a token does not straddle files — and the
@@ -263,7 +266,7 @@ export const compile = args => {
         /** @type {(result: Result<Result<string, string>, ParseError>) => Effect<_CompileOp, 0, number>} */
         (result) => {
             if (result[0] === 'error') {
-                return errorExit(`${errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)
+                return errorExit(`${_errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)
             }
             const [tag, content] = result[1]
             return tag === 'error'
