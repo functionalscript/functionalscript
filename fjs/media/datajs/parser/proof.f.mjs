@@ -14,7 +14,7 @@ import { unwrap } from '../../../types/result/module.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
 import { value } from '../../../ebnf/lib/datajs/module.f.mjs'
-import { mappings, parse } from './module.f.mjs'
+import { mappings, parse, parseBytes } from './module.f.mjs'
 
 const { is, keys, hasOwn, getPrototypeOf } = Object
 
@@ -29,6 +29,23 @@ const exporting = text => parse(`export default ${text};`)
 
 /** A document that is no DataJS, by the message it is refused with. @type {(text: string, message: string) => void} */
 const refused = (text, message) => assertStructurallySame(parse(text), ['error', message])
+
+/**
+ * A byte document, written the way the corpus writes one: lowercase hex
+ * pairs separated by single spaces, so a case reads as the bytes it is. The
+ * empty string is no pairs rather than one empty pair, which is how a case
+ * spells the empty input.
+ *
+ * @type {(hex: string) => readonly number[]}
+ */
+const bytesOf = hex => hex === '' ? [] : hex.split(' ').map(pair => parseInt(pair, 16))
+
+/** The value bytes spell, where they spell one. @type {(hex: string) => Unknown} */
+const parsedBytes = hex => unwrap(parseBytes(bytesOf(hex)))
+
+/** Bytes that are no DataJS document, by the message. @type {(hex: string, message: string) => void} */
+const refusedBytes = (hex, message) =>
+    assertStructurallySame(parseBytes(bytesOf(hex)), ['error', message])
 
 /** @type {(value: Unknown) => readonly Unknown[]} */
 const asArray = value => {
@@ -330,5 +347,48 @@ export const proof = {
         /** @typedef {Assert<Equal<typeof parse, (text: string) => Result<Unknown, string>>>} _Parse */
         assertEq(exporting('[')[0], 'error')
         assertEq(exporting('1')[0], 'ok')
+    },
+    // The byte path, which owes the two rules a string cannot carry.
+    bytes: {
+        // Every UTF-8 width decodes, and the four-byte one is the case the
+        // bridge back to code units exists for: `f0 90 80 80` is the single
+        // code point U+10000 and the grammar must see the pair, so the graph
+        // has to be the same string the code-unit path reads. Both spellings
+        // are compared here rather than the string alone, since a bridge that
+        // dropped the low surrogate would still produce *a* string.
+        widths: () => {
+            assertEq(parsedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c3 a9 e2 82 ac f0 90 80 80 22 3b'), 'a\u00e9\u20ac\u{10000}')
+            assertEq(parsedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 f0 90 80 80 22 3b'), exported('"\u{10000}"'))
+            assertEq(parsedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 31 3b'), 1)
+        },
+        // A document is UTF-8, and the decoder's own strictness is what that
+        // means: a truncated sequence, a lone continuation byte, an overlong
+        // form, a lead past U+10FFFF, and a surrogate encoded as three bytes,
+        // which decodes to U+D800 and is refused for not being a scalar.
+        utf8: () => {
+            const rule = 'document: a document is UTF-8'
+            refusedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c2', rule)
+            refusedBytes('80', rule)
+            refusedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 c0 80 22 3b', rule)
+            refusedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 f5 80 80 80 22 3b', rule)
+            refusedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 ed a0 80 22 3b', rule)
+        },
+        // And it has no BOM, which is about the document's first character and
+        // nothing else: the same three bytes inside a string are content, and
+        // the string the reader hands back holds U+FEFF.
+        bom: () => {
+            refusedBytes('ef bb bf 65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 31 3b', 'document: a document has no BOM')
+            assertEq(parsedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 ef bb bf 22 3b'), '\ufeff')
+        },
+        // Past the decoder the grammar answers, so a byte document that is
+        // correct UTF-8 and no DataJS is refused in the reader's own words.
+        // The order matters and is asserted by the pair: bytes that both fail
+        // to decode and hold a BOM are the UTF-8 rule's, since there is no
+        // first character until they decode.
+        grammar: () => {
+            refusedBytes('65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20', 'unexpected end')
+            refusedBytes('', 'unexpected end')
+            refusedBytes('ef bb bf c2', 'document: a document is UTF-8')
+        },
     },
 }

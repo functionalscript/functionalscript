@@ -1,5 +1,5 @@
 /**
- * @import { Unknown } from '../djs/types.ts'
+ * @import { Unknown } from '../media/datajs/types.ts'
  * @import { Accept, Document, Normalize } from '../media/datajs/vectors/types.ts'
  */
 

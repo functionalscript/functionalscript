@@ -87,8 +87,8 @@ parse half, filed for the `new` sibling.
   — the shape of record for the `|!()` step and this divergence.
 - [fjs/edag/amnesia/README.md](../../fjs/edag/amnesia/README.md) — `skip` is
   what makes the specified answer come out on every host.
-- [interpret-edag.md](../../fjs/djs/todo/interpret-edag.md) and
-  [compile-modules-to-edag.md](../../fjs/djs/todo/compile-modules-to-edag.md) —
+- [interpret-edag.md](../../fjs/fsc/todo/interpret-edag.md) and
+  [compile-modules-to-edag.md](../../fjs/fsc/todo/compile-modules-to-edag.md) —
   executing and lowering `|!()`; neither may take the host's answer for it.
 - [spidermonkey-test-runner.md](../../fjs/emergent_testing/todo/spidermonkey-test-runner.md)
   — a third engine, and the task to document every divergence a run finds.

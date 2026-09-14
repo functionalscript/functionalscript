@@ -67,7 +67,7 @@ takes them from `fjs/text/utf16` — input decoding, not what
 
 ### Tasks
 
-- [ ] Measure: which proofs under `fjs/ebnf`, `fjs/media` and `fjs/djs` spell
+- [ ] Measure: which proofs under `fjs/ebnf`, `fjs/media` and `fjs/fsc` spell
       the whole-input question, and whether the JSON corpus has a second
       consumer. If the answer is one and none, close this.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes` and `ll1Recognizer` to

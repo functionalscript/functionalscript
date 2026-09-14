@@ -375,7 +375,7 @@ This parser/serializer support is required independently of module-to-EDAG conve
 because `.f.js` is the general representation used to persist EDAG and unresolved
 artifacts.
 
-**Where the work lands.** Not in `fjs/djs`. The spellings and their grammar are
+**Where the work lands.** Not in the old `fjs/djs`. The spellings and their grammar are
 settled in [`spec/datajs/README.md`](../../../spec/datajs/README.md) — `NaN`,
 `Infinity` and `-Infinity` are *words*, and `infinity ::= '-'? 'Infinity'` carries
 the sign the way `number` and `bigint` already do. There is no exclusion list to
@@ -584,8 +584,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   contract until EDAG interpretation is integrated.
 - [`fjs/fsc/parser/module.f.mjs`](../../fsc/parser/module.f.mjs) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
-- [`../serializer/module.f.mjs`](../serializer/module.f.mjs) — DJS serializer where
-  special-number handling belongs.
+- [`fjs/media/datajs/serializer/module.f.mjs`](../../media/datajs/serializer/module.f.mjs)
+  — the writer, where special-number handling lives.
 - [`../../media/json/serializer/module.f.mjs`](../../media/json/serializer/module.f.mjs)
   — shared JSON serialization primitives currently reused by DJS; DJS-specific number
   syntax must not silently change standard JSON behavior.

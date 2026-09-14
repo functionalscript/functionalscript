@@ -437,7 +437,7 @@ export const proof = {
     // grammar exists to distinguish — the shape only, since what each
     // denotes is the JSDoc on the nodes in `./module.f.mjs` and the executor
     // proofs in `./amnesia/proof.f.mjs`, and lowering these spellings is
-    // `../djs/todo/compile-modules-to-edag.md`. Read as pairs: the members
+    // `../fsc/todo/compile-modules-to-edag.md`. Read as pairs: the members
     // of a pair differ in JS, so they must differ here too.
     chains: {
         // A receiver is born in a `.` (or `?.`) node and spent by the call

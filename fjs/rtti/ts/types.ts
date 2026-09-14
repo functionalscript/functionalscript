@@ -138,8 +138,8 @@ type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
  * around).
  *
  * The format those types belong to is
- * [DataJS](../../media/datajs/types.ts) — `fjs/djs` is the compiler's wider
- * subset, and its value model is the same one spelled a second time. The
+ * [DataJS](../../media/datajs/types.ts), whose types the compiler, `fjs/fsc`,
+ * shares rather than spelling a second time. The
  * relationship is a subset one — `DataJS.Unknown ⊆ rtti.Unknown` — not
  * equality: the two coincide today, which `validate` and `parse` pin in their
  * proofs, but `rtti.Unknown` may widen to admit values DataJS cannot
