@@ -54,16 +54,21 @@ flowchart TD
 
 Each link has a direction and such graphs can't have cycles. So it's called [Directed Acyclic Graph (DAG)](https://en.wikipedia.org/wiki/Directed_acyclic_graph).
 
-## File Evolution
+Document types could be different: text, code, HTML, images, video, etc.
 
-If we mutate a document, then it will have a different hash. We can call such a document a new revision of the old one.
-And the revision should point to the old version of a document, otherwise we will not know what's this document. Some document formats may support referencing to a previous revision. If not, we can use something like Git commit object.
+## Meta Information
+
+Often we need additional information about files. That may include, document type (e.g. `ContentType`), authors (e.g. digital signatures), licensing, version (e.g. Git commit as a document), time (e.g. trusted time-stamp), reference resolution snapshot (e.g. lock files such as `package-lock.json`, `Cargo.lock`).
+
+### File Evolution
+
+If we mutate a document, then it will have a different hash. We can call such a document a new revision of the original document. The revision should point to the old version of a document, otherwise we will not know what's this document. Some document formats may support referencing to a previous revision. If not, we can use something like Git commit object.
 
 ```js
 export default {
     document: $documentHash,
     parent: $parents,
-    author: $author
+    author: $author,
 }
 ```
 
