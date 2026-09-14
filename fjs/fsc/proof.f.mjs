@@ -296,12 +296,12 @@ export const proof = {
     // is a FunctionalScript module, and the front end reads it to the graph
     // its vector asserts — sharing and key order included, which is what
     // `difference` compares. The corpus proves the other half against a
-    // JavaScript engine; this is the one stage 5 was done for, and it runs
-    // over the whole set, the eight documents holding an unpaired surrogate
-    // included, since the front end takes code units and owes no byte
-    // encoding. Two things it found: the parser used to sort an object's
-    // keys, and it used to be fed code points by the proofs where
-    // `transpile` feeds it code units.
+    // JavaScript engine; this is the one the front end's move was done
+    // for, and it runs over the whole set, the eight documents holding an
+    // unpaired surrogate included, since the front end takes code units and
+    // owes no byte encoding. Two things it found: the parser used to sort
+    // an object's keys, and it used to be fed code points by the proofs
+    // where `transpile` feeds it code units.
     subsetLaw: acceptSet.map(({ id, document, graph }) => () => {
         const source = documentText(document)
         assert(source !== null, `${id}: the document is not UTF-8`)
