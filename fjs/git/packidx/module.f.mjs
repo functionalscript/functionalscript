@@ -300,10 +300,17 @@ const tryV2 = (b, oidBytes) => {
 }
 
 /**
- * A `.idx` decoded, or `null` where it is one Git would not read at this
- * width: a length its tables do not add up to, a version 2 word that is not
- * 2, a fanout that disagrees with the ids, or an 8-byte offset too large to
+ * A `.idx` decoded, or `null` where it is one this reader will not read at the
+ * given width: a length its tables do not add up to, a version 2 word that is
+ * not 2, a fanout that disagrees with the ids, or an 8-byte offset too large to
  * be one.
+ *
+ * **That is a stricter subset than Git's, in one place, on purpose.** A version 2
+ * index whose 8-byte offset table is longer than any 4-byte word refers to is a
+ * file Git reads and this refuses — see {@link tryV2}, where the reason is that
+ * the spare block turns an index *past* the table into one inside it and the
+ * garbage there reads as an offset. So `null` here means "not one of the indexes
+ * this reads", and a caller that needs Git's exact set needs that case too.
  *
  * The width is the repository's, the same argument every reader here takes,
  * and reading a SHA-256 index at 20 bytes refuses rather than mis-parses —

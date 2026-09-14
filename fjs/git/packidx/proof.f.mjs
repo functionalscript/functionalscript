@@ -38,7 +38,14 @@ const entries = /** @type {const} */ ([
 const packName = /** @type {const} */ ('6565001cf42de4aac5fa4f9a260ab4588951ee17')
 
 /** @type {(idx: Idx) => readonly (readonly [string, number])[]} */
-const seen = idx => idx.ids.map((v, i) => [codePointListToString(toHex(v)), idx.offsets[i]])
+const seen = ({ ids, offsets }) => ids.map((v, i) => [codePointListToString(toHex(v)), offsets[i]])
+
+/**
+ * The pack an index names, as the hex its trailer spells.
+ *
+ * @type {(idx: Idx) => string}
+ */
+const packNamed = ({ packChecksum }) => codePointListToString(toHex(packChecksum))
 
 /** @type {(bytes: readonly number[]) => Idx} */
 const decoded = bytes => {
@@ -206,7 +213,7 @@ export const proof = {
     version2: () => {
         const idx = decoded(packIdx2)
         assertStructurallySame(seen(idx), entries)
-        assertEq(codePointListToString(toHex(idx.packChecksum)), packName)
+        assertEq(packNamed(idx), packName)
     },
     // Version 1, which Git still writes under `pack.indexVersion 1` and
     // still reads. Its layout shares only the fanout with version 2 — no
@@ -215,7 +222,7 @@ export const proof = {
     version1: () => {
         const idx = decoded(packIdx1)
         assertStructurallySame(seen(idx), entries)
-        assertEq(codePointListToString(toHex(idx.packChecksum)), packName)
+        assertEq(packNamed(idx), packName)
     },
     // The same answer from both files, which is the point of reading them
     // into one shape: the version says how the bytes were laid out and
