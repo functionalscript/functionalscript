@@ -18,7 +18,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.2\""
         },
         {
           "run": "./nix/run npm ci"
@@ -62,7 +62,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.2\""
         },
         {
           "run": "./nix/run npm ci"
@@ -94,7 +94,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.2\""
         },
         {
           "run": "./nix/run npm ci"
@@ -126,7 +126,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.2\""
         },
         {
           "run": "./nix/run npm ci"
@@ -161,7 +161,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.8.1"
+            "node-version": "26.8.2"
           }
         },
         {
@@ -211,7 +211,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.8.1"
+            "node-version": "26.8.2"
           }
         },
         {
@@ -413,7 +413,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.2\""
         },
         {
           "run": "test \"$(./nix/run tsc --version)\" = \"Version 7.0.2\""
@@ -461,7 +461,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.8.1"
+            "node-version": "26.8.2"
           }
         },
         {
