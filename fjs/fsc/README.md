@@ -51,17 +51,23 @@ See [examples/input.f.mjs](./examples/input.f.mjs).
 
 ## EDAG
 
-A parsed module also compiles to an [EDAG](../edag/README.md) over its
-imports, before any import is read — [edag/module.f.mjs](./edag/module.f.mjs),
-the first half of Stage 1 in
-[compile-modules-to-edag](./todo/compile-modules-to-edag.md). Import `i` is
-the parameter `['.', ['args'], i]`, a `const` is one node however many
-references reach it, and the export is the root; the specifiers ride beside
-the graph as `Unresolved`, a compiler's structure and no part of EDAG, until
-resolution binds each import's own EDAG in its parameter's place. A module
-whose export does not reach every import and every `const` is refused rather
-than compiled: `transpile` reads and `run` evaluates them all today, and an
-EDAG has no operation yet to anchor a computation whose value nothing takes.
+A parsed module also compiles to an [EDAG](../edag/README.md) —
+[edag/module.f.mjs](./edag/module.f.mjs), Stage 1 of
+[compile-modules-to-edag](./todo/compile-modules-to-edag.md). `unresolved`
+compiles it over its imports, before any import is read: import `i` is the
+parameter `['.', ['args'], i]`, a `const` is one node however many references
+reach it, and the export is the root; the specifiers ride beside the graph as
+`Unresolved`, a compiler's structure and no part of EDAG. `resolve` links a
+program from its root path into one EDAG: each import is read, parsed and
+resolved the same way, recursively, and bound in its parameter's place — the
+binding happens where a reference is lowered, so the graph is built once with
+the imported module's node where its parameter would be — and a module met
+twice in one link is one node, so a diamond of imports joins where it should.
+A `.json` import is the tree its document denotes, as `transpile` reads it. A
+module whose export does not reach every import and every `const` is refused
+rather than compiled: `transpile` reads and `run` evaluates them all today,
+and an EDAG has no operation yet to anchor a computation whose value nothing
+takes.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.

@@ -14,6 +14,14 @@ This cache is an optimization around the temporary unresolved representation. It
 not change `Unresolved`, EDAG, or the final compilation result: after module
 resolution, the compiler still produces one final EDAG.
 
+One thing it adds: today's `resolve` in [`fjs/fsc/edag`](../edag/module.f.mjs)
+binds an import where the importing module's reference is lowered, from the
+AST, so it never rewrites a finished `Unresolved`. A cached `Unresolved` has no
+AST, so linking from the cache needs a rewrite of its graph — the parameter
+nodes replaced, every node above them rebuilt once, with a memo keyed by node
+identity so a shared node stays one — which this issue owes, or a cached form
+that keeps the body's nodes in order so the rewrite can key by index.
+
 The temporary type remains:
 
 ```ts
