@@ -9,8 +9,8 @@ calls the one everything else is waiting for.
 and `tryStringify` over the three passes of §1–§3, with every rule of §1 proved
 and the two worked examples of the hoisting and naming rules pinned, refusing
 everything the specification refuses. The corpus proofs of §4 are done — all
-three writer-side sets run this writer — so what remains is the module's own
-`module.f.mjs`, the explicit-stack walk, the two quadratic steps measured, and a
+three writer-side sets run this writer — and both passes keep the reader's
+depth contract, so what remains is the two quadratic steps decided and a
 readable layout if one is wanted (§3).
 **Blocked by:** nothing, for what is left of the implementation. What landed
 proves itself against the specification by hand, as
@@ -181,20 +181,26 @@ carry.
 One cost is now measured rather than assumed: the read rebuilds `started`
 per container (`new Set([...prev, value])`), and `shared` counts occurrences
 with `indexOf`, so both are quadratic in the number of containers. That is a
-simple-first choice, and a document wide enough to matter is what would
-change it.
+simple-first choice, and a document with enough containers is what would
+change it. Measured, once depth stopped throwing first: 2,600 nested arrays
+write in 0.3 s, 5,000 in 1.1 s and 20,000 in 23 s, and the `started` copy
+alone is 0.98 s of the 1.1 s — so the copy is the step that would go, and
+the decision is the task below.
 
-**Depth is a defect rather than a cost.** `read` and `write` recurse on the
-call stack, where the reader walks an explicit one and keeps a 5,000-level
-depth contract — so the writer cannot write back every document the reader
-accepts. Measured: a value of 2,600 nested arrays, one `tryParse` itself
-returns, makes `tryStringify` throw
-`RangeError: Maximum call stack size exceeded` instead of returning an
-`error`. §Layout and API says rejection is a `try*` and not a panic, and an
-escaping exception is neither. The fix is the reader's shape, a frame per
-container on an explicit stack, in both passes; until it lands this is the
-input that breaks the writer, named here as
-[`REVIEW.md`](../../../../doc/REVIEW.md) asks of a deferred crash.
+**Depth is the input's, not the call stack's.** The reader walks an explicit
+stack and keeps a 5,000-level depth contract, and both passes here keep it,
+so a document the reader accepts is one the writer writes back — proved by
+the reader's own 5,000-level document written back byte for byte. The read
+walks a frame per container being read, its members read in order, the
+reader's shape exactly. The write needs no stack of its own, because
+`_link` left the nodes in post-order: a node comes after every node it refers
+to, so each node's chunks are built, in index order, from the chunks of nodes
+already built, and a reference to an inline node is a thunk over that node's
+chunks, forced only as the document is read out — which the list's iteration
+does without recursion. Before this, both passes recursed, and 2,600 nested
+arrays — a value `tryParse` itself returns — made `tryStringify` throw
+`RangeError` where §Layout and API promises an `error`; that input now
+writes, and a refusal below it is an `error`.
 
 This pass is the *first* thing that touches the caller's graph, so every rule
 below has to hold here rather than in the walk: counting occurrences means
@@ -483,12 +489,18 @@ divergence to close; that was a category error, and it is not one.
       with it: `try*` on all four, the reader's two renamed to match.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
-- [ ] **Walk both passes on an explicit stack**, so that a document the
-      reader accepts is one the writer can write: 2,600 nested arrays make
-      `tryStringify` throw `RangeError` today, where it owes an `error` at
-      worst (§1).
-- [ ] Measure the two quadratic steps of §1 against a document wide enough to
-      matter, and decide whether it is worth changing.
+- [x] **Both passes keep the reader's depth contract**: the read over an
+      explicit stack, the write over the linked graph's post-order, so the
+      2,600 nested arrays that threw `RangeError` write, and the reader's
+      5,000-level document writes back byte for byte (§1).
+- [ ] Decide whether the two quadratic steps of §1 are worth changing. The
+      measurement is in §1: the `started` copy is 0.98 s of a 5,000-deep
+      write's 1.1 s, and `indexOf` the rest of what grows; a document with
+      enough containers, deep or wide, is what would change it. The depth
+      proof waits on the same decision: its 5,000-level leaf pins the contract
+      and little above it — a regression costing one call frame per level
+      passes it and breaks only near 9,000 — and pinning higher costs this
+      step's time until the step goes.
 - [ ] Delete this file in the PR that finishes it.
 
 ### Related
