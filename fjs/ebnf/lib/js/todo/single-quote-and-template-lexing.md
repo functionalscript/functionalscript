@@ -5,8 +5,8 @@
 hand-written scanner in `fjs/js/tokenizer` and waited on the JSON reader's
 rewrite, because widening that scanner regressed the public JSON tokenizer
 built over it. It moved here when
-[parser-serializer-restructure](../../../../../todo/parser-serializer-restructure.md)
-stage 7 decided that the scanner goes and the grammar is the token layer:
+[the token layer became JavaScript's](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+and the scanner went:
 JSON reads [`ebnf/lib/json`](../../json/module.f.mjs), not this grammar, so
 widening this grammar regresses nothing, and the ordering problem that
 blocked the old issue is gone with the module it was about.
@@ -52,8 +52,10 @@ The difference is between *recognising* a spelling and *accepting* it.
 Displaying a module needs the tokenizer to find where a string starts and ends
 so the text can be coloured. It does not need FunctionalScript to admit the
 string as valid, and it does not need a substitution's type decided — a source
-view never evaluates anything. That is the division stage 7 states: the token
-layer is JavaScript's, and what the language accepts is decided above it, at
+view never evaluates anything. That is the division
+[`fjs/fsc/README.md`](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+states: the token layer is JavaScript's, and what the language accepts is
+decided above it, at
 the token — the way the compiler's fold already refuses `-NaN` and a number
 followed by a word, both of which the grammar reads without complaint.
 
@@ -87,7 +89,7 @@ The grammar has three readers, and the widening reaches each differently.
   branches by dialect, since both begin with `"`, and one bit on the token
   is what the compiler's fold reads.
 - [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
-  JS stream over this grammar since stage 7. It is the consumer this issue
+  JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
   reads it, and a future `fjs lint` would. It refuses nothing the grammar
@@ -336,10 +338,10 @@ the source view rests on.
 
 - [source-and-doc-view](../../../../website/todo/source-and-doc-view.md) — the
   consumer this unblocks; its first task is this issue.
-- [parser-serializer-restructure](../../../../../todo/parser-serializer-restructure.md)
-  stage 7 — the decision this issue rests on: the token layer is shared with
-  JavaScript and grows here, the parser stays the subset, and the scanner
-  goes.
+- [The token layer is JavaScript's, the parser is the subset](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
+  — the decision this issue rests on: the token layer is shared with
+  JavaScript and grows here, the parser stays the subset, and the scanner is
+  gone.
 - [2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md) —
   the same spellings, as a language feature. Its lexical surface is what this
   issue recognises; its question, whether FunctionalScript *accepts* those

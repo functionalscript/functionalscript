@@ -4,13 +4,12 @@ The front end: a grammar-based tokenizer over
 [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs), the
 [parser](./parser/README.md), the [AST](./ast/module.f.mjs), and the
 [transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
-from `fjs/djs` as stage 5a of
-[`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md),
-and its issues followed into [`todo/`](./todo/) in stage 7, when the old
-serializer was retired and `fjs/djs` emptied; the value model is DataJS's,
+from `fjs/djs` when the parsers and serializers were restructured, and its
+issues followed into [`todo/`](./todo/) when the old serializer was retired
+and `fjs/djs` emptied; the value model is DataJS's,
 [`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes through
-[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs)
-since stage 6: its module output is a DataJS document in normalized form, and
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs):
+its module output is a DataJS document in normalized form, and
 its `.json` output refuses what JSON cannot spell rather than approximating
 it — see [`module.f.mjs`](./module.f.mjs).
 
@@ -103,7 +102,7 @@ closed with them.
 | tokenizer | the `token` variant: `comment`, `['/', { oneline, multiline }]`, beside `operator`, which holds `/` and `/=` | first/first on `/` | grammar: left-factor the `/`, the shape of the `*` above. Not removed by the prefix tree — checked with the operator's first set kept whole — and masking a rule by replacement erased `/` from that set, which is how a first count missed it |
 | tokenizer | `number`: `digits0`, then the `option({ bigint, frac })` | first/follow on the digits, and on `e`, `E`, `n` | the `numError` poison: `[idChar]` follows every optional part of a number, and `idChar` holds digits and letters. The number boundary is decided one layer up, over the token stream |
 | tokenizer | `jsGrammar = repeat0Plus(token)`: the `idChar` repeat of `id`, the body of a `//` comment, its `option(newLine)`, the number's `{ numError: [idChar], ok: none }` itself, its `fracPart` on `.`, the exponent's sign option on `+` and `-`, and `multilineContent` | first/follow on the next token's first set | inherent to a whole-file grammar: a greedy token against the token after it. With the entry a single `token` the seven vanish — verified on the bridged set and on a two-rule grammar. The poison is the row above seen from outside the number: nullable, so its follow set is the next token's |
-| parser | `statementEnd`: `[trivia, ';', …]` beside `[lineTrivia, 'nl', …]` | first/first on the trivia symbols | trivia leads both branches. Trivia follows every token instead, and `;` ends every statement — the newline terminator is gone, the design [parser-serializer-restructure](../../todo/parser-serializer-restructure.md)'s stage 5 decided |
+| parser | `statementEnd`: `[trivia, ';', …]` beside `[lineTrivia, 'nl', …]` | first/first on the trivia symbols | trivia leads both branches. Trivia follows every token instead, and `;` ends every statement — the newline terminator is gone, which is the rule [`spec/README.md`](../../spec/README.md) states |
 | parser | `delimited`: `repeat0Plus([',', trivia, element, trivia])` then `option([',', trivia])`, once for arrays and once for objects | first/follow on `,` | the trailing comma, which rested on a failed round rewinding; spelled right-recursively, `item t [ ',' t [ items ] ]` |
 | parser | the module's final `{ semicolon: [trivia, ';'], none: [] }`, then `trivia` | first/follow on the trivia symbols | trivia leads the option and follows it; gone with the `;` after every statement |
 
@@ -410,6 +409,34 @@ land. A sibling authored `types.ts` remains unchanged across this rename.
 
 A synthetic JavaScript compiler fixture may be used before repository migration;
 it does not change the extension contract for repository source.
+
+## The token layer is JavaScript's, the parser is the subset
+
+Decided with the retirement of the hand-written scanner, and not to reopen
+without a reason. The grammar's tokens,
+[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) read by
+[`fjs/js/tokenizer`](../js/tokenizer/module.f.mjs), grow toward the whole
+JavaScript lexical surface, because everything that reads a `.f.mjs` — this
+compiler, the website's highlighter, a linter — needs the same tokens, and a
+token that is recognised is not thereby accepted: the compiler's fold and
+grammar refuse what the language does not admit, at the token, as they refuse
+`-NaN`. The rules the grammar shares with JSON flow the other way — it imports
+JSON's digit and string rules from `fjs/ebnf/lib/json`, and no codec reads
+this grammar — so widening it regresses no codec. The parser stays the
+FunctionalScript grammar, LL(1) over those tokens, and grows one production
+at a time as the EDAG stages ask.
+
+A full ECMAScript parser with a filter behind it — accept everything, then
+decide from the tree what is FunctionalScript — was considered and refused.
+It is not LL(1) (ASI, cover grammars, contextual keywords,
+regex-or-division), so it would be the hand-written surface the grammar
+route exists to avoid; the subset law needs only that what is accepted means
+what JavaScript means, which the LL(1) grammar and the engine-as-oracle
+proofs give; and nothing open needs a JavaScript parse tree, the views and
+the linter needing tokens. What a full parser would buy — a message naming
+the construct refused rather than the token — is an error production in the
+subset grammar, where it earns its place. Where the rest of `fjs/js` lives
+afterwards is a later rename and no part of this decision.
 
 ## Tokenizer
 

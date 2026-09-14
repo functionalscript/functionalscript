@@ -39,8 +39,8 @@ but not the rule that produced it), and **complete before anything else starts**
 
 **Not in this list: `fjs/media/json`.** Not because its codec stays
 hand-written — that decision is withdrawn, and
-[parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-now has JSON's reader coming from a grammar. The reason is the module: that
+[`fjs/media/json`](../../media/json/README.md)'s reader comes from a grammar.
+The reason is the module: that
 grammar runs over `fjs/ebnf/`, while `fjs/bnf` held JSON and DataJS
 grammars only as proof-covered examples. This issue made those examples
 produce values; it did not make them a codec. The capability it describes is
@@ -650,6 +650,7 @@ What is still open for the surviving backend:
 - [layered parser](./layered-parser.md) — each layer is one grammar plus one map.
 - [unicode-rules](../unicode/todo/unicode-rules.md) — not blocking; it changes which rule
   *values* a grammar has, not any spelling.
-- [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-  — the media/grammar boundary.
+- [`fjs/media/json`](../../media/json/README.md) — the media/grammar
+  boundary: the grammar is a codec's runtime dependency, and the JavaScript
+  token stream is not.
 - [`../ast`](../ast/README.md) — the AST contract, `Ast<R, I, O>`.

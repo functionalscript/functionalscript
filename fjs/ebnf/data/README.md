@@ -109,9 +109,9 @@ The form serializes as DJS. It is not JSON, because an unbounded `max` is
 a dropped argument cannot read as plausible — holds one layer down.
 `fjs/rtti/data` made the same call for `bigint`.
 
-**The DataJS serializer spells `Infinity`**, since stage 5 of
-[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md):
-`fjs/media/datajs/serializer` writes numbers as `ToString` does, so a set holding
+**The DataJS serializer spells `Infinity`**:
+[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)
+writes numbers as `ToString` does, so a set holding
 `['repeat', 0, Infinity, 'x']` is written as `['repeat', 0, Infinity, 'x']`
 and reads back as the unbounded repeat it is. Before that it reused JSON's
 writer, `JSON.stringify(Infinity)` is `null`, and the set read back as a
