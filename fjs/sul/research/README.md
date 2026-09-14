@@ -12,6 +12,10 @@ works, its measurements, and the unresolved design questions.
 
 ## Contents
 
+- [Brotli dictionary at level zero](brotli-dictionary.md): test shared base
+  entries and the full transform vocabulary with literal-byte fallback, direct
+  coding, and recursive SUL dictionaries, including two short-document examples.
+
 - [Byte symbols at level zero](byte-alphabet.md): test a byte-alphabet word/hash
   variant against both native SUL and a matched bit control, using the same
   ordered dictionaries and adaptive coder. Includes all ten fixture results.
