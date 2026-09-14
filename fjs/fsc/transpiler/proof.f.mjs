@@ -5,7 +5,7 @@
  * @import { ParseError } from '../parser/types.ts'
  */
 import { transpile } from './module.f.mjs'
-import { tryStringify } from '../../media/datajs/serializer/module.f.mjs'
+import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'

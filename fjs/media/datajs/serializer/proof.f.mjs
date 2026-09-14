@@ -9,7 +9,7 @@ import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
-import { parse } from '../parser/module.f.mjs'
+import { tryParse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
 import { _elementNames, _link, _memberValue, trySerialize, tryStringify } from './module.f.mjs'
 
@@ -45,7 +45,7 @@ const isUtf8 = text => toArray(stringToCodePointList(text)).every(codePoint => (
 const denotes = value => {
     const document = text(value)
     assert(isUtf8(document), document)
-    assertEq(difference(value)(unwrap(parse(document))), null)
+    assertEq(difference(value)(unwrap(tryParse(document))), null)
 }
 
 /** An empty array a `const` may hold, which `[]` alone types as an evolving array. @type {Unknown} */

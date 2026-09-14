@@ -1,7 +1,7 @@
 ## DataJS serializer
 
-**Priority:** P1 — it is what is left of stage 4 beside the public
-`module.f.mjs` surface, and stage 4 is the deliverable
+**Priority:** P1 — it is what is left of stage 4, and stage 4 is the
+deliverable
 [the coordinating plan](../../../../todo/parser-serializer-restructure.md)
 calls the one everything else is waiting for.
 **Status:** wip — **the writer landed**, as
@@ -65,13 +65,13 @@ today, not as a settled contract.
 
 ### Problem
 
-The reader landed on the grammar route, its byte path and its corpus proofs
-with it, and [`parser-serializer.md`](./parser-serializer.md) keeps what
-remains — the public `module.f.mjs` surface and the `parse` versus `tryParse`
-naming it carries. This file is the other half: the writer, which landed as
-described under **Status** above. What is written below is the design it was
-built to; where a section is done, it says so and records what the
-implementation settled.
+The reader landed on the grammar route, its byte path, its corpus proofs and
+the directory's public `module.f.mjs` with it, and its issue is retired into
+[the module README](../README.md), which keeps what both roles share — the
+public surface and the value domain. This file is what remains of stage 4: the
+writer, which landed as described under **Status** above. What is written
+below is the design it was built to; where a section is done, it says so and
+records what the implementation settled.
 
 The specification is finished and normative.
 **This issue implements it and does not redesign it.** Where the two disagree
@@ -101,9 +101,9 @@ fjs/media/datajs/
 ```
 
 Two of the four entry points
-[`parser-serializer.md`](./parser-serializer.md#layout) lists are this
-file's, and both landed. A third, `tryNormalize`, is deliberately not a
-function:
+[the module README](../README.md#every-entry-point-is-fallible-and-the-names-say-so)
+lists are this file's, and both landed. A third, `tryNormalize`, is
+deliberately not a function:
 
 ```ts
 export const trySerialize: (value: unknown) => Result<List<string>, string>
@@ -119,10 +119,10 @@ recommends for tooling — it is the second entry point and `tryNormalize`
 names this one. Until then `tryStringify`'s output is byte-exact normalized
 form, and its proof pins the bytes.
 
-The module's own `module.f.mjs`, the public surface both roles share, is
-still owed and is where the naming question `parse` versus `tryParse` gets
-settled; the writer is reached at `serializer/module.f.mjs` today, as the
-reader is at `parser/module.f.mjs`.
+The module's own [`module.f.mjs`](../module.f.mjs), the public surface both
+roles share, has landed, and settled the naming for all four names at once:
+`try*`, the reader's two renamed to `tryParse` and `tryParseBytes` to match
+these two.
 
 `trySerialize` yields chunks and `tryStringify` is its `concat`, mirroring
 [`fjs/media/json`](../../json/module.f.mjs)'s pair. The input is `unknown`
@@ -187,7 +187,7 @@ change it.
 **Depth is a defect rather than a cost.** `read` and `write` recurse on the
 call stack, where the reader walks an explicit one and keeps a 5,000-level
 depth contract — so the writer cannot write back every document the reader
-accepts. Measured: a value of 2,600 nested arrays, one `parse` itself
+accepts. Measured: a value of 2,600 nested arrays, one `tryParse` itself
 returns, makes `tryStringify` throw
 `RangeError: Maximum call stack size exceeded` instead of returning an
 `error`. §Layout and API says rejection is a `try*` and not a panic, and an
@@ -248,7 +248,8 @@ data descriptors' `value`s are followed. Nothing outside the model is ever
 read.
 
 The same mechanism answers the present-versus-absent problem of
-[`parser-serializer.md`](./parser-serializer.md) §1: a descriptor exists if and
+[the module README](../README.md#one-type-level-trap-in-the-value-domain): a
+descriptor exists if and
 only if the property does, so a member holding `undefined` is distinguishable
 from an absent one without reading any value. `definedEntries`, which
 [`treeSerialize`](../../json/serializer/module.f.mjs) reads objects through,
@@ -478,10 +479,8 @@ divergence to close; that was a category error, and it is not one.
       proof here and narrowing the parameter is what closes it, as the top of this
       file sets out. The rest of the gap is proved at the top level, by the
       `refusals` table in [`../serializer/proof.f.mjs`](../serializer/proof.f.mjs).
-- [ ] `module.f.mjs`, the public API of
-      [`parser-serializer.md`](./parser-serializer.md#layout) — the byte path
-      has landed beside it, so nothing gates this — and the `parse` versus
-      `tryParse` naming with it.
+- [x] [`module.f.mjs`](../module.f.mjs), the public surface, and the naming
+      with it: `try*` on all four, the reader's two renamed to match.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
 - [ ] **Walk both passes on an explicit stack**, so that a document the
@@ -494,7 +493,7 @@ divergence to close; that was a category error, and it is not one.
 
 ### Related
 
-- [`parser-serializer.md`](./parser-serializer.md) — the reader half of stage 4 and the shared public API; this file was split out of it.
+- [the module README](../README.md) — the reader, done, and the public surface both roles share; this file was split out of the reader's issue, since retired into it.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. §Serialization and §Normalized form are what this implements.
 - [`spec/datajs/vectors/README.md`](../../../../spec/datajs/vectors/README.md) — the corpus schema; the writer-side sets are the proof source.
 - [`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md) — the conformance corpus, which owns those sets; its README is the schema and the derivation rules, and states what it cannot carry, this writer's `unknown` parameter included.

@@ -1,10 +1,10 @@
 /**
  * The DataJS reader: the rewrite set that folds the tree of the grammar in
  * `../../../ebnf/lib/datajs` into a value as the LL(1) backend builds it,
- * and {@link parse}, the reader over a whole document.
+ * and {@link tryParse}, the reader over a whole document.
  *
  * ```text
- * DataJS text -> grammar -> parse -> Unknown
+ * DataJS text -> grammar -> tryParse -> Unknown
  * ```
  *
  * A mapping sees one value and no environment, so the fold builds a
@@ -285,7 +285,7 @@ const parseDocument = parser(wholeDocument, mappings)
  *
  * @type {(text: string) => Result<Unknown, string>}
  */
-export const parse = text => {
+export const tryParse = text => {
     const match = parseDocument(units(text))
     return match[0] === 'error'
         ? error(syntaxError(text)(match[1]))
@@ -311,7 +311,7 @@ const bomRule = 'document: a document has no BOM'
  * path's and nothing else's: **a document is UTF-8**, and **it has no
  * BOM**. By the time input is a JavaScript string both are gone — every
  * string is some sequence of code units, and a leading BOM is one ordinary
- * character among them — so {@link parse} can neither implement nor refuse
+ * character among them — so {@link tryParse} can neither implement nor refuse
  * them, and a reader taking bytes owes both.
  *
  * Strictness is the decoder's, and it is the same pair `fromVec` in
@@ -336,9 +336,9 @@ const bomRule = 'document: a document has no BOM'
  *
  * @type {(bytes: List<U8>) => Result<Unknown, string>}
  */
-export const parseBytes = bytes => {
+export const tryParseBytes = bytes => {
     const codePoints = toArray(toCodePointList(bytes))
     if (!codePoints.every(isValidCodePoint)) { return error(utf8Rule) }
     if (codePoints[0] === bom) { return error(bomRule) }
-    return parse(codePointListToString(codePoints))
+    return tryParse(codePointListToString(codePoints))
 }
