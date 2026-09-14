@@ -223,9 +223,11 @@ export const proof = {
         },
     },
     // `readWhole` of a `JsModule` is that same `IoResult` and not a panic, and it
-    // carries the *node runner's* code: that runner refuses a FIFO, a device and
-    // a procfs file before it opens the path, with `ERR_NOT_A_FILE`, so a caller
-    // that branches on it must be able to reach the branch here too. The two
+    // carries the *node runner's* code: that runner refuses a FIFO or a device
+    // before it opens the path, with `ERR_NOT_A_FILE`, so a caller that branches
+    // on it must be able to reach the branch here too. A procfs file is not one
+    // of them — it is a regular file whose size lies, which that runner reads to
+    // the end rather than refuses. The two
     // reads beside it, `readFile` and `readBytes`, still panic — their contract
     // is to produce bytes and a module has none, so a fixture aiming them at one
     // is a fixture bug.

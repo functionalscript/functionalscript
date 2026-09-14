@@ -7,7 +7,6 @@
  * @import { Bytes } from './types.ts'
  */
 
-
 /**
  * The bytes a Latin-1 string spells, one per code unit: how a fixture is
  * written, since every byte is a code unit below `0x100` and a byte above

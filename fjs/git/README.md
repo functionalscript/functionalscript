@@ -381,7 +381,9 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`refstore/`](refstore/module.f.mjs) over the effects — and reading the
   *reflog* is not, which is why `tryRoots` answers the refs and not everything
   the repository is keeping: a reflog entry keeps an object alive until it
-  expires, measured, so a caller must not prune by that list
+  expires, and so does the *index* — a staged blob survives `gc --prune=now`
+  though no ref names it and `rev-list --all` never lists it, both measured — so
+  a caller must not prune by that list
   ([`refstore/todo/reflog-roots.md`](refstore/todo/reflog-roots.md)). The one
   repository that list cannot describe at all is refused: a `packed-refs` line
   naming `HEAD` is a root Git keeps beside the `HEAD` file's, and one entry per

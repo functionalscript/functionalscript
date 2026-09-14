@@ -58,8 +58,18 @@
  * The filter runs before a path is built and not after a file is read, which
  * matters for a name a caller passes in rather than one a directory listing
  * handed over: `..` is one of the byte pairs the rule refuses, so a name like
- * `../secret` never becomes a path below the repository and is never opened.
- * A file outside a repository is not a ref however its first bytes read.
+ * `../secret` never becomes a path below the repository and is never opened. A
+ * *name* that climbs out of the repository is no ref however the file it would
+ * reach reads.
+ *
+ * That is a rule about names and not about where a file finally sits. A
+ * **link** under `refs/` is followed wherever it goes, which is Git's answer:
+ * measured on 2.43.0, `refs/heads/o` linked to a file outside the repository
+ * holding an id is listed by `show-ref` and `for-each-ref` and answered by
+ * `rev-parse`, and this module lists it too. `HEAD` is the one path where a link
+ * is refused instead, for the reason {@link headIsFile} argues — there the link
+ * is what a repository would use to make this module read a file that is not in
+ * it, and nothing in these effects can see where a link points.
  *
  * **A ref name is bytes and a path is text, joined by UTF-8 in both
  * directions.** A directory entry called `é` is the name `0xC3 0xA9`, and that
@@ -633,10 +643,34 @@ const resolveWith = (dirs, oidBytes, packed) => {
  * The id one ref name holds, or `null` where the repository has no such ref.
  *
  * `null` covers every way a name can fail to name an id, because to a caller
- * asking "what does this ref point at" they are one answer: no loose file
- * and no packed line, a loose file that is no ref, a symbolic ref whose
- * target is none, and a chain longer than {@link maxLookups}. A file that
- * cannot be read for any other reason is the channel's.
+ * asking "what does this ref point at" they are one answer. Every one of them,
+ * so a reader can tell this list from the channel's business:
+ *
+ * - no loose file and no packed line — the ordinary "no such ref";
+ * - a loose file that is no ref, which does **not** fall back to the packed
+ *   line, because the loose file decides the name by existing;
+ * - a symbolic ref whose target is none, and a chain that spends
+ *   {@link maxLookups} without reaching an id;
+ * - `HEAD` pointing outside `refs/`, the one target Git constrains — see
+ *   {@link targetAllowed}, and the paragraph below;
+ * - a name that is no ref name, answered before any file is opened — the
+ *   paragraph below;
+ * - a name no path can spell: bytes that are no UTF-8 name a file no host here
+ *   can be asked about, so whether one exists is unknowable rather than
+ *   answered from the packed line — {@link nameText} and
+ *   [`todo/byte-ref-names.md`](./todo/byte-ref-names.md);
+ * - `FETCH_HEAD` or `MERGE_HEAD` with no file, which do not fall back to a
+ *   packed line of that name: Git reads those two from the file alone —
+ *   {@link special};
+ * - a `packed-refs` Git refuses, which makes **every** name `null`, including
+ *   one whose loose file is perfectly good: a store whose packed file is
+ *   `unexpected line` is not one this answers out of by halves;
+ * - `HEAD` where the gitdir cannot be listed at all: the listing that would say
+ *   what kind the file is answers `ENOENT`, which is read as a `HEAD` that is
+ *   not there and then answered like any absent file — see {@link headIsFile}
+ *   for why the kind comes from a listing rather than from a `stat`.
+ *
+ * A file that cannot be read for any other reason is the channel's.
  *
  * The name is bytes and not text, and it is a whole ref name: `HEAD`,
  * `refs/heads/master`, `FETCH_HEAD`. One that is no ref name answers `null`
@@ -764,12 +798,9 @@ const descendInto = (item, found) =>
  *
  * The captures are leading parameters and this sits at module scope (§3.3).
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>, name: readonly number[], item: _Entry, found: _Found) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
  */
-const readAsRef = (readRef, resolve, keep, item, found) => {
-    if (!keep(item.name)) { return pureOk(walked(found, null)) }
-    const name = nameBytes(item.name)
-    if (!isWholeName(name)) { return pureOk(walked(found, null)) }
+const readAsRef = (readRef, resolve, name, item, found) => {
     // the name is recorded whatever the file turns out to hold, because
     // that is what shadows the packed line
     const names = concat(found.names)([name])
@@ -813,9 +844,9 @@ const linkedDirMessage = path => `${path} is a link to a directory`
  * `isFile` for a link to a ref file, `isDirectory` for a link to a directory, and
  * neither for a FIFO and for a link to one.
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>, keep: (text: string) => boolean, item: _Entry, found: _Found) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Readdir | ReadFile, Nullable<Oid>, IoChannel>, name: readonly number[], item: _Entry, found: _Found) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
  */
-const statted = (readRef, resolve, keep, item, found) => step(
+const statted = (readRef, resolve, name, item, found) => step(
     // The catch is around the `stat` and nothing else: a `readFile` below that
     // cannot find what the listing named is a race or a broken host, and this
     // module's rule is that such a read is the channel's.
@@ -830,7 +861,7 @@ const statted = (readRef, resolve, keep, item, found) => step(
         // open
         ? pureOk(walked(found, null))
         : s.isFile
-            ? readAsRef(readRef, resolve, keep, item, found)
+            ? readAsRef(readRef, resolve, name, item, found)
             : pureError(ioError({ code: linkedDirCode, message: linkedDirMessage(item.path) })))
 
 /**
@@ -843,6 +874,18 @@ const statted = (readRef, resolve, keep, item, found) => step(
  *
  * A file whose name is no ref name is skipped without a word, which is also
  * Git's — see this module's header for the table the two agree on.
+ *
+ * **The name is asked before the kind, because Git skips by name first.** An
+ * entry the listing could not classify costs a `stat`, and a link to a directory
+ * is refused by it — so asking the kind first refused a whole repository over an
+ * entry Git never looks at. Measured on Git 2.43.0 in a repository of
+ * `refs/heads/master` and `refs/tags/v1`: with `refs/heads/.hidden` linked to
+ * `master`, `show-ref` lists the two refs and exits 0; with the same name linked
+ * to `../tags`, it lists the same two and exits 0 again — the name is skipped
+ * whatever it points at. Only a *valid* name linked to a directory is a
+ * disagreement, and a deliberate one: there Git lists `refs/heads/ok/v1` and
+ * this refuses with {@link linkedDirCode}, for the unbounded-walk reason argued
+ * there. The order also saves a `stat` on every entry the other walk owns.
  *
  * **The kind is two questions and not one, because `isDirectory` is not
  * `!isFile`.** A FIFO, a socket, a device and a symlink to anything at all are
@@ -871,8 +914,14 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
         if (state === null) { return pureOk(walked(null, null)) }
         const found = state
         if (item.isDirectory) { return descendInto(item, found) }
-        if (item.isFile) { return readAsRef(readRef, resolve, keep, item, found) }
-        return statted(readRef, resolve, keep, item, found)
+        // The name decides before the kind is asked, which is Git's order and
+        // was not this walk's: see the doc above.
+        if (!keep(item.name)) { return pureOk(walked(found, null)) }
+        const name = nameBytes(item.name)
+        if (!isWholeName(name)) { return pureOk(walked(found, null)) }
+        return item.isFile
+            ? readAsRef(readRef, resolve, name, item, found)
+            : statted(readRef, resolve, name, item, found)
     }
 }
 
@@ -1098,17 +1147,24 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  * names: the ids a search for candidate commits may start from, and the roots
  * a *ref* keeps an object alive by.
  *
- * **Not every root Git has, and so not a prune list.** A reflog entry keeps an
- * object too, until the entry expires: measured on Git 2.43.0, a commit left
- * only in `HEAD`'s reflog by `git reset --hard HEAD~1` survives
- * `git gc --prune=now`, and the same commit is gone after
- * `git reflog expire --expire=now --expire-unreachable=now --all` and another
- * `gc --prune=now`. `git fsck` treats the reflog the same way, which is what
- * `--no-reflogs` turns off. So a caller that deletes what this list does not
- * name deletes history Git would have given back, and this answers refs rather
- * than everything the repository is currently keeping —
- * [`todo/reflog-roots.md`](./todo/reflog-roots.md) is the other half, and the
- * shape it needs.
+ * **Not every root Git has, and so not a prune list.** A ref is one kind of root
+ * and there are others, each measured on Git 2.43.0 with every reflog expired
+ * first:
+ *
+ * - a **reflog** entry, until it expires — a commit left only in `HEAD`'s reflog
+ *   by `git reset --hard HEAD~1` survives `git gc --prune=now`, and is gone
+ *   after `git reflog expire --expire=now --expire-unreachable=now --all` and
+ *   another `gc --prune=now`. `git fsck` reads the reflog the same way, which is
+ *   what `--no-reflogs` turns off;
+ * - the **index** — a blob `git add`ed and never committed survives that same
+ *   `gc`, while one written by `git hash-object -w` and never staged is pruned.
+ *   No ref names it and `rev-list --all --objects` does not list it, so a list
+ *   of refs cannot see it at all.
+ *
+ * So a caller that deletes what this list does not name deletes work Git would
+ * have given back, and this answers refs rather than everything the repository
+ * is currently keeping — [`todo/reflog-roots.md`](./todo/reflog-roots.md) is
+ * where the other roots and the shape they need are written down.
  *
  * `null` where the ref files are ones Git refuses — a `packed-refs` it
  * would call `unexpected line`, or a loose file under `refs/` that is no

@@ -534,6 +534,26 @@ export const proof = {
         assertEq(e[1].code, linkedDirCode)
         assertEq(e[1].message, 'refs/heads/linkdir is a link to a directory')
     },
+    // The name rule runs before the kind is asked, which is Git's order. An entry
+    // the listing cannot classify would otherwise cost a `stat`, and a link to a
+    // directory is refused by it — so a name Git never looks at could refuse a
+    // whole repository.
+    //
+    // Measured on Git 2.43.0 in a repository of `refs/heads/master` and
+    // `refs/tags/v1`. With `refs/heads/.hidden` linked to `master`: two refs,
+    // exit 0. With the same name linked to `../tags`, a link to a directory:
+    // the same two refs, exit 0 — the name is skipped whatever it points at,
+    // where `refs/heads/ok` linked to `../tags` lists `refs/heads/ok/v1`
+    // instead. `x.lock` behaves as `.hidden` does, by the same rule.
+    nameBeforeKind: () => {
+        for (const entry of ['.hidden', 'x.lock']) {
+            const [log, r] = rootsBy(entry, kind(false, true))
+            assert(r[0] === 'ok', entry)
+            sameRoots(r[1], [['refs/heads/master', a]])
+            // and the `stat` is not paid for at all: the name settled it
+            assert(!log.includes(`stat refs/heads/${entry}`), log)
+        }
+    },
     // A link that leads nowhere is skipped, which is Git's. Measured on Git
     // 2.43.0 with `refs/heads/dangling` linked to a name that is not there and
     // `refs/heads/loop` linked to itself: `show-ref` and `for-each-ref` list

@@ -234,9 +234,11 @@ export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
  * `fjs/effects/node/module.f.mjs` joins them into a byte list, which has no
  * bound at all.
  *
- * A path that is no regular file is refused rather than read as empty: a FIFO, a
- * device and a procfs file all `stat` as nought bytes and still produce content,
- * and opening a FIFO with no writer blocks for as long as none appears.
+ * A path that is no regular file — a FIFO, a device — is refused rather than
+ * opened: a FIFO is a stream and not a file, and opening one with no writer
+ * blocks for as long as none appears. A regular file whose size is a lie is
+ * read, not refused: a procfs file `stat`s as nought bytes and yields thousands,
+ * and this reads to the end rather than to the size.
  */
 export type ReadWhole = readonly['readWhole', (path: string) => IoResult<readonly Vec[]>]
 

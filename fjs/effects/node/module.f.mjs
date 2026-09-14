@@ -366,11 +366,19 @@ export const readWhole = do_('readWhole')
 /**
  * The code {@link readWhole} refuses with when the path is no regular file.
  *
- * A FIFO, a device and a procfs file all `stat` as nought bytes and still produce
- * content when opened, so a reader that went by the size would answer an empty
- * file — a `packed-refs` with no records where the path cannot be read at all.
- * And a FIFO with no writer cannot even be opened to find out: the open waits for
- * one. So the kind is asked before the open, and this is the refusal.
+ * **The kind and the size are two questions, and this is the kind.** A FIFO and
+ * a device are not files with contents to read to the end of: a FIFO is a
+ * stream with a writer at the other end, and one with no writer cannot even be
+ * opened to find out — the open waits for a writer. So the kind is asked before
+ * the open, and a path that is not a regular file is refused here rather than
+ * read.
+ *
+ * The *size* is a separate matter, and it is why this reads to the end rather
+ * than to `stat`'s answer: a procfs file is a regular file — `/proc/self/maps`
+ * `stat`s as `S_IFREG`, `isFile()` true — of nought bytes that yields thousands
+ * when read, 10,598 through this operation in one run. Going by the size would
+ * answer an empty file. So the refusal does not cover it and does not need to:
+ * the read takes what the descriptor gives until it gives nothing.
  */
 export const notAFileCode = /** @type {const} */ ('ERR_NOT_A_FILE')
 
