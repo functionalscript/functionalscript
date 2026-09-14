@@ -81,6 +81,15 @@ const u32 = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + 
  * and 5 is reserved, so both read as `undefined` and refuse the entry; 6 and
  * 7 are the two delta kinds and are not objects.
  *
+ * A table of its own and not [`fjs/git/object`](../object/module.f.mjs)'s
+ * name lookup, because the two read different encodings of the same
+ * `ObjectType`: a pack entry's header carries a three-bit *code*, where an
+ * envelope and a tag header spell the *name*. Going through a shared lookup
+ * would mean turning a code into `'blob'` and the bytes of `'blob'` back into a
+ * code — see
+ * [`todo/object-type-lookup.md`](../todo/object-type-lookup.md), which says so
+ * on the other side.
+ *
  * @type {readonly (ObjectType | undefined)[]}
  */
 const objectTypes = [undefined, 'commit', 'tree', 'blob', 'tag']

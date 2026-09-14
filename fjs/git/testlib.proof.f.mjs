@@ -9,7 +9,8 @@
  * The constants above them are data and prove nothing on their own — what they
  * are is checked wherever they are read, against Git's own answers.
  *
- * @module
+ * No `@module`: a proof's documentation reaches no reader of the published
+ * API, which is the case that rule names outright.
  */
 
 import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'

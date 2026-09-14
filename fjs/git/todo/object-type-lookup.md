@@ -48,8 +48,7 @@ export const tryType: (w: readonly number[]) => Nullable<ObjectType>
 ```
 
 (`object`'s envelope reader itself uses it). The
-name is the contract: `tag` and the packfile reader import `tryType`, not
-a renamed private `typeOf`.
+name is the contract: `tag` imports `tryType`, not a renamed private `typeOf`.
 
 Public, it must not inherit the private lookup's one weakness: going
 through `codePointListToString`, which truncates a value above `0xFF`, so
@@ -68,8 +67,18 @@ const nul = bs.indexOf(0)
 return tryType(nul === -1 ? bs : bs.slice(0, nul))
 ```
 
-[packfiles.md](./packfiles.md)'s decoder, which will also need to name a
-type, then gets the same entry point rather than a third copy.
+**The packfile decoder is not a consumer, and that is settled rather than
+open.** [`fjs/git/pack`](../pack/module.f.mjs) names a type too, and from a
+different encoding: a pack entry's header carries a three-bit *code*, so it maps
+`1..4` through a table of four and reads `0`, `5`, `6` and `7` as no object —
+`6` and `7` being the two delta kinds, which are not object types at all.
+`tryType` reads the four *names* as bytes, which is what an envelope and a tag
+header spell. Handing the decoder `tryType` would mean turning a code into
+`'blob'` and the bytes of `'blob'` back into a code, so the two lookups stay two:
+one per encoding, both answering the same `ObjectType`.
+
+What a reader of both should know is that the encodings differ, not that the
+lookup is duplicated.
 
 ### Tasks
 
@@ -80,7 +89,9 @@ type, then gets the same entry point rather than a third copy.
 
 ### Related
 
-- [packfiles.md](./packfiles.md) — its decoder is the next consumer.
+- [packfiles.md](./packfiles.md) — its decoder names a type from a numeric
+  code rather than from the name's bytes, so it is not a consumer of this; see
+  above.
 - [positional-headers.md](./positional-headers.md) — discusses `tag`'s
   continuation-line/NUL behaviour; this issue changes none of it, only who
   owns the final lookup.
