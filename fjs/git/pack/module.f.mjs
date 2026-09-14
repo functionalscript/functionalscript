@@ -271,8 +271,12 @@ const selected = (b, at, mask, count, k, value) => {
  * `RangeError: Maximum call stack size exceeded`, where 3,000 answered. That is
  * the shape [`fjs/effects`](../../effects/module.f.mjs)' `_walkLoop` removes
  * for a walk, and the same answer applies here: depth is constant in the
- * instruction count, and the only bound left is the target size the header
- * declares. A limit of this module's own would be a number Git does not have.
+ * instruction count, so what the *loop* is bounded by is the target size the
+ * header declares — a number the delta itself states, not one invented here. A
+ * cap on the instruction count would be such an invention, and Git has none.
+ * The one bound this module does add is on the declared target itself, the
+ * `Vec` ceiling at {@link maxTargetBytes}, and it is applied before the loop
+ * begins rather than inside it.
  *
  * **The declared target size is a bound and not a tally.** It is checked as the
  * pieces are named, not once at the end, because the end is too late to have
