@@ -157,7 +157,7 @@ export const _parseJson = path => step(
     notFound(path)(readUtf8File(path)),
     text => {
         const json = jsonParse(text)
-        return pure(json[0] === 'error' ? error({ message: json[1], metadata: null }) : json)
+        return pure(json[0] === 'error' ? error({ message: json[1], metadata: null, path }) : json)
     })
 
 /** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */

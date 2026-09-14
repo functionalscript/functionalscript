@@ -4,7 +4,7 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { _tryJson, compile } from './module.f.mjs'
+import { _errorLocation, _tryJson, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { run } from './ast/module.f.mjs'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
@@ -70,19 +70,24 @@ const compileSource = source => outputFileName => {
 }
 
 /**
- * What `fjs compile` prints when the module itself fails: the exit code is
- * `1`, nothing is written, and the message is against the input.
+ * What `fjs compile` prints when compiling `input.f.js` to a module fails
+ * over `root`: the exit code is `1`, nothing is written, and the message
+ * names the file that failed.
  *
- * @type {(source: string) => string}
+ * @type {(root: typeof emptyState.root) => string}
  */
-const moduleRefused = source => {
-    /** @type {typeof emptyState.root} */
-    const root = { 'input.f.js': [utf8(source)] }
+const stderrOf = root => {
     const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
     assertEq(exitCode(code), 1)
     assertEq(state.root['output.f.js'], undefined)
     return state.stderr.trim()
 }
+
+/** What `fjs compile` prints when the module itself fails: {@link stderrOf} over the one source. @type {(source: string) => string} */
+const moduleRefused = source => stderrOf({ 'input.f.js': [utf8(source)] })
+
+/** The one module importing `m.f.js`, for a failure to be found there. @type {typeof emptyState.root} */
+const importing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
 
 /** A source over `cfg`, an object of two arrays and a leaf. @type {(source: string) => string} */
 const withCfg = source => `const cfg = { a: [1], b: [2], c: 3 }; ${source}`
@@ -437,21 +442,28 @@ export const proof = {
             assertEq(moduleRefused('const a = null; export default a.x;'), 'input.f.js - error: cannot read property "x" of null')
             assertEq(moduleRefused('const a = { b: 1 }; export default a.c.d;'), 'input.f.js - error: cannot read property "d" of undefined')
         },
+        // a failure with no token and no file names the file being compiled
+        // — the parser's contract failure, which no reader `compile` runs
+        // produces, is the one such error left
+        noFile: () => {
+            assertEq(_errorLocation('input.f.js')({ message: 'missing end-of-input token', metadata: null }), 'input.f.js')
+            assertEq(_errorLocation('input.f.js')({ message: 'file not found', metadata: null, path: 'm.f.js' }), 'm.f.js')
+        },
         // a failure with no token names the file it is in: an imported
         // module's body, a missing import, a cycle met at an import
         failureInImport: () => {
-            /** @type {(root: typeof emptyState.root) => string} */
-            const stderrOf = root => {
-                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
-                assertEq(exitCode(code), 1)
-                assertEq(state.root['output.f.js'], undefined)
-                return state.stderr.trim()
-            }
-            const importing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
             assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('const n = null; export default n.a;')] }), 'm.f.js - error: cannot read property "a" of null')
             assertEq(stderrOf(importing), 'm.f.js - error: file not found')
             assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('import i from "./input.f.js"; export default [i];')] }), 'input.f.js - error: circular dependency')
             assertEq(stderrOf({ ...importing, 'm.f.js': [utf8('export default @')] }), 'm.f.js:1:16-17 - error: unexpected token')
+            // a malformed `.json` import likewise, where the EDAG output reads
+            // one as a document: the value outputs read every import as a
+            // module, so there the failure is the module reader's, at its token
+            const json = { 'input.f.js': [utf8('import d from "./d.json"; export default [d];')], 'd.json': [utf8('{')] }
+            const [edagState, edagCode] = virtual({ ...emptyState, root: json })(compile(['input.f.js', 'output.edag.f.js']))
+            assertEq(exitCode(edagCode), 1)
+            assertEq(edagState.stderr.trim(), 'd.json - error: unexpected end')
+            assertEq(stderrOf(json), 'd.json:1:1 - error: unexpected token')
         },
         // the sweep reads an access by its keys: `cfg.a` beside `cfg.b` is a
         // tree, `cfg.a` twice or `cfg` beside `cfg.a` is not, and a leaf
@@ -465,8 +477,10 @@ export const proof = {
             assertEq(jsonRefused('const o = []; const cfg = { a: o, b: o }; export default [cfg.a, cfg.b];'), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused('const a = [[]]; export default [a[0], a["0"]];'), 'output.json - error: no JSON spelling for a shared node')
             // `"00"` is not an index's spelling, so it reaches no node: the
-            // refusal is `undefined`'s, not a shared node's
-            assertEq(jsonRefused('const a = [[]]; export default [a[0], a["00"]];'), 'output.json - error: no JSON spelling for undefined')
+            // refusal is `undefined`'s, not a shared node's — and the route
+            // into the literal stops there, so the reference at index 0 is
+            // reached once, not twice
+            assertEq(jsonRefused('const x = []; const a = [x]; export default [a[0], a["00"]];'), 'output.json - error: no JSON spelling for undefined')
             // an entry reached only through an access is in the value only
             // where the access selects: sharing under another member is
             // nothing to it, and a route through a reference follows it
@@ -494,9 +508,11 @@ export const proof = {
             assert(!sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m.z];')] })('a.f.js'))
             // a module whose own value holds a shared node is shared under
             // any route into it — the coarse answer, in the safe direction
+            /** @type {typeof emptyState.root} */
             const partly = { 'm.f.js': [utf8('const x = []; export default { selected: [], other: [x, x] };')] }
             assert(sharedOf({ ...partly, 'a.f.js': [utf8('import m from "./m.f.js"; export default m.selected;')] })('a.f.js'))
             // and the modules a module reaches count under any route too
+            /** @type {typeof emptyState.root} */
             const reaching = { 'n.f.js': [utf8('export default [];')], 'm.f.js': [utf8('import n from "./n.f.js"; export default { selected: [], other: n };')] }
             assert(sharedOf({ ...reaching, 'a.f.js': [utf8('import m from "./m.f.js"; import n from "./n.f.js"; export default [m.selected, n];')] })('a.f.js'))
             // reached through two modules, an import's node is one node: the

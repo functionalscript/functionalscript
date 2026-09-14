@@ -432,6 +432,7 @@ export const sharing = body => imports => consts => {
     const nodes = toArray(body.reduceRight(routeEntry, exported(body)).refs).flatMap(containerNode(imports, consts))
     const sorted = nodes.toSorted(byNode)
     const reached = [...new Map(imports.map(byId)).values()].filter(m => nodes.some(n => n.aref && n.group === moduleGroup(m.id)))
+    /** @type {readonly string[]} */
     const reaches = [...reached.map(m => m.id), ...reached.flatMap(m => m.reaches)]
     const shared = sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
     return { shared, reaches: shared ? [] : reaches }

@@ -156,6 +156,7 @@ export const proof = {
         keys: () => {
             assert(sharedOf([['array', [['array', []]]], ['array', [['.', ['cref', 0], 0], ['.', ['cref', 0], '0']]]]))
             assert(!sharedOf([['array', [['array', []]]], ['array', [['.', ['cref', 0], 0], ['.', ['cref', 0], '00']]]]))
+            assert(!sharedOf([['array', []], ['array', [['cref', 0]]], ['array', [['.', ['cref', 1], 0], ['.', ['cref', 1], '00']]]]))
             assert(sharedOf([['array', [['array', [['array', []]]]]], ['array', [['.', ['.', ['cref', 0], 0], 0], ['.', ['cref', 0], 0]]]]))
             assert(sharedOf([['array', []], ['object', [['x', ['cref', 0]], ['y', ['cref', 0]]]], ['array', [['.', ['cref', 1], 'x'], ['.', ['cref', 1], 'y']]]]))
         },
