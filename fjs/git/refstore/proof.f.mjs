@@ -511,6 +511,120 @@ export const proof = {
             sameRoots(r[1], [['refs/heads/master', a]])
         }
     },
+    // A worktree whose own `refs` is a link to a directory is walked through it,
+    // which is Git's. Measured on Git 2.43.0 with a linked worktree's `refs`
+    // replaced by a link to a directory holding `bisect/bad`: `show-ref` and
+    // `for-each-ref` both list `refs/bisect/bad` and `rev-parse --verify` answers
+    // its id.
+    //
+    // A listing cannot see this — it does not follow a link, so the entry arrives
+    // with both kind flags false — and the filter used to ask `isDirectory`,
+    // which dropped the worktree's whole ref tree without a word. The root is
+    // asked about with a `stat` instead, and followed where a link *below* it is
+    // refused: every link inside the tree being refused is what bounds following
+    // the root to one level, so `refs` linked to `..` lists the gitdir and is
+    // refused at the same entry one level down.
+    linkedWorktreeRefs: () => {
+        /** @type {MemOperationMap<ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'wt/refs/bisect/bad'
+                    ? ok(toVec(latin1(`${b}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'wt'
+                    // the worktree's `refs` as node reports a symlink
+                    ? [dirent('refs', path, false, false)]
+                    : path === 'wt/refs'
+                        ? [dirent('bisect', path, false, true)]
+                        : path === 'wt/refs/bisect'
+                            ? [dirent('bad', path, true, false)]
+                            : []),
+            ],
+            // the link's target, which is a directory
+            stat: path => log => [[...log, `stat ${path}`], ok(kind(false, true))],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
+        assert(r[0] === 'ok')
+        sameRoots(r[1], [['refs/bisect/bad', b]])
+        assert(log.includes('stat wt/refs'), log)
+    },
+    // The same entry as a link to something that is no directory is a worktree
+    // with no refs of its own, which is what most of them are — not a refusal,
+    // since the walk has nothing to read either way.
+    linkedWorktreeRefsNotADir: () => {
+        for (const answer of [kind(true, false), kind(false, false), 'ENOENT', 'ELOOP']) {
+            /** @type {MemOperationMap<ReadFile | Readdir | Stat, null>} */
+            const host = {
+                readFile: path => state => [state, error(ioError({ code: 'ENOENT', message: path }))],
+                readdir: path => state => [
+                    state,
+                    path === 'wt'
+                        ? ok([dirent('refs', path, false, false)])
+                        // what a host answers for a listing of something that is
+                        // no directory — so a walk that went in anyway fails
+                        // rather than quietly finding nothing
+                        : path === 'wt/refs'
+                            ? error(ioError({ code: 'ENOTDIR', message: path }))
+                            : ok([]),
+                ],
+                stat: path => state => [
+                    state,
+                    typeof answer === 'string'
+                        ? error(ioError({ code: answer, message: path }))
+                        : ok(answer),
+                ],
+            }
+            const [, r] = mockRun(host)(null)(tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
+            assert(r[0] === 'ok')
+            sameRoots(r[1], [])
+        }
+    },
+    // A `refs` the *listing* calls a regular file needs no `stat` at all: the
+    // question is only for an entry the listing could not classify.
+    ownRefsIsAFile: () => {
+        /** @type {MemOperationMap<ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'wt' ? [dirent('refs', path, true, false)] : []),
+            ],
+            stat: path => log => [[...log, `stat ${path}`], ok(kind(false, true))],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
+        assert(r[0] === 'ok')
+        sameRoots(r[1], [])
+        assert(!log.includes('stat wt/refs'), log)
+    },
+    // And a `stat` of it that fails for any reason but a link leading nowhere is
+    // the channel's, for the reason every other one here is: the listing named
+    // the entry, so a host that then cannot describe it is a ref tree this would
+    // otherwise drop out of an answer a `gc` reads.
+    ownRefsStatRefused: () => {
+        /** @type {MemOperationMap<ReadFile | Readdir | Stat, null>} */
+        const host = {
+            readFile: path => state => [state, error(ioError({ code: 'ENOENT', message: path }))],
+            readdir: path => state => [
+                state,
+                ok(path === 'wt' ? [dirent('refs', path, false, false)] : []),
+            ],
+            stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
+        }
+        const [, r] = mockRun(host)(null)(tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, 'EIO')
+    },
     // Every other `stat` failure is the channel's, and deliberately not forgiven:
     // the listing named the entry, so a host that then cannot describe it is a
     // loose ref this would otherwise drop out of an answer a `gc` reads.
@@ -531,6 +645,73 @@ export const proof = {
         // A name outside `refs/` resolves the same way, which is what
         // `tryRoots` does not answer and this does: `HEAD`.
         assertEq(hexOf({ ...loose, HEAD: file('ref: refs/heads/other\n') }, 'HEAD'), b)
+    },
+    // A name that is no ref name is `null` before anything is read, which is what
+    // the export promises and what a caller passing a name from outside depends
+    // on. The host below refuses every read, so a chain that opens `packed-refs`
+    // first answers the channel's error instead.
+    //
+    // `../secret` is the case that matters: `..` is one of the byte pairs the
+    // name rule refuses, so it is the name that would otherwise be joined below
+    // the repository into a path that leaves it.
+    resolveBadNameReadsNothing: () => {
+        const denied = ioError({ code: 'EACCES', message: 'permission denied' })
+        /** @type {MemOperationMap<ReadFile, readonly string[]>} */
+        const host = { readFile: path => log => [[...log, `readFile ${path}`], error(denied)] }
+        for (const name of ['../secret', '.hidden', 'x.lock', 'a..b', 'has space']) {
+            const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+                tryResolve(one(''), 20)(latin1(name)))
+            assertStructurallySame(r, ok(null))
+            assertStructurallySame(log, [])
+        }
+        // and a name that *is* one still reaches the read, so the case above is
+        // about the name and not about the host being unreachable
+        const [log] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryResolve(one(''), 20)(latin1('refs/heads/master')))
+        assertStructurallySame(log, ['readFile packed-refs'])
+    },
+    // The same rule one link further in, and where it is actually enforced: a
+    // symbolic ref whose *target* is no ref name never reaches a path, because
+    // `fjs/git/ref`'s grammar refuses the target before this module sees it. A
+    // target is as much from outside the repository as a name a caller typed —
+    // it is whatever bytes a file holds — so this matters as much as the guard on
+    // the caller's name.
+    //
+    // The two rules agree name for name, checked directly rather than assumed:
+    // `../secret`, `a..b`, `.hidden`, `x.lock` and `has space` are each refused
+    // by `tryRef` *and* by `isWholeName`, and `refs/x` and `UPPER` are accepted
+    // by both.
+    //
+    // So the file is a loose ref that is no ref, and this module's sticky rule
+    // applies rather than a `null` for that one name: `git show-ref` refuses the
+    // whole listing rather than dropping the name, which is what `shadowBroken`
+    // pins and what happens here.
+    symbolicTargetNotARefName: () => {
+        /** @type {Dir} */
+        const root = { refs: { heads: { sym: file('ref: ../secret\n') } }, secret: ref(a) }
+        assertEq(resolved(root, 'refs/heads/sym'), null)
+        assertEq(run(root, tryRoots(one(''), 20)), null)
+    },
+    // A target that *is* a ref name and still names no file this host can ask
+    // about: `0x80` is a byte the name rule allows and no UTF-8 decoding, so
+    // `refs/heads/sym` holding `ref: \x80` passes `fjs/git/ref`'s grammar and
+    // `isWholeName`, and then there is no path to read.
+    //
+    // `null`, not the packed line: a loose file shadows a packed line by
+    // existing, so answering the packed line here would be a stale id whenever
+    // the loose file is there — and whether it is there is exactly what cannot be
+    // asked. See `todo/byte-ref-names.md`.
+    //
+    // This is the lookup's half of that issue one link in. The caller's own name
+    // is caught before anything is read; a target is caught here, because it is
+    // whatever bytes a file held.
+    symbolicTargetNoPath: () => {
+        /** @type {Dir} */
+        const root = {
+            'packed-refs': file(`${a} refs/heads/sym\n`),
+            refs: { heads: { sym: file('ref: \u0080\n') } },
+        }
+        assertEq(resolved(root, 'refs/heads/sym'), null)
     },
     // A `packed-refs` Git refuses stops every name, including one whose
     // loose file is perfectly good. Measured: with a good
