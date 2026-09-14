@@ -74,8 +74,9 @@ what a grammar can and cannot do for the formats.
   the id an object has at the repository's width: SHA-1 at 20 bytes,
   SHA-256 at 32.
 - [`loose/`](loose/module.f.mjs) — a loose object file read through the
-  host's `inflate` effect and past its envelope: the one place a real
-  repository meets the decoder.
+  host's `inflate` effect and past its envelope. One of the two places a real
+  repository meets the decoder; [`packstore/`](packstore/module.f.mjs) below
+  is the other, and is the one a clone actually takes.
 - [`packstore/`](packstore/module.f.mjs) — the same for the other place an
   object lives: from an id to the object a pack below `objects/pack/` holds,
   through the `.idx` beside it. Two rules here are the effects' and not the
@@ -394,9 +395,11 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 
 - **An inflater.** The parser is pure over the inflated bytes whatever
   supplies them; today `inflate` in [`fjs/effects/node`](../effects/node/module.f.mjs)
-  supplies them from `node:zlib` at the host boundary, and
-  [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
-  is [`todo/inflate.md`](../../todo/inflate.md).
+  supplies them from `node:zlib` at the host boundary. Two modules call it:
+  [`loose/`](loose/module.f.mjs) once per object, and
+  [`packstore/`](packstore/module.f.mjs) once per *link* — a base and every
+  delta above it — which is the path a clone takes for most of its objects. A
+  FunctionalScript inflater is [`todo/inflate.md`](../../todo/inflate.md).
 - **Alternates.** `repo` finds the repository a worktree belongs to, and
   `store` and `walk` read at the directory they are given, so a caller
   puts the two together. What is left is

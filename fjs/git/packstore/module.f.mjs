@@ -206,7 +206,8 @@ const windowsOf = size => Array.from({ length: Math.ceil(size / windowBytes) }, 
  * would leave a gap the next window skips over. The bytes would then be an index
  * missing a run out of its middle, and `tryIdx` would call a file Git reads no
  * pack index at all: a wrong diagnosis out of a silent loss, which is the kind of
- * answer [DESIGN.md](../../../DESIGN.md)'s §10 says to refuse rather than give.
+ * answer [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+ * says to refuse rather than give.
  *
  * A file that shrinks between the `stat` and the reads is refused by the same
  * check, and it is the same thing: the bytes no longer cover what was measured.
@@ -504,16 +505,23 @@ const objectAt = (path, oidBytes, idx, at) => {
  *
  * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Envelope>) => Effect<Stat | ReadBytes | Inflate, readonly [Nullable<Envelope>, List<string>], IoChannel>}
  */
-const packOf = (pd, oidBytes, id) => name => found => {
-    if (found !== null) { return pureOk(/** @type {const} */ ([found, null])) }
-    const idx = idxAt(under(pd, name), oidBytes)
-    const got = step(idx, i => {
-        const at = offsetOf(i)(id)
-        return at === null
-            ? pureOk(/** @type {Nullable<Envelope>} */ (null))
-            : objectAt(under(pd, `${name.slice(0, -idxSuffix.length)}${packSuffix}`), oidBytes, i, at)
-    })
-    return mapStep(got, e => /** @type {const} */ ([e, null]))
+const packOf = (pd, oidBytes, id) => name => {
+    // Both paths are the pack pair's and neither depends on what the index says,
+    // so they are built once per pack rather than once per link of the walk
+    // (§3.3).
+    const idxPath = under(pd, name)
+    const packPath = under(pd, `${name.slice(0, -idxSuffix.length)}${packSuffix}`)
+    return found => {
+        if (found !== null) { return pureOk(/** @type {const} */ ([found, null])) }
+        const idx = idxAt(idxPath, oidBytes)
+        const got = step(idx, i => {
+            const at = offsetOf(i)(id)
+            return at === null
+                ? pureOk(/** @type {Nullable<Envelope>} */ (null))
+                : objectAt(packPath, oidBytes, i, at)
+        })
+        return mapStep(got, e => /** @type {const} */ ([e, null]))
+    }
 }
 
 /**
