@@ -16,9 +16,14 @@ it — see [`module.f.mjs`](./module.f.mjs).
 
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b` and `a[0]`
-on a reference, which the EDAG output carries as the operation it is and
-the value outputs refuse until what it denotes as a value is decided (see
-[EDAG](#edag)). The classical grammars this package once
+on a reference: an own property of the base, never the prototype chain, as
+[spec: property accessor](../../spec/todo/2330-property-accessor.md) has
+it, so `a.toString` is `undefined` here where JavaScript finds a function;
+`undefined` where there is no such property; and a `null` or `undefined`
+base is the one failure a data module can make, reported as JavaScript's
+throw is. The sharing sweep reads an access by the keys it applies, so
+`{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
+node it is. The classical grammars this package once
 held were deleted rather than kept: nothing imported them, no proof covered
 them, and their FunctionalScript half separated statements by newline where
 the language requires `;`. Do not restore them; git history has them.
@@ -68,9 +73,7 @@ the imported module's node where its parameter would be — and a module met
 twice in one link is one node, so a diamond of imports joins where it should.
 A property access, `a.b` or `a[0]`, is the EDAG's `['.', base, key]`, its
 key a constant the parser admitted — `__proto__` and `constructor` refused at
-the key — and its value is not decided yet: `transpile` refuses a module
-holding one, so `fjs compile`'s value outputs say so where the EDAG output
-compiles it.
+the key.
 A `.json` import is the tree its document denotes, as `transpile` reads it.
 `fjs compile` writes the linked graph when the output name ends with
 `.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes

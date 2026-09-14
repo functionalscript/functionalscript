@@ -51,7 +51,7 @@ const documentText = document => {
  */
 const evaluate = source => {
     const [tag, value] = parse('')(source)
-    return tag === 'error' ? ['error', value.message] : ['ok', run(value[1])([])]
+    return tag === 'error' ? ['error', value.message] : run(value[1])([])
 }
 
 /** @type {(root: typeof emptyState.root, path: string) => string} */
@@ -187,19 +187,15 @@ export const proof = {
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.f.mjs'), 'export default {"a":undefined};')
         },
-        // a property access compiles to the EDAG, and the value outputs
-        // refuse it until what it denotes as a value is decided
+        // a property access compiles to the EDAG as the operation, and to
+        // the value outputs as what it reads
         access: () => {
             const root = { 'input.f.js': [utf8('const a = { b: 1 }; export default a.b;')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
             assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'output.edag.f.js'), 'export default [".",["{}",[[":","b",1]]],"b"];')
-            for (const output of ['output.f.js', 'output.json']) {
-                const [refusedState, refusedCode] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
-                assertEq(exitCode(refusedCode), 1)
-                assertEq(refusedState.stderr.trim(), 'input.f.js - error: property access is compiled to the EDAG only')
-                assertEq(refusedState.root[output], undefined)
-            }
+            assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.f.js'), 'export default 1;')
+            assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.json'), '1')
         },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written; a missing import likewise
@@ -403,6 +399,51 @@ export const proof = {
         doubling: () => {
             const consts = Array.from({ length: 24 }, (_, i) => `const a${i + 1} = [a${i}, a${i}];`).join(' ')
             assertEq(jsonRefused(`const a0 = [1]; ${consts} export default a24;`), 'output.json - error: no JSON spelling for a shared node')
+        },
+    },
+    // A property access on the value path: an own property, never the
+    // prototype chain — the property-accessor spec's rule, where JavaScript
+    // reads `a.toString` as a function — `undefined` where there is none,
+    // and the failure JavaScript throws for on a `null` or `undefined` base.
+    access: {
+        own: () => {
+            assertEq(compileSource('const a = { b: [1, 2] }; export default [a.b, a["b"][1], a.b.length];')('output.f.js'), 'export default [[1,2],2,2];')
+            assertEq(compileSource('const s = "ab"; export default [s[0], s["1"], s.length];')('output.json'), '["a","b",2]')
+            assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.toString, a.b.x];')('output.f.js'), 'export default [undefined,undefined,undefined];')
+            assertEq(compileSource('const n = 1; const b = true; const g = 2n; export default [n.x, b.x, g.x];')('output.f.js'), 'export default [undefined,undefined,undefined];')
+        },
+        failure: () => {
+            /** @type {(source: string) => string} */
+            const refused = source => {
+                const root = { 'input.f.js': [utf8(source)] }
+                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+                assertEq(exitCode(code), 1)
+                assertEq(state.root['output.f.js'], undefined)
+                return state.stderr.trim()
+            }
+            assertEq(refused('const a = null; export default a.x;'), 'input.f.js - error: cannot read property "x" of null')
+            assertEq(refused('const a = { b: 1 }; export default a.c.d;'), 'input.f.js - error: cannot read property "d" of undefined')
+        },
+        // the sweep reads an access by its keys: `cfg.a` beside `cfg.b` is a
+        // tree, `cfg.a` twice or `cfg` beside `cfg.a` is not, and a leaf
+        // reached twice is two copies of a leaf
+        sharing: () => {
+            const cfg = 'const cfg = { a: [1], b: [2], c: 3 }; '
+            assertEq(compileSource(`${cfg}export default { first: cfg.a, second: cfg.b };`)('output.json'), '{"first":[1],"second":[2]}')
+            assertEq(jsonRefused(`${cfg}export default [cfg.a, cfg.a];`), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(`${cfg}export default [cfg.a, cfg.a];`)('output.f.js'), 'const $0=[1];export default [$0,$0];')
+            assertEq(jsonRefused(`${cfg}export default [cfg, cfg.a];`), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource(`${cfg}export default [cfg.c, cfg.c, cfg.a[0], cfg.a.length];`)('output.json'), '[3,3,1,1]')
+            assertEq(jsonRefused('const o = []; const cfg = { a: o, b: o }; export default [cfg.a, cfg.b];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const a = [[]]; export default [a[0], a["0"]];'), 'output.json - error: no JSON spelling for a shared node')
+            const m = { 'm.f.js': [utf8('export default { x: [1], y: [2], z: 3 };')] }
+            assert(!sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.y, m.z, m.z];')] })('a.f.js'))
+            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m.x, m.x];')] })('a.f.js'))
+            assert(sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m.x];')] })('a.f.js'))
+            assert(!sharedOf({ ...m, 'a.f.js': [utf8('import m from "./m.f.js"; export default [m, m.z];')] })('a.f.js'))
+            // reached through two modules, an import's node is one node: the
+            // importer of both sees the module twice
+            assert(sharedOf({ ...m, 'b.f.js': [utf8('import m from "./m.f.js"; export default { p: m.x };')], 'a.f.js': [utf8('import b from "./b.f.js"; import m from "./m.f.js"; export default [b, m.y];')] })('a.f.js'))
         },
     },
     // The three numbers JSON cannot spell, end to end: read as the values
