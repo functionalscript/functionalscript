@@ -1,7 +1,7 @@
 ## One access node: `.` reads an own property, and `own` goes
 
 **Priority:** P2
-**Status:** open
+**Status:** open — [`own-object.md`](./own-object.md) proposes the alternative, two nodes with the guard read as what `Object` means
 
 ### Problem
 
