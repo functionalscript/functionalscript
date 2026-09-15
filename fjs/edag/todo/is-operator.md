@@ -20,8 +20,9 @@ never a value.
 
 `is` is a binary operation node, `['is', a, b]`, with `Object.is` semantics:
 `true` when its operands are the same value — the same object, the same
-primitive, `NaN` with `NaN`, and `0` apart from `-0` — as `own` is the node
-for an own-property read the source spells as a call.
+primitive, `NaN` with `NaN`, and `0` apart from `-0` — as `own` was the
+node for an own-property read the source spells as a call, before `.`
+absorbed it ([`own-access.md`](./own-access.md)).
 
 - **Schema.** `is` joins the `op2` ids in [`fjs/edag`](../module.f.mjs)'s
   schema and the README's table, beside `===` and `!==`.
@@ -34,7 +35,7 @@ for an own-property read the source spells as a call.
   argues for `hasOwn`, and the same reading serves here. That spelling waits
   on calls in the language (Stage 2 of
   [`compile-modules-to-edag.md`](../../fsc/todo/compile-modules-to-edag.md));
-  the node does not, as `own` did not.
+  the node does not, as `own` did not in its day.
 - **Output.** The FunctionalScript writer
   ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md))
   writes `['is', a, b]` as `Object.is(a, b)`, so the round trip holds once the

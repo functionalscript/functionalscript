@@ -56,7 +56,15 @@ accepts, so that compiling the output again yields the same EDAG:
   occurrences merge again, which is the equality the round trip is stated
   over. Hoisting one would also evaluate it eagerly where the source kept
   it lazy, `[a && x.y, b && x.y]` once the operators land, and turn a
-  short-circuit into a throw.
+  short-circuit into a throw. Hoisting a shared constructor changes no
+  order, because in a compiled graph it always has an eager edge: a `const`
+  the export reaches only through lazy positions is anchored by the comma
+  ([`2340-operators.md`](../../../spec/todo/2340-operators.md)), so
+  `const s = [null.x]; export default [a && s, b && s];` throws at load in
+  JavaScript, in the EDAG and in the output alike. A graph holding a
+  constructor reached only through lazy edges, `[a && s, b && s]` with no
+  anchor for `s`, is not one the compiler emits, and the writer refuses it
+  by name, as it refuses a comma outside the root.
 - Every `const` the writer emits, an anchor or a hoisted node, is named by
   its position among the written statements — the first is `$0`, the next
   `$1` — one sequence for both, so the same graph is the same text and an
@@ -151,7 +159,8 @@ contract stays for `.data.js` and `.json`, which are values.
 - [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
       refusal does: a comma anywhere but the root, an object-literal body, a
       constructor shared within a body, a numeric or function base within a
-      body, a node kind without a spelling.
+      body, a constructor reached only through lazy edges, a node kind
+      without a spelling.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
       analyses whole — root, nodes, scope and shared, equal up to the
