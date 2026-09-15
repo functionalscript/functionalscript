@@ -73,7 +73,9 @@ analysis in [`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md) returns
 the operation nodes of the whole program in walk order, each with its
 scope, and the shared indices, and the interpreter indexes its per-invocation
 cache by those integers — one map for the whole code, values cached per
-function: an invocation holds only the entries of its own body's scope.
+function: an invocation holds only the entries of its own body's scope. The
+table names its operands by index, so the interpreter runs the table and never
+walks the EDAG's objects.
 The operations themselves are amnesia's, factored into a table both executors
 share, so the interpreter differs from amnesia only in reusing a value.
 

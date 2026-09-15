@@ -42,16 +42,25 @@ downstream:
 
 ```ts
 type Analysis = {
-    readonly nodes: readonly Exp[]      // every operation node of the program, in walk order, each once
+    readonly nodes: readonly Node[]     // every operation node of the program, in walk order, each once
     readonly scope: readonly number[]   // per node: the index of the `=>` whose body holds it, or -1 at the module level
     readonly shared: readonly number[]  // the indices reached by more than one edge within their scope, in that order
 }
+// a Node is the EDAG node with each operation-node operand replaced by its
+// index, `['#', i]`; a primitive operand stays inline
 ```
 
 - **One table, the whole program.** A node is numbered once wherever it
   sits, inside a body or at the module level, so a program has one map and
   one numbering; a primitive is a leaf, written and evaluated in place, and
   takes no index. Which scope a node belongs to the table says beside it.
+- **Self-contained.** An entry names its operands by index, so the table is
+  the graph in another spelling and the consumers run it and write it,
+  never the EDAG's objects again: the executor evaluates entry `i` by
+  evaluating the indices it names, and the writer writes entry `i` by
+  writing them. A merged occurrence is then one index named twice, and no
+  lookup from an EDAG object to its entry exists anywhere — the EDAG is the
+  analysis's input, and that is the only place the two meet.
 - **Walk order, not run order.** The numbering is a depth-first walk from
   the root, operands in the order written, each node listed after its
   operands and on the first edge that reaches it. That is a function of
@@ -67,11 +76,15 @@ type Analysis = {
   caches by scope: an invocation of a function holds values for the shared
   indices of that body alone, and the module-level ones are held once — one
   map for the whole code, values cached per function.
-- **Merged before counted.** A node whose result identity is decided by its
-  inputs — an access, an operator, the comma — is the same node as another
-  spelled the same over the same inputs, so `[cfg.a, cfg.a]` becomes one
-  node reached twice. A constructor, `[]`, `{}` or `=>`, mints identity and
-  is never merged: two `[]` are two arrays. The merge is the analysis's
+- **Merged before counted, within one scope.** A node whose result
+  identity is decided by its inputs — an access, an operator, the comma —
+  is the same node as another in the same scope spelled the same over the
+  same inputs, so `[cfg.a, cfg.a]` becomes one node reached twice. Two
+  scopes never merge: `[(...a) => "x".length, (...b) => "x".length]` keeps
+  a `.` node per body, each in its own scope, since a value is never shared
+  across calls and no consumer could use the merge. A constructor, `[]`,
+  `{}` or `=>`, mints identity and is never merged: two `[]` are two
+  arrays. The merge is the analysis's
   view, not a rewrite of the graph: the EDAG keeps its nodes and its hash,
   and a merged node's value is one value however many nodes compute it,
   since nothing in it mints identity, so an executor that reuses the value
@@ -85,15 +98,16 @@ type Analysis = {
   `&&`, `||`, `??`, a function body — is memoized when first demanded, never
   before; the table records sharing, the executor decides when.
 - **Numbered, not keyed.** The table is built as the DataJS serializer builds
-  its graph, a finished list numbered once, so no consumer holds a `Map` by
-  object: the writer takes its `$n` names from the index, and the executor
-  indexes its cache by integer.
+  its graph, a finished list numbered once, and the one `Map` by object
+  lives inside that build; no consumer holds one, since each reads indices:
+  the writer takes its hoisting order from them, and the executor indexes
+  its cache by integer.
 
 Two consumers then follow, and share amnesia's operations:
 
-- **`fjs/edag/memo`**, a JavaScript-compatible executor: the EDAG and its
-  analysis in, a value out, each shared node evaluated once per scope and its
-  value reused. Amnesia's per-tag operations become a table both executors
+- **`fjs/edag/memo`**, a JavaScript-compatible executor: the table in, a
+  value out, each shared node evaluated once per scope and its value reused.
+  It runs the table, not the EDAG. Amnesia's per-tag operations become a table both executors
   read, parameterized by how a child is evaluated — amnesia recurses, the
   memo executor looks the child up and records it — so the two agree on every
   value that sharing does not decide, and amnesia stays the proof oracle,
@@ -120,11 +134,12 @@ value outputs keep the sweep until they run the EDAG.
 ### Tasks
 
 - [ ] `fjs/edag/analysis`: the table over an `Exp` — operation nodes in
-      walk order, the scope of each, shared indices — with the merge of
-      identity-free nodes and no merge of constructors; proofs for a shared
-      constructor, a shared access, two equal accesses, two equal constructors,
-      a primitive taking no index, sharing inside a body against sharing
-      outside and a body inside a body, and a lazy operand.
+      walk order with operands by index, the scope of each, shared indices —
+      with the merge of identity-free nodes within a scope and no merge of
+      constructors; proofs for a shared constructor, a shared access, two
+      equal accesses, two equal accesses in sibling bodies left apart, two
+      equal constructors, a primitive taking no index, sharing inside a body
+      against sharing outside and a body inside a body, and a lazy operand.
 - [ ] Amnesia's operations factored into a table parameterized by the child
       evaluation, amnesia unchanged in behavior and its proofs green.
 - [ ] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`

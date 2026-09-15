@@ -41,7 +41,8 @@ refused with the rest, and a `.d.js` output the compiler accepted by falling
 through to the DataJS writer is a `.data.js` output now.
 
 The FunctionalScript writer reads the linked EDAG of
-[`fjs/fsc/edag`](../edag/module.f.mjs) and writes a module the parser
+[`fjs/fsc/edag`](../edag/module.f.mjs) through its analysis — the table
+whose entries name their operands by index — and writes a module the parser
 accepts, so that compiling the output again yields the same EDAG:
 
 - A constructor — `[]`, `{}`, `=>` — the graph holds more than once is
