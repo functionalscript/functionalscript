@@ -253,6 +253,18 @@ export const proof = {
         assert(d[0] === 'ioError')
         assertEq(d[1].code, notAFileCode)
         assertEq(d[1].message, notAFileMessage('dir/a.f.ts'))
+        // A *directory* is the other thing that is no regular file, and it gets
+        // the same refusal here as on the host: the node runner `stat`s before it
+        // opens and answers `ERR_NOT_A_FILE`, where an `ENOENT` would read as
+        // absence — `fjs/git/refstore` forgives that one, so a directory called
+        // `packed-refs` would be an empty packed-ref set on this runner and a
+        // refusal on the host.
+        const [, asDir] = virtual({ ...emptyState, root: nested })(readWhole('dir'))
+        assert(asDir[0] === 'error')
+        const e2 = asDir[1]
+        assert(e2[0] === 'ioError')
+        assertEq(e2[1].code, notAFileCode)
+        assertEq(e2[1].message, notAFileMessage('dir'))
     },
     writeBytesOnJsModule: () => {
         // writeBytes shares `resolveFile` with the two reads but not their

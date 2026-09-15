@@ -297,11 +297,19 @@ const readFile = path => readOperation((dir, p) => {
  * @type {(path: string) => (state: State) => readonly [State, IoResult<readonly Vec[]>]}
  */
 const readWhole = path => readOperation((dir, p) => {
-    // The requested path and not `p`'s entry name, for the reason
-    // {@link readFile} gives about its cap: the refusal names the file, and the
-    // node runner names the whole path. A nested entry reaches here as one
-    // segment, so taking what the resolver offers would answer `device` where
-    // the host answers `dir/device`.
+    // A *directory* is the other thing that is no regular file, and `ENOENT` is
+    // the wrong answer for it here: the node runner `stat`s before it opens and
+    // refuses one with {@link notAFileCode}, while `resolveFile`'s `ENOENT` reads
+    // as absence — `tryWholeBytes` in `fjs/git/refstore` forgives it, so a
+    // directory called `packed-refs` would be an empty packed-ref set on this
+    // runner and a refusal on the host. An empty `p` is what says the path named
+    // a directory; see {@link resolveFile}.
+    //
+    // The refusal carries the requested path and not `p`'s entry name, for the
+    // reason {@link readFile} gives about its cap: a nested entry reaches here as
+    // one segment, so taking what the resolver offers would answer `device`
+    // where the host answers `dir/device`.
+    if (p.length === 0) { return jsModuleNotRegular(path) }
     const resolved = resolveFile(() => jsModuleNotRegular(path))(dir, p)
     return resolved[0] === 'error' ? resolved : ok(resolved[1])
 })(path)

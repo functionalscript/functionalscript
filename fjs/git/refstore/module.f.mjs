@@ -569,9 +569,13 @@ const nameText = name => fromVec(toVec(name))
  * Every way a resolution can end goes through this, an id and a refusal alike,
  * so a link that answers reads the same whichever it is.
  *
- * @type {(id: Nullable<Oid>) => readonly [_Lookup, List<Bytes>]}
+ * The packed lines come with it, because whether they were read is an answer of
+ * its own: {@link tryResolve} reads them at the end where no link needed them,
+ * and a state that lost them would read a file twice or not at all.
+ *
+ * @type {(id: Nullable<Oid>, packed: Nullable<readonly PackedRef[]>) => readonly [_Lookup, List<Bytes>]}
  */
-const answered = id => [{ id, left: 0 }, null]
+const answered = (id, packed) => [{ id, left: 0, packed }, null]
 
 /**
  * The path spelling of a name this module can answer for, or `null` where it
@@ -689,51 +693,93 @@ const isDirectoryAt = path => catchStep(
  * nested across links, and the bound made that harmless rather than right;
  * nothing about the loop needed the recursion, so it is gone.
  *
- * @type {(dirs: Dirs, packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>) => (name: Bytes) => (state: _Lookup) => Effect<Stat | Readdir | ReadFile, readonly [_Lookup, List<Bytes>], IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes, readRef: (bytes: Bytes) => Nullable<Ref>) => (name: Bytes) => (state: _Lookup) => Effect<Stat | ReadWhole | Readdir | ReadFile, readonly [_Lookup, List<Bytes>], IoChannel>}
  */
-const lookupOf = (dirs, packed, readRef) => name => state => {
-    if (state.left <= 0) { return pureOk(answered(null)) }
+const lookupOf = (dirs, oidBytes, readRef) => name => state => {
+    if (state.left <= 0) { return pureOk(answered(null, state.packed)) }
     // Every link's name is asked about, not only the caller's: a symbolic ref
     // names its target, and the target is as much from outside the repository as
     // the name a caller typed.
     const text = askable(name)
-    if (text === null) { return pureOk(answered(null)) }
+    if (text === null) { return pureOk(answered(null, state.packed)) }
     // Which directory the name's file sits in is the name's own question,
     // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
     // the repository's. See {@link dirOf}.
     const path = under(dirOf(dirs, text), text)
     const read = text === head ? headBytes(dirs) : tryBytes(path)
+    const noFile = () => fromPacked(dirs, oidBytes, text, name, state)
     // A read that answered *bytes that are no ref* is two different repositories
     // — a loose file Git calls `bad ref`, or a directory a host handed over
     // instead of failing — and only the kind tells them apart. See
     // {@link tryBytes}. `HEAD` is not asked: its kind came from the gitdir's
     // listing before it was read at all.
-    return step(read, bytes => bytes === null || text === head || readRef(bytes) !== null
-        ? pureOk(stepped(packed, readRef, text, name, state, bytes))
-        : mapStep(
-            isDirectoryAt(path),
-            dir => stepped(packed, readRef, text, name, state, dir ? null : bytes)))
+    return step(read, bytes => bytes === null
+        ? noFile()
+        : text === head || readRef(bytes) !== null
+            ? pureOk(stepped(readRef, text, state, bytes))
+            : step(isDirectoryAt(path), dir => dir
+                ? noFile()
+                : pureOk(stepped(readRef, text, state, bytes))))
 }
 
 /**
- * What one link makes of the bytes its read answered: the state the walk carries
- * on with, and the names it has left to walk.
+ * What a name with no loose file resolves to: its `packed-refs` line, or nothing.
+ *
+ * **The packed file is read here and not before the loose one**, which is the
+ * order a `git pack-refs` running underneath makes matter. That command writes
+ * the new packed file and then prunes the loose refs it packed — `--prune` is
+ * its default and `git gc` runs it — so a lookup that snapshots `packed-refs`
+ * first can see neither copy of a ref that existed throughout: not the snapshot,
+ * which predates the pack, and not the loose file, which is gone by the time it
+ * is read. Read in this order the ref is found either way round, and
+ * {@link tryRoots} takes the same order for the same reason.
+ *
+ * It is read *once* per resolution, not once per link: a `packed-refs` entry is
+ * always a direct id, so a link that reads one ends the chain, and the state
+ * carries the lines for the only other reader of them — {@link tryResolve}'s
+ * check that the file is one Git reads at all. {@link resolveWith} seeds that
+ * state, so a listing resolves its symbolic refs against the file it has already
+ * read rather than reading it again.
+ *
+ * `FETCH_HEAD` and `MERGE_HEAD` do not fall back to a packed line of that name,
+ * and so do not read the file at all: Git reads those two from their own file —
+ * see {@link special}.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes, text: string, name: Bytes, state: _Lookup) => Effect<ReadWhole, readonly [_Lookup, List<Bytes>], IoChannel>}
+ */
+const fromPacked = (dirs, oidBytes, text, name, state) => {
+    if (special.includes(text)) { return pureOk(answered(null, state.packed)) }
+    if (state.packed !== null) { return pureOk(answered(packedId(state.packed, name), state.packed)) }
+    return mapStep(tryPackedRefs(dirs, oidBytes), packed => packed === null
+        // a `packed-refs` Git refuses is every name's answer, which is Git's:
+        // measured, `git rev-parse refs/heads/master` on a repository with a
+        // malformed file answers `unexpected line` and resolves nothing
+        ? answered(null, state.packed)
+        : answered(packedId(packed, name), packed))
+}
+
+/**
+ * What one link makes of a loose ref file's bytes: the state the walk carries on
+ * with, and the names it has left to walk.
+ *
+ * The file is there, which is the case this answers — an absent one is
+ * {@link fromPacked}, and the two are separate because only that one reads
+ * another file.
  *
  * Pure, and at module scope with everything it reads as a parameter, so the link
  * above is one effect and a projection over it rather than a continuation with a
  * body (§3.3).
  *
- * @type {(packed: readonly PackedRef[], readRef: (bytes: Bytes) => Nullable<Ref>, text: string, name: Bytes, state: _Lookup, bytes: Nullable<Bytes>) => readonly [_Lookup, List<Bytes>]}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, text: string, state: _Lookup, bytes: Bytes) => readonly [_Lookup, List<Bytes>]}
  */
-const stepped = (packed, readRef, text, name, state, bytes) => {
-    if (bytes === null) { return answered(special.includes(text) ? null : packedId(packed, name)) }
+const stepped = (readRef, text, state, bytes) => {
     const r = readRef(bytes)
-    if (r === null) { return answered(null) }
+    if (r === null) { return answered(null, state.packed) }
     // The one rule about *which* file a ref was read from, which the
     // grammar over one file's bytes cannot know. See {@link targetAllowed}.
-    if (!targetAllowed(text, r)) { return answered(null) }
-    if (r.kind === 'direct') { return answered(r.id) }
-    return [{ id: null, left: state.left - 1 }, [r.target]]
+    if (!targetAllowed(text, r)) { return answered(null, state.packed) }
+    if (r.kind === 'direct') { return answered(r.id, state.packed) }
+    return [{ id: null, left: state.left - 1, packed: state.packed }, [r.target]]
 }
 
 /**
@@ -743,12 +789,15 @@ const stepped = (packed, readRef, text, name, state, bytes) => {
  * The ref reader is bound once here rather than per link, and the walk's state
  * carries the answer, so the id it ends with is the id the chain named.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[]) => (name: Bytes, left: number) => Effect<Stat | Readdir | ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: Nullable<readonly PackedRef[]>) => (name: Bytes, left: number) => Effect<Stat | ReadWhole | Readdir | ReadFile, Nullable<Oid>, IoChannel>}
  */
 const resolveWith = (dirs, oidBytes, packed) => {
-    const link = lookupOf(dirs, packed, tryRef(oidBytes))
+    const link = lookupOf(dirs, oidBytes, tryRef(oidBytes))
     return (name, left) => mapStep(
-        walkStep(pureOk(/** @type {List<Bytes>} */ ([name])), /** @type {_Lookup} */ ({ id: null, left }), link),
+        walkStep(
+            pureOk(/** @type {List<Bytes>} */ ([name])),
+            /** @type {_Lookup} */ ({ id: null, left, packed }),
+            link),
         s => s.id)
 }
 
@@ -808,15 +857,26 @@ const resolveWith = (dirs, oidBytes, packed) => {
  * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<Stat | ReadWhole | Readdir | ReadFile, Nullable<Oid>, IoChannel>}
  */
 export const tryResolve = (dirs, oidBytes) => name => {
-    // Before the read and not inside the walk, which is what the paragraph above
-    // promises: otherwise a `packed-refs` the host refuses answers `../secret`
-    // with a channel error, making a value known not to be a ref depend on the
-    // repository's filesystem. See {@link askable}.
+    // Before any read, which is what the paragraph above promises: otherwise a
+    // file the host refuses answers `../secret` with a channel error, making a
+    // value known not to be a ref depend on the repository's filesystem. See
+    // {@link askable}.
     if (askable(name) === null) { return pureOk(/** @type {Nullable<Oid>} */ (null)) }
-    const read = tryPackedRefs(dirs, oidBytes)
-    return step(read, packed => packed === null
-        ? pureOk(null)
-        : resolveWith(dirs, oidBytes, packed)(name, maxLookups))
+    // Two effects, one link each. The chain reads the loose files, and
+    // `packed-refs` only where a name has none — see {@link fromPacked} for why
+    // that order and not the other.
+    const chain = walkStep(
+        pureOk(/** @type {List<Bytes>} */ ([name])),
+        /** @type {_Lookup} */ ({ id: null, left: maxLookups, packed: null }),
+        lookupOf(dirs, oidBytes, tryRef(oidBytes)))
+    // And where the chain never needed the file, it is read here — because a
+    // `packed-refs` Git refuses is every name's answer, the loose ones included:
+    // measured, `git rev-parse refs/heads/master` on a repository holding that
+    // ref loose answers `unexpected line in .git/packed-refs` and resolves
+    // nothing. Once either way, and after the loose read either way.
+    return step(chain, s => s.packed !== null
+        ? pureOk(s.id)
+        : mapStep(tryPackedRefs(dirs, oidBytes), packed => packed === null ? null : s.id))
 }
 
 /** @type {(state: Nullable<_Found>, items: Nullable<readonly _Entry[]>) => _Walked} */
@@ -1418,7 +1478,7 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  * Symbolic refs under `refs/` are rare — `refs/remotes/<remote>/HEAD` is the one
  * an ordinary clone has — so this pass is usually empty and always short.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], found: _Found) => Effect<Stat | Readdir | ReadFile, _Found, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], found: _Found) => Effect<Stat | ReadWhole | Readdir | ReadFile, _Found, IoChannel>}
  */
 const resolvePending = (dirs, oidBytes, packed, found) => {
     const resolve = resolveWith(dirs, oidBytes, packed)

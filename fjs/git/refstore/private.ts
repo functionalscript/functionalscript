@@ -7,6 +7,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { Nullable } from '../../types/nullable/types.ts'
 import type { Bytes, Oid } from '../types.ts'
+import type { PackedRef } from '../ref/types.ts'
 import type { Root } from './types.ts'
 
 /**
@@ -114,4 +115,5 @@ export type _Walked = readonly [Nullable<_Found>, Nullable<readonly _Entry[]>]
 export type _Lookup = {
     readonly id: Nullable<Oid>
     readonly left: number
+    readonly packed: Nullable<readonly PackedRef[]>
 }

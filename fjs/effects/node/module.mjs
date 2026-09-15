@@ -17,6 +17,7 @@
  * @import { _Readable, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
 import http from 'node:http'
@@ -371,7 +372,11 @@ const runNodeEffect = asyncRun({
         }
         const fh = await open(path, 'r')
         try {
-            const chunks = []
+            // Rebuilt rather than appended to: a file is however many `Vec`s it
+            // takes and the count is small — 128 KiB a chunk, so eighty of them
+            // for ten megabytes — where {@link collectBounded} mutates because
+            // *its* count is the caller's. §3.1 has no exception to spend here.
+            let chunks = /** @type {readonly Vec[]} */ ([])
             for (;;) {
                 const buffer = Buffer.alloc(maxFileSizeBytes)
                 let taken = 0
@@ -383,7 +388,7 @@ const runNodeEffect = asyncRun({
                     taken += bytesRead
                 }
                 if (taken !== 0) {
-                    chunks.push(toVec(buffer.subarray(0, taken)))
+                    chunks = [...chunks, toVec(buffer.subarray(0, taken))]
                 }
                 if (taken < buffer.length) {
                     break

@@ -439,8 +439,65 @@ export const proof = {
         assertEq(resolved({ refs: { heads: { 'bad.': ref(b) } } }, 'refs/heads/bad.'), null)
     },
     // A symbolic loose ref is answered resolved, which is what
-    // `git show-ref` lists for one.
+    // `git show-ref` lists for one, and the listing reads `packed-refs` once
+    // while doing it: the walk records the ref and the pass after the packed
+    // read resolves it against the lines already in hand, rather than each
+    // pending ref reading the file for itself.
     symbolicRoot: () => {
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'refs/heads/master'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : path === 'refs/heads/sym'
+                        ? ok(toVec(latin1('ref: refs/heads/master\n')))
+                        : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs'
+                    ? [dirent('heads', path, false, true)]
+                    : path === 'refs/heads'
+                        ? [dirent('master', path, true, false), dirent('sym', path, true, false)]
+                        : []),
+            ],
+            readWhole: path => log => [
+                [...log, `readWhole ${path}`],
+                error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            stat: statUnasked,
+        }
+        const [log, rs] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        assert(rs[0] === 'ok')
+        sameRoots(rs[1], [['refs/heads/master', a], ['refs/heads/sym', a]])
+        assertEq(log.filter(l => l === `readWhole ${packedRefs}`).length, 1)
+        // And where the target has no loose file — the case that would send a
+        // resolution to the packed lines — it is still one read, because the
+        // pass is seeded with the file the listing already read.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const dangling = {
+            ...host,
+            readFile: path => log2 => [
+                [...log2, `readFile ${path}`],
+                path === 'refs/heads/sym'
+                    ? ok(toVec(latin1('ref: refs/heads/gone\n')))
+                    : path === 'refs/heads/master'
+                        ? ok(toVec(latin1(`${a}\n`)))
+                        : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readWhole: path => log2 => [
+                [...log2, `readWhole ${path}`],
+                path === packedRefs
+                    ? ok([toVec(latin1(`${b} refs/heads/other\n`))])
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [log2, rs2] = mockRun(dangling)(/** @type {readonly string[]} */ ([]))(
+            tryRoots(one(''), 20))
+        assert(rs2[0] === 'ok', rs2)
+        sameRoots(rs2[1], [['refs/heads/master', a], ['refs/heads/other', b]])
+        assertEq(log2.filter(l => l === `readWhole ${packedRefs}`).length, 1)
         /** @type {Dir} */
         const heads = { master: ref(a), sym: file('ref: refs/heads/master\n') }
         sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [
@@ -503,16 +560,37 @@ export const proof = {
         assertStructurallySame(
             mockRun(loose)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
             error(denied))
-        // and the whole-file read refuses
+        // and the whole-file read refuses, which the loose read has to reach
+        // first: with no loose file the name falls back to `packed-refs`, and a
+        // read of it that is not an absence is the channel's — see
+        // `tryWholeBytes`.
         /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
         const packed = {
-            readFile: () => state => [state, error(denied)],
+            readFile: missing,
             readWhole: () => state => [state, error(denied)],
             readdir: missing,
             stat: statUnasked,
         }
         assertStructurallySame(
             mockRun(packed)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
+            error(denied))
+        // and the same where the loose file *answers*: the packed file is read
+        // at the end anyway, because a `packed-refs` Git refuses is every name's
+        // answer, so its failure is the channel's there too
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
+        const hit = {
+            readFile: path => state => [
+                state,
+                path === 'refs/heads/master'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readWhole: () => state => [state, error(denied)],
+            readdir: missing,
+            stat: statUnasked,
+        }
+        assertStructurallySame(
+            mockRun(hit)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
             error(denied))
     },
     // A `packed-refs` Git refuses is the answer, and nothing after it is read.
@@ -563,6 +641,29 @@ export const proof = {
         sameRoots(r[1], [['refs/heads/x', a]])
         // the order that makes it so, in the log itself
         assert(log.indexOf('readdir refs/heads') < log.indexOf(`readWhole ${packedRefs}`), log)
+        // The lookup is the same transition seen through one name: the loose
+        // file is gone by the time it is read, and the packed file read after it
+        // carries the ref. A snapshot taken first would have neither.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const one_ = {
+            readFile: path => log2 => [
+                [...log2, `readFile ${path}`],
+                error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: missing,
+            stat: statUnasked,
+            readWhole: path => log2 => [
+                [...log2, `readWhole ${path}`],
+                path === packedRefs
+                    ? ok(log2.includes('readFile refs/heads/x') ? [toVec(packedNow)] : [])
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [log2, r2] = mockRun(one_)(/** @type {readonly string[]} */ ([]))(
+            tryResolve(one(''), 20)(latin1('refs/heads/x')))
+        assert(r2[0] === 'ok' && r2[1] !== null, r2)
+        assertEq(codePointListToString(toHex(r2[1])), a)
+        assertStructurallySame(log2, ['readFile refs/heads/x', `readWhole ${packedRefs}`])
     },
     rootsBadPackedStops: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
@@ -1005,11 +1106,13 @@ export const proof = {
             assertStructurallySame(r, ok(null))
             assertStructurallySame(log, [])
         }
-        // and a name that *is* one still reaches the read, so the case above is
-        // about the name and not about the host being unreachable
+        // and a name that *is* one still reaches a read, so the case above is
+        // about the name and not about the host being unreachable. The loose
+        // file is what it reaches first — see `fromPacked` for why that order —
+        // and this host refuses it, so the chain ends there.
         const [log] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
             tryResolve(one(''), 20)(latin1('refs/heads/master')))
-        assertStructurallySame(log, ['readWhole packed-refs'])
+        assertStructurallySame(log, ['readFile refs/heads/master'])
     },
     // The same rule one link further in, and where it is actually enforced: a
     // symbolic ref whose *target* is no ref name never reaches a path, because
@@ -1105,11 +1208,12 @@ export const proof = {
             tryResolve(one(''), 20)(latin1('refs/heads/topic/feature-3999')))
         assert(r[0] === 'ok' && r[1] !== null)
         assertEq(codePointListToString(toHex(r[1])), a)
-        // one read of the file, then the loose file the name would shadow the
-        // packed line with
+        // the loose file the name would shadow the packed line with, then one
+        // read of the packed file — that order is `fromPacked`'s, and the file
+        // is read once
         assertStructurallySame(log, [
-            `readWhole ${packedRefs}`,
             'readFile refs/heads/topic/feature-3999',
+            `readWhole ${packedRefs}`,
         ])
     },
     // The *lookup* refuses a symlink `HEAD` too, which it used to follow.
