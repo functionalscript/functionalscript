@@ -575,11 +575,11 @@ export const proof = {
     // failing stream can only be the lender's.
     borrowedLooseRefusalOutlivesAMiss: () => {
         const whole = hostOf(files)
-        const noInflate = {
+        const noInflate = /** @type {typeof whole} */ ({
             ...whole,
             inflate: /** @type {typeof whole.inflate} */ (
                 () => log => [[...log, 'inflate'], error(ioError({ code: 'Z_DATA_ERROR', message: 'bad' }))]),
-        }
+        })
         const [, r] = run(noInflate)([])(tryRead('borrowsBadLoose', 20)(id(tagId)))
         assert(r[0] === 'error')
         const e = r[1]
