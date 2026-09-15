@@ -521,24 +521,87 @@ export const proof = {
     // permission, a broken host — arrives as a channel error in place of the
     // `null` this had already decided on. The host below answers the malformed
     // file and refuses every other read, so a chain that reads on fails.
+    // The loose files are read before `packed-refs`, and a `git pack-refs`
+    // running underneath is why.
+    //
+    // That command writes the new packed file and then prunes the loose refs it
+    // packed — `git pack-refs -h` marks `--prune` as the default, and `git gc`
+    // runs it — so a reader that snapshots `packed-refs` first can see neither
+    // copy of a ref that was loose when it started: not the packed file, which
+    // predates the pack, and not the loose file, which is gone by the time the
+    // walk arrives.
+    //
+    // The host below is that transition at its worst: the pack completes before
+    // the walk reaches `refs/heads`, so the directory lists nothing, and the
+    // packed file answers its *new* contents to any read that happens after the
+    // listing. Reading the loose files first therefore finds the ref in the
+    // packed lines; reading the packed file first would find it in neither.
+    packedRefsMovedUnderfoot: () => {
+        const packedNow = latin1(`${a} refs/heads/x\n`)
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs' ? [dirent('heads', path, false, true)] : []),
+            ],
+            stat: statUnasked,
+            readWhole: path => log => [
+                [...log, `readWhole ${path}`],
+                path === packedRefs
+                    // before the walk it holds nothing; after it, the ref that
+                    // was loose when this began
+                    ? ok(log.includes('readdir refs/heads') ? [toVec(packedNow)] : [])
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        assert(r[0] === 'ok', r)
+        sameRoots(r[1], [['refs/heads/x', a]])
+        // the order that makes it so, in the log itself
+        assert(log.indexOf('readdir refs/heads') < log.indexOf(`readWhole ${packedRefs}`), log)
+    },
     rootsBadPackedStops: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
         const badPacked = latin1('# hello\n')
-        // Every read but the malformed file fails, and so does every listing, so
-        // a chain that goes on after the refusal cannot answer at all.
-        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
+        // A repository whose loose half reads: one symbolic ref, which the walk
+        // records and leaves pending, and a `master` whose *read* refuses — so a
+        // chain that went on to resolve the pending ref could not answer at all.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
         const host = {
-            readFile: () => state => [state, error(denied)],
-            readdir: () => state => [state, error(denied)],
-            stat: () => state => [state, error(denied)],
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'refs/heads/sym'
+                    ? ok(toVec(latin1('ref: refs/heads/master\n')))
+                    // an absent `HEAD` is an answer, so the only refusals this
+                    // host has are the ones a chain that read on would hit
+                    : path === 'HEAD'
+                        ? error(ioError({ code: 'ENOENT', message: path }))
+                        : error(denied),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs'
+                    ? [dirent('heads', path, false, true)]
+                    : path === 'refs/heads'
+                        ? [dirent('sym', path, true, false)]
+                        : []),
+            ],
+            stat: statUnasked,
             // the malformed file, as the chunks one open answered
-            readWhole: path => state => [
-                state,
+            readWhole: path => log => [
+                [...log, `readWhole ${path}`],
                 path === packedRefs ? ok([toVec(badPacked)]) : error(denied),
             ],
         }
-        const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
         assertStructurallySame(r, ok(null))
+        // the refusal is the packed file's, and the resolution after it is not
+        // attempted — the pending ref's target is never read
+        assert(!log.includes('readFile refs/heads/master'), log)
     },
     // A listing that answers one name twice is refused rather than read. Node
     // decodes a directory entry as UTF-8 and replaces what is not, so a file

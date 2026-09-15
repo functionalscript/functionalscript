@@ -6,7 +6,7 @@
 
 import type { List } from '../../types/list/types.ts'
 import type { Nullable } from '../../types/nullable/types.ts'
-import type { Oid } from '../types.ts'
+import type { Bytes, Oid } from '../types.ts'
 import type { Root } from './types.ts'
 
 /**
@@ -74,6 +74,21 @@ export type _Scope = {
 export type _Found = {
     readonly roots: List<Root>
     readonly names: List<readonly number[]>
+    readonly pending: List<_Pending>
+}
+
+/**
+ * A symbolic loose ref the walk has read and not resolved: its own name, and the
+ * name it points at.
+ *
+ * The walk does not resolve one, because resolving reads `packed-refs` and this
+ * module reads that file *after* the loose ones — see `tryRoots`, where the
+ * order is the answer to a `git pack-refs` running underneath. So the walk
+ * records the pair and a later pass answers it.
+ */
+export type _Pending = {
+    readonly name: readonly number[]
+    readonly target: Bytes
 }
 
 /**

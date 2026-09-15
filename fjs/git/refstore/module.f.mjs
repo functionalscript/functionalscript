@@ -195,7 +195,7 @@
  * @import { _Entry, _Found, _Lookup, _Scope, _Walked } from './private.ts'
  */
 
-import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { isDirectory, isNotFound, leadsNowhere, readFile, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -889,33 +889,31 @@ const childOf = parent => d => ({
 })
 
 /**
- * What the walk of `refs/` makes of a loose ref file's bytes: the root it names,
- * or none, and the names seen either way.
+ * What the walk of `refs/` makes of a ref it has read: the root a direct one
+ * names, or the pair a symbolic one leaves for later.
  *
- * A ref file that is no ref makes the whole listing `null`, which is
- * {@link looseOf}'s stickiness rather than this function's opinion. A symbolic
- * one is resolved, and one that resolves nowhere leaves the name recorded with
- * no root — the shadowing rule, which is why `names` comes in already carrying
- * this name.
+ * **A symbolic ref is not resolved here**, which is the whole reason this is a
+ * projection and not an effect. Resolving reads `packed-refs`, and that file is
+ * read *after* the loose ones — see {@link tryRoots}, where the order is what
+ * keeps a `git pack-refs` running underneath from hiding a ref from both halves.
+ * So the name and its target are recorded and {@link resolvePending} answers
+ * them once the packed lines are in hand.
+ *
+ * The name is in `names` whichever it is, because that is the shadowing rule:
+ * the loose file decides the name by existing, resolved or not.
  *
  * Everything it needs is a leading parameter, so it is closed and at module
- * scope: the reader of one file's bytes, the resolver, what the walk has found,
- * the name, and the names (§3.3).
+ * scope: what the walk has found, the name, and the names (§3.3).
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Stat | Readdir | ReadFile, Nullable<Oid>, IoChannel>, found: _Found, name: readonly number[], names: List<readonly number[]>) => (bytes: Bytes) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(found: _Found, name: readonly number[], names: List<readonly number[]>) => (r: Ref) => _Found}
  */
-const refOf = (readRef, resolve, found, name, names) => bytes => {
-    const r = readRef(bytes)
-    if (r === null) { return pureOk(walked(null, null)) }
-    if (r.kind === 'direct') {
-        return pureOk(walked({ roots: concat(found.roots)([{ name, id: r.id }]), names }, null))
+const refOf = (found, name, names) => r => r.kind === 'direct'
+    ? { roots: concat(found.roots)([{ name, id: r.id }]), names, pending: found.pending }
+    : {
+        roots: found.roots,
+        names,
+        pending: concat(found.pending)([{ name, target: r.target }]),
     }
-    return mapStep(
-        resolve(r.target, maxLookups - 1),
-        id => walked(
-            { roots: id === null ? found.roots : concat(found.roots)([{ name, id }]), names },
-            null))
-}
 
 /**
  * A directory's entries as the walk's next items, or a refusal where the host
@@ -941,9 +939,9 @@ const descendInto = (item, found) =>
  *
  * The captures are leading parameters and this sits at module scope (§3.3).
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Stat | Readdir | ReadFile, Nullable<Oid>, IoChannel>, name: readonly number[], item: _Entry, found: _Found) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, name: readonly number[], item: _Entry, found: _Found) => Effect<ReadFile, _Walked, IoChannel>}
  */
-const readAsRef = (readRef, resolve, name, item, found) => {
+const readAsRef = (readRef, name, item, found) => {
     // A file whose name is no ref name refuses the listing, which is Git's
     // answer for one — see {@link badNameCode}.
     if (!isWholeName(name)) {
@@ -952,8 +950,11 @@ const readAsRef = (readRef, resolve, name, item, found) => {
     // the name is recorded whatever the file turns out to hold, because
     // that is what shadows the packed line
     const names = concat(found.names)([name])
-    const read = mapStep(readFile(item.path), toBytes)
-    return step(read, refOf(readRef, resolve, found, name, names))
+    const add = refOf(found, name, names)
+    return mapStep(mapStep(readFile(item.path), toBytes), bytes => {
+        const r = readRef(bytes)
+        return walked(r === null ? null : add(r), null)
+    })
 }
 
 /**
@@ -992,9 +993,9 @@ const linkedDirMessage = path => `${path} is a link to a directory`
  * `isFile` for a link to a ref file, `isDirectory` for a link to a directory, and
  * neither for a FIFO and for a link to one.
  *
- * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, resolve: (name: Bytes, left: number) => Effect<Stat | Readdir | ReadFile, Nullable<Oid>, IoChannel>, name: readonly number[], item: _Entry, found: _Found) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, name: readonly number[], item: _Entry, found: _Found) => Effect<Stat | ReadFile, _Walked, IoChannel>}
  */
-const statted = (readRef, resolve, name, item, found) => step(
+const statted = (readRef, name, item, found) => step(
     // The catch is around the `stat` and nothing else: a `readFile` below that
     // cannot find what the listing named is a race or a broken host, and this
     // module's rule is that such a read is the channel's.
@@ -1009,7 +1010,7 @@ const statted = (readRef, resolve, name, item, found) => step(
         // open
         ? pureOk(walked(found, null))
         : s.isFile
-            ? readAsRef(readRef, resolve, name, item, found)
+            ? readAsRef(readRef, name, item, found)
             : pureError(ioError({ code: linkedDirCode, message: linkedDirMessage(item.path) })))
 
 /**
@@ -1072,11 +1073,10 @@ const statted = (readRef, resolve, name, item, found) => step(
  * name: see {@link holdsPerWorktreeOnly} for why that is a second rule and not
  * the same one.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], scope: _Scope) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(oidBytes: OidBytes, scope: _Scope) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
  */
-const looseOf = (dirs, oidBytes, packed, scope) => {
+const looseOf = (oidBytes, scope) => {
     const readRef = tryRef(oidBytes)
-    const resolve = resolveWith(dirs, oidBytes, packed)
     return item => state => {
         if (state === null) { return pureOk(walked(null, null)) }
         const found = state
@@ -1094,8 +1094,8 @@ const looseOf = (dirs, oidBytes, packed, scope) => {
         }
         if (!scope.keep(item.name)) { return pureOk(walked(found, null)) }
         return item.isFile
-            ? readAsRef(readRef, resolve, name, item, found)
-            : statted(readRef, resolve, name, item, found)
+            ? readAsRef(readRef, name, item, found)
+            : statted(readRef, name, item, found)
     }
 }
 
@@ -1384,18 +1384,56 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
         }))
     }
     return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
-        if (bytes === null) { return { roots: [], names: [] } }
+        if (bytes === null) { return { roots: [], names: [], pending: [] } }
         const r = readRef(bytes)
         if (r === null) { return null }
         // The same rule the lookup asks, and for the same reason: a `HEAD`
         // pointing outside `refs/` is no repository, so there is no list of its
         // refs to answer. See {@link targetAllowed}.
         if (!targetAllowed(head, r)) { return null }
+        // A symbolic `HEAD` names no root of its own — the branch it names is one
+        // at the same id — so there is nothing pending here either.
         return {
             roots: r.kind === 'direct' ? [{ name: headName, id: r.id }] : [],
             names: [headName],
+            pending: [],
         }
     })
+}
+
+/**
+ * The symbolic loose refs the walk left pending, answered: each one's target
+ * resolved against the packed lines and the loose files, and a root added where
+ * it resolves.
+ *
+ * One effect per pending ref, at one level, which is a walk rather than a fold
+ * only because the step's answer feeds the next state — see
+ * [`fjs/effects`](../../effects/module.f.mjs)' `foldStep`, which is what this is.
+ *
+ * **A target that resolves nowhere leaves the name recorded and adds no root**,
+ * which is the shadowing rule: the loose file decided the name by existing, so
+ * the packed line of that name does not come back. The name is already in
+ * `names`; this only ever appends roots.
+ *
+ * Symbolic refs under `refs/` are rare — `refs/remotes/<remote>/HEAD` is the one
+ * an ordinary clone has — so this pass is usually empty and always short.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], found: _Found) => Effect<Stat | Readdir | ReadFile, _Found, IoChannel>}
+ */
+const resolvePending = (dirs, oidBytes, packed, found) => {
+    const resolve = resolveWith(dirs, oidBytes, packed)
+    return foldStep(
+        pureOk(found.pending),
+        found,
+        p => state => mapStep(
+            resolve(p.target, maxLookups - 1),
+            id => ({
+                roots: id === null
+                    ? state.roots
+                    : concat(state.roots)([{ name: p.name, id }]),
+                names: state.names,
+                pending: state.pending,
+            })))
 }
 
 /**
@@ -1501,13 +1539,27 @@ export const tryRoots = (dirs, oidBytes) => {
     /** @type {_Entry} */
     const shared = { path: under(dirs.common, refsDir), name: refsDir, isFile: false, isDirectory: true }
     /** @type {Nullable<_Found>} */
-    const init = { roots: [], names: [] }
-    // Four effects, one link each and all at one level, so the order they run
-    // in is the order they are written: the packed file, the shared walk of
-    // `refs/`, the worktree's own walk, and `HEAD`. Each link carries the
-    // earlier values forward through `historyStep` rather than nesting to reach
-    // them, and each is skipped once something before it has refused, which is
-    // what the `null`s in front of them are for.
+    const init = { roots: [], names: [], pending: [] }
+    // Six effects, one link each and all at one level, so the order they run in
+    // is the order they are written: the shared walk of `refs/`, the gitdir's
+    // listing, the worktree's own walk, `HEAD`, `packed-refs`, and the symbolic
+    // refs the walk left pending. Each link carries the earlier values forward
+    // through `historyStep` rather than nesting to reach them, and each is
+    // skipped once something before it has refused, which is what the `null`s in
+    // front of them are for.
+    //
+    // **The loose files are read before `packed-refs`, and that order is the
+    // answer to `git pack-refs` running underneath.** That command writes the
+    // new packed file and then prunes the loose ones it packed — `--prune` is
+    // its default — so a reader that snapshots `packed-refs` first can see
+    // neither copy of a ref that was loose when it started: not the packed file,
+    // which predates the pack, and not the loose file, which is gone by the time
+    // the walk reaches it. Reading the loose files first cannot lose it either
+    // way round: the walk finds the file, or the pack has already happened and
+    // the packed lines read afterwards carry it. A ref created or deleted while
+    // this runs is a snapshot's business, not a gap; a root silently missing
+    // from a repository that held it throughout is the answer this module must
+    // not give.
     //
     // The shared walk takes the shared names and the worktree's walk takes the
     // per-worktree ones, so a name is listed once whether the two directories
@@ -1515,15 +1567,7 @@ export const tryRoots = (dirs, oidBytes) => {
     // linked worktree has one only while a bisect or a rebase is running — so it
     // is found by listing the worktree's directory rather than by reading a path
     // that may not be there. See {@link ownRefs}.
-    const read = history(tryPackedRefs(dirs, oidBytes))
-    // A refusal is `null` at every link, including the first: answering `init`
-    // here instead — a `_Found` of nothing, which unifies with the walk's own
-    // answer — let the chain continue past a `packed-refs` Git refuses, and the
-    // `HEAD` read at the end then had a whole file's worth of ways to fail in
-    // place of an answer this function had already decided.
-    const sharedWalk = historyStep(read, packed => packed === null
-        ? pureOk(/** @type {Nullable<_Found>} */ (null))
-        : walkStep(pureOk([shared]), init, looseOf(dirs, oidBytes, packed, sharedScope)))
+    const walk = history(walkStep(pureOk([shared]), init, looseOf(oidBytes, sharedScope)))
     // The refusals are tested oldest first, which is not a style choice: a later
     // one implies every earlier one, so asking about an earlier refusal after a
     // later one is a question with only one answer — a branch no input reaches.
@@ -1534,21 +1578,30 @@ export const tryRoots = (dirs, oidBytes) => {
     // is no entries rather than `null`, because the links after it are skipped by
     // the same refusal that skipped this one — the walk's `null` reaches them on
     // its own — and a `null` here would add a test nothing can reach.
-    const listed = historyStep(sharedWalk, found => found === null
+    const listed = historyStep(walk, found => found === null
         ? pureOk(/** @type {readonly Dirent[]} */ ([]))
         : readdir(dirs.gitdir, {}))
-    const ownWalk = historyStep(listed, (entries, found, packed) => packed === null || found === null
+    const ownWalk = historyStep(listed, (entries, found) => found === null
         ? pureOk(found)
-        : walkStep(
-            ownRefs(dirs, entries),
-            found,
-            looseOf(dirs, oidBytes, packed, worktreeScope)))
+        : walkStep(ownRefs(dirs, entries), found, looseOf(oidBytes, worktreeScope)))
     const headRead = historyStep(ownWalk, (found, entries) => found === null
         ? pureOk(/** @type {Nullable<_Found>} */ (null))
         : tryHeadFound(dirs, oidBytes, entries))
+    // A refused listing skips the file rather than answering `[]`, because `[]`
+    // is "no packed refs" and this is "no answer": the two differ where a name
+    // is packed and the walk already refused.
+    const packedRead = historyStep(headRead, h => h === null
+        ? pureOk(/** @type {Nullable<readonly PackedRef[]>} */ (null))
+        : tryPackedRefs(dirs, oidBytes))
+    // And the last link is the one the order above bought: every symbolic loose
+    // ref the walk recorded, answered against the packed lines just read.
+    const resolved = historyStep(packedRead, (packed, h, found) =>
+        packed === null || h === null || found === null
+            ? pureOk(/** @type {Nullable<_Found>} */ (null))
+            : resolvePending(dirs, oidBytes, packed, found))
     // newest first, and the shared walk's own answer is skipped because the
     // worktree's walk carried it forward as its starting state
-    return step(headRead, ([h, found, , , packed]) => {
+    return step(resolved, ([found, packed, h]) => {
         if (packed === null || found === null || h === null) {
             return pureOk(/** @type {Nullable<readonly Root[]>} */ (null))
         }
@@ -1574,6 +1627,7 @@ export const tryRoots = (dirs, oidBytes) => {
         const roots = combine({
             roots: concat(found.roots)(h.roots),
             names: concat(found.names)(h.names),
+            pending: [],
         }, packed)
         const zero = zeroRoot(roots)
         return zero === null
