@@ -57,6 +57,16 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
   JavaScript's `a[b]` walks the prototype chain and `own` does not, and `b`
   may be `"constructor"` at run time. The descriptor pattern is the source
   form for a run-time key, and it means the same in both.
+- **Both executors, one answer.** The native VM's `own` is pinned today by
+  the conformance corpus in [`fjs/nanvm`](../../nanvm/module.f.mjs)
+  (`ownCases`), which generates the Rust vectors and documents
+  `Any::own_property` in `nanvm-lib`: there an array is not a receiver, and
+  a primitive or a function answers `undefined` rather than throwing. Under
+  this proposal an array is an object and reads its own properties, `'0'`
+  and `length` included, and a primitive or a function throws through the
+  guard, so the corpus, the generated vectors, `Any::own_property` and its
+  documentation change with amnesia, in the same PR, and the JavaScript and
+  native executions keep agreeing on every listed input.
 - **Unchanged.** `length` and `name` are own and not enumerable, read by
   the operator that admits them and absent from `Object.entries`; the
   analysis merges `.` and `own` alike as plain reads, since neither mints
@@ -71,6 +81,10 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 - [ ] Amnesia's `own` evaluates the guarded expression, with proofs for an
       object, an array, `null`, a string, a number, a function, a missing
       property, and `name` on a function throwing.
+- [ ] The native VM follows in the same PR: `ownCases` in `fjs/nanvm` and the
+      vectors it generates take the guarded answers — an array a receiver with
+      `'0'` and `length`, a primitive or a function a throw — and
+      `Any::own_property` in `nanvm-lib` and its documentation with them.
 - [ ] The parser recognizes the pattern, lowers it to `own`, and keeps `name`
       prohibited for `.`; proofs for `person.name` through the pattern and
       `f.name` refused through `.`.
