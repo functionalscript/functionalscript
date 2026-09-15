@@ -108,9 +108,12 @@ what a grammar can and cannot do for the formats.
   answers a packed copy over a loose one that cannot be read and the hash
   check stands behind either, and the same two questions are put to each
   directory `objects/info/alternates` names, and to the directories *those*
-  borrow from, with one already reached skipped so a cycle ends. `objectsDirs`
-  answers that list and `readIn` reads over it, so a caller reading many objects
-  resolves the borrowings once instead of per object.
+  borrow from, six deep — where Git stops, measured. A borrowing already reached
+  is skipped and one that cannot be read is passed over, as Git passes over it;
+  a path the file names that this layer cannot spell is refused instead
+  ([`todo/byte-paths.md`](todo/byte-paths.md)). `objectsDirs` answers that list
+  and `readIn` reads over it, so a caller reading many objects resolves the
+  borrowings once instead of per object.
 - [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
   over whatever reads objects: `peel`, a tag to what it names;
   `tryEntries`, a commit or a tree to the entries of its tree; and

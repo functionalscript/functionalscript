@@ -8,6 +8,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
+import { normalize } from '../../path/module.f.mjs'
 import { msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
@@ -16,7 +17,7 @@ import { write as writeEnvelope } from '../object/module.f.mjs'
 import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { commitPayload, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
-import { alternatesCode, alternatesIn, alternatesMessage, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
+import { alternatesCode, alternatesIn, alternatesMessage, maxBorrowDepth, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -116,6 +117,19 @@ const packCounting = count => [...packMixed.slice(0, 8), ...u32(count), ...packM
  *
  * @type {StringMap<readonly number[]>}
  */
+/**
+ * The spellings the module hands the host for the lenders below: an entry as the
+ * alternates file writes it, joined below the borrower's `objects/` and *not*
+ * folded. The host folds them, as a filesystem does.
+ */
+const borrowedRepo = /** @type {const} */ ('borrow/objects/../../repo/objects')
+
+const ownRepo = /** @type {const} */ ('own/objects/../../repo/objects')
+
+const farMid = /** @type {const} */ ('far/objects/../../mid/objects')
+
+const midRepo = /** @type {const} */ (`${farMid}/../../repo/objects`)
+
 const files = {
     [`repo/objects/pack/${packName}.idx`]: packMixedIdx,
     [`repo/objects/pack/${packName}.pack`]: packMixed,
@@ -139,6 +153,20 @@ const files = {
     // whose alternates files name each other — `git cat-file -p` answers.
     'loopA/objects/info/alternates': latin1('../../loopB/objects\n'),
     'loopB/objects/info/alternates': latin1('../../loopA/objects\n'),
+    // An alternates file naming a byte above ASCII through an octal escape,
+    // which is valid UTF-8 as a file and still a path this layer cannot spell.
+    'octal/objects/info/alternates': latin1('"/tmp/\\377/objects"\n'),
+    // A store naming itself by the absolute path it already has, where the
+    // spelling repeats and the name ends the walk. `git clone --shared` writes
+    // absolute entries, so this is the shape a repeat actually takes.
+    '/abs/objects/info/alternates': latin1('/abs/objects\n'),
+    // A chain of eight links, one longer than Git follows, with the tag one link
+    // from the reader so the kept stores can be seen to still answer.
+    ...Object.fromEntries(Array.from({ length: 8 }, (_, k) => [
+        `deep${k}/objects/info/alternates`,
+        latin1(`../../deep${k + 1}/objects\n`),
+    ])),
+    [objectPath('deep1')(id(tagId))]: tagLoose,
     // A borrower whose own copy of an object is garbage, with the good copy in
     // the store it borrows from.
     'shadow/objects/info/alternates': latin1('../../repo/objects\n'),
@@ -170,6 +198,17 @@ const files = {
     '/config': latin1('[core]\n\trepositoryformatversion = 0\n'),
 }
 
+/**
+ * A file of the map, looked up at the path *folded* — which is what a
+ * filesystem does and this map otherwise would not. The module hands paths over
+ * as an alternates file writes them, `..` segments and all, so the host is where
+ * they are resolved; see `alternatesIn`'s note on why folding them earlier would
+ * answer about a directory nobody named.
+ *
+ * @type {(fs: StringMap<readonly number[]>, path: string) => readonly number[] | undefined}
+ */
+const at = (fs, path) => fs[normalize(path)]
+
 /** @type {(path: string) => ReturnType<typeof ioError>} */
 const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
 
@@ -188,7 +227,7 @@ const dirent = (parentPath, n) => ({ name: n, parentPath, isFile: true, isDirect
  */
 const hostOf = fs => ({
     readFile: path => log => {
-        const file = fs[path]
+        const file = at(fs, path)
         return [[...log, `readFile ${path}`], file === undefined ? error(noFile(path)) : ok(toVec(file))]
     },
     readdir: path => log => [
@@ -200,7 +239,7 @@ const hostOf = fs => ({
             : error(noFile(path)),
     ],
     stat: path => log => {
-        const file = fs[path]
+        const file = at(fs, path)
         return [
             [...log, `stat ${path}`],
             file === undefined
@@ -208,15 +247,15 @@ const hostOf = fs => ({
                 : ok({ size: file.length, isFile: true, isDirectory: false }),
         ]
     },
-    readBytes: (path, at, size) => log => {
-        const file = fs[path]
+    readBytes: (path, from, size) => log => {
+        const file = at(fs, path)
         return [
-            [...log, `readBytes ${path} ${at} ${size}`],
-            file === undefined ? error(noFile(path)) : ok(toVec(file.slice(at, at + size))),
+            [...log, `readBytes ${path} ${from} ${size}`],
+            file === undefined ? error(noFile(path)) : ok(toVec(file.slice(from, from + size))),
         ]
     },
     readWhole: path => log => {
-        const file = fs[path]
+        const file = at(fs, path)
         return [
             [...log, `readWhole ${path}`],
             file === undefined ? error(noFile(path)) : ok([toVec(file)]),
@@ -342,10 +381,10 @@ export const proof = {
         // then its own store is asked first and has nothing
         assertStructurallySame(log, [
             'readFile borrow/objects/info/alternates',
-            'readFile repo/objects/info/alternates',
+            `readFile ${borrowedRepo}/info/alternates`,
             `readFile ${objectPath('borrow')(id(tagId))}`,
             'readdir borrow/objects/pack',
-            `readFile ${objectPath('repo')(id(tagId))}`,
+            `readFile ${borrowedRepo}/b7/9a8e25df6a75ef83c047b329e730d92ad59dec`,
             'inflate',
         ])
     },
@@ -358,17 +397,108 @@ export const proof = {
         assertEq(r[1].type, 'tag')
         // and the directories are the three, in the order the chain names them
         const [, dirs] = runHost(objectsDirs('far'))
-        assertStructurallySame(dirs, ok(['far/objects', 'mid/objects', 'repo/objects']))
+        assertStructurallySame(dirs, ok(['far/objects', farMid, midRepo]))
     },
-    // Two stores naming each other end rather than loop: a directory already
-    // reached is not followed again. Git ends it too, measured on 2.43.0.
+    // Two stores naming each other end rather than loop. Git ends it too,
+    // measured on 2.43.0.
+    //
+    // **What ends it is the depth, not the names.** Each hop spells a longer
+    // path than the last — `loopA/objects/../../loopB/objects` and so on — and
+    // the paths are deliberately not folded, so no string comparison sees the
+    // cycle. `maxBorrowDepth` is what stops the walk, which is the guarantee
+    // that holds for a cycle through a symlink too: an entry of `sub` where
+    // `objects/sub` links to `objects` names a new path every hop as well, and
+    // measured on Git 2.43.0 Git ends that walk rather than following it.
     borrowedCycle: () => {
         const [, dirs] = runHost(objectsDirs('loopA'))
-        assertStructurallySame(dirs, ok(['loopA/objects', 'loopB/objects']))
-        // and an object neither holds is the channel's, as it is for a store
-        // that borrows from nowhere
+        assert(dirs[0] === 'ok')
+        // the store's own and one directory per hop to the limit
+        assertEq(dirs[1].length, maxBorrowDepth + 1)
+        assertEq(dirs[1][0], 'loopA/objects')
+        assertEq(dirs[1][1], 'loopA/objects/../../loopB/objects')
+        // and an object none of them holds is the channel's, as it is for a
+        // store that borrows from nowhere
         const [, r] = runHost(tryRead('loopA', 20)(id(tagId)))
         assert(r[0] === 'error')
+    },
+    // A store naming *itself* by a spelling that repeats is ended by the name
+    // rather than the depth: the second hop is the directory the walk started
+    // at. An absolute entry is the shape that repeats — `git clone --shared`
+    // writes one — since a relative entry is joined below the directory holding
+    // it and so spells something longer every hop.
+    borrowedSelf: () => {
+        const [log, dirs] = runHost(objectsDirs('/abs'))
+        assertStructurallySame(dirs, ok(['/abs/objects']))
+        // and the file is read once, not once per hop
+        assertStructurallySame(log, ['readFile /abs/objects/info/alternates'])
+    },
+    // A chain longer than Git follows is cut where Git cuts it, and the stores
+    // above the cut still answer. Measured on Git 2.43.0 with chains of one to
+    // nine links: six answer, and at seven `git cat-file -p` prints `error:
+    // <the sixth>: ignoring alternate object stores, nesting too deep` and exits
+    // 128 — while an object written into the store one link away is still read,
+    // at exit 0, with the same error printed. So the tail is dropped and the
+    // rest is kept, which is a bound on the walk and not a refusal.
+    borrowedTooDeep: () => {
+        const [, dirs] = runHost(objectsDirs('deep0'))
+        assert(dirs[0] === 'ok')
+        assertEq(dirs[1].length, maxBorrowDepth + 1)
+        // the seventh link is where it stops: the sixth store is searched and
+        // its own borrowing is not followed
+        assert(!dirs[1].some(d => d.includes('deep7')))
+        // and the object the store one link away holds is still answered
+        const [, r] = runHost(tryRead('deep0', 20)(id(tagId)))
+        assert(r[0] === 'ok' && r[1] !== null)
+        assertEq(r[1].type, 'tag')
+    },
+    // A borrowing that cannot be consulted contributes nothing, and does not
+    // fail the store. An entry naming a regular file gives `ENOTDIR` for the
+    // read of that file's own `info/alternates`; an unreadable directory gives
+    // `EACCES`. Git treats both as it treats a missing one — measured on Git
+    // 2.43.0 with an entry naming a regular file, `git cat-file -p` prints
+    // `error: object directory <file> does not exist; check
+    // .git/objects/info/alternates` and then answers the object, at exit 0.
+    //
+    // An earlier revision excepted only `ENOENT`, so either of these failed the
+    // whole store and made a repository Git reads unreadable here.
+    borrowedUnusable: () => {
+        const whole = hostOf(files)
+        for (const code of ['ENOTDIR', 'EACCES', 'EIO']) {
+            const host = {
+                ...whole,
+                readFile: /** @type {typeof whole.readFile} */ (path => log => path.endsWith(`${borrowedRepo}/info/alternates`)
+                    ? [[...log, `readFile ${path}`], error(ioError({ code, message: path }))]
+                    : whole.readFile(path)(log)),
+            }
+            const [, r] = run(/** @type {typeof whole} */ (host))([])(tryRead('borrow', 20)(id(tagId)))
+            // the lender is still searched; only its own borrowings are lost
+            assert(r[0] === 'ok' && r[1] !== null, code)
+            assertEq(r[1].type, 'tag')
+        }
+    },
+    // The one failure that is not a skip is this module's own refusal: the file
+    // was read and names a path this layer would spell wrongly, and looking
+    // somewhere else is the answer it must not give.
+    borrowedRefusalIsNotASkip: () => {
+        const [, r] = runHost(objectsDirs('bytes'))
+        assert(r[0] === 'error')
+    },
+    // An octal escape naming a byte above ASCII is refused for the same reason
+    // the whole-file check refuses bytes that are not UTF-8 — and the whole-file
+    // check cannot see this one, because a line spelling a byte in octal is
+    // plain ASCII itself. Git opens a path holding that byte; a string here
+    // would hold the *character*, which the host writes back as two UTF-8 bytes,
+    // so the directory opened would not be the one the file names.
+    alternatesHighOctal: () => {
+        assertEq(alternatesIn('od', '"/tmp/\\377/objects"'), null)
+        // and the boundary: `\177` is ASCII and spells a path this layer can
+        assertStructurallySame(alternatesIn('od', '"/a\\177b"'), ['/a\x7Fb'])
+        const [, r] = runHost(objectsDirs('octal'))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, alternatesCode)
+        assertEq(e[1].message, alternatesMessage('octal/objects/info/alternates'))
     },
     // A store with no `alternates` file borrows from nowhere, which is almost
     // every repository: the missing file is no borrowing rather than a failure.
@@ -401,7 +531,7 @@ export const proof = {
     alternatesLines: () => {
         assertStructurallySame(
             alternatesIn('od', '# a comment\n\n../other/objects\n'),
-            ['other/objects'])
+            ['od/../other/objects'])
         assertStructurallySame(alternatesIn('od', 'a/objects'), ['od/a/objects'])
         assertStructurallySame(alternatesIn('od', ''), [])
         // a colon is not a separator: the whole line is one path, measured — Git
@@ -418,12 +548,14 @@ export const proof = {
         assertStructurallySame(alternatesIn('od', '"/a\\101b"'), ['/aAb'])
         // and the shapes that are not a quoted line, each taken as it stands
         assertStructurallySame(alternatesIn('od', '"/unterminated'), ['od/"/unterminated'])
-        // the path layer reads a backslash as a separator, so a line taken
-        // verbatim is folded like any other path
-        assertStructurallySame(alternatesIn('od', '"/bad\\qescape"'), ['od/"/bad/qescape"'])
-        assertStructurallySame(alternatesIn('od', '"/short\\12"'), ['od/"/short/12"'])
-        assertStructurallySame(alternatesIn('od', '"/after" and more'), ['od/"/after" and more'])
-        assertStructurallySame(alternatesIn('od', '"/trailing\\'), ['od/"/trailing'])
+        // a line taken verbatim is taken as written, backslashes and all: the
+        // path is no longer folded, so nothing rewrites one into a separator
+        assertStructurallySame(alternatesIn('od', '"/bad\\qescape"'), ['od/"/bad\\qescape"'])
+        assertStructurallySame(alternatesIn('od', '"/short\\12"'), ['od/"/short\\12"'])
+        // text after the closing quote does not spoil the path: Git reads the
+        // donor from `"<donor>"junk`, measured, so the quoted prefix is the path
+        assertStructurallySame(alternatesIn('od', '"/after" and more'), ['/after'])
+        assertStructurallySame(alternatesIn('od', '"/trailing\\'), ['od/"/trailing\\'])
     },
     // An alternates file this layer cannot spell is refused rather than
     // approximated. Every path here is a string and the decoder answers `ÿ` for
@@ -468,7 +600,7 @@ export const proof = {
         // resolved before any object is — but nothing of the lender's is opened
         assertStructurallySame(log, [
             'readFile own/objects/info/alternates',
-            'readFile repo/objects/info/alternates',
+            `readFile ${ownRepo}/info/alternates`,
             `readFile ${objectPath('own')(id(tagId))}`,
             'inflate',
         ])

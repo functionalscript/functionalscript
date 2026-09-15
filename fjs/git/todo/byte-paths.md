@@ -26,6 +26,20 @@ naming the path. A repository Git reads is one this cannot, which is a stated
 limit rather than a silence — but it is still a limit, and this issue is the
 removal of it.
 
+**A line can name such a byte while being ASCII itself.** The file's quoting is
+C-style, so `"/tmp/\377/objects"` spells the byte `0xFF` in octal and the file
+round-trips as UTF-8 perfectly. The check on the bytes cannot see it; the decode
+would put one *character* of that value in the string and the host would write
+it back as two bytes. `alternatesIn` refuses an octal escape above `\177` for
+that reason, which is the same limit reached by a second road.
+
+**There is nowhere for a warning to go, which is the other half.** Git reports
+an unusable alternate — `error: object directory … does not exist; check
+.git/objects/info/alternates` — and carries on. `store` carries on too, because
+failing the whole read would make a repository Git reads unreadable, but it does
+so in silence: the effects have a channel for failure and none for a remark. A
+reader that wants to tell its caller "this borrowing was skipped" needs one.
+
 The same gap is under every other path that comes from outside and not from a
 caller. `.git` gitfiles, `commondir`, and a `config` naming a directory are each
 read as text today.
@@ -57,7 +71,10 @@ Two smaller shapes are worth measuring first:
       a gitfile naming one, against Git on the same repository.
 - [ ] Choose among the three shapes above, with the measurement behind it.
 - [ ] Carry it through `fjs/effects/node` and `fjs/path`.
-- [ ] Remove `alternatesCode` and the refusal `fjs/git/store` raises with it.
+- [ ] Remove `alternatesCode` and the two refusals `fjs/git/store` raises with
+      it: the file's own bytes, and an octal escape above `\177`.
+- [ ] Decide where a remark goes, so an unusable borrowing is reported rather
+      than passed over. This is its own question and may want its own issue.
 
 ### Related
 

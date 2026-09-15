@@ -1,3 +1,9 @@
+/**
+ * Types for the objects a pack directory holds, read over the effects.
+ *
+ * @module
+ */
+
 import type { Envelope } from '../object/types.ts'
 
 /**

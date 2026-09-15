@@ -7,16 +7,16 @@
  * [`fjs/git/oid`](../oid/module.f.mjs)'s `of` and refused where the hash
  * is not the id asked for.
  *
- * Both places an object lives are read, at the repository's common
- * directory as the caller gives it — `.git` for a main worktree: the loose
- * file at {@link objectPath}, and the packs below `objects/pack/` through
+ * Both places an object lives are read, in every object directory the
+ * repository has: the loose file at {@link objectPath}, and the packs below
+ * `objects/pack/` through
  * [`fjs/git/packstore`](../packstore/module.f.mjs), which is where
- * `git clone` and `git gc` put nearly everything. Finding
- * that directory from a worktree of any kind is
- * [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir`, so a caller has
- * one to give; `objects/info/alternates`, which adds directories to search
- * beside it, is the rest of
- * [`todo/object-store.md`](../todo/object-store.md).
+ * `git clone` and `git gc` put nearly everything. The repository's own
+ * `objects/` is the first such directory and its `objects/info/alternates`
+ * names the rest — see {@link objectsDirs}, which walks them, and
+ * {@link readIn}, which reads over the list. The caller gives the common
+ * directory, `.git` for a main worktree; finding it from a worktree of any
+ * kind is [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir`.
  * Walking from a commit to the blob a path names is
  * [`fjs/git/walk`](../walk/module.f.mjs), over this reader or any other.
  *
@@ -63,9 +63,9 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { catchStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step, walkStep } from '../../effects/module.f.mjs'
-import { isNotFound, readFile, readUtf8File } from '../../effects/node/module.f.mjs'
-import { concat as resolvedUnder, join, under } from '../../path/module.f.mjs'
+import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
+import { readFile, readUtf8File } from '../../effects/node/module.f.mjs'
+import { join, root, under } from '../../path/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { length, uint } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -171,12 +171,55 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
 const isOctal = c => c >= '0' && c <= '7'
 
 /**
+ * The three octal digits at `i` as the byte they name, or `null` where they are
+ * not three octal digits.
+ *
+ * @type {(line: string, i: number) => Nullable<number>}
+ */
+const octalAt = (line, i) =>
+    i + 2 < line.length && isOctal(line[i]) && isOctal(line[i + 1]) && isOctal(line[i + 2])
+        ? parseInt(line.slice(i, i + 3), 8)
+        : null
+
+/**
+ * The highest byte an octal escape in `line` names, or `null` where it has none.
+ *
+ * Asked because an escape of `\200` or above names a *byte*, and a byte above
+ * ASCII is a path this layer cannot spell — see {@link alternatesCode}. The
+ * decoded string would hold one character of that value, which the host encodes
+ * as two UTF-8 bytes, so the directory opened would not be the directory the
+ * file names. The whole-file check on the bytes cannot see it, because a line
+ * spelling a byte in octal is plain ASCII itself. Git has no such trouble:
+ * `"/tmp/\377/objects"` makes it open a path holding the byte `0xFF`.
+ *
+ * @type {(line: string) => Nullable<number>}
+ */
+const highestOctal = line => {
+    let high = /** @type {Nullable<number>} */ (null)
+    let i = 0
+    while (true) {
+        const at = line.indexOf('\\', i)
+        if (at === -1) { return high }
+        const v = octalAt(line, at + 1)
+        if (v !== null && (high === null || v > high)) { high = v }
+        // an escape is two characters at least, so a `\\` cannot have its second
+        // backslash read as the start of another
+        i = at + 2
+    }
+}
+
+/**
  * A C-quoted line decoded, or `null` where it is not one — an unterminated
- * quote, an escape that is not a character Git decodes, a short octal escape,
- * or text after the closing quote.
+ * quote, an escape that is not a character Git decodes, or a short octal escape.
  *
  * `null` is not a refusal here: {@link alternateLine} takes the line verbatim
  * instead, because that is what Git does with a line whose unquoting fails.
+ *
+ * **Text after the closing quote is not such a failure.** The quote ends the
+ * path and the remainder is ignored: measured on Git 2.43.0 with a borrower
+ * holding nothing of its own, a line of `"<donor>"junk` printed the donor's blob
+ * at exit 0 — while also reporting a second entry Git made of the remainder, a
+ * meaning this does not invent for it.
  *
  * @type {(line: string) => Nullable<string>}
  */
@@ -186,7 +229,7 @@ const unquoted = line => {
     while (true) {
         if (i === line.length) { return null }
         const c = line[i]
-        if (c === '"') { return i + 1 === line.length ? out : null }
+        if (c === '"') { return out }
         if (c !== '\\') {
             out += c
             i += 1
@@ -200,42 +243,48 @@ const unquoted = line => {
             i += 2
             continue
         }
-        if (!isOctal(e) || i + 3 >= line.length
-            || !isOctal(line[i + 2]) || !isOctal(line[i + 3])) { return null }
-        out += String.fromCharCode(parseInt(line.slice(i + 1, i + 4), 8))
+        const v = octalAt(line, i + 1)
+        if (v === null) { return null }
+        out += String.fromCharCode(v)
         i += 4
     }
 }
 
 /**
  * The object directories an `objects/info/alternates` names, in the order it
- * names them, each resolved against the directory the file is in.
+ * names them, or `null` where a line names a path this layer cannot spell.
  *
- * **An absolute entry names a directory on its own** and a relative one is
- * resolved against the `objects/` directory holding the file, which is what
- * {@link resolvedUnder} does — and the result is folded, so `..` segments are
- * taken rather than carried. The folding is what lets a cycle be seen: two
- * spellings of one directory are one string after it, and {@link objectsDirs}
- * skips a directory it has already reached.
+ * **An absolute entry names a directory on its own** and a relative one is read
+ * below the `objects/` directory holding the file — not the repository and not
+ * the process. Measured on Git 2.43.0: a borrower whose file reads
+ * `../../../donor/.git/objects` reads the donor, and
+ * `borrower/.git/objects/../../..` is the directory the two repositories sit in.
+ * The same holds one level down — a donor's own alternates file resolves against
+ * the donor's `objects/`, measured with a three-deep chain.
  *
- * **A relative entry is relative to the `objects/` directory holding the file**,
- * not to the repository and not to the process. Measured on Git 2.43.0: a
- * borrower whose file reads `../../../donor/.git/objects` reads the donor's
- * objects, and `borrower/.git/objects/../../..` is the directory the two
- * repositories sit in. The same holds one level down — a donor's own alternates
- * file resolves against the donor's `objects/`, measured with a three-deep
- * chain.
+ * **The joined path is not folded**, which is the difference between a path and
+ * a string about a path. `..` after a symlink means the link *target's* parent
+ * and not the directory the link sits in, so folding it away asks about a
+ * directory nobody named. Measured on Git 2.43.0 with `link -> <donor>/.git` and
+ * an entry of `<dir>/link/../.git/objects`: Git read the donor's blob, where the
+ * folded spelling names `<dir>/.git/objects`, which does not exist. Leaving the
+ * path as written hands the traversal to the host, which is the only thing that
+ * can do it — and it is why a cycle is bounded by {@link maxBorrowDepth} rather
+ * than by the spelling of a path.
  *
  * A file with no trailing newline names its last directory all the same,
  * measured.
  *
- * @type {(od: string, text: string) => readonly string[]}
+ * @type {(od: string, text: string) => Nullable<readonly string[]>}
  */
-export const alternatesIn = (od, text) => text
-    .split('\n')
-    .map(alternateLine)
-    .filter(l => l !== null)
-    .map(l => resolvedUnder(od)(l))
+export const alternatesIn = (od, text) => {
+    const lines = text.split('\n')
+    if (lines.some(l => (highestOctal(l) ?? 0) > 0x7F)) { return null }
+    return lines
+        .map(alternateLine)
+        .filter(l => l !== null)
+        .map(l => root(l) === '' ? under(od, l) : l)
+}
 
 /**
  * The code an `objects/info/alternates` is refused with when its bytes are not
@@ -297,36 +346,96 @@ const alternatesText = p => step(readFile(p), v => {
 })
 
 /**
+ * How many borrowings deep the search goes: six, which is where Git stops.
+ *
+ * Measured on Git 2.43.0 with chains of one to nine links, each repository
+ * borrowing from the next and only the last holding the blob: six links answer,
+ * and at seven `git cat-file -p` prints `error: <the sixth>: ignoring alternate
+ * object stores, nesting too deep` and exits 128. So a directory reached at this
+ * depth is searched and its *own* borrowings are not followed.
+ *
+ * **The stores above the limit still answer**, which is why this is a bound on
+ * the walk and not a refusal. Measured with an object written into the store one
+ * link away while the chain ran seven deep: Git printed the same error and then
+ * the object, at exit 0. The too-deep tail is dropped and everything above it is
+ * read.
+ *
+ * It is also what ends a cycle no string comparison can see. An entry of `sub`
+ * where `objects/sub` is a symlink to `objects` names a new path every hop —
+ * `objects/sub`, `objects/sub/sub` — so {@link borrowedBy}'s check never fires;
+ * measured on Git 2.43.0, Git ends that walk too rather than following it for
+ * ever.
+ */
+export const maxBorrowDepth = /** @type {const} */ (6)
+
+/**
+ * Whether a failure is this module's own refusal of an alternates file, which is
+ * the one an unusable borrowing may not be confused with. See {@link
+ * borrowedBy}.
+ *
+ * @type {(c: IoChannel) => boolean}
+ */
+const isAlternates = c => c[0] === 'ioError' && c[1].code === alternatesCode
+
+/**
  * One object directory of the search, and the directories it borrows from, to be
  * searched after it.
  *
- * **A directory already seen is skipped, which is what makes a cycle end.**
- * Measured on Git 2.43.0 with a borrower and a donor naming each other: `git
- * cat-file -p` answers rather than looping, so Git does not follow one twice
- * either.
+ * **A directory already seen is skipped**, which ends the cycle a reader can
+ * see: measured on Git 2.43.0 with a borrower and a donor naming each other,
+ * `git cat-file -p` answers rather than looping, so Git does not follow one
+ * twice either. A cycle spelled differently at every hop is ended by
+ * {@link maxBorrowDepth} instead.
  *
- * A missing `alternates` file is no borrowing rather than a failure — a
- * repository is not required to have one, and almost none do. Anything else the
- * read says is the channel's, because a store that cannot read its own
- * alternates file does not know where its objects are, and answering `null` for
- * an object a borrowed store holds would be a miss reported for a question that
- * was never asked.
+ * **A borrowing that cannot be consulted contributes nothing.** A missing
+ * `alternates` file is the ordinary case, since almost no repository has one;
+ * but an entry naming a regular file gives `ENOTDIR` for the same read, and an
+ * unreadable directory gives `EACCES`, and Git treats all three alike. Measured
+ * on Git 2.43.0 with an entry naming a regular file: `git cat-file -p` prints
+ * `error: object directory <file> does not exist; check
+ * .git/objects/info/alternates` and then answers the object, at exit 0. An
+ * earlier revision failed the whole store on anything but `ENOENT`, which made a
+ * repository Git reads unreadable here.
  *
- * @type {(od: string) => (seen: readonly string[]) => Effect<ReadFile, readonly [readonly string[], List<string>], IoChannel>}
+ * The one failure that is not a skip is {@link alternatesCode}, which this
+ * module raises itself: the file was read and names a path this layer would
+ * spell wrongly, and looking somewhere else is the answer it must not give.
+ *
+ * **This is the one place a reader is quieter than Git**, which prints `error:`
+ * and carries on. There is no channel here to print on, so an unusable borrowing
+ * is passed over in silence; giving a warning somewhere to go is
+ * [`todo/byte-paths.md`](../todo/byte-paths.md)'s neighbour rather than this
+ * module's to invent.
+ *
+ * @type {(at: readonly [string, number]) => (seen: readonly string[]) => Effect<ReadFile, readonly [readonly string[], List<readonly [string, number]>], IoChannel>}
  */
-const borrowedBy = od => seen => {
+const borrowedBy = ([od, depth]) => seen => {
     if (seen.includes(od)) { return pureOk(/** @type {const} */ ([seen, null])) }
+    const kept = /** @type {readonly string[]} */ ([...seen, od])
+    if (depth === maxBorrowDepth) { return pureOk(/** @type {const} */ ([kept, null])) }
+    const p = alternatesPath(od)
     const text = catchStep(
-        alternatesText(alternatesPath(od)),
-        c => isNotFound(c) ? pureOk('') : pureError(c))
-    return mapStep(text, t => /** @type {const} */ ([[...seen, od], alternatesIn(od, t)]))
+        alternatesText(p),
+        c => isAlternates(c) ? pureError(c) : pureOk(''))
+    return step(text, t => {
+        const named = alternatesIn(od, t)
+        // `null` is the refusal and not an empty list: the file was read and
+        // names a path this layer would spell wrongly, so passing it over would
+        // be the silence the whole check exists to prevent.
+        return named === null
+            ? pureError(ioError({ code: alternatesCode, message: alternatesMessage(p) }))
+            : pureOk(/** @type {const} */ ([
+                kept,
+                named.map(n => /** @type {const} */ ([n, depth + 1])),
+            ]))
+    })
 }
 
 /**
  * The object directories a repository's reads search, in order: its own
  * `objects/` first, then each directory its `objects/info/alternates` names,
- * then each of *those* directories' own, and so on, with a directory already
- * reached skipped.
+ * then each of *those* directories' own, and so on to {@link maxBorrowDepth},
+ * with a directory already reached skipped.
  *
  * **An alternate is a whole object store and not a loose-object directory.**
  * Measured on Git 2.43.0: a borrower reads the donor's objects after the donor
@@ -341,8 +450,10 @@ const borrowedBy = od => seen => {
  *
  * @type {(dir: string) => Effect<ReadFile, readonly string[], IoChannel>}
  */
-export const objectsDirs = dir =>
-    walkStep(pureOk([objectsDir(dir)]), /** @type {readonly string[]} */ ([]), borrowedBy)
+export const objectsDirs = dir => walkStep(
+    pureOk([/** @type {readonly [string, number]} */ ([objectsDir(dir), 0])]),
+    /** @type {readonly string[]} */ ([]),
+    borrowedBy)
 
 /**
  * The repository's id width, from its `config`: 20 bytes for SHA-1, 32
