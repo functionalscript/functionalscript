@@ -80,12 +80,13 @@ export type AstMember = readonly [string, AstConst]
 export type AstObject = readonly ['object', readonly AstMember[]]
 
 /**
- * A property access, `base.key` or `base[key]`: the base a reference and
- * the accesses before it, the key the constant written — a string, or a
- * number from `[0]`. The EDAG's own form, `['.', object, index]`, so the
- * lowering carries it as it is. A key naming a property of a built-in
- * prototype — every name `fjs/js/prototype` lists but `length` — is
- * refused by the parser, so `run` never reads one.
+ * A property access, `base.key` or `base[key]`: the base any value — a
+ * reference, a literal, or an access — and the key the constant written,
+ * a string, or a number from `[0]`. The EDAG's own form, `['.', object,
+ * index]`, so the lowering carries it as it is. A key naming a property of
+ * a built-in prototype — every name `fjs/js/prototype` lists but `length`
+ * — is refused by the parser, so `run` never reads one, and so is an
+ * access on a number or a bigint literal.
  */
 export type AstAccess = readonly ['.', AstConst, string | number]
 

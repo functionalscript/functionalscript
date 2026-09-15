@@ -65,7 +65,7 @@ need a memo keyed by node identity to keep sharing; a cache that stores
 would need that rewrite. `fjs compile` writes the linked graph as a DataJS
 document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
 its value outputs, which are unchanged. The parser reads `a.b` and `a[key]`
-on a reference, the key a string or a number, `__proto__` and `constructor`
+on any value but a number or a bigint literal, the key a string or a number, `__proto__` and `constructor`
 refused at the key, and the lowering carries the access as the EDAG's own
 `['.', base, key]`. On the value path an access reads an own property, never
 the prototype chain; `undefined` where there is none; and a `null` or
@@ -500,8 +500,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions. Done:
-      the grammar admits an access after a reference only, its key an identifier,
-      a string or a number, so a runtime key is refused at the token; the fold
+      the grammar admits an access after any value, its key an identifier,
+      a string or a number, so a runtime key is refused at the token, and the
+      fold refuses one on a number or a bigint literal; the fold
       refuses `__proto__` and `constructor` in either spelling; the AST and the
       lowering carry `['.', base, key]`.
 - [x] Give a property access its value on the value path — `run`, and so

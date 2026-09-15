@@ -445,9 +445,13 @@ const cfg = { ports: [80, 443] };
 export default [cfg.ports[0], cfg["ports"].length];
 ```
 
-A property access reads an **own property** of a value named by a
-reference: a member of an object, an element or the `length` of an array, a
-code unit or the `length` of a string. The key is a constant — an identifier
+A property access reads an **own property** of any value but a number or a
+bigint literal — a reference, an array, an object or a string written out, or
+an access — a member of an object, an element or the `length` of an array, a
+code unit or the `length` of a string. A number or a bigint literal takes no
+access: JavaScript reads `-1 .x` as `-(1 .x)`, and the language has no
+negation to read it that way, so `1 .x` is an error while `const n = 1;`
+followed by `n.x` is `undefined` in both languages. The key is a constant — an identifier
 after `.`, or a string or a number in brackets — and `0` and `"0"` name the
 same element, as in JavaScript. A property the value does not own is
 `undefined`, and reading one of `null` or `undefined` is an error, as
