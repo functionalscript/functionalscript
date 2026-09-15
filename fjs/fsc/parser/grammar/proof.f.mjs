@@ -144,6 +144,8 @@ export const proof = {
         // the Unicode line and paragraph separators are no token outside a
         // string, so neither stands here, in a comment or bare
         assertStructurallySame(read('export default (...a) /* x\u2028y */ => 1;'), ['error', 'error'])
+        assertStructurallySame(read('export default (...a) /* x\u2029y */ => 1;'), ['error', 'error'])
+        assertStructurallySame(read('export default (...a)\u2028=> 1;'), ['error', 'error'])
         assertStructurallySame(read('export default (...a)\u2029=> 1;'), ['error', 'error'])
     },
     // A reference takes accesses, `.name` and `[key]`, trivia allowed

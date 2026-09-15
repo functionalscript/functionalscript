@@ -474,8 +474,11 @@ export const proof = {
             assertEq(tokenizeString('\u2028'), 'error')
             assertEq(tokenizeString('a \u2029 b'), 'error')
             assertEq(tokenizeString('/* a\u2028b */'), 'error')
+            assertEq(tokenizeString('/* a\u2029b */'), 'error')
             assertEq(tokenizeString('// a\u2028b'), 'error')
+            assertEq(tokenizeString('// a\u2029b'), 'error')
             assertEq(tokenizeString('"a\u2028b"'), '[{"kind":"string","value":"a\u2028b"},{"kind":"eof"}]')
+            assertEq(tokenizeString('"a\u2029b"'), '[{"kind":"string","value":"a\u2029b"},{"kind":"eof"}]')
         },
     ],
     id: [
