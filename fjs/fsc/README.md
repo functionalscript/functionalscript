@@ -83,11 +83,14 @@ attribute, or another file imported with it, is refused as JavaScript refuses
 it.
 `fjs compile` writes the linked graph when the output name ends with
 `.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
-hoisted as the module output's are. A
-module whose export does not reach every import and every `const` is refused
-rather than compiled: `transpile` reads and `run` evaluates them all today,
-and an EDAG has no operation yet to anchor a computation whose value nothing
-takes.
+hoisted as the module output's are. What
+the export does not reach is anchored by the comma operation rather than
+dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
+`run` evaluates every `const`, so a failure behind an unused one fails the
+compile, and the graph keeps the computation the same way — its operands the
+roots of the unreached part in source order, an entry another unreached entry
+reaches being anchored through it. A module the export reaches entirely has
+no comma.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.

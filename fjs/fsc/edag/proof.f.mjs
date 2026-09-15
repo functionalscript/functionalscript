@@ -16,14 +16,8 @@ import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
-/** A module's text through the front end and the lowering, refusals thrown. @type {(source: string) => Unresolved} */
-const compile = source => unwrap(unresolved(unwrap(parse('')(source))))
-
-/** The lowering's own word on a text that parses, as the message of its refusal or `null`. @type {(source: string) => string | null} */
-const refusal = source => {
-    const [tag, value] = unresolved(unwrap(parse('')(source)))
-    return tag === 'error' ? value.message : null
-}
+/** A module's text through the front end and the lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */
+const compile = source => unresolved(unwrap(parse('')(source)))
 
 /** A file of the virtual file system. @type {(text: string) => readonly Vec[]} */
 const file = text => [utf8(text)]
@@ -114,29 +108,41 @@ export const proof = {
         expectEdag(compile('const s = [1]; export default { a: s, a: 1 };').edag, ['{}', [[':', 'a', ['[]', [1]]], [':', 'a', 1]]])
         expectEdag(compile('import a from "./a.f.js"; export default { x: a, x: 0 };').edag, ['{}', [[':', 'x', ['.', ['args'], 0]], [':', 'x', 0]]])
     },
-    // What the export does not reach is refused, not dropped: `transpile`
+    // What the export does not reach is anchored, not dropped: `transpile`
     // reads every import and `run` evaluates every `const`, so a compile
-    // that fails today on a broken unused import must not succeed here.
-    unreachable: {
+    // that fails on a broken unused import must not succeed here. The comma
+    // operation holds the roots of the unreached part before the export,
+    // and takes the export's value.
+    anchored: {
         import: () => {
-            assertEq(refusal('import a from "./a.f.js"; export default 1;'), 'unreachable import "./a.f.js"')
-            assertEq(refusal('import a from "./a.f.js"; import b from "./b.f.js"; export default [b];'), 'unreachable import "./a.f.js"')
+            expectEdag(compile('import a from "./a.f.js"; export default 1;').edag, [',', [['.', ['args'], 0], 1]])
+            expectEdag(compile('import a from "./a.f.js"; import b from "./b.f.js"; export default [b];').edag, [',', [['.', ['args'], 0], ['[]', [['.', ['args'], 1]]]]])
         },
         const: () => {
-            assertEq(refusal('const a = []; export default 1;'), 'unreachable const 0')
-            assertEq(refusal('const a = []; const b = [a, a]; export default [a];'), 'unreachable const 1')
+            expectEdag(compile('const a = []; export default 1;').edag, [',', [['[]', []], 1]])
+            expectEdag(compile('const n = null; const check = n.x; export default 1;').edag, [',', [['.', null, 'x'], 1]])
+            // a reached `const` stays one node, inside the anchor and the export
+            const edag = compile('const a = []; const b = [a, a]; export default [a];').edag
+            expectEdag(edag, [',', [['[]', [['[]', []], ['[]', []]]], ['[]', [['[]', []]]]]])
+            assert(edag instanceof Array && edag[0] === ',', edag)
+            const [b, exported] = edag[1]
+            assert(b instanceof Array && exported instanceof Array && b[0] === '[]' && exported[0] === '[]', edag)
+            assert(b[1][0] === b[1][1] && b[1][0] === exported[1][0], edag)
         },
-        // the first refusal is the import's: a module that lacks both names
-        // the import, and one reached through a `const` the export drops is
-        // still unreached
-        both: () => {
-            assertEq(refusal('import a from "./a.f.js"; const b = [a]; export default 1;'), 'unreachable import "./a.f.js"')
+        // only the roots are operands: an unreached `const` another one
+        // reaches, and an import reached only through one, are anchored
+        // through it — an operand a sibling reaches is a redundant anchor
+        roots: () => {
+            expectEdag(compile('const a = []; const b = [a]; export default 1;').edag, [',', [['[]', [['[]', []]]], 1]])
+            expectEdag(compile('import a from "./a.f.js"; const b = [a]; export default 1;').edag, [',', [['[]', [['.', ['args'], 0]]], 1]])
         },
-        // the refusal carries no position: the module parsed
-        position: () => {
-            const [tag, value] = unresolved(unwrap(parse('')('const a = []; export default 1;')))
-            assert(tag === 'error', tag)
-            assertEq(value.metadata, null)
+        // source order: the imports, then the entries, then the export
+        order: () => {
+            expectEdag(compile('import a from "./a.f.js"; const b = 1; const c = 2; export default 3;').edag, [',', [['.', ['args'], 0], 1, 2, 3]])
+        },
+        // a module the export reaches entirely has no comma at all
+        none: () => {
+            expectEdag(compile('const a = []; export default [a];').edag, ['[]', [['[]', []]]])
         },
     },
     // The imports bound: the linked program is one EDAG, the imported
@@ -210,9 +216,14 @@ export const proof = {
             assertEq(linkRefusal({ 'a.f.js': file('import a from "./a.f.js"; export default [a];') })('a.f.js'), 'circular dependency at no position')
             assertEq(linkRefusal({ 'a.f.js': file('import b from "./b.f.js"; export default [b];'), 'b.f.js': file('export default [;') })('a.f.js'), 'unexpected token at 1:17')
             assertEq(linkRefusal({ 'a.f.js': file('import j from "./j.json" with { type: "json" }; export default [j];'), 'j.json': file('{') })('a.f.js'), 'unexpected end at no position')
-            // an imported module's own refusal is the link's
-            assertEq(linkRefusal({ 'a.f.js': file('import b from "./b.f.js"; export default [b];'), 'b.f.js': file('const x = 1; export default 2;') })('a.f.js'), 'unreachable const 0 at no position')
-            assertEq(linkRefusal({ 'a.f.js': file('import b from "./b.f.js"; export default 1;'), 'b.f.js': file('export default 2;') })('a.f.js'), 'unreachable import "./b.f.js" at no position')
+        },
+        // an anchor is linked as any node is: an imported module's anchored
+        // `const` is in the program, and an import the export does not
+        // reach is the imported module's EDAG, anchored
+        anchored: () => {
+            expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default [b];'), 'b.f.js': file('const x = 1; export default 2;') })('a.f.js'), ['[]', [[',', [1, 2]]]])
+            expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default 1;'), 'b.f.js': file('export default 2;') })('a.f.js'), [',', [2, 1]])
+            expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default 1;'), 'b.f.js': file('const x = 1; export default 2;') })('a.f.js'), [',', [[',', [1, 2]], 1]])
         },
     },
 }

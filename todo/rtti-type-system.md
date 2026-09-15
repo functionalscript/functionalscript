@@ -698,10 +698,10 @@ module before the importing body, even when the binding is never referenced, so
 an import whose module has a throwing top-level computation is observable
 precisely by throwing. Dropping such an import would delete a failure from the
 program. [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
-is explicit about it and takes the conservative branch: Stage 1 **rejects** a
-source module when an import parameter is not reachable from the module EDAG
-root — "deliberately a reachability rule, not an effect analysis" — until the
-EDAG has the anchoring operation that can preserve a non-resulting computation.
+is explicit about it: an import parameter the export does not reach is
+**anchored** by the `,` operation — "deliberately a reachability rule, not an
+effect analysis" — so the imported module's root stays in the graph and is
+evaluated.
 
 An annotation-only import is exactly that shape. So, stated honestly:
 
@@ -714,9 +714,8 @@ An annotation-only import is exactly that shape. So, stated honestly:
   reading, and JavaScript still evaluates `makeType()` first, so dropping the
   initializer can delete a throw. Nor does it extend to `const t = makeType()`,
   where the immutability of the result proves nothing about the call. The same rule
-  that rejects unreachable imports applies inside the body — a potentially
-  throwing entry must be preserved, and a module is rejected rather than have
-  one discarded
+  that anchors unreachable imports applies inside the body — a potentially
+  throwing entry is anchored rather than discarded
   ([compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)) — so
   an annotation-only local schema from such a call is in exactly the position
   stage 12 addresses. **Stage 12 covers both** — imported roots and local
@@ -733,9 +732,9 @@ An annotation-only import is exactly that shape. So, stated honestly:
   totality analysis proving the *imported root* total — a different and larger
   thing than proving the schema constructor total, and nothing in this epic
   provides it;
-- until then a module whose only use of an import is in annotations is one of
-  the cases that rule rejects, and the epic owes it a resolution rather than an
-  assumption — [stage 12](#tasks);
+- so a module whose only use of an import is in annotations compiles, its
+  import anchored, and what the epic owes is the cost question, not the
+  legality — [stage 12](#tasks);
 - the resolution is anchoring, not an exemption for schema modules. That
   `fjs/rtti/module.f.mjs` has no throwing top-level computation is true
   and is not a rule; a schema can be imported from anywhere.
@@ -1504,36 +1503,38 @@ are stated instead:
       initializers** — so that an annotation-only schema neither is rejected
       nor silently deletes a failure. This is the `','` anchoring operation
       [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
-      defers, read from this epic's side. It makes such a schema **legal**, not
-      free: an anchored computation is still evaluated, which is the point of
-      anchoring.
+      emits for whatever a module's export does not reach — imported roots
+      and local entries alike, by reachability — read from this epic's side:
+      the legality half is done by the compiler, and what this stage owns is
+      the totality exemption below. Anchoring makes such a schema **legal**,
+      not free: an anchored computation is still evaluated, which is the point
+      of anchoring.
 
       **This is a prerequisite, not a side quest, and an earlier draft of this
       file said otherwise.** The rule in
       [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
-      *rejects* a module whose import parameter is unreachable from the EDAG
-      root, and equally requires a potentially throwing body entry to be
-      preserved rather than discarded. Once the compiler consumes an
-      annotation, a binding used only to name or build that annotation's schema
-      is exactly that — so such a module does not compile, which is a gate on
-      stages 4–5 and on stage 11 — **not** stage 3, which only records and
-      resolves the annotation — and not a question of runtime cost.
+      *anchors* an import parameter unreachable from the EDAG root, and
+      equally a potentially throwing body entry, rather than discarding
+      either. Once the compiler consumes an annotation, a binding used only to
+      name or build that annotation's schema is exactly that — so such a
+      module compiles and pays for the anchored computation, which is what
+      stages 4–5 and stage 11 inherit — **not** stage 3, which only records
+      and resolves the annotation.
 
       Both halves bind where the use is annotation-*only* — a module that also
       passes the schema to `validate` keeps it reachable and is unaffected.
       **The totality exemption applies to locals only.** An initializer built
       entirely from the RTTI constructors is droppable without anchoring,
       because droppability there is a property of the node. The import rule is
-      not an effect analysis and says so: it rejects on *reachability*, so an
-      annotation-only import is rejected even when the module it names is
-      wholly total, and nothing in the compiler establishes that totality
-      across a module boundary anyway. Exempting total imports would need that
-      cross-module analysis first. What is left is an
+      not an effect analysis and says so: it anchors on *reachability*, so an
+      annotation-only import is anchored and evaluated even when the module it
+      names is wholly total, and nothing in the compiler establishes that
+      totality across a module boundary anyway. Exempting total imports would
+      need that cross-module analysis first. What is left is an
       annotation-only import, or an annotation-only local whose initializer
       contains a call — `const t = array(makeType())` included, since the
-      argument is evaluated first. Until this lands, such a module must keep a
-      runtime use of the schema alive — a wart, and worth naming as one — or
-      keep the JSDoc it was going to retire.
+      argument is evaluated first: both compile, anchored, and neither is
+      free.
 
       An alternative to anchoring the local half is a totality analysis that
       can prove the initializer safe to drop. That is a different and larger
@@ -1706,13 +1707,11 @@ are stated instead:
 5. **Cost.** Every annotation reaches a module evaluation. A name makes the
    cache key obvious — the binding — but whether the compiler memoizes schemas
    across a build is still open.
-6. **Annotation-only imports.** Until imported roots can be anchored (stage 12),
-   what should the compiler do with a module whose only use of an import is in
-   annotations — reject it, as Stage 1's reachability rule does today, or keep
-   the import and pay for it? Rejecting is safe and unhelpful; keeping it makes
-   the cost claim conditional on the module imported from. Note that anchoring
-   settles the rejection, not the cost: dropping an anchored root additionally
-   needs it proven total.
+6. **Annotation-only imports.** The compiler anchors an import the export does
+   not reach, so a module whose only use of an import is in annotations keeps
+   the import and pays for it, which makes the cost claim conditional on the
+   module imported from. Anchoring settles the legality, not the cost: dropping
+   an anchored root additionally needs it proven total.
 7. **Ownership-tracked locals.** A local mutable object
    ([mutability](../spec/todo/mutability.md)) has no RTTI type while it is still
    mutable. Whether it may be annotated at all — with the schema its escaped

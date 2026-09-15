@@ -6,7 +6,7 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Unreached } from './types.ts'
+ * @import { AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
  * @import { _Node, _Reach, _Ref, _Routes, _RunState } from './private.ts'
  */
 
@@ -227,25 +227,29 @@ const argStep = (args, { ref: [kind, i] }) => kind === 'aref' ? args | bit(i) : 
 const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (set & bit(i)) === 0n)
 
 /**
- * What the export does not reach, by index: the body entries no chain of
- * references from the last entry leads to, and the imports likewise — the
- * sweep {@link sharing} runs, read for what it left out. `run` evaluates
- * every entry and `transpile` reads every import whether the export reaches
- * them or not, so a compiler that follows references alone would drop what
- * this names, and asks first.
+ * What an EDAG of the module anchors, by index: the body entries no chain
+ * of references from the export leads to, and the imports likewise — the
+ * sweep {@link sharing} runs, read for what it left out — less what those
+ * entries reach themselves, since an operand another operand reaches is a
+ * redundant anchor. `run` evaluates every entry and `transpile` reads every
+ * import whether the export reaches them or not, so a compiler that follows
+ * references alone would drop what this names, and anchors it instead.
  *
  * A member a later duplicate shadows counts here where it does not for
  * sharing: the value drops it, but an EDAG's object constructor applies
  * every member written and evaluates each, so what its reference names is
  * in the graph, not dropped.
  *
- * @type {(module: AstModule) => Unreached}
+ * @type {(module: AstModule) => Anchors}
  */
-export const unreached = ([specifiers, body]) => {
+export const anchors = ([specifiers, body]) => {
     const { reachable, refs } = reach(memberValuesWritten)(body)
+    const unreached = missing(reachable)(body.length)
+    const within = flat(unreached.map(i => refsOf(memberValuesWritten)(body[i])))
+    const reachedWithin = toArray(within).reduce(reachStep, 0n)
     return {
-        consts: missing(reachable)(body.length),
-        imports: missing(toArray(refs).reduce(argStep, 0n))(specifiers.length),
+        consts: unreached.filter(i => (reachedWithin & bit(i)) === 0n),
+        imports: missing(toArray(concat(refs)(within)).reduce(argStep, 0n))(specifiers.length),
     }
 }
 

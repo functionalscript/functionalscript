@@ -36,7 +36,7 @@ the static tuples and the runtime ones agree exactly, an exact-length
 [TupleTs](../rtti/ts/types.ts) rendering over an exact-length set.
 [proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
-`comma` excepted until its placeholder shape settles. Its `ownJs` and
+`comma` pinned by the compiler that emits it, `fjs/fsc/edag`. Its `ownJs` and
 `chainsJs` sections are the exception that proves the rule: they run the JS
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
@@ -360,11 +360,14 @@ need it.
   fresh container at every position it visits, so two edges reaching the same
   input reference come back as two distinct outputs, flattening the one
   property the representation exists to carry.
-- `[',', exps]` is a known-incomplete placeholder; the settled contract must
-  express "at least two operands, last is the result, each pre-result
-  operand a true root" — a single-operand `,` is the identity, an operand
-  reachable from a sibling of the same `,` a redundant anchor, both
-  non-canonical.
+- `[',', exps]` is shape-checked only. Its contract — at least two operands,
+  the last the result, each earlier operand a true root: not reachable from
+  another operand of the same `,` — is the emitter's to keep, as the `=>`
+  scope rule is; a single-operand `,` is the identity, an operand a sibling
+  reaches a redundant anchor, both non-canonical. `fjs/fsc/edag` keeps it:
+  the operands before the result are the roots of what a module's export
+  does not reach, in source order (the order among them is not yet
+  canonical — the discussion's candidate is content-hash order).
 - `['...', exp]` is shape-checked only, and what its operand must evaluate
   to differs by the container it sits in — neither constraint expressible in
   a shape-only schema. In an array the operand must be iterable (`[...1]`,

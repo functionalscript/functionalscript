@@ -203,9 +203,10 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
 ## Depends on
 
 - [compile-modules-to-edag](../../fjs/fsc/todo/compile-modules-to-edag.md) —
-  the `,` anchoring operation for a non-resulting computation. Without it a
-  module whose only use of an import is in an annotation is **rejected**, so
-  this is a prerequisite of evaluating an annotation, not a later optimization.
+  the `,` anchoring operation for a non-resulting computation, which the
+  compiler emits for whatever a module's export does not reach: a module whose
+  only use of an import is in an annotation compiles, its import anchored and
+  evaluated.
 - [`fjs/fsc/todo/047-fsc-meta-programming.md`](../../fjs/fsc/todo/047-fsc-meta-programming.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation's named binding requires.

@@ -116,10 +116,12 @@ export type Denotation = Sharing & { readonly value: Unknown }
 export type Import = Denotation & { readonly id: string }
 
 /**
- * What the export does not reach, each by index: the body entries no chain
- * of references from the last entry leads to, and the imports likewise.
+ * What an EDAG of the module anchors, each by index: the body entries and
+ * the imports the export does not reach, less what those entries reach
+ * themselves — the roots of the unreached part, each a computation whose
+ * value nothing takes.
  */
-export type Unreached = {
+export type Anchors = {
     readonly consts: readonly number[]
     readonly imports: readonly number[]
 }

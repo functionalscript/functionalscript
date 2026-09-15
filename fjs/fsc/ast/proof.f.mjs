@@ -1,4 +1,4 @@
-import { run, sharing, unreached, values } from './module.f.mjs'
+import { anchors, run, sharing, values } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -16,8 +16,8 @@ const a = { specifier: './a', json: false }
 const b = { specifier: './b', json: false }
 
 /** @type {(module: import('./types.ts').AstModule) => string} */
-const unreachedOf = module => {
-    const { consts, imports } = unreached(module)
+const anchorsOf = module => {
+    const { consts, imports } = anchors(module)
     return `consts ${consts.join()}; imports ${imports.join()}`
 }
 
@@ -63,33 +63,44 @@ export const proof = {
     testUndefined: () => {
         assertEq(_stringifyTree(unwrap(run([undefined])([]))), 'undefined')
     },
-    // what the sweep from the export leaves out, by index
-    unreached: {
+    // what the sweep from the export leaves out, by index, less what the
+    // left-out entries reach themselves
+    anchors: {
         nothing: () => {
-            assertEq(unreachedOf([[], [1]]), 'consts ; imports ')
-            assertEq(unreachedOf([[a], [['aref', 0]]]), 'consts ; imports ')
-            assertEq(unreachedOf([[a], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
-            assertEq(unreachedOf([[a], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[], [1]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['aref', 0]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['array', []], ['object', [['k', ['array', [['cref', 0], ['aref', 0]]]]]]]]), 'consts ; imports ')
         },
         // a member a later duplicate shadows is applied by the EDAG's object
         // constructor, so a reference in it reaches, where for sharing it
         // does not
         shadowed: () => {
-            assertEq(unreachedOf([[a], [['array', []], ['object', [['x', ['cref', 0]], ['x', ['aref', 0]], ['x', 0]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['array', []], ['object', [['x', ['cref', 0]], ['x', ['aref', 0]], ['x', 0]]]]]), 'consts ; imports ')
         },
         consts: () => {
-            assertEq(unreachedOf([[], [['array', []], 1]]), 'consts 0; imports ')
-            assertEq(unreachedOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 1,2; imports ')
+            assertEq(anchorsOf([[], [['array', []], 1]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 1,2; imports ')
         },
         // an access reaches its base
         access: () => {
-            assertEq(unreachedOf([[], [['object', []], ['.', ['cref', 0], 'x']]]), 'consts ; imports ')
-            assertEq(unreachedOf([[a], [['array', [['.', ['aref', 0], 0]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[], [['object', []], ['.', ['cref', 0], 'x']]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['array', [['.', ['aref', 0], 0]]]]]), 'consts ; imports ')
         },
         imports: () => {
-            assertEq(unreachedOf([[a], [1]]), 'consts ; imports 0')
-            assertEq(unreachedOf([[a, b], [['aref', 1]]]), 'consts ; imports 0')
-            assertEq(unreachedOf([[a, b], [['aref', 1], 1]]), 'consts 0; imports 0,1')
+            assertEq(anchorsOf([[a], [1]]), 'consts ; imports 0')
+            assertEq(anchorsOf([[a, b], [['aref', 1]]]), 'consts ; imports 0')
+            assertEq(anchorsOf([[a, b], [['aref', 1], 1]]), 'consts 0; imports 0')
+        },
+        // an unreached entry another unreached entry reaches is anchored
+        // through it: only the roots of the unreached part are named
+        roots: () => {
+            assertEq(anchorsOf([[], [['array', []], ['array', [['cref', 0]]], 1]]), 'consts 1; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['.', ['cref', 0], 'x'], 1]]), 'consts 1; imports ')
+            assertEq(anchorsOf([[a], [['array', [['aref', 0]]], 1]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[a, b], [['array', [['aref', 1]]], ['cref', 0], 1]]), 'consts 1; imports 0')
+            // a reached entry's references do not anchor: what it reaches is reached
+            assertEq(anchorsOf([[a], [['array', []], ['array', [['cref', 0], ['aref', 0]]], ['cref', 1]]]), 'consts ; imports ')
         },
     },
     // a property access reads its base's own property — never the
