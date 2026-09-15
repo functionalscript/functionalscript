@@ -3,6 +3,7 @@
  */
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
+import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import accept from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -35,12 +36,13 @@ export const proof = {
         const ids = set.map(vector => named(vector, 'id'))
         assertEq(new Set(ids).size, ids.length)
     },
-    // Every vector carries its document as a string, since this set is the
-    // code-unit form, and its graph as an own member, `undefined` included.
+    // Every vector carries its document as a string or as bytes in the one
+    // hex spelling, and its graph as an own member, `undefined` included.
     records: () => {
         for (const vector of set) {
             const id = named(vector, 'id')
-            assert(typeof vector.document === 'string', `${id}: the document is not a string`)
+            const { document } = vector
+            assert(isDocument(document), `${id}: the document is neither a string nor bytes in the one hex spelling`)
             assert(hasOwn(vector, 'graph'), `${id}: no graph`)
         }
     },

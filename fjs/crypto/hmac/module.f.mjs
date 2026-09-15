@@ -18,9 +18,10 @@
  * ```
  *
  * @import { Vec, Reduce } from '../../types/bit_vec/types.ts'
- * @import { Sha2 } from '../sha2/types.ts'
+ * @import { Hash } from '../sha2/types.ts'
  */
 
+import { assert } from '../../asserts/module.f.mjs'
 import { length, msb, vec, vec8, repeat } from '../../types/bit_vec/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
 
@@ -39,12 +40,38 @@ const iPad = vec8(0x36n)
 /**
  * Generates an HMAC (Hash-based Message Authentication Code) using the specified hash function.
  *
- * @param {Sha2} hashFunc - The hash function implementation to use.
+ * Any hash whose end answers a `Vec` will do, over a state of its own: the
+ * construction reads the block length and folds the blocks, and nothing
+ * else of the hash. So `hmac(sha1)` is HMAC-SHA1 and `hmac(sha256)` is
+ * HMAC-SHA256, at no cost to either — which is the reason `Hash` is
+ * parameterized over its state at all.
+ *
+ * Three things it does need of the hash, which RFC 2104 needs of one and
+ * no type can say, since `Hash` spells each of them a bare `bigint`. Its
+ * block is at least one bit, since a block of none is a block no message
+ * is cut into and a block of fewer than none makes `repeat` shift a
+ * negative count towards a zero it never reaches. Its block is a whole
+ * number of bytes, since the padding is a byte repeated to the block's
+ * length and a block of nine bits holds no whole number of them. And its
+ * digest is no longer than its block, since a key longer than the block is
+ * replaced by its digest and then padded *to* the block. Every hash here is
+ * all three — the SHA-2 variants, and SHA-1 — and a hash that is not is a
+ * caller's mistake rather than a message's, so it is refused here, once,
+ * where the hash is given and not where each message arrives.
+ *
+ * @throws On a hash whose block is not a positive whole number of bytes,
+ * or whose digest is longer than its block.
+ *
+ * @template S
+ * @param {Hash<S>} hashFunc - The hash function implementation to use.
  * @returns {Reduce} A function that takes a key and returns another function
  * that takes a message and computes the HMAC.
  */
 export const hmac = hashFunc => {
-    const { blockLength, blockBytes } = hashFunc
+    const { blockLength, blockBytes, hashLength } = hashFunc
+    assert(0n < blockLength, ['block is not positive', blockLength])
+    assert(blockBytes << 3n === blockLength, ['block is not whole bytes', blockLength])
+    assert(hashLength <= blockLength, ['digest is longer than the block', hashLength, blockLength])
     const p = repeat(blockBytes)
     const ip = p(iPad)
     const op = p(oPad)

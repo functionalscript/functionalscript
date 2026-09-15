@@ -39,10 +39,23 @@ one unit for a grammar built over JSON's rules:
 its containers through the grammar's own `items`, and its numbers through
 JSON's integer core.
 
-[`tokenizer/module.f.mjs`](./tokenizer/module.f.mjs) is public and lexical —
-`1 2` tokenizes where it does not parse — and is no longer on `parse`'s
-path; [`todo/self-contained-tokenizer.md`](./todo/self-contained-tokenizer.md)
-holds what becomes of it.
+**The grammar is the codec's runtime dependency; the JavaScript token stream
+is not.** A format frozen by its specification cannot sit on a lexer that
+grows with the language, which is what this reader once did through an
+adapter over `fjs/js/tokenizer`; and a grammar of a few dozen readable lines
+over [`fjs/ebnf`](../../ebnf/module.f.mjs) is what replaced a hand-written
+tokenizer and container machine per format, whose defects review had to find
+one at a time. A grammar under `fjs/ebnf/lib` that no codec imports and no
+proof covers is how a dead copy happens, so none is added without proofs.
+
+There is no JSON tokenizer any more. The one this package carried was an
+adapter over the hand-written JavaScript scanner, off `parse`'s path since
+the reader became the grammar and with no consumer but its own proofs; it
+was retired with that scanner rather than rebuilt, since a token stream
+nothing reads is not an API worth keeping. JSON's lexical facts are pinned
+where they are decided, in
+[`fjs/ebnf/lib/json`](../../ebnf/lib/json/module.f.mjs) and the parser's
+proofs.
 
 ## Losslessness starts at the grammar
 

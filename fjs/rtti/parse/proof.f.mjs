@@ -3,7 +3,7 @@
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { Ts } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
- * @import { Unknown as DjsUnknown } from '../../djs/types.ts'
+ * @import { Unknown as DataJsUnknown } from '../../media/datajs/types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Phantom } from '../../types/phantom/types.ts'
  */
@@ -85,7 +85,7 @@ export const proof = {
     },
     unknown: {
         ok: () => {
-            /** @typedef {Assert<Equal<Ts<typeof unknown>, DjsUnknown>>} _RoundTrip */
+            /** @typedef {Assert<Equal<Ts<typeof unknown>, DataJsUnknown>>} _RoundTrip */
             assertOk(parse(unknown)(null))
             assertOk(parse(unknown)(42))
             assertOk(parse(unknown)('hello'))

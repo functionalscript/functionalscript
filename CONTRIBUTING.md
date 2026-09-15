@@ -213,7 +213,7 @@ messages are not working notes: write each one for a reader who meets it on
 `main` with no pull request open.
 
 - **Title.** `<topic>: <short description>` — `<topic>` is the module path
-  (`types/bit_vec`, `djs/tokenizer`) or an area (`ci`, `docs`, `changelog`,
+  (`types/bit_vec`, `fsc/tokenizer`) or an area (`ci`, `docs`, `changelog`,
   `AGENTS.md`), the same topic the CHANGELOG entry starts with; the
   description is imperative, lower-case after the colon, and has no trailing
   period. Keep it within 72 characters **including** the ` (#NNN)` GitHub

@@ -19,9 +19,8 @@ It also does **not** own DJS `.f.js` spellings. DJS is a JavaScript-syntax
 superset and can represent values that standard JSON cannot. The DJS requirement
 to round-trip `-0`, `NaN`, `Infinity`, and `-Infinity` is specified by
 [`spec/datajs/README.md`](../../../../spec/datajs/README.md) and implemented by
-stage 4 of
-[`parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md);
-[`compile-modules-to-edag.md`](../../../djs/todo/compile-modules-to-edag.md)
+[`fjs/media/datajs`](../../datajs/README.md);
+[`compile-modules-to-edag.md`](../../../fsc/todo/compile-modules-to-edag.md)
 needs it.
 That work must not silently redefine the standard JSON codec's policy here.
 
@@ -112,7 +111,7 @@ or adding a separate compatible API, is deliberately deferred to P5.
   not block this investigation.
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — current
   primitive serialization implementation to replace/self-host.
-- [`fjs/djs/todo/compile-modules-to-edag.md`](../../../djs/todo/compile-modules-to-edag.md)
+- [`fjs/fsc/todo/compile-modules-to-edag.md`](../../../fsc/todo/compile-modules-to-edag.md)
   — owns DJS `.f.js` round-tripping of special number values needed by EDAG artifacts.
-- [`fjs/djs/todo/157-json-djs-shared-value-machine.md`](../../../djs/todo/157-json-djs-shared-value-machine.md) — shared JSON/DJS parser and
+- [`fjs/fsc/todo/157-json-djs-shared-value-machine.md`](../../../fsc/todo/157-json-djs-shared-value-machine.md) — shared JSON/DJS parser and
   serializer extraction; coordinate reusable machinery without merging codec policy.

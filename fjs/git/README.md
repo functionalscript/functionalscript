@@ -26,6 +26,45 @@ what a grammar can and cannot do for the formats.
   for a repository's id width: a reader that reads what `git fsck` would
   flag, a `validate` that refuses it the way `fsck` does, `mode` as the
   number an entry's digits spell, and a writer.
+- [`refname/`](refname/module.f.mjs) — what names a ref takes, by the rules
+  `git check-ref-format` applies: the byte rules over the whole name, and the
+  rule each component between slashes must pass. A tag's `tag` header is a
+  ref name, which is why the tag module asks, and `HEAD`, a loose ref and a
+  `packed-refs` line carry one too.
+- [`ref/`](ref/module.f.mjs) — the three files a repository keeps its refs
+  in, each as the grammar it is: a loose ref, a symbolic ref such as `HEAD`,
+  and `packed-refs`. The three do not agree with each other — a loose ref
+  need not end in LF and ignores anything after its first line, where
+  `packed-refs` requires LF on every line and refuses a second comment — so
+  each rule here was measured against Git rather than assumed.
+- [`pack/`](pack/module.f.mjs) — a packfile's framing and the delta
+  instructions inside one, with no effects: an entry's payload is a zlib
+  stream, so nothing can say where one entry ends without inflating it, and
+  walking the file belongs to the reader that has `inflate`. Three different
+  varints appear in a pack and two of them look alike — the odd one is an
+  `ofsDelta`'s distance back, most significant group first with a `+ 1` per
+  continuation byte, which is what makes its spelling unique and what decides
+  whether a base lands in the right place.
+- [`packidx/`](packidx/module.f.mjs) — a pack index, `.idx`, from an object
+  id to where its entry begins in the `.pack` beside it. Length-framed and so
+  a decoder rather than a grammar. Both live versions are read into one
+  shape — version 2 with its magic and separate tables, version 1 with its
+  ids and offsets interleaved — because the version says how the bytes were
+  laid out and nothing about what they mean. The ids' order is checked and not
+  trusted, since the lookup is a search and a search over ids that do not
+  ascend answers wrongly instead of failing.
+- [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
+  the effects: `tryRoots` for every one of them and `tryResolve` for a name
+  in hand. Two rules live here because no reader of one file can decide
+  them: a loose ref shadows the packed line of the same name by existing
+  rather than by being good, so a loose file that is no ref leaves the name
+  with no value instead of the packed one; and a symbolic ref is followed
+  five lookups and no further, which is Git's bound and what catches a ref
+  pointing at itself. A file under `refs/` whose name is no ref name gets one
+  of the two answers Git gives: the two file-name conventions its own walk
+  skips — a component beginning with `.`, one ending in `.lock` — are skipped
+  in silence, and every other broken name refuses the whole listing, which is
+  Git's `bad ref`, measured.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
   block: `object`, `type`, `tag` and `tagger` as functions over the header
   list, read by position as Git reads them, and a `validate`.
@@ -34,10 +73,73 @@ what a grammar can and cannot do for the formats.
   `mergetag` by key, the last read as a tag by the tag module, and a
   `validate`.
 - [`oid/`](oid/module.f.mjs) — an object id between its two spellings, the
-  raw bytes a tree entry holds and the hex text a header holds.
+  raw bytes a tree entry holds and the hex text a header holds, and `of`,
+  the id an object has at the repository's width: SHA-1 at 20 bytes,
+  SHA-256 at 32.
 - [`loose/`](loose/module.f.mjs) — a loose object file read through the
-  host's `inflate` effect and past its envelope: the one place a real
-  repository meets the decoder.
+  host's `inflate` effect and past its envelope. One of the two places a real
+  repository meets the decoder; [`packstore/`](packstore/module.f.mjs) below
+  is the other, and is the one a clone actually takes.
+- [`packstore/`](packstore/module.f.mjs) — the same for the other place an
+  object lives: from an id to the object a pack below `objects/pack/` holds,
+  through the `.idx` beside it. Two rules here are the effects' and not the
+  format's. An entry carries no length — its header says what the object
+  inflates to and nothing about how many bytes of the file its zlib stream
+  takes — so the window handed to `inflate` has to end exactly where the next
+  entry begins, which is the index's question and `packidx`'s `after`; and a
+  delta chain is walked rather than recursed, for the reason
+  [`walk/`](walk/module.f.mjs) walks. A `refDelta` names its base by id and may
+  name one stored *after* it, which is where `index-pack --fix-thin` appends
+  the base a fetched pack arrived without, so nothing here assumes a base
+  precedes the delta and a chain is bounded by the pack's object count instead.
+- [`config/`](config/module.f.mjs) — the repository's `config` as
+  `(section, key, value)` entries, read a character at a time as Git's own
+  parser reads it — quoted values and their escapes, a header that ends
+  mid-line, a key without a value — and the id width it names:
+  `extensions.objectFormat` absent is SHA-1, `sha256` under
+  `repositoryformatversion = 1` is SHA-256, and what Git refuses is
+  refused.
+- [`store/`](store/module.f.mjs) — from an id to the object it names,
+  checked: the loose file at the id's path or the packs through
+  [`packstore/`](packstore/module.f.mjs), whichever answers, hashed with
+  `oid`'s `of` and refused where the hash is not the id; and the width from
+  `config`. The loose file is read first and anything but a good object there
+  — no file, no stream, no object, another object — asks the packs, since Git
+  answers a packed copy over a loose one that cannot be read and the hash
+  check stands behind either. What `objects/info/alternates` adds is
+  [`todo/object-store.md`](todo/object-store.md).
+- [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
+  over whatever reads objects: `peel`, a tag to what it names;
+  `tryEntries`, a commit or a tree to the entries of its tree; and
+  `tryEntry`, the entry a path names. It reads no object it need not, so
+  a path naming a submodule answers that entry, and it refuses what a
+  corrupt repository makes ambiguous: a tag or a commit Git's own parse
+  refuses, a tag whose target is not the type it declared, a tree naming one
+  name twice, and a path descending through an entry whose mode is no
+  directory — the mode's `S_IFMT` bits, which is the question Git's own
+  `S_ISDIR` puts, so `40755` descends as `40000` does and `140000` does
+  not.
+
+  Both of its loops are walks over the effects rather than recursions, and
+  the chain of ids `peel` has already read is a map rather than a list.
+  Neither is a matter of taste. A `Read` that answers values — an in-memory
+  store, a proof's — makes `step` call its own continuation, so a recursion
+  costs a frame or two per link and a deep chain or a long path exhausts the
+  stack; and a list of ids is scanned and copied whole at every link, which
+  is quadratic in a chain Git puts no bound on. A walk's loop is flat in the
+  item count whatever the `Read` answers, and the map answers and grows in
+  the logarithm.
+
+  Both readers refuse a payload under the length Git's own parse requires
+  before it reads a header — the id's hexadecimal digits plus 24 for a tag,
+  plus 6 for a commit — since that is what the headers each needs cost at
+  their shortest, and nothing shorter could have held them.
+
+- [`repo/`](repo/module.f.mjs) — from a worktree to the repository
+  directory that holds its objects: `.git` is the repository, or a file
+  whose `gitdir:` line names one, and that directory is the repository
+  unless its `commondir` names another. One rule for a `git init` worktree,
+  a `--separate-git-dir` one and a linked one.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
@@ -85,6 +187,13 @@ The four payloads:
   <message>                 to the end of the object, arbitrary bytes
   ```
 
+  The empty line and the message are optional together: an object whose
+  bytes end at its last header's LF is one Git accepts and none of its own
+  tools write, and `Payload`'s `message` is `null` for it. That keeps it
+  apart from an object with an empty line and an empty message, which are
+  two byte strings and so two ids, and the writer puts back whichever it
+  was given.
+
   Every header is `key SP value LF`, and a line beginning with SP continues
   the value of the header before it, LF included. That is how a multi-line
   signature is one header, and how `mergetag` carries a whole tag object as
@@ -102,7 +211,9 @@ The four payloads:
   ```
 
   `mode` is octal ASCII without padding — `100644`, `100755`, `120000`,
-  `160000`, and `40000` for a subtree, five digits, not six. `name` is any
+  `160000`, and `40000` for a subtree, five digits, not six. Those are the
+  modes Git writes and the ones `validate` accepts; a walk asks less of a
+  mode it did not write, since Git does. `name` is any
   bytes but NUL; a slash is forbidden by `git fsck`, not by the reader.
   `id` is the raw object id, 20 or 32 bytes, every byte value allowed, and
   it is what delimits the entry: nothing follows it but the next entry or
@@ -149,7 +260,7 @@ payload.
 | loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
 | zlib stream | bit-level, length-framed | the host's `inflate`, until [`todo/inflate.md`](../../todo/inflate.md) |
-| packfile, `.idx` | varints, deltas, zlib | a decoder, [`todo/packfiles.md`](todo/packfiles.md) |
+| packfile, `.idx` | varints, deltas, zlib | a decoder, [`pack/`](pack/module.f.mjs) and [`packidx/`](packidx/module.f.mjs), read over the effects by [`packstore/`](packstore/module.f.mjs) |
 
 **The alphabet is bytes, not Unicode.** A Git object is not text: the id in
 a tree entry is 20 raw bytes and may spell anything, a file name is
@@ -287,32 +398,82 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 
 - **An inflater.** The parser is pure over the inflated bytes whatever
   supplies them; today `inflate` in [`fjs/effects/node`](../effects/node/module.f.mjs)
-  supplies them from `node:zlib` at the host boundary, and
-  [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
-  is [`todo/inflate.md`](../../todo/inflate.md).
-- **A hash.** Reading an object needs none; addressing or verifying one
-  does. [`fjs/crypto/sha2`](../crypto/sha2/module.f.mjs) covers SHA-256
-  repositories; SHA-1, which every host DISOT targets uses, is
-  [`fjs/crypto/todo/sha1.md`](../crypto/todo/sha1.md), and what a trust
-  layer does about a hash that can collide is
+  supplies them from `node:zlib` at the host boundary. Two modules call it:
+  [`loose/`](loose/module.f.mjs) once per object, and
+  [`packstore/`](packstore/module.f.mjs) once per *link* — a base and every
+  delta above it — which is the path a clone takes for most of its objects. A
+  FunctionalScript inflater is [`todo/inflate.md`](../../todo/inflate.md).
+- **Alternates.** `repo` finds the repository a worktree belongs to, and
+  `store` and `walk` read at the directory they are given, so a caller
+  puts the two together. What is left is
+  `objects/info/alternates`, which adds directories to search after the
+  repository's own and so makes the store read several rather than one:
+  [`todo/object-store.md`](todo/object-store.md). What the id check means
+  in a SHA-1 repository, and what a trust layer does about a hash that can
+  collide, is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
-- **Packfiles**, where most objects in a real clone live, so the loose
-  reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).
-- **Refs**, from a name to an id: [`todo/refs.md`](todo/refs.md).
-- **The object store**, from an id to the object, and the walk from a
-  commit to a blob: [`todo/object-store.md`](todo/object-store.md).
+- **A `refDelta` whose base is not in the pack that names it.** Packs are read
+  — [`packstore/`](packstore/module.f.mjs) answers from the `.idx` and the pack
+  beside it, and `store` reads them beside the loose path — and what is left is
+  a pack `index-pack --fix-thin` did not complete, whose delta names a base
+  stored elsewhere. Refused rather than guessed, because the base may be loose,
+  in another pack or nowhere, and only a reader of the whole store can say:
+  [`todo/packfiles.md`](todo/packfiles.md) and
+  [`todo/object-store.md`](todo/object-store.md). Multi-pack indexes, bitmaps
+  and the reverse index are not needed to read an object and are not here
+  either.
+- **Writing a ref**, with the lock file Git takes, and the reflog:
+  [`todo/ref-writing.md`](todo/ref-writing.md). Reading the refs is done —
+  [`ref/`](ref/module.f.mjs) for the file grammars and
+  [`refstore/`](refstore/module.f.mjs) over the effects — and reading the
+  *reflog* is not, which is why `tryRoots` answers the refs and not everything
+  the repository is keeping: a reflog entry keeps an object alive until it
+  expires, and so does the *index* — a staged blob survives `gc --prune=now`
+  though no ref names it and `rev-list --all` never lists it, both measured — so
+  a caller must not prune by that list
+  ([`refstore/todo/reflog-roots.md`](refstore/todo/reflog-roots.md)). The one
+  repository that list cannot describe at all is refused: a `packed-refs` line
+  naming `HEAD` is a root Git keeps beside the `HEAD` file's, and one entry per
+  name holds neither answer
+  ([`refstore/todo/packed-head.md`](refstore/todo/packed-head.md)).
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. Where it binds today is the
-  boundary: the host's `inflate` takes a `Vec` and gives one, and
-  `readFile` ahead of it takes one too, so a loose object is refused on
-  either side of its stream — a file over the bound before inflating, a
-  stream that inflates past it — and never cut short. The inflater issue
-  lifts both sides.
-- **An object with no empty line.** A commit or a tag whose bytes end
-  after its last header, which Git accepts and none of its tools write,
-  is refused by the header block's grammar; reading it is a change to
-  `Payload`, [`header/todo/header-only-object.md`](header/todo/header-only-object.md).
+  boundary: the host's `inflate` takes a `Vec` and gives one, so an object
+  is refused on either side of its stream — too large going in, or
+  inflating past the bound — and never cut short. That is **both** readers
+  and not the loose path's alone: [`loose/`](loose/module.f.mjs) hands
+  `inflate` a `readFile`'s `Vec`, which is where the going-in bound is that
+  path's, and [`packstore/`](packstore/module.f.mjs) hands it an entry's
+  window as one, per *link* of a delta chain. A delta's *output* has a third
+  bound of the same size: [`pack/`](pack/module.f.mjs)'s `tryApplyDelta`
+  refuses a declared target over 128 KiB, since a hundred bytes of copy
+  instructions against a 64 KiB base can honestly name 6.5 MB. The inflater
+  issue lifts all three — [`todo/inflate.md`](../../todo/inflate.md) says so
+  in the same words.
+
+  A *whole file* is not bound by it any more, which is the half that used to
+  fail on ordinary repositories rather than extreme ones.
+  [`fjs/effects/node`](../effects/node/module.f.mjs)'s `readWhole` is one
+  operation: the host opens the path once, reads it to the end under that
+  descriptor, and answers the chunks it took — each a `Vec` and so within the
+  cap, the file however many it takes — which `readWholeBytes` joins into a byte
+  list, which has no cap. `packed-refs` is read that way: a record is 70 bytes
+  at `refs/heads/topic/feature-<n>`, measured, so `readFile` was spent at about
+  1,870 refs and a repository of 4,000 branches writes a 282,939-byte file that
+  Git reads without comment.
+
+  **One operation and not a fold over `readBytes`, because that one resolves
+  the path per call.** `git pack-refs` replaces `packed-refs` by rename on every
+  run, so a windowed read could join an old prefix to a new suffix — and where
+  the replacement is the same length, every window is exactly as long as it
+  should be and nothing downstream can tell. The result parses and names refs no
+  version of the file held. A caller cannot close that: `stat` carries no
+  identity to compare and re-reading races the same way, so the snapshot is the
+  host's to give.
+
+  A *ref file* still goes through `readFile`, because it is one line and the
+  extra operation per lookup would be paid on every name a walk reads.
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.

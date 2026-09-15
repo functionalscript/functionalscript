@@ -1,5 +1,5 @@
 /**
- * Proofs for the static source reading behind the browser proof manifest.
+ * Proofs for the static source reading behind each page's proof list.
  *
  * A misread here is expensive and silent: a module wrongly selected fails the
  * generated page while it links, before the runner can publish a report, and a
@@ -26,7 +26,7 @@ export const proof = {
         },
         modifiers: () => {
             // Both are zero-argument named exports the ordinary runner accepts,
-            // so the manifest has to see them too.
+            // so this scan has to see them too.
             exports('export async function proof() {}')
             exports('export function* proof() {}')
             exports('export async function* proof() {}')

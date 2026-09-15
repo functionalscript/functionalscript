@@ -19,19 +19,13 @@ below is this directory's own; the specification has no section numbers.
 
 ## 2. DJS
 
-### 2.1. Module structure
-
-1. [ ] [import-attributes](./2140-import-attributes.md) — `with { type: "json" }`,
-   which JavaScript requires of a JSON import and the parser does not accept,
-   and `with { type: "text" }`, a file imported as a string.
-
-### 2.2. Priority 1
+### 2.1. Priority 1
 
 We need it to use JSDoc and TypeScript.
 
 1. [ ] [namespace-import](./2220-namespace-import.md).
 
-### 2.3. Priority 2
+### 2.2. Priority 2
 
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [operators](./2340-operators.md),
@@ -46,7 +40,7 @@ We need it to use JSDoc and TypeScript.
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.
 
-### 2.4. Syntactic Sugar
+### 2.3. Syntactic Sugar
 
 1. [ ] [shorthand](./2440-shorthand.md),
 2. [ ] [destructuring](./2450-destructuring.md),
@@ -64,7 +58,9 @@ see [serialization](./serialization.md).
 
 ### 3.1. Required
 
-1. [ ] [function](./3110-function.md)
+1. [ ] [function](./3110-function.md) — the non-capturing rest-parameter
+   form `(...a) => expression` is in the language
+   ([functions](../README.md#functions)); the block body is not.
 2. [ ] [parameters](./3120-parameters.md)
 3. [ ] [body-const](./3130-body-const.md)
 4. [ ] [forward-references](./3140-forward-references.md)
@@ -112,6 +108,10 @@ see [serialization](./serialization.md).
 4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching), Stage 1.
 5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).
 6. [ ] [Temporal](https://github.com/tc39/proposal-temporal).
+7. [ ] [Import Text](https://github.com/tc39/proposal-import-text), Stage 3, and
+   [Import Bytes](https://github.com/tc39/proposal-import-bytes), Stage 2.7:
+   `with { type: "text" }` and `with { type: "bytes" }`, blocked on Stage 4
+   ([import-text-bytes](../../todo/blocked/import-text-bytes.md)).
 
 Wish list:
 

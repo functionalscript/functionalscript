@@ -73,27 +73,21 @@ exactly one byte sequence.
 
 **This document specifies a target, not the current implementation.** The
 `;` this format requires after every statement is what the compiler's
-parser requires too, so a document that stays on the finite leaves parses
-today; `NaN` and the
-infinities do not parse yet, which is the reader-side gap that remains
-(tracked with the numeric-leaf work in the restructure plan below).
-The shipped `fjs/djs` serializer also differs from
-[normalized form](#normalized-form) in four ways, each of them stage 4–6 work
-rather than a bug:
-
-| shipped `fjs/djs` | this specification |
-| --- | --- |
-| `const c0 = …` | `const $0=…` |
-| hoists a repeated primitive into a const | primitives always inline |
-| keys sorted lexicographically — `{"10":0,"9":0}` | array-index keys first in numeric order — `"9"` before `"10"` |
-| `NaN`, `±Infinity` become `null`; `-0` becomes `0` | each round-trips exactly |
-
-The first row is the one that is more than a layout difference: a name must
-start with `$`, so `c0` is not a name this format has at all, and the shipped
-output is invalid rather than merely non-normalized.
-
-The work that closes all of it is staged in
-[`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md).
+parser requires too, so a document parses today — `NaN` and the infinities
+included, measured against
+[`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
+which closed the reader-side gap this paragraph used to name. Both surfaces of
+[§Encoding](#encoding) exist, on the codec's public
+[`module.f.mjs`](../../fjs/media/datajs/module.f.mjs): `tryParse` takes the
+document as code units, and `tryParseBytes` takes it as bytes — refusing what
+is not correct UTF-8 and a leading BOM before the reader sees a unit, then
+handing on the code units those bytes denote. The corpus's byte-form vectors
+run through the second.
+The writer,
+[`fjs/media/datajs/serializer`](../../fjs/media/datajs/serializer/module.f.mjs),
+writes [normalized form](#normalized-form), and `fjs compile` writes through
+it; the older `fjs/djs` serializer, whose `const c0` output was not a document
+of this format at all, is retired.
 
 Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for
 the data subset the compiler accepts **today**, which is wider than DataJS:
@@ -120,6 +114,56 @@ document specifies **DataJS**, the narrow interchange format.
 
 ## Grammar
 
+### Encoding
+
+A document is a byte sequence, and it is **correct UTF-8**. Anything else is
+not a DataJS document and is **rejected**.
+
+That is the whole rule, and it is stated in the accepting form for the reason
+§Whitespace is: a taxonomy of malformed sequences — an overlong form, a
+surrogate encoded as three bytes, a truncated sequence, a continuation byte
+with no leader — is exactly the knowledge a data format should not ask an
+implementer to carry, and any list of them is one entry short of something.
+
+So this specification requires **nothing of a decoder**. It does not say
+whether an implementation exposes one, what it reports, where it stops, or
+whether it replaces anything: correct UTF-8 decodes to one sequence of code
+units, the grammar below reads that sequence, and every other byte sequence is
+refused. How an implementation discovers the refusal is its own business, and
+a decoder that substitutes U+FFFD rather than failing is simply a reader that
+accepts a document this specification rejects.
+
+**The decode is also where a reader divides in two**, and a reader says which
+half it is. One takes bytes and owes the rule above. One takes the code units
+and begins after it, which is what a reader whose entry point is a string does —
+every rule from §Whitespace down is stated over code units and applies to both
+unchanged.
+
+That distinction is not bookkeeping. An **unpaired surrogate** is a code unit no
+byte sequence encodes, so it can reach a code-unit reader and can never reach a
+byte one, and it is a real input to the first: a raw unpaired unit between the
+quotes and its `\uXXXX` escape are different paths through a reader, and one
+that handles the escape may mishandle the unit. So a document is a byte sequence
+where an implementation takes bytes, and a code-unit sequence where it takes
+those — the same document in every case a byte sequence exists for, which is
+every case but this one.
+
+A document also **has no BOM**, and that rule is not about encoding. The bytes
+`EF BB BF` are correct UTF-8 for U+FEFF, so they decode, and §Whitespace
+already refuses what they decode to: U+FEFF is not one of the four whitespace
+characters and begins no token.
+
+It is stated separately because **two layers a reader is likely to stand on
+remove it before the grammar ever sees it**, and both were measured rather than
+assumed. A JavaScript engine strips a leading BOM: the module
+`EF BB BF 65 78 70 6F 72 74 20 64 65 66 61 75 6C 74 20 31 3B` imports and
+exports `1`. A WHATWG `TextDecoder` strips it too, by default — `decode` of
+those three bytes yields the *empty string*, and only `ignoreBOM: true` returns
+U+FEFF. So an implementation can be built from correct parts and still accept a
+document this format rejects, without anything in it deciding to. Naming the
+rule is what makes that a defect instead of a difference of opinion, and the
+corpus carries the vector that finds it.
+
 ### Whitespace
 
 Whitespace is exactly JSON's: **space** (U+0020), **tab** (U+0009), **LF**
@@ -127,10 +171,12 @@ Whitespace is exactly JSON's: **space** (U+0020), **tab** (U+0009), **LF**
 except that the special property-key sequence `["__proto__"]` is one token and
 must contain exactly those characters without whitespace or escapes.
 
-Every other character JavaScript treats as whitespace or a line terminator is
-**rejected**: U+2028, U+2029, no-break space, form feed, vertical tab, and a
-byte order mark, wherever they appear outside a string literal. Accepting them
-would import a taxonomy no implementer of a data format should have to know.
+Those four and no others: **nothing else is whitespace**, whatever JavaScript
+may treat as one. Outside a string literal a character is whitespace or part
+of a token, and one that is neither is **rejected**. Enumerating what a reader
+accepts is the whole rule, and it is four characters long; enumerating what it
+refuses would import a taxonomy no implementer of a data format should have to
+know.
 
 Whitespace is **required after `const`, after `export`, and after `default`**.
 Three positions, with no condition attached to any of them. Elsewhere it is
@@ -150,8 +196,6 @@ writer ever consults the next character to find out. The
 So the one-line spelling of a document is `const $0=[];export default [$0,$0];`,
 and `export default [1];`, `export default -1;` and `export default "a";` all
 carry the space.
-
-A document is UTF-8. It has no BOM.
 
 ### Tokens
 
@@ -457,8 +501,8 @@ it and therefore cannot carry it:
 
 - property attributes — `writable`, `configurable`, and whether the object is
   extensible, sealed or frozen;
-- the prototype — a `null`-prototype object, a `null`-prototype array, or an
-  `Array` subclass all serialize as their data, and read back ordinary;
+- the prototype — a `null`-prototype object or an `Array` subclass serializes
+  as its data, and reads back ordinary;
 - anything else the host attaches that is not an own enumerable string-keyed
   data property.
 
@@ -479,6 +523,43 @@ a document denoting something else. `JSON.stringify` substitutes `null` for a
 function, expands a hole to `null`, drops a symbol-keyed member, and drops that
 `meta` without a word. DataJS rejects instead, because a silently wrong
 document is worse than no document.
+
+**The conformance corpus carries no vector for any of this**, and the reason is
+DataJS rather than FunctionalScript. A conformance set is itself a **DataJS**
+data module, and DataJS has no functions, no `Symbol`, no `Date` and no way to
+spell a hole, an accessor or a class — so no vector can hold any of these inputs
+to hand a serializer. That is a property of the carrier, not an omission.
+
+An implementation's own tests are where the rule is answered, and they are not
+so limited, because a test is an ordinary module of its host language. This
+repository's writer refuses a function, a symbol, a `Date`, a `Map`, a `Set`, a
+boxed number, a non-plain prototype, a symbol key and a hole in its own proof,
+handed each as a real value. Four of the rules name a condition **no
+FunctionalScript value carries** — an accessor, a non-enumerable property, an
+own property on an array besides its elements, and a cycle — so the proof reads
+those at the level the rule is about: the descriptors, the own names and the
+graph. The remaining four values — an `Array` subclass, a frozen object, a
+frozen array and a `null`-prototype array — need a class, `Object.freeze` or
+`Object.setPrototypeOf`, none of which the subset has, so nothing in this
+repository builds them and a host that can owes the rule on its own.
+
+**A value whose prototype chain says one kind and whose construction says
+another is outside this section's input domain.** An object under
+`Array.prototype` that no array literal or constructor made —
+`Object.create(Array.prototype, …)`, or one re-pointed there by
+`Object.setPrototypeOf` — an array re-pointed away from it, and an array from
+another realm are all of that kind. None of them can be built by this format's
+own subset, which has no prototype operations at all, and no rule above reaches
+them: what a serializer does with such a value is **undefined**, and an
+implementation owes nothing either way. That is why the list above speaks of
+values as built — a `null`-prototype object from `Object.create(null)`, an
+`Array` subclass instance, a frozen array — and never of what a host can make
+the chain say afterwards.
+
+The practical consequence is worth one line, since implementations differ here
+and none of them is wrong: a serializer classifying arrays by the prototype
+chain and one classifying by `Array.isArray` disagree on exactly these values,
+and both conform.
 
 ### Normalized form
 
@@ -623,6 +704,16 @@ suite states it as: every accepted DataJS document parses in FunctionalScript
 to the same graph, and every DataJS document is accepted by a JavaScript
 engine with the same result.
 
+**The second law is over the documents an engine can be handed**, which is the
+documents with a byte encoding — every one of them, and that is not a hedge but
+the scope the claim has. A module reaches an engine as bytes, so the documents
+holding an unpaired surrogate ([§Encoding](#encoding)) are the one case where
+there is no experiment to run rather than a result nobody has measured: they are
+DataJS for a code-unit reader and are not loadable JavaScript modules, because
+no byte sequence spells them. The conformance corpus carries eight such
+documents, names them, and asserts that there are exactly eight, so one more
+appearing is a failure rather than a quiet fall in what the law covers.
+
 ## Files and media type
 
 Recognized extensions: `.data.js`, `.data.mjs`, `.d.js`, `.d.mjs`.
@@ -658,7 +749,10 @@ that just reads it emits none.
 
 - A conforming **reader** accepts every document this specification accepts,
   rejects every document it rejects, and yields the graph the document
-  denotes, sharing included.
+  denotes, sharing included. It states whether it takes bytes or code units
+  ([§Encoding](#encoding)) and is judged on that form: a byte reader owes the
+  UTF-8 rule, and the documents holding an unpaired surrogate are a code-unit
+  reader's alone, since no byte sequence spells them.
 - A conforming **serializer** rejects every input outside
   [the data model](#what-may-be-serialized) and otherwise emits a valid
   document denoting the input graph.
@@ -666,11 +760,28 @@ that just reads it emits none.
   output is the byte sequence [normalized form](#normalized-form) defines.
 
 An implementation states which roles it provides, and is judged only on those.
-The machine-readable corpus that decides each is
-[`spec/datajs/todo/conformance-vectors.md`](./todo/conformance-vectors.md);
-until it lands, this prose is the only statement of conformance.
+The machine-readable form of this section is the **conformance corpus**,
+[`spec/datajs/vectors`](./vectors/README.md): one directory per set, the schema
+and the rules the sets are derived by in its README, and
+[`matrix.md`](./vectors/matrix.md) — generated, so it is current or the build is
+red — showing every class **the corpus carries** against the three roles, with a
+reason in words for every cell a role owes nothing to. Its rows come from the
+vectors, so it answers "is every class covered in every role it belongs to" and
+not "is every branch of this specification covered at all": a branch no set
+mentions has no row, and only reading this prose against the sets finds it. Where
+this prose and a vector disagree, this prose is normative and the vector is the
+bug; where the corpus is silent, its README says what it cannot carry and why.
 
 ## Rationale
+
+**Why is the format this small, and why does it stay so?** DataJS is JSON
+extended from a tree to a DAG, plus the leaves JSON cannot spell, and nothing
+else: new syntax belongs in FunctionalScript, whose data subset is wider by
+design and whose compiler normalizes it to this. The name is DataJS, "DJS"
+its informal abbreviation, and not DataScript, which a database library
+holds; the npm name `datajs` belongs to a defunct OData library, so
+availability is checked before any standalone package publishes, which this
+specification does not need.
 
 **Why `;` and not a newline?** A lone CR is a JavaScript line terminator, so is
 U+2028; newline separation drags that taxonomy into a data format, and makes

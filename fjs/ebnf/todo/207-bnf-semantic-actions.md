@@ -26,7 +26,7 @@ Parsing a `RuleSet` yielded a generic AST in the classical backends. Every
 consumer that wanted a domain value walked that tree afterwards, and each one
 wrote the walk again:
 
-- `fjs/djs/parser` spent ~200 lines recovering values — `slot`, `keyOf`,
+- `fjs/fsc/parser` spent ~200 lines recovering values — `slot`, `keyOf`,
   `descendantsTagged` (a *search*, because an array's elements were not its
   direct children), and `foldValue` with its own explicit stack.
 - the example grammars could be matched but not *evaluated*, so a grammar
@@ -39,8 +39,8 @@ but not the rule that produced it), and **complete before anything else starts**
 
 **Not in this list: `fjs/media/json`.** Not because its codec stays
 hand-written — that decision is withdrawn, and
-[parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-now has JSON's reader coming from a grammar. The reason is the module: that
+[`fjs/media/json`](../../media/json/README.md)'s reader comes from a grammar.
+The reason is the module: that
 grammar runs over `fjs/ebnf/`, while `fjs/bnf` held JSON and DataJS
 grammars only as proof-covered examples. This issue made those examples
 produce values; it did not make them a codec. The capability it describes is
@@ -506,11 +506,11 @@ as the start rule does.
 `--1`), objects and arrays five each, and `value` is a seven-branch variant.
 
 **DJS.** `foldValue`, `descendantsTagged`, `slot`, `keyOf` and `_FoldFrame` all
-delete — and did, when `fjs/djs/parser` moved to the rewrite set. Its one
+delete — and did, when `fjs/fsc/parser` moved to the rewrite set. Its one
 hard case is that `const` references resolve against *earlier* statements —
 an inherited attribute, which a mapping cannot see. It is resolved in a
 **second pass** over the built module, as `fjs/media/datajs` and
-`fjs/djs/parser` both do: no protocol change, all state stays plain data,
+`fjs/fsc/parser` both do: no protocol change, all state stays plain data,
 and "const not found" is a check on a value, which is where a
 name-resolution error belongs. A downward channel in the engine would change
 every signature; a closure-returning mapping would put functions in a
@@ -613,7 +613,7 @@ deleted with it; the rewrite set carries the protocol's decisions.
       `recognizerStep`, which is per-`U16`, depth-capped, and
       `fjs/media/json`'s own.
 
-**Stage 3 — the classical `descent`** — retired with it; `fjs/djs/parser`
+**Stage 3 — the classical `descent`** — retired with it; `fjs/fsc/parser`
 reads the rewrite set through `../ll1` and resolves `refs` in a second pass
 (§9).
 
@@ -643,13 +643,14 @@ What is still open for the surviving backend:
 - [`fjs/common/monoid`](../../common/monoid/module.f.mjs) — the `Monoid<T>` this
   issue's classical factory took at construction. Note its `fold` is
   *balanced*, so it must not be reused for a `reduce` that is not associative.
-- [`fjs/djs/parser`](../../djs/parser/module.f.mjs) — the rewrite set over
+- [`fjs/fsc/parser`](../../fsc/parser/module.f.mjs) — the rewrite set over
   the module grammar, with the names resolved in a second pass.
 - [recognizer-backend](./recognizer-backend.md) — the payload-free mode the
   all-`unit` map supplies.
 - [layered parser](./layered-parser.md) — each layer is one grammar plus one map.
 - [unicode-rules](../unicode/todo/unicode-rules.md) — not blocking; it changes which rule
   *values* a grammar has, not any spelling.
-- [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-  — the media/grammar boundary.
+- [`fjs/media/json`](../../media/json/README.md) — the media/grammar
+  boundary: the grammar is a codec's runtime dependency, and the JavaScript
+  token stream is not.
 - [`../ast`](../ast/README.md) — the AST contract, `Ast<R, I, O>`.

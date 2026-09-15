@@ -1,4 +1,4 @@
-## camel-case-proof-keys. 42 `proof` test keys are snake_case
+## camel-case-proof-keys. 41 `proof` test keys are snake_case
 
 **Priority:** P4
 **Status:** open
@@ -7,7 +7,7 @@
 
 A `proof` object's keys are the test names the runner prints
 (`proof.historyStep.overDo()`), and the repository writes identifiers in
-camelCase everywhere else. 42 keys across 6 files are snake_case instead:
+camelCase everywhere else. 41 keys across 5 files are snake_case instead:
 
 | file | count |
 | --- | --- |
@@ -16,7 +16,6 @@ camelCase everywhere else. 42 keys across 6 files are snake_case instead:
 | `fjs/sul/proof.f.mjs` | 5 |
 | `fjs/types/bit_vec/proof.f.mjs` | 4 |
 | `fjs/types/prime_field/proof.f.mjs` | 3 |
-| `fjs/fsc/proof.f.mjs` | 1 |
 
 They are only names, so nothing is broken — but the split means a new proof
 has no single convention to copy from, which is how the inconsistency keeps
@@ -42,7 +41,7 @@ everywhere at once.
 
 ### Tasks
 
-- [ ] Rename the keys in the six files above.
+- [ ] Rename the keys in the five files above.
 - [ ] Add the convention to `AGENTS.md`, noting the keyword/export exception.
 - [ ] `tsc` clean; `fjs t` passes (test names change, counts do not).
 

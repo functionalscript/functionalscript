@@ -76,7 +76,7 @@ export type ObjectSet = {
  * (`['null', 'undefined', 'false', 'true']`), so `or(true, false)` collapses
  * to the two boolean bits with no special-case rule. Bit `16` is
  * `absentBit`, rtti's nullary `option`: the member that is not there. It
- * maps to no `unitList` entry because absence is not a DJS value — nothing
+ * maps to no `unitList` entry because absence is not a DataJS value — nothing
  * reads as absent; a container *position* is absent by having no own or
  * inherited key — so a consumer decoding stored data must treat bit `16` as
  * the may-be-omitted marker of a declared member, not as a fifth value.

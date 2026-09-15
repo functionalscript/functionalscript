@@ -70,11 +70,14 @@ counterpart, and the corpus has no `Number` group to prove one against.
   argument space once for unary `-` and unary `+`; a `Number` group derives from the same
   list with one difference, its bigint case expecting the converted number rather than
   `throws`.
-- `fjs/nanvm/proof.f.mjs`'s `op1Js` gains `Number: a => Number(a)`. The tables are
-  `crossCheck`'s JavaScript reference, and a group whose id has no entry is silently
-  not cross-checked, so without one the new group would be proven by `amnesia` alone.
-  `jsOnly.throw.unusedOperation` pins that `Number` has no entry today, so it moves to
-  an id that deliberately has none, `own`.
+- `fjs/nanvm/proof.f.mjs`'s `js` table gains `Number: a => Number(a)`, keyed by
+  `groupKey` like every other entry. That table is `crossCheck`'s JavaScript
+  reference, and a group whose key has no entry is not cross-checked at all, so
+  without one the new group would be proven by `amnesia` alone. `referenceCoverage`
+  fails on such a group rather than letting it go unchecked unannounced, so the entry
+  is required and not merely advisable. `jsOnly.throw.unusedOperation` pins that
+  `Number` has no entry today, so it moves to the one key that deliberately has none,
+  `own`.
 - `fjs/nanvm/rust/module.f.mjs`'s `op1Rust` and `rustName` tables gain the new Rust
   method and its generated function name; `fjs/nanvm/rust/proof.f.mjs`'s pinned
   expected-output strings follow.
@@ -87,8 +90,8 @@ counterpart, and the corpus has no `Number` group to prove one against.
 - [ ] Implement the real `Number(x)` coercion, including a `BigInt<A> → f64` conversion.
 - [ ] `fjs/nanvm/module.f.mjs`: add a `Group1` with `op: 'Number'`; its bigint case
       expects a converted number, not `throws`.
-- [ ] `fjs/nanvm/proof.f.mjs`: add `Number` to `op1Js`; repoint
-      `jsOnly.throw.unusedOperation` to an id with no escaped case.
+- [ ] `fjs/nanvm/proof.f.mjs`: add `Number` to the `js` reference table; repoint
+      `jsOnly.throw.unusedOperation` to `own`, the key that keeps having none.
 - [ ] `fjs/nanvm/rust/module.f.mjs` and `fjs/nanvm/rust/proof.f.mjs`: the emitted Rust
       call, its function name, and the pinned expected snippets.
 - [ ] `npm run gen` to regenerate `nanvm-lib/tests/test/generated.rs`.

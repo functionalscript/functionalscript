@@ -1,3 +1,15 @@
+/**
+ * @import { Commands } from '../../effects/types.ts'
+ * @import { Sandbox } from '../../effects/common/types.ts'
+ * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ * @import { DemoState } from './types.ts'
+ */
+
+import { demo, parseSize, work } from './demo.f.mjs'
+import { partialRun, run } from '../../effects/mock/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { error, ok, unwrap } from '../result/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 import {
     sum,
     abs,
@@ -16,7 +28,24 @@ import {
     divUp8,
     roundUp8
 } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+
+/**
+ * The candidates the demo page compares, in the order it renders them.
+ *
+ * Stated here rather than imported, so that adding one to `demo.f.mjs` without
+ * deciding what the page owes a reader about it is a failing proof rather than
+ * a silent extra row.
+ */
+const candidateNames = [
+    'log2',
+    'clz32Log2',
+    'oldLog2',
+    'stringLog2',
+    'stringHexLog2',
+    'string32Log2',
+    'mathLog2',
+]
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { min } from '../function/compare/module.f.mjs'
 
 /** @type {(v: bigint) => bigint} */
@@ -442,5 +471,261 @@ export const proof = {
     product: () => {
         assertEq(product([1n, 2n, 3n, 4n]), 24n)
         assertEq(product([5n, 6n]), 30n)
+    },
+    demo: {
+        /**
+         * **Every candidate the demo compares, in its order.** The list is
+         * written out rather than read from `demo.f.mjs`, so that adding a
+         * candidate without deciding what the page should say about it fails
+         * here instead of passing silently.
+         */
+        candidateNames: () => {
+            const handlers = /** @type {MemOperationMap<Sandbox, null>} */ ({
+                sandbox: f => state => [state, ok({ result: ok(f()), duration: 0 })],
+            })
+            const [, r] = run(handlers)(null)(
+                demo.update({ ...demo.init, size: '32' })({ kind: 'click', name: 'run' }))
+            assertStructurallySame(unwrap(r).rows.map(({ name }) => name), candidateNames)
+        },
+        /**
+         * **The comparison is `log2`'s own answer, checked.** A benchmark that
+         * only measures rewards an implementation that returns nothing, so the
+         * work asserts every answer and throws on a wrong one — which is also
+         * how a wrong implementation reports itself on the page.
+         */
+        workChecksItsAnswers: () => { work(8n)(log2) },
+        /**
+         * **A wrong implementation is caught by the work rather than timed by
+         * it**, and the work asks two questions per step, so both have to be
+         * reachable. One answer that is wrong everywhere only ever reaches the
+         * first; the second needs a candidate that is right about a power of
+         * two and wrong about the number below it. `log2(v + 1n)` is exactly
+         * that: right on `2**e`, whose successor has the same floor, and one
+         * too high on `2**e - 1`, whose successor does not.
+         */
+        throw: {
+            wrongAtThePowerOfTwo: () => { work(8n)(() => 0n) },
+            wrongJustBelowIt: () => { work(8n)(v => log2(v + 1n)) },
+        },
+        /**
+         * **The measurement is an effect, and the demo absorbs its refusal.**
+         * A runtime that does not implement `sandbox` answers `notImplemented`
+         * through the demo's own channel, and the demo has to turn that into a
+         * row — its error channel is `never`. `partialRun` over a vocabulary
+         * with no handler is exactly that runtime.
+         */
+        absorbsARefusal: () => {
+            const decline = partialRun(/** @type {Commands<Sandbox>} */ (['sandbox']))({})
+            const [, r] = decline(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            const rows = unwrap(r).rows
+            assertEq(rows.length, candidateNames.length)
+            for (const row of rows) { assertEq(row.outcome, 'not available here') }
+        },
+        /**
+         * **A row is a measurement when the runtime has a clock.** The virtual
+         * `sandbox` is a pass-through: the thunk answers the `SandboxResult`
+         * itself, so a proof states the duration rather than reading one.
+         */
+        measures: () => {
+            /** @type {MemOperationMap<Sandbox, null>} */
+            const handlers = {
+                sandbox: f => state => [state, ok({ result: ok(f()), duration: 7 })],
+            }
+            const timed = run(handlers)
+            // A small exponent, not `demo.init`'s: what is proven is that a row
+            // carries the runtime's duration, and eight candidates at 20000
+            // would spend half a second of the suite's time saying so.
+            const small = { ...demo.init, size: '64' }
+            const [, r] = timed(null)(demo.update(small)({ kind: 'click', name: 'run' }))
+            const rows = unwrap(r).rows
+            assertStructurallySame(
+                rows.map(({ name, outcome }) => [name, outcome]),
+                candidateNames.map(name => [name, 7]))
+        },
+        /**
+         * **Digits, and at least one.** `BigInt` would take whitespace, a
+         * sign and `0x`, and none of those is what a field labelled with an
+         * exponent means — so the check is what makes the conversion safe,
+         * there being no `try` in FunctionalScript and no regular expressions
+         * in this repository.
+         */
+        parseSize: () => {
+            assertEq(parseSize('20000'), 20000n)
+            assertEq(parseSize('1'), 1n)
+            assertEq(parseSize(''), null)
+            assertEq(parseSize('0'), null)
+            assertEq(parseSize(' 12'), null)
+            assertEq(parseSize('-12'), null)
+            assertEq(parseSize('0x10'), null)
+            assertEq(parseSize('1e3'), null)
+            assertEq(parseSize('12.5'), null)
+        },
+        // Typing changes what will be measured, and measures nothing yet.
+        typingSetsTheSize: () => {
+            const next = unwrap(assertNotNullish(
+                runPure(demo.update(demo.init)({ kind: 'input', name: 'size', value: '99' }))[0],
+                'expected a pure state'))
+            assertEq(next.size, '99')
+            assertEq(next.kind, 'idle')
+            assertStructurallySame(next.rows, [])
+        },
+        /**
+         * **And it clears what was measured.** A table left beside a field the
+         * reader has just changed reads as that field's result — 20000's
+         * timings under a box saying 40000 — which is a plausible wrong answer
+         * rather than a missing one. Nothing has been measured for what the
+         * field now says, so the section shows nothing.
+         */
+        typingClearsAStaleResult: () => {
+            /** @type {DemoState} */
+            const measured = {
+                kind: 'done',
+                size: '20000',
+                rows: [{ name: 'log2', outcome: 21.3 }],
+                note: null,
+            }
+            const next = unwrap(assertNotNullish(
+                runPure(demo.update(measured)({ kind: 'input', name: 'size', value: '40000' }))[0],
+                'expected a pure state'))
+            assertEq(next.size, '40000')
+            assertEq(next.kind, 'idle')
+            assertStructurallySame(next.rows, [])
+            const html = htmlToString(demo.view(next))
+            assert(!html.includes('21.3'), html)
+            assert(html.includes('value="40000"'), html)
+        },
+        // A refusal is cleared the same way, so a corrected value shows no
+        // complaint about the one before it.
+        typingClearsAStaleRefusal: () => {
+            const next = unwrap(assertNotNullish(
+                runPure(demo.update({ ...demo.init, kind: 'done', note: 'a whole number, please' })(
+                    { kind: 'input', name: 'size', value: '900' }))[0],
+                'expected a pure state'))
+            assertEq(next.note, null)
+            assert(!htmlToString(demo.view(next)).includes('whole number'),
+                htmlToString(demo.view(next)))
+        },
+        /**
+         * **What the reader typed is theirs to see and fix.** Both refusals
+         * are absorbed into the state and rendered, because a demo's error
+         * channel is `never`.
+         */
+        refuses: () => {
+            /** @type {(size: string) => string | null} */
+            const noteFor = size => unwrap(assertNotNullish(
+                runPure(demo.update({ ...demo.init, size })({ kind: 'click', name: 'run' }))[0],
+                'expected a pure state')).note
+            assertEq(noteFor('twenty'), 'a whole number, please')
+            assertEq(noteFor(''), 'a whole number, please')
+            // **A number the engine can hold is measured, however large.**
+            // It answers a `Do` — the sandbox it is about to ask for — where a
+            // refusal answers a state directly, so an empty `runPure` is the
+            // assertion that it got past the guard. There is no upper bound
+            // left to test here: the ceiling is the engine's, and asking it is
+            // an effect, which `tooBigForTheEngine` covers instead.
+            assertEq(
+                runPure(demo.update({ ...demo.init, size: '999999999' })({ kind: 'click', name: 'run' })).length,
+                0)
+        },
+        /**
+         * **The ceiling belongs to the engine, so the demo asks rather than
+         * consults a constant.** How large a `bigint` may be is
+         * implementation-defined and the implementations disagree — the same
+         * V8 refused above `2**1073741759` in one Chrome and `2**1073741823`
+         * in one Node — so the page attempts the shift and reads what came
+         * back. A `sandbox` whose inner result is an error is the engine
+         * saying no, and the answer is a note with no rows: nothing was
+         * measured, and seven rows of "wrong answer" would say the candidates
+         * were at fault.
+         */
+        tooBigForTheEngine: () => {
+            const refuses = run(/** @type {MemOperationMap<Sandbox, null>} */ ({
+                sandbox: f => state => [state, ok({ result: error(f), duration: 0 })],
+            }))
+            const [, r] = refuses(null)(
+                demo.update({ ...demo.init, size: '999999999' })({ kind: 'click', name: 'run' }))
+            const next = unwrap(r)
+            assertStructurallySame(next.rows, [])
+            assert(
+                (next.note ?? '').endsWith('larger than a bigint this engine can hold'),
+                String(next.note))
+        },
+        /**
+         * **A long wait is announced before it is waited through.** `wait` is
+         * read from the state the demo is about to be handed, so the words
+         * reach the reader with the busy flag rather than after it clears.
+         * Below a minute there is nothing unusual to say and it answers
+         * `null`, which is what leaves the runtime's general word alone.
+         */
+        wait: () => {
+            const at = (/** @type {string} */ size) =>
+                assertNotNullish(demo.wait, 'the demo names a wait')({ ...demo.init, size })
+            assertEq(at('20000'), null)
+            assertEq(at('twenty'), null)
+            assertEq(at('300000'), 'about 2 minutes')
+            assertEq(at('3000000'), 'about 3 hours')
+            assertEq(at('999999999'), 'about 42 years')
+        },
+        /**
+         * **A candidate that throws is a row, not a failure of the demo.**
+         * `sandbox` catches what the work threw, so the runtime answers
+         * successfully with a failed inner result — the one outcome between
+         * "the page cannot measure" and "here is a time", and the only one
+         * that says the implementation is wrong rather than absent.
+         */
+        aWrongAnswerIsARow: () => {
+            // **The count is the state**, because the first `sandbox` of a run
+            // is not a candidate: it is the shift that asks the engine whether
+            // the number exists at all. Failing that one is a different
+            // outcome — see `tooBigForTheEngine` — so it has to succeed here
+            // for the candidates to be reached.
+            const threw = run(/** @type {MemOperationMap<Sandbox, number>} */ ({
+                sandbox: f => n => [n + 1, ok({ result: n === 0 ? ok(f()) : error(f), duration: 0 })],
+            }))
+            // A small exponent: seven candidates all throwing is the point, and
+            // `demo.init`'s 20000 would spend half a second making it.
+            const [, r] = threw(0)(
+                demo.update({ ...demo.init, size: '64' })({ kind: 'click', name: 'run' }))
+            const rows = unwrap(r).rows
+            assertStructurallySame(rows.map(({ outcome }) => outcome),
+                candidateNames.map(() => 'wrong answer'))
+            // And a row with a note renders the note where its time would be.
+            const html = htmlToString(demo.view({ ...demo.init, kind: 'done', rows }))
+            assert(html.includes('wrong answer'), html)
+            assert(!html.includes('ms'), html)
+        },
+        // A refusal to measure is rendered as itself, not as an empty table.
+        aNoteIsRendered: () => {
+            const html = htmlToString(demo.view(
+                { ...demo.init, kind: 'done', note: 'a whole number, please' }))
+            assert(html.includes('a whole number, please'), html)
+            assert(!html.includes('<pre>'), html)
+        },
+        // Only the named button starts a run; anything else leaves the state.
+        onlyRunStarts: () => {
+            assertEq(unwrap(assertNotNullish(
+                runPure(demo.update(demo.init)({ kind: 'click', name: 'other' }))[0],
+                'expected a pure state')), demo.init)
+            assertEq(unwrap(assertNotNullish(
+                runPure(demo.update(demo.init)({ kind: 'start' }))[0],
+                'expected a pure state')), demo.init)
+        },
+        // Before a run there is a control and no table; after one, both. The
+        // field shows what will be measured, which is the default until typed.
+        view: () => {
+            const idle = htmlToString(demo.view(demo.init))
+            assert(idle.includes('name="run"'), idle)
+            assert(idle.includes('name="size"'), idle)
+            assert(idle.includes('value="20000"'), idle)
+            assert(!idle.includes('<pre>'), idle)
+            const done = htmlToString(demo.view({
+                kind: 'done',
+                size: '20000',
+                rows: [{ name: 'log2', outcome: 1.25 }],
+                note: null,
+            }))
+            assert(done.includes('log2'), done)
+            assert(done.includes('1.3 ms'), done)
+        },
     },
 }

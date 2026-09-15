@@ -30,9 +30,8 @@ leaf set gains `undefined`, `bigint`, `NaN` and the infinities — and with a
 DJS described here requires it too), no `import`, no comments, no
 identifier keys and no trailing commas. The data subset
 described in *this* document is wider and is what the compiler accepts today.
-The two converge as
-[`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
-proceeds.
+The compiler bridges the two: `fjs compile` writes a module of the wider
+subset as a DataJS document, through DataJS's own writer.
 
 ## Principles
 
@@ -154,7 +153,9 @@ graph of values a `.f.js` is. The repository extension contract is
 ### JSON Input
 
 A `.json` input is a JSON document, read by the JSON reader. Anything else is
-a FunctionalScript module, read by the module parser.
+a FunctionalScript module, read by the module parser. An imported `.json`
+file is a JSON document too, and its import says so with `with { type: "json" }`
+([importing](#importing-other-modules)).
 
 ```json
 {
@@ -189,28 +190,31 @@ a reinterpretation.
 ### Output
 
 A `.json` output is a **tree**; any other extension makes the output a
-JavaScript module, which is a **graph**.
+[DataJS](./datajs/README.md) document, which is a **graph**.
 
 ```sh
-fjs compile input.f.js output.f.js   # JavaScript module
+fjs compile input.f.js output.f.js   # DataJS, a JavaScript module
 fjs compile input.f.js output.json   # JSON
 ```
 
-- A JavaScript module preserves the object graph: a value referenced more than
-  once is emitted as a `const` and stays shared
-  ([shared values](#shared-values-constants)).
-- JSON is a tree, so shared values are expanded into as many copies as there
-  are references.
-- Object properties are emitted in sorted key order, by UTF-16 code unit —
-  `"10"` before `"2"`.
-- A `__proto__` key is emitted as `["__proto__"]:` in a JavaScript module and
+- A DataJS document is written in
+  [normalized form](./datajs/README.md#normalized-form): one line, and a
+  value referenced more than once hoisted into a `const` named `$0`, `$1`, …
+  so it stays shared ([shared values](#shared-values-constants)). Every value
+  a module denotes has a document.
+- JSON is a tree, and the compiler refuses what JSON cannot spell rather than
+  write a file that reads back as a different value: a shared value, which
+  written twice reads back as two; `bigint`, `undefined`, `NaN`, `Infinity`
+  and `-Infinity`, which JSON has no word for. A `bigint` is refused even
+  though its digits are JSON, since `1` reads back as the *number* `1`. The
+  refusal names the output file and writes nothing.
+- Object properties are emitted in the order the object carries them —
+  JavaScript's own-property order, array-index keys first — in both formats.
+- A `__proto__` key is emitted as `["__proto__"]:` in a DataJS document and
   as `"__proto__":` in JSON ([below](#the-__proto__-key)).
-- A number that overflows to infinity is emitted as `null` in both formats,
-  the way `JSON.stringify` writes it.
-- `bigint` and `undefined` have no JSON spelling. The `.json` writer currently
-  emits the module spellings `34n` and `undefined` anyway, producing a file
-  that is not valid JSON; it should reject the value instead. Tracked by
-  [`fjs/djs/todo/json-bigint-serialization.md`](../fjs/djs/todo/json-bigint-serialization.md).
+- `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
+  to infinity — are emitted as those words in a DataJS document, and `-0` as
+  `-0` in both formats.
 
 The output is data in both formats: the module the compiler writes contains
 `const` statements and one `export default`, never a function.
@@ -256,6 +260,7 @@ access, and grouping are not recognized yet — see the
 |`null`|`null`|✅|
 |boolean|`true`, `false`|✅|
 |number|`-42.5`, `3e2`|✅|
+|number, not JSON's|`NaN`, `Infinity`, `-Infinity`|❌|
 |string|`"hello"`|✅|
 |array|`[1, "a"]`|✅|
 |object|`{ "a": 1 }`|✅|
@@ -282,12 +287,21 @@ export default [0, -42.5, 3e2, 1E-7];
 
 The syntax is JSON's, so the JavaScript spellings JSON leaves out are not
 recognized: no hexadecimal (`0x10`), no leading `+`, no leading decimal point
-(`.5`), no numeric separators (`1_000`), and no `NaN` or `Infinity` — those
-two are identifiers, and the parser reports them as an undeclared name.
+(`.5`), no numeric separators (`1_000`). The three numbers JSON cannot spell
+are written as the words JavaScript gives them — `NaN`, `Infinity` and
+`-Infinity` — exactly as [DataJS](./datajs/README.md) writes them:
+
+```js
+export default [NaN, Infinity, -Infinity];
+```
+
+`NaN` and `Infinity` are reserved words, like `undefined`: a module cannot
+bind, shadow or key them, and each denotes its value wherever it stands.
 
 The `-` is lexical: it joins the number to its left as part of one token, so
-`-42.5` is a number literal and `- 42.5` is not a value at all. There is no
-negation operator ([operators](./todo/2340-operators.md)).
+`-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
+`Infinity` the same way — `-Infinity` is one token and `-NaN` is not a value.
+There is no negation operator ([operators](./todo/2340-operators.md)).
 
 ### Strings
 
@@ -348,7 +362,8 @@ A key is a constant, written in one of three ways:
 
 The three spellings denote the same key and mix freely inside one object. An
 identifier key is spelled as a JavaScript identifier — letters, digits, `_`,
-`$`, not starting with a digit.
+`$`, not starting with a digit — and may be a reserved word, `{ if: 1 }`, as
+it may in JavaScript.
 
 The brackets hold a **string literal**, not an expression: a key is a constant
 in every form. A key computed from a reference or any other expression, and a
@@ -423,6 +438,35 @@ it is the only spelling whose evaluation reproduces the property. In JSON
 output the plain key stays: `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the bracketed form is not JSON at all.
 
+## Property Access
+
+```js
+const cfg = { ports: [80, 443] };
+export default [cfg.ports[0], cfg["ports"].length];
+```
+
+A property access reads an **own property** of any value but a number or a
+bigint literal — a reference, an array, an object or a string written out, or
+an access — a member of an object, an element or the `length` of an array, a
+code unit or the `length` of a string. A number or a bigint literal takes no
+access: JavaScript reads `-1 .x` as `-(1 .x)`, and the language has no
+negation to read it that way, so `1 .x` is an error while `const n = 1;`
+followed by `n.x` is `undefined` in both languages. The key is a constant — an identifier
+after `.`, or a string or a number in brackets — and `0` and `"0"` name the
+same element, as in JavaScript. A property the value does not own is
+`undefined`, and reading one of `null` or `undefined` is an error, as
+JavaScript throws.
+
+FunctionalScript has no prototype chains, so a name a built-in prototype
+gives a value — `push`, `toString`, `valueOf`, `constructor`, `__proto__`
+and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
+— is a **compilation error** as a key, in either spelling: JavaScript would
+find a function there and this language nothing, and a module must mean one
+thing in both. `length` is the exception, since an array, a string and a
+function own it. The rules are
+[property-accessor](./todo/2330-property-accessor.md)'s; a key computed at
+run time, and a method call, are not recognized yet.
+
 ## Importing Other Modules
 
 ```js
@@ -433,19 +477,35 @@ An `import` statement binds the exported value of another module to a name, so
 modules can be shared and reused — a common configuration, a shared table of
 constants, a fragment that several outputs include.
 
-- Only the **default import** form is recognized. Named imports, namespace
-  imports ([namespace-import](./todo/2220-namespace-import.md)), and import
-  attributes ([import-attributes](./todo/2140-import-attributes.md)) are not.
+- Only the **default import** form is recognized. Named imports and namespace
+  imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
 - The path is a [string literal](#strings), resolved relative to the importing
   module.
 - Each module is parsed and evaluated once per resolved path, and its value is
   shared by every importer. A circular dependency is an error.
-- An imported file is read as a FunctionalScript module whatever its
-  extension, so a **JSON document cannot be imported**: choosing the language
-  is the import statement's job, and the language has no `with { type: "json" }`
-  clause yet ([import-attributes](./todo/2140-import-attributes.md)).
+- The name is a JavaScript identifier that JavaScript does not reserve:
+  `import class from "./a.f.js";` is an error here as there.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
+
+A JSON document is imported with the attribute JavaScript requires of it, and
+denotes the value `JSON.parse` gives it:
+
+```js
+import a from "./a.json" with { type: "json" };
+```
+
+- The attribute is `with { type: "json" }`, spelled as JavaScript spells it:
+  the key `type` and the string `"json"`, in braces after the path. Any other
+  key or value is an error, as it is in JavaScript. `"json"` is the one type
+  ECMAScript defines; `"text"` and `"bytes"` are proposals, blocked on their
+  standardization ([import-text-bytes](../todo/blocked/import-text-bytes.md)).
+- The attribute declares the file's language and never reinterprets the file,
+  so it must agree with the extension: a `.json` file imported without it, and
+  any other file imported with it, are errors — JavaScript refuses both, so
+  that data a program did not declare cannot stand where it expects a module.
+- The document is read by the JSON reader, as a `.json` input is
+  ([JSON input](#json-input)): a `.json` file is JSON and nothing more.
 
 `fjs compile` resolves imports and inlines them, so its output is one
 self-contained file that imports nothing.
@@ -476,6 +536,11 @@ the author had in mind. In FunctionalScript the sharing *is* the language:
 JavaScript engine loading the module rebuilds exactly the graph that was
 written.
 
+- A name is a JavaScript identifier that JavaScript does not reserve:
+  `const if = 1;`, `const export = 1;` and `const let = 1;` are errors here as
+  they are there — any broken JavaScript program is a broken FunctionalScript
+  program — while a key or a property name may be any word, `{ if: 1 }` and
+  `a.default` included, as in JavaScript.
 - A name must be declared before it is used. Forward references are not
   recognized yet ([forward-references](./todo/3140-forward-references.md)).
 - Imported and constant names share one namespace: declaring the same name
@@ -509,6 +574,29 @@ export default [c1,c1,c0];
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const>.
 
+## Functions
+
+```js
+export default (...args) => [args, args[0]];
+```
+
+A function is written as an arrow function of one rest parameter, and its
+body is an expression. It denotes a function of its arguments alone:
+
+- The parameter is the arguments array, `args[0]` the first argument, and
+  the body may name it and nothing declared outside — a `const`, an import,
+  or an enclosing function's parameter is a **capture**, which is an error
+  ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
+  a module name, as in JavaScript.
+- The body is any value except an object literal: after `=>` JavaScript reads `{`
+  as a block, never as an object, so the spelling is refused rather than read
+  another way. A block body, `=> { return 1 }`, named parameters and a call
+  are not recognized yet ([function](./todo/3110-function.md),
+  [parameters](./todo/3120-parameters.md)).
+- A function is compiled to the EDAG output only: `fjs compile` refuses to
+  write a module holding one as a module or as JSON, since a value has no
+  function in it.
+
 ## Module Structure
 
 A module is a sequence of statements, each terminated by a semicolon — the
@@ -526,16 +614,26 @@ FunctionalScript module — `const $0=[1];export default [$0,$0];` is normalized
 DataJS, one line, and it parses here. JavaScript accepts the same module with
 the same meaning, so the subset law holds; what FunctionalScript refuses from
 JavaScript is the empty statement and automatic semicolon insertion — a
-statement here ends at a `;`, never at a spot an engine infers. This is the
-rule [`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
-settles on for the compiler-formatted `.f.js` output language (its stage 5),
-landed ahead of that stage with the parser's move to the LL(1) backend, where
-telling a newline from a `;` reached through newlines took unbounded
-lookahead. The compiler writes the `;` after every statement it emits.
+statement here ends at a `;`, never at a spot an engine infers. The rule
+landed with the parser's move to the LL(1) backend, where telling a newline
+from a `;` reached through newlines took unbounded lookahead, and it is the
+rule of the compiler-formatted `.f.js` output language: the compiler writes
+the `;` after every statement it emits. Trivia between tokens — whitespace
+or a comment — is optional here, `export default[1];`, `export default{};`
+and `import a from"./a.f.js";` included. Where two words would otherwise
+lex as one identifier some trivia is needed — after `const`, `export` and
+`import`, and between an import's name and `from`, since `const$0`,
+`exportdefault`, `importa` and `afrom` are each one identifier — and a
+comment separates as a space does: `const/**/a=1;` and
+`import/**/a/**/from/**/"./a.f.js";` parse. After `default`, and before an
+import's string, nothing is needed. DataJS requires a space after `const`,
+`export` and `default` and admits no comment, more than this language asks,
+so every DataJS document parses here.
 
 |Statement|Form|
 |---------|----|
 |default import|`import name from "./path";`|
+|JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
 |default export|`export default expression;`|
 
@@ -558,6 +656,5 @@ effects, the content-addressable VM, object identity, mutability, and
 serialization — is in [`spec/todo/`](./todo/README.md). A feature's document
 moves into this one when the parser recognizes it.
 
-For the implementation, see [`fjs/djs/README.md`](../fjs/djs/README.md) for
-the data language and [`fjs/fsc/README.md`](../fjs/fsc/README.md) for the
-compiler.
+For the implementation, see [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
+compiler and the data language it accepts today.

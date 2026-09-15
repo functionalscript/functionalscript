@@ -23,10 +23,10 @@ number, `i` for identifier. All other information (actual value, position, etc.)
 is carried as meta information.
 
 Every layer reuses the same engine, [`../ll1`](../ll1/README.md). The two
-djs layers are the shipped instance: `fjs/djs/tokenizer` reads code points
+djs layers are the shipped instance: `fjs/fsc/tokenizer` reads code points
 as tokens through the one-token grammar `fjs/ebnf/lib/js`, the parser
 resumed where the last token ended ([`../ll1`](../ll1/README.md), "A token
-layer resumes the parser"), and `fjs/djs/parser` reads those tokens as a
+layer resumes the parser"), and `fjs/fsc/parser` reads those tokens as a
 module through a rewrite set, each token one symbol of `../token_symbol`
 with the token as its metadata.
 
@@ -54,7 +54,7 @@ Two mechanics the layers need:
 
 ### Open Questions
 
-- **Keyword disambiguation** — answered by `fjs/djs/parser`: a keyword the
+- **Keyword disambiguation** — answered by `fjs/fsc/parser`: a keyword the
   grammar frames a statement with gets a symbol of its own in the
   token alphabet, and an identifier rule that admits every keyword symbol
   keeps the word usable as a name where the grammar does not require it.

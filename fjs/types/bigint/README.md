@@ -136,7 +136,11 @@ https://github.com/functionalscript/functionalscript/actions/runs/12521052013/jo
 
 **Browser Test**
 
-[benchmark.html](./benchmark.html)
+The table below was measured once per browser, by hand, on a page written for
+it and pasted here. That page is gone: [`demo.f.mjs`](./demo.f.mjs) runs the
+same comparison on this module's own page, in whatever browser is reading it,
+so the numbers a reader cares about are the ones their machine produces rather
+than the ones someone recorded in 2025.
 
 |Browser|CPU|str bin|str hex|old log2|log2|
 |-------|---|-------|-------|--------|----|

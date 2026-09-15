@@ -655,9 +655,9 @@ not apply here, and answering it needs no erasure rule.
 A FunctionalScript module compiles to an [EDAG](./edag-spec.md), and source is
 serialized back **out of the graph**, by reference count, emitting only what is
 reachable —
-[`fjs/djs/serializer`](../fjs/djs/serializer/module.f.mjs) already does exactly
-this for DJS values, counting references, hoisting shared ones to `const cN`,
-and emitting nothing for what nothing points at. A schema imported and named
+[`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs)
+already does exactly this for DataJS values, counting references, hoisting
+shared ones to `const $N`, and emitting nothing for what nothing points at. A schema imported and named
 only to be mentioned in `//: myType` annotations has no edge from anything the
 program evaluates: the annotation is a comment, the compiler consumed it at
 compile time, and no node refers to the binding, so **the schema is not built in
@@ -697,11 +697,11 @@ the module the schema was imported from: the transpiler evaluates every imported
 module before the importing body, even when the binding is never referenced, so
 an import whose module has a throwing top-level computation is observable
 precisely by throwing. Dropping such an import would delete a failure from the
-program. [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
-is explicit about it and takes the conservative branch: Stage 1 **rejects** a
-source module when an import parameter is not reachable from the module EDAG
-root — "deliberately a reachability rule, not an effect analysis" — until the
-EDAG has the anchoring operation that can preserve a non-resulting computation.
+program. [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
+is explicit about it: an import parameter the export does not reach is
+**anchored** by the `,` operation — "deliberately a reachability rule, not an
+effect analysis" — so the imported module's root stays in the graph and is
+evaluated.
 
 An annotation-only import is exactly that shape. So, stated honestly:
 
@@ -714,10 +714,9 @@ An annotation-only import is exactly that shape. So, stated honestly:
   reading, and JavaScript still evaluates `makeType()` first, so dropping the
   initializer can delete a throw. Nor does it extend to `const t = makeType()`,
   where the immutability of the result proves nothing about the call. The same rule
-  that rejects unreachable imports applies inside the body — a potentially
-  throwing entry must be preserved, and a module is rejected rather than have
-  one discarded
-  ([compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)) — so
+  that anchors unreachable imports applies inside the body — a potentially
+  throwing entry is anchored rather than discarded
+  ([compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)) — so
   an annotation-only local schema from such a call is in exactly the position
   stage 12 addresses. **Stage 12 covers both** — imported roots and local
   initializers — so the work is owned; what stays open is whether the local
@@ -733,9 +732,9 @@ An annotation-only import is exactly that shape. So, stated honestly:
   totality analysis proving the *imported root* total — a different and larger
   thing than proving the schema constructor total, and nothing in this epic
   provides it;
-- until then a module whose only use of an import is in annotations is one of
-  the cases that rule rejects, and the epic owes it a resolution rather than an
-  assumption — [stage 12](#tasks);
+- so a module whose only use of an import is in annotations compiles, its
+  import anchored, and what the epic owes is the cost question, not the
+  legality — [stage 12](#tasks);
 - the resolution is anchoring, not an exemption for schema modules. That
   `fjs/rtti/module.f.mjs` has no throwing top-level computation is true
   and is not a rule; a schema can be imported from anywhere.
@@ -814,7 +813,7 @@ way, so the server that reports type errors is itself described by the type
 system it reports for.
 
 One known consequence elsewhere:
-[error-message-specificity](../fjs/djs/tokenizer/todo/error-message-specificity.md)
+[error-message-specificity](../fjs/fsc/tokenizer/todo/error-message-specificity.md)
 parks "continue tokenizing after an error" as not worth doing "unless a real use
 case (e.g. an editor/LSP wanting multiple diagnostics per file) shows up". This
 is that use case — an editor that stops at the first token error is not usable —
@@ -899,8 +898,9 @@ are stated instead:
         [`parse`](../fjs/rtti/parse/module.f.mjs)), so the schema as
         *executed* accepts anything, functions and symbols included. The
         printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
-        the DJS-shaped `Primitive | Array | Object` and so promises less than
-        the schema delivers. **Do not "fix" this by emitting the DJS union:**
+        the DataJS-shaped `Primitive | Array | Object` and so promises less
+        than the schema delivers. **Do not "fix" this by emitting the DataJS
+        union:**
         that would make a declaration reject values the runtime accepts —
         reversing the mismatch rather than removing it. Reconciling `Ts<>` with
         the readers, or narrowing both readers deliberately, is the real
@@ -939,7 +939,7 @@ are stated instead:
       than this epic — but an earlier draft stopped there, and a question
       deferred without a gate is one stage 11 can walk straight past. Four
       sources disagree about what an exported `unknown` promises: the module
-      and its README say DJS-compatible values; `Ts<>` excludes functions and
+      and its README say DataJS-compatible values; `Ts<>` excludes functions and
       symbols; the readers accept them
       ([`validate`](../fjs/rtti/validate/module.f.mjs) and
       [`parse`](../fjs/rtti/parse/module.f.mjs) both have
@@ -1502,37 +1502,39 @@ are stated instead:
       leaves behind** — both **imported module roots** and **local
       initializers** — so that an annotation-only schema neither is rejected
       nor silently deletes a failure. This is the `','` anchoring operation
-      [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
-      defers, read from this epic's side. It makes such a schema **legal**, not
-      free: an anchored computation is still evaluated, which is the point of
-      anchoring.
+      [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
+      emits for whatever a module's export does not reach — imported roots
+      and local entries alike, by reachability — read from this epic's side:
+      the legality half is done by the compiler, and what this stage owns is
+      the totality exemption below. Anchoring makes such a schema **legal**,
+      not free: an anchored computation is still evaluated, which is the point
+      of anchoring.
 
       **This is a prerequisite, not a side quest, and an earlier draft of this
       file said otherwise.** The rule in
-      [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
-      *rejects* a module whose import parameter is unreachable from the EDAG
-      root, and equally requires a potentially throwing body entry to be
-      preserved rather than discarded. Once the compiler consumes an
-      annotation, a binding used only to name or build that annotation's schema
-      is exactly that — so such a module does not compile, which is a gate on
-      stages 4–5 and on stage 11 — **not** stage 3, which only records and
-      resolves the annotation — and not a question of runtime cost.
+      [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md)
+      *anchors* an import parameter unreachable from the EDAG root, and
+      equally a potentially throwing body entry, rather than discarding
+      either. Once the compiler consumes an annotation, a binding used only to
+      name or build that annotation's schema is exactly that — so such a
+      module compiles and pays for the anchored computation, which is what
+      stages 4–5 and stage 11 inherit — **not** stage 3, which only records
+      and resolves the annotation.
 
       Both halves bind where the use is annotation-*only* — a module that also
       passes the schema to `validate` keeps it reachable and is unaffected.
       **The totality exemption applies to locals only.** An initializer built
       entirely from the RTTI constructors is droppable without anchoring,
       because droppability there is a property of the node. The import rule is
-      not an effect analysis and says so: it rejects on *reachability*, so an
-      annotation-only import is rejected even when the module it names is
-      wholly total, and nothing in the compiler establishes that totality
-      across a module boundary anyway. Exempting total imports would need that
-      cross-module analysis first. What is left is an
+      not an effect analysis and says so: it anchors on *reachability*, so an
+      annotation-only import is anchored and evaluated even when the module it
+      names is wholly total, and nothing in the compiler establishes that
+      totality across a module boundary anyway. Exempting total imports would
+      need that cross-module analysis first. What is left is an
       annotation-only import, or an annotation-only local whose initializer
       contains a call — `const t = array(makeType())` included, since the
-      argument is evaluated first. Until this lands, such a module must keep a
-      runtime use of the schema alive — a wart, and worth naming as one — or
-      keep the JSDoc it was going to retire.
+      argument is evaluated first: both compile, anchored, and neither is
+      free.
 
       An alternative to anchoring the local half is a totality analysis that
       can prove the initializer safe to drop. That is a different and larger
@@ -1705,13 +1707,11 @@ are stated instead:
 5. **Cost.** Every annotation reaches a module evaluation. A name makes the
    cache key obvious — the binding — but whether the compiler memoizes schemas
    across a build is still open.
-6. **Annotation-only imports.** Until imported roots can be anchored (stage 12),
-   what should the compiler do with a module whose only use of an import is in
-   annotations — reject it, as Stage 1's reachability rule does today, or keep
-   the import and pay for it? Rejecting is safe and unhelpful; keeping it makes
-   the cost claim conditional on the module imported from. Note that anchoring
-   settles the rejection, not the cost: dropping an anchored root additionally
-   needs it proven total.
+6. **Annotation-only imports.** The compiler anchors an import the export does
+   not reach, so a module whose only use of an import is in annotations keeps
+   the import and pays for it, which makes the cost claim conditional on the
+   module imported from. Anchoring settles the legality, not the cost: dropping
+   an anchored root additionally needs it proven total.
 7. **Ownership-tracked locals.** A local mutable object
    ([mutability](../spec/todo/mutability.md)) has no RTTI type while it is still
    mutable. Whether it may be annotated at all — with the schema its escaped
@@ -1768,8 +1768,8 @@ splits around inference, so the runnable order is 668's representation half
   its whole initializer is total**, which the RTTI constructors are and an
   arbitrary call is not.
 - [serialization](../spec/todo/serialization.md) and
-  [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — code
-  as an FJS value, and the rollout that brings the above from DJS values to
+  [compile-modules-to-edag](../fjs/fsc/todo/compile-modules-to-edag.md) — code
+  as an FJS value, and the rollout that brings the above from DataJS values to
   modules.
 - [134-nominal-types-proposal](./134-nominal-types-proposal.md) — stage 9.
 
@@ -1840,7 +1840,7 @@ splits around inference, so the runnable order is 668's representation half
 - [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
   [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
   builds on, and the precedent for describing a protocol's messages in RTTI.
-- [error-message-specificity](../fjs/djs/tokenizer/todo/error-message-specificity.md) —
+- [error-message-specificity](../fjs/fsc/tokenizer/todo/error-message-specificity.md) —
   its parked "continue after an error" is unparked by stage 10; an editor needs
   more than one diagnostic per file.
 - [expression](../spec/todo/3410-expression.md) — **not** a dependency, which is

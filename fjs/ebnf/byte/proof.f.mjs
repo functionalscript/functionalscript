@@ -36,10 +36,10 @@ const hole = [, 0x61]
 const word = mapping
 
 export const proof = {
-    // The universe is every byte, spelled as the range it is.
+    // The universe is every byte, spelled as the range it is; `./types.ts`
+    // pins the spelling, where an alias is resolved on sight.
     byte: () => {
         assertStructurallySame(byte(), ['set', 0, 0x100])
-        /** @typedef {Assert<Equal<typeof byte, Set<readonly ['rangeEncode', 0, 255]>>>} _Spelling */
     },
     // `not` complements within the byte universe, not the Unicode one.
     not: () => {
@@ -58,9 +58,13 @@ export const proof = {
         // in the type.
         set: () => {
             const e = bytes(0xE9)
+            // The return carries the byte it was given, not merely that it was
+            // one. Stated before the assertions rather than after them: a
+            // typedef binds to the statement that follows it, so one at the end
+            // of a block checks nothing (`../../AGENTS.md` §1.4).
+            /** @typedef {Assert<Equal<typeof e, Set<readonly ['bytes', 0xE9]>>>} _Spelling */
             assertStructurallySame(e(), ['set', 0xE9, 0xEA])
             assertStructurallySame(bytes(0xFF, 0, 1)(), ['set', 0, 2, 0xFF, 0x100])
-            /** @typedef {Assert<Equal<typeof e, Set<readonly ['bytes', 0xE9]>>>} _Spelling */
         },
         throw: {
             none: () => bytes(),
@@ -205,11 +209,13 @@ export const proof = {
         prefix: () => {
             const d = repeatFrom1(range('09'))
             const parse = byteParser([d, '\0'])
-            assertEq(unwrap(parse(symbols([0x31, 0x32, 0, 0xFF, 0xFF])))[1], 3)
             // `byteParser`'s `const R` keeps the argument a tuple of literals,
             // where a dropped modifier would widen it to an array and `tsc`
             // would still pass; this is what makes the modifier load-bearing.
+            // Before the assertion rather than after it, so that it binds to a
+            // statement and is checked (`../../AGENTS.md` §1.4).
             /** @typedef {Assert<Equal<typeof parse, Parser<Ast<readonly [typeof d, '\0'], Byte>, Byte>>>} _ConstParameter */
+            assertEq(unwrap(parse(symbols([0x31, 0x32, 0, 0xFF, 0xFF])))[1], 3)
         },
         // Every rule the lowering met is checked, wherever it sits.
         throw: {

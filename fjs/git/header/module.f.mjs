@@ -1,7 +1,9 @@
 /**
  * The header block a commit and a tag share: `key SP value LF` lines, a
- * line beginning with SP continuing the value before it, one empty line,
- * and the message to the end of the object.
+ * line beginning with SP continuing the value before it, then the empty
+ * line and the message to the end of the object — or nothing, where the
+ * object ends at its last header's LF, which Git reads as the same object
+ * with no message.
  *
  * Generic on purpose, the way Git's own reader is: which keys are required,
  * in what order, and what their values mean are checks on the header list
@@ -22,7 +24,7 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
-import { eof, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
+import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { flat, flatMap } from '../../types/list/module.f.mjs'
 
 const lf = /** @type {const} */ (0x0A)
@@ -46,10 +48,22 @@ export const header = /** @type {const} */ ([key, ' ', line, repeatFrom0(continu
 export const headers = repeatFrom0(header)
 
 /**
- * The payload of a commit or a tag: the header block, the empty line, and
- * the message to the end of the input.
+ * The payload of a commit or a tag: the header block, then the empty line
+ * and the message to the end of the input — or the end of the input at
+ * once, since Git ends a header block at a line that is no header and the
+ * input's end is one of those. `git hash-object -t tag` writes a tag whose
+ * last byte is its last header's LF, and `<id>^{}` follows it; a commit
+ * spelled the same way gives up its tree.
+ *
+ * The two are not one object. They are two byte strings and so two ids, so
+ * a `message` of `null` keeps them apart and {@link write} puts back what
+ * was read rather than the longer of the two.
+ *
+ * LL(1) either way: a header begins with a key byte, which is neither SP
+ * nor LF, so an LF after the block can only be the empty line and the end
+ * of the input can only be the end.
  */
-export const payload = /** @type {const} */ ([headers, '\n', repeatFrom0(byte), eof])
+export const payload = /** @type {const} */ ([headers, option(['\n', repeatFrom0(byte)]), eof])
 
 const parse = byteParser(payload)
 
@@ -67,16 +81,18 @@ const headerOf = ([k, , [first], rounds]) => [
 
 /**
  * Reads the payload of a commit or a tag, or refuses it: a header line
- * without a SP, a first line beginning with SP, no empty line before the
- * end of the input.
+ * without a SP, or a first line beginning with SP. A payload with no empty
+ * line before the end of the input is read, not refused, with `message`
+ * `null`.
  *
  * @type {(input: Bytes) => Nullable<Payload>}
  */
 export const tryRead = input => {
     const r = parse(symbols(input))
     if (r[0] === 'error') { return null }
-    const [[hs, , message]] = r[1]
-    return { headers: hs.map(headerOf), message: symbolsOf(message) }
+    const [[hs, tail]] = r[1]
+    const [rest] = tail
+    return { headers: hs.map(headerOf), message: rest === undefined ? null : symbolsOf(rest[1]) }
 }
 
 /**
@@ -164,13 +180,18 @@ const headerBytes = ([k, v]) => {
 }
 
 /**
- * A payload's bytes: every header as it was read, the empty line, and the
- * message. The inverse of {@link tryRead}, byte for byte.
+ * A payload's bytes: every header as it was read, then the empty line and
+ * the message, or nothing where the message is `null`. The inverse of
+ * {@link tryRead}, byte for byte, which is why the `null` is carried: an
+ * object that ended at its last header's LF is written back ending there,
+ * and one with an empty line and an empty message keeps both.
  *
  * @throws On a key the format cannot spell, and on a key, a value or a
  * message holding a number that is no byte; see {@link headerBytes}.
  *
  * @type {(p: Payload) => Bytes}
  */
-export const write = ({ headers, message }) =>
-    flat([flat(headers.map(headerBytes)), [lf], checked(message)])
+export const write = ({ headers, message }) => flat([
+    flat(headers.map(headerBytes)),
+    message === null ? [] : flat([[lf], checked(message)]),
+])

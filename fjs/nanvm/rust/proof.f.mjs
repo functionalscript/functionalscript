@@ -23,14 +23,20 @@ const valueExpr = v => nodeExpr(valueExp(v))
  * @type {Data}
  */
 const sample = {
-    eq: {
-        shared: { emptyArray: [] },
-        cases: [
-            { name: 'itself', a: ref('emptyArray'), b: ref('emptyArray'), eq: true },
-            { name: 'skipped', a: null, b: null, eq: true, rust: 'not yet' },
-        ],
-    },
+    shared: { emptyArray: [] },
     groups: [
+        {
+            op: '===',
+            commutative: true,
+            cases: [
+                {
+                    name: 'itself',
+                    args: [ref('emptyArray'), ref('emptyArray')],
+                    expected: true,
+                },
+                { name: 'skipped', args: [null, null], expected: true, rust: 'not yet' },
+            ],
+        },
         { op: '+', arity: 1, cases: [{ name: 'bigint', args: [0n], expected: throws }] },
         { op: '?:', cases: [{ name: 'pick', args: [true, 1, 2], expected: 1 }] },
         {
@@ -49,8 +55,10 @@ use super::harness::*;
 #[rustfmt::skip]
 fn eq<A: IVm>() {
     let empty_array: Any<A> = Array::default().to_any();
-    check_eq::<A>("itself", empty_array.clone(), empty_array.clone(), true);
-    // TODO: not yet: check_eq::<A>("skipped", Nullish::Null.to_any(), Nullish::Null.to_any(), true);
+    check::<A>("itself", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
+    check::<A>("itselfSwapped", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
+    // TODO: not yet: check::<A>("skipped", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
+    // TODO: not yet: check::<A>("skippedSwapped", strict_eq(Nullish::Null.to_any(), Nullish::Null.to_any()), true.to_any());
 }
 
 #[rustfmt::skip]
@@ -186,11 +194,15 @@ export const proof = {
      */
     nestedSharing: () => {
         const rust = generate({
-            eq: {
-                shared: { base: [], wrapper: [ref('base')] },
-                cases: [{ name: 'w', a: ref('wrapper'), b: ref('wrapper'), eq: true }],
-            },
-            groups: [],
+            shared: { base: [], wrapper: [ref('base')] },
+            groups: [{
+                op: '===',
+                cases: [{
+                    name: 'w',
+                    args: [ref('wrapper'), ref('wrapper')],
+                    expected: true,
+                }],
+            }],
         })
         assert(
             rust.includes('let wrapper: Any<A> = [base.clone()].to_array().to_any();'),
@@ -214,11 +226,11 @@ export const proof = {
         /**
          * An operation the printer has no `nanvm-lib` spelling for. The
          * generated file would otherwise carry a statement that does not
-         * compile, or worse, one that does and means something else. `===`
-         * is such an id: `eqFn` spells it as `check_eq`, never as an
-         * expression.
+         * compile, or worse, one that does and means something else. `!==`
+         * is such an id: the schema has it and the corpus has no group for
+         * it, so nothing maps it.
          */
-        unknownOperation: () => nodeExpr(['===', 1, 2]),
+        unknownOperation: () => nodeExpr(['!==', 1, 2]),
         /**
          * A lambda other than `() => undefined`: no closure prints, so each
          * way of not being the smallest one is refused — a frame that is a

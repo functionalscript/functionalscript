@@ -1,21 +1,193 @@
 # FunctionalScript Compiler
 
-## There is no grammar here yet
+The front end: a grammar-based tokenizer over
+[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs), the
+[parser](./parser/README.md), the [AST](./ast/module.f.mjs), and the
+[transpiler](./transpiler/module.f.mjs) behind `fjs compile`. It moved here
+from `fjs/djs` when the parsers and serializers were restructured, and its
+issues followed into [`todo/`](./todo/) when the old serializer was retired
+and `fjs/djs` emptied; the value model is DataJS's,
+[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes through
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs):
+its module output is a DataJS document in normalized form, and
+its `.json` output refuses what JSON cannot spell rather than approximating
+it — see [`module.f.mjs`](./module.f.mjs).
 
-This package once held `bnf.f.mjs` and `json.f.mjs`, a FunctionalScript module
-grammar over a complete JSON grammar, both written with the classical
-`fjs/bnf` combinators, since deleted themselves. They were deleted rather
-than kept: nothing imported them, no proof covered them, the JSON half
-restated lexical rules the JSON grammar already covered — today
-[`fjs/ebnf/lib/json`](../ebnf/lib/json/module.f.mjs) — and a concrete media
-grammar does not belong in the compiler at all.
+What the compiler accepts today is the data language the sections below call
+DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
+and `[1].length`, on any value but a number or a bigint literal, which is
+refused since JavaScript reads `-1 .x` as `-(1 .x)`: an own property of the
+base, never the prototype chain, as
+[spec: property accessor](../../spec/todo/2330-property-accessor.md) has
+it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
+is refused at the key rather than read as `undefined` where JavaScript
+finds a function, `length` excepted, since a value owns it
+([`fjs/js/prototype`](../js/prototype/module.f.mjs)); `undefined` where
+there is no such property; and a `null` or `undefined` base is the one
+failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
+`{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
+node it is. A function, `(...a) => body`, is accepted for the EDAG output
+alone — see below — and refused by the value outputs, since a value has no
+function in it. Across modules the sweep is coarser: a module whose own value
+holds a shared node is shared under any route an importer takes into it,
+`m.selected` included, and the modules it reaches count under any route
+too, since where in the module's value a node sits is not carried, and
+refusing is the answer that never writes a node twice. The classical grammars this package once
+held were deleted rather than kept: nothing imported them, no proof covered
+them, and their FunctionalScript half separated statements by newline where
+the language requires `;`. Do not restore them; git history has them.
 
-Their FunctionalScript half is also **stale by design**, which is why it was not
-kept as an example: it separated statements by newline, and the language
-requires `;`. Do not restore either file. The front end this package will hold
-arrives by moving the existing one, per
-[`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md);
-git history has the deleted `id`/`alpha`/comment rules if they are ever wanted.
+## DJS, the accepted subset
+
+- additional types: bigint
+
+## Rules
+
+- can serialize/deserialize without reading source code
+  - no function serialization/deserialization
+
+## AST
+
+A DJS module parses into [ast/module.f.mjs](./ast/module.f.mjs); the types
+in [ast/types.ts](./ast/types.ts) carry the shape and its invariants.
+
+Why a flat list of constants with index references, rather than a value tree:
+a DJS module denotes a **graph**, and `import` and `const` are how it names
+the shared parts. Deserializing has to preserve that sharing — two properties
+holding the same reference must yield the same object, not two equal copies —
+so the AST keeps the constants addressable and refers to them by index
+instead of inlining them. That is also what makes serialization a real
+choice: a value referenced more than once is emitted as a `const` and reused.
+
+An object is `['object', members]`, the members in the order written and a
+repeated key written twice, rather than a plain object: `run` builds the
+object JavaScript builds from the same literal — a repeated key at its first
+position with its last value, integer-like keys first — and the EDAG object
+constructor takes the members as written, which only the syntax still has.
+See [examples/input.f.mjs](./examples/input.f.mjs).
+
+## EDAG
+
+A parsed module also compiles to an [EDAG](../edag/README.md) —
+[edag/module.f.mjs](./edag/module.f.mjs), Stage 1 of
+[compile-modules-to-edag](./todo/compile-modules-to-edag.md). `unresolved`
+compiles it over its imports, before any import is read: import `i` is the
+parameter `['.', ['args'], i]`, a `const` is one node however many references
+reach it, and the export is the root; the specifiers ride beside the graph as
+`Unresolved`, a compiler's structure and no part of EDAG. `resolve` links a
+program from its root path into one EDAG: each import is read, parsed and
+resolved the same way, recursively, and bound in its parameter's place — the
+binding happens where a reference is lowered, so the graph is built once with
+the imported module's node where its parameter would be — and a module met
+twice in one link is one node, so a diamond of imports joins where it should.
+A property access, `a.b` or `a[0]`, is the EDAG's `['.', base, key]`, its
+key a constant the parser admitted — `__proto__` and `constructor` refused at
+the key.
+A JSON module, imported `with { type: "json" }`, is the tree its document
+denotes, as `transpile` reads it; a `.json` file imported without the
+attribute, or another file imported with it, is refused as JavaScript refuses
+it.
+`fjs compile` writes the linked graph when the output name ends with
+`.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
+hoisted as the module output's are. What
+the export does not reach is anchored by the comma operation rather than
+dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
+`run` evaluates every `const`, so a failure behind an unused one fails the
+compile, and the graph keeps the computation the same way — its operands the
+roots of the unreached part in source order, an entry another unreached entry
+reaches being anchored through it, an alias being the node it names, and two
+imports of one module being one node. A module the export reaches entirely
+has no comma.
+A function is `['=>', null, body]`: no frame yet, and the body a scope of
+its own, in which the rest parameter is `['args']` — one node however many
+references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
+nothing outside stands: a reference to a `const`, an import or an enclosing
+function's parameter is a capture, refused where it is written, so no module
+node is ever shared into a body. The body is any value except an object, since
+`=> {` opens a block in JavaScript, and there is no call yet.
+A member a later duplicate shadows is in the graph, since the constructor
+applies every member written, so a reference in it is reached here where the
+sharing decision, which reads the value, does not count it.
+
+## Both grammars are LL(1)
+
+The tokenizer's grammar, [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs),
+and the parser's, [`parser/grammar`](./parser/grammar/module.f.mjs), are read
+by [`fjs/ebnf/ll1`](../ebnf/ll1/README.md), which refuses a grammar that one
+symbol of lookahead cannot decide, before any input. The classical grammars
+they replaced were read by a backtracking backend, and neither was LL(1) as
+spelled. Measured before the ports — the classical rule sets bridged into the
+EBNF form, every rule's closure run through `parserRuleSet`, each conflict
+masked once found so the next surfaced — they refused in eight shapes. The
+table is the record of what each port changed and why; the ports' own issues
+closed with them.
+
+| grammar | rule | refusal | class |
+|---|---|---|---|
+| tokenizer | `multilineContent`: `end: ['*', '/']` beside `more: [char, …]` | first/first on `*` | grammar: left-factor the `*` |
+| tokenizer | the `operator` variant, 56 literals | first/first on `=`, and on every shared prefix behind it | grammar: a prefix tree, built from the list — `literals` in `fjs/ebnf` |
+| tokenizer | the `token` variant: `comment`, `['/', { oneline, multiline }]`, beside `operator`, which holds `/` and `/=` | first/first on `/` | grammar: left-factor the `/`, the shape of the `*` above. Not removed by the prefix tree — checked with the operator's first set kept whole — and masking a rule by replacement erased `/` from that set, which is how a first count missed it |
+| tokenizer | `number`: `digits0`, then the `option({ bigint, frac })` | first/follow on the digits, and on `e`, `E`, `n` | the `numError` poison: `[idChar]` follows every optional part of a number, and `idChar` holds digits and letters. The number boundary is decided one layer up, over the token stream |
+| tokenizer | `jsGrammar = repeat0Plus(token)`: the `idChar` repeat of `id`, the body of a `//` comment, its `option(newLine)`, the number's `{ numError: [idChar], ok: none }` itself, its `fracPart` on `.`, the exponent's sign option on `+` and `-`, and `multilineContent` | first/follow on the next token's first set | inherent to a whole-file grammar: a greedy token against the token after it. With the entry a single `token` the seven vanish — verified on the bridged set and on a two-rule grammar. The poison is the row above seen from outside the number: nullable, so its follow set is the next token's |
+| parser | `statementEnd`: `[trivia, ';', …]` beside `[lineTrivia, 'nl', …]` | first/first on the trivia symbols | trivia leads both branches. Trivia follows every token instead, and `;` ends every statement — the newline terminator is gone, which is the rule [`spec/README.md`](../../spec/README.md) states |
+| parser | `delimited`: `repeat0Plus([',', trivia, element, trivia])` then `option([',', trivia])`, once for arrays and once for objects | first/follow on `,` | the trailing comma, which rested on a failed round rewinding; spelled right-recursively, `item t [ ',' t [ items ] ]` |
+| parser | the module's final `{ semicolon: [trivia, ';'], none: [] }`, then `trivia` | first/follow on the trivia symbols | trivia leads the option and follows it; gone with the `;` after every statement |
+
+So each port was a grammar rewrite plus a backend swap, not a swap alone,
+and the tokenizer also needed a token layer — a parser resumable at an
+index, the loop over it being the tokenizer's — since a whole-file token
+grammar is not LL(1) under a first/follow check. Maximal munch inside a token
+comes for free, an optional round starting whenever the lookahead is in the
+item's first set, once the punctuators are a prefix tree built from the
+list. An earlier count through the classical `dispatchMap`, which had no
+first/follow check, found three of the eight.
+
+## Next steps
+
+- [x] use JS tokenizer
+- [x] identifiers `{a:5}`
+- [x] computed keys `{["a"]:5}`, the only spelling of a `__proto__` key
+  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key))
+- [x] big int
+- [x] `export default ...`
+- [x] constants
+  ```js
+  const a = [3]
+  export default = { a: a, b: a }
+  ```
+  Serialization
+  ```js
+  const _0=[3];
+  export default {a:_0,b:_0};
+  ```
+- [x] import
+  ```js
+  import a from 'c.f.js'
+  export default { a: a, b: a}
+  ```
+- [ ] short form
+  ```js
+  const a = 5;
+  export default { a }
+  ```
+
+Optional, for fun, syntax sugar:
+
+- [x] comments. Ignore them. Not an error.
+- [ ] double/single quote strings
+
+## Decidable Language
+
+- [ ] using operator and functions
+  ```js
+  const a = 2+2+Math.abs(5)
+  export default { a: a }
+  ```
+- [ ] decidable functions?
+  ```js
+  const f = a => b => a + b
+  export default f(1)(2)
+  ```
 
 ## Source files and repository migration
 
@@ -127,10 +299,10 @@ A declaration-only file is `types.ts` rather than `.f.mjs`, and an existing
 `fjs/types/phantom`, whose `Phantom` type uses a type-only `declare const
 phantomKey: unique symbol`, is the worked example: `module.f.ts` became
 [`types.ts`](../types/phantom/types.ts) with no runtime `Symbol()` value
-invented for it. The repository has no runtime-empty `.mjs` left — the three
-files with no `export` are executables (`fjs/module.mjs`,
-`fjs/emergent_testing/all.test.mjs`, `fjs/types/bigint/benchmark.mjs`), not
-declaration modules — so the rule now applies to new source only.
+invented for it. The repository has no runtime-empty `.mjs` left — the files
+with no `export` are executables (`fjs/module.mjs`,
+`fjs/emergent_testing/all.test.mjs`), not declaration modules — so the rule now
+applies to new source only.
 
 `types.ts` is ordinary TypeScript source, so the normal TypeScript check validates
 it even while `skipLibCheck` remains enabled for `.d.ts` dependencies. No
@@ -264,6 +436,34 @@ land. A sibling authored `types.ts` remains unchanged across this rename.
 
 A synthetic JavaScript compiler fixture may be used before repository migration;
 it does not change the extension contract for repository source.
+
+## The token layer is JavaScript's, the parser is the subset
+
+Decided with the retirement of the hand-written scanner, and not to reopen
+without a reason. The grammar's tokens,
+[`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) read by
+[`fjs/js/tokenizer`](../js/tokenizer/module.f.mjs), grow toward the whole
+JavaScript lexical surface, because everything that reads a `.f.mjs` — this
+compiler, the website's highlighter, a linter — needs the same tokens, and a
+token that is recognised is not thereby accepted: the compiler's fold and
+grammar refuse what the language does not admit, at the token, as they refuse
+`-NaN`. The rules the grammar shares with JSON flow the other way — it imports
+JSON's digit and string rules from `fjs/ebnf/lib/json`, and no codec reads
+this grammar — so widening it regresses no codec. The parser stays the
+FunctionalScript grammar, LL(1) over those tokens, and grows one production
+at a time as the EDAG stages ask.
+
+A full ECMAScript parser with a filter behind it — accept everything, then
+decide from the tree what is FunctionalScript — was considered and refused.
+It is not LL(1) (ASI, cover grammars, contextual keywords,
+regex-or-division), so it would be the hand-written surface the grammar
+route exists to avoid; the subset law needs only that what is accepted means
+what JavaScript means, which the LL(1) grammar and the engine-as-oracle
+proofs give; and nothing open needs a JavaScript parse tree, the views and
+the linter needing tokens. What a full parser would buy — a message naming
+the construct refused rather than the token — is an error production in the
+subset grammar, where it earns its place. Where the rest of `fjs/js` lives
+afterwards is a later rename and no part of this decision.
 
 ## Tokenizer
 

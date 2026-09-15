@@ -13,6 +13,7 @@
  * @import { List } from '../types/list/types.ts'
  */
 
+import { assert } from '../asserts/module.f.mjs'
 import { fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.mjs'
 import { join as listJoin, concat as stringConcat } from '../types/string/module.f.mjs'
 
@@ -200,6 +201,75 @@ export const concat = a => b => {
  * @type {(...list: readonly string[]) => string}
  */
 export const join = (...list) => list.join('/')
+
+/**
+ * Whether a directory's spelling already ends in a separator, in either of
+ * the two this module reads.
+ *
+ * @type {(dir: string) => boolean}
+ */
+const endsInSeparator = dir => {
+    const last = dir[dir.length - 1]
+    return last === '/' || last === '\\'
+}
+
+/**
+ * A name below a directory, joined by a single `/`, where the directory may
+ * already end in one and may be empty. Two cases {@link join} gets wrong for
+ * a caller that was handed a directory rather than a clean segment:
+ *
+ * A directory of no characters is no directory: what is below it is itself,
+ * so `under('', '.git')` is `.git` and not `/.git`. Joining those with a `/`
+ * would turn a name read against the caller's own directory into one read
+ * against the root.
+ *
+ * A directory that already ends in a separator does not get another, and
+ * that is not tidiness: `/` and `//` are two roots here and to the hosts
+ * this models, a POSIX one and a UNC one, so `/` plus a separator plus a
+ * name would name a file in another namespace than the one the caller asked
+ * about. `C:/` is the same case on the other host. The property is
+ * {@link root} of the joined path being {@link root} of the directory, and
+ * the proof states it that way rather than by spelling.
+ *
+ * Either separator ends a directory, because this module reads both:
+ * {@link toPosix} turns `\` into `/` before a root is read, so `\\` is the
+ * UNC root here exactly as `//` is. Testing only `/` would append to it and
+ * make `\\/name`, which reads back as the *ordinary* root — the very move
+ * this exists to prevent, and in the other direction for a single `\`.
+ *
+ * That reading is Windows-shaped, and on POSIX a backslash is an ordinary
+ * filename byte, so a directory really called `a\` is one this module cannot
+ * name: `a\`, `a\/name` and `a\name` are one path to every function here,
+ * not to this one alone. The limitation belongs to {@link toPosix} being
+ * unconditional rather than to the join, and
+ * [`todo/posix-backslash-names.md`](./todo/posix-backslash-names.md) has the
+ * measurements and why a host is an argument rather than a guess.
+ *
+ * A bare drive is refused, because it cannot be joined below: `C:` is the
+ * current directory on drive C to Windows and a directory called `C:` to
+ * POSIX, so `C:name` and `C:/name` are each right on one host and this
+ * reads a string. Answering either is a plausible path to the wrong
+ * directory, and `join`'s answer of `C:/name` is the one this module is
+ * least entitled to, since it takes the POSIX reading in a module that
+ * spells separators the Windows way everywhere else. It also moves the
+ * root, from none to `C:/`, which is the very thing this function exists to
+ * prevent.
+ *
+ * So a caller holding one resolves it before joining, which is what
+ * `fjs/git/repo`'s `tryCommonDir` does: it refuses such a worktree, and
+ * refuses a `gitdir:` line that joins to one.
+ *
+ * Use this wherever the directory comes from outside; use {@link join} for
+ * segments you wrote yourself.
+ *
+ * @throws On a bare drive, which is no directory to join below.
+ *
+ * @type {(dir: string, name: string) => string}
+ */
+export const under = (dir, name) => {
+    assert(!isBareDrive(dir), ['no directory to join below', dir])
+    return dir === '' ? name : endsInSeparator(dir) ? `${dir}${name}` : join(dir, name)
+}
 
 /**
  * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged

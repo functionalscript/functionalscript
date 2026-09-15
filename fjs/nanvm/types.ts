@@ -8,8 +8,10 @@
  *
  * Operation identity and operand contract are **not** defined here: they come
  * from [`fjs/edag`](../edag/README.md), the data model of record, through
- * {@link Op1Id} and {@link Op2Id}. Everything else — case names, inputs,
- * expectations, and the test-only markers — is the corpus's own.
+ * {@link Op1Id}, {@link Op2Id}, {@link Op12Id} and {@link Op3Id} — one
+ * vocabulary per operand count, and one for the two tags legal at both of the
+ * first two. Everything else — case names, inputs, expectations, and the
+ * test-only markers — is the corpus's own.
  *
  * @module
  */
@@ -96,8 +98,8 @@ export type Info =
 export type FunctionValue = Special<readonly ['function']>
 
 /**
- * One of the {@link Eq} `shared` values, so the *same* node — and hence the
- * same object — reaches both sides of a comparison. Legal anywhere a
+ * One of {@link Data}'s `shared` values, so the *same* node — and hence the
+ * same object — reaches every `ref` to that name. Legal anywhere a
  * {@link Value} is, nesting included: the lowering resolves it in place.
  */
 export type Ref = Special<readonly ['ref', string]>
@@ -194,11 +196,13 @@ export type Group = Group1 | Group2 | Group12 | Group3
 // An operand count is a type error rather than a case that runs: a group's
 // count is which EDAG vocabulary its id is in, and `Case<N>` carries it.
 //
-// These are here and not in `proof.f.mjs` because a `@typedef` inside a
-// function body is never checked — TypeScript does not evaluate the
-// constraint of a declaration nothing references, so the same six assertions
-// written there passed with any claim at all. A module-scope alias in a
-// `.ts` file is checked; `../types/array/types.ts` is the precedent.
+// These are here and not in `proof.f.mjs` because a `@typedef` there is
+// checked only where a statement follows it in the same block: a JSDoc
+// comment binds to the next statement, and one with nothing after it is
+// never bound at all. Written as the tail of a proof entry, the same six
+// assertions passed with any claim. A module-scope alias in a `.ts` file is
+// resolved either way; `../types/array/types.ts` is the precedent and
+// `../AGENTS.md` §1.4 states the rule.
 
 type _Unary = Assert<Equal<Case<1>['args'], readonly [Value]>>
 type _Binary = Assert<Equal<Case<2>['args'], readonly [Value, Value]>>
@@ -219,49 +223,20 @@ type _FunctionIsValue = Assert<Equal<FunctionValue extends Value ? true : false,
 type _NoThrowsValue = Assert<Equal<Throws extends Value ? true : false, false>>
 type _NoFunctionExpected = Assert<Equal<FunctionValue extends Expectation ? true : false, false>>
 
-/** One strict-equality (`===`) case; `eq` is the expected result. */
-export type EqCase = {
-    readonly name: string
-    readonly name2?: string
-    readonly a: Value
-    readonly b: Value
-    readonly eq: boolean
-    readonly rust?: string
-}
-
-/**
- * Strict-equality cases plus the values they share.
- *
- * Equality of arrays and objects is reference equality in both JavaScript and
- * `nanvm-lib`, so a case can only express "the same object" by naming a value
- * in `shared` and reaching it with a `ref`. That is EDAG sharing exactly: one
- * node referenced from several places, which is why a `ref` lowers to the
- * same node and not to a copy.
- */
-export type Eq = {
-    readonly shared: Struct
-    readonly cases: readonly EqCase[]
-}
-
-/** A node the `eq` section shares, and the name it is bound to. */
+/** A value the corpus shares, and the name it is bound to. */
 export type SharedNode = readonly [string, Exp]
-
-/**
- * The `eq` section lowered: its shared values as nodes, and every case beside
- * the expression it denotes.
- *
- * The two come back together because they are one lowering — a `ref` resolves
- * to the very node bound in `shared`, so `a: ref('x'), b: ref('x')` is one
- * node reached twice and not two equal ones. A consumer that took them from
- * separate calls would have neither.
- */
-export type LoweredEq = {
-    readonly shared: readonly SharedNode[]
-    readonly cases: readonly (readonly [EqCase, Op2])[]
-}
 
 /** The whole shared test corpus. */
 export type Data = {
-    readonly eq: Eq
+    /**
+     * The values two operands may both reach, by name through a `ref`.
+     *
+     * Equality of arrays and objects is reference equality in both JavaScript
+     * and `nanvm-lib`, so a case can only express "the same object" this way.
+     * That is EDAG sharing exactly: one node referenced from several places,
+     * which is why a `ref` lowers to the same node and not to a copy. Only
+     * the `'==='` group has an operand that reaches one.
+     */
+    readonly shared: Struct
     readonly groups: readonly Group[]
 }

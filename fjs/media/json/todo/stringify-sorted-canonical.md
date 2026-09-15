@@ -12,7 +12,9 @@ re-named at every use site instead of existing once under one name.
 Source modules:
 
 - `fjs/protocol/mcp/stdio/module.f.mjs:53` — `const stringifyJson = stringify(sort)`
-- `fjs/djs/module.f.mjs:42` — `stringify(sort)(result[1])` inline
+
+(`fjs/fsc/module.f.mjs` was a second site; the compiler's `.json` output no
+longer sorts, since key order is part of the value it writes, so it is gone.)
 
 Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 `stringifyJson`):
@@ -25,7 +27,7 @@ Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 - `fjs/text/ascii/proof.f.mjs:6`, `fjs/text/utf8/proof.f.mjs:8`,
   `fjs/text/utf16/proof.f.mjs:18`
 - `fjs/media/json/parser/proof.f.mjs:16`, `fjs/protocol/mcp/stdio/proof.f.mjs:20`
-- `fjs/djs/parser/proof.f.mjs`, `fjs/djs/serializer/proof.f.mjs:47`
+- `fjs/fsc/parser/proof.f.mjs`
 
 Each site is one line, so no single site is a problem — the issue is that
 the canonical-serialization idiom has ~20 different local names and no
@@ -56,8 +58,8 @@ applications once.
 - [ ] Add `stringifySorted` to `fjs/media/json/module.f.mjs` with proof
       coverage in `fjs/media/json/proof.f.mjs` (which itself calls
       `stringify(sort)` seven times today).
-- [ ] Migrate the two source-module sites (`fjs/protocol/mcp/stdio/module.f.mjs`,
-      `fjs/djs/module.f.mjs`), then the proof files.
+- [ ] Migrate the one source-module site (`fjs/protocol/mcp/stdio/module.f.mjs`),
+      then the proof files.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related

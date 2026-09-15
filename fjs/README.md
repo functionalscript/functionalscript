@@ -26,7 +26,7 @@ fjs <command> [args]
 | Command | Description | Documentation |
 |---------|-------------|---------------|
 | `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
-| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [djs](djs/README.md), [fsc](fsc/README.md) |
+| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [fsc](fsc/README.md) |
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
 | `ci`     | Generate the GitHub Actions CI and npm publishing workflows | [ci](ci/README.md) |
@@ -43,10 +43,13 @@ Each command also accepts a short alias (`fjs t` for `fjs test`, and so on).
 fjs compile <input> <output>
 ```
 
-The output extension picks the format: `.json` emits a tree (shared values are
-expanded), anything else emits a JavaScript module that preserves sharing by
-naming reused values as `const`s. Imports are resolved and inlined in both
-cases. See [djs/README.md](djs/README.md) for the accepted subset.
+The output name picks the format: `.json` emits a tree, and refuses a value
+JSON cannot spell — a shared value among them — rather than expand it;
+`.edag.f.js` or `.edag.f.mjs` emits the program's [EDAG](edag/README.md),
+the graph of what it computes rather than its value; anything else emits a
+JavaScript module that preserves sharing by naming reused values as
+`const`s. Imports are resolved and inlined in every case. See
+[fsc/README.md](fsc/README.md) for the accepted subset.
 
 ## `fjs ci` — generating the standard workflows
 

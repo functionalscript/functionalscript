@@ -1,15 +1,35 @@
 /**
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { Unknown } from '../types.ts'
- * @import { Accept } from './types.ts'
+ * @import { Accept, Document, Reject } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { parse } from '../parser/module.f.mjs'
-import { difference } from './module.f.mjs'
+import { tryParse, tryParseBytes } from '../module.f.mjs'
+import { bytes, difference, isDocument } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
+import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
 
 /** The reader accept set, typed at the import since a set carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/** The reader reject set, typed the same way. */
+const rejectSet = /** @type {readonly Reject[]} */ (reject)
+
+/**
+ * A document read by the path its form calls for: `tryParse` over a string
+ * of code units, `tryParseBytes` over the bytes a byte record spells. Each
+ * vector reaches the codec's public surface by its form, which is what makes
+ * a byte record a test of the byte path rather than of the corpus's decoder.
+ *
+ * @type {(id: string, document: Document) => Result<Unknown, string>}
+ */
+const read = (id, document) => {
+    if (typeof document === 'string') { return tryParse(document) }
+    const b = bytes(document[1])
+    assert(b !== null, `${id}: the hex spelling is not the one the schema admits`)
+    return tryParseBytes(b)
+}
 
 /**
  * One accept vector against the reader: the document is accepted, and
@@ -18,12 +38,40 @@ const acceptSet = /** @type {readonly Accept[]} */ (accept)
  * @type {(vector: Accept) => void}
  */
 const accepted = ({ id, document, graph }) => {
-    // the byte form waits on the reader's byte path
-    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
-    const [tag, result] = parse(document)
+    const [tag, result] = read(id, document)
     assert(tag === 'ok', `${id}: refused: ${result}`)
-    const d = difference(graph)(result)
+    const d = difference(graph)(/** @type {Unknown} */ (result))
     assert(d === null, `${id}: ${d}`)
+}
+
+/**
+ * The two rules only bytes can break, as the set spells them. A reject
+ * vector naming one of these owes not just a refusal but *this* refusal:
+ * they are the reader's byte path's own, and every other rule is answered
+ * over code units where neither can be seen.
+ *
+ * @type {readonly string[]}
+ */
+const byteRules = ['document: a document is UTF-8', 'document: a document has no BOM']
+
+/**
+ * One reject vector against the reader: the document is refused. What the
+ * refusal says is the reader's own, and the vector names the rule broken —
+ * a document valid but for that one defect is refused for it or not at all.
+ *
+ * A byte rule is the exception, and the sharper case: the layer is part of
+ * the claim, so the message is compared. `byte-bom-first` decodes to a
+ * perfectly good string that the code-unit reader refuses anyway, as
+ * U+FEFF is no whitespace — which would pass a refusal check while
+ * testing the wrong rule, and is what this comparison catches.
+ *
+ * @type {(vector: Reject) => void}
+ */
+const rejected = ({ id, document, rule }) => {
+    const [tag, message] = read(id, document)
+    assert(tag === 'error', `${id}: accepted, though ${rule}`)
+    if (!byteRules.includes(rule)) { return }
+    assertEq(message, rule, id)
 }
 
 /** Two graphs that must compare equal. @type {(expected: Unknown, actual: Unknown) => void} */
@@ -31,12 +79,6 @@ const same = (expected, actual) => assertEq(difference(expected)(actual), null)
 
 /** Two graphs whose first difference is the message. @type {(expected: Unknown, actual: Unknown, message: string) => void} */
 const differ = (expected, actual, message) => assertEq(difference(expected)(actual), message)
-
-/**
- * A host value handed to the comparison as if it were a graph, which is what
- * a broken implementation does. @type {(value: unknown) => Unknown}
- */
-const outside = value => /** @type {Unknown} */ (value)
 
 /** `n` arrays nested, the innermost holding `leaf`. @type {(n: number, leaf: Unknown) => Unknown} */
 const nested = (n, leaf) => {
@@ -47,6 +89,54 @@ const nested = (n, leaf) => {
 }
 
 export const proof = {
+    // A byte document's one spelling: lowercase pairs separated by single
+    // spaces, at least one pair. Every other spelling is refused, so that
+    // a set holds the spelling the byte tables use and no other.
+    bytes: () => {
+        same([0xef, 0xbb, 0xbf], bytes('ef bb bf'))
+        same([0], bytes('00'))
+        same([0xff, 0x7f, 0x80, 0x09, 0x0a, 0x0d, 0x20], bytes('ff 7f 80 09 0a 0d 20'))
+        assertEq(bytes(''), null)
+        assertEq(bytes('e'), null)
+        assertEq(bytes('efb'), null)
+        assertEq(bytes('efbb'), null)
+        assertEq(bytes('EF BB BF'), null)
+        assertEq(bytes('ef  bb'), null)
+        assertEq(bytes('ef bb '), null)
+        assertEq(bytes(' ef bb'), null)
+        assertEq(bytes('ef\tbb'), null)
+        assertEq(bytes('eg'), null)
+        assertEq(bytes('ge'), null)
+        assertEq(bytes('e/'), null)
+        assertEq(bytes('e:'), null)
+        assertEq(bytes('e`'), null)
+        assertEq(bytes('e@'), null)
+    },
+    // A document is a string or the exact `['hex', string]` tuple. Each set's
+    // proof leans on this to check the cast at its import, so the shape
+    // matters and not only the tag: an object and a longer array both answer
+    // `'hex'` to `document[0]`, and neither is the tuple the type admits.
+    isDocument: () => {
+        assert(isDocument(''))
+        assert(isDocument('export default 1;'))
+        assert(isDocument(['hex', '00']))
+        assert(isDocument(['hex', 'ef bb bf']))
+        // the tag is right and the shape is not
+        assert(!isDocument(/** @type {Unknown} */ ({ 0: 'hex', 1: '00' })))
+        assert(!isDocument(['hex', '00', 'extra']))
+        assert(!isDocument(['hex']))
+        assert(!isDocument([]))
+        // the shape is right and the tag is not
+        assert(!isDocument(['bytes', '00']))
+        assert(!isDocument([0, '00']))
+        // the second member is not the one hex spelling, or not a string
+        assert(!isDocument(['hex', 'EF BB BF']))
+        assert(!isDocument(['hex', '']))
+        assert(!isDocument(/** @type {Unknown} */ (['hex', 0])))
+        // not a document at all
+        assert(!isDocument(1))
+        assert(!isDocument(null))
+    },
     // A leaf is itself under `Object.is`: every kind of the data model, with
     // the two cases structural equality gets wrong — the zeros differ, and
     // `NaN` is one value.
@@ -91,25 +181,14 @@ export const proof = {
         differ({ a: 1 }, { b: 1 }, 'at $: expected member 0 to be "a", got "b"')
         differ({ a: [1, { b: 'x' }] }, { a: [1, { b: 'y' }] }, 'at $["a"][1]["b"]: expected "x", got "y"')
         // an object member holding `undefined` is present, and differs from
-        // an absent one by the count; an array element holding `undefined`
-        // is present, and differs from a hole, which no expected graph has
+        // an absent one by the count
         differ({ a: undefined }, {}, 'at $: expected 1 members, got 0')
-        differ([undefined], [, undefined].slice(0, 1), 'at $[0]: expected undefined, got a hole')
-        differ([1, [2, 3]], [1, [2, , 4].slice(0, 2)], 'at $[1][1]: expected 3, got a hole')
-        // in document order: an earlier element's difference comes first
-        differ([1, 2], [9, , 3].slice(0, 2), 'at $[0]: expected 1, got 9')
-        differ([[1], 2], [[9], , 3].slice(0, 2), 'at $[0][0]: expected 1, got 9')
         same([undefined, 1], [undefined, 1])
-    },
-    // An object of the data model is a plain one: a host object with no
-    // members — a `Date`, a `Map`, a boxed number — is not an empty object,
-    // at the root and below it.
-    plain: () => {
-        differ({}, outside(new Date(0)), 'at $: expected an object, got a non-plain object')
-        differ({}, outside(new Map()), 'at $: expected an object, got a non-plain object')
-        differ({ a: 1 }, outside(Object(1)), 'at $: expected an object, got a non-plain object')
-        differ([{}], [outside(new Date(0))], 'at $[0]: expected an object, got a non-plain object')
-        differ(1, outside(new Date(0)), 'at $: expected 1, got an object')
+        // in document order: an earlier element's difference comes first
+        differ([1, 2], [9, 3], 'at $[0]: expected 1, got 9')
+        differ([[1], 2], [[9], 3], 'at $[0][0]: expected 1, got 9')
+        // a leaf against a container of either kind
+        differ(1, {}, 'at $: expected 1, got an object')
     },
     // Sharing is part of the graph, in both directions: a node the expected
     // graph reaches twice must be one node in the actual, and two nodes it
@@ -149,8 +228,15 @@ export const proof = {
         differ({ a: 1, b: [2] }, { a: 1, b: [2, 3] }, 'at $["b"]: expected 1 elements, got 2')
     },
     // The reader accept set: the reader accepts every document to the graph
-    // the vector expects. The set's shape — ids one of a kind, every vector
-    // named and classed — is proved beside the set, in
-    // `spec/datajs/vectors/accept/proof.f.mjs`.
+    // the vector expects, each through the path its form calls for — the
+    // byte record among them through `tryParseBytes`, which is what makes the
+    // four widths a test of the decoder's bridge to code units. The set's
+    // shape — ids one of a kind, every vector named and classed — is proved
+    // beside the set, in `spec/datajs/vectors/accept/proof.f.mjs`.
     accept: () => { for (const vector of acceptSet) { accepted(vector) } },
+    // The reader reject set: the reader refuses every document, and for the
+    // two rules only bytes can break it refuses with that rule's own words.
+    // The set's shape, the host verdict among it, is proved beside the set,
+    // in `spec/datajs/vectors/reject/proof.f.mjs`.
+    reject: () => { for (const vector of rejectSet) { rejected(vector) } },
 }

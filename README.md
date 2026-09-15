@@ -41,34 +41,51 @@ evaluates a module and emits the data it exports, with every `import` resolved.
 `m.f.js`:
 
 ```js
-export default "text"
+export default ["text"];
 ```
 
 `input.f.js`:
 
 ```js
-import c from "./m.f.js"
-const a = 1
-export default [a, a, c, { x: c }]
+import c from "./m.f.js";
+const a = 1;
+export default [a, a, c, { x: c }];
 ```
 
 The output file extension picks the format:
 
 ```bash
-fjs compile input.f.js output.f.js   # JavaScript
-fjs compile input.f.js output.json   # JSON
+fjs compile input.f.js output.f.js        # DataJS, a JavaScript module
+fjs compile input.f.js output.json        # JSON
+fjs compile input.f.js output.edag.f.js   # the program's EDAG, as DataJS
 ```
 
-`output.f.js` preserves the object graph — a value referenced more than once
-stays shared and is emitted as a `const`:
+`output.f.js` is a [DataJS](spec/datajs/README.md) document in normalized
+form. It preserves the object graph: `c` is one array referenced twice, so it
+stays shared and is hoisted into a `const`:
 
 ```js
-const c0 = "text"
-export default [1,1,c0,{"x":c0}]
+const $0=["text"];export default [1,1,$0,{"x":$0}];
 ```
 
-`output.json` is a tree, so shared values are expanded, and types that JSON
-cannot express (`bigint`, `undefined`) are not available:
+`output.json` is a tree, so the compiler refuses a value JSON cannot spell —
+a shared value, `bigint`, `undefined`, `NaN`, `Infinity` — rather than write
+a file that reads back as something else. For the module above it refuses:
+
+```text
+output.json - error: no JSON spelling for a shared node
+```
+
+`output.edag.f.js` is the program compiled to an [EDAG](fjs/edag/README.md),
+the graph of what it computes rather than its value, written as a DataJS
+document with the same sharing kept:
+
+```js
+const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];
+```
+
+With `m.f.js` exporting the string `"text"` instead — a leaf, which is never
+shared — all three outputs are trees, and `output.json` is:
 
 ```json
 [1,1,"text",{"x":"text"}]
@@ -76,16 +93,18 @@ cannot express (`bigint`, `undefined`) are not available:
 
 The compiler currently accepts `import` statements, `const` declarations, and
 data expressions (objects, arrays, strings, numbers, `bigint`, booleans, `null`,
-`undefined`). Functions and computed expressions are not supported yet. See
-[fjs/djs/README.md](fjs/djs/README.md) for the data language and its roadmap, and
-[fjs/fsc/README.md](fjs/fsc/README.md) for the compiler itself.
+`undefined`), and property access on a name — `a.b`, `a[0]`, an own property
+and never the prototype chain. Functions and other computed expressions are
+not supported yet. See
+[fjs/fsc/README.md](fjs/fsc/README.md) for the compiler, the data language it
+accepts today, and its roadmap.
 
 ### The `fjs` CLI
 
 | Command       | Description                                                    | Documentation                                          |
 |---------------|----------------------------------------------------------------|--------------------------------------------------------|
 | `fjs test`    | Run the FunctionalScript test suite                            | [fjs/emergent_testing](fjs/emergent_testing/README.md) |
-| `fjs compile` | Compile a FunctionalScript module to JavaScript or JSON        | [fjs/djs](fjs/djs/README.md), [fjs/fsc](fjs/fsc/README.md) |
+| `fjs compile` | Compile a FunctionalScript module to JavaScript or JSON        | [fjs/fsc](fjs/fsc/README.md) |
 | `fjs cas`     | Content-addressable storage (`add`, `get`, `list`)             | [fjs/cas/README.md](fjs/cas/README.md)                 |
 | `fjs mcp`     | [MCP](https://modelcontextprotocol.io/) server over stdio, exposing the CAS and Evo as tools | [fjs/mcp/README.md](fjs/mcp/README.md) |
 | `fjs ci`      | Generate the GitHub Actions CI and npm publishing workflows    | [fjs/ci/README.md](fjs/ci/README.md)                   |

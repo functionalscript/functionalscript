@@ -1,14 +1,12 @@
 /**
- * Types for the FunctionalScript compile-workflow state machine.
+ * Type-level API for `fjs/fsc/module.f.mjs`: the compiler's value model is
+ * DataJS's, in `fjs/media/datajs/types.ts`; what is the compiler's own is the
+ * effect it runs in.
+ *
+ * @module
  */
 
-import type { RangeMapArray } from '../types/range_map/types.ts'
+import type { ReadFile, Write, WriteFile } from '../effects/node/types.ts'
 
-/** A step outcome: diagnostics so far, and the next code-point handler. */
-export type _Result = readonly [readonly string[], _ToResult]
-
-export type _ToResult = (codePoint: number) => _Result
-
-export type _CreateToResult<T> = (state: T) => _ToResult
-
-export type _State<T> = RangeMapArray<_CreateToResult<T>>
+/** The effect operations `compile` performs: file I/O and error output. */
+export type _CompileOp = ReadFile | WriteFile | Write

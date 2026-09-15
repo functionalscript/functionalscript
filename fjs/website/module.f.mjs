@@ -1,16 +1,16 @@
 /**
- * Static website generation program: the landing page, the browser test
- * entry module, the manifest of proof modules that page loads, and the one
- * stylesheet every page links.
+ * Static website generation program: a page per directory of the repository,
+ * each carrying the proofs of its own subtree, and the one stylesheet they
+ * all link.
  *
  * **Discovery is part of the program, not a script beside it.** Which modules
  * a browser can link is decided by reading their source, which
  * [`./browser-source`](./browser-source/module.f.mjs) answers, and reading a
  * tree is `readdir` and `readFile` — two operations that already existed. So
  * the whole generator is one effect, and a proof drives it against
- * `effects/node/virtual`'s in-memory tree: a directory of fixtures in, a
- * manifest out, no filesystem touched. What used to check this was running the
- * command and reading a `git diff`.
+ * `effects/node/virtual`'s in-memory tree: a directory of fixtures in, a site
+ * out, no filesystem touched. What used to check this was running the command
+ * and reading a `git diff`.
  *
  * **It costs 42 s where the script it replaced took 1.65 s**, and the whole
  * difference is one function: reading a file through the operation decodes it
@@ -22,12 +22,13 @@
  *
  * @module
  *
- * @import { All, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
+ * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { _Graph, _Imports, _Tree, _Walked } from './private.ts'
- * @import { Dir } from './page/types.ts'
+ * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { OrderedMap } from '../types/ordered_map/types.ts'
+ * @import { Dir, Proof } from './page/types.ts'
  * @import { Node } from '../media/html/types.ts'
  */
 
@@ -35,14 +36,15 @@ import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
 import { foldStep, forEachStep, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
-import { exportsProof, local, specifiers } from './browser-source/module.f.mjs'
+import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
-import { at, empty as emptyMap, setReplace } from '../types/ordered_map/module.f.mjs'
+import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { page, report, sections } from './page/module.f.mjs'
+import { demoSection, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
+import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -62,21 +64,18 @@ import { page, report, sections } from './page/module.f.mjs'
  * page — named for what it is, with the prose that introduces it inside —
  * and the page is the repository's root.
  *
- * @type {(dir: Dir) => Vec}
+ * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
-const rootPage = dir => htmlUtf8(
+const rootPage = commit => dir => htmlUtf8(
     ['title', 'FunctionalScript'],
     stylesheetLink,
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
-        ['p', ['a',
-            { href: 'https://github.com/functionalscript/functionalscript' },
-            'GitHub Repository'
-        ]],
+        ['p', ['a', { href: repository }, 'GitHub Repository']],
         ['h1', 'FunctionalScript'],
-        .../** @type {readonly Node[]} */ (sections(dir)),
-        ['details', { 'data-section': '', open: '' },
-            ['summary', 'Emergent Testing'],
+        .../** @type {readonly Node[]} */ (sections(commit)(dir)),
+        .../** @type {readonly Node[]} */ (dir.demo === null ? [] : demoSection(dir.demo)),
+        .../** @type {readonly Node[]} */ (testSection(dir)([
             ['p',
                 'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
                 ['a',
@@ -85,26 +84,9 @@ const rootPage = dir => htmlUtf8(
                 ],
                 '.'
             ],
-            ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
-            ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
-            report,
-        ],
+        ])),
     ],
-    ['script', { type: 'module', src: './_browser-test-entry.mjs' }]
 )
-
-const entry = utf8(`import { startBrowserTestSources } from './fjs/emergent_testing/browser/module.mjs'
-import { browserProofSources } from './fjs/emergent_testing/_browser-suite.mjs'
-
-const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
-const sources = [...browserProofSources, './fjs/website/browser.mjs']
-const runButton = /** @type {Element} */ (document.querySelector('[data-test-run]'))
-const start = () => startBrowserTestSources(root, sources)
-runButton.addEventListener('click', start)
-`)
-
-/** Where the generated manifest goes, and what the page imports it as. */
-const manifestPath = 'fjs/emergent_testing/_browser-suite.mjs'
 
 /**
  * Whether a directory is this repository's source at all.
@@ -132,8 +114,8 @@ const authored = path => path.endsWith('.f.mjs')
  * hands back the whole listing to filter afterwards.
  *
  * **Names are sorted here, once.** Both consumers want a stable order — a
- * manifest that reordered itself between runs is a diff nobody made, and so
- * is a page whose file list did — and the filesystem promises none.
+ * page whose proof list reordered itself between runs is a diff nobody made,
+ * and so is one whose file list did — and the filesystem promises none.
  *
  * @type {(dir: string) => Effect<Readdir, readonly _Walked[], IoChannel>}
  */
@@ -158,14 +140,18 @@ const walk = dir => step(readdir(dir, {}), entries => {
 const inDir = walked => name => pathConcat(walked.path)(name)
 
 /**
+ * Every file the walk found, by repository path.
+ *
+ * @type {(tree: readonly _Walked[]) => readonly string[]}
+ */
+const allFiles = tree => tree.flatMap(walked => walked.files.map(inDir(walked)))
+
+/**
  * Every authored module the walk found, in path order.
  *
  * @type {(tree: readonly _Walked[]) => readonly string[]}
  */
-const authoredModules = tree => tree
-    .flatMap(walked => walked.files.map(inDir(walked)))
-    .filter(authored)
-    .toSorted()
+const authoredModules = tree => allFiles(tree).filter(authored).toSorted()
 
 /**
  * A specifier resolved against the module that wrote it: `./x.f.mjs` in
@@ -193,7 +179,7 @@ const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
  * selected on the strength of a file nobody read — putting the page's failure
  * *while it links*, before the runner can publish a report, which is the
  * outcome this whole selection exists to prevent. So the generator refuses the
- * input it cannot handle rather than answering with a plausible manifest
+ * input it cannot handle rather than answering with a plausible proof list
  * ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)), and its
  * message is the host's own, naming the file. Dropping such a module as a
  * *blocker* instead would keep the run going, but it costs a `stat` per module
@@ -256,10 +242,12 @@ const readGraph = frontier => graph => {
  * never sees.
  *
  * Empty means the module and everything it imports are plain relative ES
- * modules, which is exactly what a browser can load. Anything else is dropped
- * from the manifest: emitting it would fail the page *while it links*, before
- * the runner can publish a report, and a proof module is valid FunctionalScript
- * whether or not a browser can link it.
+ * modules, which is exactly what a browser can load. Anything else is kept
+ * out of what a page loads — and named on it with the blocker, so that an
+ * empty list means "no proofs here" and nothing else. Loading it would fail
+ * the page *while it links*, before the runner can publish a report, and a
+ * proof module is valid FunctionalScript whether or not a browser can link
+ * it.
  *
  * @type {(graph: _Graph) => (path: string) => readonly string[]}
  */
@@ -278,42 +266,70 @@ const blockersOf = graph => path => {
 }
 
 /**
- * The manifest module's source: the sources the page loads, in path order.
+ * The browser-realm proof the website ships: a smoke test that the page it
+ * generated has a document at all.
  *
- * @type {(selected: readonly string[]) => string}
+ * It is not authored FunctionalScript and the walk does not look for it, so
+ * it is named here — as a proof of `fjs/website/`, which is what it is, so
+ * that directory's page runs it and every page above runs it too.
  */
-const manifestSource = selected => [
-    '/** Generated browser proof source map. Modules are loaded after the page renders. */',
-    '',
-    '/** @type {readonly string[]} */',
-    'export const browserProofSources = [',
-    ...selected.map(path => `    './${path}',`),
-    ']',
-    '',
-].join('\n')
+const websiteBrowserProof = 'fjs/website/browser.mjs'
 
 /**
- * Finds the proof modules a browser can link, writes the manifest, and reports
- * what it skipped and why.
+ * The browser proof, if this tree has one.
  *
- * @type {(paths: readonly string[]) => Effect<ReadFile | Write | WriteFile, void, IoChannel>}
+ * Named rather than assumed: a page that lists a source no one can load fails
+ * *while it links*, before the runner can publish a report, which is the
+ * outcome the whole selection exists to prevent. A fixture tree has no
+ * `fjs/website/`, and neither would a checkout of part of this one.
+ *
+ * @type {(tree: readonly _Walked[]) => readonly string[]}
  */
-const writeManifest = paths => step(
-    readGraph(paths)(emptyMap),
+const browserProofOf = tree =>
+    allFiles(tree).includes(websiteBrowserProof) ? [websiteBrowserProof] : []
+
+/**
+ * Every proof module the site knows about, each with what stops a browser
+ * linking it, in path order.
+ *
+ * The order is the paths' rather than the walk's, for three reasons that all
+ * come from the same place: a directory listing is the filesystem's business,
+ * and it differs between machines. Sorting makes two builds of one repository
+ * produce identical files, gives every page a list a reader can scan, and
+ * runs the proofs in the order `fjs t` runs them so the two reports line up.
+ *
+ * It is not what makes the slicing work — {@link subtree} filters by prefix
+ * and would answer the same in any order. A sorted subtree happens to be a
+ * contiguous run; nothing here depends on it.
+ *
+ * Demos are classified in the same pass, and from the same graph: a page
+ * loads a demo the way it loads a proof, so what would stop one would stop the
+ * other. They are answered separately because only proofs are listed.
+ *
+ * @type {(proofs: readonly string[], demos: readonly string[]) => Effect<ReadFile, readonly [readonly Proof[], readonly Proof[]], IoChannel>}
+ */
+const classify = (proofs, demos) => step(
+    readGraph([...proofs, ...demos])(emptyMap),
     graph => {
-        const classified = paths.map(path =>
-            /** @type {const} */ ([path, blockersOf(graph)(path)]))
-        const selected = classified.flatMap(([path, blockers]) =>
-            blockers.length === 0 ? [path] : [])
-        return step(
-            writeUtf8File(manifestPath, manifestSource(selected)),
-            () => step(
-                forEachStep(
-                    pureOk(classified.filter(([, blockers]) => blockers.length !== 0)),
-                    ([path, blockers]) =>
-                        log(`skipped ${path}: not linkable in a browser (${blockers.join(', ')})`)),
-                () => log(`browser proof modules: ${selected.length} of ${classified.length}`)))
+        /** @type {(paths: readonly string[]) => readonly Proof[]} */
+        const classified = paths => paths
+            .toSorted()
+            .map(name => ({ name, blockers: blockersOf(graph)(name) }))
+        return pureOk(/** @type {const} */ ([classified(proofs), classified(demos)]))
     })
+
+/**
+ * Says what will not run, and how much will.
+ *
+ * @type {(proofs: readonly Proof[]) => Effect<Write, void, IoChannel>}
+ */
+const reportClassification = proofs => {
+    const blocked = proofs.filter(proof => proof.blockers.length !== 0)
+    return step(
+        forEachStep(pureOk(blocked), proof =>
+            log(`skipped ${proof.name}: not linkable in a browser (${proof.blockers.join(', ')})`)),
+        () => log(`browser proof modules: ${proofs.length - blocked.length} of ${proofs.length}`))
+}
 
 /**
  * The proof modules to consider: every authored `.f.mjs` that exports a
@@ -329,6 +345,19 @@ const proofModules = paths => foldStep(
         source => pureOk(exportsProof(source) ? [...found, path] : found)))
 
 /**
+ * The authored modules that export a `demo`, in the path order they were
+ * given.
+ *
+ * @type {(paths: readonly string[]) => Effect<ReadFile, readonly string[], IoChannel>}
+ */
+const demoModules = paths => foldStep(
+    pureOk(paths),
+    /** @type {readonly string[]} */ ([]),
+    path => found => step(
+        readUtf8File(path),
+        source => pureOk(exportsDemo(source) ? [...found, path] : found)))
+
+/**
  * Whether a name is the generator's own output rather than a file a reader
  * would open. `index.html` and the `_`-prefixed files are written by this
  * program, and `.gitignore` keeps them out of the tree for the same reason a
@@ -338,6 +367,68 @@ const proofModules = paths => foldStep(
  */
 const generatedName = name =>
     name === 'index.html' || name.startsWith('_') || name.startsWith('.')
+
+/**
+ * The directory a module lives in: `fjs/crypto/sha2` for its `demo.f.mjs`,
+ * and `.` for a module at the root.
+ *
+ * @type {(path: string) => string}
+ */
+const dirOf = path => {
+    const at = path.lastIndexOf('/')
+    return at === -1 ? '.' : path.slice(0, at)
+}
+
+/**
+ * Each directory's demo, by directory, and what was refused.
+ *
+ * **Discovery is by export, as it is for a proof**: a module is a demo module
+ * if and only if it exports `demo`, so the convention holds whether the demo
+ * lives in `demo.f.mjs` or beside the implementation in `module.f.mjs`.
+ *
+ * **The decision is made once per directory, over all of its candidates.** It
+ * was a fold with a nullable lookup standing in for a flag, and that could not
+ * hold the rule: a stored `null` and a missing key read the same through `at`,
+ * so a third demo in a directory was accepted after the second had refused it,
+ * and a blocked demo recorded nothing at all, so a linkable one beside it won.
+ * Grouping first makes the rule the shape of the code.
+ *
+ * **Two in one directory is refused, not resolved**, whether or not both could
+ * run. A page has one demo section, and choosing between them — by order, or
+ * by which happens to link — is exactly the silent precedence the rule exists
+ * to prevent.
+ *
+ * **A demo a browser cannot link is no demo.** The page loads it as it loads a
+ * proof, so the same analysis applies; unlike a proof it has nowhere on the
+ * page to be listed with its blocker, so it is dropped and said on the console
+ * instead.
+ *
+ * @type {(demos: readonly Proof[]) => readonly [_Demos, readonly string[]]}
+ */
+const resolveDemos = demos => {
+    /** @type {OrderedMap<readonly Proof[]>} */
+    const byDir = demos.reduce(
+        (map, demo) => {
+            const dir = dirOf(demo.name)
+            return setReplace(dir)(/** @type {readonly Proof[]} */ ([...(at(dir)(map) ?? []), demo]))(map)
+        },
+        /** @type {OrderedMap<readonly Proof[]>} */ (emptyMap))
+    return toArray(entries(byDir)).reduce(
+        ([found, refused], [dir, candidates]) => {
+            if (candidates.length > 1) {
+                return /** @type {const} */ ([found, [...refused,
+                    `skipped the demo in ${dir}: ${candidates.length} modules export one`
+                    + ` (${candidates.map(demo => demo.name).join(', ')})`]])
+            }
+            const only = candidates[0]
+            if (only.blockers.length !== 0) {
+                return /** @type {const} */ ([found, [...refused,
+                    `skipped ${only.name}: a demo must link in a browser (${only.blockers.join(', ')})`]])
+            }
+            return /** @type {const} */ ([setReplace(dir)(`/${only.name}`)(found), refused])
+        },
+        /** @type {readonly [_Demos, readonly string[]]} */ ([emptyMap, []]))
+}
 
 /**
  * Whether a name in a `todo/` directory is an issue.
@@ -385,9 +476,9 @@ const isTodoDir = path => path.split('/').includes('todo')
  * Rust sources, `fjs/types/option/` its `types.ts`. What a directory holds is
  * what the walk found in it, minus the generator's own output.
  *
- * @type {(tree: _Tree) => (walked: _Walked) => Dir}
+ * @type {(tree: _Tree) => (proofs: readonly Proof[]) => (demos: _Demos) => (walked: _Walked) => Dir}
  */
-const toDir = tree => walked => ({
+const toDir = tree => proofs => demos => walked => ({
     path: walked.path,
     files: walked.files.filter(name => !generatedName(name)),
     dirs: walked.dirs.filter(name => name !== 'todo'),
@@ -395,6 +486,8 @@ const toDir = tree => walked => ({
         ?.files
         ?.filter(isIssue)
         ?? [],
+    proofs: subtree(walked.path)(proofs),
+    demo: at(walked.path)(demos),
 })
 
 /**
@@ -404,29 +497,79 @@ const toDir = tree => walked => ({
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(tree: readonly _Walked[]) => Effect<WriteFile | Write, void, IoChannel>}
+ * @type {(commit: string | null) => (tree: readonly _Walked[]) => (proofs: readonly Proof[]) => (demos: _Demos) => Effect<WriteFile | Write, void, IoChannel>}
  */
-const writePages = tree => {
+const writePages = commit => tree => proofs => demos => {
     const byPath = tree.reduce(
         (map, walked) => setReplace(walked.path)(walked)(map),
         /** @type {_Tree} */ (emptyMap))
-    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath))
+    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath)(proofs)(demos))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pathConcat(dir.path)('index.html'),
-            dir.path === '.' ? rootPage(dir) : page(dir))),
+            dir.path === '.' ? rootPage(commit)(dir) : page(commit)(dir))),
         () => log(`directory pages: ${dirs.length}`))
 }
 
-/** @type {Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
-const program = exitStep(mapStep(
-    step(walk('.'), tree => step(
-        proofModules(authoredModules(tree)),
-        paths => step(writeManifest(paths), () => step(
-            writePages(tree),
-            () => allOk(
-                writeFile('_browser-test-entry.mjs', entry),
-                writeUtf8File('_main.css', stylesheet)))))),
+/**
+ * The commit this build is of, as the lowercase hex GitHub links it by, or
+ * `null` when the build does not say.
+ *
+ * **`WORKERS_CI_COMMIT_SHA` is Cloudflare's**, set by Workers Builds on every
+ * build it runs, which is how the published site and every branch preview are
+ * built. A local build has no such variable, so its links stay on the site it
+ * is — which is also the only place its unpushed commits exist.
+ *
+ * **A value that is not a SHA-1 commit id is refused rather than trusted.** A
+ * link built from one is broken on every page, and nothing would say so. The
+ * check is `git/oid`'s own reading of an id at the width this repository uses,
+ * and writing it back is what makes the spelling lowercase.
+ *
+ * @type {(env: Env) => string | null}
+ */
+const commitOf = env => {
+    const value = env.WORKERS_CI_COMMIT_SHA
+    if (value === undefined) { return null }
+    const units = value.split('').map(c => c.charCodeAt(0))
+    // `tryFromHex` reads bytes and throws on anything wider; an environment
+    // variable can hold any text, so a wider unit is refused before it gets
+    // there.
+    if (units.some(u => u > 0x7f)) { return null }
+    const id = tryFromHexOf(20)(units)
+    return id === null ? null : String.fromCharCode(...toArray(toHex(id)))
+}
+
+/**
+ * What the build says about where files link, so a deploy log answers it.
+ *
+ * @type {(env: Env) => (commit: string | null) => string}
+ */
+const linksNote = env => commit =>
+    commit !== null ? `file links: GitHub at ${commit}`
+        : env.WORKERS_CI_COMMIT_SHA === undefined ? 'file links: this site'
+            : 'file links: this site, because WORKERS_CI_COMMIT_SHA is not a commit id'
+
+/** @type {(commit: string | null) => (note: string) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+const program = commit => note => exitStep(mapStep(
+    step(log(note), () => step(walk('.'), tree => {
+        const authored = authoredModules(tree)
+        return step(proofModules(authored), foundProofs =>
+            step(demoModules(authored), foundDemos =>
+                // One graph over both: a page loads a demo the way it loads a
+                // proof, so what would stop one would stop the other.
+                step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos),
+                    ([proofs, demoProofs]) => {
+                        const [demos, refused] = resolveDemos(demoProofs)
+                        return step(reportClassification(proofs), () =>
+                            step(forEachStep(pureOk(refused), log), () =>
+                                step(writePages(commit)(tree)(proofs)(demos), () =>
+                                    writeUtf8File('_main.css', stylesheet))))
+                    })))
+    })),
     () => undefined))
 
-export const main = () => program
+/** @type {(options: NodeProgramOptions) => Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
+export const main = ({ env }) => {
+    const commit = commitOf(env)
+    return program(commit)(linksNote(env)(commit))
+}

@@ -99,6 +99,36 @@ const modes = ['100644', '100755', '120000', '160000', '40000'].map(s => Number(
 
 const subtree = Number(octal(ascii('40000')))
 
+/**
+ * The bits of a mode that say what kind of entry it is, POSIX's `S_IFMT`,
+ * which is all Git asks of a mode before it descends.
+ */
+const modeKind = Number(octal(ascii('170000')))
+
+/**
+ * Whether an entry names a subtree: a walk descends through this entry and
+ * through no other, since an entry of another kind names a file, a link or
+ * another repository's commit, whatever object its id turns out to hold.
+ *
+ * The kind is the mode's `S_IFMT` bits and not the whole mode, which is
+ * `S_ISDIR` and so is the question Git puts. The permission digits under
+ * it say nothing about the kind, so `40755` and `41000` are subtrees as
+ * `40000` is and Git reads a path through each of them, where `140000`
+ * and `60000` are not and Git stops at both. The zero-padded `040000`
+ * spells the same number as `40000`, and a run of digits spelling more
+ * than 32 bits wraps before the kind is taken, as {@link mode} says.
+ *
+ * Only `40000` is a mode Git writes, and {@link validate} refuses the rest
+ * as `fsck` reports them. Reading is where the two part: a walk reads the
+ * tree it was given rather than the tree that should have been written.
+ *
+ * @type {(e: TreeEntry) => boolean}
+ */
+export const isSubtree = e => {
+    const m = tryMode(byteArray(e.mode))
+    return m !== null && (m & modeKind) === subtree
+}
+
 const dotGit = ascii('.git')
 
 /** The longest name `git fsck` accepts, in bytes. */

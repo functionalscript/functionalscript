@@ -19,8 +19,8 @@ grammars built on them:
 - [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens.
 
 A module belongs here iff it defines, transforms or executes grammars over a
-symbol alphabet. `fsc` is a compiler, `js/tokenizer` a hand-written scanner
-and `djs` a language front end: all three are consumers and stay out. The
+symbol alphabet. `fsc` is a compiler and `js/tokenizer` the JavaScript token
+stream read from `lib/js`: both are consumers and stay out. The
 alphabet adapters are not parts of the front end, and nothing in the front
 end imports them: [`byte/`](./byte/README.md) builds on it, returning
 front-end rules over bytes; [`utf16/`](./utf16/) takes only the `Meta`
@@ -76,7 +76,7 @@ every level.
   a string of BMP characters as is and an astral character as its two
   surrogate units — `'😀'` lowers to `0x1F600`, a symbol no unit is;
   `token_symbol/` names its symbols with a constructor instead, as
-  `fjs/djs/parser` does with `sym()`.
+  `fjs/fsc/parser` does with `sym()`.
 - **`['const', c]`** is RTTI's escape under RTTI's name, for a plain rule
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing

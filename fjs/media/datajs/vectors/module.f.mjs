@@ -9,11 +9,29 @@
  * equality: where the expected graph reaches one node twice the actual must
  * too, and where it reaches two distinct nodes the actual may not merge them.
  * Leaves compare by `Object.is`, so that `-0` and `0` differ and `NaN` is
- * itself; an object is a plain one, under `Object.prototype` or `null`, and
- * its members compare in observable order.
+ * itself, and an object's members compare in observable order.
+ *
+ * What it does *not* do is guard against values it cannot be handed. Every
+ * implementation that produces a DataJS graph is written in FunctionalScript,
+ * which has no mutation, no classes, no `Symbol` and none of
+ * `Object.defineProperty`, `Object.assign`, `Object.setPrototypeOf` or
+ * `Object.freeze`. So a symbol-keyed property, an own property outside the
+ * members, an accessor and a prototype other than the two a container is
+ * built with are not conditions a broken implementation can reach — they are
+ * conditions nothing in the language can spell, and checking for them read as
+ * rigour while being dead code.
+ *
+ * A hole is on that list too, and it took two passes. An array literal cannot
+ * spell one, `new Array(n)` is not FunctionalScript, and `delete` and a
+ * `length` assignment are mutation; `concat`, `slice` and `map` propagate a
+ * hole but cannot originate one. So no reader can return a sparse array, and
+ * elements are read by index.
  *
  * The walk is over an explicit stack, so a graph nested as deep as a vector
  * allows costs no call stack.
+ *
+ * `bytes` is the other thing a proof over the corpus needs: the bytes a
+ * byte-form document spells, from the one hex spelling the schema admits.
  *
  * @module
  *
@@ -22,13 +40,66 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-const { is, keys, hasOwn, getPrototypeOf, prototype: objectPrototype } = Object
+const { is, keys } = Object
 
-// by the data model's boundary, not the prototype chain: an array under a
-// `null` prototype is an array whose prototype is outside the model; and
+/** The value of a lowercase hex digit, or `-1` for any other code unit. @type {(unit: number) => number} */
+const hexDigit = unit =>
+    unit >= 0x30 && unit <= 0x39 ? unit - 0x30 :
+    unit >= 0x61 && unit <= 0x66 ? unit - 0x57 :
+    -1
+
+/**
+ * Whether `hex` is spelled as a byte document is: lowercase pairs separated
+ * by single spaces, at least one pair, nothing else.
+ *
+ * @type {(hex: string) => boolean}
+ */
+const isHex = hex => {
+    if (hex.length % 3 !== 2) { return false }
+    for (let i = 0; i < hex.length; i += 3) {
+        if (hexDigit(hex.charCodeAt(i)) < 0 || hexDigit(hex.charCodeAt(i + 1)) < 0) { return false }
+        if (i + 2 < hex.length && hex.charCodeAt(i + 2) !== 0x20) { return false }
+    }
+    return true
+}
+
+/**
+ * The bytes a `['hex', …]` document spells, or `null` where the string is
+ * not that spelling: lowercase pairs separated by single spaces and nothing
+ * else, the one spelling the corpus admits so that a byte vector reads as
+ * the issue's byte tables do.
+ *
+ * @type {(hex: string) => readonly number[] | null}
+ */
+export const bytes = hex =>
+    isHex(hex)
+        ? Array.from({ length: (hex.length + 1) / 3 }, (_, i) => hexDigit(hex.charCodeAt(i * 3)) * 16 + hexDigit(hex.charCodeAt(i * 3 + 1)))
+        : null
+
 // typed over the model's own arrays, which are read-only, so that the
 // other branch narrows to the object
-const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (Array.isArray)
+const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (value => value instanceof Array)
+
+/**
+ * Whether a value is a `Document` as the schema has one: a string, or the
+ * exact two-element tuple `['hex', string]` whose string is the one hex
+ * spelling.
+ *
+ * A data module carries no annotations, so the cast at each set's import is
+ * a claim and each set's proof is what checks it. That means checking the
+ * shape and not only the tag: `{"0": "hex", "1": "00"}` and
+ * `["hex", "00", "extra"]` both answer `'hex'` to `document[0]`, and
+ * neither is the tuple the type admits.
+ *
+ * @type {(document: Unknown) => boolean}
+ */
+export const isDocument = document =>
+    typeof document === 'string'
+    || (isArray(document)
+        && document.length === 2
+        && document[0] === 'hex'
+        && typeof document[1] === 'string'
+        && bytes(document[1]) !== null)
 
 /** @type {(path: string, what: string) => string} */
 const at = (path, what) => `at ${path}: ${what}`
@@ -65,25 +136,13 @@ const children = (stack, path, expected, actual) => {
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
-        // an expected graph has no holes, so a hole in the actual is a
-        // difference of its own, `[undefined]` is not `new Array(1)`, and it
-        // is reported where the walk reaches it, after the elements before
         let result = stack
         for (let i = expected.length - 1; i >= 0; i -= 1) {
-            const elementPath = `${path}[${i}]`
-            result = {
-                top: hasOwn(actual, i) ? [elementPath, expected[i], actual[i]] : [elementPath, expected[i], undefined, true],
-                rest: result,
-            }
+            result = { top: [`${path}[${i}]`, expected[i], actual[i]], rest: result }
         }
         return result
     }
     if (isArray(actual)) { return at(path, `expected an object, got ${show(actual)}`) }
-    // an object of the data model is a plain one, under `Object.prototype`
-    // or `null`, the two a reader may build it with; a `Date`, a `Map` or a
-    // boxed number has no members to compare and is not data
-    const proto = getPrototypeOf(actual)
-    if (proto !== objectPrototype && proto !== null) { return at(path, 'expected an object, got a non-plain object') }
     const expectedKeys = keys(expected)
     const actualKeys = keys(actual)
     if (expectedKeys.length !== actualKeys.length) {
@@ -105,15 +164,13 @@ const children = (stack, path, expected, actual) => {
 }
 
 /**
- * One comparison: a hole in the actual, a difference whatever is expected;
- * a leaf by `Object.is`; a container by the bijection so far, and, when it
- * is new, by its children.
+ * One comparison: a leaf by `Object.is`; a container by the bijection so
+ * far, and, when it is new, by its children.
  *
  * @type {(state: _State, task: _Task) => _State | string}
  */
 const compare = ([stack, pairs], task) => {
-    const [path, expected, actual, hole] = task
-    if (hole === true) { return at(path, `expected ${show(expected)}, got a hole`) }
+    const [path, expected, actual] = task
     if (typeof expected !== 'object' || expected === null) {
         return is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
     }

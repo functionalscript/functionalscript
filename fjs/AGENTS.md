@@ -102,10 +102,75 @@ compiles no matter what the predicate resolved to. Such an entry in a `proof`
 object is doubly inert: the runner only invokes functions, so a boolean leaf is
 never counted as a test either.
 
-Some facts have nowhere else to be checked and so *require* one. A `const` type
-parameter is the standing example: dropping the modifier widens every call site
-silently and `tsc` still passes, so the assertion is the only thing standing
-between the signature and a schema quietly typed one notch too loose. See
+A JSDoc `@typedef` **at the end of a block** is inert for a different reason,
+and the reason is worth knowing because the form otherwise works. A JSDoc
+comment is bound to the statement that follows it; with no statement after it
+there is nothing to bind to, so the declaration is never created and its
+constraint is never resolved. `/** @typedef {Assert<Equal<1, 2>>} _Bad */` as
+the last thing in a function body compiles. Put any statement after it and the
+same line is TS2344.
+
+So a proof entry that *ends* with its typedefs checks nothing from there on.
+`fjs/edag/proof.f.mjs`'s `consistency` and `fjs/effects/proof.f.mjs`'s
+`signatures` were the worked cases, a body of nothing but typedefs each: all
+28 `Assert<Check<…>>` pins of the one and all eight `Assert<Equal<…>>` of the
+other were green whatever they claimed. Both entries are gone, and their
+claims sit at module scope in `fjs/edag/types.ts` and `fjs/effects/types.ts`.
+Where a typedef is followed by an `assert` call, as in
+`fjs/ebnf/ll1/proof.f.mjs`'s `constParameter`, it is checked and does its job.
+
+**Prefer module scope in a `.ts` file**, where a type alias is resolved
+whether or not anything follows or references it, so the claim cannot be
+silenced by an edit that moves a line.
+[`fjs/nanvm/types.ts`](./nanvm/types.ts) and
+[`fjs/types/array/types.ts`](./types/array/types.ts) are the worked cases.
+Keep a typedef in the proof only for a claim about a *local* inference that
+has no module-scope spelling — a `const` type parameter's effect at a call
+site is the standing example — and then make sure a statement follows it.
+[`fjs/ebnf/byte/proof.f.mjs`](./ebnf/byte/proof.f.mjs) has both halves: two
+such claims, each stated right after the binding it is about and before the
+assertions that follow, and a third that was about a module-scope export and
+moved to `./ebnf/byte/types.ts`.
+
+Every `Assert` typedef in the repository has been measured: each one's claim
+replaced by a false one, `tsc` run over the falsified tree, and a typedef
+counted as checked only where it reported TS2344 at its own line. 70 of 125
+were inert when the rule was found; none is now. **Do the same for one you
+write** — falsify it once, see it fail, restore it. A form copied from
+somewhere that works is not evidence, since what decides it is what follows
+the line, not the line.
+
+**That check is the first of two, and it is the weaker one.** Falsifying the
+claim asks whether the compiler evaluates the line at all. It says nothing
+about whether the line would notice the thing it is about breaking, and an
+assertion can pass the first test and fail the second: its claim resolves, its
+claim is true, and breaking the mechanism it names leaves it green.
+`fjs/rtti/ts/types.ts`'s `_UnionKeepsBranchCorrelation` was exactly that. It
+tested a value no answer admitted, correct one or broken one, so it held either
+way while reading as the pin for `TupleTs`'s per-member split.
+
+So **where an assertion's comment credits it with a mechanism, break that
+mechanism once and see the assertion report.** One mutation of the
+implementation, `tsc`, and read which line comes back: the named one, or
+nothing, which means the assertion is about something else than its comment
+says. Either fix the assertion or fix the comment; a row whose prose claims
+more than it holds is worse than one that claims nothing, because a reader
+stops looking. The three mutations behind
+[`fjs/rtti/ts/types.ts`](./rtti/ts/types.ts)'s `_RestTuple` header are the
+worked example, and the third of them is what caught that dead witness.
+
+This is a rule for an assertion you write or touch, not a standing audit. No
+sweep over the existing ones is planned: there is no enumeration of
+"mechanisms" to work through, so it is judgement per assertion with no
+definition of done, and [`../AGENTS.md` §6](../AGENTS.md#6-external-tools)
+prefers an honest unenforced rule to machinery that cannot say when it is
+finished.
+
+Some facts have nowhere else to be checked and so *require* an assertion. A
+`const` type parameter is the standing example: dropping the modifier widens
+every call site silently and `tsc` still passes, so the assertion is the only
+thing standing between the signature and a schema quietly typed one notch too
+loose. See
 [§3.2](#32-types), "Prefer a `const` type parameter to a cast at the call site".
 
 ### 1.5 Never use `try`/`catch`; test throwing with the `throw` key
@@ -308,9 +373,20 @@ The two halves buy the same thing, which is why they are one rule: every value
 an `.f.mjs` function sees was built by this realm's constructors, so
 `instanceof` and the prototype chain are reliable.
 
+**A value that breaks that premise is outside every `.f.mjs` function's domain,
+and behaviour on it is undefined.** An object whose prototype was replaced, one
+from another realm, one built by `Object.create` with a descriptor: no
+FunctionalScript code can construct any of them, so no function owes one a
+refusal, no `proof.f.mjs` owes one a case, and "a host handed this in and the
+answer was wrong" is not a bug report against this repository. A function's
+contract is over the values FunctionalScript can build, and that is the whole of
+it. Where such a value must be handled, the handling is a host boundary, below.
+
 **Detect an array with `a instanceof Array`.** That is the spelling
-FunctionalScript uses. `Array.isArray` is not a more careful version of it
-here, only a longer one guarding against values this rule already excludes.
+FunctionalScript uses. `Array.isArray` is not a more careful version of it here,
+only a longer one guarding against values this rule already excludes: the two
+predicates disagree exactly on values whose prototype chain was re-pointed or
+that belong to another realm, which is to say exactly on undefined behaviour.
 
 A boundary that does take foreign values is a host boundary: it belongs in a
 thin `.mjs` that converts them before any `.f.mjs` sees them.
@@ -334,9 +410,11 @@ implementation.
 
 No authored `.mjs` may contain a **file-scope** JSDoc `@typedef` — anywhere in
 the repository, whatever the directory or basename. Function-local typedefs are
-allowed, and are the normal home for compile-time proof types (see the
-`consistency` and `signatures` entries in `fjs/edag/proof.f.mjs` and
-`fjs/effects/proof.f.mjs`). A named file-scope type goes to one of:
+allowed. A compile-time proof written as one is checked only where a statement
+follows it, so it belongs at module scope in a `.ts` file unless the claim is
+about a local inference — see
+[§1.4](#14-assert-type-level-facts-with-assertequal). A named file-scope type
+goes to one of:
 
 - the sibling `types.ts` when it is part of the **public declaration closure** —
   public types, plus any private `_` helper a shipped public declaration
@@ -357,11 +435,11 @@ The public contract still governs transitive effects. See
 The prefix marks a name that **is** exported as no part of the API — "even when
 module linkage requires an export" is the reach of the rule, not an example of
 it. A `const` that is never exported reaches no emitted declaration and no
-consumer, so it has nothing to disclaim and takes no prefix: `mapToken` and
-`scanToken` in
-[`fjs/media/json/tokenizer`](./media/json/tokenizer/module.f.mjs) are the
-ordinary shape, beside the exported `_ScanState` in its `types.ts`, which is the
-rule's. Measured across `fjs/`, module-private constants run about 1,900
+consumer, so it has nothing to disclaim and takes no prefix: `mapDjsToken` and
+`scanDjsToken` in
+[`fjs/fsc/tokenizer`](./fsc/tokenizer/module.f.mjs) are the
+ordinary shape, beside the exported `_DjsScanState` in its `private.ts`, which
+is the rule's. Measured across `fjs/`, module-private constants run about 1,900
 unprefixed to eight prefixed — so reading the rule as reaching them would put
 nearly every `.f.mjs` in the tree in violation, which is the check that the
 reading is wrong.
@@ -385,11 +463,24 @@ be declared when it happens.
 The intra-directory dependency direction is
 `types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
 (dependency to dependent; a layering guide, not a requirement that every file
-exists). `types.ts` must not depend on `private.ts`, and verification moves
-downstream: an assertion that checks the implementation belongs in a proof
-function, not in `types.ts`. Recursive RTTI whose annotation needs a named
-public type may stay in `module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`),
-and declarative compile-time/runtime constants shared between TypeScript and
+exists). `types.ts` must not depend on `private.ts`, and *runtime*
+verification moves downstream: an assertion that **runs** belongs in a proof
+function, not in `types.ts`.
+
+A compile-time `Assert<…>` goes the other way, and the exception is the whole
+point: a proof is the one place a type-level claim may not be checked at all
+([§1.4](#14-assert-type-level-facts-with-assertequal)), so it lives at module
+scope in `types.ts` even when what it pins is a value or a signature in
+`module.f.mjs` — reached with a type-only `import type`, which adds no runtime
+edge and leaves the file type source. `fjs/edag/types.ts` pins values that
+way and `fjs/effects/types.ts` signatures; `fjs/rtti/ts/types.ts` is the large
+block of the purely type-level kind. The exception reaches no further than
+that: a claim about a *local* inference stays in the proof, with a statement
+after it.
+
+Recursive RTTI whose annotation needs a named public type may stay in
+`module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`), and declarative
+compile-time/runtime constants shared between TypeScript and
 runtime code may be split into a normal subordinate metaprogramming module such
 as `meta/module.f.mjs` when that helps — it is an ordinary module, discovered
 and covered like any other `module.f.mjs`, never a requirement.
@@ -818,7 +909,7 @@ When a generic function composes other independently-generic functions in its
 body, annotate each arrow with its own `@template` / `@param` / `@returns`
 instead of writing one `@type {<T, S>(...) => ...}` over the whole chain.
 [`fjs/types/array`](./types/array/module.f.mjs)'s `isFixedArray` is the worked
-example; `types/sorted_list`, `types/range_map` and `fsc` use the same shape. A
+example; `types/sorted_list` and `types/range_map` use the same shape. A
 single top-level signature has to restate every type variable of every stage,
 which is where the inference it replaced goes wrong again.
 

@@ -446,7 +446,7 @@ section is its record. What it taught:
   shapes, each a place where the backtracking backend had been deciding by
   trial. So each port was a grammar rewrite plus a backend swap, not a swap
   alone; the eight are recorded in
-  [`fjs/djs/README.md`](../fjs/djs/README.md#both-grammars-are-ll1).
+  [`fjs/fsc/README.md`](../fjs/fsc/README.md#both-grammars-are-ll1).
 - **A stricter backend can change the language.** One of the eight was the
   parser's statement terminator, and resolving it made `;` required after
   every statement — a change to what DJS accepts, not to any `bnf/` path.

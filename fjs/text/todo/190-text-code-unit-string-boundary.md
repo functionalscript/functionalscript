@@ -4,17 +4,11 @@
 **Status:** open
 
 Converting between a single character-code number and a one-character JS `string`
-is a `fjs/text` concern, but four modules reach into the `String` built-in
-directly and three of them re-bind the same function under a local name:
+is a `fjs/text` concern, but three modules reach into the `String` built-in
+directly and two of them re-bind the same function under a local name:
 
 ```ts
 // fjs/media/html/module.f.mjs:16
-const { fromCharCode } = String
-
-// fjs/fsc/module.f.mjs:17
-const fromCharCode = String.fromCharCode
-
-// fjs/js/tokenizer/module.f.mjs:114
 const { fromCharCode } = String
 
 // fjs/text/utf16/module.f.mjs:307  — used inline
@@ -66,7 +60,7 @@ export const charFromCode:   (code: U16)       => string   // String.fromCharCod
 export const charFromCodePoint: (cp: CodePoint) => string  // String.fromCodePoint
 ```
 
-Then `html`, `fsc`, and `js/tokenizer` import these instead of re-binding
+Then `html` and `fsc` import these instead of re-binding
 `String.*`, and `utf16.listToString` builds on `charFromCode`. The two string
 *readers* (`ascii`'s throwing `codePointAt` and `utf16`'s lazy `charCodeAt`
 stream) can likewise be named in `fjs/text` so the JS-string boundary lives in one
@@ -74,8 +68,9 @@ namespace.
 
 ### Why this qualifies
 
-- The plain `fromCharCode` re-binding has three consumers (`html`, `fsc`,
-  `js/tokenizer`) plus the inline `utf16` use — the same "re-bound under a local
+- The plain `fromCharCode` re-binding has two consumers (`html`, `fsc`) plus
+  the inline `utf16` use — it had a third, the hand-written JS scanner, until
+  the grammar replaced it — the same "re-bound under a local
   name in module after module" smell that [i167](../../types/bit_vec/module.f.mjs) flags for
   `bit_vec.listToVec(msb)`.
 - Separation of concerns: code ↔ string conversion is the defining job of

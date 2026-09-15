@@ -5,7 +5,7 @@
 Issues live **next to the code they describe**, as one file per issue in a
 `todo/` directory co-located with the relevant module:
 
-- `fjs/djs/todo/{slug-kebab}.md` — todos specific to the `fjs/djs/` module
+- `fjs/fsc/todo/{slug-kebab}.md` — todos specific to the `fjs/fsc/` module
 - `fjs/ci/todo/{slug-kebab}.md` — CI tooling todos
 - `nanvm-lib/todo/{slug-kebab}.md` — NaN-VM (Rust) todos
 - … and so on.
@@ -103,7 +103,8 @@ Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
 JSDoc exactly as the won't-fix rule below requires; say so and cite that.
 
 Whichever it is, rewrite the citation to name it — as `i165` in
-`fjs/js/todo/174-shared-range-map-lexer.md` names layered-parser — or delete
+`fjs/js/todo/174-shared-range-map-lexer.md` did, naming layered-parser, before
+that issue closed — or delete
 the reference if the relationship no longer holds. Do **not** link one to a same-numbered GitHub
 issue: that number belongs to unrelated work.
 
@@ -145,6 +146,29 @@ Issue headings should be short and direct — describe the action or the thing,
 not the full context. Prefer `# Read large files` over
 `# The problem with reading big files caused by bit vector limitation`.
 A short heading is easier to scan, link to, and reference from other files.
+
+**Describe meaning, not statistics.** An issue says what is wrong and
+why, in terms that stay true while the tree moves under it. Cite code by
+name — the file and the export, function, or type, `fjs/git/oid`'s
+`tryFromHexOf` — never by line number, and label a quoted snippet with
+the function it comes from, not the lines it spanned. Count in words —
+"about a dozen importers", "several emit sites", "a few callers" — never
+in digits. A line number or an exact count is a measurement of the tree
+on the day it was taken: the next merge makes it wrong, nothing checks
+it, and every review then spends its rounds correcting numbers instead
+of reading the design. A name stays right until the code it names is
+renamed, and then the rename is what a reader searches for. Numbers that
+are part of the meaning — a bit width, a `0x30` offset, the two outcomes
+a function has — are not measurements and stay exact.
+
+Where a measurement is the point — a benchmark, a count that motivates
+the issue, a line worth quoting by position — pin it to the commit it
+was taken at: "at `1a2b3c4d`, `cas_get` was about seventy lines". Read
+at that commit it stays true forever, so it is never updated, and a
+reviewer does not ask for it to be re-taken at each new commit
+([REVIEWING.md](../doc/REVIEWING.md#designs-and-todo-files)). A
+measurement with no commit is the one thing a reviewer may ask to see
+pinned or replaced by a name — once.
 
 ```md
 ## Title

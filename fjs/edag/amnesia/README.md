@@ -64,6 +64,24 @@ same reason, which is where the word for it comes from. The models that do
 preserve identity, and what each is for, are in
 [execution-models.md](../execution-models.md).
 
+### ... unless the caller says otherwise
+
+`Context`'s `memo` carries nodes whose values are already established,
+consulted by identity before anything is computed — which is
+[execution-models](../execution-models.md)'s §2.2 with the analysis done by
+the caller rather than by a pass here. It does not make this the model:
+nothing is remembered that the caller did not supply, nothing is added while
+walking, and nothing crosses a call boundary, since a call is a new
+invocation. It is enough for a caller that knows which of its own nodes are
+shared, which is how `fjs/nanvm`'s `'==='` cases ask an identity question of
+an evaluator that otherwise forgets.
+
+```js
+const shared = ['[]', [1, 2]]
+const memo = [[shared, vm(context)(shared)]]
+vm({ ...context, memo })(['===', shared, shared])   // true
+```
+
 ### It hands out the host
 
 `.` is `a[b]`, so the entire JavaScript prototype chain is reachable:
@@ -118,10 +136,21 @@ prototype chain to delegate to in the first place.
 ## Not implemented
 
 Every node in the schema now evaluates. The three chain nodes that own a
-continuation walk it with one function per lambda type — `propertyLambda`,
-`optionLambda`, `optionPropertyLambda` — and a short-circuited region is the
-single `skip`, shared by all three, whose one exception is the `|!()` step the
-parentheses put outside the region (["Chains"](../README.md#chains)).
+continuation walk it with two functions, `optionLambda` and
+`optionPropertyLambda`, rather than one per lambda type. A `.` node's
+`PropertyLambda` is the three of `OptionPropertyLambda`'s seven arms the
+schema accepts there; the four it refuses — a `|()` carrying a continuation,
+both arities of `|.`, and `|!()` — are what the wider walker handles and a
+`.` cannot spell. So on the input a `.` can carry, the wider walker *is* the
+narrower walk.
+
+The continued `|()` is the arm that matters. It is why the wider walker
+threads a continuation where the deleted narrower one returned the call's
+value, and why the two agree only because `|()` is terminal under a `.`.
+
+A short-circuited region is the single `skip`, shared by both, whose one
+exception is the `|!()` step the parentheses put outside the region
+(["Chains"](../README.md#chains)).
 `['self']` is not in the schema yet, so a function reaches itself only by being
 passed as an argument.
 

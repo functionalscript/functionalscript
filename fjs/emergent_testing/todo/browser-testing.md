@@ -7,8 +7,8 @@
 
 FunctionalScript now has a first website-hosted path that executes proof
 functions and their module dependencies inside a browser JavaScript realm. It
-generates a proof-source manifest, loads modules with native `import()`, runs
-recursive proofs, and renders a serializable report. The shared application
+decides each page's proof sources at build time, loads them with native
+`import()`, runs recursive proofs, and renders a serializable report. The shared application
 boundary, dependency-graph rejection, automated browser controllers, and
 cross-browser validation described below are still missing.
 
@@ -69,8 +69,8 @@ The standing rule lives in [the README](../README.md#scope); this section is
 what it means for the browser suite specifically.
 
 **The browser suite runs `.f.mjs` and nothing else.** `website/module.f.mjs`
-selects on `path.endsWith('.f.mjs')`; the generated manifest currently carries
-137 modules, none of them anything else. That is the design, not a first
+selects on `path.endsWith('.f.mjs')`; a page's proof list holds those and the
+one browser-realm proof the website ships, nothing else. That is the design, not a first
 iteration to be widened later.
 
 It follows from what the two kinds of module are. Authored FunctionalScript is

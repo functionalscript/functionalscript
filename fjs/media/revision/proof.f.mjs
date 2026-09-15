@@ -1,9 +1,6 @@
 /**
- * @import { Assert } from '../../asserts/types.ts'
  * @import { Object as JsonObject } from '../json/types.ts'
- * @import { Check } from '../../rtti/ts/types.ts'
- * @import { LockField, LockMap } from './types.ts'
- * @import { lock, lockField } from './module.f.mjs'
+ * @import { LockMap } from './types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -37,15 +34,6 @@ const revisionOf = extra => ({
 })
 
 export const proof = {
-    /**
-     * The hand-written `LockMap`/`LockField` in `./types.ts` are pinned
-     * against the module's rtti schemas, so the two recursions cannot drift
-     * apart.
-     */
-    consistency: () => {
-        /** @typedef {Assert<Check<LockMap, typeof lock>>} _LockMap */
-        /** @typedef {Assert<Check<LockField, typeof lockField>>} _LockField */
-    },
     dialectAndMediaType: () => {
         assertEq(dialect, 'vnd.fjs.revision')
         assertEq(mediaType, 'application/vnd.fjs.revision+json')

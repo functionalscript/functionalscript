@@ -87,6 +87,17 @@ it does not contradict itself — a task list still building what the proposal
 above it retired. Both are checked against the tree, not against what the
 reviewer expects the tree to hold.
 
+What it does **not** check is statistics. A `todo/` describes meaning,
+not measurements ([todo/README.md](../todo/README.md#issue-format)): it
+cites code by name and counts in words, and where it does carry a
+measurement — a line number, a count, a timing — it pins it to a commit.
+A pinned measurement is read at that commit, is true there forever, and
+is **never** asked to be re-taken: a review that demands "`matrix` is at
+517 now, not 518" on every push is chasing a number the next merge moves
+again, and the pull request stops converging on nothing. An unpinned
+line number or exact count is asked, once, to be pinned or replaced by
+the name of the code it means — not corrected to today's value.
+
 ## Type-level computation
 
 TypeScript evaluates conditional and recursive types against a hard depth, and a
@@ -99,9 +110,15 @@ observable — the runtime already refuses the invalid value, and the valid one
 was valid before — so do not ask for one; the simplest type that holds is the
 right one whether or not a walk is near the limit
 ([DESIGN.md §1](./DESIGN.md#1-simplicity-first)). Ask for the simplest type that states the
-contract, an `Assert<Equal<…>>` in the proof where the inference matters
-([fjs/AGENTS.md §1.4](../fjs/AGENTS.md#14-assert-type-level-facts-with-assertequal)),
-and a `todo/` for anything tighter.
+contract, an `Assert<Equal<…>>` where the claim matters, and a `todo/` for
+anything tighter. That assertion belongs at module scope in a `types.ts`,
+where an alias resolves whether or not anything follows it; ask for one in a
+proof only for a claim about a local inference, which is the case
+[fjs/AGENTS.md §1.4](../fjs/AGENTS.md#14-assert-type-level-facts-with-assertequal)
+carves out, and then only with a statement after it. That section also says
+what to ask of the assertion itself: falsified once to show it is evaluated,
+and, where its comment credits it with a mechanism, that mechanism broken once
+to show it reports.
 
 ## Bots
 

@@ -6,12 +6,8 @@
  * This is the executing counterpart of `../proof.f.mjs`, which pins what the
  * schema *accepts*; nothing here validates.
  *
- * @import { Exp } from '../types.ts'
+ * @import { Exp, Index } from '../types.ts'
  * @import { Context } from './types.ts'
- * @import { Assert } from '../../asserts/types.ts'
- * @import { Equal } from '../../types/ts/types.ts'
- * @import { Array as ExpArray, Call, Dot, Index, Op1, Op12, Op2, Op3 } from '../types.ts'
- * @import { Get } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -87,19 +83,6 @@ const methods = ['{}', [
 const constMethods = ['=>', ['[]', []], methods]
 
 export const proof = {
-    // `TagMap` exists so a dispatcher generic over `K` sees one handler
-    // signature; these pin the tag -> node-tuple correlation it is built on,
-    // including the tags whose node kinds are not `op1`/`op2`.
-    tagMap: () => {
-        /** @typedef {Assert<Equal<Get<'*'>, Op2>>} _MulIsOp2 */
-        /** @typedef {Assert<Equal<Get<'!'>, Op1>>} _NotIsOp1 */
-        /** @typedef {Assert<Equal<Get<'+'>, Op12>>} _PlusIsOp12 */
-        /** @typedef {Assert<Equal<Get<'-'>, Op12>>} _MinusIsOp12 */
-        /** @typedef {Assert<Equal<Get<'?:'>, Op3>>} _ConditionalIsOp3 */
-        /** @typedef {Assert<Equal<Get<'[]'>, ExpArray>>} _BracketsIsArray */
-        /** @typedef {Assert<Equal<Get<'()'>, Call>>} _CallIsCall */
-        /** @typedef {Assert<Equal<Get<'.'>, Dot>>} _DotIsDot */
-    },
     // The non-`Array` side of `vm`'s only branch: a primitive is its own
     // value, returned without ever reaching `map`.
     primitive: () => {
@@ -264,6 +247,34 @@ export const proof = {
         same(['{}', [['...', true]]], {})
         // ... and a string contributes its indices.
         same(['{}', [['...', 'ab']]], { 0: 'a', 1: 'b' })
+    },
+    // `memo` — the nodes a caller established, consulted by identity. It is
+    // what lets this evaluator answer an identity question it otherwise
+    // cannot: with the node established, `['===', n, n]` is one value
+    // compared with itself, and without it two.
+    established: () => {
+        /** @type {Exp} */
+        const node = ['[]', [1, 2]]
+        // Amnesia as such: one node reached twice is two arrays.
+        eq(['===', node, node], false)
+        // Established: one value, so the comparison is an identity.
+        /** @type {readonly (readonly[Exp, unknown])[]} */
+        const one = [[node, ev(node)]]
+        assertEq(vm({ ...context, memo: one })(['===', node, node]), true)
+        // ... and it is the caller's value that comes back, not a fresh one.
+        const marker = ['marker']
+        /** @type {readonly (readonly[Exp, unknown])[]} */
+        const markerMemo = [[node, marker]]
+        assertEq(vm({ ...context, memo: markerMemo })(node), marker)
+        // A node the memo does not hold is computed as always.
+        assertStructurallySame(vm({ ...context, memo: one })(['[]', [3]]), [3])
+        // A call is a new invocation, so nothing established crosses into a
+        // body: the node inside evaluates fresh and is not the caller's value.
+        /** @type {Exp} */
+        const body = ['=>', ['[]', []], node]
+        const f = /** @type {() => unknown} */ (
+            vm({ ...context, memo: markerMemo })(body))
+        assert(f() !== marker, ['the memo crossed a call boundary'])
     },
     // Operands are evaluated through `vm(context)`, so a node composes with
     // every other node kind and sees the same context at any depth.

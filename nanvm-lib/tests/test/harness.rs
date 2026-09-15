@@ -32,6 +32,16 @@ pub fn function_any<A: IVm>() -> Any<A> {
     Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any()
 }
 
+/// Strict equality (`===`) as an operator result.
+///
+/// `==` on `Any` is exactly JavaScript's `===`, but it yields a `bool` and so
+/// pins neither operand's `A`; this gives both the same one and lifts the
+/// answer into the `Result` every other operator returns, so the generated
+/// statement for a `===` case is an ordinary `check`.
+pub fn strict_eq<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
+    Ok((a == b).to_any())
+}
+
 /// `Object.is`, the comparison the shared data's expectations are written in:
 /// `NaN` matches `NaN`, and `0` does not match `-0`.
 ///
@@ -66,10 +76,4 @@ pub fn check_throws<A: IVm>(case: &str, result: Result<Any<A>, Any<A>>) {
     if let Ok(v) = result {
         panic!("{case}: expected a throw, got {v:?}");
     }
-}
-
-/// Checks strict equality (`===`) both ways round.
-pub fn check_eq<A: IVm>(case: &str, a: Any<A>, b: Any<A>, expected: bool) {
-    assert_eq!(a == b, expected, "{case}");
-    assert_eq!(b == a, expected, "{case} reversed");
 }

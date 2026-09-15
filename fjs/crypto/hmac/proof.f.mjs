@@ -1,10 +1,24 @@
+/**
+ * @import { Hash, State } from '../sha2/types.ts'
+ */
+
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { sha1 } from '../sha1/module.f.mjs'
 import { sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { hmac } from './module.f.mjs'
 
 export const proof = {
+    // A hash over a state of its own, not SHA-2's: `hmac` reads a block
+    // length and folds blocks, so SHA-1's five words do as well as SHA-2's
+    // eight. RFC 2202 test cases 1 and 2 for HMAC-SHA1.
+    sha1: () => {
+        const r = hmac(sha1)(vec(160n)(BigInt(`0x${'0b'.repeat(20)}`)))(utf8('Hi There'))
+        assertEq(uint(r), 0xb617318655057264e28bc0b6fb378c8ef146be00n, r)
+        const r2 = hmac(sha1)(utf8('Jefe'))(utf8('what do ya want for nothing?'))
+        assertEq(uint(r2), 0xeffcdf6ae5eb2fa2d27416d5f184df9c259a7c79n, r2)
+    },
     example: () => {
         const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
         assertEq(r, vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n))
@@ -30,5 +44,19 @@ export const proof = {
         const key = vec(1048n)(BigInt('0x' + 'aa'.repeat(131)))
         const r = hmac(sha256)(key)(utf8('Test Using Larger Than Block-Size Key - Hash Key First'))
         assertEq(uint(r), 0x60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54n)
-    }
+    },
+    // The shapes HMAC has no answer for, refused where the hash is given
+    // rather than where a message arrives: a block of no bits and a block
+    // of fewer than none, which no message is cut into and whose byte
+    // count `repeat` would shift towards a zero it never reaches; a block
+    // that is no whole number of bytes, which the padding is a byte
+    // repeated to; and a digest longer than the block, which a long key is
+    // replaced by and then padded to. No hash here is any of them, so each
+    // is hand-made.
+    throw: {
+        emptyBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 0n, blockBytes: 0n, hashLength: 0n })),
+        negativeBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: -8n, blockBytes: -1n, hashLength: -8n })),
+        oddBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 513n, blockBytes: 65n })),
+        wideDigest: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, hashLength: 1024n, hashBytes: 128n })),
+    },
 }

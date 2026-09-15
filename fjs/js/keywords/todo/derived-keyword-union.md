@@ -29,14 +29,14 @@ export const keywords =
 **The alphabetical order is part of the public contract** — the export's
 JSDoc promises it, so external consumers may observe it even though the
 in-repository importers are order-insensitive (`js/tokenizer` folds the
-list into an `ordered_map`, which sorts; `djs/tokenizer` builds a `Set`).
+list into an `ordered_map`, which sorts; `fsc/tokenizer` builds a `Set`).
 Deriving *and sorting* keeps the runtime contract intact. The public
 *type* still changes: the exact `as const` tuple widens to a `readonly`
 array of the literal union (`_Keyword` = the three groups plus
 `'undefined'`), losing the literal positions and literal `length` an
 external TypeScript consumer could observe — `(typeof keywords)[number]`,
 the form the in-repository consumers use
-(`fjs/js/tokenizer/types.ts:105`), is unchanged. Preserving the exact
+(`_KeywordToken` in `fjs/ebnf/lib/js/types.ts`), is unchanged. Preserving the exact
 sorted tuple type is not an option worth taking: it would have to be
 hand-written, which is the duplication this issue removes. So the
 implementation **declares the tuple→array widening as a breaking change**

@@ -11,8 +11,10 @@ holds one per object. The decoder for Git objects
 ([`fjs/git`](../fjs/git/README.md)) is pure over the inflated
 bytes, and today the inflating is the host's: `inflate` in
 [`fjs/effects/node`](../fjs/effects/node/module.f.mjs) hands a `Vec` to
-`node:zlib` and gets a `Vec` back, and
-[`fjs/git/loose`](../fjs/git/loose/module.f.mjs) is the one caller.
+`node:zlib` and gets a `Vec` back. Two modules call it:
+[`fjs/git/loose`](../fjs/git/loose/module.f.mjs) for the one stream a loose
+object is, and [`fjs/git/packstore`](../fjs/git/packstore/module.f.mjs) for each
+entry of a pack — a base and every delta above it, one call per link of a chain.
 
 That is the right first step and the wrong last one, for two reasons:
 
@@ -26,6 +28,21 @@ That is the right first step and the wrong last one, for two reasons:
   bound is larger compressed than plain. A decoder fed a window at a time
   through `readBytes` lifts the input side as the byte list lifts the
   output side.
+
+  A third place now holds the same ceiling on purpose:
+  [`fjs/git/pack`](../fjs/git/pack/module.f.mjs)'s `tryApplyDelta` refuses a
+  delta whose declared target is over 128 KiB. A delta is the one reader here
+  whose *output* is not bounded by what the host handed it — a hundred bytes of
+  copy instructions against a 64 KiB base can truthfully name 6.5 MB, which is
+  arithmetic on the format rather than a measurement. What that costs is the
+  measurement, and it is an order of magnitude more heap than bytes: at
+  `fe723022` (a commit of #2026's branch) on node 22, 20,000 byte values held
+  as a list of numbers cost about 156 KiB of heap, eight bytes per byte — so
+  such an object is tens of megabytes live, and the build peaks well above it
+  while it is joined. Without
+  the ceiling the delta path would build objects the loose path beside it cannot
+  read. So this issue lifts three bounds at once, and the delta's is the one
+  that also wants a representation cheaper than a number per byte.
 - **The host.** Every other reader in `fjs/git` runs anywhere
   FunctionalScript runs, the virtual runner included, which answers
   `inflate` with `notImplemented`. A repository cannot be read under it.
@@ -43,9 +60,12 @@ alphabet reads delimiters and DEFLATE has none — the table in
   32 KiB window and no more.
 - The zlib wrapper (a two-byte header, an Adler-32 trailer) over it, and
   the Adler-32 check as its own small module.
-- `fjs/git/loose` then reads through it, and the `inflate` operation
-  stays, exported as it is, for a host that would rather spend the native
-  decoder. They are not one type: the decoder is a pure
+- `fjs/git/loose` and `fjs/git/packstore` then read through it, and the
+  `inflate` operation stays, exported as it is, for a host that would rather
+  spend the native decoder. Both callers have to change together: changing one
+  moves the bound off that path and leaves it on the other, and the other is
+  the packed path, which is the one a real clone reads through. The decoder and
+  the operation are not one type. The decoder is a pure
   `Bytes → Nullable<Bytes>`, refusing a malformed stream with `null` and
   nothing else, since it has no host to fail; the operation is
   `Vec → IoResult<Vec>` through `IoChannel`, where a malformed stream, a
@@ -64,4 +84,5 @@ blocks, which is a framing and not a compression.
 
 - [`fjs/git/README.md`](../fjs/git/README.md), the design this serves,
   and its note on what a grammar does not do.
-- `fjs/git/loose`, the module that would change.
+- `fjs/git/loose` and `fjs/git/packstore`, the two modules that would
+  change.

@@ -1,5 +1,13 @@
 # Property Accessor
 
+**Status:** the constant-key read is in the language
+([spec: property access](../README.md#property-access)): an own-property
+read, with every built-in prototype name but `length` a compilation error,
+the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs),
+and an access on a number or a bigint literal refused, since JavaScript reads
+`-1 .x` as `-(1 .x)` and the language has no negation to read it so. The
+computed key, `a[Number(b)]`, and the method call below are not.
+
 Syntax examples:
 
 ```js

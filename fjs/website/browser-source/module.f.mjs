@@ -2,7 +2,7 @@
  * Static reading of authored source text: whether a module exports `proof`,
  * and which modules a browser would have to link to load it.
  *
- * The manifest generator classifies modules without importing them — that is
+ * The website generator classifies modules without importing them — that is
  * the point of reading them as text — and TypeScript 7 exposes no compiler API,
  * so both questions are answered here by reading the source as tokens, with
  * their own proofs, rather than by patterns over lines: whether a declaration
@@ -128,71 +128,91 @@ const declaredName = (list, at) =>
     list[at] === 'function' && list[at + 1] === '*' ? at + 2 : at + 1
 
 /**
- * Whether a bracketed group starting at `at` binds `proof`. A named export list
+ * Whether a bracketed group starting at `at` binds `name`. A named export list
  * and a binding pattern name what they bind the same way — the last name of an
  * entry — so `{ implementation as proof }` and `{ value: proof }` both bind
  * `proof`, while `{ proof as implementation }` and `{ proof: alias }` bind the
  * other name. An unclosed group is incomplete syntax and binds nothing.
  *
- * @type {(list: readonly string[], at: number, close: string) => boolean}
+ * @type {(name: string) => (list: readonly string[], at: number, close: string) => boolean}
  */
-const groupBinds = (list, at, close) => {
+const groupBinds = name => (list, at, close) => {
     const end = list.indexOf(close, at + 1)
     if (end === -1) { return false }
     return list.slice(at + 1, end)
         .join(' ')
         .split(',')
         .some(item => {
-            const names = item.split(' ').filter(name => name !== '')
-            return names[names.length - 1] === 'proof'
+            const names = item.split(' ').filter(word => word !== '')
+            return names[names.length - 1] === name
         })
 }
 
 /**
- * Whether the words following an `export` bind the name `proof`: a declaration
- * — `async`, `function*` and binding patterns included — a namespace re-export,
+ * Whether the words following an `export` bind `name`: a declaration —
+ * `async`, `function*` and binding patterns included — a namespace re-export,
  * or a named list.
  *
- * @type {(list: readonly string[], at: number) => boolean}
+ * @type {(name: string) => (list: readonly string[], at: number) => boolean}
  */
-const bindsProof = (list, at) => {
+const bindsName = name => (list, at) => {
     const head = list[at]
     if (head === undefined) { return false }
     // `async` modifies the declaration that follows it and binds nothing itself.
-    if (head === 'async') { return bindsProof(list, at + 1) }
+    if (head === 'async') { return bindsName(name)(list, at + 1) }
     if (declarations.includes(head)) {
         // A declaration binds one name, or a pattern of them: the repository
         // exports through one already — `export const { merge, get } = map`.
-        const name = declaredName(list, at)
-        const bound = list[name]
-        if (bound === '{') { return groupBinds(list, name, '}') }
-        if (bound === '[') { return groupBinds(list, name, ']') }
-        return bound === 'proof'
+        const declared = declaredName(list, at)
+        const bound = list[declared]
+        if (bound === '{') { return groupBinds(name)(list, declared, '}') }
+        if (bound === '[') { return groupBinds(name)(list, declared, ']') }
+        return bound === name
     }
-    if (head === '*') { return list[at + 1] === 'as' && list[at + 2] === 'proof' }
-    return head === '{' && groupBinds(list, at, '}')
+    if (head === '*') { return list[at + 1] === 'as' && list[at + 2] === name }
+    return head === '{' && groupBinds(name)(list, at, '}')
 }
 
 /**
- * Whether `source` exports a binding named `proof`. A mention inside a comment,
- * a string, or a template is not one — the website generator embeds the page's
- * entry module as source text — because none of them reaches the words below.
+ * Whether `source` exports a binding of this name. A mention inside a comment,
+ * a string, or a template is not one — a module that emits source of its own
+ * would otherwise answer for the text it writes — because none of them reaches
+ * the words below.
+ *
+ * It is a function of the name because two conventions now ask the same
+ * question of a module: a proof module is one that exports `proof`, and a demo
+ * module one that exports `demo`. Discovery is by export in both, which is
+ * what lets either live in its own file or beside the implementation.
+ *
+ * @type {(name: string) => (source: string) => boolean}
+ */
+export const exportsBinding = name => source => {
+    const list = words(read(source))
+    return list.some((word, index) => word === 'export' && bindsName(name)(list, index + 1))
+}
+
+/**
+ * Whether `source` exports a binding named `proof`.
  *
  * @type {(source: string) => boolean}
  */
-export const exportsProof = source => {
-    const list = words(read(source))
-    return list.some((word, index) => word === 'export' && bindsProof(list, index + 1))
-}
+export const exportsProof = exportsBinding('proof')
+
+/**
+ * Whether `source` exports a binding named `demo`.
+ *
+ * @type {(source: string) => boolean}
+ */
+export const exportsDemo = exportsBinding('demo')
 
 /**
  * Every static module specifier in `source`: the string literal following the
  * `from` of a declaration, or an `import` naming its module directly.
  *
  * A dynamic `import(...)` is left out, and left out structurally — its string
- * follows a `(`, not the keyword. That is the reading the manifest wants: a
- * dynamic import fails inside the test that reaches it rather than while the
- * page links. A `from` written in prose or inside a string is left out for the
+ * follows a `(`, not the keyword. That is the reading a page wants: a dynamic
+ * import fails inside the test that reaches it rather than while the page
+ * links. A `from` written in prose or inside a string is left out for the
  * same reason: neither is a sequence of tokens.
  *
  * @type {(source: string) => readonly string[]}

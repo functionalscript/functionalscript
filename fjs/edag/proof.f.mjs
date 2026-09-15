@@ -1,23 +1,18 @@
 /**
  * Runtime behavior of the edag `exp` schema — one section per node kind, plus
  * a value nested through several kinds to exercise the mutual recursion.
- * Exception: `comma` has no section of its own — its shape (`[',', exps]`) is
- * a known-incomplete placeholder pending a redesign that can express "at
- * least two operands, last is the result, each pre-result operand a true
- * root" (a single-operand `,` is the identity, a reachable operand a
- * redundant anchor — both non-canonical), not a settled node to pin. The
- * `exps` section does validate `,`-tagged values, but only to reach `exps`,
- * which `comma` is now the sole route to; it pins the operand array's
- * element schema, and claims nothing about what a `,` means.
+ * Exception: `comma` has no section of its own — its shape, `[',', exps]`,
+ * says nothing of its contract (at least two operands, the last the result,
+ * each earlier operand a true root), which the emitter keeps and
+ * `fjs/fsc/edag`'s proof pins. The `exps` section does validate `,`-tagged
+ * values, but only to reach `exps`, which `comma` is the sole route to; it
+ * pins the operand array's element schema, and claims nothing about what a
+ * `,` means.
  *
- * @import { Assert } from '../asserts/types.ts'
  * @import { ValidationError } from '../rtti/common/types.ts'
- * @import { Check, Check3, Unknown } from '../rtti/ts/types.ts'
+ * @import { Unknown } from '../rtti/ts/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  * @import {
- *  _exp,
- *  _optionLambda,
- *  _optionPropertyLambda,
  *  array,
  *  call,
  *  comma,
@@ -40,33 +35,8 @@
  * } from './module.f.mjs'
  * @import {
  *  Array,
- *  Call,
- *  Comma,
- *  Dot,
  *  Exp,
- *  Exps,
- *  Items,
- *  NumberCast,
  *  Object,
- *  Op0,
- *  Op0Id,
- *  Op1,
- *  Op1Id,
- *  Op12,
- *  Op12Id,
- *  Op2,
- *  Op2Id,
- *  Op3,
- *  Op3Id,
- *  OptionCall,
- *  OptionDot,
- *  OptionLambda,
- *  OptionPropertyLambda,
- *  Primitive,
- *  Properties,
- *  Property,
- *  PropertyLambda,
- *  Spread,
  * } from './types.ts'
  */
 
@@ -166,41 +136,6 @@ const op3Ids = /** @type {const} */ (['?:'])
 const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
-    /**
-     * Each RTTI constant in `./module.f.mjs` matches its declared type in
-     * `./types.ts`. These are compile-time checks; the function body only has
-     * to exist so the typedefs have a local scope.
-     */
-    consistency: () => {
-        /** @typedef {Assert<Check3<Exp, typeof _exp, typeof exp>>} _ExpAssert */
-        /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
-        /** @typedef {Assert<Check<Exps, typeof exps>>} _Exps */
-        /** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
-        /** @typedef {Assert<Check<Items, typeof items>>} _Items */
-        /** @typedef {Assert<Check<Array, typeof array>>} _Array */
-        /** @typedef {Assert<Check<Property, typeof property>>} _Property */
-        /** @typedef {Assert<Check<Properties, typeof properties>>} _Properties */
-        /** @typedef {Assert<Check<Object, typeof object>>} _Object */
-        /** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast */
-        /** @typedef {Assert<Check3<OptionLambda, typeof _optionLambda, typeof optionLambda>>} _OptionLambda */
-        /** @typedef {Assert<Check3<OptionPropertyLambda, typeof _optionPropertyLambda, typeof optionPropertyLambda>>} _OptionPropertyLambda */
-        /** @typedef {Assert<Check<PropertyLambda, typeof propertyLambda>>} _PropertyLambda */
-        /** @typedef {Assert<Check<Call, typeof call>>} _Call */
-        /** @typedef {Assert<Check<Dot, typeof dot>>} _Dot */
-        /** @typedef {Assert<Check<OptionDot, typeof optionDot>>} _OptionDot */
-        /** @typedef {Assert<Check<OptionCall, typeof optionCall>>} _OptionCall */
-        /** @typedef {Assert<Check<Comma, typeof comma>>} _Comma */
-        /** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
-        /** @typedef {Assert<Check<Op0, typeof op0>>} _Op0 */
-        /** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
-        /** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
-        /** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
-        /** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */
-        /** @typedef {Assert<Check<Op12Id, typeof op12Id>>} _Op12Id */
-        /** @typedef {Assert<Check<Op12, typeof op12>>} _Op12 */
-        /** @typedef {Assert<Check<Op3Id, typeof op3Id>>} _Op3Id */
-        /** @typedef {Assert<Check<Op3, typeof op3>>} _Op3 */
-    },
     primitive: {
         ok: () => {
             assertOk(v(null))
@@ -253,7 +188,7 @@ export const proof = {
     },
     // `comma` is `exps`'s only route now that `array` holds `rttiArray(items)`,
     // so these pin `exps` — an array of `exp`, not a single one — through it.
-    // The `,` node's own contract is still unsettled (see the module note
+    // The `,` node's own contract is the emitter's (see the module note
     // above); nothing here depends on it beyond the tag and the operand slot.
     exps: {
         ok: () => {
@@ -501,7 +436,7 @@ export const proof = {
     // grammar exists to distinguish — the shape only, since what each
     // denotes is the JSDoc on the nodes in `./module.f.mjs` and the executor
     // proofs in `./amnesia/proof.f.mjs`, and lowering these spellings is
-    // `../djs/todo/compile-modules-to-edag.md`. Read as pairs: the members
+    // `../fsc/todo/compile-modules-to-edag.md`. Read as pairs: the members
     // of a pair differ in JS, so they must differ here too.
     chains: {
         // A receiver is born in a `.` (or `?.`) node and spent by the call

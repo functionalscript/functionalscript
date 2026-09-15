@@ -61,8 +61,20 @@ steps of one, and the open stacks in the tree at any time show the shape.
    ([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)). Comments are
    answered per [REVIEW.md](./REVIEW.md), on the pull request where they were
    made: a fix on a lower branch reaches the ones above through the merge, and
-   is never made twice. A comment on a lower pull request that changes the
-   design changes the `todo/` first, and every pull request above it is
+   is never made twice. **If a pull request has already merged with comments
+   still unaddressed, address them in the next pull request**, following
+   [REVIEW.md](./REVIEW.md). Check the merged pull request's comments before
+   starting the next step, and link each carried comment in the next pull
+   request's description so its answer can be traced. Keep each pull request
+   to one improvement: if addressing a comment would add a separate improvement
+   to the next feature pull request, make a focused follow-up against `main`
+   the next pull request to land, even when the stack is nonempty. Land it
+   through step 4, then merge `main` upward through the remaining stack before
+   resuming it. If the stack is empty, open a follow-up against `main` for
+   the remaining comments. Blocking findings cannot be deferred under
+   [REVIEW.md](./REVIEW.md#deferring-a-defect).
+   A comment on a lower pull request that changes the design changes the
+   `todo/` first, and every pull request above it is
    re-read against the new text before anything else is pushed — this is the
    step where a stack most needs the owner: say what the comment changes for
    the steps above, and ask before rebuilding them.
@@ -80,9 +92,10 @@ steps of one, and the open stacks in the tree at any time show the shape.
    the end: the stack above the merged one still has branches to update,
    comments to answer, and a lowest member to queue, and steps 3 and 4 repeat
    until it is empty. The task is done when its last pull request, the one
-   that deletes the `todo/`, has landed. It is also done when the owner says
-   so; and it pauses, rather than guesses, when the next step needs a
-   decision nobody has made.
+   that deletes the `todo/`, has landed and no review comments remain
+   unaddressed, including on merged pull requests. It is also done when the
+   owner says so; and it pauses, rather than guesses, when the next step needs
+   a decision nobody has made.
 
 ## What is a decision
 

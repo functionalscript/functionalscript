@@ -16,8 +16,12 @@ import { runInNewContext } from 'node:vm'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { _runBrowserProofsWith, renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
 import { fmtImport, testResult } from '../module.f.mjs'
-import { runnerSource } from './module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { groupByModule, runnerSource } from './module.f.mjs'
+import { demo } from './demo.f.mjs'
+import { asyncRun } from '../../effects/module.mjs'
+import { commonOperationMap } from '../../effects/common/module.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * Builds the DOM stand-in the proofs drive the runner with. A single factory
@@ -25,7 +29,7 @@ import { error, ok } from '../../types/result/module.f.mjs'
  * element/document/view types can stay function-local.
  */
 const dom = () => {
-    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
+    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void, readonly getAttribute: (name: string) => string | null }} _Element */
     /** @typedef {{ defaultView: _View | null, readonly baseURI: string, readonly createElement: (tag: string) => _Element }} _Document */
     /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
@@ -69,6 +73,7 @@ const dom = () => {
                 null),
             replaceChildren: (...nodes) => { self.children = nodes },
             append: node => { self.children = [...self.children, node] },
+            getAttribute: name => self.attributes.get(name) ?? null,
         }
         return self
     }
@@ -81,7 +86,7 @@ const dom = () => {
      * `baseURI` is what the runner resolves a relative source against, so a
      * proof about resolution supplies a real one.
      *
-     * @type {(withView?: boolean, baseURI?: string) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
+     * @type {(withView?: boolean, baseURI?: string) => { readonly root: Element, readonly counts: _Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
      */
     const page = (withView = true, baseURI = 'https://example.invalid/') => {
         /** @type {string[]} */
@@ -107,11 +112,13 @@ const dom = () => {
         if (withView) { document.defaultView = view }
         const root = element(document, 'main', ['data-browser-tests'], states)
         root.replaceChildren(
+            element(document, 'span', ['data-test-counts'], states),
             element(document, 'p', ['data-test-summary'], states),
             element(document, 'button', ['data-test-run'], states),
-            element(document, 'ol', ['data-test-results'], states))
+            element(document, 'div', ['data-test-results'], states))
         return {
             root: /** @type {Element} */ (/** @type {unknown} */ (root)),
+            counts: assertNotNullish(root.querySelector('[data-test-counts]')),
             summary: assertNotNullish(root.querySelector('[data-test-summary]')),
             results: assertNotNullish(root.querySelector('[data-test-results]')),
             runButton: assertNotNullish(root.querySelector('[data-test-run]')),
@@ -120,13 +127,34 @@ const dom = () => {
         }
     }
 
-    /** @type {(element: _Element) => readonly (string | undefined)[]} */
-    const statuses = element => element.children.map(child => child.attributes.get('data-status'))
+    /**
+     * Every row of a rendered report, in order, across its module groups — so a
+     * proof about rows reads the same whether or not it is about grouping.
+     *
+     * @type {(results: _Element) => readonly _Element[]}
+     */
+    const rows = results => results.children.flatMap(group =>
+        group.children.find(child => child.tag === 'ol')?.children ?? [])
 
-    return { element, page, statuses }
+    /** @type {(element: _Element) => readonly (string | undefined)[]} */
+    const statuses = element => rows(element).map(child => child.attributes.get('data-status'))
+
+    /**
+     * What the title's counts say, one entry per part — which part it is,
+     * and its text. The duration's text is a wall-clock reading, so it is
+     * named and not compared.
+     *
+     * @type {(counts: _Element) => readonly (readonly [string, string])[]}
+     */
+    const countParts = counts => counts.children.map(child => {
+        const [name] = [...child.attributes.keys()]
+        return /** @type {const} */ ([name ?? '', name === 'data-duration' ? '' : child.textContent])
+    })
+
+    return { countParts, element, page, rows, statuses }
 }
 
-const { element, page, statuses } = dom()
+const { countParts, element, page, rows, statuses } = dom()
 
 /** @type {(proof: unknown) => ReturnType<typeof runBrowserProofs>} */
 const run = proof => runBrowserProofs([['proof', proof]])
@@ -477,7 +505,7 @@ export const proof = {
         await startBrowserTests(p.root, [['m', {
             a: () => {
                 seen = [...statuses(p.results)]
-                text = [p.results.children[0]?.textContent]
+                text = [rows(p.results)[0]?.textContent]
             },
         }]])
         assertStructurallySame(seen, ['running'])
@@ -494,8 +522,8 @@ export const proof = {
         /** @type {number[]} */
         let counts = []
         await startBrowserTests(p.root, [['m', {
-            a: () => { counts = [...counts, p.results.children.length] },
-            b: () => { counts = [...counts, p.results.children.length] },
+            a: () => { counts = [...counts, rows(p.results).length] },
+            b: () => { counts = [...counts, rows(p.results).length] },
         }]])
         // One row while `a` runs, two while `b` does: `a`'s verdict landed in
         // the row `a` was already in.
@@ -508,7 +536,10 @@ export const proof = {
             [['m', { ok: () => undefined, bad: () => { throw 'x' } }]])
         assertEq(report.status, 'failed')
         assertStructurallySame([...p.states], ['running', 'failed'])
-        assertEq(p.summary.textContent, `1 passed, 1 failed (${report.duration.toFixed(1)} ms)`)
+        // The counts are the title's, so the line under it has nothing to add.
+        assertEq(p.summary.textContent, '')
+        assertStructurallySame(countParts(p.counts),
+            [['data-count-passed', '1 passed'], ['data-count-failed', '1 failed'], ['data-duration', '']])
         assertStructurallySame([...statuses(p.results)], ['passed', 'failed'])
         const event = assertNotNullish(p.view.events[0])
         assertEq(event.type, 'fjs-browser-test-complete')
@@ -521,7 +552,9 @@ export const proof = {
         const p = page(false)
         const report = await startBrowserTests(p.root, [['m', { ok: () => undefined }]])
         assertEq(report.status, 'passed')
-        assertEq(p.summary.textContent, `1 passed, 0 failed (${report.duration.toFixed(1)} ms)`)
+        assertEq(p.summary.textContent, '')
+        // Nothing failed, so there is no red count at all — not a red zero.
+        assertStructurallySame(countParts(p.counts), [['data-count-passed', '1 passed'], ['data-duration', '']])
         assertEq(p.view.events.length, 0)
         assertEq(p.view.fjsBrowserTestReport, undefined)
     },
@@ -536,8 +569,165 @@ export const proof = {
             duration: 1,
             results: [{ module: 'm', path: '.t', name: 'import("m").proof.t()', status: 'passed', duration: 0.5 }],
         })
-        assertEq(p.summary.textContent, '1 passed, 0 failed (1.0 ms)')
-        assertEq(p.results.children[0]?.textContent, 'PASS import("m").proof.t() (0.5 ms)')
+        assertEq(p.summary.textContent, '')
+        assertStructurallySame(p.counts.children.map(child => child.textContent), ['1 passed', '1.0 ms'])
+        assertEq(rows(p.results)[0]?.textContent, 'PASS import("m").proof.t() (0.5 ms)')
+    },
+    /**
+     * **One group per module, folded when it passed and open when it did
+     * not.** A suite of thousands of rows becomes a list of modules, and the
+     * only groups a reader has to open are the failed ones — which the page
+     * has already opened.
+     */
+    groupsByModule: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined, b: () => undefined }],
+            ['n', { c: () => { throw 'x' } }],
+        ])
+        const groups = p.results.children
+        assertStructurallySame(groups.map(g => g.attributes.get('data-test-module')), ['m', 'n'])
+        assertStructurallySame(groups.map(g => g.attributes.get('data-status')), ['passed', 'failed'])
+        assertStructurallySame(groups.map(g => g.attributes.has('open')), [false, true])
+        assertStructurallySame(groups.map(g => g.querySelector('[data-path]')?.textContent), ['m', 'n'])
+        assertStructurallySame(groups.map(g => g.querySelector('[data-counts]')?.textContent), ['2 passed', '1 failed · 0 passed'])
+        // The dot is its own element, so the stylesheet colours it by the
+        // group's status rather than by reading its text.
+        assert(groups.every(g => g.querySelector('[data-dot]') !== null), 'every group line has a dot')
+    },
+    /**
+     * **A failure's error is a block of its own under its row**, not more text
+     * on the same line: the row stays one line to scan past, and the message
+     * and stack keep their line breaks.
+     */
+    anErrorIsItsOwnBlock: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [['m', { bad: () => { throw new Error('boom') } }]])
+        const row = assertNotNullish(rows(p.results)[0])
+        assert(row.textContent.startsWith('FAIL import("m").proof.bad() ('), row.textContent)
+        const block = assertNotNullish(row.children.find(child => child.attributes.has('data-test-error')))
+        assertEq(block.tag, 'pre')
+        assert(block.textContent.startsWith('boom\n'), block.textContent)
+    },
+    /**
+     * **While the run goes on, a module that passed folds as soon as the next
+     * one starts, and one that failed stays open.** Read from inside the last
+     * module's leaf, because the settled report is rebuilt at the end and would
+     * look the same whether or not the live page ever folded anything.
+     */
+    groupsSettleDuringTheRun: async () => {
+        const p = page()
+        /** @type {readonly (readonly [string | undefined, boolean])[]} */
+        let seen = []
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined }],
+            ['f', { b: () => { throw 'x' } }],
+            ['n', {
+                c: () => {
+                    seen = p.results.children.map(g =>
+                        /** @type {const} */ ([g.attributes.get('data-status'), g.attributes.has('open')]))
+                },
+            }],
+        ])
+        assertStructurallySame(seen, [['passed', false], ['failed', true], ['running', true]])
+    },
+    /**
+     * **The demo's example really fails, the way a real run fails.** Run on the
+     * page's own operations — a real `sandbox` and a real `catch` — because its
+     * failures are real throws, which a pure runner cannot catch. One module
+     * passes and one fails twice: an assertion that does not hold, and a proof
+     * expected to throw that returned.
+     */
+    theDemoRunsItsExample: async () => {
+        const state = unwrap(await asyncRun(commonOperationMap)(demo.update(demo.init)({ kind: 'click', name: 'run' })))
+        assertEq(state.kind, 'done')
+        if (state.kind !== 'done') { return }
+        assertEq(state.report.status, 'failed')
+        assertStructurallySame(groupByModule(state.report.results).map(g => [g.module, g.passed, g.failed]),
+            [['./example/passing.f.mjs', 3, 0], ['./example/failing.f.mjs', 1, 2]])
+        const failures = state.report.results.filter(row => row.status === 'failed')
+        assertStructurallySame(failures.map(row => row.name), [
+            'import("./example/failing.f.mjs").proof.many()',
+            'import("./example/failing.f.mjs").proof.throw.onEmpty()',
+        ])
+        assertEq(failures[1]?.message, 'Expected the proof to throw')
+        // The empty module really ran and produced nothing: no group stands for
+        // it, so it is the one source the demo keeps listed, marked as the real
+        // page marks it.
+        const html = htmlToString(demo.view(state))
+        assert(html.includes('<ul data-example-sources=""><li data-no-tests="">./example/empty.f.mjs</li></ul>'), html)
+    },
+    /**
+     * **A source that reported no tests is marked, so it stays listed.** An
+     * empty proof produces no result and so no group; the stylesheet hides
+     * every unmarked entry once there are results, so without the mark a green
+     * count would sit over a list that looked complete. The next run clears the
+     * mark before it has results of its own.
+     */
+    anEmptyProofIsMarked: async () => {
+        const p = page()
+        const document = p.root.ownerDocument
+        const list = document.createElement('ul')
+        list.setAttribute('data-test-sources', '')
+        for (const source of ['empty', 'full']) {
+            const item = document.createElement('li')
+            item.setAttribute('data-source', source)
+            list.append(item)
+        }
+        p.root.append(list)
+        /** @type {() => readonly boolean[]} */
+        const marks = () => [...list.children].map(item => item.getAttribute('data-no-tests') !== null)
+        await startBrowserTests(p.root, [['empty', {}], ['full', { a: () => undefined }]])
+        assertStructurallySame(marks(), [true, false])
+        /** @type {(readonly boolean[])[]} */
+        let during = []
+        await startBrowserTests(p.root, [['full', { a: () => { during = [...during, marks()] } }]])
+        // Cleared as the run started, before it had results of its own …
+        assertStructurallySame(during, [[false, false]])
+        // … and `empty` is marked again, because this run gave it nothing either.
+        assertStructurallySame(marks(), [true, false])
+    },
+    /**
+     * **A new run's title drops the last run's counts** before it has any of
+     * its own — read from inside the second run's leaf, since afterwards the
+     * title holds the second run's counts and would look the same either way.
+     */
+    countsClearWhenARunStarts: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [['m', { a: () => undefined }]])
+        assertEq(p.counts.children.length, 2)
+        /** @type {number[]} */
+        let during = []
+        await startBrowserTests(p.root, [['m', { a: () => { during = [...during, p.counts.children.length] } }]])
+        assertStructurallySame(during, [0])
+    },
+    // Two runs sharing a label with another run between them are two groups:
+    // folding them into one would also reorder what ran between them.
+    aRepeatedModuleIsTwoGroups: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined }],
+            ['n', { b: () => undefined }],
+            ['m', { c: () => undefined }],
+        ])
+        assertStructurallySame(p.results.children.map(g => g.attributes.get('data-test-module')), ['m', 'n', 'm'])
+    },
+    /**
+     * **Two runs of one label with nothing between them share a group**, on the
+     * live page as in the final report. The events carry a leaf's label and no
+     * run identity, so the page cannot see where one run ended — and it must at
+     * least lose nothing: both runs' rows are in the one group, in order, and
+     * its counts add both up.
+     */
+    adjacentRunsOfOneLabelShareAGroup: async () => {
+        const p = page()
+        await startBrowserTests(p.root, [
+            ['m', { a: () => undefined }],
+            ['m', { b: () => { throw 'x' } }],
+        ])
+        assertStructurallySame(p.results.children.map(g => g.attributes.get('data-test-module')), ['m'])
+        assertStructurallySame([...statuses(p.results)], ['passed', 'failed'])
+        assertEq(p.results.children[0]?.querySelector('[data-counts]')?.textContent, '1 failed · 1 passed')
     },
     sources: async () => {
         const p = page()
@@ -621,7 +811,7 @@ export const proof = {
      * relative source is resolved against the document.
      *
      * The document's base is this repository's root and the source is written
-     * the way the manifest writes one — `./fjs/…`. Resolved against
+     * the way the root page writes one — `./fjs/…`. Resolved against
      * `module.mjs`'s own URL instead, it would be
      * `fjs/emergent_testing/browser/fjs/types/…` and load nothing, which is
      * exactly the 404 that resolving against the document exists to avoid. A
@@ -735,6 +925,8 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assert(p.summary.textContent.startsWith('Infrastructure error: 1 failed to load'),
             p.summary.textContent)
+        assertStructurallySame(countParts(p.counts),
+            [['data-count-passed', '0 passed'], ['data-count-failed', '1 failed'], ['data-duration', '']])
         assertStructurallySame([...statuses(p.results)], ['failed'])
         assertEq(p.view.events.length, 1)
     },

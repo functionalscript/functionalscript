@@ -5,7 +5,7 @@
 
 The token half of this shipped: an input symbol is a `Meta<I>` of
 [`../../ast`](../../ast/README.md), one symbol with whatever the layer below
-knew about it, and `fjs/djs/parser` reads a token stream that way — each
+knew about it, and `fjs/fsc/parser` reads a token stream that way — each
 token's symbol from [`../module.f.mjs`](../module.f.mjs), the whole token
 with its position as the metadata, a keyword's word telling it from an
 identifier. What remains is the pipeline below the parser: the backend that

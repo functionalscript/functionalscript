@@ -109,10 +109,10 @@ work for two reasons that are `fjs/media/json`'s to own, not `fjs/media/type`'s 
 
 - `parse` builds the whole value in `top`/`stack` — O(n) memory in the document
   size.
-- the shared `fjs/js` tokenizer buffers each token's payload
-  (`ParseStringState.value` / `ParseNumberState.value`, appended per character),
-  so even a value-discarding parser still allocates O(token length) on a single
-  huge string or number — e.g. metadata-only `cas_get` on `{"x":"⟨1 MB⟩"}`.
+- the grammar's reader materializes each token's text as a slice of the
+  input and decodes a string over it (`lex` and `decodeJsonString` in
+  `fjs/js/tokenizer`), so even a value-discarding parser still allocates
+  O(token length) on a single huge string or number — e.g. metadata-only `cas_get` on `{"x":"⟨1 MB⟩"}`.
 
 Both are addressed by the payload-free, O(depth) recognizer proposed in
 **`fjs/media/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
@@ -124,7 +124,8 @@ top-level tag — adding no JSON grammar of its own. This todo therefore **depen
 on** that recognizer landing first.
 
 Strictness note: the recognizer must reject raw U+0000–U+001F inside strings,
-already fixed in the shared `fjs/js` tokenizer (`parseStringStateOp`). This
+already refused by JSON's own grammar — `character` in `fjs/ebnf/lib/json`
+admits nothing below U+0020 outside an escape. This
 matters here because `fjs/media/type`'s text gate admits TAB/VT/FF as text
 (`utf8Step`/`isTextCodePoint`), so without the strict check a blob like
 `{"a":"⟨TAB⟩"}` — invalid JSON per RFC 8259 — would be mislabeled
@@ -269,6 +270,6 @@ exactly the path `cas_get` uses.
 - `fjs/media/type/module.f.mjs:221-229` — `finish`, where the text→JSON refinement lands.
 - `fjs/media/type/module.f.mjs:140-161` — the UTF-8 factor whose decoded code points feed the JSON factor.
 - `fjs/media/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
-- `fjs/js/tokenizer/module.f.mjs` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
+- `fjs/ebnf/lib/json/module.f.mjs` — `character`; refuses raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
 - `fjs/media/json/parser/module.f.mjs:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
 - `fjs/mcp/cas/module.f.mjs:211-213` — `cas_get`, the consumer that gains `application/json` for free.

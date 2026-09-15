@@ -189,7 +189,7 @@ shares the semantics rather than the obsolete Playwright registration path.
   as a parameter rather than decide.
 - i183 — broader work on the `tf`
   framework; this is a structural cleanup that lands cleanly alongside it.
-- [i157](../../djs/todo/157-json-djs-shared-value-machine.md) — same flavour: two parallel
+- [i157](../../fsc/todo/157-json-djs-shared-value-machine.md) — same flavour: two parallel
   walkers over the same static shape, differing in the per-node action.
 - [browser-testing](./browser-testing.md) — browser-side execution shared by the HTML,
   `fjs browser-test`, and Playwright outer runners.

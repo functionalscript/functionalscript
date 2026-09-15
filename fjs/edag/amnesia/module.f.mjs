@@ -2,15 +2,17 @@
  * A tree-walking evaluator for `exp`: `vm(context)(e)` returns a primitive
  * unchanged and dispatches a tagged tuple through one handler per tag.
  *
- * It remembers no node values — every incoming edge evaluates its target
- * again — so it is the Amnesia model of
+ * It remembers no node values of its own — every incoming edge evaluates its
+ * target again — so it is the Amnesia model of
  * [execution-models.md](../execution-models.md), for proving semantics and
- * not for running FunctionalScript. See [README.md](./README.md).
+ * not for running FunctionalScript. A caller that has established some nodes
+ * itself may hand them over as `Context`'s `memo`, which is the one thing
+ * this walk does not recompute. See [README.md](./README.md).
  *
  * @module
  *
  * @import { Exp, Op1, Op12, Properties } from '../types.ts'
- * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
+ * @import { OptionLambda, OptionPropertyLambda } from '../types.ts'
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
@@ -114,7 +116,7 @@ const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
  * every step is `[tag, operand, continuation]`, and a `|!()` is reachable
  * through `|.` steps from either — `(a?.(...b).c)(...d)` is exactly that.
  *
- * Like the three walkers below it reads a step by **destructuring**, never by
+ * Like the two walkers below it reads a step by **destructuring**, never by
  * index: destructuring goes through the array iterator, which stops at
  * `length`, so a short step's absent continuation reads as `undefined` and
  * never as whatever a prototype supplies at that index. An indexed `k[2]`
@@ -174,27 +176,6 @@ const optionPropertyLambda = (f, obj, prop, k) => {
     }
 }
 
-/**
- * A property access with **no** region around it — the continuation of a `.`
- * node. Only a call can be here, because only a call uses the receiver: `|()`
- * spends it and exits, `|?.()` spends it and opens a region that owns the
- * rest of the chain. With no region open, that guard failing is simply the
- * node's value, since `optionLambda` has no `|!()` of its own — but the walk
- * still goes through `skip`, which reaches one through a `|.`.
- *
- * @type {(f: (_: Exp) => unknown, obj: any, prop: any, k: PropertyLambda | undefined) => unknown}
- */
-const propertyLambda = (f, obj, prop, k) => {
-    if (k === undefined) { return obj[prop] }
-    const [o, e, cont] = k
-    switch (o) {
-        case '|()': return callProperty(f, obj, prop, e)
-        case '|?.()': return nullish(obj[prop])
-            ? skip(f, cont)
-            : optionLambda(f, callProperty(f, obj, prop, e), cont)
-    }
-}
-
 /**@type {Map}*/
 const map = {
     '!': o1(a => !a),
@@ -225,9 +206,23 @@ const map = {
     // value does, and the two call steps are the only things that can spend
     // it. The node is destructured, so a three-element `['.', a, k]` reads
     // its absent fourth as `undefined` without touching the prototype.
+    //
+    // Only a call can be in that continuation, because only a call uses the
+    // receiver: `|()` spends it and exits, `|?.()` spends it and opens a
+    // region that owns the rest of the chain. With no region open, that
+    // guard failing is simply the node's value, since `optionLambda` has no
+    // `|!()` of its own — but the walk still goes through `skip`, which
+    // reaches one through a `|.`.
+    //
+    // That is `PropertyLambda`, and every one of its arms is an arm of
+    // `OptionPropertyLambda`, so the walker above is this walk on a wider
+    // input rather than a different one. `|?.()` is the same arm verbatim;
+    // `|()` is terminal here, so its continuation is `undefined` and the
+    // wider walker's `optionLambda(f, v, undefined)` hands back the call's
+    // value unchanged. Its `|.` and `|!()` arms are unreachable from here.
     '.': (x, [, a, k, p]) => {
         const i = vm(x)
-        return propertyLambda(i, i(a), i(k), p)
+        return optionPropertyLambda(i, i(a), i(k), p)
     },
     '/': o2((a, b) => a / b),
     '<': o2((a, b) => a < b),
@@ -236,6 +231,10 @@ const map = {
     '===': o2((a, b) => a === b),
     '=>': (x, [, frameExp, body]) => {
         const frame = vm(x)(frameExp)
+        // The body is a new invocation, so it starts with nothing
+        // established: the enclosing `memo` does not cross the boundary, the
+        // same way the model's per-invocation memo does not. The captured
+        // frame is a value and crosses as one.
         /**@type {(...arg: readonly unknown[]) => unknown}*/
         return (...args) =>vm({ frame, args })(body)
     },
@@ -320,6 +319,7 @@ const map = {
 }
 
 export const vm = (/**@type {Context}*/context) => {
+    const { memo } = context
     const compute =
         /**
          * Generic over the tag, not `(e: ExpOp) =>`: with a union-typed `e`,
@@ -332,7 +332,13 @@ export const vm = (/**@type {Context}*/context) => {
          * ) => unknown}
          */
         e => map[e[0]](context, e)
-    return (/**@type{Exp}*/e) => e instanceof Array
-        ? compute(e)
-        : e
+    return (/**@type{Exp}*/e) => {
+        if (!(e instanceof Array)) { return e }
+        // By identity, and before dispatch: an established node is a value
+        // this walk does not recompute, which is the only way one node
+        // reached twice can be one object here. `find` and not a `Map`
+        // because a caller supplies the few nodes it knows are shared.
+        const established = memo?.find(([n]) => n === e)
+        return established === undefined ? compute(e) : established[1]
+    }
 }

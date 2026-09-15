@@ -19,9 +19,8 @@
  *
  * @import { Type as RttiType } from '../../../rtti/types.ts'
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
- * @import { Ts, Check } from '../../../rtti/ts/types.ts'
+ * @import { Ts } from '../../../rtti/ts/types.ts'
  * @import { Phantom } from '../../../types/phantom/types.ts'
- * @import { Assert } from '../../../asserts/types.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
@@ -41,8 +40,8 @@ export const _unknownThunk = () => ['const', unknownConst]
  * renders such a member optional with absence stripped from its type, so each
  * field here is `?:` over the member's present part. JSON Schema objects only
  * include the keywords they need. `$defs` is an *open* map — an absent entry
- * types as `undefined`, so missing-reference handling cannot be skipped. The
- * `consistency` proof checks this hand-written type against the un-annotated
+ * types as `undefined`, so missing-reference handling cannot be skipped.
+ * `./types.ts` checks this hand-written type against the un-annotated
  * `_unknownThunk`, so a wrong field here is caught instead of silently trusted
  * via the `Phantom` lie.
  *
