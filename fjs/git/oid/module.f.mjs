@@ -21,6 +21,7 @@ import { sha1 } from '../../crypto/sha1/module.f.mjs'
 import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { next, toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
@@ -163,3 +164,18 @@ export const toHex = oid => {
     assert(bits !== 0n && bits % 8n === 0n, ['not whole bytes', oid])
     return toArray(toBytes(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
 }
+
+/**
+ * The same spelling as text, which is how an id reaches a message, a log line or
+ * a comparison in a proof.
+ *
+ * Here rather than in each caller, because there were two of it in the modules
+ * that read a repository — `fjs/git/store`'s and `fjs/git/packstore`'s — and a
+ * spelling of an id is this module's subject. `toHex` stays the list, since a
+ * writer of a header or a `packed-refs` line wants bytes and not a string.
+ *
+ * @throws As {@link toHex} does, on a `Vec` that is not whole bytes or is empty.
+ *
+ * @type {(oid: Oid) => string}
+ */
+export const hexText = oid => codePointListToString(toHex(oid))
