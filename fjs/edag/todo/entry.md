@@ -50,15 +50,19 @@ two operators, each with one job.
   | `entry(5, "x")`, `entry(f, "x")` | `undefined` — no such entry; a primitive boxes as in JavaScript |
   | `entry(null, b)`, `entry(undefined, b)` | throws, as JavaScript's read throws |
 
-  The key is any value, converted to a property key as JavaScript converts
-  one: a string as is; a number, a bigint, a boolean, `null` or `undefined`
-  by its `ToString`, so `0` reads `"0"`; an array or an object by
-  `ToPrimitive` then `ToString`, an own `toString` or `valueOf` function
-  called if the value carries one. A function as the key throws, since its
-  `ToString` is source text the name-erased graph does not carry — the one
-  fail-stop divergence, and the writer spells no guard for it, since
-  JavaScript has no throw expression and the value it would read is one the
-  graph cannot carry either way. No guard on the base is needed: a function
+  The key is any primitive, converted to a property key as JavaScript
+  converts one: a string as is; a number, a bigint, a boolean, `null` or
+  `undefined` by its `ToString`, so `0` reads `"0"` and `true` reads
+  `"true"`. A key that is not a primitive — an array, an object, a function
+  — throws. JavaScript would convert it through `ToPrimitive`, which calls
+  a `toString` or `valueOf` the value carries and, for a function or an
+  array holding one, reaches source text the name-erased graph does not
+  carry, and the native VM has no path to call a function during a
+  conversion; refusing the whole class is simpler than following that
+  conversion halfway. It is the one fail-stop divergence: the executor
+  throws where JavaScript reads a property, and the writer spells no guard
+  for it, since JavaScript has no throw expression. No guard on the base
+  is needed: a function
   has no entries, so `entry` on one is `undefined` for every key, which is
   the right answer for "a function has no data", and nothing throws that
   JavaScript would not throw.
@@ -84,10 +88,17 @@ two operators, each with one job.
   refused. The parser matches the definition as a fixed token shape, as
   `["__proto__"]` is one token, so it needs none of named parameters, a
   block body, a body constant or `return` in general; a use site,
-  `entry(o, k)`, is an ordinary call, which is the one real dependency. The
-  writer spells an `entry` node by emitting this function once, hoisted,
-  and calling it. JavaScript reads the definition as the function it is, so
-  the text means the same in both.
+  `entry(o, k)`, is an ordinary call, which is the one real dependency.
+  Since the parser emits the node nowhere else, in a compiled graph an
+  `entry` node occurs only as the body of this function, over `args[0]`
+  and `args[1]`; a graph holding one anywhere else is not one the compiler
+  emits, and the writer refuses it by name, as it refuses a comma outside
+  the root. The writer recognizes the function by that body and spells it
+  as the pattern's text, two named parameters and all, never as
+  `(...$a) => …`, so `entry.length` is `2` in the source, in the output and
+  in the executor, which constructs the function through the same spelling
+  in host JavaScript; the function round-trips as itself. JavaScript reads
+  the definition as the function it is, so the text means the same in both.
 - **`name` is unobservable.** `.` refuses it statically, and `entry` reads
   `undefined` because `name` is not an entry, so no FunctionalScript program
   reads a function's `name`. `=>` carries no name, the graph stays
@@ -110,8 +121,9 @@ two operators, each with one job.
   `Any::own_property` in `nanvm-lib`. Its answers for a primitive or a
   function receiver, `undefined`, already match `entry`; what changes is
   that an array and a string are receivers with their items as entries and
-  `length` no longer read, and that a non-string key is converted rather
-  than refused. The corpus, the generated vectors, `Any::own_property` and
+  `length` no longer read, and that a primitive key is converted by
+  `ToString` rather than refused, which needs no call into user code. The
+  corpus, the generated vectors, `Any::own_property` and
   its documentation change with amnesia, in the same PR, so the JavaScript
   and native executions keep agreeing on every listed input.
 - **Unchanged.** The analysis merges `.` and `entry` alike as plain reads,
@@ -124,20 +136,23 @@ two operators, each with one job.
       is and why.
 - [ ] Amnesia's `entry` reads the descriptor and its `enumerable` flag, with
       proofs for an object, an array, a string, `null`, a number and a
-      function as the base; a number, a boolean, `null`, an array, an object
-      with its own `toString`, and a function as the key; a missing property;
-      and `name` and `length` on a function reading `undefined`.
+      function as the base; a number, a boolean and `null` as the key
+      converting, and an array, an object and a function as the key
+      throwing; a missing property; and `name` and `length` on a function
+      reading `undefined`.
 - [ ] The native VM follows in the same PR: `ownCases` in `fjs/nanvm` and the
       vectors it generates take the entry answers — an array and a string
-      receivers with their items, `length` and `name` `undefined`, a non-string
-      key converted, a function key a throw — and `Any::own_property` in
+      receivers with their items, `length` and `name` `undefined`, a primitive
+      key converted by `ToString`, any other key a throw — and `Any::own_property` in
       `nanvm-lib`, renamed with the node, and its documentation with them.
 - [ ] The parser recognizes the `entry` function as a fixed token shape with
       identifier placeholders and lowers it to the function with the node as
       its body, refuses `Object.getOwnPropertyDescriptor` anywhere else, and
       keeps `name` prohibited for `.`; proofs for the definition, a call of it
-      once calls land, a function that returns the descriptor refused, and
-      `f.name` refused through `.`.
+      once calls land, `entry.length` reading `2`, a function that returns the
+      descriptor refused, and `f.name` refused through `.`; the writer spells
+      the function as the pattern's text and refuses an `entry` node anywhere
+      but in that body.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
