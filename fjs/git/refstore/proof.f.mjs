@@ -386,6 +386,45 @@ export const proof = {
         /** @type {Dir} */
         const heads = { master: ref(a), '.hidden': ref(b), 'x.lock': ref(b) }
         sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [['refs/heads/master', a]])
+        // And a *directory* of either name is skipped whole, refs and all, which
+        // is Git's too: measured with `refs/heads/.hidden/v1` holding a valid id,
+        // `show-ref` and `for-each-ref` list `refs/heads/master` alone at exit 0.
+        /** @type {Dir} */
+        const dirs = { master: ref(a), '.hidden': { v1: ref(b) }, 'x.lock': { v1: ref(b) } }
+        sameRoots(run({ refs: { heads: dirs } }, tryRoots(one(''), 20)), [['refs/heads/master', a]])
+        // The name settles it before the directory is *listed*, which is what
+        // makes that a skip rather than a walk that happens to find nothing: a
+        // child of `.hidden` carries the component too, so judging children alone
+        // would answer the same list — but it would read the directory to do it,
+        // and a listing of it can refuse on its own account. Here it answers one
+        // name twice, which `lossyNameCode` refuses wherever this module looks,
+        // and Git skips the subtree without looking at all.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readWhole: missing,
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'refs/heads/master'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs'
+                    ? [dirent('heads', path, false, true)]
+                    : path === 'refs/heads'
+                        ? [dirent('master', path, true, false), dirent('.hidden', path, false, true)]
+                        : path === 'refs/heads/.hidden'
+                            // one name twice, which is a refusal where it is read
+                            ? [dirent('\uFFFD', path, true, false), dirent('\uFFFD', path, true, false)]
+                            : []),
+            ],
+            stat: statUnasked,
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        assert(r[0] === 'ok', r)
+        sameRoots(r[1], [['refs/heads/master', a]])
+        assert(!log.includes('readdir refs/heads/.hidden'), log)
     },
     // The other six refuse the listing, each naming the file.
     badName: () => {

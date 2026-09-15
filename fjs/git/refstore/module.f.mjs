@@ -977,14 +977,21 @@ const statted = (readRef, resolve, name, item, found) => step(
  * **Two name rules, asked at two different moments.** The header's table has the
  * measurements; the order is what this function is about.
  *
- * The *component* rule — {@link hasRefComponents} — is asked before the kind,
- * because Git's walk skips those two conventions whatever the entry is and
+ * The *component* rule — {@link hasRefComponents} — is asked before anything
+ * else, because Git's walk skips those two conventions whatever the entry is and
  * because no valid ref name can sit under such a component. Measured on Git
  * 2.43.0 in a repository of `refs/heads/master` and `refs/tags/v1`: with
  * `refs/heads/.hidden` linked to `master`, `show-ref` lists the two refs and
  * exits 0; with the same name linked to `../tags`, a link to a *directory*, it
  * lists the same two and exits 0 again. Asking the kind first refused that
  * second repository outright, over an entry Git never looks at.
+ *
+ * Before the *directory* branch too, and not only before the `stat`: a real
+ * directory called `.hidden` or `x.lock` may hold ref files, and Git skips the
+ * whole subtree — measured, `refs/heads/.hidden/v1` holding a valid id leaves
+ * `show-ref` and `for-each-ref` listing `refs/heads/master` alone at exit 0.
+ * Descending first reached that child and refused its name, turning a repository
+ * Git lists into a channel error.
  *
  * The *whole-name* rule is asked in {@link readAsRef}, after the kind, because
  * it is a rule about a ref and not about a path: `refs/heads/bad.` is no ref
@@ -1024,11 +1031,12 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
     return item => state => {
         if (state === null) { return pureOk(walked(null, null)) }
         const found = state
-        if (item.isDirectory) { return descendInto(item, found) }
         const name = nameBytes(item.name)
-        // The two file-name conventions are asked before the kind, and the
-        // whole-name rule after it: see the doc above.
+        // The two file-name conventions are asked before anything else — before
+        // the kind, and before a directory is descended into — and the whole-name
+        // rule after the kind: see the doc above.
         if (!hasRefComponents(name)) { return pureOk(walked(found, null)) }
+        if (item.isDirectory) { return descendInto(item, found) }
         if (!keep(item.name)) { return pureOk(walked(found, null)) }
         return item.isFile
             ? readAsRef(readRef, resolve, name, item, found)
