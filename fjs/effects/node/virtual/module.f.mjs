@@ -194,9 +194,13 @@ const jsModuleNotAFile = name => fail(`'${name}' is not a file`)
  * {@link notAFileCode} — so answering anything else here would give a caller a
  * branch it cannot reach on the host it ships against.
  *
- * @type {(name: string) => Error<IoError>}
+ * The argument is the path the caller asked for rather than the entry name the
+ * resolver reduced it to, so the message is the one the node runner would have
+ * produced — see {@link readWhole}.
+ *
+ * @type {(path: string) => Error<IoError>}
  */
-const jsModuleNotRegular = name => error(ioError({ code: notAFileCode, message: notAFileMessage(name) }))
+const jsModuleNotRegular = path => error(ioError({ code: notAFileCode, message: notAFileMessage(path) }))
 
 /**
  * The chunk list the entry `p` names holds, or the `IoResult` error that says
@@ -293,7 +297,12 @@ const readFile = path => readOperation((dir, p) => {
  * @type {(path: string) => (state: State) => readonly [State, IoResult<readonly Vec[]>]}
  */
 const readWhole = path => readOperation((dir, p) => {
-    const resolved = resolveFile(jsModuleNotRegular)(dir, p)
+    // The requested path and not `p`'s entry name, for the reason
+    // {@link readFile} gives about its cap: the refusal names the file, and the
+    // node runner names the whole path. A nested entry reaches here as one
+    // segment, so taking what the resolver offers would answer `device` where
+    // the host answers `dir/device`.
+    const resolved = resolveFile(() => jsModuleNotRegular(path))(dir, p)
     return resolved[0] === 'error' ? resolved : ok(resolved[1])
 })(path)
 

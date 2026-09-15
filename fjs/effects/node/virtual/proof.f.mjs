@@ -240,6 +240,19 @@ export const proof = {
         assert(e[0] === 'ioError')
         assertEq(e[1].code, notAFileCode)
         assertEq(e[1].message, notAFileMessage('a.f.ts'))
+        // And the message is the path the caller asked for, not the entry name
+        // the resolver reduced it to: an operation descends before it runs, so a
+        // nested entry arrives as one segment, and the node runner names the
+        // whole path. Two files of one name under different directories are the
+        // case a basename cannot tell apart.
+        /** @type {Dir} */
+        const nested = { dir: { 'a.f.ts': () => ({}) } }
+        const [, deep] = virtual({ ...emptyState, root: nested })(readWhole('dir/a.f.ts'))
+        assert(deep[0] === 'error')
+        const d = deep[1]
+        assert(d[0] === 'ioError')
+        assertEq(d[1].code, notAFileCode)
+        assertEq(d[1].message, notAFileMessage('dir/a.f.ts'))
     },
     writeBytesOnJsModule: () => {
         // writeBytes shares `resolveFile` with the two reads but not their

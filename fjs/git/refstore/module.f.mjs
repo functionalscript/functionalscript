@@ -92,12 +92,21 @@
  * The join is lossless only for a name that *is* UTF-8, and Git requires no
  * such thing: `refs/heads/\x80` is a name `git check-ref-format` accepts and
  * `rev-parse` resolves, measured. Such a name can only arrive here in a
- * `packed-refs` line, which never becomes a path, and both halves answer it —
- * but a *loose* file of that name is unreachable, because node hands back
- * U+FFFD for the byte and a read of the decoded string is `ENOENT`. What that
- * costs each half is measured in
- * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md); the fix is a path API
- * that speaks bytes and belongs to the effects, not here.
+ * `packed-refs` line, which never becomes a path, and **the two halves answer it
+ * differently on purpose**. {@link tryRoots} lists it: the walk read every entry
+ * of `refs/` and would have refused a file it could not name, so it knows no
+ * loose file shadows that line. {@link tryResolve} answers `null`: it does not
+ * look, and no path can be built to ask whether a loose file of that name is
+ * there, so the packed id would be a stale answer in exactly the state this host
+ * cannot observe. A *loose* file of the name is unreachable either way, because
+ * node hands back U+FFFD for the byte and a read of the decoded string is
+ * `ENOENT`.
+ *
+ * That disagreement is the one place the two halves of this module answer one
+ * name differently, and it is a gap and not a rule: what it costs each half, and
+ * the path API that speaks bytes and would close it, are
+ * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md). `byteName` in the proof
+ * asserts both answers on one fixture.
  *
  * **Two entries of one listing with the same name are refused**, which is the
  * case where that unreachability stops announcing itself. One such file alone
@@ -141,10 +150,21 @@
  * bound to an effect that has not been produced yet. Binding one anyway would
  * mean reading a file this module has just decided not to read.
  *
- * **A `packed-refs` may name one ref twice, and the last line wins.**
- * Measured: `git show-ref` lists both lines and `git rev-parse` answers the
- * last, in either order of the two. Git neither refuses the file nor takes the
- * first, so the earlier lines are dead and one name still has one value.
+ * **A `packed-refs` may name one ref twice, and the two halves answer that
+ * differently.** Measured: `git show-ref` and `git for-each-ref` list both lines
+ * while `git rev-parse` answers the last, in either order of the two, and
+ * `git gc --prune=now` with every reflog expired keeps the commit only the
+ * *earlier* line names. So the last line is the name's *value* and the earlier
+ * ones are still retention roots — not dead, as an earlier revision of this
+ * paragraph had it. The lookup answers the last; the listing refuses the file,
+ * because one entry per name cannot hold both roots — {@link packedTwiceCode}.
+ * A name repeated at one id loses nothing and is answered once.
+ *
+ * **A ref may hold the id no object has, and the listing refuses that too.**
+ * Measured with `refs/heads/zero` at forty zeros, loose and packed alike:
+ * `show-ref` answers `bad ref refs/heads/zero (0000…)` and exits 128 while
+ * `rev-parse` prints the id and exits 0. This module follows each in its own
+ * half — {@link zeroIdCode}.
  *
  * **The `sorted` trait is not read, so a lookup here scans.** The file's header
  * may promise that its records are in lexical order, and Git's lookup bisects on
@@ -181,7 +201,7 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { hasRefComponents, isWholeName } from '../refname/module.f.mjs'
@@ -345,8 +365,13 @@ const special = /** @type {readonly string[]} */ (['FETCH_HEAD', 'MERGE_HEAD'])
  *
  * A file can hold a name twice, and Git neither refuses it nor takes the
  * first: measured on Git 2.43.0, `git show-ref` lists both lines and
- * `git rev-parse` answers the last, in either order of the two. So the last
- * line is the effective value and the ones above it are dead.
+ * `git rev-parse` answers the last, in either order of the two. So the last line
+ * is the name's effective *value*, which is what this function is for.
+ *
+ * The earlier lines are not *dead*, which is a different question and one this
+ * function does not answer: `git gc` keeps the commit an earlier line names, so
+ * each is a retention root. That is why the listing refuses such a file rather
+ * than taking this value — see {@link packedTwiceCode}.
  *
  * A scan and not a bisection, which the module doc argues: the `sorted` trait
  * that would justify one is not read yet, and a scan finds every record the file
@@ -1012,6 +1037,40 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
 }
 
 /**
+ * A name for a message, which a ref name is not always: one that is no UTF-8
+ * names no file and cannot be written as a path, so it is written as its bytes
+ * in hex instead. See {@link nameText}.
+ *
+ * @type {(name: Bytes) => string}
+ */
+const nameForMessage = name => {
+    const dense = byteArray(name)
+    return nameText(dense) ?? dense.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** The id no object has, which a ref may none the less hold: forty or sixty-four zeros. */
+const zeroId = /** @type {(id: Oid) => boolean} */ (id => uint(id) === 0n)
+
+/**
+ * The first root whose id is the zero id, or `null` where none is.
+ *
+ * @type {(roots: readonly Root[]) => Nullable<Root>}
+ */
+const zeroRoot = roots => roots.find(r => zeroId(r.id)) ?? null
+
+/**
+ * A name a `packed-refs` gives two *different* ids, or `null` where every name
+ * it repeats repeats one id.
+ *
+ * @type {(packed: readonly PackedRef[]) => Nullable<Bytes>}
+ */
+const packedDisagreement = packed => {
+    const byName = new Map(packed.map(p => [nameKey(p.name), p.id]))
+    const hit = packed.find(p => byName.get(nameKey(p.name)) !== p.id)
+    return hit === undefined ? null : hit.name
+}
+
+/**
  * Whether the `HEAD` file and `packed-refs` both name `HEAD`.
  *
  * The head's own findings are what say the file is there: {@link tryHeadFound}
@@ -1031,10 +1090,14 @@ const packedHeadCollision = (headFound, packed) =>
  *
  * A packed line is dropped for either of two reasons. A loose file of the same
  * name hides it, by existing — see {@link _Found}. And a *later* packed line of
- * the same name hides it, because a file may name a ref twice and Git takes
- * the last: measured on Git 2.43.0, `git show-ref` lists both lines and
- * `git rev-parse` answers the last, in either order. Keeping both would break
- * the one-entry-per-name this function promises.
+ * the same name hides it, because a file may name a ref twice and Git takes the
+ * last for the name's value: measured on Git 2.43.0, `git show-ref` lists both
+ * lines and `git rev-parse` answers the last, in either order.
+ *
+ * The second is a drop this function is never reached with at two different ids:
+ * {@link tryRoots} refuses such a file first, since both lines are retention
+ * roots — {@link packedTwiceCode}. What is left here is the harmless case, one
+ * name repeated at one id, where taking the last loses nothing.
  *
  * @type {(found: _Found, packed: readonly PackedRef[]) => readonly Root[]}
  */
@@ -1129,6 +1192,50 @@ const headKindMessage = path => `${path} is not a regular file`
  * hold both.
  */
 export const packedHeadCode = /** @type {const} */ ('ERR_PACKED_HEAD')
+
+/**
+ * The code a listing is refused with when a ref holds the id no object has:
+ * forty zeros at SHA-1, sixty-four at SHA-256.
+ *
+ * Git refuses it the same way and in the same half. Measured on Git 2.43.0 with
+ * `refs/heads/zero` holding the zero id, loose and packed alike:
+ * `git show-ref` answers `bad ref refs/heads/zero (0000…)` and exits 128, and
+ * `git rev-list --all` answers `fatal: bad object refs/heads/zero`. So a listing
+ * that carried it would be a retention root that cannot name an object, for a
+ * repository `rev-list` refuses to walk.
+ *
+ * The *lookup* keeps Git's other answer: `git rev-parse` prints the zero id and
+ * exits 0, and so does {@link tryResolve}. `git for-each-ref` is a third answer
+ * again — `warning: ignoring broken ref` and exit 0 — and this module follows
+ * `show-ref`, which is the listing it has matched throughout.
+ */
+export const zeroIdCode = /** @type {const} */ ('ERR_ZERO_ID')
+
+/** @type {(name: Bytes) => string} */
+const zeroIdMessage = name => `${nameForMessage(name)} holds the zero id`
+
+/**
+ * The code a listing is refused with when `packed-refs` gives one name two
+ * different ids.
+ *
+ * Both are roots, which is what this list cannot say twice. Measured on Git
+ * 2.43.0 with `refs/heads/dup` written twice at two ids: `git show-ref` and
+ * `git for-each-ref` print both lines, `git rev-list --all` lists both, and
+ * `git gc --prune=now` with every reflog expired keeps the commit only the
+ * *earlier* line names — while `git rev-parse` answers the last, which is the
+ * value {@link packedId} takes and {@link tryResolve} answers.
+ *
+ * So the file holds two roots under one name, and dropping the earlier one lost
+ * an id the repository is keeping. It is the same shape as {@link packedHeadCode}
+ * and refused for the same reason, with the same way out recorded in
+ * [`todo/packed-head.md`](./todo/packed-head.md). A name repeated at *one* id
+ * loses nothing and is answered once.
+ */
+export const packedTwiceCode = /** @type {const} */ ('ERR_PACKED_TWICE')
+
+/** @type {(dirs: Dirs, name: Bytes) => string} */
+const packedTwiceMessage = (dirs, name) =>
+    `${under(dirs.common, packedRefs)} names ${nameForMessage(name)} at two ids`
 
 /** @type {(dirs: Dirs) => string} */
 const packedHeadMessage = dirs =>
@@ -1270,8 +1377,11 @@ const tryHeadFound = (dirs, oidBytes, entries) => {
  * says about that name. A symbolic loose ref that does resolve is answered
  * resolved, which is what `git show-ref` lists for one.
  *
- * One name, one entry, whatever the files do: a `packed-refs` naming a ref
- * twice contributes its last line and not both.
+ * One name, one entry, whatever the files do — and where a file would make that
+ * impossible, this refuses rather than choose. A `packed-refs` naming one ref at
+ * two ids is refused with {@link packedTwiceCode}, because both lines are roots;
+ * at one id it is answered once. A ref holding the zero id is refused with
+ * {@link zeroIdCode}, because a root that names no object is no root.
  *
  * **`HEAD` is the one name that rule cannot answer, and it refuses rather than
  * answer it wrongly.** A packed line naming `HEAD` beside the `HEAD` file is a
@@ -1387,9 +1497,24 @@ export const tryRoots = (dirs, oidBytes) => {
                 message: packedHeadMessage(dirs),
             }))
         }
-        return pureOk(combine({
+        // The other two ways one name would stand for two roots, or one root for
+        // no object. Both are asked of the finished list rather than of each
+        // reader, so a loose file, a `HEAD` and a packed line are judged by one
+        // rule: see {@link zeroIdCode} and {@link packedTwiceCode}.
+        const twice = packedDisagreement(packed)
+        if (twice !== null) {
+            return pureError(ioError({
+                code: packedTwiceCode,
+                message: packedTwiceMessage(dirs, twice),
+            }))
+        }
+        const roots = combine({
             roots: concat(found.roots)(h.roots),
             names: concat(found.names)(h.names),
-        }, packed))
+        }, packed)
+        const zero = zeroRoot(roots)
+        return zero === null
+            ? pureOk(roots)
+            : pureError(ioError({ code: zeroIdCode, message: zeroIdMessage(zero.name) }))
     })
 }
