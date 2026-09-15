@@ -311,7 +311,32 @@ const selected = (b, at, mask, count, k, value) => {
  * Everything it needs is a parameter, so this closes over nothing: `d` is the
  * delta, `src` the base, and `want` the size the delta's header declares.
  *
- * @type {(d: readonly number[], src: readonly number[], at: number, want: number) => Nullable<List<readonly number[]>>}
+ * **The pieces are joined here rather than by the caller, because an empty
+ * `List` and a refusal are the same value.** `List` spells the empty list
+ * `null`, so a delta that honestly builds nothing — source size 1, target size
+ * 0, no instructions — answered the same `null` as a delta that does not
+ * describe an object at all, and the caller read it as the second. Joining
+ * inside makes the two answers different values: `[]` for the object with no
+ * bytes, `null` for the delta that names none.
+ *
+ * Git builds that object. Measured on Git 2.43.0 over hand-built two-object v2
+ * packs, a base blob of one byte and a `refDelta` against it:
+ *
+ * | the delta's target | `index-pack --strict` | `verify-pack` | `cat-file --batch-check` |
+ * | --- | --- | --- | --- |
+ * | two bytes | accepts | ok | `blob 2` |
+ * | nothing | accepts, and indexes the empty blob | `bad` | `missing` |
+ *
+ * — with the empty blob stored *whole* in the same hand-built shape accepted
+ * and read by all three, so the disagreement is the delta's emptiness and not
+ * the object's. Git's indexer applies the delta and hashes an empty blob out of
+ * it, `git unpack-objects` on the same pack writes that blob loose and
+ * `cat-file -s` then answers 0, and only Git's *packed* reader cannot serve
+ * what its own indexer wrote. So the delta does describe an object, two of
+ * Git's three readers build it, and answering "this is no object" was the one
+ * answer with no support at all.
+ *
+ * @type {(d: readonly number[], src: readonly number[], at: number, want: number) => Nullable<readonly number[]>}
  */
 const deltaPieces = (d, src, at, want) => {
     /** @type {List<readonly number[]>} */
@@ -322,7 +347,7 @@ const deltaPieces = (d, src, at, want) => {
         // The instructions have to build the target exactly, so a delta that
         // stops short is refused here rather than by a length check outside:
         // one place states the rule and one place enforces it.
-        if (i === d.length) { return total === want ? found : null }
+        if (i === d.length) { return total === want ? toArray(flat(found)) : null }
         const c = d[i]
         if (c < 128) {
             // an insert of nothing is written by no encoder, and a stream of
@@ -362,6 +387,11 @@ const maxTargetBytes = Number(maxLengthBytes)
  * instruction that runs off the end, a copy outside the base, or an insert of
  * length zero, which no encoder writes and which would let a stream make no
  * progress.
+ *
+ * **An object of no bytes is `[]` and not `null`.** A delta declaring a target
+ * of nothing describes the empty object, which is a thing Git builds — see
+ * {@link deltaPieces} for the measurement and for why the pieces are joined
+ * there rather than here.
  *
  * Both sizes in the delta's header are checked rather than skipped. The source
  * size says which base the delta was made against, so a mismatch means the
@@ -404,6 +434,5 @@ export const tryApplyDelta = (base, delta) => {
     if (targetSize === null) { return null }
     const [want, start] = targetSize
     if (want > maxTargetBytes) { return null }
-    const named = deltaPieces(d, src, start, want)
-    return named === null ? null : toArray(flat(named))
+    return deltaPieces(d, src, start, want)
 }

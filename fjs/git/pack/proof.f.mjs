@@ -258,6 +258,33 @@ export const proof = {
         const [, ...rest] = packDelta.slice(2)
         assertEq(tryApplyDelta(packDeltaBase, [...packDelta.slice(0, 2), packDelta[2] + 1, ...rest]), null)
     },
+    // A delta whose target is nothing builds the empty object, and that answer
+    // is not the refusal. `List` spells the empty list `null`, so the pieces a
+    // delta names and a delta that names no object were one value until the
+    // join moved inside — and the caller read the honest empty one as "this is
+    // no object".
+    //
+    // Git builds it. Measured on Git 2.43.0 over hand-built two-object v2 packs,
+    // a one-byte base blob and a `refDelta` against it: `index-pack --strict`
+    // accepts this pack and indexes the empty blob at offset 22, and `git
+    // unpack-objects` on it writes that blob loose where `cat-file -s` then
+    // answers 0. Only Git's *packed* reader disagrees with its own indexer —
+    // `verify-pack` calls the pack `bad` and `cat-file --batch-check` answers
+    // `missing` — while the same pack shape holding the empty blob *whole*, and
+    // the same shape whose delta builds two bytes, are read by all three. So the
+    // emptiness of the delta's output is what Git trips on, and building the
+    // object is the answer two of its three readers give.
+    applyDeltaEmptyTarget: () => {
+        // source size 1, target size 0, and no instructions at all
+        assertStructurallySame(tryApplyDelta([120], [0x01, 0x00]), [])
+        // the same, with both sizes written in the padded two-byte form a real
+        // encoder may emit — which is the shape the pack above carries
+        assertStructurallySame(tryApplyDelta([120], [0x81, 0x00, 0x80, 0x00]), [])
+        // and the refusals it must stay distinct from: a delta that declares
+        // bytes and names none, and one whose source size is not the base's
+        assertEq(tryApplyDelta([120], [0x01, 0x02, 0x90, 0x01]), null)
+        assertEq(tryApplyDelta([120, 121], [0x01, 0x00]), null)
+    },
     // A delta that names more than the layer can hold is refused before it
     // builds anything. The instruction bound stops a delta building more than it
     // declared; this is the one that declares the amplification honestly — a
