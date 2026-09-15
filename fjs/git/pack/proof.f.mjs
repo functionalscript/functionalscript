@@ -5,10 +5,9 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { of, toHex, tryFromHex } from '../oid/module.f.mjs'
+import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import {
     latin1, packDelta, packDeltaBase, packEntryObject, packEntryOfsDelta, packHeader,
 } from '../testlib.f.mjs'
@@ -24,9 +23,6 @@ const id = hex => {
     assert(i !== null)
     return i
 }
-
-/** @type {(oid: Oid) => string} */
-const hex = oid => codePointListToString(toHex(oid))
 
 /** @type {(oid: Oid) => readonly number[]} */
 const idBytes = oid => toArray(u8List(msb)(oid))
@@ -171,7 +167,7 @@ export const proof = {
         assert(e !== null && e.kind === 'refDelta')
         const { size, baseId: named, dataAt } = e
         assertEq(size, 152)
-        assertEq(hex(named), baseId)
+        assertEq(hexText(named), baseId)
         assertEq(dataAt, 2 + 20)
     },
     // Type codes 0 and 5 are unused and reserved, so an entry claiming either
@@ -236,11 +232,11 @@ export const proof = {
     applyDelta: () => {
         // the base is the object its own id says it is, so the delta is being
         // applied to what Git applied it to
-        assertEq(hex(idOf('commit', packDeltaBase)), baseId)
+        assertEq(hexText(idOf('commit', packDeltaBase)), baseId)
         const out = tryApplyDelta(packDeltaBase, packDelta)
         assert(out !== null)
         assertEq(out.length, 427)
-        assertEq(hex(idOf('commit', out)), targetId)
+        assertEq(hexText(idOf('commit', out)), targetId)
     },
     // Both sizes in a delta's header are checked. The source size says which
     // base the delta was made against, so a base of another length is refused

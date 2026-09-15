@@ -62,8 +62,10 @@ alphabet reads delimiters and DEFLATE has none — the table in
   the Adler-32 check as its own small module.
 - `fjs/git/loose` and `fjs/git/packstore` then read through it, and the
   `inflate` operation stays, exported as it is, for a host that would rather
-  spend the native decoder. Both callers, or the bound moves off the loose path
-  and stays on the packed one — which is the path a real clone takes. They are not one type: the decoder is a pure
+  spend the native decoder. Both callers have to change together: changing one
+  moves the bound off that path and leaves it on the other, and the other is
+  the packed path, which is the one a real clone reads through. The decoder and
+  the operation are not one type. The decoder is a pure
   `Bytes → Nullable<Bytes>`, refusing a malformed stream with `null` and
   nothing else, since it has no host to fail; the operation is
   `Vec → IoResult<Vec>` through `IoChannel`, where a malformed stream, a
@@ -82,4 +84,5 @@ blocks, which is a framing and not a compression.
 
 - [`fjs/git/README.md`](../fjs/git/README.md), the design this serves,
   and its note on what a grammar does not do.
-- `fjs/git/loose`, the module that would change.
+- `fjs/git/loose` and `fjs/git/packstore`, the two modules that would
+  change.

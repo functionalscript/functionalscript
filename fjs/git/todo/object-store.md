@@ -72,8 +72,15 @@ it can read:
 - [x] `tryRead` over packs: [`fjs/git/packstore`](../packstore/module.f.mjs)
       answers from the `.idx` and the pack beside it, and
       [`fjs/git/store`](../store/module.f.mjs) reads the loose file first and
-      the packs where it cannot answer — which is the order Git's own answers
-      come out in, measured.
+      the packs where it cannot answer. That is *not* Git's order — measured on
+      Git 2.43.0, a file of garbage planted at a packed object's loose path
+      leaves `git cat-file -p` printing the object and only `git fsck`
+      complaining, so Git asks its packs first. The same answers come out of
+      either order, since an object is the same object wherever it is stored
+      and the id is checked against whichever copy answered; this one is
+      cheaper, because an index is hashed whole when it is opened and asking
+      the packs first would pay that on every read of a repository whose
+      objects are loose.
 - [x] The common directory found: a linked worktree's `gitdir` and
       `commondir`, in [`fjs/git/repo`](../repo/module.f.mjs).
 - [ ] `alternates`: the directories `objects/info/alternates` adds, which
