@@ -493,6 +493,12 @@ export const proof = {
         assertEq(alternatesIn('od', '"/tmp/\\377/objects"'), null)
         // and the boundary: `\177` is ASCII and spells a path this layer can
         assertStructurallySame(alternatesIn('od', '"/a\\177b"'), ['/a\x7Fb'])
+        // a line whose escapes are ASCII before the one that is not, so the scan
+        // is a search and not a look at the first
+        assertEq(alternatesIn('od', '"/a\\101b\\377c"'), null)
+        // and `\\` is an escape of its own: its second backslash does not start
+        // another, so this names no byte above ASCII and spells a path
+        assertStructurallySame(alternatesIn('od', '"/a\\\\377b"'), ['/a\\377b'])
         const [, r] = runHost(objectsDirs('octal'))
         assert(r[0] === 'error')
         const e = r[1]

@@ -182,7 +182,7 @@ const octalAt = (line, i) =>
         : null
 
 /**
- * The highest byte an octal escape in `line` names, or `null` where it has none.
+ * Whether an octal escape in `line` names a byte above ASCII.
  *
  * Asked because an escape of `\200` or above names a *byte*, and a byte above
  * ASCII is a path this layer cannot spell — see {@link alternatesCode}. The
@@ -192,16 +192,18 @@ const octalAt = (line, i) =>
  * spelling a byte in octal is plain ASCII itself. Git has no such trouble:
  * `"/tmp/\377/objects"` makes it open a path holding the byte `0xFF`.
  *
- * @type {(line: string) => Nullable<number>}
+ * Whether, and not which: one such escape is enough to refuse the file, so a
+ * largest is a number nothing would read.
+ *
+ * @type {(line: string) => boolean}
  */
-const highestOctal = line => {
-    let high = /** @type {Nullable<number>} */ (null)
+const hasHighOctal = line => {
     let i = 0
     while (true) {
         const at = line.indexOf('\\', i)
-        if (at === -1) { return high }
+        if (at === -1) { return false }
         const v = octalAt(line, at + 1)
-        if (v !== null && (high === null || v > high)) { high = v }
+        if (v !== null && v > 0x7F) { return true }
         // an escape is two characters at least, so a `\\` cannot have its second
         // backslash read as the start of another
         i = at + 2
@@ -279,7 +281,7 @@ const unquoted = line => {
  */
 export const alternatesIn = (od, text) => {
     const lines = text.split('\n')
-    if (lines.some(l => (highestOctal(l) ?? 0) > 0x7F)) { return null }
+    if (lines.some(hasHighOctal)) { return null }
     return lines
         .map(alternateLine)
         .filter(l => l !== null)
