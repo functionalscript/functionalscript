@@ -28,9 +28,11 @@ source means:
 - `const f = (...a) => 5` lowers with `"f"`; an object member with its key,
   a computed key with the key's expression; `export default` with
   `"default"`; an array item or an argument with `""`.
-- The executor sets the function's `name` to the expression's value; the
-  analysis treats the operand as any other, so a name that reads the
-  arguments is a body-scope dependency like a frame's.
+- The name operand denotes a property key: a string as is, a number by
+  its `ToString` — `{ [1]: (...a) => 5 }[1].name` is `"1"` — and nothing
+  else, since the language has no symbol; the executor sets that string as
+  the function's `name`. The analysis treats the operand as any other, so a
+  name that reads the arguments is a body-scope dependency like a frame's.
 - **Writing it back.** The writer makes the text infer the same name. Where
   its own binding would, `const f = (...$a) => 5`, nothing is needed; where
   it would not — a hoisted `$0`, a name that is not an identifier, a

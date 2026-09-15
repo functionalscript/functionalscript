@@ -135,7 +135,10 @@ accepts, so that compiling the output again yields the same EDAG:
   parser.
 - Leaves are written as the DataJS serializer writes them: JSON's spellings,
   `undefined`, `NaN`, the infinities, `-0`, a bigint with its suffix, and
-  `["__proto__"]:` for that key.
+  `["__proto__"]:` for that key. An object key is written as a string; a
+  key that is not a string, `[':', 1, 0]`, which the schema allows and the
+  compiler never emits since `{ 1: 0 }` is not in the grammar, is refused by
+  name until number and computed keys land.
 - One line, no trivia, `;` after every statement: the normalized form, so
   that the output is canonical text as the DataJS output is.
 
@@ -164,7 +167,7 @@ contract stays for `.data.js` and `.json`, which are values.
       refusal does: a comma anywhere but the root, an object-literal body, a
       identity-minting node shared within a body, a numeric or function base
       within a body, an identity-minting node reached only through lazy edges,
-      a `NaN` key, a node kind
+      a `NaN` key, an object key that is not a string, a node kind
       without a spelling.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
