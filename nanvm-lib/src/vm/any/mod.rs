@@ -20,16 +20,19 @@ mod typeof_;
 
 pub mod to_any;
 
-use crate::vm::{
-    IVm, String, ToAny, Unpacked,
-    boolean_coercion::BooleanCoercion,
-    dispatch::Dispatch,
-    nullish::Nullish,
-    number_coercion::NumberCoercion,
-    numeric::Numeric,
-    primitive::Primitive,
-    primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
-    string_coercion::StringCoercion,
+use crate::{
+    common::sized_index::SizedIndex,
+    vm::{
+        Array, IVm, String, ToAny, Unpacked,
+        boolean_coercion::BooleanCoercion,
+        dispatch::Dispatch,
+        nullish::Nullish,
+        number_coercion::NumberCoercion,
+        numeric::Numeric,
+        primitive::Primitive,
+        primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
+        string_coercion::StringCoercion,
+    },
 };
 
 /// `Object.getOwnPropertyDescriptor`'s own message for a nullish receiver
@@ -153,6 +156,39 @@ impl<A: IVm> Any<A> {
         self.dispatch(NumberCoercion)
     }
 
+    /// The EDAG's `.` / `[]` (`['.', receiver, index]`) — see
+    /// `nanvm-lib/todo/member-access-operator.md` for the staged plan.
+    /// Stage 1 only: an `Array` receiver, indexed by an in-bounds integer
+    /// key — given as a `Number` or its canonical decimal string — reads
+    /// the element; the string key `"length"` reads `Array::length()`;
+    /// every other key reads `undefined`. Every other receiver is Stage
+    /// 2/3's job and is not implemented yet.
+    ///
+    /// Unlike `own_property`, this never panics on an out-of-range index:
+    /// `array_member_access` checks `index < len` itself before it ever
+    /// indexes into `Array<A>`, so `Array`'s own `Index<u32>` (which still
+    /// panics out of bounds, by ordinary Rust convention — see
+    /// `vm/array/index.rs`) is never reached with a bad index.
+    ///
+    /// A nullish receiver throws the same `TypeError` `own_property` does:
+    /// real JS's `[]` runs the same `ToObject` failure ahead of any key
+    /// handling that `Object.getOwnPropertyDescriptor` does.
+    pub fn member_access(self, key: Self) -> Result<Self, Self> {
+        let unpacked: Unpacked<A> = self.into();
+        if let Unpacked::Nullish(_) = &unpacked {
+            return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+        }
+        Ok(match unpacked {
+            Unpacked::Array(a) => array_member_access(a, key),
+            // Stage 2 (String) and Stage 3 (Object, plus the fallback
+            // `undefined` for Number/Boolean/BigInt/Function) are not
+            // implemented yet.
+            _ => todo!(
+                "member access on a non-Array receiver: see nanvm-lib/todo/member-access-operator.md"
+            ),
+        })
+    }
+
     /// Never fails, unlike `to_number`/`to_string`/`to_numeric` — `ToBoolean`
     /// inspects the operand's type directly and never calls `ToPrimitive`.
     pub fn to_boolean(self) -> bool {
@@ -184,11 +220,72 @@ impl<A: IVm> Any<A> {
     }
 }
 
+/// `array[key]`: an in-bounds index (`Number` or canonical decimal string)
+/// reads the element, `"length"` reads the length, anything else is
+/// `undefined`. `.length` is looked up only through the string key
+/// `"length"` — never through a number, the way JS itself never lets
+/// `array[array.length]` collide with `array["length"]`.
+fn array_member_access<A: IVm>(array: Array<A>, key: Any<A>) -> Any<A> {
+    let len = array.length();
+    match Unpacked::from(key) {
+        Unpacked::Number(n) => match canonical_index(n) {
+            Some(i) if i < len => array[i].clone(),
+            _ => Nullish::Undefined.to_any(),
+        },
+        Unpacked::String(s) => {
+            if s == "length".into() {
+                (len as f64).to_any()
+            } else {
+                match string_to_index(&s) {
+                    Some(i) if i < len => array[i].clone(),
+                    _ => Nullish::Undefined.to_any(),
+                }
+            }
+        }
+        _ => Nullish::Undefined.to_any(),
+    }
+}
+
+/// A `Number` key that denotes a valid array index: a non-negative integer
+/// that fits in `u32`. `-0.0` passes (`-0.0 < 0.0` is `false` and
+/// `(-0.0).fract()` is `0.0`), matching real JS: a numeric `-0` key
+/// stringifies to `"0"` and indexes element `0`, unlike the *string* key
+/// `"-0"`, which `string_to_index` below rejects (it round-trips to `"0"`,
+/// not back to itself, so it never denotes an index).
+fn canonical_index(n: f64) -> Option<u32> {
+    if !n.is_finite() || n < 0.0 || n.fract() != 0.0 || n > u32::MAX as f64 {
+        return None;
+    }
+    Some(n as u32)
+}
+
+/// A `String` key that is the canonical decimal form of an array index:
+/// `"0"`, or a nonempty run of ASCII digits with no leading zero. This is
+/// deliberately narrower than `str::parse`, which alone would accept
+/// `"01"` and `"+1"` — neither is `array[1]`'s key in real JS, only
+/// `array["1"]` is, and admitting them here would make two different
+/// strings read the same element.
+fn string_to_index<A: IVm>(s: &String<A>) -> Option<u32> {
+    let text: std::string::String = s.clone().into();
+    if text == "0" {
+        return Some(0);
+    }
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_digit() && first != '0' => {}
+        _ => return None,
+    }
+    if !chars.as_str().bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Nullish, ToAny},
+        vm::{Any, Nullish, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
@@ -207,5 +304,116 @@ mod tests {
             receiver.own_property(key),
             Err("TypeError: Cannot convert undefined or null to object".into())
         );
+    }
+
+    fn array(items: impl IntoIterator<Item = f64>) -> Any<A> {
+        let items: std::vec::Vec<Any<A>> = items.into_iter().map(|n| n.to_any::<A>()).collect();
+        items.to_array::<A>().to_any::<A>()
+    }
+
+    #[test]
+    fn array_numeric_index_reads_element() {
+        let a = array([10.0, 20.0, 30.0]);
+        assert_eq!(a.clone().member_access(0.0.to_any()), Ok(10.0.to_any()));
+        assert_eq!(a.member_access(2.0.to_any()), Ok(30.0.to_any()));
+    }
+
+    /// A numeric `-0` key stringifies to `"0"` before it is ever used as a
+    /// key, in real JS as here, so it reads the same element `0` does —
+    /// unlike the *string* key `"-0"`, covered below.
+    #[test]
+    fn array_negative_zero_index_reads_first_element() {
+        let a = array([10.0]);
+        assert_eq!(a.member_access((-0.0f64).to_any()), Ok(10.0.to_any()));
+    }
+
+    #[test]
+    fn array_out_of_range_numeric_index_is_undefined() {
+        let a = array([10.0]);
+        assert_eq!(
+            a.member_access(1.0.to_any()),
+            Ok(Nullish::Undefined.to_any())
+        );
+    }
+
+    #[test]
+    fn array_non_integer_or_negative_numeric_index_is_undefined() {
+        let a = array([10.0]);
+        assert_eq!(
+            a.clone().member_access(0.5.to_any()),
+            Ok(Nullish::Undefined.to_any())
+        );
+        assert_eq!(
+            a.member_access((-1.0f64).to_any()),
+            Ok(Nullish::Undefined.to_any())
+        );
+    }
+
+    #[test]
+    fn array_canonical_string_index_reads_element() {
+        let a = array([10.0, 20.0]);
+        assert_eq!(a.clone().member_access("0".into()), Ok(10.0.to_any()));
+        assert_eq!(a.member_access("1".into()), Ok(20.0.to_any()));
+    }
+
+    /// None of these round-trip to themselves through `ToNumber` then
+    /// `ToString` the way `"0"`/`"1"`/… do, so none of them is the
+    /// canonical form of any index — admitting them would let two
+    /// different strings read the same element.
+    #[test]
+    fn array_non_canonical_string_index_is_undefined() {
+        let a = array([10.0]);
+        for key in ["01", "+0", "1.0", " 0", "-0", ""] {
+            assert_eq!(
+                a.clone().member_access(key.into()),
+                Ok(Nullish::Undefined.to_any()),
+                "key {key:?} must not read an element"
+            );
+        }
+    }
+
+    #[test]
+    fn array_length_key_reads_length() {
+        let a = array([10.0, 20.0, 30.0]);
+        assert_eq!(a.member_access("length".into()), Ok(3.0.to_any()));
+    }
+
+    /// `.length` is looked up only through the string key `"length"`; the
+    /// number `3` on a 3-element array is a plain out-of-range index, not
+    /// a second spelling of `.length`.
+    #[test]
+    fn array_length_is_not_reachable_by_number() {
+        let a = array([10.0, 20.0, 30.0]);
+        assert_eq!(
+            a.member_access(3.0.to_any()),
+            Ok(Nullish::Undefined.to_any())
+        );
+    }
+
+    #[test]
+    fn array_unrelated_key_is_undefined() {
+        let a = array([10.0]);
+        assert_eq!(
+            a.member_access(true.to_any()),
+            Ok(Nullish::Undefined.to_any())
+        );
+    }
+
+    #[test]
+    fn array_member_access_nullish_receiver_throws() {
+        let receiver = Nullish::Undefined.to_any::<A>();
+        assert_eq!(
+            receiver.member_access(0.0.to_any()),
+            Err("TypeError: Cannot convert undefined or null to object".into())
+        );
+    }
+
+    /// Stage 2 (`String`) and Stage 3 (`Object`, and everything else) of
+    /// `nanvm-lib/todo/member-access-operator.md` are not implemented yet.
+    #[test]
+    #[should_panic]
+    fn member_access_on_a_non_array_receiver_is_not_implemented_yet() {
+        let object: Any<A> = [].to_object::<A>().to_any();
+        let _ = object.member_access(0.0.to_any());
     }
 }

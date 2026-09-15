@@ -63,7 +63,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 |------------|---------------------|----------|-------|
 | `?:`       | Conditional         | [x]      | [`any/conditional.rs`](src/vm/any/conditional.rs) — `Any::conditional()` method; the EDAG's `["?:", c, t, e]` (`op3Id`), covered by the corpus as a `Group3`. The arms reach `nanvm-lib` already established, so the node's laziness — exactly one arm established — is proven on the FunctionalScript side alone |
 | `own`      | Own-property lookup | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) / [`object/own_property.rs`](src/vm/object/own_property.rs) — `Any::own_property()` method, exactly `Object.getOwnPropertyDescriptor(object, key)?.value`: no getter invocation, no prototype chain (`nanvm-lib` objects have none), last-duplicate-wins flat key lookup on `Object<A>`; the key must already be a `String<A>` (`Result::Err`, not a coercion); a non-object, non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`, a function) always answers `undefined`; a nullish one throws |
-| `.` / `[]` | Member access       | [ ]      | not yet: full property access still needs prototype-chain walking, getters, and `Array<A>` indexing beyond what `own` covers |
+| `.` / `[]` | Member access       | [ ]      | [`any/mod.rs`](src/vm/any/mod.rs) — `Any::member_access`; `Array<A>` indexing and `.length` done (Stage 1 of [`todo/member-access-operator.md`](todo/member-access-operator.md)); `String<A>` indexing (Stage 2) and `Object<A>`/prototype-chain generalization (Stage 3) not yet |
 | `in`       | Property check      | [ ]      | |
 | `instanceof` | Instance check    | [ ]      | |
 
