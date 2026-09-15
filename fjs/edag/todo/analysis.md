@@ -83,7 +83,8 @@ type Analysis = {
   comma — is the same node as another in the same scope spelled the same
   over the same inputs, so `[cfg.a, cfg.a]` becomes one node reached twice.
   Inputs are the same when each operand is: an operation node by its index,
-  a primitive by `Object.is` — so `0` and `-0` are different inputs, and
+  a primitive by `Object.is`, the language's `is`
+  ([`is-operator.md`](./is-operator.md)) — so `0` and `-0` are different inputs, and
   `['[]', [['/', 1, 0], ['/', 1, -0]]]` keeps two nodes, `Infinity` and
   `-Infinity`, while `NaN` is the same input as `NaN`.
   Two scopes never merge: `[(...a) => "x".length, (...b) => "x".length]`
