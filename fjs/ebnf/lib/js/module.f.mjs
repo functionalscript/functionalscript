@@ -42,6 +42,20 @@ const any = range(`\0${unicodeMax}`)
 /** One whitespace symbol; a run of them is a run of tokens. */
 export const ws = set(' \t')
 
+/**
+ * The four line terminators ECMAScript names, its `LineTerminator`: line
+ * feed, carriage return, and the Unicode line and paragraph separators.
+ * The grammar reads the first two as newlines and admits the separators
+ * in a string literal alone, as JSON does: outside one they are no token,
+ * since an invisible line break is no line break here. A comment ends
+ * where JavaScript's ends, at any of the four, so what a separator would
+ * begin is never read as comment text — the separator is the error.
+ */
+export const lineTerminators = /**@type {const}*/(['\n', '\r', '\u2028', '\u2029'])
+
+/** The two line terminators that are not a newline here, and no token either. */
+const separators = set('\u2028\u2029')
+
 /** One newline symbol. */
 export const newLine = set('\n\r')
 
@@ -74,11 +88,11 @@ export const id = /**@type {const}*/([idStart, repeatFrom0(idChar)])
  */
 export const number = /**@type {const}*/([uint, { bigint: 'n', real: optionFloatSuffix }])
 
-const notNewLine = remove(any, newLine)
+const notNewLine = remove(any, set(lineTerminators.join('')))
 
-const notStar = remove(any, set('*'))
+const notStar = remove(remove(any, set('*')), separators)
 
-const notStarSlash = remove(any, set('*/'))
+const notStarSlash = remove(remove(any, set('*/')), separators)
 
 /**
  * What follows a `*` inside a block comment: `/` ends the comment, another
@@ -125,7 +139,7 @@ export const slash = /**@type {const}*/(['/', {
  * `/`, which {@link slash} holds.
  */
 export const operators = /**@type {const}*/([
-    '.', '=>', '===', '==', '=', '!==', '!=', '!',
+    '...', '.', '=>', '===', '==', '=', '!==', '!=', '!',
     '>>>=', '>>>', '>>=', '>>', '>=', '>', '<<=', '<<', '<=', '<',
     '+=', '++', '+', '-=', '--', '-', '**=', '**', '*=', '*', '%=', '%',
     '&&=', '&&', '&=', '&', '||=', '||', '|=', '|', '^=', '^', '~',
