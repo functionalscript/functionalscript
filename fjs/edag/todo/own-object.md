@@ -1,4 +1,4 @@
-## Two access nodes: `.` for a known name, `own` for an object's own name
+## Two access nodes: `.` for a known name, `own` for an object's own name, with `asObject` as its guard
 
 **Priority:** P2
 **Status:** open — the alternative to [`own-access.md`](./own-access.md)
@@ -33,20 +33,39 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
   and `a[Number(k)]` are its spellings, and the executor reads it as today.
   `f.name` and `person.name` are both refused here; the second has the
   other spelling.
-- **`['own', a, b]` — an object's own name.** The source form is the whole
-  guarded expression, recognized as one pattern:
+- **`['asObject', a]` — the guard.** It is `typeof a === 'object' ? a : null`:
+  an object, an array or `null` passes through, and a function or any
+  primitive becomes `null`. A unary operation, reusable wherever an object
+  is required. It is not ECMAScript's `ToObject`, which boxes a primitive
+  and throws only on `null` and `undefined`; the name says what it does,
+  and `object` was avoided since it reads as a constructor. The source form
+  is the ternary itself, recognized as one pattern, so JavaScript agrees by
+  construction.
+- **`['own', base, key]` — an object's own name.** It is
+  `Object.getOwnPropertyDescriptor(base, key)?.value`, and its base operand
+  is typed by the schema: an `asObject` node, or a node the schema already
+  knows is an object, `[]` or `{}`. So a parameter or an import reaches
+  `own` only through `asObject`, and a graph with `own` over a bare
+  `args[0]` is not a graph — unspellable, as the chains design makes a
+  wrong shape unspellable, rather than caught by a validation pass:
 
-  ```js
-  Object.getOwnPropertyDescriptor(typeof a === 'object' ? a : null, b)?.value
+  ```ts
+  type AsObject = readonly ['asObject', Exp]
+  type Own = readonly ['own', AsObject | ArrayLiteral | ObjectLiteral, Key]
   ```
 
-  The base must be an object at run time: a plain object or an array reads
-  its own property, `undefined` where there is none; `null` throws through
-  the call; a string, a number, a bigint, a boolean or a function throws
-  through the guard. The key is any string, computed or not. `person.name`
-  reads `"x"`, `f.name` throws, and JavaScript agrees on every case, since
-  the source spells the guard itself. The executor evaluates exactly that
-  expression, as amnesia's `own` does today.
+  At run time a plain object or an array reads its own property,
+  `undefined` where there is none; `null`, from `asObject` or written,
+  throws through the call. `person.name` reads `"x"` through
+  `own(asObject(person), "name")`, `f.name` throws, and JavaScript agrees
+  on every case, since the source spells both halves. The source form of
+  `own` is the descriptor pattern whose first argument is an `asObject`
+  pattern or an object literal; over anything else it is refused. The key
+  is a known string for now — a literal or a constant — so the pattern's
+  second argument is checked statically, as `.`'s key is; a run-time key
+  needs a `toKey` guard beside `asObject`, since `getOwnPropertyDescriptor`
+  coerces its key and would call `toString` on an object, and that guard
+  and what it does with a non-string are a follow-up.
 - **`name` is unobservable.** `.` refuses it statically and `own` throws on
   a function, so no FunctionalScript program reads a function's `name`. `=>`
   carries no name, the graph stays name-erased, the writer's `$0` is
@@ -75,19 +94,26 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 
 ### Tasks
 
-- [ ] `own` stays in the `op2` ids with the guarded semantics; the README's
-      table says which read each node is and why, the sentence about
-      `Object` first.
-- [ ] Amnesia's `own` evaluates the guarded expression, with proofs for an
-      object, an array, `null`, a string, a number, a function, a missing
-      property, and `name` on a function throwing.
+- [ ] `asObject` joins the `op1` ids; `own` stays in the schema with its base
+      operand typed as `asObject`, `[]` or `{}`, in the RTTI schema and
+      `types.ts`; the README's table says which read each node is and why,
+      the sentence about `Object` first, and that `asObject` is not
+      `ToObject`.
+- [ ] Amnesia evaluates `asObject` as the ternary and `own` as the descriptor
+      read, with proofs for an object, an array, `null`, a string, a number,
+      a function, a missing property, and `name` on a function throwing.
 - [ ] The native VM follows in the same PR: `ownCases` in `fjs/nanvm` and the
       vectors it generates take the guarded answers — an array a receiver with
       `'0'` and `length`, a primitive or a function a throw — and
       `Any::own_property` in `nanvm-lib` and its documentation with them.
-- [ ] The parser recognizes the pattern, lowers it to `own`, and keeps `name`
-      prohibited for `.`; proofs for `person.name` through the pattern and
-      `f.name` refused through `.`.
+- [ ] The parser recognizes the ternary as `asObject` and the descriptor
+      pattern over an `asObject` or an object literal as `own`, refuses it
+      over anything else, keeps the key a known string, and keeps `name`
+      prohibited for `.`; proofs for `person.name` through the patterns,
+      `f.name` refused through `.`, and the descriptor pattern over a bare
+      parameter refused.
+- [ ] Follow-up, its own todo: `toKey`, the guard for a run-time key, and
+      what it does with a non-string.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
