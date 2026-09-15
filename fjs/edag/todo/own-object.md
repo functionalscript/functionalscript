@@ -1,4 +1,4 @@
-## Two access nodes: `.` for a known name, `own` for an object's own name, with `asObject` as its guard
+## Two access nodes: `.` for a known name, `own` for an object's own name
 
 **Priority:** P2
 **Status:** open — the alternative to [`own-access.md`](./own-access.md)
@@ -33,43 +33,32 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
   and `a[Number(k)]` are its spellings, and the executor reads it as today.
   `f.name` and `person.name` are both refused here; the second has the
   other spelling.
-- **`['asObject', a]` — the guard.** It is `typeof a === 'object' ? a : null`:
-  an object, an array or `null` passes through, and a function or any
-  primitive becomes `null`. A unary operation, reusable wherever an object
-  is required. It is not ECMAScript's `ToObject`, which boxes a primitive
-  and throws only on `null` and `undefined`; the name says what it does,
-  and `object` was avoided since it reads as a constructor. The source form
-  is the ternary itself, recognized as one pattern, so JavaScript agrees by
-  construction.
-- **`['own', base, key]` — an object's own name.** It is
-  `Object.getOwnPropertyDescriptor(base, key)?.value`, and its base operand
-  is typed by the schema: an `asObject` node, or a node the schema already
-  knows is an object, `[]` or `{}`. So a parameter or an import reaches
-  `own` only through `asObject`, and a graph with `own` over a bare
-  `args[0]` is not a graph — unspellable, as the chains design makes a
-  wrong shape unspellable, rather than caught by a validation pass:
+- **`['own', a, b]` — an object's own name, a run-time operator with its
+  guards inside.** Both operands are expressions, `['own', Exp, Exp]`, and
+  the operator checks them itself: the base must be an object — a plain
+  object or an array — and the key must be a string, and anything else
+  throws: `null` or `undefined` as JavaScript's read throws, a string, a
+  number, a bigint, a boolean or a function as the base through the guard,
+  a non-string key as the schema, amnesia and `Any::own_property` already
+  refuse one. Within those, it reads the own property, `undefined` where
+  there is none. The source form is the guarded descriptor expression,
+  recognized as one pattern:
 
-  ```ts
-  type AsObject = readonly ['asObject', Exp]
-  type Own = readonly ['own', AsObject | ArrayLiteral | ObjectLiteral, Key]
+  ```js
+  Object.getOwnPropertyDescriptor(typeof a === 'object' ? a : null, b)?.value
   ```
 
-  At run time a plain object or an array reads its own property,
-  `undefined` where there is none; `null`, from `asObject` or written,
-  throws through the call. `person.name` reads `"x"` through
-  `own(asObject(person), "name")`, `f.name` throws, and JavaScript agrees
-  on every case, since the source spells both halves. The source form of
-  `own` is the descriptor pattern whose first argument is an `asObject`
-  pattern or an object literal; over anything else it is refused. The key
-  is a known string for now — a string literal or a constant whose value
-  is a string — so the pattern's second argument is checked statically, as
-  `.`'s key is, and no executor ever meets a non-string key: a number key
-  is `.`'s, `a[0]`, and the existing refusal of a non-string key in the
-  schema, amnesia and `Any::own_property` stays as the run-time backstop.
-  A run-time key needs a `toKey` guard beside `asObject`, since
-  `getOwnPropertyDescriptor` coerces its key and would call `toString` on
-  an object, and that guard and what it does with a non-string are a
-  follow-up.
+  `person.name` reads `"x"`, `f.name` throws, and JavaScript agrees on
+  every case, since the source spells the base guard itself. The key is a
+  known string for now — a string literal or a constant whose value is a
+  string — so its guard never fires and a number key is `.`'s, `a[0]`;
+  when a run-time key is admitted, the key guard is already in the
+  operator, and only its JavaScript spelling in the pattern is to be
+  chosen, since `getOwnPropertyDescriptor` coerces a key and would call
+  `toString` on an object. Splitting the guards into nodes of their own
+  was weighed and set aside for later: one operator that owns its
+  preconditions is the simpler contract, and a node the schema types is
+  a refinement it can grow into.
 - **`name` is unobservable.** `.` refuses it statically and `own` throws on
   a function, so no FunctionalScript program reads a function's `name`. `=>`
   carries no name, the graph stays name-erased, the writer's `$0` is
@@ -98,35 +87,31 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 
 ### Tasks
 
-- [ ] `asObject` joins the `op1` ids; `own` stays in the schema with its base
-      operand typed as `asObject`, `[]` or `{}`, in the RTTI schema and
-      `types.ts`; the README's table says which read each node is and why,
-      the sentence about `Object` first, and that `asObject` is not
-      `ToObject`.
-- [ ] Amnesia evaluates `asObject` as the ternary and `own` as the descriptor
-      read, with proofs for an object, an array, `null`, a string, a number,
-      a function, a missing property, and `name` on a function throwing.
+- [ ] `own` stays in the `op2` ids, `['own', Exp, Exp]`, with the guarded
+      semantics; the README's table says which read each node is and why,
+      the sentence about `Object` first.
+- [ ] Amnesia's `own` checks the base and the key and reads the descriptor,
+      with proofs for an object, an array, `null`, a string, a number, a
+      function, a non-string key, a missing property, and `name` on a
+      function throwing.
 - [ ] The native VM follows in the same PR: `ownCases` in `fjs/nanvm` and the
       vectors it generates take the guarded answers — an array a receiver with
       `'0'` and `length`, a primitive or a function a throw — and
       `Any::own_property` in `nanvm-lib` and its documentation with them.
-- [ ] The parser recognizes the ternary as `asObject` and the descriptor
-      pattern over an `asObject` or an object literal as `own`, refuses it
-      over anything else, keeps the key a known string, and keeps `name`
-      prohibited for `.`; proofs for `person.name` through the patterns,
-      `f.name` refused through `.`, and the descriptor pattern over a bare
-      parameter refused.
-- [ ] Follow-up, its own todo: `toKey`, the guard for a run-time key, and
-      what it does with a non-string.
+- [ ] The parser recognizes the guarded descriptor pattern as `own`, keeps the
+      key a known string, and keeps `name` prohibited for `.`; proofs for
+      `person.name` through the pattern and `f.name` refused through `.`.
+- [ ] Later: the JavaScript spelling of the key guard, once a run-time key is
+      admitted; and, if wanted, the guards as nodes the schema types.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
 - [ ] The spec todos updated in the same migration:
       [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
-      spells `own_property` with `asObject` as its receiver instead of the
-      unguarded descriptor read, and
+      spells `own_property` with the guarded descriptor read instead of the
+      unguarded one, and
       [`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)
-      takes the same receiver rule for `Object.hasOwn(asObject(a), b)` — an
+      takes the same receiver rule for `Object.hasOwn` — an
       array a receiver, a primitive or a function a throw — in place of the
       `Object`-only scope it inherits from the current `own`.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
