@@ -28,12 +28,16 @@ when a name is shadowed, and silently.
 
 ## Proposal
 
-A binding must not reuse a name bound in any enclosing scope of the same
-module: a parameter must not repeat a module constant, an import, or an
+A module is a function: its imports are its parameters, its constants are
+its body constants, and `export default` is its `return` — which is how the
+compiler already reads it, an import being `args[i]` of the module and
+linking being application. So there is one rule, for a module and a nested
+function alike: a binding must not reuse a name bound in an enclosing
+function. A parameter must not repeat an import, a constant, or an
 enclosing function's parameter, and a body constant
 ([body-const](./3130-body-const.md)), once there is one, must not either.
-Module names are one scope, and the rule does not reach across modules —
-two modules may bind the same names, since neither sees the other's.
+Two modules are two functions with nothing enclosing them both, so they may
+bind the same names.
 
 Every FunctionalScript program stays a JavaScript program: the rule refuses
 a spelling JavaScript accepts, never reads one another way, so a module that
