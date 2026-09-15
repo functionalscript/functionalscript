@@ -246,19 +246,21 @@ const nodeEntry = imports => (nodes, ast, i) =>
 const resolved = (imports, nodes) => ({ ref, keys }) => ({ ref: ref[0] === 'cref' ? nodes[ref[1]] : importNode(imports)(ref[1]), keys })
 
 /**
- * What an EDAG of the module anchors, by index: the body entries no chain
- * of references from the export leads to, and the imports likewise — the
- * sweep {@link sharing} runs, read for what it left out — less what those
- * entries reach themselves, since an operand another operand reaches is a
- * redundant anchor. `run` evaluates every entry and `transpile` reads every
- * import whether the export reaches them or not, so a compiler that follows
- * references alone would drop what this names, and anchors it instead.
+ * What an EDAG of the module anchors, by index: exactly the code the graph
+ * would not otherwise hold — the body entries no chain of references from
+ * the export leads to, and the imports likewise, the sweep {@link sharing}
+ * runs read for what it left out, less what those entries reach
+ * themselves, which the graph holds through them. `run` evaluates every
+ * entry and `transpile` reads every import whether the export reaches them
+ * or not, so a compiler that follows references alone would drop what this
+ * names, and anchors it instead.
  *
- * Counted by node, not by entry: a `const` that is a bare reference is the
- * node it names and anchors nothing of its own, and two imports are one
- * node where `imports` holds one value for both — as the linker binds two
- * imports of one module — so `const b = a; export default a;` anchors
- * nothing, and `const c = [a]` beside the alias anchors `c` alone.
+ * Counted by node, not by entry, since it is the graph that holds or lacks
+ * a node: a `const` that is a bare reference is the node it names and is
+ * no code of its own, and two imports are one node where `imports` holds
+ * one value for both — as the linker binds two imports of one module — so
+ * `const b = a; export default a;` anchors nothing, and `const c = [a]`
+ * beside the alias anchors `c` alone.
  *
  * A member a later duplicate shadows counts here where it does not for
  * sharing: the value drops it, but an EDAG's object constructor applies

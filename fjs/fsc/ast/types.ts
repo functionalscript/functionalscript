@@ -116,11 +116,12 @@ export type Denotation = Sharing & { readonly value: Unknown }
 export type Import = Denotation & { readonly id: string }
 
 /**
- * What an EDAG of the module anchors, each by index: the body entries and
- * the imports the export does not reach, less what those entries reach
- * themselves — the roots of the unreached part, each a computation whose
- * value nothing takes. An entry that is a bare reference is not a node and
- * is never named; an import is named by the first import sharing its node.
+ * What an EDAG of the module anchors, each by index: exactly the code the
+ * graph would not otherwise hold — the body entries and the imports the
+ * export does not reach, less what those entries reach themselves — each a
+ * computation whose value nothing takes. An entry that is a bare reference
+ * is not a node and is never named; an import is named by the first import
+ * sharing its node.
  */
 export type Anchors = {
     readonly consts: readonly number[]
