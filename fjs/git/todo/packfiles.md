@@ -38,10 +38,10 @@ objects and are not part of this issue.
 
 ### Tasks
 
-- [ ] `.idx`: fanout, ids, offsets, and the lookup.
-- [ ] Pack header and entry framing, the two delta kinds, and the delta
+- [x] `.idx`: fanout, ids, offsets, and the lookup.
+- [x] Pack header and entry framing, the two delta kinds, and the delta
       instructions.
-- [ ] A fixture: a small pack Git wrote, captured once, with a delta in it.
+- [x] A fixture: a small pack Git wrote, captured once, with a delta in it.
 - [ ] `tryRead(id)` over a pack directory, returning what the loose reader
       returns.
 

@@ -37,6 +37,22 @@ what a grammar can and cannot do for the formats.
   need not end in LF and ignores anything after its first line, where
   `packed-refs` requires LF on every line and refuses a second comment — so
   each rule here was measured against Git rather than assumed.
+- [`pack/`](pack/module.f.mjs) — a packfile's framing and the delta
+  instructions inside one, with no effects: an entry's payload is a zlib
+  stream, so nothing can say where one entry ends without inflating it, and
+  walking the file belongs to the reader that has `inflate`. Three different
+  varints appear in a pack and two of them look alike — the odd one is an
+  `ofsDelta`'s distance back, most significant group first with a `+ 1` per
+  continuation byte, which is what makes its spelling unique and what decides
+  whether a base lands in the right place.
+- [`packidx/`](packidx/module.f.mjs) — a pack index, `.idx`, from an object
+  id to where its entry begins in the `.pack` beside it. Length-framed and so
+  a decoder rather than a grammar. Both live versions are read into one
+  shape — version 2 with its magic and separate tables, version 1 with its
+  ids and offsets interleaved — because the version says how the bytes were
+  laid out and nothing about what they mean. The ids' order is checked and not
+  trusted, since the lookup is a search and a search over ids that do not
+  ascend answers wrongly instead of failing.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them and `tryResolve` for a name
   in hand. Two rules live here because no reader of one file can decide
@@ -398,8 +414,12 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   boundary: the host's `inflate` takes a `Vec` and gives one, and
   `readFile` ahead of it takes one too, so a loose object is refused on
   either side of its stream — a file over the bound before inflating, a
-  stream that inflates past it — and never cut short. The inflater issue
-  lifts both sides.
+  stream that inflates past it — and never cut short. A delta's *output* has a
+  third bound of the same size: [`pack/`](pack/module.f.mjs)'s `tryApplyDelta`
+  refuses a declared target over 128 KiB, since a hundred bytes of copy
+  instructions against a 64 KiB base can honestly name 6.5 MB. The inflater
+  issue lifts all three — [`todo/inflate.md`](../../todo/inflate.md) says so in
+  the same words.
 
   A *whole file* is not bound by it any more, which is the half that used to
   fail on ordinary repositories rather than extreme ones.
