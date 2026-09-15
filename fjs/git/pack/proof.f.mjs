@@ -268,9 +268,12 @@ export const proof = {
     // for its length before any instruction is read — see {@link
     // applyDeltaTooShort}.
     applyDeltaCopyRunsOff: () => {
-        // source 1, target 1, then a copy promising one offset byte and ending
-        assertEq(tryApplyDelta([120], [0x01, 0x01, 0x81]), null)
-        // the same with the offset present and a size byte promised
+        // source 1 in the padded form, target 1, then a copy whose bitmap
+        // promises all four offset bytes and ends. Written at four bytes on
+        // purpose: at three the floor refuses it first, and the case would pass
+        // without ever reaching the instruction it is about.
+        assertEq(tryApplyDelta([120], [0x81, 0x00, 0x01, 0x8F]), null)
+        // and one whose offset byte is present and whose size byte is promised
         assertEq(tryApplyDelta([120], [0x01, 0x01, 0x91, 0x00]), null)
     },
     // A delta whose target is nothing builds the empty object, and that answer
