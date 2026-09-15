@@ -97,6 +97,35 @@ const components = name => {
 }
 
 /**
+ * Whether every component of a name is one a ref name may hold: none empty,
+ * none beginning with `.`, none ending in `.lock`.
+ *
+ * This is the half of {@link isName} that Git's *walk* of `refs/` applies as a
+ * file-name convention rather than as a ref-name rule, and the difference
+ * matters to a reader of the directory. Measured on Git 2.43.0 by writing a
+ * valid id into each name under `refs/heads/` and asking `git show-ref`: a file
+ * called `.hidden` or `x.lock` is skipped without a word and the command exits
+ * 0, while `bad.`, `a..b`, `a@{b`, `has space`, `tilde~x` and `caret^x` — every
+ * one of them refused by `check-ref-format` too — make it exit 128 with
+ * `bad ref refs/heads/<name>`. So the two conventions are skipped and every
+ * other broken name refuses the listing, which is exactly what Git does with a
+ * loose file whose *contents* are no ref.
+ *
+ * It is also the half that is safe to apply to a *prefix*. A component keeps
+ * its shape however a name is extended, so no valid ref name can sit under a
+ * component this refuses — where a whole name may fail {@link isName} on its
+ * last byte and still be a directory full of valid names: `refs/heads/bad.` is
+ * no ref name and `refs/heads/bad./v1` is one, both measured with
+ * `check-ref-format`. A walk that skipped the first by the whole-name rule
+ * would lose the second without a word.
+ *
+ * @throws If `name` is not a list of bytes.
+ *
+ * @type {(name: Bytes) => boolean}
+ */
+export const hasRefComponents = input => components(byteArray(input)).every(isComponent)
+
+/**
  * Whether a name is one a ref takes below a prefix, by the rules of
  * `git check-ref-format` over `<prefix>/<name>`: no control character, no
  * space and none of `~ ^ : ? * [ \`, no `..` and no `@{`, not ending in
@@ -166,8 +195,8 @@ export const isName = input => {
  * when it does not, while `ORIG_HEAD` resolves either way. So the answer
  * depends on the state of the repository rather than on the name, which is
  * why it is neither checked here nor in `fjs/git/ref` — see that module, and
- * `tryResolve` in [`todo/refs.md`](../todo/refs.md), which has the effects to
- * look.
+ * [`fjs/git/refstore`](../refstore/module.f.mjs)'s `tryResolve`, which has the
+ * effects to look.
  *
  * @throws If `name` is not a list of bytes.
  *
