@@ -3,13 +3,18 @@
  * stream holding the envelope and the payload. Inflating it is the host's,
  * behind the `inflate` effect, and reading the inflated bytes is the pure
  * envelope reader's; this module is the boundary between the two, and
- * nothing more — the one place a real repository meets the decoder.
+ * nothing more. One of the two places a real repository meets the decoder —
+ * [`fjs/git/packstore`](../packstore/module.f.mjs) is the other, and is the one
+ * a clone takes for most of its objects.
  *
  * The bytes come back as a `Vec`, the bound every host effect here has,
  * 128 KiB, and the file goes in as one too, so a loose object is refused on
  * either side of its stream, through the channel and never cut short: a
  * file over the bound before it is inflated, `readFile`'s refusal, and a
- * stream that inflates past it, `inflate`'s. The first binds an object the
+ * stream that inflates past it, `inflate`'s. A packed object meets the same
+ * ceiling at the same effect, since `packstore` hands `inflate` an entry's
+ * window as a `Vec` and takes one back — so this is the boundary's bound and
+ * not the loose path's. The first binds an object the
  * second would take — an incompressible blob near the bound is larger
  * compressed than plain. A FunctionalScript inflater over a byte list,
  * fed a window at a time, lifts both; it is its own issue,

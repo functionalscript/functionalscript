@@ -1,5 +1,5 @@
 /**
- * @import { Inflate, ReadFile } from '../../effects/node/types.ts'
+ * @import { Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { Bytes, ObjectType, Oid } from '../types.ts'
@@ -14,7 +14,7 @@ import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
-import { of, toHex, tryFromHex } from '../oid/module.f.mjs'
+import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
 import { objectPath, tryRead as readStore } from '../store/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { mode, write as writeTree } from '../tree/module.f.mjs'
@@ -27,9 +27,6 @@ const of20 = of(20)
 const at = objectPath(dir)
 
 const toVec = u8ListToVec(msb)
-
-/** @type {(id: Oid) => string} */
-const hex = id => codePointListToString(toHex(id))
 
 /** @type {(mode: string, name: string, oid: Oid) => TreeEntry} */
 const entry = (m, name, oid) => ({ mode: latin1(m), name: latin1(name), oid })
@@ -44,7 +41,7 @@ const commitOf = payload('A <a@b> 1 +0000')
 
 /** @type {(target: Oid, type: ObjectType, name: string) => readonly number[]} */
 const tagOf = (target, type, name) =>
-    latin1([`object ${hex(target)}`, `type ${type}`, `tag ${name}`, 'tagger A <a@b> 1 +0000', '', 'm', ''].join('\n'))
+    latin1([`object ${hexText(target)}`, `type ${type}`, `tag ${name}`, 'tagger A <a@b> 1 +0000', '', 'm', ''].join('\n'))
 
 // The objects of a repository the proof builds, each stored under the id
 // `of` gives it, as Git stores one.
@@ -62,7 +59,7 @@ const sub = tree([entry('100644', 'b.txt', bId)])
 const subId = of20('tree', sub)
 
 /** A commit in another repository, as a `160000` entry names one. */
-const elsewhereId = of20('commit', commitOf([`tree ${hex(subId)}`]))
+const elsewhereId = of20('commit', commitOf([`tree ${hexText(subId)}`]))
 
 /**
  * An id whose file holds bytes that are no object at all: no envelope, so
@@ -81,7 +78,7 @@ const root = tree([
 
 const rootId = of20('tree', root)
 
-const commit = commitOf([`tree ${hex(rootId)}`])
+const commit = commitOf([`tree ${hexText(rootId)}`])
 
 const commitId = of20('commit', commit)
 
@@ -123,17 +120,17 @@ const lostTag = tagOf(nowhereId, 'blob', 'lost')
 const lostTagId = of20('tag', lostTag)
 
 /** A commit whose `tree` names the id nothing is stored under. */
-const lostTree = commitOf([`tree ${hex(nowhereId)}`])
+const lostTree = commitOf([`tree ${hexText(nowhereId)}`])
 
 const lostTreeId = of20('commit', lostTree)
 
 /** A commit whose `tree` names the file that is no object. */
-const oddTree = commitOf([`tree ${hex(oddId)}`])
+const oddTree = commitOf([`tree ${hexText(oddId)}`])
 
 const oddTreeId = of20('commit', oddTree)
 
 /** A commit whose `tree` names a blob. */
-const blobTree = commitOf([`tree ${hex(helloId)}`])
+const blobTree = commitOf([`tree ${hexText(helloId)}`])
 
 const blobTreeId = of20('commit', blobTree)
 
@@ -143,12 +140,12 @@ const badObject = latin1(['object zz', 'type commit', 'tag bad', '', 'm', ''].jo
 const badObjectId = of20('tag', badObject)
 
 /** A tag with no `tag` header, which Git's own parse refuses. */
-const nameless = latin1([`object ${hex(helloId)}`, 'type blob', 'tagger A <a@b> 1 +0000', '', 'm', ''].join('\n'))
+const nameless = latin1([`object ${hexText(helloId)}`, 'type blob', 'tagger A <a@b> 1 +0000', '', 'm', ''].join('\n'))
 
 const namelessId = of20('tag', nameless)
 
 /** A commit whose `tree` is an id and whose `parent` is not. */
-const badParent = commitOf([`tree ${hex(rootId)}`, 'parent zz'])
+const badParent = commitOf([`tree ${hexText(rootId)}`, 'parent zz'])
 
 const badParentId = of20('commit', badParent)
 
@@ -158,7 +155,7 @@ const badParentTag = tagOf(badParentId, 'commit', 'bp')
 const badParentTagId = of20('tag', badParentTag)
 
 /** A tag whose `type` header names none of the four. */
-const badType = latin1([`object ${hex(commitId)}`, 'type thing', 'tag bad', '', 'm', ''].join('\n'))
+const badType = latin1([`object ${hexText(commitId)}`, 'type thing', 'tag bad', '', 'm', ''].join('\n'))
 
 const badTypeId = of20('tag', badType)
 
@@ -237,21 +234,30 @@ const files = Object.fromEntries([
     ...chain.slice(1).map(t => tagFile(t.id, t.payload)),
 ])
 
+/** @type {(path: string) => ReturnType<typeof ioError>} */
+const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}` })
+
 /**
  * The host the store reads through: the objects above, uncompressed, with
  * `inflate` handing every buffer back as it is, and a log of the ids read
  * so a proof can see which objects the walk asked for.
  *
- * @type {MemOperationMap<ReadFile | Inflate, readonly string[]>}
+ * This repository keeps no packs, which is what the three commands a pack read
+ * uses answer here — the store asks its packs for an object no loose file holds,
+ * and a directory that is not there is the ordinary way to have none. They log
+ * nothing, so the log stays the list of objects the walk asked for.
+ *
+ * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
  */
 const host = {
     readFile: path => log => {
         const f = files[path]
-        return [
-            [...log, path],
-            f === undefined ? error(ioError({ code: 'ENOENT', message: `no such file: ${path}` })) : ok(toVec(f)),
-        ]
+        return [[...log, path], f === undefined ? error(noFile(path)) : ok(toVec(f))]
     },
+    readdir: path => log => [log, error(noFile(path))],
+    stat: path => log => [log, error(noFile(path))],
+    readBytes: path => log => [log, error(noFile(path))],
+    readWhole: path => log => [log, error(noFile(path))],
     inflate: data => log => [log, ok(data)],
 }
 
@@ -269,7 +275,7 @@ const entryOf = tryEntry(read, 20)
 const name = latin1
 
 /** @type {(e: TreeEntry) => readonly [number, string, string]} */
-const seen = e => [mode(e), codePointListToString(e.name), hex(e.oid)]
+const seen = e => [mode(e), codePointListToString(e.name), hexText(e.oid)]
 
 /** The id a string of hex digits spells, at whatever width it is long. */
 const idAt = /** @type {(hex: string) => Oid} */ (hex => {
@@ -301,7 +307,7 @@ const tagAt = /** @type {(target: string, type: ObjectType) => Bytes} */ ((targe
  *
  * @type {Read<never>}
  */
-const liar = id => pureOk({ type: 'tag', payload: tagAt(hex(id), 'tag') })
+const liar = id => pureOk({ type: 'tag', payload: tagAt(hexText(id), 'tag') })
 
 /**
  * A `Read` over a chain made of its own ids, so nothing is hashed: the
@@ -310,7 +316,7 @@ const liar = id => pureOk({ type: 'tag', payload: tagAt(hex(id), 'tag') })
  * @type {Read<never>}
  */
 const chained = id => {
-    const k = Number.parseInt(hex(id), 16)
+    const k = Number.parseInt(hexText(id), 16)
     return pureOk(k === 0
         ? { type: 'commit', payload: commit }
         : { type: 'tag', payload: tagAt(hexOf(k - 1), k === 1 ? 'commit' : 'tag') })
@@ -333,15 +339,15 @@ export const proof = {
     peel: () => {
         const [, direct] = runHost(peeled(commitId))
         assert(direct[0] === 'ok' && direct[1] !== null)
-        assertEq(hex(direct[1].id), hex(commitId))
+        assertEq(hexText(direct[1].id), hexText(commitId))
         assertEq(direct[1].envelope.type, 'commit')
         const [, one] = runHost(peeled(chain[1].id))
         assert(one[0] === 'ok' && one[1] !== null)
-        assertEq(hex(one[1].id), hex(commitId))
+        assertEq(hexText(one[1].id), hexText(commitId))
         // A chain of nine, which `git tag -a` writes and no bound refuses.
         const [, deep] = runHost(peeled(chain[9].id))
         assert(deep[0] === 'ok' && deep[1] !== null)
-        assertEq(hex(deep[1].id), hex(commitId))
+        assertEq(hexText(deep[1].id), hexText(commitId))
     },
     // What a tag cannot be peeled through: bytes that are no tag, an
     // `object` header that is no id, and an object the store does not hold,
@@ -371,7 +377,7 @@ export const proof = {
         const [, badTree] = runHost(peeled(treeTargetId))
         assert(badTree[0] === 'ok' && badTree[1] !== null)
         assertEq(badTree[1].envelope.type, 'tree')
-        assertEq(hex(badTree[1].id), hex(junkTreeId))
+        assertEq(hexText(badTree[1].id), hexText(junkTreeId))
         // A file whose bytes are no object at all: the store's `null`, which
         // the walk hands on.
         assertStructurallySame(runHost(peeled(oddId))[1], ['ok', null])
@@ -398,21 +404,21 @@ export const proof = {
     deep: () => {
         const [, peeled3000] = run({})([])(peel(chained, 20)(idOf(3000)))
         assert(peeled3000[0] === 'ok' && peeled3000[1] !== null)
-        assertEq(hex(peeled3000[1].id), hex(idOf(0)))
+        assertEq(hexText(peeled3000[1].id), hexText(idOf(0)))
         assertEq(peeled3000[1].envelope.type, 'commit')
         const [, deepPath] = run({})([])(tryEntry(nested, 20)(rootId, Array.from({ length: 10000 }, () => name('d'))))
         assert(deepPath[0] === 'ok' && deepPath[1] !== null)
-        assertStructurallySame(seen(deepPath[1]), [0o40000, 'd', hex(rootId)])
+        assertStructurallySame(seen(deepPath[1]), [0o40000, 'd', hexText(rootId)])
     },
     // The tree's entries from a commit's id, from the tree's own id, and
     // from a tag over the commit: the same four entries, as Git wrote them.
     entries: () => {
         const expected = /** @type {readonly (readonly [number, string, string])[]} */ ([
-            [0o100644, 'a.txt', hex(helloId)],
-            [0o40000, 'dir', hex(subId)],
-            [0o120000, 'link', hex(bId)],
-            [0o160000, 'mod', hex(elsewhereId)],
-            [0o40000, 'odd', hex(oddId)],
+            [0o100644, 'a.txt', hexText(helloId)],
+            [0o40000, 'dir', hexText(subId)],
+            [0o120000, 'link', hexText(bId)],
+            [0o160000, 'mod', hexText(elsewhereId)],
+            [0o40000, 'odd', hexText(oddId)],
         ])
         const [, c] = runHost(entriesOf(commitId))
         assert(c[0] === 'ok' && c[1] !== null)
@@ -447,10 +453,10 @@ export const proof = {
     entry: () => {
         const [, a] = runHost(entryOf(commitId, [name('a.txt')]))
         assert(a[0] === 'ok' && a[1] !== null)
-        assertStructurallySame(seen(a[1]), [0o100644, 'a.txt', hex(helloId)])
+        assertStructurallySame(seen(a[1]), [0o100644, 'a.txt', hexText(helloId)])
         const [log, deep] = runHost(entryOf(commitId, [name('dir'), name('b.txt')]))
         assert(deep[0] === 'ok' && deep[1] !== null)
-        assertStructurallySame(seen(deep[1]), [0o100644, 'b.txt', hex(bId)])
+        assertStructurallySame(seen(deep[1]), [0o100644, 'b.txt', hexText(bId)])
         // The objects read: the commit, its tree, the subtree, and not the
         // blob the path names.
         assertStructurallySame(log, [at(commitId), at(rootId), at(subId)])
@@ -458,14 +464,14 @@ export const proof = {
         // bytes, which the caller reads.
         const [, link] = runHost(entryOf(commitId, [name('link')]))
         assert(link[0] === 'ok' && link[1] !== null)
-        assertStructurallySame(seen(link[1]), [0o120000, 'link', hex(bId)])
+        assertStructurallySame(seen(link[1]), [0o120000, 'link', hexText(bId)])
     },
     // A submodule entry comes back without its commit being read, since
     // that commit is another repository's and this store does not hold it.
     submodule: () => {
         const [log, r] = runHost(entryOf(commitId, [name('mod')]))
         assert(r[0] === 'ok' && r[1] !== null)
-        assertStructurallySame(seen(r[1]), [0o160000, 'mod', hex(elsewhereId)])
+        assertStructurallySame(seen(r[1]), [0o160000, 'mod', hexText(elsewhereId)])
         assertStructurallySame(log, [at(commitId), at(rootId)])
     },
     // What no path names: a name no entry has, a name under one, a
