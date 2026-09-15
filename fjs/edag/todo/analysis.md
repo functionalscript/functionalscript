@@ -94,9 +94,27 @@ type Analysis = {
   ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)):
   two graphs are the same to the analysis when they differ only where the
   merge says they are one.
-- **Laziness respected.** A node under a lazy position — the right operand of
-  `&&`, `||`, `??`, a function body — is memoized when first demanded, never
-  before; the table records sharing, the executor decides when.
+- **Sharing decides how many times, never when.** A shared node has a cache
+  slot, and the slot starts empty: it fills when the first edge demands the
+  node and is read by every edge after. No node is evaluated because it is
+  shared. What makes a node eager is being demanded by something eager — the
+  export, a container item, an operator's left side, a comma operand — and
+  a node reached only through lazy positions, the right operand of `&&`,
+  `||`, `??` or a conditional's arm, is evaluated never or once, as the
+  guards decide. The table records sharing; the executor decides when.
+- **The same graph under the CAVM.** A content-addressable VM
+  ([`../execution-models.md`](../execution-models.md) §4) merges more than
+  this analysis does: in it, calling one function twice on the same
+  arguments must give one result, so it takes `[a && x(), b && x()]` to
+  one call, `['[]', [['&&', a, $0], ['&&', b, $0]]]` with `$0` the call,
+  where the JavaScript-compatible executor keeps two, since a call may mint
+  identity. The demand rule is what makes the CAVM's answer "at most once"
+  rather than "once, eagerly", so the EDAG survives that transformation
+  with its logic intact and only the count of calls optimized. What the two
+  models disagree on is identity, as §4 says: `result[0] === result[1]` is
+  `true` under the CAVM and not necessarily under JavaScript. A CAVM-merged
+  graph written back to FunctionalScript un-merges, since the writer writes
+  the JavaScript meaning, and the CAVM merges it again on load.
 - **Numbered, not keyed.** The table is built as the DataJS serializer builds
   its graph, a finished list numbered once, and the one `Map` by object
   lives inside that build; no consumer holds one, since each reads indices:
