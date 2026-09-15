@@ -1,7 +1,7 @@
-## Deduplicate strings and bigints above a size threshold
+## Deduplicate strings and bigints
 
 **Priority:** P4
-**Status:** open
+**Status:** open — needs investigation before a decision
 
 ### Problem
 
@@ -11,55 +11,87 @@ primitives by value would raise the `0`/`-0` and `NaN` questions the
 `Object.is` guarantee forbids answering
 ([`spec/datajs/README.md`](../../../spec/datajs/README.md), normalized form),
 and the EDAG analysis ([`analysis.md`](./analysis.md)) counts nodes, not
-leaves. That is right for what fits in a machine word. A string or a bigint
-does not always fit: a long string repeated in a graph is written out once
-per occurrence and held once per occurrence at run time, and a bigint past
-the word likewise, where one copy would do and nothing could tell the
-difference.
+leaves. That is right for a number, a boolean, `null` and `undefined`, which
+always fit in a machine word. A string or a bigint does not: a long string
+repeated in a graph is written out once per occurrence and held once per
+occurrence at run time, and a bigint past the word likewise, where one copy
+would do and nothing could tell the difference.
 
-### Proposal
+A string and a bigint are immutable in JavaScript, and their equality is
+their whole identity, so deduplicating them by value is safe wherever it is
+done, and no `-0`/`NaN` question arises — which is why they, and only they,
+are candidates.
 
-Deduplicate a string or a bigint by value, only when it cannot fit into a
-64-bit value: below that size a copy is as cheap as a reference, and a
-NaN-boxed VM holds the value inline. Numbers, booleans, `null` and
-`undefined` are never deduplicated — they always fit, and the `-0`/`NaN`
-questions stay unasked.
+### Options
 
-- **Where.** A second table in the analysis, beside the shared nodes: the
-  strings and bigints above the threshold that occur more than once, each
-  once, in evaluation order. Equality is by value, which for a string and a
-  bigint is the whole of their identity.
-- **The threshold.** A parameter of the analysis, not a constant of the
-  graph — a string of more than *n* code units, a bigint of more than 64
-  bits — so that a VM with another value representation asks for its own,
-  and the FunctionalScript writer, whose reader cannot tell one string from
-  a copy, may ask for none. Whatever the default, the analysis over the same
-  graph with the same threshold returns the same table, so the outputs stay
-  canonical.
-- **Consumers.** The memoizing executor holds one value per table entry;
-  the writers may hoist an entry as `const $n` where the normalized form
-  allows it, which it does not today — writing a primitive inline is a rule
-  of the DataJS specification, so hoisting a deduplicated string there is a
-  change to that specification first, and the FunctionalScript output can
-  decide the same for itself.
+Two questions are open. Neither is decided here; each needs the
+investigation listed under Tasks before it is.
+
+**1. Where the rule lives: the DataJS normalized form, or a threshold.**
+
+- *Change the normalized form.* Redefine it so that a string or a bigint
+  with more than one occurrence is hoisted into a `const $n`, as a shared
+  object or array is, and every occurrence references it; the count is by
+  value, since for these two a value is an identity. The rule is then one
+  rule for every writer and the FunctionalScript output inherits it. It is a
+  breaking change to the normalized text — every document with a repeated
+  string gets other bytes and another hash — and it costs bytes for short
+  strings: a hoisted `const $0="ab";` plus a `$0` per occurrence breaks even
+  against inline copies only around five characters and a few occurrences,
+  and a one-character string repeated twice grows the document.
+- *A threshold.* Keep the normalized form as it is, and deduplicate only
+  above a size — a string of more than *n* code units, a bigint of more than
+  64 bits, the ones a NaN-boxed VM cannot hold inline. The threshold would
+  be a parameter of the analysis, not a constant of the graph, so that a VM
+  with another value representation asks for its own and a writer whose
+  reader cannot tell a string from a copy may ask for none; the same
+  graph with the same threshold returns the same table, so an output stays
+  canonical. The cost is a second knob, and a normalized form that depends
+  on it if a writer ever hoists.
+
+The two are not exclusive: the VM's table may use a threshold while the
+writers follow the format's rule, or the format may fix one threshold as
+part of its definition. What decides between them is the VM's value
+representation, which is not designed yet, and the DataJS specification's
+own stance that it is meant to stop changing.
+
+**2. Keys.** A string is a key as often as a value, and a hoisted string is
+no use to a key unless a key may reference it. One option is the computed
+key, `{[$0]:5}`, which JavaScript reads as the property named by `$0`'s
+value; the format has a precedent in `["__proto__"]`, its one computed
+key today, and a reader would resolve `[$n]` at parse time to the string
+the const holds, so the value graph and the AST are unchanged. A `$n` that
+holds anything but a string would be refused, not coerced, since `[1]` and
+`[null]` are keys in JavaScript too and coercion is a rule the format does
+not want. With this, keys and values draw from one pool of strings; without
+it, a string used as a key and as a value is deduplicated only as a value.
+Whether the format admits it is part of question 1.
 
 ### Tasks
 
-- [ ] Decide the default threshold with the VM's value representation in
-      hand, and whether the DataJS normalized form admits a hoisted string
-      or bigint above it.
-- [ ] The analysis's leaf table, parameterized by the threshold, with proofs
-      that a short string is never listed, a long one repeated is listed once,
-      and a bigint within 64 bits is not.
-- [ ] The executor holds one value per entry; the writers hoist per the
-      decision above.
+- [ ] Investigate the VM's value representation far enough to know which
+      strings and bigints it holds inline, and so what a threshold would be.
+- [ ] Assess the DataJS change: rewrite the normalized-form rule and the
+      computed-key syntax as a draft against
+      [`spec/datajs/README.md`](../../../spec/datajs/README.md), measure the
+      size effect over the conformance corpus ([`fjs/media/datajs`](../../media/datajs/README.md)), and count the
+      documents whose normalized bytes change.
+- [ ] Assess the threshold: which default, whether a threshold belongs in
+      the analysis's signature or in the format, and whether the
+      FunctionalScript writer wants one at all.
+- [ ] Decide — one of the two, or both with their division named — and only
+      then: the analysis's leaf table with proofs (a listed string once, an
+      unlisted one never, a bigint within the rule), the executor holding one
+      value per entry, and the writers hoisting per the decision.
 
 ### Related
 
-- [`analysis.md`](./analysis.md) — the node table this extends with a leaf
-  table.
+- [`analysis.md`](./analysis.md) — the node table a leaf table would sit
+  beside.
 - [`spec/datajs/README.md`](../../../spec/datajs/README.md) — the normalized
-  form's rule that primitives are written inline, which the writer half of
-  this depends on changing.
+  form's rule that primitives are written inline, and the `["__proto__"]`
+  key that is the computed-key precedent.
+- [`../../fsc/todo/functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)
+  — the writer that would follow whichever rule is chosen.
 - [`../../../spec/todo/content-addressable-vm.md`](../../../spec/todo/content-addressable-vm.md)
   — where a value is its content, deduplication is the storage, not a pass.
