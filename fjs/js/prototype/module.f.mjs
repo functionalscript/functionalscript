@@ -11,9 +11,10 @@
  * same on every engine, so that a module means one thing everywhere.
  *
  * The lists are ECMAScript 2025's, Annex B included, string keys only —
- * a symbol key is not a name a module can spell. `./proof.f.mjs` checks
- * each against the running engine, which may hold more and must hold
- * these.
+ * a symbol key is not a name a module can spell. They are not checked
+ * against the running engine, since no engine is the reference: a newer
+ * release owns names the standard did not, and Deno deletes
+ * `Object.prototype.__proto__` outright.
  *
  * @module
  */
