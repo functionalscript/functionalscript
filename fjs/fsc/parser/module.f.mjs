@@ -489,17 +489,15 @@ const imported = ({ module, attribute }) => {
 const prohibitedKey = foldError('prohibited property name')
 
 /**
- * An access on a negative literal, at the key: JavaScript reads `-1 .x`
- * as `-(1 .x)`, the minus after the access, and the tokenizer folds the
- * minus into the number; with no negation in the language to read it
- * JavaScript's way, the spelling is refused. `-0` too, and a negative
- * bigint, and `-Infinity`; a reference to a negative value is not, since
- * `n.x` reads alike in both.
+ * An access on a number or a bigint literal, at the key. JavaScript reads
+ * `-1 .x` as `-(1 .x)`, the minus after the access, while the tokenizer
+ * folds the minus into the number — and folds `-0n` to `0n`, so no sign
+ * is left to tell the two apart by. With no negation in the language to
+ * read the spelling JavaScript's way, an access on any numeric literal is
+ * refused: `1 .x` is `undefined` in both and worth nothing, and a
+ * reference to a number keeps `n.x`, which reads alike in both.
  */
-const negativeBase = foldError('access on a negative literal')
-
-/** Whether a resolved base is a negative literal, `-0` included. @type {(base: AstConst) => boolean} */
-const isNegative = base => typeof base === 'number' ? base < 0 || Object.is(base, -0) : typeof base === 'bigint' && base < 0n
+const numericBase = foldError('access on a numeric literal')
 
 /** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = ({ token }) => {
@@ -522,7 +520,7 @@ const keyNamed = ({ token }) => {
 const accessClosed = (key, base) => {
     const named = keyNamed(key)
     if (named === protoKey || named === 'constructor') { return error(prohibitedKey(key)) }
-    if (isNegative(base)) { return error(negativeBase(key)) }
+    if (typeof base === 'number' || typeof base === 'bigint') { return error(numericBase(key)) }
     /** @type {AstAccess} */
     const access = ['.', base, named]
     return ok(access)

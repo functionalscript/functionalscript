@@ -200,11 +200,11 @@ const accesses = repeatFrom0(access)
  * and a rule trivia leads is a rule one symbol of lookahead cannot enter.
  * Every value's last token is followed by trivia exactly once, here, and
  * what follows a value adds none. Any value takes accesses, as any
- * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`,
- * `1 .x` — the last with a space, since `1.x` is one number and a stray
- * word in JavaScript too. `-1 .x` parses here and is refused by the fold,
- * since JavaScript reads it as `-(1 .x)` and the tokenizer folds the minus
- * into the number.
+ * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`.
+ * `1 .x` parses here too, with a space since `1.x` is one number and a
+ * stray word in JavaScript, and the fold refuses it with every access on
+ * a numeric literal: JavaScript reads `-1 .x` as `-(1 .x)` and the
+ * tokenizer folds the minus into the number.
  *
  * @type {Value}
  */

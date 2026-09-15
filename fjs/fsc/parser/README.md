@@ -75,6 +75,10 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
+- an access on a number or a bigint literal, `1 .x` or `-1n[0]`: JavaScript
+  reads `-1 .x` as `-(1 .x)`, the tokenizer folds the minus into the number
+  and `-0n` to `0n`, and the language has no negation to read it JavaScript's
+  way, so every access on a numeric literal is refused rather than some;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
