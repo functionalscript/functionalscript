@@ -606,6 +606,11 @@ export const proof = {
             ['C:/donor/objects'])
         // a relative store is no drive either
         assertStructurallySame(alternatesIn('od', 'C:/donor/objects'), ['od/C:/donor/objects'])
+        // and a leading backslash is the same question: a separator on Windows,
+        // an ordinary first character of a name on POSIX. Measured on Git
+        // 2.43.0, an entry of `\\x` read objects from `objects/\\x`.
+        assertStructurallySame(alternatesIn('/home/r/objects', '\\x'), ['/home/r/objects/\\x'])
+        assertStructurallySame(alternatesIn('C:/r/.git/objects', '\\x'), ['\\x'])
         // and the two roots that are roots everywhere
         assertStructurallySame(alternatesIn('/home/r/objects', '/donor/objects'), ['/donor/objects'])
         assertStructurallySame(alternatesIn('/home/r/objects', '//unc/objects'), ['//unc/objects'])
@@ -662,6 +667,16 @@ export const proof = {
         // path is no longer folded, so nothing rewrites one into a separator
         assertStructurallySame(alternatesIn('od', '"/bad\\qescape"'), ['od/"/bad\\qescape"'])
         assertStructurallySame(alternatesIn('od', '"/short\\12"'), ['od/"/short\\12"'])
+        // `\\400` and above name no byte, so the unquoting fails and the line is
+        // taken as it stands — measured on Git 2.43.0, `"x\\400"` read objects
+        // from a directory named `"x\\400"`, quotes and all. Truncating to a byte
+        // or refusing the file would each make that repository unreadable.
+        assertStructurallySame(alternatesIn('od', '"x\\400"'), ['od/"x\\400"'])
+        assertStructurallySame(alternatesIn('od', '"x\\777"'), ['od/"x\\777"'])
+        // while `\\377` is a byte, and the one this layer cannot spell
+        assertStructurallySame(
+            alternatesIn('od', '"x\\377"'),
+            { why: 'encoding', line: '"x\\377"' })
         // text after the closing quote is refused rather than half-read — see
         // {@link alternatesQuotedSuffix} for why neither half is answerable
         assertStructurallySame(

@@ -58,7 +58,8 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Envelope } from '../object/types.ts'
  * @import { Held } from '../packstore/types.ts'
- * @import { _Outcome, _Refusal } from './private.ts'
+ * @import { _Outcome } from './private.ts'
+ * @import { _Refusal } from './types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
@@ -187,14 +188,20 @@ const isOctal = c => c >= '0' && c <= '7'
 
 /**
  * The three octal digits at `i` as the byte they name, or `null` where they are
- * not three octal digits.
+ * not three octal digits, or name no byte at all.
  *
  * @type {(line: string, i: number) => Nullable<number>}
  */
-const octalAt = (line, i) =>
-    i + 2 < line.length && isOctal(line[i]) && isOctal(line[i + 1]) && isOctal(line[i + 2])
-        ? parseInt(line.slice(i, i + 3), 8)
-        : null
+const octalAt = (line, i) => {
+    if (i + 2 >= line.length
+        || !isOctal(line[i]) || !isOctal(line[i + 1]) || !isOctal(line[i + 2])) { return null }
+    const v = parseInt(line.slice(i, i + 3), 8)
+    // `\400` and above name no byte, and Git calls the unquoting failed rather
+    // than truncating: measured on Git 2.43.0, a line of `"x\400"` read objects
+    // from a directory named `"x\400"` — the whole line, quotes included. So
+    // this is `null`, which {@link alternateLine} turns into the raw line.
+    return v > 0xFF ? null : v
+}
 
 /**
  * A C-quoted line decoded and whether its escapes named a byte above ASCII, or
@@ -291,13 +298,17 @@ export const alternatesIn = (od, text) => {
 /**
  * Whether an entry names a directory on its own rather than one below `od`.
  *
- * **A drive root is one only where the store itself has one.** `C:/donor/objects`
- * is an absolute path on Windows and a directory named `C:` on POSIX, and
- * nothing in the line says which — but the object directory holding the file
- * does: a repository at `C:/repo/.git/objects` is on a system where drives are
- * roots, and one at `/home/…` or a relative path is not. Measured on Git 2.43.0
- * on POSIX, an entry of `C:` read objects from `objects/C:`, so the POSIX
- * reading is a directory name, which is what this gives it.
+ * **Only a leading `/` is a root everywhere.** A drive and a leading backslash
+ * are Windows spellings, and nothing in the line says which system wrote it —
+ * but the object directory holding the file does: a repository at
+ * `C:/repo/.git/objects` is on a system where drives are roots, and one at
+ * `/home/…` or a relative path is not. Both were measured on Git 2.43.0 on
+ * POSIX, where each is an ordinary directory name: an entry of `C:` read
+ * objects from `objects/C:`, and an entry of `\\x` read them from `objects/\\x`.
+ *
+ * The entry's own text is what is asked, not {@link root}, which reads a
+ * backslash as a separator and would call `\\x` rooted before the question is
+ * put.
  *
  * Without that test a POSIX entry of `C:/…` would be handed to the host as an
  * absolute path, and the host would resolve it against the *process* directory —
@@ -305,18 +316,15 @@ export const alternatesIn = (od, text) => {
  *
  * @type {(od: string, entry: string) => boolean}
  */
-const isAbsolute = (od, entry) => {
-    const r = root(entry)
-    if (r === '') { return false }
-    return r === '/' || r === '//' || isDrive(root(od))
-}
+const isAbsolute = (od, entry) => entry.startsWith('/')
+    || ((entry.startsWith('\\') || isDrive(entry)) && isDrive(root(od)))
 
 /**
- * Whether a root is a drive's — `C:/` and not `/` or `//` or none at all.
+ * Whether a path begins with a drive's letter and colon — `C:` and not `/`.
  *
- * @type {(r: string) => boolean}
+ * @type {(x: string) => boolean}
  */
-const isDrive = r => r.length > 1 && r[1] === ':'
+const isDrive = x => x.length > 1 && x[1] === ':'
 
 /**
  * The code an `objects/info/alternates` is refused with when its bytes are not
