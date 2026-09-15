@@ -506,15 +506,17 @@ export const proof = {
             refusal(readBy(bare, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')[1]).message,
             `${packPath}:508 does not inflate: no idea`)
         // and a host with no `inflate` at all is the other channel, which names
-        // itself rather than an error — the repair there is a handler, not a
-        // file, which is the whole reason the host's own diagnosis is carried
-        // on rather than replaced
+        // itself and the operation it is missing rather than an error — the
+        // repair there is a handler, not a file, which is the whole reason the
+        // host's own diagnosis is carried on rather than replaced. `inflate` is
+        // the half that says *which* handler, so the channel's own name is not
+        // enough on its own.
         const { inflate: _, ...none } = whole
         const [, missing] = partialRun(nodeCommands)(none)([])(
             read(id('b00a3b66a7a094e6165bfcd39e0b8524042140db')))
         assertEq(
             refusal(missing).message,
-            `${packPath}:508 does not inflate: notImplemented`)
+            `${packPath}:508 does not inflate: notImplemented inflate`)
     },
     // An `.idx` that is not one Git would read is a failure and not a miss: it
     // names the objects of the pack beside it, so nothing there is reachable.

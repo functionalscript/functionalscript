@@ -65,9 +65,8 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
-import { readUtf8File } from '../../effects/node/module.f.mjs'
+import { isNotFound, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, root, under } from '../../path/module.f.mjs'
-import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
@@ -197,23 +196,24 @@ const octalAt = (line, i) => {
 }
 
 /**
- * A C-quoted line decoded and whether its escapes named a byte above ASCII, or
- * `null` where it is not a quoted line — an unterminated quote, an escape that
- * is not a character Git decodes, or a short octal escape.
- *
- * **The byte is reported from the decoding and not from the text**, because only
- * an escape this actually consumed names one. A `\377` in a comment, in an
- * unquoted line, or after the closing quote is four ordinary characters that Git
- * reads as a path, and a scan over the raw line would refuse all three. A
- * non-ASCII *character* in the line is not one either: it is already UTF-8, the
- * host writes back the bytes it came from, and the whole-file check has passed
- * it — see [`todo/byte-paths.md`](../todo/byte-paths.md).
+ * A C-quoted line with its escapes decoded, or `null` where it is not a quoted
+ * line at all — an unterminated quote, an escape that is not a character Git
+ * decodes, or a short octal escape.
  *
  * `null` is not a refusal here: {@link alternateLine} takes the line verbatim
  * instead, because that is what Git does with a line whose unquoting fails.
  *
- * **Text after the closing quote is not such a failure.** The quote ends the
- * path and the remainder is ignored: measured on Git 2.43.0 with a borrower
+ * **What comes back is a string of characters, not the bytes Git decoded.** An
+ * escape naming a byte above ASCII becomes one character of that value, which
+ * the host writes back as the two UTF-8 bytes of it — a different directory than
+ * Git looks in. A `\u0000` is kept as an ordinary character where Git's path
+ * ends at it. Neither is answerable in this layer, where every path is a string;
+ * both are [`todo/byte-paths.md`](../todo/byte-paths.md)'s to fix and
+ * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md)'s to
+ * record.
+ *
+ * **Text after the closing quote is not an unquoting failure.** The quote ends
+ * the path and the remainder is ignored: measured on Git 2.43.0 with a borrower
  * holding nothing of its own, a line of `"<donor>"junk` printed the donor's blob
  * at exit 0 — while also reporting a second entry Git made of the remainder, a
  * meaning this does not invent for it.
@@ -313,7 +313,7 @@ export const alternatesIn = (od, text) => text
  * @type {(od: string, entry: string) => boolean}
  */
 const isAbsolute = (od, entry) => entry.startsWith('/')
-    || ((entry.startsWith('\\') || isDrive(entry)) && isDrive(root(od)))
+    || ((entry.startsWith('\\') || isDrive(entry)) && isWindows(od))
 
 /**
  * Whether a path begins with a drive's letter and colon — `C:` and not `/`.
@@ -321,6 +321,27 @@ const isAbsolute = (od, entry) => entry.startsWith('/')
  * @type {(x: string) => boolean}
  */
 const isDrive = x => x.length > 1 && x[1] === ':'
+
+/**
+ * Whether an object directory is on a system where a drive and a backslash are
+ * roots, read off the directory's own spelling: a drive root, or the `//` a UNC
+ * share begins with.
+ *
+ * **A relative directory says nothing, and is read as POSIX.** A repository
+ * opened through a relative path — `fjs/git/repo`'s `tryCommonDir` answers one
+ * for a `.git` beside the caller — has no root to read, so a Windows caller's
+ * `C:/donor/objects` entry is joined below it instead of taken whole, and the
+ * donor's objects are not found. The signal is the best one a path carries and
+ * it is not the host's own answer;
+ * [`todo/byte-paths.md`](../todo/byte-paths.md) records both the inference and
+ * this gap in it, under the task for asking the host which roots it has.
+ *
+ * @type {(od: string) => boolean}
+ */
+const isWindows = od => {
+    const r = root(od)
+    return isDrive(r) || r === '//'
+}
 
 /**
  * The code an object is refused with when the bytes at its path hash to
@@ -505,16 +526,26 @@ const inOne = (idOf, oidBytes, id) => od => {
     const loose = resultStep(readLoose(p), r => pureOk(checkedAt(idOf, p, id)(r)))
     return step(loose, r => {
         if (r[0] === 'ok' && r[1] !== null) { return pureOk(/** @type {_Outcome} */ ([r, false])) }
-        // The loose read's own channel error is the one failure that is not a
-        // refusal: it is the host saying there is no such file, which is what a
-        // store without the object looks like. A hash mismatch is not — the file
-        // is there and holds something else.
-        const looseRefused = r[0] === 'error'
-            && r[1][0] === 'ioError' && r[1][1].code === objectIdCode
+        // On the loose side, `ENOENT` is the one failure that is not a refusal:
+        // it is the host saying there is no such file, which is what a store
+        // without the object looks like. Everything else that read can say is a
+        // refusal — a hash mismatch, because the file is there and holds
+        // something else; a stream that is no zlib stream, because the file is
+        // there and is broken; a read the host turns down, because the file is
+        // there and cannot be had. An earlier revision named only the hash
+        // mismatch, so a borrowed store's corrupt loose object hid behind the
+        // repository's own `ENOENT`.
+        const looseRefused = r[0] === 'error' && !isNotFound(r[1])
         return resultStep(readPacked(od, oidBytes)(id), h => {
             const answered = packedOr(idOf, id, r)(h)
             return pureOk(/** @type {_Outcome} */ ([
                 answered,
+                // On the packed side there is no such failure to spare: an index
+                // that names the id has said the store holds it, so *every* way
+                // the read can fail afterwards is a refusal — an `ENOENT` for the
+                // `.pack` beside a readable `.idx` among them. Which side
+                // answered is the question, not which errno came back; asking the
+                // code alone turns that missing pack into a miss.
                 answered === r ? looseRefused : answered[0] === 'error',
             ]))
         })

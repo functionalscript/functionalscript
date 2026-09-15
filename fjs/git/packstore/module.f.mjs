@@ -161,11 +161,15 @@ const idxMessage = path => `${path} is no pack index`
  * packed object … (stored in …pack) is corrupt`, the inflater's words and the
  * file's.
  *
+ * The other channel names the operation it is missing, not just itself: a
+ * runner without an `inflate` handler and one without a `readBytes` handler are
+ * different runners to fix, and `notImplemented` alone says neither.
+ *
  * @type {(c: IoChannel) => string}
  */
 const channelText = c => c[0] === 'ioError'
     ? c[1].code === undefined ? c[1].message : `${c[1].code} ${c[1].message}`
-    : c[0]
+    : `${c[0]} ${c[1]}`
 
 /**
  * A refusal about the entry at an offset, as the channel error it becomes.

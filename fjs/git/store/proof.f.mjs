@@ -160,6 +160,25 @@ const files = {
     'suffix/objects/info/alternates': latin1('"/a/objects"junk\n'),
     // A borrower holding nothing, whose lender's pack index is not one.
     'borrowsBroken/objects/info/alternates': latin1('../../broken/objects\n'),
+    // The reverse order: the borrower's *own* index is the broken one, and the
+    // store it borrows from simply does not hold the object.
+    'brokenBorrows/objects/info/alternates': latin1('../../sha/objects\n'),
+    'brokenBorrows/objects/pack/pack-junk.idx': latin1('junk'),
+    // A lender holding the tag loose and no packs at all, so what answers for it
+    // is the loose read and nothing else, and a borrower holding nothing.
+    'borrowsBadLoose/objects/info/alternates': latin1('../../looseOnly/objects\n'),
+    [objectPath('looseOnly')(id(tagId))]: tagLoose,
+    // A lender whose `.idx` names the object and whose `.pack` is gone. The
+    // index has said the store holds the id, so the `ENOENT` for the pack is
+    // corruption and not a store without the object — the borrower's own
+    // `ENOENT`, which *is* a miss, must not displace it.
+    'borrowsNoPack/objects/info/alternates': latin1('../../noPack/objects\n'),
+    [`noPack/objects/pack/${packName}.idx`]: packMixedIdx,
+    // Two misses that differ: the borrower's own loose file holds bytes that are
+    // no object, and the lender has no file at all. The first answer stands, so
+    // `null` and not the lender's `ENOENT`.
+    'twoMisses/objects/info/alternates': latin1('../../sha/objects\n'),
+    [objectPath('twoMisses')(id(junkId))]: latin1('junk'),
     // A borrower whose own loose file holds bytes that are no object, borrowing
     // from a store that does not hold it either.
     'shadowJunk/objects/info/alternates': latin1('../../repo/objects\n'),
@@ -246,8 +265,10 @@ const hostOf = fs => ({
             [...log, `readdir ${path}`],
             d === 'repo/objects/pack' || d === 'lying/objects/pack'
                 ? ok([dirent(path, `${packName}.idx`), dirent(path, `${packName}.pack`)])
-                : d === 'broken/objects/pack'
+                : d === 'broken/objects/pack' || d === 'brokenBorrows/objects/pack'
                 ? ok([dirent(path, 'pack-junk.idx')])
+                : d === 'noPack/objects/pack'
+                ? ok([dirent(path, `${packName}.idx`)])
                 : error(noFile(path)),
         ]
     },
@@ -541,13 +562,75 @@ export const proof = {
         assert(e[0] === 'ioError')
         assertEq(e[1].code, packIdxCode)
     },
-    // The other way round, a miss in a borrowed store does not displace the
-    // repository's own answer: the three things a read says short of the object
-    // are about the store that was asked.
+    // A borrowed *loose* object that cannot be read is a refusal too, not only a
+    // borrowed pack's. An inflate failure, or any read the host refuses that is
+    // not `ENOENT`, means the file is there and cannot be had — so it outlives
+    // the repository's own miss exactly as a pack's failure does.
+    //
+    // An earlier revision named only the hash mismatch on this side, so a
+    // borrowed store's corrupt loose object was reported as "no such object".
+    // The lender here is a store with no packs, so the loose read is the whole of
+    // what it says and the packed side cannot stand in for it, and the borrower
+    // holds no file at all — a plain `ENOENT`, which calls no inflater, so the
+    // failing stream can only be the lender's.
+    borrowedLooseRefusalOutlivesAMiss: () => {
+        const whole = hostOf(files)
+        const noInflate = {
+            ...whole,
+            inflate: /** @type {typeof whole.inflate} */ (
+                () => log => [[...log, 'inflate'], error(ioError({ code: 'Z_DATA_ERROR', message: 'bad' }))]),
+        }
+        const [, r] = run(noInflate)([])(tryRead('borrowsBadLoose', 20)(id(tagId)))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        // the lender's stream, not the borrower's `ENOENT`
+        assertEq(e[1].code, 'Z_DATA_ERROR')
+    },
+    // On the packed side there is no `ENOENT` to spare. A `.pack` missing beside
+    // a readable `.idx` that names the id is corruption — the index has already
+    // said the store holds it — so it outlives the borrower's own `ENOENT`, which
+    // is the same errno and an ordinary miss.
+    //
+    // Which side answered is the question, not which code came back: reading the
+    // code alone turns this into a miss and reports the borrower's own path.
+    borrowedMissingPackOutlivesAMiss: () => {
+        const [, r] = runHost(tryRead('borrowsNoPack', 20)(id(packedId)))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, 'ENOENT')
+        // the lender's pack, not the borrower's loose path — and spelled as the
+        // alternates file wrote it, since nothing folds a path on the way out
+        assertEq(
+            e[1].message,
+            `no such file: borrowsNoPack/objects/../../noPack/objects/pack/${packName}.pack`)
+    },
+    // The same preference the other way round: a refusal in the *first*
+    // directory is not displaced by a later store's miss. `kept` is order-free —
+    // the object first, then a refusal, then the first answer — and a case for
+    // only one order would leave the other to a mutation.
+    refusalStandsOverALaterMiss: () => {
+        const [, r] = runHost(tryRead('brokenBorrows', 20)(id(tagId)))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, packIdxCode)
+    },
+    // A miss in a borrowed store does not displace the repository's own answer:
+    // the three things a read says short of the object are about the store that
+    // was asked, not about the last store it borrows from.
+    //
+    // The two misses here are *different*, which is what makes the case say
+    // anything: the borrower's own file holds bytes that are no object, `null`,
+    // and the lender has no file at all, `ENOENT`. A case where both directories
+    // answered alike would pass whichever one `kept` chose.
     borrowedMissKeepsTheFirstAnswer: () => {
-        const [, r] = runHost(tryRead('shadowJunk', 20)(id(junkId)))
-        // the borrower's own file holds bytes that are no object, which stands
+        const [, r] = runHost(tryRead('twoMisses', 20)(id(junkId)))
         assertStructurallySame(r, ok(null))
+        // and the lender really is asked and really does miss
+        const [log] = runHost(tryRead('twoMisses', 20)(id(junkId)))
+        assert(log.some(l => l.startsWith('readFile twoMisses/objects/../../sha/objects/')))
     },
     // A drive-rooted entry names a directory on its own only where the store
     // itself is drive-rooted. `C:/donor/objects` is an absolute path on Windows
@@ -576,6 +659,13 @@ export const proof = {
         // and the two roots that are roots everywhere
         assertStructurallySame(alternatesIn('/home/r/objects', '/donor/objects'), ['/donor/objects'])
         assertStructurallySame(alternatesIn('/home/r/objects', '//unc/objects'), ['//unc/objects'])
+        // A store on a UNC share is on Windows as surely as a drive-rooted one,
+        // and `root` answers `//` for it rather than a drive — so asking only
+        // whether the store's root is a drive read these two as relative names.
+        assertStructurallySame(
+            alternatesIn('//srv/share/r/.git/objects', 'C:/donor/objects'),
+            ['C:/donor/objects'])
+        assertStructurallySame(alternatesIn('//srv/share/r/.git/objects', '\\x'), ['\\x'])
     },
     // A store with no `alternates` file borrows from nowhere, which is almost
     // every repository: the missing file is no borrowing rather than a failure.
