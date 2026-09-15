@@ -77,15 +77,18 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 - **`name` is unobservable.** `.` refuses it statically and `own` throws on
   a function, so no FunctionalScript program reads a function's `name`. `=>`
   carries no name, the graph stays name-erased, the writer's `$0` is
-  invisible, and `function-name.md` closes. The same guard applies to every
-  `Object` function the language admits
-  ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md)) — `entries`,
-  `keys`, `values`, `getOwnPropertyNames`, `getOwnPropertyDescriptors`,
-  `hasOwn` — each a pattern whose receiver is `typeof a === 'object' ? a : null`,
-  so a function is not an object to any of them and
+  invisible, and `function-name.md` closes. `Object.entries`, `keys` and
+  `values` see enumerable own properties only, and `length` and `name` are
+  not enumerable, so they list neither on an array or a function —
+  `Object.keys(f)` is `[]`, `Object.keys([1, 2])` is `['0', '1']` — and
+  they need no guard and agree with JavaScript as they are. The functions
+  that do see non-enumerable properties, `getOwnPropertyNames` and
+  `getOwnPropertyDescriptors`, take the same guard `own` has, each a
+  pattern whose receiver is `typeof a === 'object' ? a : null`, so
   `Object.getOwnPropertyDescriptors(f)` throws rather than handing `name`'s
-  descriptor out as data. That is the principle applied uniformly: a
-  function of `Object` reads objects.
+  descriptor out as data, and `getOwnPropertyNames([1])` still lists
+  `length`, which reveals nothing. `hasOwn` takes the guard too, for the
+  same reason `own` does.
 - **`a[b]` with an unknown `b` stays refused.** It cannot lower to `own`:
   JavaScript's `a[b]` walks the prototype chain and `own` does not, and `b`
   may be `"constructor"` at run time. The descriptor pattern is the source
@@ -130,9 +133,9 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
-- [ ] `2360-built-in.md` states the receiver guard for every admitted
-      `Object` function, `getOwnPropertyDescriptors` included, so that no
-      reflection reaches a function's `name`.
+- [ ] `2360-built-in.md` states the receiver guard for `getOwnPropertyNames`,
+      `getOwnPropertyDescriptors` and `hasOwn`, and that `entries`, `keys` and
+      `values` need none, so that no reflection reaches a function's `name`.
 - [ ] The spec todos updated in the same migration:
       [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
       spells `own_property` with the guarded descriptor read instead of the
