@@ -360,6 +360,35 @@ export const proof = {
     // literal is a fresh node every time it is written.
     sharing: {
         constTwice: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = [1]; export default [a, a];')] })('a.f.js')) },
+        // an access on a literal selects the item the key names, and the
+        // rest of the literal is not part of the value
+        literal: () => {
+            assertEq(jsonRefused('const x = []; export default [[x, x], 0][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const x = []; export default { a: [x, x], b: 1 }.a;'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; export default [[x, x], 0][1];')('output.json'), '0')
+            assertEq(compileSource('const x = []; export default [[x, x], 0][0][1];')('output.json'), '[]')
+            assertEq(compileSource('const x = []; export default [x, [x]][1];')('output.json'), '[[]]')
+            assertEq(compileSource('const x = []; export default { a: [x, x], a: 1 }.a;')('output.json'), '1')
+            assertEq(compileSource('const x = []; export default [[x, x]].length;')('output.json'), '1')
+            // an item selected from a literal may be an access itself, on a
+            // literal or on a reference, and is read on to what it names
+            assertEq(jsonRefused('const x = []; const z = [x, x]; export default [{ a: z }.a][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const x = []; export default [[{ a: [x, x] }.a]][0][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const x = []; const z = { a: [x, x] }; export default [z.a][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; const z = [x, x]; export default [{ a: z, b: 1 }.b][0];')('output.json'), '1')
+            assertEq(compileSource('const x = []; const z = { a: [x, x], b: 2 }; export default [z.b][0];')('output.json'), '2')
+            // a route into an entry that is an access on a literal walks
+            // what the access selects
+            assertEq(jsonRefused('const x = []; const a = { a: [x, x], b: x }.a; export default [a[0], x];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const x = []; const a = [[x, x]][0]; export default [a[0], a[1]];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; const a = { a: [x, x], b: 1 }.b; export default [a, 1];')('output.json'), '[1,1]')
+            assertEq(compileSource('const a = [[1, 2]][0]; export default [a[0], a[1]];')('output.json'), '[1,2]')
+            assertEq(compileSource('const x = []; const a = { a: [x, 1] }.a; export default [a[1], x];')('output.json'), '[1,[]]')
+            // a route into a `const` whose entry selects an item that is an
+            // access itself reads that item on too
+            assertEq(jsonRefused('const x = []; const a = [{ b: [x, x] }.b][0]; export default [a[0], x];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; const a = [{ b: [x, 1] }.b][0]; export default [a[1], x];')('output.json'), '[1,[]]')
+        },
         leafTwice: () => {
             assert(!sharedOf({ 'a.f.js': [utf8('const a = 1; export default [a, a];')] })('a.f.js'))
             assertEq(compileSource('const a = 1; export default [a, a];')('output.json'), '[1,1]')
@@ -450,6 +479,10 @@ export const proof = {
     access: {
         own: () => {
             assertEq(compileSource('const a = { b: [1, 2] }; export default [a.b, a["b"][1], a.b.length];')('output.f.js'), 'export default [[1,2],2,2];')
+            // a literal takes accesses as a reference does
+            assertEq(compileSource('export default [[1, 2].length, "ab"[1], { a: 3 }.a, true.x];')('output.f.js'), 'export default [2,"b",3,undefined];')
+            assertEq(moduleRefused('export default 1 .x;'), 'input.f.js:1:19 - error: access on a numeric literal')
+            assertEq(moduleRefused('export default null.x;'), 'input.f.js - error: cannot read property "x" of null')
             assertEq(compileSource('const s = "ab"; export default [s[0], s["1"], s.length];')('output.json'), '["a","b",2]')
             assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.b.x];')('output.f.js'), 'export default [undefined,undefined];')
             assertEq(moduleRefused('const a = { b: 1 }; export default a.toString;'), 'input.f.js:1:38 - error: prohibited property name')

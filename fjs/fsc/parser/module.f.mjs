@@ -295,36 +295,40 @@ const accessKey = round => tokenAt(unmapped(unmapped(unmapped(round)[1])[2])[1])
 const accessed = (base, round) => ['.', base, accessKey(round)]
 
 /**
- * A value is the node its branch made: a primitive converted from its
- * token, a reference by its token with each access after it applied in
- * turn, a container of the items its list returned —
- * `[ open t [ items ] close t ]`, the list at the third position — and a
- * function by the token naming its parameter, at the fifth position of
- * `( t ... t id t ) t => t body`, and its body at the eleventh. A body is
- * a value less the object, and its node is made the same way.
+ * The node a value's own part makes, before the accesses after it: a
+ * primitive converted from its token, a reference by its token, and a
+ * container of the items its list returned — `[ open t [ items ] close t
+ * ]`, the list at the third position. A function is not here: it takes no
+ * access, so its node is made whole.
+ *
+ * @type {(node: Exclude<Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['func', unknown]>) => Node}
+ */
+const baseOf = ([tag, branch]) => {
+    switch (tag) {
+        case 'primitive': { return ['primitive', primitiveOf(unmapped(unmapped(unmapped(branch)[0])[0]))] }
+        case 'ref': { return ['ref', tokenAt(unmapped(unmapped(unmapped(branch)[0])[0])[1])] }
+        case 'array': { return ['array', toArray(valueItems(unmapped(unmapped(branch)[0])[2]))] }
+        case 'object': { return ['object', toArray(memberItems(unmapped(unmapped(branch)[0])[2]))] }
+    }
+}
+
+/**
+ * A value is the node its branch made, with each access after it applied
+ * in turn — the accesses at the second position of every branch, after
+ * the value's own part — or a function, by the token naming its parameter,
+ * at the fifth position of `( t ... t id t ) s => t body`, and its body at
+ * the eleventh. A body is a value less the object, and its node is made
+ * the same way.
  *
  * @type {(node: Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toNode = ([tag, branch]) => {
-    switch (tag) {
-        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(unmapped(branch)[0]))] }) }
-        case 'ref': {
-            const [name, , accesses] = unmapped(branch)
-            /** @type {Node} */
-            const ref = ['ref', tokenAt(unmapped(name)[1])]
-            return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, ref) })
-        }
-        case 'array': {
-            return symbol({ id: 'value', node: ['array', toArray(valueItems(unmapped(branch)[2]))] })
-        }
-        case 'object': {
-            return symbol({ id: 'value', node: ['object', toArray(memberItems(unmapped(branch)[2]))] })
-        }
-        case 'func': {
-            const [, , , , name, , , , , , b] = unmapped(branch)
-            return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
-        }
+const toNode = node => {
+    if (node[0] === 'func') {
+        const [, , , , name, , , , , , b] = unmapped(node[1])
+        return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
     }
+    const [, accesses] = unmapped(node[1])
+    return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, baseOf(node)) })
 }
 
 /**
@@ -512,6 +516,17 @@ const prohibitedKey = foldError('prohibited property name')
  */
 const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
+/**
+ * An access on a number or a bigint literal, at the key. JavaScript reads
+ * `-1 .x` as `-(1 .x)`, the minus after the access, while the tokenizer
+ * folds the minus into the number — and folds `-0n` to `0n`, so no sign
+ * is left to tell the two apart by. With no negation in the language to
+ * read the spelling JavaScript's way, an access on any numeric literal is
+ * refused: `1 .x` is `undefined` in both and worth nothing, and a
+ * reference to a number keeps `n.x`, which reads alike in both.
+ */
+const numericBase = foldError('access on a numeric literal')
+
 /** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = ({ token }) => {
     switch (token.kind) {
@@ -533,6 +548,7 @@ const keyNamed = ({ token }) => {
 const accessClosed = (key, base) => {
     const named = keyNamed(key)
     if (typeof named === 'string' && prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+    if (typeof base === 'number' || typeof base === 'bigint') { return error(numericBase(key)) }
     /** @type {AstAccess} */
     const access = ['.', base, named]
     return ok(access)

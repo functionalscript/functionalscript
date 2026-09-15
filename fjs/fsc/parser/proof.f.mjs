@@ -349,7 +349,7 @@ export const proof = {
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
     },
-    // A property access is `['.', base, key]`, the base a reference and the
+    // A property access is `['.', base, key]`, the base any value and the
     // accesses before it, the key the constant written; a key naming the
     // prototype chain is refused at the key, in either spelling, and the
     // errors come in document order as everywhere else.
@@ -366,10 +366,40 @@ export const proof = {
             expect('const a = []; export default a[0];', '[[],[["array",[]],[".",["cref",0],0]]]')
             expect('const a = []; export default a[-1.5];', '[[],[["array",[]],[".",["cref",0],-1.5]]]')
             expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],[".",[".",[".",["cref",0],"b"],1],"default"]]]')
+            // any value takes accesses, a literal as a reference does
+            expect('export default [1].length;', '[[],[[".",["array",[1]],"length"]]]')
+            expect('export default "ab"[0];', '[[],[[".","ab",0]]]')
+            expect('export default { a: [1] }.a[0];', '[[],[[".",[".",["object",[["a",["array",[1]]]]],"a"],0]]]')
+            expect('export default null.x;', '[[],[[".",null,"x"]]]')
+            expect('export default true.x;', '[[],[[".",true,"x"]]]')
+            expect('const n = -1; export default n.x;', '[[],[-1,[".",["cref",0],"x"]]]')
             expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]')
             // a prototype name is a key like any other: only reading it is refused
             expect('export default { push: 1, toString: 2 };', '[[],[["object",[["push",1],["toString",2]]]]]')
             expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]')
+        },
+        // `-1 .x` is `-(1 .x)` in JavaScript, and the tokenizer folds the
+        // minus into the number — and `-0n` to `0n`, leaving no sign to
+        // tell by — so an access on any numeric literal is refused at the
+        // key; a reference to a number takes one
+        numeric: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'access on a numeric literal')
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default -1 .x;', 20)
+            expect('export default -0 .x;', 20)
+            expect('export default -1n .x;', 21)
+            expect('export default -0n .x;', 21)
+            expect('export default -Infinity.x;', 26)
+            expect('export default -1["x"];', 19)
+            expect('export default 1 .x;', 19)
+            expect('export default 0n.x;', 19)
+            expect('export default NaN.x;', 20)
+            expect('export default Infinity["x"];', 25)
         },
         prohibited: () => {
             /** @type {(source: string, column: number) => void} */
@@ -490,6 +520,9 @@ export const proof = {
             expect('const f = (...a) => 1; export default [f, f];', '[[],[["=>",1],["array",[["cref",0],["cref",0]]]]]')
             expect('const a = 1; export default (...a) => a;', '[[],[1,["=>",["args"]]]]')
             expect('export default ( ... a ) => /* c */ a . b [ 0 ] ;', '[[],[["=>",[".",[".",["args"],"b"],0]]]]')
+            // a body takes accesses as a value does, and a function none of its own
+            expect('export default (...a) => [a][0];', '[[],[["=>",[".",["array",[["args"]]],0]]]]')
+            expect('export default (...a) => "s"[0];', '[[],[["=>",[".","s",0]]]]')
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
