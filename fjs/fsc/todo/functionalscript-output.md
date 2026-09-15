@@ -102,7 +102,11 @@ accepts, so that compiling the output again yields the same EDAG:
   which `(...$a) => $a.length` would read as a body access. Such a base is
   hoisted, `const $0=1;` and `$0.x`, whether or not it is shared: the one
   hoist the writer makes for the grammar's sake, and the recompiled node is
-  the same access on the same base.
+  the same access on the same base. That hoist is a module-level spelling:
+  inside a body it would move a function's constructor to the module's
+  scope, and a hoisted number would be read back as a capture, so a numeric
+  or function base inside a body is refused, as a shared constructor there
+  is, until body constants give the body a `const`, which keeps the scope.
 - A node kind the writer has no spelling for is refused, naming the kind.
   Calls and operators are not in the language yet; each feature that adds a
   node kind adds its spelling to this writer in the same PR, which the
@@ -137,7 +141,8 @@ contract stays for `.data.js` and `.json`, which are values.
       line, normalized.
 - [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
       refusal does: a comma anywhere but the root, an object-literal body, a
-      constructor shared within a body, a node kind without a spelling.
+      constructor shared within a body, a numeric or function base within a
+      body, a node kind without a spelling.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
       analyses whole — root, nodes, scope and shared, equal up to the
