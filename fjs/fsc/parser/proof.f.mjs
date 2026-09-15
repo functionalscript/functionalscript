@@ -373,6 +373,9 @@ export const proof = {
             expect('export default null.x;', '[[],[[".",null,"x"]]]')
             expect('export default true.x;', '[[],[[".",true,"x"]]]')
             expect('const n = -1; export default n.x;', '[[],[-1,[".",["cref",0],"x"]]]')
+            expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]')
+            // a prototype name is a key like any other: only reading it is refused
+            expect('export default { push: 1, toString: 2 };', '[[],[["object",[["push",1],["toString",2]]]]]')
             expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]')
         },
         // `-1 .x` is `-(1 .x)` in JavaScript, and the tokenizer folds the
@@ -411,6 +414,14 @@ export const proof = {
             expect('const a = {}; export default a.constructor;', 32)
             expect('const a = {}; export default a["constructor"];', 32)
             expect('const a = {}; export default a.b.constructor.c;', 34)
+            // every name a built-in prototype gives a value, in either
+            // spelling, `length` excepted
+            expect('const a = []; export default a.push;', 32)
+            expect('const a = []; export default a["toString"];', 32)
+            expect('const a = {}; export default a.hasOwnProperty;', 32)
+            expect('const a = ""; export default a.at;', 32)
+            expect('const a = 1; export default a.toFixed;', 31)
+            expect('const a = {}; export default a.valueOf;', 32)
         },
         // the base is resolved first, so an unbound base is reported before
         // a prohibited key, and a prohibited key before an unbound name after it
@@ -466,7 +477,7 @@ export const proof = {
             }
             expect('const from = 1;\nexport default from;')
             expect('export default { if: 1, export: 2, with: 3, from: 4, default: 5, this: 6 };')
-            expect('const a = {}; export default [a.if, a.export, a.with, a.class];')
+            expect('const a = {}; export default [a.if, a.export, a.default, a.class];')
         },
     },
     // `with { type: "json" }` is the one import attribute JavaScript

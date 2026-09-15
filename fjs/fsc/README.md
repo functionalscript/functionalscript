@@ -17,10 +17,12 @@ What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
 and `[1].length`, on any value: an own property of the base, never the prototype chain, as
 [spec: property accessor](../../spec/todo/2330-property-accessor.md) has
-it, so `a.toString` is `undefined` here where JavaScript finds a function;
-`undefined` where there is no such property; and a `null` or `undefined`
-base is the one failure a data module can make, reported as JavaScript's
-throw is. The sharing sweep reads an access by the keys it applies, so
+it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
+is refused at the key rather than read as `undefined` where JavaScript
+finds a function, `length` excepted, since a value owns it
+([`fjs/js/prototype`](../js/prototype/module.f.mjs)); `undefined` where
+there is no such property; and a `null` or `undefined` base is the one
+failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
 node it is. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
