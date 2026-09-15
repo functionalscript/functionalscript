@@ -42,12 +42,14 @@ downstream:
 
 ```ts
 type Analysis = {
+    readonly root: Operand              // the program's value: an index into `nodes`, or a primitive
     readonly nodes: readonly Node[]     // every operation node of the program, in walk order, each once
     readonly scope: readonly number[]   // per node: the index of the `=>` whose body holds it, or -1 at the module level
     readonly shared: readonly number[]  // the indices reached by more than one edge within their scope, in that order
 }
-// a Node is the EDAG node with each operation-node operand replaced by its
-// index, `['#', i]`; a primitive operand stays inline
+// an Operand is an index, `['#', i]`, or a primitive; a Node is the EDAG
+// node with each operation-node operand replaced by its index, so that
+// `export default 1;` is an empty table with the root `1`
 ```
 
 - **One table, the whole program.** A node is numbered once wherever it
@@ -77,14 +79,23 @@ type Analysis = {
   indices of that body alone, and the module-level ones are held once — one
   map for the whole code, values cached per function.
 - **Merged before counted, within one scope.** A node whose result
-  identity is decided by its inputs — an access, an operator, the comma —
-  is the same node as another in the same scope spelled the same over the
-  same inputs, so `[cfg.a, cfg.a]` becomes one node reached twice. Two
-  scopes never merge: `[(...a) => "x".length, (...b) => "x".length]` keeps
-  a `.` node per body, each in its own scope, since a value is never shared
-  across calls and no consumer could use the merge. A constructor, `[]`,
-  `{}` or `=>`, mints identity and is never merged: two `[]` are two
-  arrays. The merge is the analysis's
+  identity is decided by its inputs — a plain access, an operator, the
+  comma — is the same node as another in the same scope spelled the same
+  over the same inputs, so `[cfg.a, cfg.a]` becomes one node reached twice.
+  Two scopes never merge: `[(...a) => "x".length, (...b) => "x".length]`
+  keeps a `.` node per body, each in its own scope, since a value is never
+  shared across calls and no consumer could use the merge. A constructor,
+  `[]`, `{}` or `=>`, mints identity and is never merged: two `[]` are two
+  arrays. Neither is a call, in any spelling: `['()', f, args]`, and an
+  access whose continuation calls, `['|()', …]`, `['|?.()', …]` or
+  `['|!()', …]`, which is a method call and may mint a fresh result each
+  time, as `[o.f(), o.f()]` with `f` returning `[]` must give two arrays.
+  Merging unifies nodes and removes no edge: a merged node's incoming edges
+  are the sum over its occurrences, and its operands keep every edge each
+  occurrence gave them, so in `const a = [{}]; export default [a[0], a[0]];`
+  the two accesses become one node while `a` still has two edges and is
+  shared — the writer expands the merged access at both places, and each
+  place needs the same `a`. The merge is the analysis's
   view, not a rewrite of the graph: the EDAG keeps its nodes and its hash,
   and a merged node's value is one value however many nodes compute it,
   since nothing in it mints identity, so an executor that reuses the value

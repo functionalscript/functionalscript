@@ -85,7 +85,10 @@ accepts, so that compiling the output again yields the same EDAG:
   ([`2350-grouping.md`](../../../spec/todo/2350-grouping.md)), and refused
   until then.
 - An access, `['.', base, key]`, is written as `base.key` for a key that is
-  an identifier and `base[key]` otherwise, a number key as a number. The
+  an identifier and `base[key]` otherwise, a number key as a number — a
+  non-finite one, which `a[1e999]` produces, as `1e999` or `-1e999`, the
+  literal the tokenizer reads back to the same key, since `Infinity` is a
+  reserved word and not a key token. The
   grammar takes no access on two bases the parser accepts through a
   reference and linking then puts in place: a number or bigint literal —
   `n.x` with `n` imported from a module exporting `1` links to
