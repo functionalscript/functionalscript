@@ -1,7 +1,7 @@
 ## One access node: `.` reads an own property, and `own` goes
 
 **Priority:** P2
-**Status:** open
+**Status:** open — [`entry.md`](./entry.md) proposes the alternative, two nodes with `entry` reading an enumerable own property
 
 ### Problem
 
