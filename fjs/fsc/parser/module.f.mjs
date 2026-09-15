@@ -21,8 +21,10 @@
  * The grammar sees symbols and the fold sees text, which is the line that
  * decides where a check belongs: every check that has to read a *word* is
  * the fold's — a reference to a name nothing binds, a name bound twice by
- * `import` or `const`, which share one map, and a bare or string
- * `__proto__` key, which JavaScript reads as an instruction to replace the
+ * `import` or `const`, which share one map, a JavaScript keyword bound or
+ * referenced, since the tokenizer hands every keyword over as an
+ * identifier and a key or the name after `.` may be one, and a bare or
+ * string `__proto__` key, which JavaScript reads as an instruction to replace the
  * prototype; the computed spelling `{ ["__proto__"]: v }` denotes an
  * ordinary property and is accepted. The error reported is the first met
  * in document order, and a match that fails builds no module: a malformed
@@ -45,17 +47,18 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstArray, AstConst, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstConst, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
+import { keywords } from '../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
@@ -246,7 +249,7 @@ const optionalItems = itemsAt => node => {
 }
 
 /**
- * The items of a list node, `item t [ ',' t [ items ] ]`: the item, then
+ * The items of a list node, `item [ ',' t [ items ] ]`: the item, then
  * the items the nested list's mapping already returned — so a list of any
  * length costs one step at each of its nodes, and the tree, as deep as the
  * list is long, is never walked.
@@ -255,7 +258,7 @@ const optionalItems = itemsAt => node => {
  */
 const listOf = (itemAt, itemsAt) => {
     const rest = optionalItems(itemsAt)
-    return ([item, , more]) => {
+    return ([item, more]) => {
         const rounds = unmapped(more)
         // no round, or the one holding the comma, its trivia and the optional rest
         const tail = rounds.length === 0 ? null : rest(unmapped(rounds[0])[2])
@@ -279,16 +282,34 @@ const membersOf = listOf(memberAt, membersAt)
 const symbol = out => ({ symbol: 0, meta: out })
 
 /**
+ * The token an access names its key by: `.name`'s identifier, or `[key]`'s
+ * constant — at the third position of either branch, under the identifier's
+ * or the constant's own alternative.
+ *
+ * @type {(round: _AccessNode) => DjsTokenWithMetadata}
+ */
+const accessKey = round => tokenAt(unmapped(unmapped(unmapped(round)[1])[2])[1])
+
+/** One access applied to the node before it. @type {(base: Node, round: _AccessNode) => Node} */
+const accessed = (base, round) => ['.', base, accessKey(round)]
+
+/**
  * A value is the node its branch made: a primitive converted from its
- * token, a reference by its token, and a container of the items its list
- * returned — `[ open t [ items ] close ]`, the list at the third position.
+ * token, a reference by its token with each access after it applied in
+ * turn, and a container of the items its list returned —
+ * `[ open t [ items ] close t ]`, the list at the third position.
  *
  * @type {(node: Children<Value, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = ([tag, branch]) => {
     switch (tag) {
-        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(branch))] }) }
-        case 'ref': { return symbol({ id: 'value', node: ['ref', tokenAt(unmapped(branch)[1])] }) }
+        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(unmapped(branch)[0]))] }) }
+        case 'ref': {
+            const [name, , accesses] = unmapped(branch)
+            /** @type {Node} */
+            const ref = ['ref', tokenAt(unmapped(name)[1])]
+            return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, ref) })
+        }
         case 'array': {
             return symbol({ id: 'value', node: ['array', toArray(valueItems(unmapped(branch)[2]))] })
         }
@@ -328,9 +349,23 @@ const toMember = ([k, , , , v]) => {
     return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
 }
 
+/**
+ * An import's attribute, when the optional list holds one round: the key at
+ * the fifth position of `with t { t id t : t string t } t`, the value at the
+ * ninth.
+ *
+ * @type {(node: _AttributeNode) => Import['attribute']}
+ */
+const attributeOf = node => {
+    const rounds = unmapped(node)
+    if (rounds.length === 0) { return null }
+    const round = unmapped(rounds[0])
+    return [tokenAt(round[4]), tokenAt(round[8])]
+}
+
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toImport = ([, , name, , , , module]) =>
-    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)) } })
+const toImport = ([, , name, , , , module, , attribute]) =>
+    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)), attribute: attributeOf(attribute) } })
 
 /** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([, , name, , , , v]) =>
@@ -400,6 +435,82 @@ const constNotFound = foldError('const not found')
 /** A name bound twice, at the second binding. */
 const duplicateId = foldError('duplicate id')
 
+/** A keyword where JavaScript wants an identifier, at the word. */
+const reservedWord = foldError('reserved word')
+
+/** @type {ReadonlySet<string>} */
+const keywordSet = new Set(keywords)
+
+/**
+ * The word an identifier token spells where JavaScript wants an identifier
+ * — a name bound or referenced — refusing every keyword: the tokenizer
+ * demotes them all to `id`, so that a key or the name after `.` may be one,
+ * and here is where the distinction is made. `const if = 1;` is a syntax
+ * error in JavaScript, so it is an error here.
+ *
+ * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
+ */
+const identifierOf = name => {
+    const word = nameOf(name)
+    return keywordSet.has(word) ? error(reservedWord(name)) : ok(word)
+}
+
+/** An attribute key the language does not know, at the key: `type` is the one JavaScript defines. */
+const unknownAttribute = foldError('unknown import attribute')
+
+/** A module type the language does not read, at the value: `json` is the one JavaScript defines. */
+const unknownType = foldError('unknown import type')
+
+/**
+ * An import as the AST records it: its specifier, and whether its attribute
+ * names a JSON module — the one attribute JavaScript defines, `type`, with
+ * the one value it reads, `json`; any other key or value is refused where
+ * it stands.
+ *
+ * @type {(statement: Import) => Result<AstImport, ParseError>}
+ */
+const imported = ({ module, attribute }) => {
+    if (attribute === null) { return ok({ specifier: module, json: false }) }
+    const [key, value] = attribute
+    if (nameOf(key) !== 'type') { return error(unknownAttribute(key)) }
+    if (textOf(value) !== 'json') { return error(unknownType(value)) }
+    return ok({ specifier: module, json: true })
+}
+
+/**
+ * A key that names the prototype chain, at the key. `__proto__` and
+ * `constructor` reach a function's constructor through any object, which
+ * [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
+ * prohibits in either spelling; the bare and quoted spellings alike.
+ */
+const prohibitedKey = foldError('prohibited property name')
+
+/** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
+const keyNamed = ({ token }) => {
+    switch (token.kind) {
+        case 'id': { return token.value }
+        case 'string': { return token.value }
+        default: {
+            assert(token.kind === 'number')
+            return parseFloat(token.value)
+        }
+    }
+}
+
+/**
+ * An access closed over its base: the AST's `['.', base, key]`, or the
+ * refusal of a key that names the prototype chain.
+ *
+ * @type {(key: DjsTokenWithMetadata, base: AstConst) => Result<AstConst, ParseError>}
+ */
+const accessClosed = (key, base) => {
+    const named = keyNamed(key)
+    if (named === protoKey || named === 'constructor') { return error(prohibitedKey(key)) }
+    /** @type {AstAccess} */
+    const access = ['.', base, named]
+    return ok(access)
+}
+
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
     kind === 'array' ? items[index] : items[index].value
@@ -457,7 +568,7 @@ const close = ([kind, members], done) => {
  * The next item of a container, its key checked first, or the container
  * closed when none is left.
  *
- * @type {(stack: _Stack, frame: _Frame) => _State}
+ * @type {(stack: _Stack, frame: _ContainerFrame) => _State}
  */
 const round = (stack, frame) => {
     const { container, index, done } = frame
@@ -470,26 +581,39 @@ const round = (stack, frame) => {
 
 /**
  * Enters a node: a primitive is its value, a reference the binding `env`
- * holds for its name, and a container the first round of a new frame.
+ * holds for its name, an access its base under a frame holding the key,
+ * and a container the first round of a new frame.
  *
  * @type {(env: _Env, stack: _Stack, node: Node) => _State}
  */
 const enter = (env, stack, node) => {
-    const [tag, payload] = node
-    switch (tag) {
-        case 'primitive': { return [stack, ok(payload)] }
+    switch (node[0]) {
+        case 'primitive': { return [stack, ok(node[1])] }
         case 'ref': {
-            const ref = at(nameOf(payload))(env)
-            return [stack, ref === null ? error(constNotFound(payload)) : ok(ref)]
+            const [tag, word] = identifierOf(node[1])
+            if (tag === 'error') { return [stack, error(word)] }
+            const ref = at(word)(env)
+            return [stack, ref === null ? error(constNotFound(node[1])) : ok(ref)]
         }
+        case '.': { return [{ top: { key: node[2] }, rest: stack }, ['enter', node[1]]] }
         default: { return round(stack, { container: node, index: 0, done: null }) }
     }
 }
 
 /**
+ * A value handed to the frame on top: the next round of a container with
+ * the value among its items, or an access closed over its base.
+ *
+ * @type {(stack: _Stack, frame: _Frame, value: AstConst) => _State}
+ */
+const returned = (stack, frame, value) => 'container' in frame
+    ? round(stack, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
+    : [stack, accessClosed(frame.key, value)]
+
+/**
  * The value a node denotes under `env`, or the first error met in document
- * order: a reference to a name `env` does not bind, or a plain `__proto__`
- * key.
+ * order: a reference to a keyword or to a name `env` does not bind, a plain
+ * `__proto__` key, or an access naming the prototype chain.
  *
  * Over an explicit stack: a frame per container being built, its items
  * resolved in order, so that a value nested as deep as the input allows
@@ -509,20 +633,21 @@ const evaluate = env => root => {
         } else if (stack === null) {
             return ok(payload)
         } else {
-            const { top, rest } = stack
-            state = round(rest, { ...top, index: top.index + 1, done: concat(top.done)([payload]) })
+            state = returned(stack.rest, stack.top, payload)
         }
     }
 }
 
 /**
- * Binds a name to a reference, refusing one already bound. `import` and
- * `const` share the one map, so a name taken by either is taken for both.
+ * Binds a name to a reference, refusing a keyword and a name already bound.
+ * `import` and `const` share the one map, so a name taken by either is
+ * taken for both.
  *
  * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef) => Result<_Env, ParseError>}
  */
 const bind = env => (name, ref) => {
-    const word = nameOf(name)
+    const [tag, word] = identifierOf(name)
+    if (tag === 'error') { return error(word) }
     return at(word)(env) !== null
         ? error(duplicateId(name))
         : ok(setReplace(word)(ref)(env))
@@ -540,15 +665,17 @@ const bind = env => (name, ref) => {
 const foldModule = ({ imports, consts, exported }) => {
     /** @type {_Env} */
     let env = empty
-    /** @type {readonly string[]} */
+    /** @type {readonly AstImport[]} */
     let modules = []
     /** @type {readonly AstConst[]} */
     let body = []
-    for (const { name, module } of imports) {
-        const [tag, bound] = bind(env)(name, ['aref', modules.length])
+    for (const statement of imports) {
+        const [tag, bound] = bind(env)(statement.name, ['aref', modules.length])
         if (tag === 'error') { return error(bound) }
+        const [read, record] = imported(statement)
+        if (read === 'error') { return error(record) }
         env = bound
-        modules = [...modules, module]
+        modules = [...modules, record]
     }
     for (const { name, value: node } of consts) {
         const [resolved, value] = evaluate(env)(node)

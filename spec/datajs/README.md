@@ -89,9 +89,6 @@ writes [normalized form](#normalized-form), and `fjs compile` writes through
 it; the older `fjs/djs` serializer, whose `const c0` output was not a document
 of this format at all, is retired.
 
-The work is staged in
-[`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md).
-
 Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for
 the data subset the compiler accepts **today**, which is wider than DataJS:
 it has `import`, comments, identifier keys and trailing commas. This
@@ -776,6 +773,15 @@ this prose and a vector disagree, this prose is normative and the vector is the
 bug; where the corpus is silent, its README says what it cannot carry and why.
 
 ## Rationale
+
+**Why is the format this small, and why does it stay so?** DataJS is JSON
+extended from a tree to a DAG, plus the leaves JSON cannot spell, and nothing
+else: new syntax belongs in FunctionalScript, whose data subset is wider by
+design and whose compiler normalizes it to this. The name is DataJS, "DJS"
+its informal abbreviation, and not DataScript, which a database library
+holds; the npm name `datajs` belongs to a defunct OData library, so
+availability is checked before any standalone package publishes, which this
+specification does not need.
 
 **Why `;` and not a newline?** A lone CR is a JavaScript line terminator, so is
 U+2028; newline separation drags that taxonomy into a data format, and makes

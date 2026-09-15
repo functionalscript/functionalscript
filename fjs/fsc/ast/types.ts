@@ -1,7 +1,7 @@
 /**
  * Type-level API for `fjs/fsc/ast/module.f.mjs`: the AST shape `run`
  * evaluates — `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`,
- * `AstMember`, `AstObject`, and `AstBody`.
+ * `AstMember`, `AstObject`, `AstAccess`, and `AstBody`.
  *
  * @module
  */
@@ -9,15 +9,25 @@
 import type { Primitive, Unknown } from '../../media/datajs/types.ts'
 
 /**
- * A parsed DJS module: its imported module specifiers, in source order, and
- * its body.
- *
- * The specifier list indexes `['aref', i]`.
+ * An import as the module records it: the specifier as written, and
+ * whether the import carries `with { type: "json" }`, which JavaScript
+ * requires of a JSON module and which makes the file a document to read
+ * rather than a module to parse.
  */
-export type AstModule = readonly [readonly string[], AstBody]
+export type AstImport = {
+    readonly specifier: string
+    readonly json: boolean
+}
 
-/** A value in a module body: a primitive, a reference, an array, or an object. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject
+/**
+ * A parsed DJS module: its imports, in source order, and its body.
+ *
+ * The import list indexes `['aref', i]`.
+ */
+export type AstModule = readonly [readonly AstImport[], AstBody]
+
+/** A value in a module body: a primitive, a reference, an array, an object, or a property access. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess
 
 /**
  * A reference to a value defined outside this `AstConst`.
@@ -54,6 +64,15 @@ export type AstMember = readonly [string, AstConst]
 export type AstObject = readonly ['object', readonly AstMember[]]
 
 /**
+ * A property access, `base.key` or `base[key]`: the base a reference and
+ * the accesses before it, the key the constant written — a string, or a
+ * number from `[0]`. The EDAG's own form, `['.', object, index]`, so the
+ * lowering carries it as it is. A key naming the prototype chain,
+ * `__proto__` or `constructor`, is refused by the parser.
+ */
+export type AstAccess = readonly ['.', AstConst, string | number]
+
+/**
  * The constants of a module body, in declaration order. The **last** entry is
  * the value the module yields; the preceding entries exist to be named by
  * `['cref', i]`.
@@ -74,7 +93,10 @@ export type AstBody = readonly AstConst[]
  * which container modules the value reaches, each named once by its id, so
  * that an importer can see a module reached along two import edges as one
  * node reached twice. A shared module reaches nothing worth listing: every
- * importer of it is shared already.
+ * importer of it is shared already — under any route it takes into the
+ * module, and the modules it reaches count under any route too, since
+ * where in the module's value a node sits is not carried, and refusing is
+ * the answer that never writes a node twice.
  */
 export type Sharing = {
     readonly shared: boolean
@@ -94,10 +116,14 @@ export type Denotation = Sharing & { readonly value: Unknown }
 export type Import = Denotation & { readonly id: string }
 
 /**
- * What the export does not reach, each by index: the body entries no chain
- * of references from the last entry leads to, and the imports likewise.
+ * What an EDAG of the module anchors, each by index: exactly the code the
+ * graph would not otherwise hold — the body entries and the imports the
+ * export does not reach, less what those entries reach themselves — each a
+ * computation whose value nothing takes. An entry that is a bare reference
+ * is not a node and is never named; an import is named by the first import
+ * sharing its node.
  */
-export type Unreached = {
+export type Anchors = {
     readonly consts: readonly number[]
     readonly imports: readonly number[]
 }

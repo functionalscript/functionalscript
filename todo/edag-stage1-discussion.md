@@ -1042,8 +1042,9 @@ rest-parameter spelling).
 
 **Resolution: non-resulting computations are merged into the graph by
 the `","` operation — `[",", ...asserts, result]`, the JS comma
-operator — which guarantees *membership*, not order.** Stage 1 ships
-without `","`; these rules bind the operation when it is introduced.
+operator — which guarantees *membership*, not order.** Introduced in
+`fjs/fsc/edag` after Stage 1, for what a module's export does not reach;
+these rules bind it.
 
 - A throw is an effect. A reference edge can only express "the result is
   needed here"; a may-throw operation needs "evaluate this even if its
