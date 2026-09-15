@@ -1,8 +1,3 @@
-/**
- * @import { Assert } from '../../asserts/types.ts'
- * @import { Equal } from '../../types/ts/types.ts'
- */
-
 import { assertEq } from '../../asserts/module.f.mjs'
 import {
     arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype, objectPrototype,
@@ -25,20 +20,9 @@ export const proof = {
             assertEq(names.length, new Set(names).size)
         }
     },
-    // `prototypeNames` is exactly the sorted union of the seven lists
+    // `prototypeNames` is exactly the sorted union of the seven lists —
+    // at runtime here, and at the type level in `./types.ts`
     aggregate: () => {
-        /**
-         * @typedef {Assert<Equal<
-         *  typeof prototypeNames[number],
-         *  | typeof objectPrototype[number]
-         *  | typeof arrayPrototype[number]
-         *  | typeof stringPrototype[number]
-         *  | typeof numberPrototype[number]
-         *  | typeof booleanPrototype[number]
-         *  | typeof bigintPrototype[number]
-         *  | typeof functionPrototype[number]
-         * >>} _NamesPinned
-         */
         const union = new Set(lists.flat())
         assertEq(prototypeNames.join(), sorted([...union]))
         assertEq(prototypeNames.length, union.size)
