@@ -34,6 +34,12 @@ An output is the language its extension declares, as an input is:
 |`.f.js`, `.f.mjs`|FunctionalScript, a graph of values and functions|a new writer over the linked EDAG|
 |`.edag.data.js`, `.edag.data.mjs`|the EDAG itself, as a DataJS document|the DataJS serializer — the spelling `.edag.f.js` retired, since the EDAG artifact is data|
 
+The DataJS extensions are the two its specification recognizes. It once also
+named `.d.js` and `.d.mjs`, and no longer does — `.d.ts` is a TypeScript
+declaration, and a `.d.` infix reads as one — so an output under either is
+refused with the rest, and a `.d.js` output the compiler accepted by falling
+through to the DataJS writer is a `.data.js` output now.
+
 The FunctionalScript writer reads the linked EDAG of
 [`fjs/fsc/edag`](../edag/module.f.mjs) and writes a module the parser
 accepts, so that compiling the output again yields the same EDAG:
