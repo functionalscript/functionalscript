@@ -18,7 +18,9 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
-value  ::= primitive t | id t access* | array | object
+value  ::= primitive t | id t access* | array | object | func
+body   ::= primitive t | id t access* | array | func
+func   ::= '(' t '...' t id t ')' s '=>' t body
 access ::= '.' t id t | '[' t (string | number) t ']' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
@@ -26,6 +28,7 @@ member ::= key t ':' t value
 key    ::= id | string | '[' t string t ']'
 items  ::= item [ ',' t [ items ] ]
 t      ::= (ws | nl | comment)*
+s      ::= (ws | comment)*
 ```
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
@@ -75,6 +78,10 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
+- a reference in a function's body to a name bound outside it — a `const`, an
+  import, or an enclosing function's parameter — which is a capture, and a
+  function has no frame to capture with yet. The body is resolved against its
+  parameter alone, so the check is which map the name is found in;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;

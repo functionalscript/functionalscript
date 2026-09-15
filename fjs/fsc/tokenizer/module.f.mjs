@@ -18,8 +18,9 @@
  * name after `.` may be any word and the parser refuses a keyword where
  * JavaScript wants an identifier; a `-` folds into
  * the number, bigint or `Infinity` after it, and is an error before
- * anything else; and every other operator is an error, since the data
- * language has none.
+ * anything else; and every operator but the four a function is written
+ * with — `(`, `)`, `...`, `=>` — is an error, since the language has no
+ * other.
  *
  * @module
  *
@@ -52,6 +53,10 @@ const mapDjsToken = input => {
         case '.':
         case '=':
         case ';':
+        case '(':
+        case ')':
+        case '=>':
+        case '...':
         case 'true':
         case 'false':
         case 'null':

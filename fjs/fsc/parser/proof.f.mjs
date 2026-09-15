@@ -471,6 +471,42 @@ export const proof = {
             expect('import x from "m" with { type: "css" };\nexport default x;', 'unknown import type', 32)
         },
     },
+    // A function of its arguments alone: the rest parameter is `['args']`
+    // in its body, an access on it is an access, and a name bound outside
+    // — a `const`, an import, or an enclosing function's parameter — is a
+    // capture, refused where it is written, since a function has no frame
+    // yet. A parameter may shadow a module name, as in JavaScript, and is
+    // an identifier, so a keyword is refused as one.
+    func: {
+        parsed: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (...a) => a;', '[[],[["=>",["args"]]]]')
+            expect('export default (...a) => [a, a[0], a["x"], (...b) => b];', '[[],[["=>",["array",[["args"],[".",["args"],0],[".",["args"],"x"],["=>",["args"]]]]]]]')
+            expect('const f = (...a) => 1; export default [f, f];', '[[],[["=>",1],["array",[["cref",0],["cref",0]]]]]')
+            expect('const a = 1; export default (...a) => a;', '[[],[1,["=>",["args"]]]]')
+            expect('export default ( ... a ) => /* c */ a . b [ 0 ] ;', '[[],[["=>",[".",[".",["args"],"b"],0]]]]')
+        },
+        refused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('const c = 1; export default (...a) => c;', 'capture not supported', 39)
+            expect('import m from "./m.f.js"; export default (...a) => m;', 'capture not supported', 52)
+            expect('const c = 1; export default (...a) => (...b) => a;', 'capture not supported', 49)
+            expect('export default (...a) => zzz;', 'const not found', 26)
+            expect('export default (...if) => 1;', 'reserved word', 20)
+            expect('export default (...a) => a.__proto__;', 'prohibited property name', 28)
+        },
+    },
     valid: [
         () => {
             const tokenList = tokenizeString('export default null;')

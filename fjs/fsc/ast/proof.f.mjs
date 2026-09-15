@@ -1,7 +1,7 @@
 import { anchors, run, sharing, values } from './module.f.mjs'
 import { _stringifyTree } from '../module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** Whether the sweep finds a shared node in a body with no imports, given its values. @type {(body: import('./types.ts').AstBody) => boolean} */
 const sharedOf = body => sharing(body)([])(unwrap(values(body)([]))).shared
@@ -62,6 +62,20 @@ export const proof = {
     },
     testUndefined: () => {
         assertEq(_stringifyTree(unwrap(run([undefined])([]))), 'undefined')
+    },
+    // a function has no value: what it denotes is its EDAG, and a data
+    // module's value has no function in it — its arguments likewise
+    func: () => {
+        assertStructurallySame(run([['=>', ['args']]])([]), ['error', 'functions are compiled to the EDAG only'])
+        assertStructurallySame(values([['=>', 1], 2])([]), ['error', 'functions are compiled to the EDAG only'])
+        assertStructurallySame(run([['args']])([]), ['error', 'functions are compiled to the EDAG only'])
+        // a function names nothing outside itself, so it is a leaf to the
+        // sweep — a leaf, not a reference: read as one, its body would pass
+        // for an import's index, and `0` would mark the import reached
+        assertEq(anchorsOf([[a], [['=>', ['args']], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', ['array', [['args'], ['args']]]], ['cref', 0]]]), 'consts ; imports 0')
     },
     // what the sweep from the export leaves out, by index, less what the
     // left-out entries reach themselves

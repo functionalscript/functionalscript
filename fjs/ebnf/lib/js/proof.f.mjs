@@ -148,7 +148,7 @@ export const proof = {
             assertStructurallySame(read('>>>= '), ['operator', '>>>=', 4])
             assertStructurallySame(read('=>'), ['operator', '=>', 2])
             assertStructurallySame(read('?.x'), ['operator', '?.', 2])
-            assertStructurallySame(read('...'), ['operator', '.', 1])
+            assertStructurallySame(read('...'), ['operator', '...', 3])
             assert(operators.every(w => read(w)[1] === w))
         },
         trivia: () => {
