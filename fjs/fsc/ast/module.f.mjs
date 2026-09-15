@@ -91,6 +91,12 @@ const foldOp = ast => state => mapOk(evaluated(state))(toDjs(state)(ast))
 const entryStep = (acc, ast) => okThen(foldOp(ast))(acc)
 
 /**
+ * The refusal of a function where a value is wanted: a data module's value
+ * has no function in it, and what a function denotes is its EDAG.
+ */
+const noFunctionValue = 'functions are compiled to the EDAG only'
+
+/**
  * The value of one entry, or the failure. An object's members are written
  * into a plain object in the order the syntax holds them, so the result is
  * the object JavaScript builds from the same literal: a repeated key keeps
@@ -106,6 +112,8 @@ const toDjs = state => ast => {
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
         case 'array': { return mapOk(arrayOf)(fold(collect)(noValues)(ast[1].map(toDjs(state)))) }
         case 'object': { return mapOk(objectOf)(fold(collect)(noMembers)(ast[1].map(memberValue(toDjs(state))))) }
+        case '=>':
+        case 'args': { return error(noFunctionValue) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -189,6 +197,9 @@ const refsOf = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
+        // a function names nothing outside itself, and its arguments are its own
+        case '=>':
+        case 'args': { return empty }
         default: { return [{ ref: ast, keys: [] }] }
     }
 }

@@ -574,6 +574,29 @@ export default [c1,c1,c0];
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const>.
 
+## Functions
+
+```js
+export default (...args) => [args, args[0]];
+```
+
+A function is written as an arrow function of one rest parameter, and its
+body is an expression. It denotes a function of its arguments alone:
+
+- The parameter is the arguments array, `args[0]` the first argument, and
+  the body may name it and nothing declared outside — a `const`, an import,
+  or an enclosing function's parameter is a **capture**, which is an error
+  ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
+  a module name, as in JavaScript.
+- The body is any value except an object literal: after `=>` JavaScript reads `{`
+  as a block, never as an object, so the spelling is refused rather than read
+  another way. A block body, `=> { return 1 }`, named parameters and a call
+  are not recognized yet ([function](./todo/3110-function.md),
+  [parameters](./todo/3120-parameters.md)).
+- A function is compiled to the EDAG output only: `fjs compile` refuses to
+  write a module holding one as a module or as JSON, since a value has no
+  function in it.
+
 ## Module Structure
 
 A module is a sequence of statements, each terminated by a semicolon — the

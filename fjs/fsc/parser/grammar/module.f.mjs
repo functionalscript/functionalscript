@@ -4,16 +4,20 @@
  *
  * ```text
  * module ::= t import* const* export eof
- * import ::= 'import' t id t 'from' t string t ';' t
- * const  ::= 'const' t id t '=' t value t ';' t
- * export ::= 'export' t 'default' t value t ';' t
- * value  ::= primitive | id | array | object
- * array  ::= '[' t [ items(value) ] ']'
- * object ::= '{' t [ items(member) ] '}'
+ * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+ * const  ::= 'const' t id t '=' t value ';' t
+ * export ::= 'export' t 'default' t value ';' t
+ * value  ::= (primitive t | id t | array | object) access* | func
+ * body   ::= (primitive t | id t | array) access* | func
+ * func   ::= '(' t '...' t id t ')' s '=>' t body
+ * access ::= '.' t id t | '[' t (string | number) t ']' t
+ * array  ::= '[' t [ items(value) ] ']' t
+ * object ::= '{' t [ items(member) ] '}' t
  * member ::= key t ':' t value
  * key    ::= id | string | '[' t string t ']'
- * items  ::= item t [ ',' t [ items ] ]
+ * items  ::= item [ ',' t [ items ] ]
  * t      ::= (ws | nl | comment)*
+ * s      ::= (ws | comment)*
  * ```
  *
  * Three things are spelled for one symbol of lookahead, each a conflict
@@ -34,7 +38,7 @@
  *   grammar rested it on a failed repetition round rewinding.
  *
  * The alphabet is {@link _ordinaryTokenNames}: one name per token kind,
- * and the five framing keywords with names of their own, since the
+ * and the six framing keywords with names of their own, since the
  * tokenizer emits them as identifiers — encoded by `fjs/ebnf/token_symbol`;
  * `eof` has none, since the backend synthesizes the end of input. A symbol
  * is a rule of one symbol, so a terminal is the symbol a token is encoded
@@ -45,7 +49,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Items, Member, Value } from './types.ts'
+ * @import { Body, Func, Items, Member, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -58,7 +62,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
  * mapped, and the backend synthesizes its own logical one.
  *
  * The names are the *token* vocabulary, not the tokenizer grammar's tag
- * vocabulary: only eight punctuators survive into `DjsToken`, so the JS
+ * vocabulary: only twelve punctuators survive into `DjsToken`, so the JS
  * operator set the tokenizer recognizes is far larger than what reaches
  * this layer.
  *
@@ -69,7 +73,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
  */
 export const _tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity', '-Infinity',
-    '{', '}', ':', ',', '[', ']', '.', '=', ';',
+    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -128,6 +132,19 @@ export const symbolOf = t => {
 export const trivia = repeatFrom0({
     ws: sym('ws'),
     nl: sym('nl'),
+    lineComment: sym('//'),
+    blockComment: sym('/*'),
+})
+
+/**
+ * Trivia on one line: {@link trivia} less the newline, where JavaScript
+ * has `[no LineTerminator here]` — before `=>`. A block comment holding a
+ * newline is refused too, since the tokenizer follows it with `nl`, and a
+ * line comment ends at the newline it is followed by; the Unicode line and
+ * paragraph separators are no token outside a string, so none stands here.
+ */
+export const sameLine = repeatFrom0({
+    ws: sym('ws'),
     lineComment: sym('//'),
     blockComment: sym('/*'),
 })
@@ -194,6 +211,38 @@ export const access = /** @type {const} */ ({
 /** The accesses after a value, `a.b[0]`, none or more. */
 const accesses = repeatFrom0(access)
 
+/** A primitive value and its trivia, then its accesses. */
+const primitiveValue = /** @type {const} */ ([[primitive, trivia], accesses])
+
+/** A reference and its trivia, then its accesses. */
+const reference = /** @type {const} */ ([[identifier, trivia], accesses])
+
+/**
+ * A function's body: a value, but not an object — after `=>` JavaScript
+ * reads `{` as a block, never as an object, so the spelling is refused
+ * rather than read another way — and not yet a block. A function takes no
+ * access of its own: after `=>` an access belongs to the body.
+ *
+ * @type {Body}
+ */
+export const body = () => ['const', {
+    primitive: primitiveValue,
+    ref: reference,
+    array: [array, accesses],
+    func,
+}]
+
+/**
+ * A function: one rest parameter, `(...a)`, then `=>` on the same line
+ * as the `)`, as JavaScript requires, and the body, which ends with its
+ * own trivia as every value does. The parameter is the arguments array,
+ * and the body names it and nothing outside — which names it may use is
+ * the fold's to say, since a name is a word the grammar does not see.
+ *
+ * @type {Func}
+ */
+export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
+
 /**
  * A value ends with its own trivia, so that it may be followed by an
  * access, which the trivia after the value would otherwise have to lead —
@@ -209,10 +258,11 @@ const accesses = repeatFrom0(access)
  * @type {Value}
  */
 export const value = () => ['const', {
-    primitive: [[primitive, trivia], accesses],
-    ref: [[identifier, trivia], accesses],
+    primitive: primitiveValue,
+    ref: reference,
     array: [array, accesses],
     object: [object, accesses],
+    func,
 }]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */

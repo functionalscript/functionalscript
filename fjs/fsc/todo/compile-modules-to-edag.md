@@ -575,14 +575,19 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] `['=>', frame, body]` is in the EDAG validation/type schema (`fjs/edag/`), with
       `frame` a general `exp` there and `['frame']` itself a separate validated node —
       neither restricted to Stage 2's scope.
-- [ ] Stage 2's own parser and interpreter are narrower than the schema: emit/accept
-      only the placeholder `null` for `frame`, and do **not** emit or interpret
-      `['frame']` or other captured-variable access.
-- [ ] Introduce parser support for the initial non-capturing `(...a) => exp` function
-      form; reject functions that require captures.
-- [ ] Validate that a nested function body is a disjoint EDAG scope: operation nodes
+- [x] Stage 2's own parser is narrower than the schema: it emits only the placeholder
+      `null` for `frame`, and never `['frame']` or other captured-variable access. Done
+      in [`fjs/fsc/edag`](../edag/module.f.mjs); the interpreter is `interpret-edag.md`'s.
+- [x] Introduce parser support for the initial non-capturing `(...a) => exp` function
+      form; reject functions that require captures. Done: `func` in the grammar, the
+      body a value less the object; a reference to a name bound outside the body is
+      `capture not supported` at the reference, pinned by `func` in
+      [`fjs/fsc/parser/proof.f.mjs`](../parser/proof.f.mjs).
+- [x] Validate that a nested function body is a disjoint EDAG scope: operation nodes
       must not be shared across a function boundary, while sharing within the body is
-      preserved.
+      preserved. Done by construction: a body names its arguments, one node per
+      function, and nothing outside, so no module node is lowered into it; pinned by
+      `func` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
 - [x] `['()', callee, args]` and the `['|()', args]` step a `.` node carries for
       a method call are in the EDAG validation/type schema (`fjs/edag/`), shape only —
       the property-operand restriction below is this stage's own work.
@@ -600,10 +605,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       against `(a?.b).c`, `a?.b(d)` against `(a?.b)(d)`, and `(a?.b.c)(d)` against
       `(a?.b).c(d)`. The grammar removes most of what such a lowering used to have to
       enforce: the duplicate spellings it had to avoid emitting are now unspellable.
-- [ ] Add a scope-aware linking proof such as
-      `import y from './y.f.js'; export default [y, (x) => x]`: resolving `y` must not
-      rewrite the nested function body's `['args']`, and calling that function still
-      returns its invocation argument.
+- [x] Add a scope-aware linking proof such as
+      `import y from './y.f.js'; export default [y, (...x) => x]`: resolving `y` must not
+      rewrite the nested function body's `['args']`. Done, in `func` of
+      [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs); that calling it returns its
+      argument waits on the interpreter.
 - [ ] Add a validation proof that reusing one operation node both outside and inside a
       nested function body is rejected.
 

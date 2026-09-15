@@ -231,6 +231,19 @@ export const proof = {
             assertEq(compileSource('const n = null; const check = n.x; export default 1;')('output.edag.f.js'), 'export default [",",[[".",null,"x"],1]];')
             assertEq(moduleRefused('const n = null; const check = n.x; export default 1;'), 'input.f.js - error: cannot read property "x" of null')
         },
+        // a function is written as its EDAG: its arguments one node, hoisted
+        // where the body reaches them twice, and two functions sharing none;
+        // the value outputs refuse a module holding one, since a value has
+        // no function in it
+        func: () => {
+            assertEq(compileSource('export default (...a) => a;')('output.edag.f.js'), 'export default ["=>",null,["args"]];')
+            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.f.js'), 'const $0=["args"];export default ["=>",null,["[]",[$0,$0]]];')
+            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.f.js'), 'export default ["[]",[["=>",null,["args"]],["=>",null,["args"]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.f.js'), 'export default [",",[["=>",null,1],2]];')
+            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: functions are compiled to the EDAG only')
+            assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: functions are compiled to the EDAG only')
+            assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: functions are compiled to the EDAG only')
+        },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written: a missing import
         refused: () => {

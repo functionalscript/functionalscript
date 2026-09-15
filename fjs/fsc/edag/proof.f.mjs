@@ -157,6 +157,31 @@ export const proof = {
             expectEdag(compile('const a = []; export default [a, 0][1];').edag, ['.', ['[]', [['[]', []], 0]], 1])
         },
     },
+    // A function is `['=>', null, body]`: no frame yet, and the body a
+    // scope of its own, in which the arguments are one node however many
+    // references reach them and no module node stands, since the parser
+    // refuses a capture — so two functions share nothing, and a function
+    // `const` is one node like any other.
+    func: () => {
+        expectEdag(compile('export default (...a) => a;').edag, ['=>', null, ['args']])
+        const shared = compile('export default (...a) => [a, a[0]];').edag
+        expectEdag(shared, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
+        assert(shared instanceof Array && shared[0] === '=>', shared)
+        const body = shared[2]
+        assert(body instanceof Array && body[0] === '[]', shared)
+        const [first, second] = body[1]
+        assert(second instanceof Array && second[0] === '.' && second[1] === first, shared)
+        const both = compile('const f = (...a) => 1; export default [f, f];').edag
+        expectEdag(both, ['[]', [['=>', null, 1], ['=>', null, 1]]])
+        assert(both instanceof Array && both[0] === '[]' && both[1][0] === both[1][1], both)
+        expectEdag(compile('export default [(...a) => a, (...a) => a];').edag, ['[]', [['=>', null, ['args']], ['=>', null, ['args']]]])
+        // an unreached function is anchored as any entry is, and takes no
+        // anchor from an import beside it: the sweep reads it as a leaf
+        expectEdag(compile('const f = (...a) => 1; export default 2;').edag, [',', [['=>', null, 1], 2]])
+        expectEdag(compile('import y from "./y.f.js"; const f = (...a) => 0; export default 1;').edag, [',', [['.', ['args'], 0], ['=>', null, 0], 1]])
+        // linked beside an import: the body's arguments are not rewritten
+        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default [y, (...x) => x];'), 'y.f.js': file('export default 1;') })('a.f.js'), ['[]', [1, ['=>', null, ['args']]]])
+    },
     // The imports bound: the linked program is one EDAG, the imported
     // module's node where the importer's parameter was, and no path in it.
     resolve: {

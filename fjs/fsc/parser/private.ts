@@ -12,7 +12,7 @@ import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstConst, AstModuleRef } from '../ast/types.ts'
+import type { AstArgs, AstConst, AstModuleRef } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { Container, Node, Out, ParseError } from './types.ts'
 
@@ -50,8 +50,8 @@ export type _AccessNode = Unmapped<readonly [string, Unmapped<readonly [unknown,
 /** The node of an import's optional attribute: no round, or one holding `with t { t id t : t string t } t`, the key's token at the fifth position and the value's at the ninth. */
 export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, _Leaf, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
 
-/** The names bound so far, each to the reference that names it. */
-export type _Env = OrderedMap<AstModuleRef>
+/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments. */
+export type _Env = OrderedMap<AstModuleRef | AstArgs>
 
 
 /**
@@ -70,12 +70,18 @@ export type _AccessFrame = {
     readonly key: DjsTokenWithMetadata
 }
 
-export type _Frame = _ContainerFrame | _AccessFrame
+/** A function whose body is being evaluated: the names bound outside it, to return to. */
+export type _FunctionFrame = {
+    readonly outer: _Env
+}
 
-/** The containers suspended around the node being evaluated, innermost on top. */
+export type _Frame = _ContainerFrame | _AccessFrame | _FunctionFrame
+
+/** The containers, accesses and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */
 export type _Step = readonly ['enter', Node] | Result<AstConst, ParseError>
 
-export type _State = readonly [stack: _Stack, step: _Step]
+/** The frames suspended, the names bound where the node being evaluated stands, and what to do next. */
+export type _State = readonly [stack: _Stack, env: _Env, step: _Step]
