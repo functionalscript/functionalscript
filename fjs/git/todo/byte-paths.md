@@ -28,8 +28,8 @@ objects the store holds itself included, to avoid a miss on one borrowing. The
 line is an ordinary path now that simply is not found, which is a miss and never
 a wrong object, since the id is checked against whatever answers.
 [alternates-line-quirks.md](./alternates-line-quirks.md) records it as one of
-the three places this reader and Git look in different directories. This issue
-is what makes them look in the same one.
+the two places this reader and Git look in different directories. This issue is
+what makes them look in the same one.
 
 **A line can name such a byte while being ASCII itself.** The file's quoting is
 C-style, so `"/tmp/\377/objects"` spells the byte `0xFF` in octal and the file
@@ -43,15 +43,17 @@ host writes back the bytes it came from. `\400` and above are not affected
 either — they name no byte, so Git calls the unquoting failed and reads the
 whole line as a path, quotes included, which is what this does.
 
-**`\000` is the same road's far end.** A POSIX path cannot hold a `NUL`, and
-Git does not check for one: measured on Git 2.43.0, a line of `"/nxroot\000x"`
-decoded to those bytes and then *ended* at the `NUL` where the C library read
-it, giving `error: object directory /nxroot does not exist`. A string carries
-the `\u0000` through, so `store` looks for a directory whose name holds one and
-finds nothing. Truncating at it in the reader would match Git on this line and
-would still be a guess about what a path is, made in the layer that does not
-know; a byte-list path is where the question has an answer, which is why it is
-here.
+**`\000` is the same road's far end, and is cut in the reader for now.** A path
+cannot hold a `NUL` anywhere this runs: Git decodes the escape and the C library
+ends the path at it — measured on 2.43.0, `"<donor>/objects\000x"` read the
+donor's blob at exit 0 — and Node will not even attempt the call, throwing
+`TypeError [ERR_INVALID_ARG_VALUE]`. That asymmetry is why `alternatesIn`'s
+`untilNul` ends the path there rather than waiting for this issue: carried
+through, the entry produced a channel error whose code is not `ENOENT`, which
+`store` reads as corruption and turns into a refusal of the whole read — a
+repository Git reads, unreadable. A cut in the reader is the wrong *place* for a
+fact about paths, but it was the only place that existed; once a path is a byte
+list the cut belongs at the boundary, with the rest of what a path can spell.
 
 **There is nowhere for a warning to go, which is the other half.** Git reports
 an unusable alternate — `error: object directory … does not exist; check
@@ -94,9 +96,8 @@ Two smaller shapes are worth measuring first:
 - [ ] Make `fjs/git/store` open the directory such a line names, rather than a
       string approximation of it. There is no refusal to remove — the line is
       read as an ordinary path today and simply finds nothing.
-- [ ] Decide what a `NUL` in a path means once a path is bytes: the path Git
-      ends up opening, a refusal of that one line, or a name the host is asked
-      for and rejects.
+- [ ] Take the `NUL` cut off `alternatesIn` and give it to the boundary, where
+      every path that comes from a file gets it rather than this one.
 - [ ] Ask the host which roots it has, rather than reading it off the store's
       own path. `C:/donor/objects` is an absolute path on Windows and a
       directory named `C:` on POSIX, and `alternatesIn` tells them apart by
@@ -115,6 +116,7 @@ Two smaller shapes are worth measuring first:
 - [object-store.md](./object-store.md) — owns where a store looks; this issue
   owns what it can spell.
 - [alternates-line-quirks.md](./alternates-line-quirks.md) — carries this as one
-  of the three lines where that reader and Git look in different directories.
+  of the two lines where that reader and Git look in different directories, and
+  the `NUL` as the shape that was a third until it was cut.
 - [`fjs/git/store`](../store/module.f.mjs) — `alternatesIn`, which reads such a
   line as an ordinary path.

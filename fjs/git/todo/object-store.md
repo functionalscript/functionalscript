@@ -88,12 +88,12 @@ can read:
 - [x] `alternates`: the directories `objects/info/alternates` adds, which
       the store searches after its own — `objectsDirs` answers the list,
       transitively and with a directory already reached skipped, and `readIn`
-      reads over it. Three line shapes send Git to a directory this reader
-      does not open — each a miss and never a wrong object, since the id is
-      checked against whatever answers — and none is refused:
-      [alternates-line-quirks.md](./alternates-line-quirks.md) records them,
-      [byte-paths.md](./byte-paths.md) owns the two that are really about a
-      path being bytes.
+      reads over it. Two line shapes send Git to a directory this reader does
+      not open — each a miss and never a wrong object, since the id is checked
+      against whatever answers — and neither is refused:
+      [alternates-line-quirks.md](./alternates-line-quirks.md) records them and
+      [byte-paths.md](./byte-paths.md) owns the one that is really about a path
+      being bytes.
 - [x] The walk from a commit to a blob by path:
       [`fjs/git/walk`](../walk/module.f.mjs), `peel`, `tryEntries` and
       `tryEntry` over whatever reads objects.

@@ -732,6 +732,41 @@ export const proof = {
         assertStructurallySame(alternatesIn('od', '"/after" and more'), ['/after'])
         assertStructurallySame(alternatesIn('od', '"/trailing\\'), ['od/"/trailing\\'])
     },
+    // A path ends at its first `NUL`, which is the rule Git and the system call
+    // both follow. Measured on Git 2.43.0 with the donor's store at
+    // `<donor>/.git/objects`:
+    //
+    // | line | `git cat-file -p` |
+    // | --- | --- |
+    // | `"<donor>/objects"` | exit 0, the blob |
+    // | `"<donor>/objects\000x"` | exit 0, the blob |
+    // | `"<donor>/objectsx"` | exit 128 |
+    // | `"<donor>/objects\001x"` | exit 128 |
+    //
+    // So the `\000` ends the path and the `x` behind it is never looked at,
+    // while any other character is part of the name.
+    //
+    // **Carrying the `NUL` through would be a refusal, not a miss**, which is
+    // what makes this worth doing rather than recording. Node will not hand a
+    // path with one to the system call: every `fs` operation throws
+    // `TypeError [ERR_INVALID_ARG_VALUE]`, `fjs/effects/node` turns that into a
+    // channel error carrying the code, and `ERR_INVALID_ARG_VALUE` is not
+    // `ENOENT` — so `inOne` would read it as a store that holds the object and
+    // cannot give it up, and refuse the whole read of a repository Git reads.
+    alternatesNul: () => {
+        const nul = String.fromCharCode(0)
+        assertStructurallySame(alternatesIn('od', '"/donor/objects\\000x"'), ['/donor/objects'])
+        // the other road in: a raw `0x00` in a file's own bytes, which the
+        // decoder gives back as the same character
+        assertStructurallySame(alternatesIn('od', `donor/objects${nul}x`), ['od/donor/objects'])
+        // a line with nothing before its `NUL` names no directory, so it is
+        // skipped as an empty line is rather than naming the store itself
+        assertStructurallySame(alternatesIn('od', '"\\000x"'), [])
+        assertStructurallySame(alternatesIn('od', `${nul}x`), [])
+        // and the `NUL` decides before the root does: what is left is what is
+        // asked whether it stands on its own
+        assertStructurallySame(alternatesIn('od', `/a${nul}/b`), ['/a'])
+    },
     // An alternates file whose bytes are not UTF-8 names a directory this layer
     // cannot spell — the decoder answers `ÿ` for a lone `0xFF` — so the search
     // looks in a directory the file did not name and finds nothing there.

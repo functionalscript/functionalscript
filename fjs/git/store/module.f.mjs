@@ -121,8 +121,33 @@ export const objectsDir = dir => under(dir, 'objects')
 const alternatesPath = od => under(od, join('info', 'alternates'))
 
 /**
- * One line of an `objects/info/alternates`, unquoted where it is quoted, or
- * `null` where the line names nothing: it is empty, or it is a comment.
+ * An entry as the host will be given it: a path ends at its first `NUL`, because
+ * a path is a `NUL`-terminated byte string everywhere this runs.
+ *
+ * **Not doing this is a refusal and not a miss**, which is why it is worth a
+ * function. Node will not carry a `NUL` to the system call at all — every `fs`
+ * operation throws `TypeError [ERR_INVALID_ARG_VALUE]`, "must be a string …
+ * without null bytes" — and `fjs/effects/node` turns a thrown failure into a
+ * channel error carrying that code. `ERR_INVALID_ARG_VALUE` is not `ENOENT`, so
+ * {@link inOne} reads it as a store that holds the object and cannot give it up,
+ * and the whole read is refused. Git meanwhile reads the donor behind the `NUL`.
+ * Ending the path here is what keeps a repository Git reads readable.
+ *
+ * A `\000` escape is the only way into a quoted line; a raw `0x00` byte is the
+ * other road, through a file whose own bytes hold one. Both arrive here as the
+ * same character.
+ *
+ * @type {(entry: string) => string}
+ */
+const untilNul = entry => {
+    const i = entry.indexOf('\u0000')
+    return i === -1 ? entry : entry.slice(0, i)
+}
+
+/**
+ * One line of an `objects/info/alternates`, unquoted where it is quoted and cut
+ * at its first `NUL`, or `null` where the line names nothing: it is empty, it is
+ * a comment, or nothing is left of it before that `NUL`.
  *
  * Every rule here was measured on Git 2.43.0, by writing the line into a
  * borrower's alternates file and asking `git cat-file -p` for a blob only the
@@ -154,12 +179,18 @@ const alternatesPath = od => under(od, join('info', 'alternates'))
  * does not reach; see
  * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
  *
+ * **A path ends at its first `NUL`**, which is why {@link untilNul} runs last and
+ * a line left with nothing is skipped like an empty one. That is not this
+ * module's rule but the one both hosts obey — measured on Git 2.43.0, a line of
+ * `"<donor>/objects\000x"` read the donor's blob at exit 0, where the controls
+ * `"<donor>/objectsx"` and `"<donor>/objects\001x"` both exited 128.
+ *
  * @type {(line: string) => Nullable<string>}
  */
 const alternateLine = line => {
     if (line.length === 0 || line.startsWith('#')) { return null }
-    if (!line.startsWith('"')) { return line }
-    return unquoted(line) ?? line
+    const path = untilNul(line.startsWith('"') ? unquoted(line) ?? line : line)
+    return path === '' ? null : path
 }
 
 /**
@@ -206,11 +237,11 @@ const octalAt = (line, i) => {
  * **What comes back is a string of characters, not the bytes Git decoded.** An
  * escape naming a byte above ASCII becomes one character of that value, which
  * the host writes back as the two UTF-8 bytes of it — a different directory than
- * Git looks in. A `\u0000` is kept as an ordinary character where Git's path
- * ends at it. Neither is answerable in this layer, where every path is a string;
- * both are [`todo/byte-paths.md`](../todo/byte-paths.md)'s to fix and
+ * Git looks in. That one is not answerable in this layer, where every path is a
+ * string, and is [`todo/byte-paths.md`](../todo/byte-paths.md)'s to fix and
  * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md)'s to
- * record.
+ * record. A `\000` is different: it decodes to a `\u0000` here and the path
+ * ends there, which {@link untilNul} does and which agrees with Git.
  *
  * **Text after the closing quote is not an unquoting failure.** The quote ends
  * the path and the remainder is ignored: measured on Git 2.43.0 with a borrower
@@ -261,6 +292,11 @@ const unquoted = line => {
  * which is a miss and never a wrong object, since the id is checked against
  * whatever answers. What is left of them is
  * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
+ *
+ * A third shape *was* on that list and is not any more: a `NUL` inside a path,
+ * where the entry would have reached the host whole and been turned down before
+ * any lookup. {@link untilNul} ends the path there, as Git and the system call
+ * both do, so the reader now looks where Git looks rather than refusing.
  *
  * **An absolute entry names a directory on its own** and a relative one is read
  * below the `objects/` directory holding the file — not the repository and not
