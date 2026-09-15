@@ -35,27 +35,31 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
   other spelling.
 - **`['own', a, b]` — an object's own name, a run-time operator with its
   guards inside.** Both operands are expressions, `['own', Exp, Exp]`, and
-  the operator checks them itself: the base must be an object — a plain
-  object or an array — and the key must be a string, and anything else
-  throws: `null` or `undefined` as JavaScript's read throws, a string, a
-  number, a bigint, a boolean or a function as the base through the guard,
-  a non-string key as the schema, amnesia and `Any::own_property` already
-  refuse one. Within those, it reads the own property, `undefined` where
-  there is none. The source form is the guarded descriptor expression,
-  recognized as one pattern:
+  the operator checks them itself. The base must be an object — a plain
+  object or an array — and anything else throws: `null` or `undefined` as
+  JavaScript's read throws, a string, a number, a bigint, a boolean or a
+  function through the guard. The key is any value, converted to a
+  property key as JavaScript converts one: a string as is; a number, a
+  bigint, a boolean, `null` or `undefined` by its `ToString`, so `0` reads
+  `"0"` and `true` reads `"true"`; an array or an object by `ToPrimitive`
+  then `ToString` — an own `toString` or `valueOf` function called if the
+  value carries one, else `"[object Object]"` for an object and the joined
+  items for an array. A function as the key throws, since its `ToString`
+  is source text the name-erased graph does not carry. Within those, the
+  operator reads the own property, `undefined` where there is none. The
+  source form is the guarded descriptor expression, recognized as one
+  pattern:
 
   ```js
   Object.getOwnPropertyDescriptor(typeof a === 'object' ? a : null, b)?.value
   ```
 
   `person.name` reads `"x"`, `f.name` throws, and JavaScript agrees on
-  every case, since the source spells the base guard itself. The key is a
-  known string for now — a string literal or a constant whose value is a
-  string — so its guard never fires and a number key is `.`'s, `a[0]`;
-  when a run-time key is admitted, the key guard is already in the
-  operator, and only its JavaScript spelling in the pattern is to be
-  chosen, since `getOwnPropertyDescriptor` coerces a key and would call
-  `toString` on an object. Splitting the guards into nodes of their own
+  every case, since the source spells the base guard itself and
+  `getOwnPropertyDescriptor` converts the key exactly so — the pattern
+  accepts `b` as a number, a boolean or anything else, and the operator
+  means what the pattern means. The one divergence is the function key,
+  fail-stop as `f.name` is. Splitting the guards into nodes of their own
   was weighed and set aside for later: one operator that owns its
   preconditions is the simpler contract, and a node the schema types is
   a refinement it can grow into.
@@ -91,18 +95,21 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
       semantics; the README's table says which read each node is and why,
       the sentence about `Object` first.
 - [ ] Amnesia's `own` checks the base and the key and reads the descriptor,
-      with proofs for an object, an array, `null`, a string, a number, a
-      function, a non-string key, a missing property, and `name` on a
-      function throwing.
+      with proofs for an object, an array, `null`, a string, a number and a
+      function as the base; a number, a boolean, `null`, an array, an object
+      with its own `toString`, and a function as the key; a missing property;
+      and `name` on a function throwing.
 - [ ] The native VM follows in the same PR: `ownCases` in `fjs/nanvm` and the
       vectors it generates take the guarded answers — an array a receiver with
-      `'0'` and `length`, a primitive or a function a throw — and
-      `Any::own_property` in `nanvm-lib` and its documentation with them.
-- [ ] The parser recognizes the guarded descriptor pattern as `own`, keeps the
-      key a known string, and keeps `name` prohibited for `.`; proofs for
-      `person.name` through the pattern and `f.name` refused through `.`.
-- [ ] Later: the JavaScript spelling of the key guard, once a run-time key is
-      admitted; and, if wanted, the guards as nodes the schema types.
+      `'0'` and `length`, a primitive or a function a throw as the base, a
+      non-string key converted rather than refused, a function key a throw —
+      and `Any::own_property` in `nanvm-lib` and its documentation with them,
+      the key conversion included.
+- [ ] The parser recognizes the guarded descriptor pattern as `own`, any
+      expression as its key, and keeps `name` prohibited for `.`; proofs for
+      `person.name` through the pattern, a number key through it, and `f.name`
+      refused through `.`.
+- [ ] Later, if wanted: the guards as nodes the schema types.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
