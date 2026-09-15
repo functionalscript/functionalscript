@@ -25,7 +25,9 @@ extension.
 
 ### Proposal
 
-An output is the language its extension declares, as an input is:
+An output is the language its extension declares, as an input is, matched
+by the longest suffix first, so that `result.edag.data.js` is the EDAG route
+and never the DataJS one:
 
 |Output|Language|Writer|
 |-|-|-|
@@ -156,8 +158,9 @@ contract stays for `.data.js` and `.json`, which are values.
 
 ### Tasks
 
-- [ ] Route the output by extension: `.json`, `.data.js`/`.data.mjs`, `.f.js`/`.f.mjs`,
-      `.edag.data.js`/`.edag.data.mjs`; any other extension is refused, naming the four.
+- [ ] Route the output by extension, longest suffix first: `.edag.data.js`/`.edag.data.mjs`,
+      then `.data.js`/`.data.mjs`, `.f.js`/`.f.mjs`, `.json`; any other extension is
+      refused, naming the four; `x.edag.data.js` pinned as the EDAG route.
 - [ ] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
       with a numeric or function base hoisted, functions with parameters named by
       depth, the root comma as `const` anchors, shared constructors hoisted and

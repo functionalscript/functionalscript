@@ -33,21 +33,21 @@ source means:
   else, since the language has no symbol; the executor sets that string as
   the function's `name`. The analysis treats the operand as any other, so a
   name that reads the arguments is a body-scope dependency like a frame's.
-- **Writing it back.** The writer makes the text infer the same name. Where
-  its own binding would, `const f = (...$a) => 5`, nothing is needed; where
-  it would not — a hoisted `$0`, a name that is not an identifier, a
-  computed one — the spelling is the computed-key object read,
-  `{ [$name]: (...$a) => 5 }[$name]`, which names the function `$name`'s
-  value and is its own read, so it round-trips; `""` is that spelling with
-  `""`, since `(0, fn)` waits on the comma and grouping. The name operand
-  is written twice there, and follows the writer's general rule
-  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)):
-  a primitive takes no index and costs nothing; an identity-free node, an
-  access or an operator, is written in place at both positions and the
-  recompiled pair merges again; an identity-minting node, a call, is
-  hoisted into a `const` at module level so both positions read one node,
-  and inside a body that hoist is refused until body constants, like every
-  other body hoist. So the graph's one evaluation stays one.
+- **Writing it back, and reading it.** The spelling
+  `{ [$name]: (...$a) => body }[$name]` is a pattern the parser recognizes
+  as one operator, the named function, and lowers straight to
+  `['=>', frame, body, name]` — no object and no access in the graph, as
+  `Object.is(a, b)` lowers to `is` and `hasOwn` to its own read
+  ([`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)).
+  The key and the index must be the same identifier or the same string
+  literal, so the name is one expression evaluated once, and any name is
+  allowed, `constructor` and `__proto__` included, since nothing reads a
+  property: `const constructor = (...a) => 5` round-trips through
+  `{ ["constructor"]: (...$a) => 5 }["constructor"]`. The writer uses the
+  pattern wherever its own binding would not infer the name — a hoisted
+  `$0`, a name that is not an identifier, a computed one, `""` — and
+  `const f = (...$a) => 5` where it would. JavaScript reads the pattern as
+  it reads any computed key, so the text means the same in both.
 - **Hashing.** The graph is no longer fully name-erased: a function's own
   name is part of what it denotes, since a program can read it, and so part
   of its hash. Binding names stay erased.
@@ -60,7 +60,10 @@ source means:
       position a function can stand, with proofs for each of the five above.
 - [ ] Amnesia and the operation table set `name` on construction; proof that
       `f.name` reads it back and that `Object.entries` omits it.
-- [ ] The writer's spellings, with the round trip proved on each position.
+- [ ] The parser recognizes the pattern `{ [k]: (...a) => body }[k]`, `k` one
+      identifier or one string literal at both places, as the named function,
+      with any name; the writer's spellings, with the round trip proved on each
+      position.
 - [ ] `own-access.md`'s "implementation-defined" replaced by this.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
