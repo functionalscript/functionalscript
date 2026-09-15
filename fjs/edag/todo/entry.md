@@ -47,25 +47,29 @@ two operators, each with one job.
   |-|-|
   | `entry(person, "name")`, `entry([1], "0")`, `entry("abc", "0")` | the value — an enumerable own property, a string's characters included, as `Object.entries` lists them |
   | `entry(f, "name")`, `entry(f, "length")`, `entry([1], "length")` | `undefined` — own but not enumerable, so not an entry |
-  | `entry(5, "x")`, `entry(f, "x")` | `undefined` — no such entry; a primitive boxes as in JavaScript |
+  | `entry(5, "x")`, `entry(f, "x")`, `entry({}, "x")` | `undefined` — no such entry, so no descriptor; a primitive boxes as in JavaScript |
+  | `entry(o, 0)`, `entry(o, true)`, `entry(o, null)`, `entry(o, [1])`, `entry(o, {})` | the entry `"0"`, `"true"`, `"null"`, `"1"`, `"[object Object]"` — the key converted as JavaScript converts a property key |
   | `entry(null, b)`, `entry(undefined, b)` | throws, as JavaScript's read throws |
 
-  The key is a string, a number, a bigint, a boolean or `undefined`,
-  converted to a property key as JavaScript converts one, a string as is
-  and the rest by `ToString`, so `0` reads `"0"` and `true` reads `"true"`.
-  Any other key — `null`, an array, an object, a function — throws, and
-  the pattern itself says so: its descriptor call takes `null` as the
-  receiver when `typeof b` is `'object'` or `'function'`, which is the
-  throw JavaScript performs on a nullish receiver, so JavaScript agrees on
-  every key and there is no divergence to state. The class is refused
-  whole because JavaScript would convert it through `ToPrimitive`, which
-  calls a `toString` or `valueOf` the value carries and, for a function or
-  an array holding one, reaches source text the name-erased graph does not
-  carry, and the native VM has no path to call a function during a
-  conversion. No guard on the base is needed: a function
-  has no entries, so `entry` on one is `undefined` for every key, which is
-  the right answer for "a function has no data", and nothing throws that
-  JavaScript would not throw.
+  The semantics are exactly JavaScript's behavior of the function in the
+  next bullet, and the table only spells them out. So the key is any value,
+  converted to a property key as JavaScript converts one: a string as is, a
+  number by ECMAScript's `Number::toString`, a boolean, `null` and
+  `undefined` by their names, and an object or an array through
+  `ToPrimitive`, which calls a `toString` the value carries —
+  `entry(o, { toString: () => 'k' })` reads `k`, and `entry(o, f)` and
+  `entry(o, [f])` read the entry named `String(f)`. `String(f)` is defined
+  by [`serialization.md`](../../../spec/todo/serialization.md), the
+  writer's rendering of the function's graph, one text per graph, while a
+  JavaScript engine returns the source as written; the two agree exactly
+  when the source is the writer's spelling, which the `.f.js` output is,
+  and a hand-written definition names its own text until it is normalized.
+  That is `String(f)`'s property and `entry` adds nothing to it; for
+  `['entry']` itself the writer's spelling is the pattern's text below, so
+  `String(entry)` is that one line in every executor. No guard on the base
+  or the key is needed: a function has no entries, so `entry` on one is
+  `undefined` for every key, which is the right answer for "a function has
+  no data", and nothing throws that JavaScript would not throw.
 - **`['entry']` is the function, and the source form is its definition.**
   The node is nullary: its value is the function `(a, b) => …` with the
   semantics above and arity `2`, the first node whose value is a function
@@ -74,18 +78,18 @@ two operators, each with one job.
   recognized whole and lowered to the node:
 
   ```js
-  const entry = (a, b) => {
-      const x = Object.getOwnPropertyDescriptor(typeof b === 'object' || typeof b === 'function' ? null : a, b)
-      return x?.enumerable ? x.value : undefined
-  }
+  const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return x?.enumerable ? x.value : undefined}
   // ['entry']
   entry(o, k)
   // ['()', E, ['[]', [o, k]]], E the node the `const` holds
   ```
 
   `a`, `b` and `x` are identifier placeholders, each the same identifier at
-  every occurrence; `x?.enumerable` because a missing property has no
-  descriptor. The pattern fixes the whole body, so the descriptor is
+  every occurrence, and whitespace is free; `x?.enumerable` because a
+  missing property has no descriptor. Both executors follow this function
+  exactly, since it is JavaScript and JavaScript runs it as written; the
+  one line above is the writer's spelling and `String(entry)` in every
+  executor. The pattern fixes the whole body, so the descriptor is
   declared and consumed inside it and never becomes a value of the
   language — `Object.getOwnPropertyDescriptor` exists nowhere but inside
   this pattern, and a function that does anything else with the
@@ -144,11 +148,15 @@ two operators, each with one job.
   `Any::own_property` in `nanvm-lib`. Its answers for a primitive or a
   function receiver, `undefined`, already match `entry`; what changes is
   that an array and a string are receivers with their items as entries and
-  `length` no longer read, and that a primitive key is converted by
-  `ToString` rather than refused, which needs no call into user code. The
-  corpus, the generated vectors, `Any::own_property` and
-  its documentation change with amnesia, in the same PR, so the JavaScript
-  and native executions keep agreeing on every listed input.
+  `length` no longer read, and that a key is converted rather than refused.
+  A primitive key converts with no call into user code; an object or an
+  array key converts through `ToPrimitive`, which can call a function the
+  program wrote, so the native operation needs a native call for that
+  class, and until the VM can call, the corpus pins the keys whose
+  conversion calls nothing. The corpus, the generated vectors,
+  `Any::own_property` and its documentation change with amnesia, in the
+  same PR, so the JavaScript and native executions keep agreeing on every
+  listed input.
 - **Unchanged.** The analysis merges `.` as a plain read, since it mints
   no identity, and a call of `entry` as any call; `?.` and `|.` stay
   control flow.
@@ -162,30 +170,32 @@ two operators, each with one job.
 - [ ] Amnesia evaluates `['entry']` to one host function of arity `2` that
       reads the descriptor and its `enumerable` flag, with
       proofs for an object, an array, a string, `null`, a number and a
-      function as the base; a number, a boolean and `undefined` as the key
-      converting, and `null`, an array, an object and a function as the key
-      throwing; a missing property; and `name` and `length` on a function
+      function as the base; a number, a boolean, `null`, `undefined`, an
+      array, an object carrying `toString` and a function as the key
+      converting; a missing property; and `name` and `length` on a function
       reading `undefined`.
 - [ ] The native VM follows in the same PR. It implements the function's
       semantics as its own two-operand operation, the successor of
       `Any::own_property`, and the conformance corpus in `fjs/nanvm` keeps
       pinning that operation as `ownCases` does today, `[op, a, b]`, since the
       Rust emitter has no call yet; the node's value as a callable in Rust
-      waits on native calls. The answers change to the entry answers — an
-      array and a string receivers with their items, `length` and `name`
-      `undefined`, a primitive key converted by `ToString`, any other key a
-      throw — and the key conversion is ECMAScript's `Number::toString`, the
+      and an object or array key, whose conversion can call user code, wait
+      on native calls. The answers change to the entry answers — an array
+      and a string receivers with their items, `length` and `name`
+      `undefined`, a primitive key converted as JavaScript converts it —
+      and the number conversion is ECMAScript's `Number::toString`, the
       shortest round-trip spelling the DataJS specification already defines,
       not Rust's `f64::to_string`: `1e21` reads `"1e+21"`, `0.1` reads
       `"0.1"`, `-0` reads `"0"`, each pinned as a boundary case.
 - [ ] The parser recognizes the `entry` function as a fixed token shape with
       identifier placeholders and lowers it to `['entry']`, refuses
       `Object.getOwnPropertyDescriptor` anywhere else, and keeps `name`
-      prohibited for `.`; proofs for the definition, a call of it once calls
-      land, `entry.length` reading `2`, two definitions being two functions, a
-      function that returns the descriptor refused, and `f.name` refused
-      through `.`; the writer spells the node as the pattern's text from any
-      position.
+      prohibited for `.`; proofs for the definition in any whitespace, a
+      call of it once calls land, `entry.length` reading `2`, two
+      definitions being two functions, a function that returns the
+      descriptor refused, and `f.name` refused through `.`; the writer
+      spells the node as the pattern's one line from any position, and
+      `String(entry)` is that line.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
