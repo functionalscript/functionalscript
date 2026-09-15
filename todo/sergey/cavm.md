@@ -20,7 +20,7 @@ return [a, b]
 ```
 
 ```js
-const own5 = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return x.enumerable ? x.value : undefined}
+const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return x.enumerable ? x.value : undefined}
 ```
 
 ```ts
