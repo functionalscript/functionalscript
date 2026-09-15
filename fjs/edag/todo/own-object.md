@@ -30,7 +30,14 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 - **`['.', a, key]` — a known name.** The key is a literal or a constant the
   compiler resolves, so every check is static: the prohibited names refused
   at the key, `name` among them, `length` allowed. `a.b`, `a["b"]`, `a[0]`
-  and `a[Number(k)]` are its spellings, and the executor reads it as today.
+  and `a[Number(k)]` are its spellings. The executor reads it as an own
+  property, `undefined` where there is none, as the value path does
+  through `hasOwn` and as [`own-access.md`](./own-access.md) defines — that
+  part of it stands; what this proposal changes is `own` and `name`. The
+  writer's `a.b` agrees with that read under the assumption every
+  FunctionalScript file run by a JavaScript engine already relies on, a
+  realm whose prototypes are the standard's, since every standard
+  prototype name is refused at the key.
   `f.name` and `person.name` are both refused here; the second has the
   other spelling.
 - **`['own', a, b]` — an object's own name, a run-time operator with its
