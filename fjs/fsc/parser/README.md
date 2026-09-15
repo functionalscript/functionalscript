@@ -18,8 +18,8 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
-value  ::= primitive t | id t access* | array | object | func
-body   ::= primitive t | id t access* | array | func
+value  ::= (primitive t | id t | array | object) access* | func
+body   ::= (primitive t | id t | array) access* | func
 func   ::= '(' t '...' t id t ')' s '=>' t body
 access ::= '.' t id t | '[' t (string | number) t ']' t
 array  ::= '[' t [ items(value) ] ']' t
@@ -38,8 +38,8 @@ for that, each a conflict the backtracking grammar this replaced had
 
 - **Trivia follows a token, never leads a rule.** Every token is followed by
   `t`, so no rule begins with trivia and no two branches begin with it. A
-  value ends with its own `t`, and what follows a value adds none: a
-  reference may be followed by an access, `a . b` and `a [0]` included, and
+  value ends with its own `t`, and what follows a value adds none: any
+  value may be followed by an access, `a . b` and `[1] [0]` included, and
   the trivia between them would otherwise have to lead the access rule.
 - **`;` ends every statement, the export included.** A newline does not: it is
   trivia, read past, so a missing `;` is found at what came instead — the next
@@ -78,6 +78,10 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
+- an access on a number or a bigint literal, `1 .x` or `-1n[0]`: JavaScript
+  reads `-1 .x` as `-(1 .x)`, the tokenizer folds the minus into the number
+  and `-0n` to `0n`, and the language has no negation to read it JavaScript's
+  way, so every access on a numeric literal is refused rather than some;
 - a reference in a function's body to a name bound outside it — a `const`, an
   import, or an enclosing function's parameter — which is a capture, and a
   function has no frame to capture with yet. The body is resolved against its

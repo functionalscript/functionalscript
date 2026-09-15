@@ -7,8 +7,8 @@
  * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t 'default' t value ';' t
- * value  ::= primitive t | id t access* | array | object | func
- * body   ::= primitive t | id t access* | array | func
+ * value  ::= (primitive t | id t | array | object) access* | func
+ * body   ::= (primitive t | id t | array) access* | func
  * func   ::= '(' t '...' t id t ')' s '=>' t body
  * access ::= '.' t id t | '[' t (string | number) t ']' t
  * array  ::= '[' t [ items(value) ] ']' t
@@ -198,7 +198,7 @@ export const index = /** @type {const} */ ({
 })
 
 /**
- * One step of a property access after a reference: `.name`, the name any
+ * One step of a property access after a value: `.name`, the name any
  * identifier, or `[key]`, the key a constant. What the two spellings may
  * name is the fold's to check, since the name is a word the grammar does
  * not see. Each step ends with its trivia, as a value does.
@@ -208,23 +208,27 @@ export const access = /** @type {const} */ ({
     index: [sym('['), trivia, index, trivia, sym(']'), trivia],
 })
 
-/** A primitive value, and its trivia. */
-const primitiveValue = /** @type {const} */ ([primitive, trivia])
+/** The accesses after a value, `a.b[0]`, none or more. */
+const accesses = repeatFrom0(access)
 
-/** A reference, its trivia, and the accesses after it. */
-const reference = /** @type {const} */ ([identifier, trivia, repeatFrom0(access)])
+/** A primitive value and its trivia, then its accesses. */
+const primitiveValue = /** @type {const} */ ([[primitive, trivia], accesses])
+
+/** A reference and its trivia, then its accesses. */
+const reference = /** @type {const} */ ([[identifier, trivia], accesses])
 
 /**
  * A function's body: a value, but not an object — after `=>` JavaScript
  * reads `{` as a block, never as an object, so the spelling is refused
- * rather than read another way — and not yet a block.
+ * rather than read another way — and not yet a block. A function takes no
+ * access of its own: after `=>` an access belongs to the body.
  *
  * @type {Body}
  */
 export const body = () => ['const', {
     primitive: primitiveValue,
     ref: reference,
-    array,
+    array: [array, accesses],
     func,
 }]
 
@@ -240,19 +244,24 @@ export const body = () => ['const', {
 export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
 
 /**
- * A value ends with its own trivia, so that a reference may be followed by
- * an access, which the trivia after the reference would otherwise have to
- * lead — and a rule trivia leads is a rule one symbol of lookahead cannot
- * enter. Every value's last token is followed by trivia exactly once, here,
- * and what follows a value adds none.
+ * A value ends with its own trivia, so that it may be followed by an
+ * access, which the trivia after the value would otherwise have to lead —
+ * and a rule trivia leads is a rule one symbol of lookahead cannot enter.
+ * Every value's last token is followed by trivia exactly once, here, and
+ * what follows a value adds none. Any value takes accesses, as any
+ * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`.
+ * `1 .x` parses here too, with a space since `1.x` is one number and a
+ * stray word in JavaScript, and the fold refuses it with every access on
+ * a numeric literal: JavaScript reads `-1 .x` as `-(1 .x)` and the
+ * tokenizer folds the minus into the number.
  *
  * @type {Value}
  */
 export const value = () => ['const', {
     primitive: primitiveValue,
     ref: reference,
-    array,
-    object,
+    array: [array, accesses],
+    object: [object, accesses],
     func,
 }]
 

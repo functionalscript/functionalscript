@@ -96,24 +96,24 @@ export type Container<Item extends Rule> = readonly [number, typeof trivia, Opti
 export type Member = readonly [typeof key, typeof trivia, number, typeof trivia, Value]
 
 /**
- * A value: a primitive token, a reference and the accesses after it, an
- * array of values, or an object of members, each ending with its trivia —
- * a `const` thunk whose payload names the thunk, which is what lets a type
- * alias name itself.
+ * A value: a primitive token, a reference, an array of values, or an
+ * object of members, each ending with its trivia and each followed by the
+ * accesses after it — a `const` thunk whose payload names the thunk, which
+ * is what lets a type alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly primitive: readonly [typeof primitive, typeof trivia]
-    readonly ref: readonly [typeof identifier, typeof trivia, RepeatFrom<0, typeof access>]
-    readonly array: Container<Value>
-    readonly object: Container<Member>
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
+    readonly object: readonly [Container<Member>, RepeatFrom<0, typeof access>]
     readonly func: Func
 }]
 
 /** A function's body: a value less the object, since `=> {` opens a block in JavaScript. */
 export type Body = () => readonly ['const', {
-    readonly primitive: readonly [typeof primitive, typeof trivia]
-    readonly ref: readonly [typeof identifier, typeof trivia, RepeatFrom<0, typeof access>]
-    readonly array: Container<Value>
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
     readonly func: Func
 }]
 

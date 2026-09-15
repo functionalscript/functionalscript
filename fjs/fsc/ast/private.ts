@@ -7,7 +7,7 @@
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Array, Unknown } from '../../media/datajs/types.ts'
-import type { AstBody, AstModuleRef } from './types.ts'
+import type { AstAccess, AstBody, AstConst, AstMember, AstModuleRef } from './types.ts'
 
 /** An evaluation in progress: the body, its arguments, and the values so far. */
 export type _RunState = {
@@ -21,6 +21,16 @@ export type _RunState = {
  * and the keys the accesses on it apply, outermost first — none for a
  * reference to the whole.
  */
+/**
+ * A way of reading the syntax for references: which of an object's members
+ * count, and what an access denotes — the value's view selects inside a
+ * literal, the written view reads the access as it stands.
+ */
+export type _View = {
+    readonly members: (members: readonly AstMember[]) => readonly AstConst[]
+    readonly through: (ast: AstAccess) => AstConst
+}
+
 export type _Ref = {
     readonly ref: AstModuleRef
     readonly keys: readonly string[]
