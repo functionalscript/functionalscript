@@ -86,7 +86,10 @@ type Analysis = {
   keeps a `.` node per body, each in its own scope, since a value is never
   shared across calls and no consumer could use the merge. A constructor,
   `[]`, `{}` or `=>`, mints identity and is never merged: two `[]` are two
-  arrays. Neither is a call, in any spelling: `['()', f, args]`, and an
+  arrays. A plain access is pure, because no FunctionalScript value has an
+  accessor: the language spells no getter, a JSON module has none, and an
+  access reads an own property, never the prototype, so two reads of one
+  property are one value. Neither is a call, in any spelling: `['()', f, args]`, and an
   access whose continuation calls, `['|()', …]`, `['|?.()', …]` or
   `['|!()', …]`, which is a method call and may mint a fresh result each
   time, as `[o.f(), o.f()]` with `f` returning `[]` must give two arrays.
