@@ -13,9 +13,10 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
+import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { commitPayload, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
-import { alternatesCode, alternatesIn, alternatesMessage, objectIdCode, objectPath, objectsDirs, oidBytes, tryRead } from './module.f.mjs'
+import { alternatesCode, alternatesIn, alternatesMessage, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -155,6 +156,14 @@ const files = {
     // closes that window.
     [`lying/objects/pack/${packName}.idx`]: idxOf([[packedId, 525], [wrongId, 508]]),
     [`lying/objects/pack/${packName}.pack`]: packCounting(2),
+    // A borrower that holds the object itself and still names a lender, so the
+    // lender is never asked.
+    'own/objects/info/alternates': latin1('../../repo/objects\n'),
+    [objectPath('own')(id(tagId))]: tagLoose,
+    // A store whose pack index is not one, which is a failure and not a miss:
+    // the file names the objects of the pack beside it, so nothing there is
+    // reachable.
+    'broken/objects/pack/pack-junk.idx': latin1('junk'),
     // A repository directory that is a root, for the `config` path below
     // one. `fjs/git/repo` answers `/` for a gitfile of `gitdir: /`, and a
     // path built by writing the separator would look for `//config` here.
@@ -186,6 +195,8 @@ const hostOf = fs => ({
         [...log, `readdir ${path}`],
         path === 'repo/objects/pack' || path === 'lying/objects/pack'
             ? ok([dirent(path, `${packName}.idx`), dirent(path, `${packName}.pack`)])
+            : path === 'broken/objects/pack'
+            ? ok([dirent(path, 'pack-junk.idx')])
             : error(noFile(path)),
     ],
     stat: path => log => {
@@ -445,6 +456,42 @@ export const proof = {
         assertEq(
             e[1].message,
             `lying/objects/pack/${packName}.pack holds the object ${packedId}`)
+    },
+    // A store that holds the object itself never asks the store it borrows from:
+    // the search stops at the first directory that answers, so a lender is a
+    // fallback and not a second opinion.
+    borrowedNotAsked: () => {
+        const [log, r] = runHost(tryRead('own', 20)(id(tagId)))
+        assert(r[0] === 'ok' && r[1] !== null)
+        assertEq(r[1].type, 'tag')
+        // the lender's alternates file is read, since the directories are
+        // resolved before any object is — but nothing of the lender's is opened
+        assertStructurallySame(log, [
+            'readFile own/objects/info/alternates',
+            'readFile repo/objects/info/alternates',
+            `readFile ${objectPath('own')(id(tagId))}`,
+            'inflate',
+        ])
+    },
+    // A pack that cannot answer for the directory it is in is the channel's, and
+    // it ends the search rather than passing to the next directory: a store that
+    // holds a broken index holds nothing reachable, and going on would report a
+    // miss for a question that was never answered.
+    packRefused: () => {
+        const [, r] = runHost(tryRead('broken', 20)(id(tagId)))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, packIdxCode)
+    },
+    // A reader over no directories at all answers `null`: nothing holds the
+    // object because there is nowhere for it to be. `objectsDirs` never gives an
+    // empty list — a repository's own `objects/` is always the first — so this
+    // is reachable only through `readIn`, which is a caller's to build.
+    readInNowhere: () => {
+        const [log, r] = runHost(readIn([], 20)(id(tagId)))
+        assertStructurallySame(r, ok(null))
+        assertStructurallySame(log, [])
     },
     // Bytes that are no object are `null`, as the loose reader says.
     notAnObject: () => {

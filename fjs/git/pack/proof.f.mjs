@@ -247,12 +247,31 @@ export const proof = {
         assertEq(tryApplyDelta(packDeltaBase.slice(0, 474), packDelta), null)
         // a delta with no source size at all, and one whose source size runs off
         // the end: there is nothing to check the base against, which is a
-        // refusal before either size is compared
+        // refusal before either size is compared. Both are written long enough
+        // to pass the four-byte floor, so what refuses them is the varint and
+        // not the length — `[0x80, 0x80, 0x80, 0x80]` is a source size still
+        // asking for another byte when the delta ends.
         assertEq(tryApplyDelta(packDeltaBase, []), null)
-        assertEq(tryApplyDelta(packDeltaBase, [0x80]), null)
+        assertEq(tryApplyDelta(packDeltaBase, [0x80, 0x80, 0x80, 0x80]), null)
+        // and a *target* size that runs off the end the same way, after a source
+        // size that reads
+        assertEq(tryApplyDelta([120], [0x01, 0x80, 0x80, 0x80]), null)
         // a target size one too large, with the instructions unchanged
         const [, ...rest] = packDelta.slice(2)
         assertEq(tryApplyDelta(packDeltaBase, [...packDelta.slice(0, 2), packDelta[2] + 1, ...rest]), null)
+    },
+    // A copy instruction whose own fields run off the end of the delta, which is
+    // the other half of the same rule: the bitmap says which bytes are present,
+    // so a delta can promise an offset or a size byte and then end.
+    //
+    // Each is written at four bytes or more, since a shorter delta is refused
+    // for its length before any instruction is read — see {@link
+    // applyDeltaTooShort}.
+    applyDeltaCopyRunsOff: () => {
+        // source 1, target 1, then a copy promising one offset byte and ending
+        assertEq(tryApplyDelta([120], [0x01, 0x01, 0x81]), null)
+        // the same with the offset present and a size byte promised
+        assertEq(tryApplyDelta([120], [0x01, 0x01, 0x91, 0x00]), null)
     },
     // A delta whose target is nothing builds the empty object, and that answer
     // is not the refusal. `List` spells the empty list `null`, so the pieces a

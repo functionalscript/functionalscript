@@ -12,8 +12,8 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
-import { notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
-import { run } from '../../effects/mock/module.f.mjs'
+import { partialRun, run } from '../../effects/mock/module.f.mjs'
+import { nodeCommands, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -495,6 +495,26 @@ export const proof = {
         assertEq(
             e.message,
             `${packPath}:508 does not inflate: Z_DATA_ERROR incorrect header check`)
+        // a host whose refusal carries no code says only what it says
+        const whole = hostOf(listing, files, () => null)
+        const bare = {
+            ...whole,
+            inflate: /** @type {typeof whole.inflate} */ (
+                () => log => [[...log, 'inflate'], error(ioError({ message: 'no idea' }))]),
+        }
+        assertEq(
+            refusal(readBy(bare, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')[1]).message,
+            `${packPath}:508 does not inflate: no idea`)
+        // and a host with no `inflate` at all is the other channel, which names
+        // itself rather than an error — the repair there is a handler, not a
+        // file, which is the whole reason the host's own diagnosis is carried
+        // on rather than replaced
+        const { inflate: _, ...none } = whole
+        const [, missing] = partialRun(nodeCommands)(none)([])(
+            read(id('b00a3b66a7a094e6165bfcd39e0b8524042140db')))
+        assertEq(
+            refusal(missing).message,
+            `${packPath}:508 does not inflate: notImplemented`)
     },
     // An `.idx` that is not one Git would read is a failure and not a miss: it
     // names the objects of the pack beside it, so nothing there is reachable.
