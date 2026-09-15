@@ -1,0 +1,13 @@
+name,category,inputBytes,adaptiveBytes,selected,selectedBytes,bestColdBytes,brotli11Bytes,zstd19Bytes
+source-06,source,2112,1445,adaptive,1445,1445,792,1006
+source-07,source,3615,2259,adaptive,2259,2259,1150,1377
+source-08,source,982,753,adaptive,753,753,408,481
+text-06,text,1549,1184,adaptive,1184,1184,677,875
+text-07,text,1786,1391,adaptive,1391,1391,799,1019
+text-08,text,512,408,adaptive,408,408,271,360
+c-06,c,2275,1496,adaptive,1496,1496,691,830
+c-07,c,1458,1093,adaptive,1093,1093,530,657
+c-08,c,7983,1765,adaptive,1765,1765,673,782
+json-04,json,546,382,adaptive,382,382,215,232
+json-05,json,3087,1570,adaptive,1570,1570,724,829
+binary-00,binary,632,646,adaptive,646,646,636,642

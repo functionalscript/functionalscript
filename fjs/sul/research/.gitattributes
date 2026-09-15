@@ -1,0 +1,7 @@
+# Preserve the pinned experiment archive under the repository's text default.
+prototype.zip -text
+ordered-prototype.zip -text
+byte-prototype.zip -text
+brotli-prototype.zip -text
+order-prototype.zip -text
+profile-prototype.zip -text

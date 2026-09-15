@@ -1,0 +1,65 @@
+{
+  "sulCommit": "d16a9ebf39b30a42e1b795bc329774d867196841",
+  "nodeVersion": "v24.19.0",
+  "prototypeArchiveSha256": "a74a82888dde7b0567cbbdf918dfcdcf7a76e7f17b3ce27eabe6069d3467c5d9",
+  "files": {
+    "results.json": "f99391233a94a5966c010c2815378214ca0788bfe1a1b6afc569fc6a0e50706e",
+    "summary.csv": "853af9ad45afa2dc2d3b5c301c4ea15c2b5de97dba0d41057e72422f270dc402",
+    "prototype.md": "5dc9ed9fbf35d37db183db869b091340118dc25ab71b9f02cb6d818257a25e35"
+  },
+  "orderedExperiment": {
+    "archiveSha256": "2fa43f33e1f590d07c2451d9dbb59f1645e40e210fd6ada979305e3506bdab0e",
+    "files": {
+      "ordered-dictionaries.md": "411ff91f79a4d7623990b4258ef03ac8500dcd7723fa2178fc85211c3a9f26bb",
+      "ordered-results.json": "e13960310f7e234acfe99a920207d2be6746a635f7f66794a2fa344dbfa4a68a",
+      "ordered-summary.csv": "4d232a99871b17c45e4384848e1206028acedb86815e7c10358949904a7b42c7",
+      "ordered-prototype.md": "a3234c93698885eb261a45cbfe6536de6e2f2a2d86618eccdd0e6d10011c756a"
+    }
+  },
+  "byteExperiment": {
+    "archiveSha256": "501eb65cf159ba727b8104565678dda70618e7a670918af851faff1735dcc657",
+    "files": {
+      "byte-alphabet.md": "9f144aa4d666c6671cdc999f1e4d394be99058e5329be4e598dd3ef37fdf6d9b",
+      "byte-results.json": "99a836c5563e8a46c018d00a3d43db0e18cb901d6f3f9c03060674a0b53e7819",
+      "byte-summary.csv": "40d1b62176f94f9284c1ca5865325270be485a08bfe2a9fcac3cee3a5769bb72",
+      "byte-prototype.md": "8fd8217aa176ebe632d876b2697a9cc5ca13d2fa64b431f9b23b2fa760028f3f"
+    }
+  },
+  "brotliDictionaryExperiment": {
+    "archiveSha256": "d5e1824caaaebfa45af132f174eef7664ba2eb6deff93ce942268ff5b1146d04",
+    "brotliCommit": "09e1ac6c7eea9d3b53f85bcdde6347358dbe1281",
+    "files": {
+      "brotli-dictionary.md": "0c0f124b35800c46ee3c08900ae0aa9c78edd9f31b19dcd4533cf1329e0b5b3f",
+      "brotli-results.json": "53b2c2c27095a17be55a49e1515c89fe019ff24130d1c03d4a4bcf8a53b91570",
+      "brotli-summary.csv": "540271c08b9844a6e6f4fc7dd60a94632d2b486589d21099a900bb09145b6f56",
+      "brotli-prototype.md": "3ae545fc1f6fb63e394b7b479f2c796693bb58a10adf98ea6d2bcbfa222ee229"
+    }
+  },
+  "byteOrderExperiment": {
+    "archiveSha256": "808a60e98c111ef4ec875b93bd19cd1a86e06ae720229a752920162d49124818",
+    "files": {
+      "byte-ordering.md": "8380ea54b601d88bd2d7bc534157e5747d4d60a788eed18f15c2962baeee847b",
+      "order-results.json": "bc4b7e94c20cf53a617f428966793ad6e802529e3485fb110bea65f3ff5fb41e",
+      "order-summary.csv": "02bbb17b5123f82f989a8f1254e28d001403fcc396248f9a5271c926ff369250",
+      "order-heldout.json": "c34b785918f80703498e21590412865e4acf6f97d533fb892005ad1aaba376f2",
+      "byte-orders.json": "4b86026f39e2635f277814dfdf9f8434625bf07d58cb0483f58b383a988140d0",
+      "order-prototype.md": "6387d5147f14272bde88c2b05973e8ec444b12568739f4f8ac78e6d330ccca87",
+      "successor-results.json": "5c732cbe088384ebf2c95fe31d36a0a8255639f04887d7e105ed2a89f7e1c543"
+    }
+  },
+  "frequencyProfileExperiment": {
+    "archiveSha256": "d2a57f23de74e810602eb69d7070232bc1cff2fcf1b34f033c334a1d9b33dcfb",
+    "files": {
+      "frequency-profiles.md": "3d72ac1a47a5f47f39f6543d7b0060d66541884313e74bc6b51ad9f0d2f27071",
+      "profile-registry.json": "40f215972aee18e6653e432f98e5d70c8cb7c87293a5fc69db6a6915dfc38174",
+      "profile-results.json": "66a284e43ae4843384c1114b15bf63233e952600f0b82a554c4c6bf218bc367b",
+      "profile-summary.csv": "9b56f934d6a6cb5d443804afab8e6d671960198e942dc6fa54ee49010d39aead",
+      "profile-corpus.json": "42f48ee44f432807a82fa5e81f40aef827e421eaed0d983807050f987ca01488",
+      "profile-prototype.md": "7993a08a2fd8c8e52837587ebd712aeefbb4ba8dcc3aea7e9f1c1e2ac25649e3",
+      "profiles/be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac.json": "be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac",
+      "profiles/84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb.json": "84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb",
+      "profiles/d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9.json": "d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9",
+      "profiles/c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622.json": "c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622"
+    }
+  }
+}

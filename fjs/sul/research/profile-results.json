@@ -1,0 +1,4090 @@
+{
+  "version": 1,
+  "node": "v24.19.0",
+  "corpus": {
+    "version": 1,
+    "selection": "Source, markdown and C files: first nine by SHA-256 of relative path among whole files of 512..8192 bytes; first six train, next three test. JSON: six named real package/configuration files sorted by SHA-256(project/path), first four train and last two test. One pre-existing compressed test file is an out-of-domain control. No selection uses compressed sizes.",
+    "sourceRevisions": {
+      "functionalscript": "53d792ba4df9c7530994ff37f77ce3f19fb127ed",
+      "brotli": "09e1ac6c7eea9d3b53f85bcdde6347358dbe1281",
+      "typescript": "7.0.2"
+    },
+    "files": [
+      {
+        "name": "source-00",
+        "category": "source",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/media/datajs/parser/types.ts",
+        "local": "corpus/source-00.ts",
+        "bytes": 1447,
+        "sha256": "b46841ce6f387be588d2fbbdfe97b925f5c12f5bad931ed7f9268a5fb4889829",
+        "ascii": false
+      },
+      {
+        "name": "source-01",
+        "category": "source",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/media/datajs/vectors/matrix/types.ts",
+        "local": "corpus/source-01.ts",
+        "bytes": 2459,
+        "sha256": "7674a9f527f62fcd79679f073a0b42f0a9284da546f3c4e0be37ae0beaebe3c4",
+        "ascii": false
+      },
+      {
+        "name": "source-02",
+        "category": "source",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/crypto/sign/module.f.mjs",
+        "local": "corpus/source-02.mjs",
+        "bytes": 7333,
+        "sha256": "e1507aabb0b4d2e3a4a539e256b94a2ac6940a9cf09c12753f7234f348221928",
+        "ascii": true
+      },
+      {
+        "name": "source-03",
+        "category": "source",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/fsc/ast/private.ts",
+        "local": "corpus/source-03.ts",
+        "bytes": 716,
+        "sha256": "fcd9f33517812c864511f049665761a3af4918ef08960e853019ac0f27e8399a",
+        "ascii": true
+      },
+      {
+        "name": "source-04",
+        "category": "source",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/ebnf/ll1/types.ts",
+        "local": "corpus/source-04.ts",
+        "bytes": 4587,
+        "sha256": "7c18365cf5caac54b5db4ef22080bb9d063e1c83342c01be24e68ad05a8aa1ea",
+        "ascii": false
+      },
+      {
+        "name": "source-05",
+        "category": "source",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/types/nibble_set/module.f.mjs",
+        "local": "corpus/source-05.mjs",
+        "bytes": 1511,
+        "sha256": "6461540457106f41491cc860b0141bfef20123679422996a4f3c07812a85feed",
+        "ascii": true
+      },
+      {
+        "name": "source-06",
+        "category": "source",
+        "split": "test",
+        "project": "functionalscript",
+        "source": "fjs/ebnf/token_symbol/module.f.mjs",
+        "local": "corpus/source-06.mjs",
+        "bytes": 2112,
+        "sha256": "00aecd0b1d9e93214d0dea3a0fb83bc9def705db631560248e0edbd717bd4386",
+        "ascii": false
+      },
+      {
+        "name": "source-07",
+        "category": "source",
+        "split": "test",
+        "project": "functionalscript",
+        "source": "fjs/fsc/parser/types.ts",
+        "local": "corpus/source-07.ts",
+        "bytes": 3615,
+        "sha256": "4c33a47f1a08793cf75042cfe00eef5dd0b8e69fe7e961f54af718adb6cb27ec",
+        "ascii": false
+      },
+      {
+        "name": "source-08",
+        "category": "source",
+        "split": "test",
+        "project": "functionalscript",
+        "source": "fjs/effects/memory/types.ts",
+        "local": "corpus/source-08.ts",
+        "bytes": 982,
+        "sha256": "67699c529f4ea9cd2c8328e5f93b51885d0fa718a5b3e300d4e0b8b0a34f33eb",
+        "ascii": true
+      },
+      {
+        "name": "text-00",
+        "category": "text",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "todo/local-tsc-skips-mjs-with-a-generated-declaration.md",
+        "local": "corpus/text-00.md",
+        "bytes": 2853,
+        "sha256": "998dbae84f70d67e3bd36aba5e82f02d5831ac84fc4eee3ef235caf648ac287c",
+        "ascii": false
+      },
+      {
+        "name": "text-01",
+        "category": "text",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/sul/todo/id-prefix-tag-factory.md",
+        "local": "corpus/text-01.md",
+        "bytes": 2200,
+        "sha256": "cadfb1e0e701304e64b3761b99c7c50468d036db98bfcba6c8b69b774ca033c6",
+        "ascii": false
+      },
+      {
+        "name": "text-02",
+        "category": "text",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/cas/todo/write-closed-helpers.md",
+        "local": "corpus/text-02.md",
+        "bytes": 3258,
+        "sha256": "079e24ecb62d267d65f40b0f55920d53124457523c1b94e5cad6011a20c439cf",
+        "ascii": false
+      },
+      {
+        "name": "text-03",
+        "category": "text",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/ebnf/todo/repeat-bounds.md",
+        "local": "corpus/text-03.md",
+        "bytes": 1794,
+        "sha256": "50a7c61d060c6670426846564595e062af680c242ac274891156933149794b45",
+        "ascii": false
+      },
+      {
+        "name": "text-04",
+        "category": "text",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/ci/todo/f-js-package-support.md",
+        "local": "corpus/text-04.md",
+        "bytes": 5561,
+        "sha256": "3a5b0740a2659f6f8e365f55541b664d7192263846306aa7187947ba6022c70b",
+        "ascii": false
+      },
+      {
+        "name": "text-05",
+        "category": "text",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "fjs/mcp/todo/cas-get-mcp-resource-response.md",
+        "local": "corpus/text-05.md",
+        "bytes": 3384,
+        "sha256": "68f25fe0316e8e72a7fbb6388c245a0ebab1cb78b930774acea044e6fcdeb1de",
+        "ascii": false
+      },
+      {
+        "name": "text-06",
+        "category": "text",
+        "split": "test",
+        "project": "functionalscript",
+        "source": "fjs/ebnf/token_symbol/todo/tokens-with-extra-information.md",
+        "local": "corpus/text-06.md",
+        "bytes": 1549,
+        "sha256": "a2e92e701a59f616b0dcad5f755913b25a168a4c875a9acb9d3798f18feefb80",
+        "ascii": false
+      },
+      {
+        "name": "text-07",
+        "category": "text",
+        "split": "test",
+        "project": "functionalscript",
+        "source": "nanvm-lib/todo/error-constructors.md",
+        "local": "corpus/text-07.md",
+        "bytes": 1786,
+        "sha256": "d4019a0b5611e9a4d41a0d61aba932b7b793646bd6f7953827afb5a9e34b72f9",
+        "ascii": false
+      },
+      {
+        "name": "text-08",
+        "category": "text",
+        "split": "test",
+        "project": "functionalscript",
+        "source": "fjs/effects/node/todo/requestlistener-stateful.md",
+        "local": "corpus/text-08.md",
+        "bytes": 512,
+        "sha256": "86a5835dbb5e2fa9e9e938a5d60394d8e1bfca8aafc568def07ef0cd3b638f00",
+        "ascii": false
+      },
+      {
+        "name": "c-00",
+        "category": "c",
+        "split": "train",
+        "project": "brotli",
+        "source": "c/enc/memory.c",
+        "local": "corpus/c-00.c",
+        "bytes": 5522,
+        "sha256": "a491c8110e9e68db26c10e008abfc69c07d6756f2b9c1f56611295aad7a817d2",
+        "ascii": true
+      },
+      {
+        "name": "c-01",
+        "category": "c",
+        "split": "train",
+        "project": "brotli",
+        "source": "c/dec/bit_reader.c",
+        "local": "corpus/c-01.c",
+        "bytes": 2264,
+        "sha256": "6126ebebd3adbc96430c2b75ccaec02b188901f2a17960e6a4606470e71925ec",
+        "ascii": true
+      },
+      {
+        "name": "c-02",
+        "category": "c",
+        "split": "train",
+        "project": "brotli",
+        "source": "c/enc/histogram.c",
+        "local": "corpus/c-02.c",
+        "bytes": 3261,
+        "sha256": "cf8cbd4310f9b41a718ca200bfd8f7c07159729e51a5aeda1f2f809a954260bf",
+        "ascii": true
+      },
+      {
+        "name": "c-03",
+        "category": "c",
+        "split": "train",
+        "project": "brotli",
+        "source": "c/dec/static_init.c",
+        "local": "corpus/c-03.c",
+        "bytes": 1444,
+        "sha256": "a4a308e394fe05a124d919977b3f457a06363615a882dce058f329edcf7dc851",
+        "ascii": true
+      },
+      {
+        "name": "c-04",
+        "category": "c",
+        "split": "train",
+        "project": "brotli",
+        "source": "c/fuzz/run_decode_fuzzer.c",
+        "local": "corpus/c-04.c",
+        "bytes": 1073,
+        "sha256": "8ae30c69b73f34ad93c6793d666587bb168be43d7306c3bae35984f4f899dfff",
+        "ascii": true
+      },
+      {
+        "name": "c-05",
+        "category": "c",
+        "split": "train",
+        "project": "brotli",
+        "source": "c/enc/literal_cost.c",
+        "local": "corpus/c-05.c",
+        "bytes": 5877,
+        "sha256": "70b9efae900d89ba610087113bea9225debbae5db21825a9bad0051c1ea5451b",
+        "ascii": true
+      },
+      {
+        "name": "c-06",
+        "category": "c",
+        "split": "test",
+        "project": "brotli",
+        "source": "c/enc/utf8_util.c",
+        "local": "corpus/c-06.c",
+        "bytes": 2275,
+        "sha256": "15c394fe3284863e026511f8ba62dfe75148f286f59e2a8fd2f744bc00c8cda9",
+        "ascii": true
+      },
+      {
+        "name": "c-07",
+        "category": "c",
+        "split": "test",
+        "project": "brotli",
+        "source": "c/enc/cluster.c",
+        "local": "corpus/c-07.c",
+        "bytes": 1458,
+        "sha256": "23d58bc8b628c9d168f8911d9304d4964e0f992f68e6d62daefe7eb837b07cb4",
+        "ascii": true
+      },
+      {
+        "name": "c-08",
+        "category": "c",
+        "split": "test",
+        "project": "brotli",
+        "source": "c/common/context.c",
+        "local": "corpus/c-08.c",
+        "bytes": 7983,
+        "sha256": "c9aa1acb35af38c90c4a38ba168885b649838236b2d57adb5e76d687bdbe252e",
+        "ascii": true
+      },
+      {
+        "name": "json-00",
+        "category": "json",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "package-lock.json",
+        "local": "corpus/json-00.json",
+        "bytes": 1083,
+        "sha256": "ac2ed23e820f09e96c8b74f214b71097c40385e4a7d767b241f7956d43e01576",
+        "ascii": true
+      },
+      {
+        "name": "json-01",
+        "category": "json",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "package.json",
+        "local": "corpus/json-01.json",
+        "bytes": 1618,
+        "sha256": "834e4ba3d4e00769f61c024f0bc8125d12da64fb9f04d52a3ef90b337b5d64de",
+        "ascii": true
+      },
+      {
+        "name": "json-02",
+        "category": "json",
+        "split": "train",
+        "project": "functionalscript",
+        "source": "funding.json",
+        "local": "corpus/json-02.json",
+        "bytes": 2006,
+        "sha256": "21831806f9abc1d7c234df6aabf280b152a2cc29fe0683f701c672c81c76451d",
+        "ascii": true
+      },
+      {
+        "name": "json-03",
+        "category": "json",
+        "split": "train",
+        "project": "brotli",
+        "source": "js/package.json",
+        "local": "corpus/json-03.json",
+        "bytes": 215,
+        "sha256": "435ee5b2ca8b75f083ef476c53536e75b5de6a104993d9b9781655ce5eac77b5",
+        "ascii": true
+      },
+      {
+        "name": "json-04",
+        "category": "json",
+        "split": "test",
+        "project": "functionalscript",
+        "source": "deno.json",
+        "local": "corpus/json-04.json",
+        "bytes": 546,
+        "sha256": "48922025d72aaab48450a52c22dee43650111d531b6eb2ecf33fa188c3f68046",
+        "ascii": true
+      },
+      {
+        "name": "json-05",
+        "category": "json",
+        "split": "test",
+        "project": "typescript",
+        "source": "package.json",
+        "local": "corpus/json-05.json",
+        "bytes": 3087,
+        "sha256": "3722b30210616a13a3213ded11575ba6b2dbab10c32a5ef67afca8513e27017e",
+        "ascii": true
+      },
+      {
+        "name": "binary-00",
+        "category": "binary",
+        "split": "test",
+        "project": "brotli",
+        "source": "tests/testdata/cp1251-utf16le.compressed",
+        "local": "corpus/binary-00.compressed",
+        "bytes": 632,
+        "sha256": "d69e14971ccd758e47ba4e6bb13df1b23fcfd3d9586674bd4b46130accffeca5",
+        "ascii": false
+      }
+    ]
+  },
+  "registry": {
+    "version": 1,
+    "dictionaryPolicy": "Unchanged first-occurrence order and raw-byte SUL hierarchy. Profiles describe binary coding contexts, not document-local dictionary identities.",
+    "training": "Count only arithmetic events in the final adaptive encoding, observed by decoding it. Discarded candidates and raw streams supply no events. Use add-one smoothing, at least 16 events per context, weights totaling 4096; unknown contexts use [1,1].",
+    "profiles": [
+      {
+        "name": "generic",
+        "id": "sha256:be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac",
+        "file": "profiles/be2cc1bb7c26e4534795aac74e7a4c170559c7b2bf50da15f40928c325594cac.json",
+        "bytes": 7537,
+        "rows": 450,
+        "events": 434705,
+        "trainingFiles": [
+          "source-00",
+          "source-01",
+          "source-02",
+          "source-03",
+          "source-04",
+          "source-05",
+          "text-00",
+          "text-01",
+          "text-02",
+          "text-03",
+          "text-04",
+          "text-05",
+          "c-00",
+          "c-01",
+          "c-02",
+          "c-03",
+          "c-04",
+          "c-05",
+          "json-00",
+          "json-01",
+          "json-02",
+          "json-03"
+        ]
+      },
+      {
+        "name": "text",
+        "id": "sha256:84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb",
+        "file": "profiles/84b4d48cab0b284fffa1ebd6435d3b862a9acb44f7f93f5125bfff337691facb.json",
+        "bytes": 3090,
+        "rows": 182,
+        "events": 143059,
+        "trainingFiles": [
+          "text-00",
+          "text-01",
+          "text-02",
+          "text-03",
+          "text-04",
+          "text-05"
+        ]
+      },
+      {
+        "name": "ascii",
+        "id": "sha256:d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9",
+        "file": "profiles/d744c702b0d3e02828667035e528c971195c176c22067eeb9c294c6b11973bd9.json",
+        "bytes": 5875,
+        "rows": 352,
+        "events": 230379,
+        "trainingFiles": [
+          "source-02",
+          "source-03",
+          "source-05",
+          "c-00",
+          "c-01",
+          "c-02",
+          "c-03",
+          "c-04",
+          "c-05",
+          "json-00",
+          "json-01",
+          "json-02",
+          "json-03"
+        ]
+      },
+      {
+        "name": "json",
+        "id": "sha256:c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622",
+        "file": "profiles/c5d66cef7a6ac5f8d3e8fa751f0838051630e28b37146c5ad4cae8c2865d6622.json",
+        "bytes": 1897,
+        "rows": 111,
+        "events": 30982,
+        "trainingFiles": [
+          "json-00",
+          "json-01",
+          "json-02",
+          "json-03"
+        ]
+      }
+    ]
+  },
+  "scope": "Four shared profiles, each fixed and as a prior of total 16, versus unchanged adaptive models. Profiled frames include a 37-byte wrapper with a full SHA-256 profile ID and coding policy. The prior control was added after the fixed-profile losses; no tables were refitted. Dictionary contents, alphabet order and SUL hierarchy construction are unchanged; optimal retained levels can change with the model.",
+  "files": [
+    {
+      "name": "source-06",
+      "category": "source",
+      "inputBytes": 2112,
+      "sha256": "00aecd0b1d9e93214d0dea3a0fb83bc9def705db631560248e0edbd717bd4386",
+      "treeMs": 78.93292000000002,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 1445,
+          "innerBytes": 1445,
+          "coldBytes": 1445,
+          "profileBytes": 0,
+          "encodeMs": 99.467105,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 36,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1395
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1326,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 1697,
+          "innerBytes": 1660,
+          "coldBytes": 9234,
+          "profileBytes": 7537,
+          "encodeMs": 91.8569359999999,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "raw",
+              "recipeBytes": 66,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1580
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1511,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 1503,
+          "innerBytes": 1466,
+          "coldBytes": 9040,
+          "profileBytes": 7537,
+          "encodeMs": 101.68074999999999,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 47,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1405
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1336,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 1700,
+          "innerBytes": 1663,
+          "coldBytes": 4790,
+          "profileBytes": 3090,
+          "encodeMs": 115.63866000000007,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 65,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1584
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1515,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 1504,
+          "innerBytes": 1467,
+          "coldBytes": 4594,
+          "profileBytes": 3090,
+          "encodeMs": 65.97789599999999,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 47,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1406
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1337,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 1746,
+          "innerBytes": 1709,
+          "coldBytes": 7621,
+          "profileBytes": 5875,
+          "encodeMs": 56.528561999999965,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "raw",
+              "recipeBytes": 66,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1629
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1560,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 1508,
+          "innerBytes": 1471,
+          "coldBytes": 7383,
+          "profileBytes": 5875,
+          "encodeMs": 64.57623899999999,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 49,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1408
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1339,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 1712,
+          "innerBytes": 1675,
+          "coldBytes": 3609,
+          "profileBytes": 1897,
+          "encodeMs": 54.971743999999944,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "raw",
+              "recipeBytes": 66,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1595
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1526,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 1508,
+          "innerBytes": 1471,
+          "coldBytes": 3405,
+          "profileBytes": 1897,
+          "encodeMs": 60.771586999999954,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 44,
+              "entries": 17,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 49,
+              "dictionaryBits": 17224,
+              "dictionaryBytes": 1408
+            },
+            {
+              "level": 0,
+              "symbols": 2153,
+              "entries": 66,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1339,
+              "dictionaryBits": 528,
+              "dictionaryBytes": 69
+            }
+          ],
+          "literalBits": 528,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 1445,
+      "selectedBytes": 1445,
+      "bestColdBytes": 1445,
+      "brotli11Bytes": 792,
+      "zstd19Bytes": 1006,
+      "totalMs": 858.704945
+    },
+    {
+      "name": "source-07",
+      "category": "source",
+      "inputBytes": 3615,
+      "sha256": "4c33a47f1a08793cf75042cfe00eef5dd0b8e69fe7e961f54af718adb6cb27ec",
+      "treeMs": 62.29333500000007,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 2259,
+          "innerBytes": 2259,
+          "coldBytes": 2259,
+          "profileBytes": 0,
+          "encodeMs": 49.22602700000016,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 1374,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1204,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1041
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 970,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 2734,
+          "innerBytes": 2697,
+          "coldBytes": 10271,
+          "profileBytes": 7537,
+          "encodeMs": 83.96659900000009,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 27,
+              "entries": 24,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 65,
+              "dictionaryBits": 29408,
+              "dictionaryBytes": 2618
+            },
+            {
+              "level": 1,
+              "symbols": 1326,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1455,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1163
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1092,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 2339,
+          "innerBytes": 2302,
+          "coldBytes": 9876,
+          "profileBytes": 7537,
+          "encodeMs": 63.140903999999864,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 1374,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1237,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1051
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 980,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 2837,
+          "innerBytes": 2800,
+          "coldBytes": 5927,
+          "profileBytes": 3090,
+          "encodeMs": 44.30120899999997,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 27,
+              "entries": 24,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 64,
+              "dictionaryBits": 29408,
+              "dictionaryBytes": 2722
+            },
+            {
+              "level": 1,
+              "symbols": 1326,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1552,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1170
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1099,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 2332,
+          "innerBytes": 2295,
+          "coldBytes": 5422,
+          "profileBytes": 3090,
+          "encodeMs": 57.21796900000004,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 1374,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1230,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1051
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 980,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 2775,
+          "innerBytes": 2738,
+          "coldBytes": 8650,
+          "profileBytes": 5875,
+          "encodeMs": 54.51448800000003,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 27,
+              "entries": 24,
+              "recipeMode": "raw",
+              "recipeBytes": 71,
+              "dictionaryBits": 29408,
+              "dictionaryBytes": 2653
+            },
+            {
+              "level": 1,
+              "symbols": 1326,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1457,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1196
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1125,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 2343,
+          "innerBytes": 2306,
+          "coldBytes": 8218,
+          "profileBytes": 5875,
+          "encodeMs": 55.02676899999983,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 1374,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1237,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1055
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 984,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 2785,
+          "innerBytes": 2748,
+          "coldBytes": 4682,
+          "profileBytes": 1897,
+          "encodeMs": 57.871969000000036,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 27,
+              "entries": 24,
+              "recipeMode": "raw",
+              "recipeBytes": 71,
+              "dictionaryBits": 29408,
+              "dictionaryBytes": 2663
+            },
+            {
+              "level": 1,
+              "symbols": 1326,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1468,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1195
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1124,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 2331,
+          "innerBytes": 2294,
+          "coldBytes": 4228,
+          "profileBytes": 1897,
+          "encodeMs": 61.87028999999984,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 1374,
+              "entries": 477,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1222,
+              "dictionaryBits": 11936,
+              "dictionaryBytes": 1058
+            },
+            {
+              "level": 0,
+              "symbols": 1492,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 987,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 2259,
+      "selectedBytes": 2259,
+      "bestColdBytes": 2259,
+      "brotli11Bytes": 1150,
+      "zstd19Bytes": 1377,
+      "totalMs": 645.484277
+    },
+    {
+      "name": "source-08",
+      "category": "source",
+      "inputBytes": 982,
+      "sha256": "67699c529f4ea9cd2c8328e5f93b51885d0fa718a5b3e300d4e0b8b0a34f33eb",
+      "treeMs": 32.54703099999983,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 753,
+          "innerBytes": 753,
+          "coldBytes": 753,
+          "profileBytes": 0,
+          "encodeMs": 22.609011999999893,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 442,
+              "entries": 186,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 297,
+              "dictionaryBits": 4320,
+              "dictionaryBytes": 442
+            },
+            {
+              "level": 0,
+              "symbols": 540,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 369,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 938,
+          "innerBytes": 901,
+          "coldBytes": 8475,
+          "profileBytes": 7537,
+          "encodeMs": 28.744732999999997,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 30,
+              "entries": 21,
+              "recipeMode": "raw",
+              "recipeBytes": 57,
+              "dictionaryBits": 8152,
+              "dictionaryBytes": 830
+            },
+            {
+              "level": 0,
+              "symbols": 1019,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 757,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 810,
+          "innerBytes": 773,
+          "coldBytes": 8347,
+          "profileBytes": 7537,
+          "encodeMs": 30.62053200000014,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 442,
+              "entries": 186,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 314,
+              "dictionaryBits": 4320,
+              "dictionaryBytes": 445
+            },
+            {
+              "level": 0,
+              "symbols": 540,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 372,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 934,
+          "innerBytes": 897,
+          "coldBytes": 4024,
+          "profileBytes": 3090,
+          "encodeMs": 18.257630000000063,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 30,
+              "entries": 21,
+              "recipeMode": "raw",
+              "recipeBytes": 57,
+              "dictionaryBits": 8152,
+              "dictionaryBytes": 826
+            },
+            {
+              "level": 0,
+              "symbols": 1019,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 753,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 810,
+          "innerBytes": 773,
+          "coldBytes": 3900,
+          "profileBytes": 3090,
+          "encodeMs": 22.08648600000015,
+          "container": "document",
+          "layers": [],
+          "literalBits": 7856,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 953,
+          "innerBytes": 916,
+          "coldBytes": 6828,
+          "profileBytes": 5875,
+          "encodeMs": 21.31117899999981,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 30,
+              "entries": 21,
+              "recipeMode": "raw",
+              "recipeBytes": 57,
+              "dictionaryBits": 8152,
+              "dictionaryBytes": 845
+            },
+            {
+              "level": 1,
+              "symbols": 370,
+              "entries": 186,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 355,
+              "dictionaryBits": 4320,
+              "dictionaryBytes": 490
+            },
+            {
+              "level": 0,
+              "symbols": 540,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 417,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 811,
+          "innerBytes": 774,
+          "coldBytes": 6686,
+          "profileBytes": 5875,
+          "encodeMs": 31.18706899999961,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 442,
+              "entries": 186,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 313,
+              "dictionaryBits": 4320,
+              "dictionaryBytes": 447
+            },
+            {
+              "level": 0,
+              "symbols": 540,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 374,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 949,
+          "innerBytes": 912,
+          "coldBytes": 2846,
+          "profileBytes": 1897,
+          "encodeMs": 23.767717999999604,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 30,
+              "entries": 21,
+              "recipeMode": "raw",
+              "recipeBytes": 57,
+              "dictionaryBits": 8152,
+              "dictionaryBytes": 841
+            },
+            {
+              "level": 1,
+              "symbols": 370,
+              "entries": 186,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 358,
+              "dictionaryBits": 4320,
+              "dictionaryBytes": 483
+            },
+            {
+              "level": 0,
+              "symbols": 540,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 410,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 811,
+          "innerBytes": 774,
+          "coldBytes": 2708,
+          "profileBytes": 1897,
+          "encodeMs": 22.365081999999802,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 442,
+              "entries": 186,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 311,
+              "dictionaryBits": 4320,
+              "dictionaryBytes": 449
+            },
+            {
+              "level": 0,
+              "symbols": 540,
+              "entries": 70,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 376,
+              "dictionaryBits": 560,
+              "dictionaryBytes": 73
+            }
+          ],
+          "literalBits": 560,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 753,
+      "selectedBytes": 753,
+      "bestColdBytes": 753,
+      "brotli11Bytes": 408,
+      "zstd19Bytes": 481,
+      "totalMs": 269.83850099999995
+    },
+    {
+      "name": "text-06",
+      "category": "text",
+      "inputBytes": 1549,
+      "sha256": "a2e92e701a59f616b0dcad5f755913b25a168a4c875a9acb9d3798f18feefb80",
+      "treeMs": 71.93107499999996,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 1184,
+          "innerBytes": 1184,
+          "coldBytes": 1184,
+          "profileBytes": 0,
+          "encodeMs": 31.27000100000032,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 37,
+              "entries": 30,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 45,
+              "dictionaryBits": 12688,
+              "dictionaryBytes": 1125
+            },
+            {
+              "level": 0,
+              "symbols": 1586,
+              "entries": 69,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1053,
+              "dictionaryBits": 552,
+              "dictionaryBytes": 72
+            }
+          ],
+          "literalBits": 552,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 1355,
+          "innerBytes": 1318,
+          "coldBytes": 8892,
+          "profileBytes": 7537,
+          "encodeMs": 41.380134,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 37,
+              "entries": 30,
+              "recipeMode": "raw",
+              "recipeBytes": 77,
+              "dictionaryBits": 12688,
+              "dictionaryBytes": 1227
+            },
+            {
+              "level": 0,
+              "symbols": 1586,
+              "entries": 69,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1155,
+              "dictionaryBits": 552,
+              "dictionaryBytes": 72
+            }
+          ],
+          "literalBits": 552,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 1229,
+          "innerBytes": 1192,
+          "coldBytes": 8766,
+          "profileBytes": 7537,
+          "encodeMs": 58.05861200000027,
+          "container": "document",
+          "layers": [],
+          "literalBits": 12392,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 1324,
+          "innerBytes": 1287,
+          "coldBytes": 4414,
+          "profileBytes": 3090,
+          "encodeMs": 22.15752300000031,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 37,
+              "entries": 30,
+              "recipeMode": "raw",
+              "recipeBytes": 77,
+              "dictionaryBits": 12688,
+              "dictionaryBytes": 1196
+            },
+            {
+              "level": 0,
+              "symbols": 1586,
+              "entries": 69,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1124,
+              "dictionaryBits": 552,
+              "dictionaryBytes": 72
+            }
+          ],
+          "literalBits": 552,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 1223,
+          "innerBytes": 1186,
+          "coldBytes": 4313,
+          "profileBytes": 3090,
+          "encodeMs": 25.825394999999844,
+          "container": "document",
+          "layers": [],
+          "literalBits": 12392,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 1402,
+          "innerBytes": 1365,
+          "coldBytes": 7277,
+          "profileBytes": 5875,
+          "encodeMs": 31.579881000000114,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 37,
+              "entries": 30,
+              "recipeMode": "raw",
+              "recipeBytes": 77,
+              "dictionaryBits": 12688,
+              "dictionaryBytes": 1274
+            },
+            {
+              "level": 0,
+              "symbols": 1586,
+              "entries": 69,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1202,
+              "dictionaryBits": 552,
+              "dictionaryBytes": 72
+            }
+          ],
+          "literalBits": 552,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 1229,
+          "innerBytes": 1192,
+          "coldBytes": 7104,
+          "profileBytes": 5875,
+          "encodeMs": 30.736183999999867,
+          "container": "document",
+          "layers": [],
+          "literalBits": 12392,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 1389,
+          "innerBytes": 1352,
+          "coldBytes": 3286,
+          "profileBytes": 1897,
+          "encodeMs": 32.70766400000002,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 37,
+              "entries": 30,
+              "recipeMode": "raw",
+              "recipeBytes": 77,
+              "dictionaryBits": 12688,
+              "dictionaryBytes": 1261
+            },
+            {
+              "level": 0,
+              "symbols": 1586,
+              "entries": 69,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1189,
+              "dictionaryBits": 552,
+              "dictionaryBytes": 72
+            }
+          ],
+          "literalBits": 552,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 1229,
+          "innerBytes": 1192,
+          "coldBytes": 3126,
+          "profileBytes": 1897,
+          "encodeMs": 34.222037,
+          "container": "document",
+          "layers": [],
+          "literalBits": 12392,
+          "literalMode": "arithmetic"
+        }
+      ],
+      "adaptiveBytes": 1184,
+      "selectedBytes": 1184,
+      "bestColdBytes": 1184,
+      "brotli11Bytes": 677,
+      "zstd19Bytes": 875,
+      "totalMs": 409.6050449999998
+    },
+    {
+      "name": "text-07",
+      "category": "text",
+      "inputBytes": 1786,
+      "sha256": "d4019a0b5611e9a4d41a0d61aba932b7b793646bd6f7953827afb5a9e34b72f9",
+      "treeMs": 40.23162599999978,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 1391,
+          "innerBytes": 1391,
+          "coldBytes": 1391,
+          "profileBytes": 0,
+          "encodeMs": 55.38768900000014,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 89,
+              "entries": 36,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 55,
+              "dictionaryBits": 14552,
+              "dictionaryBytes": 1322
+            },
+            {
+              "level": 0,
+              "symbols": 1819,
+              "entries": 75,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1244,
+              "dictionaryBits": 600,
+              "dictionaryBytes": 78
+            }
+          ],
+          "literalBits": 600,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 1594,
+          "innerBytes": 1557,
+          "coldBytes": 9131,
+          "profileBytes": 7537,
+          "encodeMs": 59.508380999999645,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 39,
+              "entries": 14,
+              "recipeMode": "raw",
+              "recipeBytes": 54,
+              "dictionaryBits": 14936,
+              "dictionaryBytes": 1489
+            },
+            {
+              "level": 0,
+              "symbols": 1867,
+              "entries": 75,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1411,
+              "dictionaryBits": 600,
+              "dictionaryBytes": 78
+            }
+          ],
+          "literalBits": 600,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 1433,
+          "innerBytes": 1396,
+          "coldBytes": 8970,
+          "profileBytes": 7537,
+          "encodeMs": 61.629035999999815,
+          "container": "document",
+          "layers": [],
+          "literalBits": 14288,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 1557,
+          "innerBytes": 1520,
+          "coldBytes": 4647,
+          "profileBytes": 3090,
+          "encodeMs": 40.403849000000264,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 39,
+              "entries": 14,
+              "recipeMode": "raw",
+              "recipeBytes": 54,
+              "dictionaryBits": 14936,
+              "dictionaryBytes": 1452
+            },
+            {
+              "level": 0,
+              "symbols": 1867,
+              "entries": 75,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1374,
+              "dictionaryBits": 600,
+              "dictionaryBytes": 78
+            }
+          ],
+          "literalBits": 600,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 1431,
+          "innerBytes": 1394,
+          "coldBytes": 4521,
+          "profileBytes": 3090,
+          "encodeMs": 49.68381700000009,
+          "container": "document",
+          "layers": [],
+          "literalBits": 14288,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 1660,
+          "innerBytes": 1623,
+          "coldBytes": 7535,
+          "profileBytes": 5875,
+          "encodeMs": 49.20161899999994,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 39,
+              "entries": 14,
+              "recipeMode": "raw",
+              "recipeBytes": 54,
+              "dictionaryBits": 14936,
+              "dictionaryBytes": 1555
+            },
+            {
+              "level": 0,
+              "symbols": 1867,
+              "entries": 75,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1477,
+              "dictionaryBits": 600,
+              "dictionaryBytes": 78
+            }
+          ],
+          "literalBits": 600,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 1433,
+          "innerBytes": 1396,
+          "coldBytes": 7308,
+          "profileBytes": 5875,
+          "encodeMs": 63.03927599999997,
+          "container": "document",
+          "layers": [],
+          "literalBits": 14288,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 1662,
+          "innerBytes": 1625,
+          "coldBytes": 3559,
+          "profileBytes": 1897,
+          "encodeMs": 58.85136800000009,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 39,
+              "entries": 14,
+              "recipeMode": "raw",
+              "recipeBytes": 54,
+              "dictionaryBits": 14936,
+              "dictionaryBytes": 1557
+            },
+            {
+              "level": 0,
+              "symbols": 1867,
+              "entries": 75,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1479,
+              "dictionaryBits": 600,
+              "dictionaryBytes": 78
+            }
+          ],
+          "literalBits": 600,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 1433,
+          "innerBytes": 1396,
+          "coldBytes": 3330,
+          "profileBytes": 1897,
+          "encodeMs": 57.18331399999988,
+          "container": "document",
+          "layers": [],
+          "literalBits": 14288,
+          "literalMode": "arithmetic"
+        }
+      ],
+      "adaptiveBytes": 1391,
+      "selectedBytes": 1391,
+      "bestColdBytes": 1391,
+      "brotli11Bytes": 799,
+      "zstd19Bytes": 1019,
+      "totalMs": 560.7278739999997
+    },
+    {
+      "name": "text-08",
+      "category": "text",
+      "inputBytes": 512,
+      "sha256": "86a5835dbb5e2fa9e9e938a5d60394d8e1bfca8aafc568def07ef0cd3b638f00",
+      "treeMs": 11.228071999999884,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 408,
+          "innerBytes": 408,
+          "coldBytes": 408,
+          "profileBytes": 0,
+          "encodeMs": 9.37125100000003,
+          "container": "document",
+          "layers": [],
+          "literalBits": 4096,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 556,
+          "innerBytes": 519,
+          "coldBytes": 8093,
+          "profileBytes": 7537,
+          "encodeMs": 10.647415999999794,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 22,
+              "entries": 13,
+              "recipeMode": "raw",
+              "recipeBytes": 37,
+              "dictionaryBits": 4456,
+              "dictionaryBytes": 468
+            },
+            {
+              "level": 0,
+              "symbols": 557,
+              "entries": 55,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 410,
+              "dictionaryBits": 440,
+              "dictionaryBytes": 58
+            }
+          ],
+          "literalBits": 440,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 448,
+          "innerBytes": 411,
+          "coldBytes": 7985,
+          "profileBytes": 7537,
+          "encodeMs": 11.172663000000284,
+          "container": "document",
+          "layers": [],
+          "literalBits": 4096,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 551,
+          "innerBytes": 514,
+          "coldBytes": 3641,
+          "profileBytes": 3090,
+          "encodeMs": 9.501486999999997,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 22,
+              "entries": 13,
+              "recipeMode": "raw",
+              "recipeBytes": 37,
+              "dictionaryBits": 4456,
+              "dictionaryBytes": 463
+            },
+            {
+              "level": 0,
+              "symbols": 557,
+              "entries": 55,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 405,
+              "dictionaryBits": 440,
+              "dictionaryBytes": 58
+            }
+          ],
+          "literalBits": 440,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 445,
+          "innerBytes": 408,
+          "coldBytes": 3535,
+          "profileBytes": 3090,
+          "encodeMs": 10.40279499999997,
+          "container": "document",
+          "layers": [],
+          "literalBits": 4096,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 560,
+          "innerBytes": 523,
+          "coldBytes": 6435,
+          "profileBytes": 5875,
+          "encodeMs": 11.322630000000117,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 22,
+              "entries": 13,
+              "recipeMode": "raw",
+              "recipeBytes": 37,
+              "dictionaryBits": 4456,
+              "dictionaryBytes": 472
+            },
+            {
+              "level": 0,
+              "symbols": 557,
+              "entries": 55,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 414,
+              "dictionaryBits": 440,
+              "dictionaryBytes": 58
+            }
+          ],
+          "literalBits": 440,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 448,
+          "innerBytes": 411,
+          "coldBytes": 6323,
+          "profileBytes": 5875,
+          "encodeMs": 17.231865000000198,
+          "container": "document",
+          "layers": [],
+          "literalBits": 4096,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 562,
+          "innerBytes": 525,
+          "coldBytes": 2459,
+          "profileBytes": 1897,
+          "encodeMs": 9.807561999999962,
+          "container": "document",
+          "layers": [],
+          "literalBits": 4096,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 448,
+          "innerBytes": 411,
+          "coldBytes": 2345,
+          "profileBytes": 1897,
+          "encodeMs": 11.839797999999973,
+          "container": "document",
+          "layers": [],
+          "literalBits": 4096,
+          "literalMode": "arithmetic"
+        }
+      ],
+      "adaptiveBytes": 408,
+      "selectedBytes": 408,
+      "bestColdBytes": 408,
+      "brotli11Bytes": 271,
+      "zstd19Bytes": 360,
+      "totalMs": 126.79789100000016
+    },
+    {
+      "name": "c-06",
+      "category": "c",
+      "inputBytes": 2275,
+      "sha256": "15c394fe3284863e026511f8ba62dfe75148f286f59e2a8fd2f744bc00c8cda9",
+      "treeMs": 29.0910429999999,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 1496,
+          "innerBytes": 1496,
+          "coldBytes": 1496,
+          "profileBytes": 0,
+          "encodeMs": 38.20175199999994,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 289,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1193
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1114,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 1857,
+          "innerBytes": 1820,
+          "coldBytes": 9394,
+          "profileBytes": 7537,
+          "encodeMs": 37.19962099999975,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 465,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1341
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1262,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 1564,
+          "innerBytes": 1527,
+          "coldBytes": 9101,
+          "profileBytes": 7537,
+          "encodeMs": 48.85360900000023,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 308,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1205
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1126,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 1913,
+          "innerBytes": 1876,
+          "coldBytes": 5003,
+          "profileBytes": 3090,
+          "encodeMs": 31.51357599999983,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "raw",
+              "recipeBytes": 515,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1347
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1268,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 1586,
+          "innerBytes": 1549,
+          "coldBytes": 4676,
+          "profileBytes": 3090,
+          "encodeMs": 39.561951000000136,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 324,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1211
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1132,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 1829,
+          "innerBytes": 1792,
+          "coldBytes": 7704,
+          "profileBytes": 5875,
+          "encodeMs": 48.36243800000011,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 430,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1348
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1269,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 1560,
+          "innerBytes": 1523,
+          "coldBytes": 7435,
+          "profileBytes": 5875,
+          "encodeMs": 46.114346999999725,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 305,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1204
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1125,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 1899,
+          "innerBytes": 1862,
+          "coldBytes": 3796,
+          "profileBytes": 1897,
+          "encodeMs": 48.651908000000276,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 446,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1402
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1323,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 1563,
+          "innerBytes": 1526,
+          "coldBytes": 3460,
+          "profileBytes": 1897,
+          "encodeMs": 44.93981799999983,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 377,
+              "entries": 204,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 303,
+              "dictionaryBits": 12832,
+              "dictionaryBytes": 1209
+            },
+            {
+              "level": 0,
+              "symbols": 1604,
+              "entries": 76,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1130,
+              "dictionaryBits": 608,
+              "dictionaryBytes": 79
+            }
+          ],
+          "literalBits": 608,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 1496,
+      "selectedBytes": 1496,
+      "bestColdBytes": 1496,
+      "brotli11Bytes": 691,
+      "zstd19Bytes": 830,
+      "totalMs": 440.6464540000002
+    },
+    {
+      "name": "c-07",
+      "category": "c",
+      "inputBytes": 1458,
+      "sha256": "23d58bc8b628c9d168f8911d9304d4964e0f992f68e6d62daefe7eb837b07cb4",
+      "treeMs": 20.932476999999835,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 1093,
+          "innerBytes": 1093,
+          "coldBytes": 1093,
+          "profileBytes": 0,
+          "encodeMs": 22.244272999999794,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 643,
+              "entries": 263,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 481,
+              "dictionaryBits": 5928,
+              "dictionaryBytes": 598
+            },
+            {
+              "level": 0,
+              "symbols": 741,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 527,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 1368,
+          "innerBytes": 1331,
+          "coldBytes": 8905,
+          "profileBytes": 7537,
+          "encodeMs": 29.236029000000144,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 13,
+              "entries": 10,
+              "recipeMode": "raw",
+              "recipeBytes": 32,
+              "dictionaryBits": 12376,
+              "dictionaryBytes": 1285
+            },
+            {
+              "level": 1,
+              "symbols": 595,
+              "entries": 263,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 626,
+              "dictionaryBits": 5928,
+              "dictionaryBytes": 659
+            },
+            {
+              "level": 0,
+              "symbols": 741,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 588,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 1155,
+          "innerBytes": 1118,
+          "coldBytes": 8692,
+          "profileBytes": 7537,
+          "encodeMs": 33.00152500000013,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 643,
+              "entries": 263,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 499,
+              "dictionaryBits": 5928,
+              "dictionaryBytes": 605
+            },
+            {
+              "level": 0,
+              "symbols": 741,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 534,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 1405,
+          "innerBytes": 1368,
+          "coldBytes": 4495,
+          "profileBytes": 3090,
+          "encodeMs": 22.317712999999912,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 35,
+              "entries": 26,
+              "recipeMode": "raw",
+              "recipeBytes": 70,
+              "dictionaryBits": 11992,
+              "dictionaryBytes": 1284
+            },
+            {
+              "level": 0,
+              "symbols": 1499,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1213,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 1160,
+          "innerBytes": 1123,
+          "coldBytes": 4250,
+          "profileBytes": 3090,
+          "encodeMs": 26.289299999999912,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 643,
+              "entries": 263,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 503,
+              "dictionaryBits": 5928,
+              "dictionaryBytes": 606
+            },
+            {
+              "level": 0,
+              "symbols": 741,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 535,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 1344,
+          "innerBytes": 1307,
+          "coldBytes": 7219,
+          "profileBytes": 5875,
+          "encodeMs": 20.785037999999986,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 245,
+              "entries": 160,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 272,
+              "dictionaryBits": 9552,
+              "dictionaryBytes": 1021
+            },
+            {
+              "level": 0,
+              "symbols": 1194,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 950,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 1152,
+          "innerBytes": 1115,
+          "coldBytes": 7027,
+          "profileBytes": 5875,
+          "encodeMs": 24.957683000000088,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 643,
+              "entries": 263,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 497,
+              "dictionaryBits": 5928,
+              "dictionaryBytes": 604
+            },
+            {
+              "level": 0,
+              "symbols": 741,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 533,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 1380,
+          "innerBytes": 1343,
+          "coldBytes": 3277,
+          "profileBytes": 1897,
+          "encodeMs": 22.360777999999755,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 13,
+              "entries": 10,
+              "recipeMode": "raw",
+              "recipeBytes": 32,
+              "dictionaryBits": 12376,
+              "dictionaryBytes": 1297
+            },
+            {
+              "level": 1,
+              "symbols": 595,
+              "entries": 263,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 638,
+              "dictionaryBits": 5928,
+              "dictionaryBytes": 659
+            },
+            {
+              "level": 0,
+              "symbols": 741,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 588,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 1159,
+          "innerBytes": 1122,
+          "coldBytes": 3056,
+          "profileBytes": 1897,
+          "encodeMs": 24.74360999999999,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 1,
+              "symbols": 643,
+              "entries": 263,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 500,
+              "dictionaryBits": 5928,
+              "dictionaryBytes": 608
+            },
+            {
+              "level": 0,
+              "symbols": 741,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 537,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 1093,
+      "selectedBytes": 1093,
+      "bestColdBytes": 1093,
+      "brotli11Bytes": 530,
+      "zstd19Bytes": 657,
+      "totalMs": 278.916158
+    },
+    {
+      "name": "c-08",
+      "category": "c",
+      "inputBytes": 7983,
+      "sha256": "c9aa1acb35af38c90c4a38ba168885b649838236b2d57adb5e76d687bdbe252e",
+      "treeMs": 114.68042999999989,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 1765,
+          "innerBytes": 1765,
+          "coldBytes": 1765,
+          "profileBytes": 0,
+          "encodeMs": 118.43999600000006,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 376,
+              "entries": 111,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 252,
+              "dictionaryBits": 34280,
+              "dictionaryBytes": 1499
+            },
+            {
+              "level": 2,
+              "symbols": 553,
+              "entries": 268,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 436,
+              "dictionaryBits": 18248,
+              "dictionaryBytes": 1063
+            },
+            {
+              "level": 1,
+              "symbols": 651,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 571,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 492
+            },
+            {
+              "level": 0,
+              "symbols": 696,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 421,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 2484,
+          "innerBytes": 2447,
+          "coldBytes": 10021,
+          "profileBytes": 7537,
+          "encodeMs": 140.10426300000017,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 6,
+              "symbols": 75,
+              "entries": 31,
+              "recipeMode": "raw",
+              "recipeBytes": 118,
+              "dictionaryBits": 54328,
+              "dictionaryBytes": 2315
+            },
+            {
+              "level": 3,
+              "symbols": 434,
+              "entries": 181,
+              "recipeMode": "raw",
+              "recipeBytes": 623,
+              "dictionaryBits": 26720,
+              "dictionaryBytes": 1692
+            },
+            {
+              "level": 1,
+              "symbols": 964,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1018,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 674
+            },
+            {
+              "level": 0,
+              "symbols": 696,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 603,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 1890,
+          "innerBytes": 1853,
+          "coldBytes": 9427,
+          "profileBytes": 7537,
+          "encodeMs": 134.45194700000047,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 376,
+              "entries": 111,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 296,
+              "dictionaryBits": 34280,
+              "dictionaryBytes": 1543
+            },
+            {
+              "level": 2,
+              "symbols": 553,
+              "entries": 268,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 466,
+              "dictionaryBits": 18248,
+              "dictionaryBytes": 1077
+            },
+            {
+              "level": 1,
+              "symbols": 651,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 574,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 503
+            }
+          ],
+          "literalBits": 5568,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 2576,
+          "innerBytes": 2539,
+          "coldBytes": 5666,
+          "profileBytes": 3090,
+          "encodeMs": 117.87935800000014,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 6,
+              "symbols": 75,
+              "entries": 31,
+              "recipeMode": "raw",
+              "recipeBytes": 118,
+              "dictionaryBits": 54328,
+              "dictionaryBytes": 2407
+            },
+            {
+              "level": 3,
+              "symbols": 434,
+              "entries": 181,
+              "recipeMode": "raw",
+              "recipeBytes": 623,
+              "dictionaryBits": 26720,
+              "dictionaryBytes": 1784
+            },
+            {
+              "level": 1,
+              "symbols": 964,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1096,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 688
+            },
+            {
+              "level": 0,
+              "symbols": 696,
+              "entries": 68,
+              "recipeMode": "raw",
+              "recipeBytes": 617,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 1900,
+          "innerBytes": 1863,
+          "coldBytes": 4990,
+          "profileBytes": 3090,
+          "encodeMs": 139.5002800000002,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 376,
+              "entries": 111,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 290,
+              "dictionaryBits": 34280,
+              "dictionaryBytes": 1559
+            },
+            {
+              "level": 2,
+              "symbols": 553,
+              "entries": 268,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 480,
+              "dictionaryBits": 18248,
+              "dictionaryBytes": 1079
+            },
+            {
+              "level": 1,
+              "symbols": 651,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 579,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 500
+            }
+          ],
+          "literalBits": 5568,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 2429,
+          "innerBytes": 2392,
+          "coldBytes": 8304,
+          "profileBytes": 5875,
+          "encodeMs": 134.33813699999973,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 33,
+              "entries": 15,
+              "recipeMode": "raw",
+              "recipeBytes": 61,
+              "dictionaryBits": 61760,
+              "dictionaryBytes": 2317
+            },
+            {
+              "level": 4,
+              "symbols": 232,
+              "entries": 111,
+              "recipeMode": "raw",
+              "recipeBytes": 354,
+              "dictionaryBits": 34280,
+              "dictionaryBytes": 1963
+            },
+            {
+              "level": 2,
+              "symbols": 553,
+              "entries": 268,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 636,
+              "dictionaryBits": 18248,
+              "dictionaryBytes": 1327
+            },
+            {
+              "level": 1,
+              "symbols": 651,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 663,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 664
+            },
+            {
+              "level": 0,
+              "symbols": 696,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 593,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 1891,
+          "innerBytes": 1854,
+          "coldBytes": 7766,
+          "profileBytes": 5875,
+          "encodeMs": 133.20400299999983,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 33,
+              "entries": 15,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 49,
+              "dictionaryBits": 61760,
+              "dictionaryBytes": 1791
+            },
+            {
+              "level": 4,
+              "symbols": 232,
+              "entries": 111,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 249,
+              "dictionaryBits": 34280,
+              "dictionaryBytes": 1542
+            },
+            {
+              "level": 2,
+              "symbols": 553,
+              "entries": 268,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 463,
+              "dictionaryBits": 18248,
+              "dictionaryBytes": 1079
+            },
+            {
+              "level": 1,
+              "symbols": 651,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 576,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 503
+            }
+          ],
+          "literalBits": 5568,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 2468,
+          "innerBytes": 2431,
+          "coldBytes": 4365,
+          "profileBytes": 1897,
+          "encodeMs": 154.98174600000038,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 33,
+              "entries": 15,
+              "recipeMode": "raw",
+              "recipeBytes": 61,
+              "dictionaryBits": 61760,
+              "dictionaryBytes": 2356
+            },
+            {
+              "level": 4,
+              "symbols": 232,
+              "entries": 111,
+              "recipeMode": "raw",
+              "recipeBytes": 354,
+              "dictionaryBits": 34280,
+              "dictionaryBytes": 2002
+            },
+            {
+              "level": 2,
+              "symbols": 553,
+              "entries": 268,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 665,
+              "dictionaryBits": 18248,
+              "dictionaryBytes": 1337
+            },
+            {
+              "level": 1,
+              "symbols": 651,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 677,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 660
+            },
+            {
+              "level": 0,
+              "symbols": 696,
+              "entries": 68,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 589,
+              "dictionaryBits": 544,
+              "dictionaryBytes": 71
+            }
+          ],
+          "literalBits": 544,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 1879,
+          "innerBytes": 1842,
+          "coldBytes": 3776,
+          "profileBytes": 1897,
+          "encodeMs": 129.83630100000028,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 4,
+              "symbols": 376,
+              "entries": 111,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 292,
+              "dictionaryBits": 34280,
+              "dictionaryBytes": 1536
+            },
+            {
+              "level": 2,
+              "symbols": 553,
+              "entries": 268,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 453,
+              "dictionaryBits": 18248,
+              "dictionaryBytes": 1083
+            },
+            {
+              "level": 1,
+              "symbols": 651,
+              "entries": 206,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 580,
+              "dictionaryBits": 5568,
+              "dictionaryBytes": 503
+            }
+          ],
+          "literalBits": 5568,
+          "literalMode": "arithmetic"
+        }
+      ],
+      "adaptiveBytes": 1765,
+      "selectedBytes": 1765,
+      "bestColdBytes": 1765,
+      "brotli11Bytes": 673,
+      "zstd19Bytes": 782,
+      "totalMs": 1363.9286550000002
+    },
+    {
+      "name": "json-04",
+      "category": "json",
+      "inputBytes": 546,
+      "sha256": "48922025d72aaab48450a52c22dee43650111d531b6eb2ecf33fa188c3f68046",
+      "treeMs": 5.9356049999996685,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 382,
+          "innerBytes": 382,
+          "coldBytes": 382,
+          "profileBytes": 0,
+          "encodeMs": 9.381185999999616,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 137,
+              "entries": 59,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 89,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 279
+            },
+            {
+              "level": 0,
+              "symbols": 366,
+              "entries": 45,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 231,
+              "dictionaryBits": 360,
+              "dictionaryBytes": 48
+            }
+          ],
+          "literalBits": 360,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 493,
+          "innerBytes": 456,
+          "coldBytes": 8030,
+          "profileBytes": 7537,
+          "encodeMs": 11.775095999999394,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 6,
+              "symbols": 4,
+              "entries": 3,
+              "recipeMode": "raw",
+              "recipeBytes": 12,
+              "dictionaryBits": 5272,
+              "dictionaryBytes": 430
+            },
+            {
+              "level": 2,
+              "symbols": 121,
+              "entries": 59,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 122,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 308
+            },
+            {
+              "level": 0,
+              "symbols": 366,
+              "entries": 45,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 260,
+              "dictionaryBits": 360,
+              "dictionaryBytes": 48
+            }
+          ],
+          "literalBits": 360,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 432,
+          "innerBytes": 395,
+          "coldBytes": 7969,
+          "profileBytes": 7537,
+          "encodeMs": 14.600561999999627,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 137,
+              "entries": 59,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 97,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 284
+            }
+          ],
+          "literalBits": 2928,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 517,
+          "innerBytes": 480,
+          "coldBytes": 3607,
+          "profileBytes": 3090,
+          "encodeMs": 10.203725000000304,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 6,
+              "symbols": 4,
+              "entries": 3,
+              "recipeMode": "raw",
+              "recipeBytes": 12,
+              "dictionaryBits": 5272,
+              "dictionaryBytes": 454
+            },
+            {
+              "level": 2,
+              "symbols": 121,
+              "entries": 59,
+              "recipeMode": "raw",
+              "recipeBytes": 147,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 307
+            },
+            {
+              "level": 0,
+              "symbols": 366,
+              "entries": 45,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 259,
+              "dictionaryBits": 360,
+              "dictionaryBytes": 48
+            }
+          ],
+          "literalBits": 360,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 443,
+          "innerBytes": 406,
+          "coldBytes": 3533,
+          "profileBytes": 3090,
+          "encodeMs": 11.396326000000045,
+          "container": "document",
+          "layers": [],
+          "literalBits": 4368,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 483,
+          "innerBytes": 446,
+          "coldBytes": 6358,
+          "profileBytes": 5875,
+          "encodeMs": 13.184917999999925,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 6,
+              "symbols": 4,
+              "entries": 3,
+              "recipeMode": "raw",
+              "recipeBytes": 12,
+              "dictionaryBits": 5272,
+              "dictionaryBytes": 420
+            },
+            {
+              "level": 2,
+              "symbols": 121,
+              "entries": 59,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 111,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 309
+            },
+            {
+              "level": 0,
+              "symbols": 366,
+              "entries": 45,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 261,
+              "dictionaryBits": 360,
+              "dictionaryBytes": 48
+            }
+          ],
+          "literalBits": 360,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 428,
+          "innerBytes": 391,
+          "coldBytes": 6303,
+          "profileBytes": 5875,
+          "encodeMs": 12.09730799999943,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 137,
+              "entries": 59,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 93,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 284
+            }
+          ],
+          "literalBits": 2928,
+          "literalMode": "arithmetic"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 492,
+          "innerBytes": 455,
+          "coldBytes": 2389,
+          "profileBytes": 1897,
+          "encodeMs": 9.798195999999734,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 5,
+              "symbols": 9,
+              "entries": 6,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 5016,
+              "dictionaryBytes": 421
+            },
+            {
+              "level": 2,
+              "symbols": 113,
+              "entries": 59,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 119,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 302
+            },
+            {
+              "level": 0,
+              "symbols": 366,
+              "entries": 45,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 254,
+              "dictionaryBits": 360,
+              "dictionaryBytes": 48
+            }
+          ],
+          "literalBits": 360,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 433,
+          "innerBytes": 396,
+          "coldBytes": 2330,
+          "profileBytes": 1897,
+          "encodeMs": 11.41090499999973,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 2,
+              "symbols": 137,
+              "entries": 59,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 99,
+              "dictionaryBits": 2928,
+              "dictionaryBytes": 283
+            },
+            {
+              "level": 0,
+              "symbols": 366,
+              "entries": 45,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 235,
+              "dictionaryBits": 360,
+              "dictionaryBytes": 48
+            }
+          ],
+          "literalBits": 360,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 382,
+      "selectedBytes": 382,
+      "bestColdBytes": 382,
+      "brotli11Bytes": 215,
+      "zstd19Bytes": 232,
+      "totalMs": 119.79134599999998
+    },
+    {
+      "name": "json-05",
+      "category": "json",
+      "inputBytes": 3087,
+      "sha256": "3722b30210616a13a3213ded11575ba6b2dbab10c32a5ef67afca8513e27017e",
+      "treeMs": 31.196367999999893,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 1570,
+          "innerBytes": 1570,
+          "coldBytes": 1570,
+          "profileBytes": 0,
+          "encodeMs": 65.78951700000016,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 17,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1539
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 420,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1119
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1049,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 1936,
+          "innerBytes": 1899,
+          "coldBytes": 9473,
+          "profileBytes": 7537,
+          "encodeMs": 67.5182850000001,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1865
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 640,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1225
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1155,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 1655,
+          "innerBytes": 1618,
+          "coldBytes": 9192,
+          "profileBytes": 7537,
+          "encodeMs": 71.09303400000044,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1584
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 455,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1129
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1059,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 2008,
+          "innerBytes": 1971,
+          "coldBytes": 5098,
+          "profileBytes": 3090,
+          "encodeMs": 56.84295999999995,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1937
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "raw",
+              "recipeBytes": 721,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1216
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1146,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 1674,
+          "innerBytes": 1637,
+          "coldBytes": 4764,
+          "profileBytes": 3090,
+          "encodeMs": 77.16116500000044,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1603
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 472,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1131
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1061,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 1926,
+          "innerBytes": 1889,
+          "coldBytes": 7801,
+          "profileBytes": 5875,
+          "encodeMs": 64.36088500000005,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1855
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 604,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1251
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1181,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 1654,
+          "innerBytes": 1617,
+          "coldBytes": 7529,
+          "profileBytes": 5875,
+          "encodeMs": 69.63731300000018,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1583
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 453,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1130
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1060,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 1943,
+          "innerBytes": 1906,
+          "coldBytes": 3840,
+          "profileBytes": 1897,
+          "encodeMs": 66.34781699999985,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 6,
+              "symbols": 18,
+              "entries": 11,
+              "recipeMode": "raw",
+              "recipeBytes": 39,
+              "dictionaryBits": 25872,
+              "dictionaryBytes": 1853
+            },
+            {
+              "level": 2,
+              "symbols": 534,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 621,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1232
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1162,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 1647,
+          "innerBytes": 1610,
+          "coldBytes": 3544,
+          "profileBytes": 1897,
+          "encodeMs": 71.97583799999938,
+          "container": "layers",
+          "layers": [
+            {
+              "level": 7,
+              "symbols": 8,
+              "entries": 5,
+              "recipeMode": "raw",
+              "recipeBytes": 20,
+              "dictionaryBits": 26384,
+              "dictionaryBytes": 1576
+            },
+            {
+              "level": 2,
+              "symbols": 550,
+              "entries": 235,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 447,
+              "dictionaryBits": 13096,
+              "dictionaryBytes": 1129
+            },
+            {
+              "level": 0,
+              "symbols": 1637,
+              "entries": 67,
+              "recipeMode": "arithmetic",
+              "recipeBytes": 1059,
+              "dictionaryBits": 536,
+              "dictionaryBytes": 70
+            }
+          ],
+          "literalBits": 536,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 1570,
+      "selectedBytes": 1570,
+      "bestColdBytes": 1570,
+      "brotli11Bytes": 724,
+      "zstd19Bytes": 829,
+      "totalMs": 690.5422189999999
+    },
+    {
+      "name": "binary-00",
+      "category": "binary",
+      "inputBytes": 632,
+      "sha256": "d69e14971ccd758e47ba4e6bb13df1b23fcfd3d9586674bd4b46130accffeca5",
+      "treeMs": 9.014787999999498,
+      "selected": "adaptive",
+      "candidates": [
+        {
+          "name": "adaptive",
+          "profile": null,
+          "policy": "adaptive",
+          "bytes": 646,
+          "innerBytes": 646,
+          "coldBytes": 646,
+          "profileBytes": 0,
+          "encodeMs": 15.805402000000868,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-fixed",
+          "profile": "generic",
+          "policy": "fixed",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 8220,
+          "profileBytes": 7537,
+          "encodeMs": 14.215580000000045,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "generic-prior16",
+          "profile": "generic",
+          "policy": "prior16",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 8220,
+          "profileBytes": 7537,
+          "encodeMs": 27.22012199999972,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-fixed",
+          "profile": "text",
+          "policy": "fixed",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 3773,
+          "profileBytes": 3090,
+          "encodeMs": 21.57761500000015,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "text-prior16",
+          "profile": "text",
+          "policy": "prior16",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 3773,
+          "profileBytes": 3090,
+          "encodeMs": 22.193057000000408,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-fixed",
+          "profile": "ascii",
+          "policy": "fixed",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 6558,
+          "profileBytes": 5875,
+          "encodeMs": 26.53678300000047,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "ascii-prior16",
+          "profile": "ascii",
+          "policy": "prior16",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 6558,
+          "profileBytes": 5875,
+          "encodeMs": 28.374750999999378,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-fixed",
+          "profile": "json",
+          "policy": "fixed",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 2580,
+          "profileBytes": 1897,
+          "encodeMs": 9.674226999999519,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        },
+        {
+          "name": "json-prior16",
+          "profile": "json",
+          "policy": "prior16",
+          "bytes": 683,
+          "innerBytes": 646,
+          "coldBytes": 2580,
+          "profileBytes": 1897,
+          "encodeMs": 10.47903899999983,
+          "container": "document",
+          "layers": [],
+          "literalBits": 5056,
+          "literalMode": "raw"
+        }
+      ],
+      "adaptiveBytes": 646,
+      "selectedBytes": 646,
+      "bestColdBytes": 646,
+      "brotli11Bytes": 636,
+      "zstd19Bytes": 642,
+      "totalMs": 195.77574899999945
+    }
+  ],
+  "sulCommit": "d16a9ebf39b30a42e1b795bc329774d867196841"
+}
