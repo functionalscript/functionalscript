@@ -5,13 +5,12 @@
 
 ### Problem
 
-Three consumers of an EDAG have to know which nodes are shared, and none of
-them can ask the graph directly.
+Two consumers of an EDAG have to know which nodes are shared without
+running it, and neither can ask the graph directly.
 
 - The FunctionalScript writer
   ([`fjs/fsc/todo/functionalscript-output.md`](../../fsc/todo/functionalscript-output.md))
-  hoists a shared node into a `const $n`, and the DataJS writer refuses JSON
-  for one.
+  hoists a shared node into a `const $n`.
 - A JavaScript-compatible executor
   ([`../execution-models.md`](../execution-models.md) §2) evaluates a shared
   node once per scope and reuses the value, so that `[s, s]` holds one array
@@ -24,11 +23,16 @@ them can ask the graph directly.
 Sharing in an EDAG is node identity, which a walk can only see with a memo
 of its own — `validate` re-walks a shared subgraph once per edge for that
 reason — and the language forbids the mutable set a naive walk would keep.
-So the decision is made ad hoc: the DataJS serializer numbers nodes into a
-table by its own walk, the AST sweep follows routes, and an executor would
-build a third notion. Node identity is also not the whole of sharing:
-`[cfg.a, cfg.a]` is two access nodes and one value, which the AST sweep
-knows by its keys and an identity count does not.
+So the decision is made ad hoc: the AST sweep follows routes, and an
+executor would build a notion of its own. Node identity is also not the
+whole of sharing: `[cfg.a, cfg.a]` is two access nodes and one value, which
+the AST sweep knows by its keys and an identity count does not.
+
+The DataJS writer is not a third consumer. Its question — is this container
+reached twice — is about the value, not the graph: `[cfg.x, cfg.x]` must be
+refused as JSON when `x` is `[]` and written when `x` is `1`, and no static
+table can tell the two apart. The serializer already answers it by walking
+the value by identity, and keeps doing so.
 
 ### Proposal
 
@@ -98,14 +102,20 @@ Two consumers then follow, and share amnesia's operations:
   amnesia's `false` is its own and the memo executor's `true` is
   JavaScript's; a proof of such a case pins both answers, not one against
   the other.
-- **The writers**: the FunctionalScript writer hoists exactly the
-  constructors among the module-level `shared`, in table order — a merged
-  node it writes in place, since the recompiled occurrences merge again —
-  and the DataJS writer refuses JSON when `shared` names a container.
+- **The FunctionalScript writer** hoists exactly the constructors among the
+  module-level `shared`, in table order — a merged node it writes in place,
+  since the recompiled occurrences merge again.
+- **The value outputs**, `.data.js` and `.json`, read no table. The memo
+  executor returns a value whose sharing is JavaScript's own identity,
+  `[s, s]` one array, and the DataJS serializer hoists and refuses JSON by
+  walking that value, as it does today; the `Denotation`'s value and sharing
+  are then the executed value's, which is what
+  [`interpret-edag.md`](../../fsc/todo/interpret-edag.md) preserves.
 
-The table replaces, for the EDAG-backed outputs, the sharing sweep in
-`fjs/fsc/ast`, whose route-following becomes the merge step here; the value
-outputs keep it until they read the EDAG.
+The table replaces the sharing sweep in `fjs/fsc/ast` — its route-following
+becomes the merge step here for the FunctionalScript writer, and the value
+it predicted becomes the executor's real value for the value outputs; the
+value outputs keep the sweep until they run the EDAG.
 
 ### Tasks
 
@@ -122,8 +132,10 @@ outputs keep it until they read the EDAG.
       operand is evaluated only when demanded — each beside amnesia's answer
       where sharing does not decide it, and `['===', s, s]` pinned as `true`
       here and `false` in amnesia.
-- [ ] The writers read the table: `functionalscript-output.md`'s `$n` hoisting
-      from `shared`, the DataJS writer's JSON refusal from it.
+- [ ] The FunctionalScript writer reads the table for its hoisting; the value
+      outputs run the EDAG through `fjs/edag/memo` and hand the value to the
+      DataJS serializer, whose JSON refusal is pinned on `[cfg.x, cfg.x]` with
+      `x: []` refused and `x: 1` written, as the AST proof pins it today.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

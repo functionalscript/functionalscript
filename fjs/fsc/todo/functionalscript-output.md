@@ -100,7 +100,10 @@ accepts, so that compiling the output again yields the same EDAG:
   that the output is canonical text as the DataJS output is.
 
 `transpile` keeps its value-producing contract for the DataJS and JSON
-outputs. The FunctionalScript output does not evaluate the module: it is a
+outputs: they are written from the executed value, whose sharing is
+JavaScript's identity, and the DataJS serializer decides hoisting and the
+JSON refusal on that value, never on the analysis. The FunctionalScript
+output does not evaluate the module: it is a
 rewrite of the linked graph, so a module holding a function compiles, and a
 module whose value the readers would refuse — a read of `null` — still
 compiles, the failure being the program's to make when it runs. For the
