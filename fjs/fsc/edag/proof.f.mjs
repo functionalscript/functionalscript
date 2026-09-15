@@ -152,6 +152,9 @@ export const proof = {
         // a module the export reaches entirely has no comma at all
         none: () => {
             expectEdag(compile('const a = []; export default [a];').edag, ['[]', [['[]', []]]])
+            // a literal read by an access is constructed whole, so what it
+            // holds is reached whatever the key selects
+            expectEdag(compile('const a = []; export default [a, 0][1];').edag, ['.', ['[]', [['[]', []], 0]], 1])
         },
     },
     // The imports bound: the linked program is one EDAG, the imported

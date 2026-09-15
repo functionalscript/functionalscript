@@ -488,6 +488,19 @@ const imported = ({ module, attribute }) => {
  */
 const prohibitedKey = foldError('prohibited property name')
 
+/**
+ * An access on a negative literal, at the key: JavaScript reads `-1 .x`
+ * as `-(1 .x)`, the minus after the access, and the tokenizer folds the
+ * minus into the number; with no negation in the language to read it
+ * JavaScript's way, the spelling is refused. `-0` too, and a negative
+ * bigint, and `-Infinity`; a reference to a negative value is not, since
+ * `n.x` reads alike in both.
+ */
+const negativeBase = foldError('access on a negative literal')
+
+/** Whether a resolved base is a negative literal, `-0` included. @type {(base: AstConst) => boolean} */
+const isNegative = base => typeof base === 'number' ? base < 0 || Object.is(base, -0) : typeof base === 'bigint' && base < 0n
+
 /** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = ({ token }) => {
     switch (token.kind) {
@@ -509,6 +522,7 @@ const keyNamed = ({ token }) => {
 const accessClosed = (key, base) => {
     const named = keyNamed(key)
     if (named === protoKey || named === 'constructor') { return error(prohibitedKey(key)) }
+    if (isNegative(base)) { return error(negativeBase(key)) }
     /** @type {AstAccess} */
     const access = ['.', base, named]
     return ok(access)

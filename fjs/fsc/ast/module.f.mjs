@@ -6,8 +6,8 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
- * @import { _Node, _Reach, _Ref, _Routes, _RunState } from './private.ts'
+ * @import { AstAccess, AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
+ * @import { _Node, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
 import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
@@ -168,20 +168,27 @@ const memberValuesWritten = members => members.map(([, value]) => value)
  * The references one entry makes directly: its `cref`s and `aref`s, however
  * deep inside its own literals, and nothing behind them — a referenced
  * `const` is an entry of its own, visited once as such, which is what keeps
- * this a walk over the syntax rather than over the value's paths. Which of
- * an object's members count is the caller's: the value's, for what a value
- * shares, or the written ones, for what an EDAG evaluates.
+ * this a walk over the syntax rather than over the value's paths. How the
+ * syntax is read is the view's: which of an object's members count, and
+ * what an access on a literal means — the value's view selects the item
+ * the key names and drops the rest, the written view keeps the whole
+ * literal, since the EDAG constructs it before the read.
  *
- * @type {(members: (members: readonly AstMember[]) => readonly AstConst[]) => (ast: AstConst) => List<_Ref>}
+ * @type {(view: _View) => (ast: AstConst) => List<_Ref>}
  */
-const refsOf = members => ast => {
+const refsOf = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     switch (ast[0]) {
-        case 'array': { return flat(ast[1].map(refsOf(members))) }
-        case 'object': { return flat(members(ast[1]).map(refsOf(members))) }
+        case 'array': { return flat(ast[1].map(refsOf(view))) }
+        case 'object': { return flat(view.members(ast[1]).map(refsOf(view))) }
         // an access reaches what its key names inside its base: the base's
-        // reference, one key deeper
-        case '.': { return map(deeper(`${ast[2]}`))(refsOf(members)(ast[1])) }
+        // reference, one key deeper — once the view has read the access
+        case '.': {
+            const read = view.through(ast)
+            return read !== null && typeof read === 'object' && read[0] === '.'
+                ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
+                : refsOf(view)(read)
+        }
         default: { return [{ ref: ast, keys: [] }] }
     }
 }
@@ -204,21 +211,20 @@ const reachStep = (reachable, { ref: [kind, i] }) => kind === 'cref' ? reachable
  *
  * @type {(refs: (ast: AstConst) => List<_Ref>) => (reach: _Reach, ast: AstConst, i: number) => _Reach}
  */
-const reachEntry = refsOf => (reach, ast, i) => {
+const reachEntry = refs => (reach, ast, i) => {
     if ((reach.reachable & bit(i)) === 0n) { return reach }
-    const refs = toArray(refsOf(ast))
-    return { reachable: refs.reduce(reachStep, reach.reachable), refs: concat(reach.refs)(refs) }
+    const made = toArray(refs(ast))
+    return { reachable: made.reduce(reachStep, reach.reachable), refs: concat(reach.refs)(made) }
 }
 
 /**
  * The sweep from the export downwards over a whole body: which entries it
- * reaches, and every reference those entries make, counting an object's
- * members as `members` says.
+ * reaches, and every reference those entries make, read as `view` says.
  *
- * @type {(members: (members: readonly AstMember[]) => readonly AstConst[]) => (body: AstBody) => _Reach}
+ * @type {(view: _View) => (body: AstBody) => _Reach}
  */
-const reach = members => body =>
-    body.reduceRight(reachEntry(refsOf(members)), { reachable: bit(body.length - 1), refs: empty })
+const reach = view => body =>
+    body.reduceRight(reachEntry(refsOf(view)), { reachable: bit(body.length - 1), refs: empty })
 
 /** @type {(args: bigint, ref: _Ref) => bigint} */
 const argStep = (args, { ref: [kind, i] }) => kind === 'aref' ? args | bit(i) : args
@@ -280,9 +286,9 @@ const resolved = (imports, nodes) => ({ ref, keys }) => ({ ref: ref[0] === 'cref
  */
 export const anchors = ([specifiers, body]) => imports => {
     const nodes = body.reduce(nodeEntry(imports), [])
-    const { reachable, refs } = reach(memberValuesWritten)(body)
+    const { reachable, refs } = reach(written)(body)
     const unreached = missing(reachable)(body.length).filter(i => !isAlias(body[i]))
-    const within = map(resolved(imports, nodes))(flat(unreached.map(i => refsOf(memberValuesWritten)(body[i]))))
+    const within = map(resolved(imports, nodes))(flat(unreached.map(i => refsOf(written)(body[i]))))
     const reachedWithin = toArray(within).reduce(reachStep, 0n)
     const reachedImports = toArray(concat(map(resolved(imports, nodes))(refs))(within)).reduce(argStep, 0n)
     return {
@@ -330,6 +336,31 @@ const literalAt = (ast, key) => ast[0] === 'object'
     ? ast[1].findLast(([name]) => name === key)?.[1]
     : ast[1][arrayIndex(key) ?? ast[1].length]
 
+/**
+ * What an access denotes once the keys that select inside a literal are
+ * applied, for the value's view: the literal's item the key names, through
+ * a chain of accesses — `[[x, x], 0][0]` is `[x, x]` — `undefined` where
+ * the literal has none or the base is a primitive, and the access itself
+ * on a reference, whose value the syntax does not hold.
+ *
+ * @type {(ast: AstAccess) => AstConst}
+ */
+const selected = ast => {
+    const under = ast[1]
+    const base = under !== null && typeof under === 'object' && under[0] === '.' ? selected(under) : under
+    if (base === null || typeof base !== 'object') { return undefined }
+    if (isContainerLiteral(base)) { return literalAt(base, `${ast[2]}`) }
+    /** @type {AstAccess} */
+    const access = ['.', base, ast[2]]
+    return access
+}
+
+/** The syntax as the EDAG evaluates it: every member written, and a literal whole before it is read. @type {_View} */
+const written = { members: memberValuesWritten, through: ast => ast }
+
+/** The syntax as the value has it: the last member per key, and of a literal read only what the key selects. @type {_View} */
+const value = { members: memberValues, through: selected }
+
 /** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })
 
@@ -344,7 +375,7 @@ const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys]
  * @type {(ast: AstConst, route: readonly string[]) => List<_Ref>}
  */
 const refsAlong = (ast, route) => route.length === 0 || !isContainerLiteral(ast)
-    ? map(deeperBy(route))(refsOf(memberValues)(ast))
+    ? map(deeperBy(route))(refsOf(value)(ast))
     : refsAlong(literalAt(ast, route[0]), route.slice(1))
 
 /** @type {(ast: AstConst) => (route: readonly string[]) => List<_Ref>} */

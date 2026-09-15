@@ -347,6 +347,17 @@ export const proof = {
     // literal is a fresh node every time it is written.
     sharing: {
         constTwice: () => { assert(sharedOf({ 'a.f.js': [utf8('const a = [1]; export default [a, a];')] })('a.f.js')) },
+        // an access on a literal selects the item the key names, and the
+        // rest of the literal is not part of the value
+        literal: () => {
+            assertEq(jsonRefused('const x = []; export default [[x, x], 0][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const x = []; export default { a: [x, x], b: 1 }.a;'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; export default [[x, x], 0][1];')('output.json'), '0')
+            assertEq(compileSource('const x = []; export default [[x, x], 0][0][1];')('output.json'), '[]')
+            assertEq(compileSource('const x = []; export default [x, [x]][1];')('output.json'), '[[]]')
+            assertEq(compileSource('const x = []; export default { a: [x, x], a: 1 }.a;')('output.json'), '1')
+            assertEq(compileSource('const x = []; export default [[x, x]].length;')('output.json'), '1')
+        },
         leafTwice: () => {
             assert(!sharedOf({ 'a.f.js': [utf8('const a = 1; export default [a, a];')] })('a.f.js'))
             assertEq(compileSource('const a = 1; export default [a, a];')('output.json'), '[1,1]')

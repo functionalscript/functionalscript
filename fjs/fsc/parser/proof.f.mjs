@@ -349,7 +349,7 @@ export const proof = {
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
     },
-    // A property access is `['.', base, key]`, the base a reference and the
+    // A property access is `['.', base, key]`, the base any value and the
     // accesses before it, the key the constant written; a key naming the
     // prototype chain is refused at the key, in either spelling, and the
     // errors come in document order as everywhere else.
@@ -372,7 +372,25 @@ export const proof = {
             expect('export default { a: [1] }.a[0];', '[[],[[".",[".",["object",[["a",["array",[1]]]]],"a"],0]]]')
             expect('export default null.x;', '[[],[[".",null,"x"]]]')
             expect('export default 1 .x;', '[[],[[".",1,"x"]]]')
+            expect('const n = -1; export default n.x;', '[[],[-1,[".",["cref",0],"x"]]]')
             expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]')
+        },
+        // `-1 .x` is `-(1 .x)` in JavaScript, and the tokenizer folds the
+        // minus into the number: an access on a negative literal is refused
+        // at the key, `-0`, a bigint and `-Infinity` included
+        negative: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'access on a negative literal')
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default -1 .x;', 20)
+            expect('export default -0 .x;', 20)
+            expect('export default -1n .x;', 21)
+            expect('export default -Infinity.x;', 26)
+            expect('export default -1["x"];', 19)
         },
         prohibited: () => {
             /** @type {(source: string, column: number) => void} */

@@ -35,8 +35,8 @@ for that, each a conflict the backtracking grammar this replaced had
 
 - **Trivia follows a token, never leads a rule.** Every token is followed by
   `t`, so no rule begins with trivia and no two branches begin with it. A
-  value ends with its own `t`, and what follows a value adds none: a
-  reference may be followed by an access, `a . b` and `a [0]` included, and
+  value ends with its own `t`, and what follows a value adds none: any
+  value may be followed by an access, `a . b` and `[1] [0]` included, and
   the trivia between them would otherwise have to lead the access rule.
 - **`;` ends every statement, the export included.** A newline does not: it is
   trivia, read past, so a missing `;` is found at what came instead — the next
