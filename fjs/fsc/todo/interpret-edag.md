@@ -66,6 +66,15 @@ operation-node identities shared across function boundaries; otherwise a single
 semantic node could produce different runtime values in different invocation contexts.
 Sharing within one body remains valid and is memoized per invocation.
 
+### The memoization table
+
+Which nodes an invocation memoizes is not the interpreter's to discover: the
+analysis in [`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md) returns
+the nodes in evaluation order with the shared indices, one table per function
+body, and the interpreter indexes its per-invocation cache by those integers.
+The operations themselves are amnesia's, factored into a table both executors
+share, so the interpreter differs from amnesia only in reusing a value.
+
 ### Existing value-producing API integration
 
 The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**

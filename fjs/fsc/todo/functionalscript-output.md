@@ -40,7 +40,9 @@ accepts, so that compiling the output again yields the same EDAG:
 
 - A node the graph holds more than once is hoisted into a `const` named
   `$0`, `$1`, … as the DataJS serializer hoists a shared value, so sharing
-  survives; a node held once is written in place.
+  survives; a node held once is written in place. Which nodes those are is
+  the analysis's to say ([`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md)):
+  the writer reads its table and takes the `$n` names from the indices.
 - The comma operation, `[',', [...anchors, result]]`, at the module root is
   written as the source form it came from: an unused `const` per anchor,
   in order, then `export default` the result — an unreached `const` *is* the
