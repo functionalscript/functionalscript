@@ -59,17 +59,16 @@
  * @import { Envelope } from '../object/types.ts'
  * @import { Held } from '../packstore/types.ts'
  * @import { _Outcome } from './private.ts'
- * @import { _Refusal } from './types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
-import { readFile, readUtf8File } from '../../effects/node/module.f.mjs'
+import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, root, under } from '../../path/module.f.mjs'
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
-import { length, uint } from '../../types/bit_vec/module.f.mjs'
+import { length } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
 import { tryRead as readLoose } from '../loose/module.f.mjs'
@@ -123,16 +122,6 @@ export const objectsDir = dir => under(dir, 'objects')
 const alternatesPath = od => under(od, join('info', 'alternates'))
 
 /**
- * What {@link alternateLine} answers for a line naming a byte this layer cannot
- * spell, told from a path by identity rather than by its text — a path may be
- * any string at all, so no string could stand for a refusal.
- */
-const refused = /** @type {const} */ (['refused'])
-
-/** The same, for a line this reader cannot read faithfully. See {@link alternatesLineCode}. */
-const unreadable = /** @type {const} */ (['unreadable'])
-
-/**
  * One line of an `objects/info/alternates`, unquoted where it is quoted, or
  * `null` where the line names nothing: it is empty, or it is a comment.
  *
@@ -159,15 +148,19 @@ const unreadable = /** @type {const} */ (['unreadable'])
  *   So the unquoting is attempted and the line used as it stands where it does
  *   not succeed, which is why this answers the raw line rather than a refusal.
  *
- * @type {(line: string) => Nullable<string | typeof refused | typeof unreadable>}
+ * **Text after the closing quote is dropped, and Git searches it.** Its reading
+ * of the remainder is an off-by-one — the suffix becomes a second entry missing
+ * its first character — so there is no reading of it to copy, and this takes the
+ * quoted path alone. A store named only by that mangled second entry is one this
+ * does not reach; see
+ * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
+ *
+ * @type {(line: string) => Nullable<string>}
  */
 const alternateLine = line => {
     if (line.length === 0 || line.startsWith('#')) { return null }
     if (!line.startsWith('"')) { return line }
-    const u = unquoted(line)
-    if (u === null) { return line }
-    const [text, high, rest] = u
-    return high ? refused : rest ? unreadable : text
+    return unquoted(line) ?? line
 }
 
 /**
@@ -214,7 +207,7 @@ const octalAt = (line, i) => {
  * reads as a path, and a scan over the raw line would refuse all three. A
  * non-ASCII *character* in the line is not one either: it is already UTF-8, the
  * host writes back the bytes it came from, and the whole-file check has passed
- * it — see {@link alternatesCode}.
+ * it — see [`todo/byte-paths.md`](../todo/byte-paths.md).
  *
  * `null` is not a refusal here: {@link alternateLine} takes the line verbatim
  * instead, because that is what Git does with a line whose unquoting fails.
@@ -225,16 +218,15 @@ const octalAt = (line, i) => {
  * at exit 0 — while also reporting a second entry Git made of the remainder, a
  * meaning this does not invent for it.
  *
- * @type {(line: string) => Nullable<readonly [string, boolean, boolean]>}
+ * @type {(line: string) => Nullable<string>}
  */
 const unquoted = line => {
     let out = ''
-    let high = false
     let i = 1
     while (true) {
         if (i === line.length) { return null }
         const c = line[i]
-        if (c === '"') { return [out, high, i + 1 !== line.length] }
+        if (c === '"') { return out }
         if (c !== '\\') {
             out += c
             i += 1
@@ -251,15 +243,24 @@ const unquoted = line => {
         const v = octalAt(line, i + 1)
         if (v === null) { return null }
         out += String.fromCharCode(v)
-        high = high || v > 0x7F
         i += 4
     }
 }
 
 /**
  * The object directories an `objects/info/alternates` names, in the order it
- * names them, or a {@link _Refusal} where a line is one this reader will not
- * answer for: a path it cannot spell, or text after a closing quote.
+ * names them.
+ *
+ * **Every line answers a path, and none is refused.** Two shapes name a place
+ * this reader cannot reach — a path spelled in bytes it cannot hold, and the
+ * mangled second entry Git makes of text after a closing quote — and an earlier
+ * revision refused the whole file for each. That was the wrong trade three times
+ * over: the refusal took a repository Git reads and made *all* of it unreadable,
+ * the objects the store holds itself included, to avoid a miss on a borrowing
+ * nobody writes by hand. Both are ordinary paths now that simply are not found,
+ * which is a miss and never a wrong object, since the id is checked against
+ * whatever answers. What is left of them is
+ * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
  *
  * **An absolute entry names a directory on its own** and a relative one is read
  * below the `objects/` directory holding the file — not the repository and not
@@ -282,18 +283,13 @@ const unquoted = line => {
  * A file with no trailing newline names its last directory all the same,
  * measured.
  *
- * @type {(od: string, text: string) => readonly string[] | _Refusal}
+ * @type {(od: string, text: string) => readonly string[]}
  */
-export const alternatesIn = (od, text) => {
-    const lines = text.split('\n')
-    const named = lines.map(alternateLine)
-    const encoding = named.indexOf(refused)
-    if (encoding !== -1) { return { why: 'encoding', line: lines[encoding] } }
-    const bad = named.indexOf(unreadable)
-    if (bad !== -1) { return { why: 'line', line: lines[bad] } }
-    return /** @type {readonly string[]} */ (named.filter(l => l !== null))
-        .map(l => isAbsolute(od, l) ? l : under(od, l))
-}
+export const alternatesIn = (od, text) => text
+    .split('\n')
+    .map(alternateLine)
+    .filter(l => l !== null)
+    .map(l => isAbsolute(od, l) ? l : under(od, l))
 
 /**
  * Whether an entry names a directory on its own rather than one below `od`.
@@ -327,59 +323,6 @@ const isAbsolute = (od, entry) => entry.startsWith('/')
 const isDrive = x => x.length > 1 && x[1] === ':'
 
 /**
- * The code an `objects/info/alternates` is refused with when its bytes are not
- * UTF-8.
- *
- * **A path this layer cannot spell is refused rather than approximated.** Every
- * effect here takes a path as a string, and the decoder answers `ÿ` for a lone
- * `0xFF` rather than refusing, so a file naming a directory in some other
- * encoding would decode to a *different*, existing-or-not directory and the
- * store would quietly fail to find the objects that directory holds. Git has no
- * such trouble: the file is bytes to it and it opens what it is given. Carrying
- * byte paths through the effects is the fix and is not this module's to make —
- * [`todo/byte-paths.md`](../todo/byte-paths.md) records it — so until then the
- * store says it cannot look rather than looking somewhere else.
- */
-export const alternatesCode = /** @type {const} */ ('ERR_ALTERNATES_ENCODING')
-
-/**
- * The code an `objects/info/alternates` is refused with when a line has text
- * after its closing quote.
- *
- * **Git's reading of such a line is an off-by-one, and there is nothing else to
- * copy.** Measured on Git 2.43.0: the quoted path is taken, and the remainder
- * becomes a *second* entry missing its first character. A line of
- * `"<donor1>"../../../donor/.git/objects` made Git look for
- * `<borrower>/objects/./../../donor/.git/objects` — one level short of what is
- * written — and fail; sacrificing a character, `"<donor1>"x../../../donor/…`,
- * made it read the donor. So the suffix is neither ignored nor honoured: it is
- * read as a path nobody wrote.
- *
- * Taking the quoted path and dropping the suffix would answer "no such object"
- * for a store Git can reach, and reproducing the off-by-one would build a path
- * out of a bug. `git clone --shared` never writes such a line; hand-editing is
- * the only way to one. So it is refused, which is the answer that is neither
- * silent nor invented.
- */
-export const alternatesLineCode = /** @type {const} */ ('ERR_ALTERNATES_LINE')
-
-/**
- * The message beside {@link alternatesLineCode}: the file, and the line that
- * cannot be read faithfully.
- *
- * @type {(path: string, line: string) => string}
- */
-export const alternatesLineMessage = (path, line) =>
-    `${path} has text after a closing quote: ${line}`
-
-/**
- * The message beside {@link alternatesCode}: the file that is not UTF-8.
- *
- * @type {(path: string) => string}
- */
-export const alternatesMessage = path => `${path} is not UTF-8`
-
-/**
  * The code an object is refused with when the bytes at its path hash to
  * another id: corruption, or a file put where it does not belong, and
  * either way not the object asked for. The channel's, beside the codes
@@ -395,25 +338,6 @@ export const objectIdCode = /** @type {const} */ ('ERR_OBJECT_ID')
  * @type {(path: string, actual: string) => string}
  */
 export const objectIdMessage = (path, actual) => `${path} holds the object ${actual}`
-
-/**
- * The text of an `objects/info/alternates`, refusing it where its bytes are not
- * UTF-8.
- *
- * The bytes are decoded and encoded again and the two compared, because the
- * decoder does not refuse: a lone `0xFF` comes back as `ÿ`, a character whose
- * UTF-8 is two bytes, so a round trip that does not give the file back is
- * exactly a file this layer cannot spell. See {@link alternatesCode}.
- *
- * @type {(p: string) => Effect<ReadFile, string, IoChannel>}
- */
-const alternatesText = p => step(readFile(p), v => {
-    const t = utf8ToString(v)
-    const again = utf8(t)
-    return length(again) === length(v) && uint(again) === uint(v)
-        ? pureOk(t)
-        : pureError(ioError({ code: alternatesCode, message: alternatesMessage(p) }))
-})
 
 /**
  * How many borrowings deep the search goes: six, which is where Git stops.
@@ -439,16 +363,6 @@ const alternatesText = p => step(readFile(p), v => {
 export const maxBorrowDepth = /** @type {const} */ (6)
 
 /**
- * Whether a failure is this module's own refusal of an alternates file, which is
- * the one an unusable borrowing may not be confused with. See {@link
- * borrowedBy}.
- *
- * @type {(c: IoChannel) => boolean}
- */
-const isAlternates = c => c[0] === 'ioError'
-    && (c[1].code === alternatesCode || c[1].code === alternatesLineCode)
-
-/**
  * One object directory of the search, and the directories it borrows from, to be
  * searched after it.
  *
@@ -468,9 +382,9 @@ const isAlternates = c => c[0] === 'ioError'
  * earlier revision failed the whole store on anything but `ENOENT`, which made a
  * repository Git reads unreadable here.
  *
- * The one failure that is not a skip is {@link alternatesCode}, which this
- * module raises itself: the file was read and names a path this layer would
- * spell wrongly, and looking somewhere else is the answer it must not give.
+ * **Every failure is a skip**, with no exception. An earlier revision kept one —
+ * a file naming a path this layer cannot spell — and that refusal cost more
+ * than the case it caught: see {@link alternatesIn}.
  *
  * **This is the one place a reader is quieter than Git**, which prints `error:`
  * and carries on. There is no channel here to print on, so an unusable borrowing
@@ -484,26 +398,11 @@ const borrowedBy = ([od, depth]) => seen => {
     if (seen.includes(od)) { return pureOk(/** @type {const} */ ([seen, null])) }
     const kept = /** @type {readonly string[]} */ ([...seen, od])
     if (depth === maxBorrowDepth) { return pureOk(/** @type {const} */ ([kept, null])) }
-    const p = alternatesPath(od)
-    const text = catchStep(
-        alternatesText(p),
-        c => isAlternates(c) ? pureError(c) : pureOk(''))
-    return step(text, t => {
-        const named = alternatesIn(od, t)
-        // A refusal is not an empty list: the file was read and holds a line this
-        // reader will not answer for, so passing it over would be the silence the
-        // checks exist to prevent.
-        if (!Array.isArray(named)) {
-            const { why, line } = /** @type {_Refusal} */ (named)
-            return pureError(ioError(why === 'encoding'
-                ? { code: alternatesCode, message: alternatesMessage(p) }
-                : { code: alternatesLineCode, message: alternatesLineMessage(p, line) }))
-        }
-        return pureOk(/** @type {const} */ ([
-            kept,
-            named.map(n => /** @type {const} */ ([n, depth + 1])),
-        ]))
-    })
+    const text = catchStep(readUtf8File(alternatesPath(od)), () => pureOk(''))
+    return mapStep(text, t => /** @type {const} */ ([
+        kept,
+        alternatesIn(od, t).map(n => /** @type {const} */ ([n, depth + 1])),
+    ]))
 }
 
 /**

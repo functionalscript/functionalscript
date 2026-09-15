@@ -17,7 +17,7 @@ import { write as writeEnvelope } from '../object/module.f.mjs'
 import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { commitPayload, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
-import { alternatesCode, alternatesIn, alternatesLineCode, alternatesLineMessage, alternatesMessage, maxBorrowDepth, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
+import { alternatesIn, maxBorrowDepth, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -489,79 +489,41 @@ export const proof = {
             assertEq(r[1].type, 'tag')
         }
     },
-    // The one failure that is not a skip is this module's own refusal: the file
-    // was read and names a path this layer would spell wrongly, and looking
-    // somewhere else is the answer it must not give.
-    borrowedRefusalIsNotASkip: () => {
-        const [, r] = runHost(objectsDirs('bytes'))
-        assert(r[0] === 'error')
-    },
-    // An octal escape naming a byte above ASCII is refused for the same reason
-    // the whole-file check refuses bytes that are not UTF-8 — and the whole-file
-    // check cannot see this one, because a line spelling a byte in octal is
-    // plain ASCII itself. Git opens a path holding that byte; a string here
-    // would hold the *character*, which the host writes back as two UTF-8 bytes,
-    // so the directory opened would not be the one the file names.
+    // An octal escape naming a byte above ASCII decodes to one *character* of
+    // that value, which the host writes back as two UTF-8 bytes — so the
+    // directory opened is not the one the file names. A miss and not a refusal,
+    // for the reason {@link alternatesNotUtf8} gives.
     alternatesHighOctal: () => {
-        assertStructurallySame(
-            alternatesIn('od', '"/tmp/\\377/objects"'),
-            { why: 'encoding', line: '"/tmp/\\377/objects"' })
-        // and the boundary: `\177` is ASCII and spells a path this layer can
+        assertStructurallySame(alternatesIn('od', '"/tmp/\\377/objects"'), ['/tmp/\u00FF/objects'])
+        // `\177` is ASCII and spells a path this layer holds exactly
         assertStructurallySame(alternatesIn('od', '"/a\\177b"'), ['/a\x7Fb'])
-        // a line whose escapes are ASCII before the one that is not, so the scan
-        // is a search and not a look at the first
-        assertStructurallySame(
-            alternatesIn('od', '"/a\\101b\\377c"'),
-            { why: 'encoding', line: '"/a\\101b\\377c"' })
-        // and `\\` is an escape of its own: its second backslash does not start
-        // another, so this names no byte above ASCII and spells a path
-        assertStructurallySame(alternatesIn('od', '"/a\\\\377b"'), ['/a\\377b'])
-        // A byte is named only where the quoting *decodes* one. Everywhere else
-        // `\377` is four ordinary characters, and Git reads all three of these
-        // at exit 0 — measured on Git 2.43.0 with a second line naming the
-        // donor, which was read every time.
-        assertStructurallySame(
-            alternatesIn('od', '# \\377\n/a/objects\n'),
-            ['/a/objects'])
-        assertStructurallySame(
-            alternatesIn('od', '/tmp/\\377/objects'),
-            ['/tmp/\\377/objects'])
-        assertStructurallySame(
-            alternatesIn('od', '"/a"\\377'),
-            { why: 'line', line: '"/a"\\377' })
-        // and a path that is simply not ASCII is not a byte this cannot spell:
-        // it is already UTF-8, so the host writes back the bytes it came from
+        // and every other place `\377` can appear is four ordinary characters
+        // Git reads as a path — measured at exit 0 for all three
+        assertStructurallySame(alternatesIn('od', '# \\377\n/a/objects\n'), ['/a/objects'])
+        assertStructurallySame(alternatesIn('od', '/tmp/\\377/objects'), ['/tmp/\\377/objects'])
+        assertStructurallySame(alternatesIn('od', '"/a"\\377'), ['/a'])
+        // a path that is simply not ASCII is already UTF-8, so the host writes
+        // back the bytes it came from
         assertStructurallySame(alternatesIn('od', '/tmp/é/objects'), ['/tmp/é/objects'])
-        const [, r] = runHost(objectsDirs('octal'))
-        assert(r[0] === 'error')
-        const e = r[1]
-        assert(e[0] === 'ioError')
-        assertEq(e[1].code, alternatesCode)
-        assertEq(e[1].message, alternatesMessage('octal/objects/info/alternates'))
     },
-    // Text after a closing quote is refused, because neither half of it is an
-    // answer this reader can give.
+    // Text after a closing quote gives the quoted path, and the second entry Git
+    // makes of the remainder is not followed.
     //
-    // Git's own reading is an off-by-one, measured on Git 2.43.0: the quoted
-    // path is taken and the remainder becomes a *second* entry missing its first
-    // character. `"<donor1>"../../../donor/.git/objects` made Git look for
+    // Git's reading of that remainder is an off-by-one, measured on Git 2.43.0:
+    // it becomes an entry *missing its first character*.
+    // `"<donor1>"../../../donor/.git/objects` made Git look for
     // `<borrower>/objects/./../../donor/.git/objects` — one level short of what
     // is written — and fail, while sacrificing a character with
-    // `"<donor1>"x../../../donor/…` made it read the donor.
+    // `"<donor1>"x../../…` made it read the donor. There is no reading of it to
+    // copy, so this takes the quoted path alone; a store named only by that
+    // mangled entry is one this does not reach, which
+    // `todo/alternates-line-quirks.md` carries.
     //
-    // So taking the quoted path and dropping the suffix answers "no such object"
-    // for a store Git reaches, and reproducing the suffix builds a path out of a
-    // bug. `git clone --shared` never writes such a line. Refusing is the answer
-    // that is neither silent nor invented.
+    // An earlier revision refused the line instead. That lost the quoted store
+    // too, and with it every object the borrower holds itself.
     alternatesQuotedSuffix: () => {
-        const [, r] = runHost(objectsDirs('suffix'))
-        assert(r[0] === 'error')
-        const e = r[1]
-        assert(e[0] === 'ioError')
-        assertEq(e[1].code, alternatesLineCode)
-        assertEq(
-            e[1].message,
-            alternatesLineMessage('suffix/objects/info/alternates', '"/a/objects"junk'))
+        const [, dirs] = runHost(objectsDirs('suffix'))
+        assertStructurallySame(dirs, ok(['suffix/objects', '/a/objects']))
     },
     // A borrowed store that cannot answer for an id it holds is corruption, and
     // it outlives the repository's own miss. Reporting the `ENOENT` instead would
@@ -674,28 +636,25 @@ export const proof = {
         assertStructurallySame(alternatesIn('od', '"x\\400"'), ['od/"x\\400"'])
         assertStructurallySame(alternatesIn('od', '"x\\777"'), ['od/"x\\777"'])
         // while `\\377` is a byte, and the one this layer cannot spell
-        assertStructurallySame(
-            alternatesIn('od', '"x\\377"'),
-            { why: 'encoding', line: '"x\\377"' })
-        // text after the closing quote is refused rather than half-read — see
-        // {@link alternatesQuotedSuffix} for why neither half is answerable
-        assertStructurallySame(
-            alternatesIn('od', '"/after" and more'),
-            { why: 'line', line: '"/after" and more' })
+        assertStructurallySame(alternatesIn('od', '"x\\377"'), ['od/x\u00FF'])
+        // text after the closing quote gives the quoted path — see
+        // {@link alternatesQuotedSuffix} for the entry Git also makes of the rest
+        assertStructurallySame(alternatesIn('od', '"/after" and more'), ['/after'])
         assertStructurallySame(alternatesIn('od', '"/trailing\\'), ['od/"/trailing\\'])
     },
-    // An alternates file this layer cannot spell is refused rather than
-    // approximated. Every path here is a string and the decoder answers `ÿ` for
-    // a lone `0xFF` rather than refusing, so a file naming a directory in some
-    // other encoding would send the search to a different directory and the
-    // objects it holds would go quietly missing.
+    // An alternates file whose bytes are not UTF-8 names a directory this layer
+    // cannot spell — the decoder answers `ÿ` for a lone `0xFF` — so the search
+    // looks in a directory the file did not name and finds nothing there.
+    //
+    // A miss and not a refusal. An earlier revision refused the whole file,
+    // which took a repository Git reads and made *all* of it unreadable, the
+    // objects the store holds itself included, to avoid a miss on one borrowing.
+    // Nothing wrong comes back either way, since the id is checked against
+    // whatever answers. `todo/byte-paths.md` is what would make the two agree.
     alternatesNotUtf8: () => {
-        const [, r] = runHost(objectsDirs('bytes'))
-        assert(r[0] === 'error')
-        const e = r[1]
-        assert(e[0] === 'ioError')
-        assertEq(e[1].code, alternatesCode)
-        assertEq(e[1].message, alternatesMessage('bytes/objects/info/alternates'))
+        const [, dirs] = runHost(objectsDirs('bytes'))
+        // `FF 2F 6F 64` decodes to `ÿ/od`, which is the directory looked in
+        assertStructurallySame(dirs, ok(['bytes/objects', 'bytes/objects/\u00FF/od']))
     },
     // Bytes a *pack* gives that hash to another id name the pack, not the
     // directory it was found in. An index that sends an id to an entry holding

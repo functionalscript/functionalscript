@@ -109,9 +109,12 @@ what a grammar can and cannot do for the formats.
   check stands behind either, and the same two questions are put to each
   directory `objects/info/alternates` names, and to the directories *those*
   borrow from, six deep — where Git stops, measured. A borrowing already reached
-  is skipped and one that cannot be read is passed over, as Git passes over it;
-  a path the file names that this layer cannot spell is refused instead
-  ([`todo/byte-paths.md`](todo/byte-paths.md)). `objectsDirs` answers that list
+  is skipped and one that cannot be read is passed over, as Git passes over it.
+  Two line shapes name a directory this cannot reach — a path spelled in bytes,
+  and the mangled second entry Git makes of text after a closing quote — and
+  each is read as an ordinary path that is not found rather than refused, since
+  a miss loses one borrowing where a refusal loses the whole store
+  ([`todo/alternates-line-quirks.md`](todo/alternates-line-quirks.md)). `objectsDirs` answers that list
   and `readIn` reads over it, so a caller reading many objects resolves the
   borrowings once instead of per object.
 - [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,

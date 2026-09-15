@@ -21,25 +21,27 @@ store would look in a directory that is not the one the file names. The objects
 that directory holds would be missing with no error, which is the one answer
 `fjs/AGENTS.md` does not allow.
 
-So `store` refuses the file instead: `alternatesCode`, `ERR_ALTERNATES_ENCODING`,
-naming the path. A repository Git reads is one this cannot, which is a stated
-limit rather than a silence — but it is still a limit, and this issue is the
-removal of it.
+`store` does not refuse the file for it. An earlier revision did —
+`ERR_ALTERNATES_ENCODING`, naming the path — and that cost more than it caught:
+refusing took a repository Git reads and made *all* of it unreadable, the
+objects the store holds itself included, to avoid a miss on one borrowing. The
+line is an ordinary path now that simply is not found, which is a miss and never
+a wrong object, since the id is checked against whatever answers.
+[alternates-line-quirks.md](./alternates-line-quirks.md) records it as one of
+the two places this reader and Git look in different directories. This issue is
+what makes them look in the same one.
 
 **A line can name such a byte while being ASCII itself.** The file's quoting is
 C-style, so `"/tmp/\377/objects"` spells the byte `0xFF` in octal and the file
-round-trips as UTF-8 perfectly. The check on the bytes cannot see it; the decode
-would put one *character* of that value in the string and the host would write
-it back as two bytes. `alternatesIn` refuses an octal escape above `\177` for
-that reason, which is the same limit reached by a second road.
+round-trips as UTF-8 perfectly. The escape decodes to one *character* of that
+value and the host writes it back as two bytes, so the directory opened is not
+the one the file names — the same gap by a second road, and one no check on the
+file's bytes can see.
 
-It refuses one the *quoting decodes*, and nothing else. In a comment, in an
-unquoted line, or after a closing quote, `\377` is four ordinary characters that
-Git reads as part of a path — measured at exit 0 for all three — and refusing
-them would take a repository Git reads and make it unreadable, which is the
-failure this limit exists to avoid rather than one to commit. A path that is
-merely not ASCII is not affected at all: it is already UTF-8, and the host
-writes back the bytes it came from.
+A path that is merely not ASCII is not affected: it is already UTF-8, and the
+host writes back the bytes it came from. `\400` and above are not affected
+either — they name no byte, so Git calls the unquoting failed and reads the
+whole line as a path, quotes included, which is what this does.
 
 **There is nowhere for a warning to go, which is the other half.** Git reports
 an unusable alternate — `error: object directory … does not exist; check
@@ -79,8 +81,9 @@ Two smaller shapes are worth measuring first:
       a gitfile naming one, against Git on the same repository.
 - [ ] Choose among the three shapes above, with the measurement behind it.
 - [ ] Carry it through `fjs/effects/node` and `fjs/path`.
-- [ ] Remove `alternatesCode` and the two refusals `fjs/git/store` raises with
-      it: the file's own bytes, and an octal escape above `\177`.
+- [ ] Make `fjs/git/store` open the directory such a line names, rather than a
+      string approximation of it. There is no refusal to remove — the line is
+      read as an ordinary path today and simply finds nothing.
 - [ ] Ask the host which roots it has, rather than reading it off the store's
       own path. `C:/donor/objects` is an absolute path on Windows and a
       directory named `C:` on POSIX, and `alternatesIn` tells them apart by
@@ -94,5 +97,7 @@ Two smaller shapes are worth measuring first:
 
 - [object-store.md](./object-store.md) — owns where a store looks; this issue
   owns what it can spell.
-- [`fjs/git/store`](../store/module.f.mjs) — `alternatesCode`, the refusal this
-  issue removes.
+- [alternates-line-quirks.md](./alternates-line-quirks.md) — carries this as one
+  of the two lines where that reader and Git look in different directories.
+- [`fjs/git/store`](../store/module.f.mjs) — `alternatesIn`, which reads such a
+  line as an ordinary path.
