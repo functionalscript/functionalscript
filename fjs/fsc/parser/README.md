@@ -20,7 +20,7 @@ const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
 value  ::= primitive t | id t access* | array | object | func
 body   ::= primitive t | id t access* | array | func
-func   ::= '(' t '...' t id t ')' t '=>' t body
+func   ::= '(' t '...' t id t ')' s '=>' t body
 access ::= '.' t id t | '[' t (string | number) t ']' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
@@ -28,6 +28,7 @@ member ::= key t ':' t value
 key    ::= id | string | '[' t string t ']'
 items  ::= item [ ',' t [ items ] ]
 t      ::= (ws | nl | comment)*
+s      ::= (ws | comment)*
 ```
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend

@@ -20,6 +20,7 @@ import type {
     identifier,
     key,
     primitive,
+    sameLine,
     trivia,
 } from './module.f.mjs'
 
@@ -116,5 +117,5 @@ export type Body = () => readonly ['const', {
     readonly func: Func
 }]
 
-/** `(`, trivia, `...`, trivia, the parameter, trivia, `)`, trivia, `=>`, trivia, and the body. */
-export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifier, typeof trivia, number, typeof trivia, number, typeof trivia, Body]
+/** `(`, trivia, `...`, trivia, the parameter, trivia, `)`, same-line trivia, `=>`, trivia, and the body. */
+export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifier, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]

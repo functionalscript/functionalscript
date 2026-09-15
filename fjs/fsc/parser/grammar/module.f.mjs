@@ -4,16 +4,20 @@
  *
  * ```text
  * module ::= t import* const* export eof
- * import ::= 'import' t id t 'from' t string t ';' t
- * const  ::= 'const' t id t '=' t value t ';' t
- * export ::= 'export' t 'default' t value t ';' t
- * value  ::= primitive | id | array | object
- * array  ::= '[' t [ items(value) ] ']'
- * object ::= '{' t [ items(member) ] '}'
+ * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+ * const  ::= 'const' t id t '=' t value ';' t
+ * export ::= 'export' t 'default' t value ';' t
+ * value  ::= primitive t | id t access* | array | object | func
+ * body   ::= primitive t | id t access* | array | func
+ * func   ::= '(' t '...' t id t ')' s '=>' t body
+ * access ::= '.' t id t | '[' t (string | number) t ']' t
+ * array  ::= '[' t [ items(value) ] ']' t
+ * object ::= '{' t [ items(member) ] '}' t
  * member ::= key t ':' t value
  * key    ::= id | string | '[' t string t ']'
- * items  ::= item t [ ',' t [ items ] ]
+ * items  ::= item [ ',' t [ items ] ]
  * t      ::= (ws | nl | comment)*
+ * s      ::= (ws | comment)*
  * ```
  *
  * Three things are spelled for one symbol of lookahead, each a conflict
@@ -34,7 +38,7 @@
  *   grammar rested it on a failed repetition round rewinding.
  *
  * The alphabet is {@link _ordinaryTokenNames}: one name per token kind,
- * and the five framing keywords with names of their own, since the
+ * and the six framing keywords with names of their own, since the
  * tokenizer emits them as identifiers — encoded by `fjs/ebnf/token_symbol`;
  * `eof` has none, since the backend synthesizes the end of input. A symbol
  * is a rule of one symbol, so a terminal is the symbol a token is encoded
@@ -133,6 +137,18 @@ export const trivia = repeatFrom0({
 })
 
 /**
+ * Trivia on one line: {@link trivia} less the newline, where JavaScript
+ * has `[no LineTerminator here]` — before `=>`. A block comment holding a
+ * newline is refused too, since the tokenizer follows it with `nl`, and a
+ * line comment ends at the newline it is followed by.
+ */
+export const sameLine = repeatFrom0({
+    ws: sym('ws'),
+    lineComment: sym('//'),
+    blockComment: sym('/*'),
+})
+
+/**
  * Every word that may stand where an identifier is expected: `id`, and the
  * framing keywords, which arrive as `id` tokens too. Whether the word is
  * reserved there is the fold's to check, as it is for every other keyword.
@@ -212,15 +228,15 @@ export const body = () => ['const', {
 }]
 
 /**
- * A function: one rest parameter, `(...a)`, then `=>` and the body, which
- * ends with its own trivia as every value does. The parameter is the
- * arguments array, and the body names it and nothing outside — which
- * names it may use is the fold's to say, since a name is a word the
- * grammar does not see.
+ * A function: one rest parameter, `(...a)`, then `=>` on the same line
+ * as the `)`, as JavaScript requires, and the body, which ends with its
+ * own trivia as every value does. The parameter is the arguments array,
+ * and the body names it and nothing outside — which names it may use is
+ * the fold's to say, since a name is a word the grammar does not see.
  *
  * @type {Func}
  */
-export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), trivia, sym('=>'), trivia, body]
+export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
 
 /**
  * A value ends with its own trivia, so that a reference may be followed by

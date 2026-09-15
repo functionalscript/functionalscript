@@ -132,6 +132,15 @@ export const proof = {
         assertStructurallySame(read('export default (...a, ...b) => 1;'), ['error', ','])
         assertStructurallySame(read('export default (...a) 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a) => ;'), ['error', ';'])
+        // no line terminator before `=>`, as JavaScript has it: a newline,
+        // a line comment's newline, or a block comment holding one is
+        // refused at the newline; a comment on the line is not, and the
+        // body may start on the next line
+        assertStructurallySame(read('export default (...a) /* c */ => 1;'), ['ok'])
+        assertStructurallySame(read('export default (...a) =>\n1;'), ['ok'])
+        assertStructurallySame(read('export default (...a)\n=> 1;'), ['error', 'nl'])
+        assertStructurallySame(read('export default (...a) // c\n=> 1;'), ['error', 'nl'])
+        assertStructurallySame(read('export default (...a) /* x\ny */ => 1;'), ['error', 'nl'])
     },
     // A reference takes accesses, `.name` and `[key]`, trivia allowed
     // around each token since a value ends with its own; a primitive or a
