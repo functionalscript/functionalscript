@@ -17,7 +17,7 @@ import { write as writeEnvelope } from '../object/module.f.mjs'
 import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { commitPayload, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
-import { alternatesCode, alternatesIn, alternatesMessage, maxBorrowDepth, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
+import { alternatesCode, alternatesIn, alternatesLineCode, alternatesLineMessage, alternatesMessage, maxBorrowDepth, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -156,6 +156,14 @@ const files = {
     // An alternates file naming a byte above ASCII through an octal escape,
     // which is valid UTF-8 as a file and still a path this layer cannot spell.
     'octal/objects/info/alternates': latin1('"/tmp/\\377/objects"\n'),
+    // A line with text after its closing quote, which is refused.
+    'suffix/objects/info/alternates': latin1('"/a/objects"junk\n'),
+    // A borrower holding nothing, whose lender's pack index is not one.
+    'borrowsBroken/objects/info/alternates': latin1('../../broken/objects\n'),
+    // A borrower whose own loose file holds bytes that are no object, borrowing
+    // from a store that does not hold it either.
+    'shadowJunk/objects/info/alternates': latin1('../../repo/objects\n'),
+    [objectPath('shadowJunk')(id(junkId))]: latin1('junk'),
     // A store naming itself by the absolute path it already has, where the
     // spelling repeats and the name ends the walk. `git clone --shared` writes
     // absolute entries, so this is the shape a repeat actually takes.
@@ -230,14 +238,19 @@ const hostOf = fs => ({
         const file = at(fs, path)
         return [[...log, `readFile ${path}`], file === undefined ? error(noFile(path)) : ok(toVec(file))]
     },
-    readdir: path => log => [
-        [...log, `readdir ${path}`],
-        path === 'repo/objects/pack' || path === 'lying/objects/pack'
-            ? ok([dirent(path, `${packName}.idx`), dirent(path, `${packName}.pack`)])
-            : path === 'broken/objects/pack'
-            ? ok([dirent(path, 'pack-junk.idx')])
-            : error(noFile(path)),
-    ],
+    readdir: path => log => {
+        // folded for the reason `at` folds: the module hands paths over as an
+        // alternates file writes them
+        const d = normalize(path)
+        return [
+            [...log, `readdir ${path}`],
+            d === 'repo/objects/pack' || d === 'lying/objects/pack'
+                ? ok([dirent(path, `${packName}.idx`), dirent(path, `${packName}.pack`)])
+                : d === 'broken/objects/pack'
+                ? ok([dirent(path, 'pack-junk.idx')])
+                : error(noFile(path)),
+        ]
+    },
     stat: path => log => {
         const file = at(fs, path)
         return [
@@ -490,12 +503,16 @@ export const proof = {
     // would hold the *character*, which the host writes back as two UTF-8 bytes,
     // so the directory opened would not be the one the file names.
     alternatesHighOctal: () => {
-        assertEq(alternatesIn('od', '"/tmp/\\377/objects"'), null)
+        assertStructurallySame(
+            alternatesIn('od', '"/tmp/\\377/objects"'),
+            { why: 'encoding', line: '"/tmp/\\377/objects"' })
         // and the boundary: `\177` is ASCII and spells a path this layer can
         assertStructurallySame(alternatesIn('od', '"/a\\177b"'), ['/a\x7Fb'])
         // a line whose escapes are ASCII before the one that is not, so the scan
         // is a search and not a look at the first
-        assertEq(alternatesIn('od', '"/a\\101b\\377c"'), null)
+        assertStructurallySame(
+            alternatesIn('od', '"/a\\101b\\377c"'),
+            { why: 'encoding', line: '"/a\\101b\\377c"' })
         // and `\\` is an escape of its own: its second backslash does not start
         // another, so this names no byte above ASCII and spells a path
         assertStructurallySame(alternatesIn('od', '"/a\\\\377b"'), ['/a\\377b'])
@@ -509,7 +526,9 @@ export const proof = {
         assertStructurallySame(
             alternatesIn('od', '/tmp/\\377/objects'),
             ['/tmp/\\377/objects'])
-        assertStructurallySame(alternatesIn('od', '"/a"\\377'), ['/a'])
+        assertStructurallySame(
+            alternatesIn('od', '"/a"\\377'),
+            { why: 'line', line: '"/a"\\377' })
         // and a path that is simply not ASCII is not a byte this cannot spell:
         // it is already UTF-8, so the host writes back the bytes it came from
         assertStructurallySame(alternatesIn('od', '/tmp/é/objects'), ['/tmp/é/objects'])
@@ -519,6 +538,77 @@ export const proof = {
         assert(e[0] === 'ioError')
         assertEq(e[1].code, alternatesCode)
         assertEq(e[1].message, alternatesMessage('octal/objects/info/alternates'))
+    },
+    // Text after a closing quote is refused, because neither half of it is an
+    // answer this reader can give.
+    //
+    // Git's own reading is an off-by-one, measured on Git 2.43.0: the quoted
+    // path is taken and the remainder becomes a *second* entry missing its first
+    // character. `"<donor1>"../../../donor/.git/objects` made Git look for
+    // `<borrower>/objects/./../../donor/.git/objects` — one level short of what
+    // is written — and fail, while sacrificing a character with
+    // `"<donor1>"x../../../donor/…` made it read the donor.
+    //
+    // So taking the quoted path and dropping the suffix answers "no such object"
+    // for a store Git reaches, and reproducing the suffix builds a path out of a
+    // bug. `git clone --shared` never writes such a line. Refusing is the answer
+    // that is neither silent nor invented.
+    alternatesQuotedSuffix: () => {
+        const [, r] = runHost(objectsDirs('suffix'))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, alternatesLineCode)
+        assertEq(
+            e[1].message,
+            alternatesLineMessage('suffix/objects/info/alternates', '"/a/objects"junk'))
+    },
+    // A borrowed store that cannot answer for an id it holds is corruption, and
+    // it outlives the repository's own miss. Reporting the `ENOENT` instead would
+    // answer "no such object" for a question that was never answered — and the
+    // borrower here holds no loose file, so the `ENOENT` is exactly what stood
+    // before.
+    //
+    // Git says both, in its own way: it prints the borrowed store's failure and
+    // then reports the miss. With one channel, the failure is the one worth
+    // carrying.
+    borrowedRefusalOutlivesAMiss: () => {
+        const [, r] = runHost(tryRead('borrowsBroken', 20)(id(tagId)))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, packIdxCode)
+    },
+    // The other way round, a miss in a borrowed store does not displace the
+    // repository's own answer: the three things a read says short of the object
+    // are about the store that was asked.
+    borrowedMissKeepsTheFirstAnswer: () => {
+        const [, r] = runHost(tryRead('shadowJunk', 20)(id(junkId)))
+        // the borrower's own file holds bytes that are no object, which stands
+        assertStructurallySame(r, ok(null))
+    },
+    // A drive-rooted entry names a directory on its own only where the store
+    // itself is drive-rooted. `C:/donor/objects` is an absolute path on Windows
+    // and a directory named `C:` on POSIX, and nothing in the line says which —
+    // the object directory holding the file does.
+    //
+    // Measured on Git 2.43.0 on POSIX: a borrower with an entry of `C:` and the
+    // donor's objects copied to `objects/C:` read the blob, so the POSIX reading
+    // is a directory name. Without the test, such an entry would go to the host
+    // as absolute and be resolved against the *process* directory — a third
+    // place, named by nobody.
+    alternatesDriveRoot: () => {
+        assertStructurallySame(
+            alternatesIn('/home/r/objects', 'C:/donor/objects'),
+            ['/home/r/objects/C:/donor/objects'])
+        assertStructurallySame(
+            alternatesIn('C:/r/.git/objects', 'C:/donor/objects'),
+            ['C:/donor/objects'])
+        // a relative store is no drive either
+        assertStructurallySame(alternatesIn('od', 'C:/donor/objects'), ['od/C:/donor/objects'])
+        // and the two roots that are roots everywhere
+        assertStructurallySame(alternatesIn('/home/r/objects', '/donor/objects'), ['/donor/objects'])
+        assertStructurallySame(alternatesIn('/home/r/objects', '//unc/objects'), ['//unc/objects'])
     },
     // A store with no `alternates` file borrows from nowhere, which is almost
     // every repository: the missing file is no borrowing rather than a failure.
@@ -572,9 +662,11 @@ export const proof = {
         // path is no longer folded, so nothing rewrites one into a separator
         assertStructurallySame(alternatesIn('od', '"/bad\\qescape"'), ['od/"/bad\\qescape"'])
         assertStructurallySame(alternatesIn('od', '"/short\\12"'), ['od/"/short\\12"'])
-        // text after the closing quote does not spoil the path: Git reads the
-        // donor from `"<donor>"junk`, measured, so the quoted prefix is the path
-        assertStructurallySame(alternatesIn('od', '"/after" and more'), ['/after'])
+        // text after the closing quote is refused rather than half-read — see
+        // {@link alternatesQuotedSuffix} for why neither half is answerable
+        assertStructurallySame(
+            alternatesIn('od', '"/after" and more'),
+            { why: 'line', line: '"/after" and more' })
         assertStructurallySame(alternatesIn('od', '"/trailing\\'), ['od/"/trailing\\'])
     },
     // An alternates file this layer cannot spell is refused rather than

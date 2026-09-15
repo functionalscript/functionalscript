@@ -58,6 +58,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Envelope } from '../object/types.ts'
  * @import { Held } from '../packstore/types.ts'
+ * @import { _Outcome, _Refusal } from './private.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
@@ -127,6 +128,9 @@ const alternatesPath = od => under(od, join('info', 'alternates'))
  */
 const refused = /** @type {const} */ (['refused'])
 
+/** The same, for a line this reader cannot read faithfully. See {@link alternatesLineCode}. */
+const unreadable = /** @type {const} */ (['unreadable'])
+
 /**
  * One line of an `objects/info/alternates`, unquoted where it is quoted, or
  * `null` where the line names nothing: it is empty, or it is a comment.
@@ -154,15 +158,15 @@ const refused = /** @type {const} */ (['refused'])
  *   So the unquoting is attempted and the line used as it stands where it does
  *   not succeed, which is why this answers the raw line rather than a refusal.
  *
- * @type {(line: string) => Nullable<string | typeof refused>}
+ * @type {(line: string) => Nullable<string | typeof refused | typeof unreadable>}
  */
 const alternateLine = line => {
     if (line.length === 0 || line.startsWith('#')) { return null }
     if (!line.startsWith('"')) { return line }
     const u = unquoted(line)
     if (u === null) { return line }
-    const [text, high] = u
-    return high ? refused : text
+    const [text, high, rest] = u
+    return high ? refused : rest ? unreadable : text
 }
 
 /**
@@ -214,7 +218,7 @@ const octalAt = (line, i) =>
  * at exit 0 — while also reporting a second entry Git made of the remainder, a
  * meaning this does not invent for it.
  *
- * @type {(line: string) => Nullable<readonly [string, boolean]>}
+ * @type {(line: string) => Nullable<readonly [string, boolean, boolean]>}
  */
 const unquoted = line => {
     let out = ''
@@ -223,7 +227,7 @@ const unquoted = line => {
     while (true) {
         if (i === line.length) { return null }
         const c = line[i]
-        if (c === '"') { return [out, high] }
+        if (c === '"') { return [out, high, i + 1 !== line.length] }
         if (c !== '\\') {
             out += c
             i += 1
@@ -247,7 +251,8 @@ const unquoted = line => {
 
 /**
  * The object directories an `objects/info/alternates` names, in the order it
- * names them, or `null` where a line names a path this layer cannot spell.
+ * names them, or a {@link _Refusal} where a line is one this reader will not
+ * answer for: a path it cannot spell, or text after a closing quote.
  *
  * **An absolute entry names a directory on its own** and a relative one is read
  * below the `objects/` directory holding the file — not the repository and not
@@ -270,14 +275,48 @@ const unquoted = line => {
  * A file with no trailing newline names its last directory all the same,
  * measured.
  *
- * @type {(od: string, text: string) => Nullable<readonly string[]>}
+ * @type {(od: string, text: string) => readonly string[] | _Refusal}
  */
 export const alternatesIn = (od, text) => {
-    const named = text.split('\n').map(alternateLine)
-    if (named.includes(refused)) { return null }
-    return /** @type {readonly string[]} */ (named.filter(l => l !== null && l !== refused))
-        .map(l => root(l) === '' ? under(od, l) : l)
+    const lines = text.split('\n')
+    const named = lines.map(alternateLine)
+    const encoding = named.indexOf(refused)
+    if (encoding !== -1) { return { why: 'encoding', line: lines[encoding] } }
+    const bad = named.indexOf(unreadable)
+    if (bad !== -1) { return { why: 'line', line: lines[bad] } }
+    return /** @type {readonly string[]} */ (named.filter(l => l !== null))
+        .map(l => isAbsolute(od, l) ? l : under(od, l))
 }
+
+/**
+ * Whether an entry names a directory on its own rather than one below `od`.
+ *
+ * **A drive root is one only where the store itself has one.** `C:/donor/objects`
+ * is an absolute path on Windows and a directory named `C:` on POSIX, and
+ * nothing in the line says which — but the object directory holding the file
+ * does: a repository at `C:/repo/.git/objects` is on a system where drives are
+ * roots, and one at `/home/…` or a relative path is not. Measured on Git 2.43.0
+ * on POSIX, an entry of `C:` read objects from `objects/C:`, so the POSIX
+ * reading is a directory name, which is what this gives it.
+ *
+ * Without that test a POSIX entry of `C:/…` would be handed to the host as an
+ * absolute path, and the host would resolve it against the *process* directory —
+ * a third place, named by nobody.
+ *
+ * @type {(od: string, entry: string) => boolean}
+ */
+const isAbsolute = (od, entry) => {
+    const r = root(entry)
+    if (r === '') { return false }
+    return r === '/' || r === '//' || isDrive(root(od))
+}
+
+/**
+ * Whether a root is a drive's — `C:/` and not `/` or `//` or none at all.
+ *
+ * @type {(r: string) => boolean}
+ */
+const isDrive = r => r.length > 1 && r[1] === ':'
 
 /**
  * The code an `objects/info/alternates` is refused with when its bytes are not
@@ -294,6 +333,36 @@ export const alternatesIn = (od, text) => {
  * store says it cannot look rather than looking somewhere else.
  */
 export const alternatesCode = /** @type {const} */ ('ERR_ALTERNATES_ENCODING')
+
+/**
+ * The code an `objects/info/alternates` is refused with when a line has text
+ * after its closing quote.
+ *
+ * **Git's reading of such a line is an off-by-one, and there is nothing else to
+ * copy.** Measured on Git 2.43.0: the quoted path is taken, and the remainder
+ * becomes a *second* entry missing its first character. A line of
+ * `"<donor1>"../../../donor/.git/objects` made Git look for
+ * `<borrower>/objects/./../../donor/.git/objects` — one level short of what is
+ * written — and fail; sacrificing a character, `"<donor1>"x../../../donor/…`,
+ * made it read the donor. So the suffix is neither ignored nor honoured: it is
+ * read as a path nobody wrote.
+ *
+ * Taking the quoted path and dropping the suffix would answer "no such object"
+ * for a store Git can reach, and reproducing the off-by-one would build a path
+ * out of a bug. `git clone --shared` never writes such a line; hand-editing is
+ * the only way to one. So it is refused, which is the answer that is neither
+ * silent nor invented.
+ */
+export const alternatesLineCode = /** @type {const} */ ('ERR_ALTERNATES_LINE')
+
+/**
+ * The message beside {@link alternatesLineCode}: the file, and the line that
+ * cannot be read faithfully.
+ *
+ * @type {(path: string, line: string) => string}
+ */
+export const alternatesLineMessage = (path, line) =>
+    `${path} has text after a closing quote: ${line}`
 
 /**
  * The message beside {@link alternatesCode}: the file that is not UTF-8.
@@ -368,7 +437,8 @@ export const maxBorrowDepth = /** @type {const} */ (6)
  *
  * @type {(c: IoChannel) => boolean}
  */
-const isAlternates = c => c[0] === 'ioError' && c[1].code === alternatesCode
+const isAlternates = c => c[0] === 'ioError'
+    && (c[1].code === alternatesCode || c[1].code === alternatesLineCode)
 
 /**
  * One object directory of the search, and the directories it borrows from, to be
@@ -412,15 +482,19 @@ const borrowedBy = ([od, depth]) => seen => {
         c => isAlternates(c) ? pureError(c) : pureOk(''))
     return step(text, t => {
         const named = alternatesIn(od, t)
-        // `null` is the refusal and not an empty list: the file was read and
-        // names a path this layer would spell wrongly, so passing it over would
-        // be the silence the whole check exists to prevent.
-        return named === null
-            ? pureError(ioError({ code: alternatesCode, message: alternatesMessage(p) }))
-            : pureOk(/** @type {const} */ ([
-                kept,
-                named.map(n => /** @type {const} */ ([n, depth + 1])),
-            ]))
+        // A refusal is not an empty list: the file was read and holds a line this
+        // reader will not answer for, so passing it over would be the silence the
+        // checks exist to prevent.
+        if (!Array.isArray(named)) {
+            const { why, line } = /** @type {_Refusal} */ (named)
+            return pureError(ioError(why === 'encoding'
+                ? { code: alternatesCode, message: alternatesMessage(p) }
+                : { code: alternatesLineCode, message: alternatesLineMessage(p, line) }))
+        }
+        return pureOk(/** @type {const} */ ([
+            kept,
+            named.map(n => /** @type {const} */ ([n, depth + 1])),
+        ]))
     })
 }
 
@@ -514,7 +588,7 @@ const packedOr = (idOf, id, loose) => r => {
  * Everything it needs is a leading parameter, so the step closes over nothing
  * the walk carries (§3.3).
  *
- * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, Result<Nullable<Envelope>, IoChannel>, IoChannel>}
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, _Outcome, IoChannel>}
  */
 const inOne = (idOf, oidBytes, id) => od => {
     const p = loosePath(od, id)
@@ -522,9 +596,22 @@ const inOne = (idOf, oidBytes, id) => od => {
     // not lifted back into the channel, because none of the three things short of
     // the object ends the search here.
     const loose = resultStep(readLoose(p), r => pureOk(checkedAt(idOf, p, id)(r)))
-    return step(loose, r => r[0] === 'ok' && r[1] !== null
-        ? pureOk(r)
-        : resultStep(readPacked(od, oidBytes)(id), h => pureOk(packedOr(idOf, id, r)(h))))
+    return step(loose, r => {
+        if (r[0] === 'ok' && r[1] !== null) { return pureOk(/** @type {_Outcome} */ ([r, false])) }
+        // The loose read's own channel error is the one failure that is not a
+        // refusal: it is the host saying there is no such file, which is what a
+        // store without the object looks like. A hash mismatch is not — the file
+        // is there and holds something else.
+        const looseRefused = r[0] === 'error'
+            && r[1][0] === 'ioError' && r[1][1].code === objectIdCode
+        return resultStep(readPacked(od, oidBytes)(id), h => {
+            const answered = packedOr(idOf, id, r)(h)
+            return pureOk(/** @type {_Outcome} */ ([
+                answered,
+                answered === r ? looseRefused : answered[0] === 'error',
+            ]))
+        })
+    })
 }
 
 /**
@@ -538,18 +625,41 @@ const inOne = (idOf, oidBytes, id) => od => {
  * the store that was asked, not about the last store it borrows from. With no
  * alternates there is one directory and this is what the reader did before.
  *
- * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => (found: Nullable<Result<Nullable<Envelope>, IoChannel>>) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly [Nullable<Result<Nullable<Envelope>, IoChannel>>, List<string>], IoChannel>}
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, oidBytes: OidBytes, id: Oid) => (od: string) => (found: Nullable<_Outcome>) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly [Nullable<_Outcome>, List<string>], IoChannel>}
  */
 const storeOf = (idOf, oidBytes, id) => od => found => {
-    if (found !== null && found[0] === 'ok' && found[1] !== null) {
+    if (found !== null && found[0][0] === 'ok' && found[0][1] !== null) {
         return pureOk(/** @type {const} */ ([found, null]))
     }
     return mapStep(
         inOne(idOf, oidBytes, id)(od),
-        r => /** @type {const} */ ([
-            r[0] === 'ok' && r[1] !== null ? r : found ?? r,
-            null,
-        ]))
+        o => /** @type {const} */ ([kept(found, o), null]))
+}
+
+/**
+ * Which of two outcomes stands: the object, then a refusal, then the first
+ * directory's answer.
+ *
+ * **A refusal outlives a miss, whichever directory it came from.** A borrowed
+ * store whose pack cannot answer for an id it holds is corruption, and reporting
+ * the repository's own `ENOENT` instead would answer "no such object" for a
+ * question that was never answered — the plausible wrong value `fjs/AGENTS.md`
+ * forbids. Git says both, in its own way: it prints the borrowed store's failure
+ * and then reports the miss. With one channel, the failure is the one worth
+ * carrying.
+ *
+ * **Among misses the first directory's answer stands**, because the three things
+ * a read can say short of the object — no file, bytes that are no object, bytes
+ * of another object — are about the store that was asked and not about the last
+ * store it borrows from. Among refusals the first stands for the same reason.
+ *
+ * @type {(found: Nullable<_Outcome>, o: _Outcome) => _Outcome}
+ */
+const kept = (found, o) => {
+    if (found === null) { return o }
+    const [answer, refusal] = o
+    if (answer[0] === 'ok' && answer[1] !== null) { return o }
+    return refusal && !found[1] ? o : found
 }
 
 /**
@@ -594,10 +704,12 @@ export const readIn = (ods, oidBytes) => {
         assert(length(id) === bits, ['not an id of the width', id])
         const walked = walkStep(
             pureOk(ods),
-            /** @type {Nullable<Result<Nullable<Envelope>, IoChannel>>} */ (null),
+            /** @type {Nullable<_Outcome>} */ (null),
             storeOf(idOf, oidBytes, id))
         return step(walked, found => {
-            const r = found ?? /** @type {Result<Nullable<Envelope>, IoChannel>} */ (ok(null))
+            const r = found === null
+                ? /** @type {Result<Nullable<Envelope>, IoChannel>} */ (ok(null))
+                : found[0]
             return r[0] === 'error' ? pureError(r[1]) : pureOk(r[1])
         })
     }

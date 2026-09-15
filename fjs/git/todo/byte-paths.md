@@ -81,6 +81,12 @@ Two smaller shapes are worth measuring first:
 - [ ] Carry it through `fjs/effects/node` and `fjs/path`.
 - [ ] Remove `alternatesCode` and the two refusals `fjs/git/store` raises with
       it: the file's own bytes, and an octal escape above `\177`.
+- [ ] Ask the host which roots it has, rather than reading it off the store's
+      own path. `C:/donor/objects` is an absolute path on Windows and a
+      directory named `C:` on POSIX, and `alternatesIn` tells them apart by
+      whether the object directory holding the file is itself drive-rooted —
+      a signal that is right in every case anyone writes and is still an
+      inference rather than an answer.
 - [ ] Decide where a remark goes, so an unusable borrowing is reported rather
       than passed over. This is its own question and may want its own issue.
 
