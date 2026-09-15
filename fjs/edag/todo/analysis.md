@@ -82,6 +82,10 @@ type Analysis = {
   identity is decided by its inputs — a plain access, an operator, the
   comma — is the same node as another in the same scope spelled the same
   over the same inputs, so `[cfg.a, cfg.a]` becomes one node reached twice.
+  Inputs are the same when each operand is: an operation node by its index,
+  a primitive by `Object.is` — so `0` and `-0` are different inputs, and
+  `['[]', [['/', 1, 0], ['/', 1, -0]]]` keeps two nodes, `Infinity` and
+  `-Infinity`, while `NaN` is the same input as `NaN`.
   Two scopes never merge: `[(...a) => "x".length, (...b) => "x".length]`
   keeps a `.` node per body, each in its own scope, since a value is never
   shared across calls and no consumer could use the merge. A constructor,
@@ -172,6 +176,7 @@ value outputs keep the sweep until they run the EDAG.
       with the merge of identity-free nodes within a scope and no merge of
       constructors; proofs for a shared constructor, a shared access, two
       equal accesses, two equal accesses in sibling bodies left apart, two
+      operators over `0` and `-0` left apart and two over `NaN` merged, two
       equal constructors, a primitive taking no index, sharing inside a body
       against sharing outside and a body inside a body, and a lazy operand.
 - [ ] Amnesia's operations factored into a table parameterized by the child
