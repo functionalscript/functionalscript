@@ -374,13 +374,18 @@ const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys]
  * walk ends at — the literal the route selects, when the route is spent,
  * or the reference the route ran into, with the rest of the route as its
  * keys, since what those keys select lies behind that reference; a
- * primitive the route runs into holds no reference at all.
+ * primitive the route runs into holds no reference at all. An entry that
+ * is an access on a literal is walked as what it selects, so a route into
+ * `{ a: [x, x] }.a` reaches the array and not `x` one key deeper.
  *
  * @type {(ast: AstConst, route: readonly string[]) => List<_Ref>}
  */
-const refsAlong = (ast, route) => route.length === 0 || !isContainerLiteral(ast)
-    ? map(deeperBy(route))(refsOf(value)(ast))
-    : refsAlong(literalAt(ast, route[0]), route.slice(1))
+const refsAlong = (ast, route) => {
+    const read = selectedOf(ast)
+    return route.length === 0 || !isContainerLiteral(read)
+        ? map(deeperBy(route))(refsOf(value)(read))
+        : refsAlong(literalAt(read, route[0]), route.slice(1))
+}
 
 /** @type {(ast: AstConst) => (route: readonly string[]) => List<_Ref>} */
 const refsAlongEntry = ast => route => refsAlong(ast, route)
