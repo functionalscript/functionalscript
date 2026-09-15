@@ -135,9 +135,10 @@ contract stays for `.data.js` and `.json`, which are values.
       kind without a spelling.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
-      analyses — the node tables and shared indices, equal up to the analysis's
-      merge — with each refusal pinned by its message; the DataJS corpus keeps
-      writing through `.data.js`. The promise is for the JavaScript-compatible
+      analyses whole — root, nodes, scope and shared, equal up to the
+      analysis's merge — so that `export default 1;`, whose table is empty,
+      is held by its root; with each refusal pinned by its message; the DataJS
+      corpus keeps writing through `.data.js`. The promise is for the JavaScript-compatible
       model: an EDAG optimized by a content-addressable VM
       ([`fjs/edag/execution-models.md`](../../edag/execution-models.md) §4)
       is not necessarily expressible in `.f.js` and may not survive the round
