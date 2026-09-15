@@ -50,19 +50,19 @@ two operators, each with one job.
   | `entry(5, "x")`, `entry(f, "x")` | `undefined` — no such entry; a primitive boxes as in JavaScript |
   | `entry(null, b)`, `entry(undefined, b)` | throws, as JavaScript's read throws |
 
-  The key is any primitive, converted to a property key as JavaScript
-  converts one: a string as is; a number, a bigint, a boolean, `null` or
-  `undefined` by its `ToString`, so `0` reads `"0"` and `true` reads
-  `"true"`. A key that is not a primitive — an array, an object, a function
-  — throws. JavaScript would convert it through `ToPrimitive`, which calls
-  a `toString` or `valueOf` the value carries and, for a function or an
-  array holding one, reaches source text the name-erased graph does not
+  The key is a string, a number, a bigint, a boolean or `undefined`,
+  converted to a property key as JavaScript converts one, a string as is
+  and the rest by `ToString`, so `0` reads `"0"` and `true` reads `"true"`.
+  Any other key — `null`, an array, an object, a function — throws, and
+  the pattern itself says so: its descriptor call takes `null` as the
+  receiver when `typeof b` is `'object'` or `'function'`, which is the
+  throw JavaScript performs on a nullish receiver, so JavaScript agrees on
+  every key and there is no divergence to state. The class is refused
+  whole because JavaScript would convert it through `ToPrimitive`, which
+  calls a `toString` or `valueOf` the value carries and, for a function or
+  an array holding one, reaches source text the name-erased graph does not
   carry, and the native VM has no path to call a function during a
-  conversion; refusing the whole class is simpler than following that
-  conversion halfway. It is the one fail-stop divergence: the executor
-  throws where JavaScript reads a property, and the writer spells no guard
-  for it, since JavaScript has no throw expression. No guard on the base
-  is needed: a function
+  conversion. No guard on the base is needed: a function
   has no entries, so `entry` on one is `undefined` for every key, which is
   the right answer for "a function has no data", and nothing throws that
   JavaScript would not throw.
@@ -75,7 +75,7 @@ two operators, each with one job.
 
   ```js
   const entry = (a, b) => {
-      const x = Object.getOwnPropertyDescriptor(a, b)
+      const x = Object.getOwnPropertyDescriptor(typeof b === 'object' || typeof b === 'function' ? null : a, b)
       return x?.enumerable ? x.value : undefined
   }
   // ['entry']
@@ -114,8 +114,8 @@ two operators, each with one job.
   value can, every use an ordinary call, one host function in the executor
   and one operation in the native VM; and the built-in it wraps exists
   nowhere else, which makes the wrapped semantics the only semantics. The
-  next such function — `hasEntry` over the same descriptor read, the
-  `Number` cast, the string and array functions
+  next such function — an existence test over the same descriptor read,
+  once `2345` settles it, the `Number` cast, the string and array functions
   [`2360-built-in.md`](../../../spec/todo/2360-built-in.md) lists as
   allowed — is one pattern, one `op0` node and one row in the table, and no
   new rule.
@@ -128,9 +128,12 @@ two operators, each with one job.
   `Object.keys([1, 2])` is `['0', '1']`. The functions that see
   non-enumerable properties, `getOwnPropertyNames` and
   `getOwnPropertyDescriptors`, leave the allowed list or are redefined over
-  entries, and `Object.hasOwn`, if kept, becomes `hasEntry`, the same
-  pattern returning `x?.enumerable === true`, so that existence is not
-  revealed where the value is not.
+  entries. `Object.hasOwn` as it stands would reveal `name`'s existence
+  where `entry` reads `undefined`, so if it is kept it follows the same
+  enumerability rule; whether `{ a: undefined }` has an entry `a` is
+  [`1010-undefined-property.md`](../../../spec/todo/1010-undefined-property.md)'s
+  question and [`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)'s
+  to settle, and this todo decides nothing about it.
 - **`a[b]` with an unknown `b` stays refused.** It cannot lower to `entry`:
   JavaScript's `a[b]` walks the prototype chain and `entry` does not, and
   `b` may be `"constructor"` at run time. The `entry` function is the
@@ -159,15 +162,22 @@ two operators, each with one job.
 - [ ] Amnesia evaluates `['entry']` to one host function of arity `2` that
       reads the descriptor and its `enumerable` flag, with
       proofs for an object, an array, a string, `null`, a number and a
-      function as the base; a number, a boolean and `null` as the key
-      converting, and an array, an object and a function as the key
+      function as the base; a number, a boolean and `undefined` as the key
+      converting, and `null`, an array, an object and a function as the key
       throwing; a missing property; and `name` and `length` on a function
       reading `undefined`.
-- [ ] The native VM follows in the same PR: `ownCases` in `fjs/nanvm` and the
-      vectors it generates take the entry answers — an array and a string
-      receivers with their items, `length` and `name` `undefined`, a primitive
-      key converted by `ToString`, any other key a throw — and `Any::own_property` in
-      `nanvm-lib`, renamed with the node, and its documentation with them.
+- [ ] The native VM follows in the same PR. It implements the function's
+      semantics as its own two-operand operation, the successor of
+      `Any::own_property`, and the conformance corpus in `fjs/nanvm` keeps
+      pinning that operation as `ownCases` does today, `[op, a, b]`, since the
+      Rust emitter has no call yet; the node's value as a callable in Rust
+      waits on native calls. The answers change to the entry answers — an
+      array and a string receivers with their items, `length` and `name`
+      `undefined`, a primitive key converted by `ToString`, any other key a
+      throw — and the key conversion is ECMAScript's `Number::toString`, the
+      shortest round-trip spelling the DataJS specification already defines,
+      not Rust's `f64::to_string`: `1e21` reads `"1e+21"`, `0.1` reads
+      `"0.1"`, `-0` reads `"0"`, each pinned as a boundary case.
 - [ ] The parser recognizes the `entry` function as a fixed token shape with
       identifier placeholders and lowers it to `['entry']`, refuses
       `Object.getOwnPropertyDescriptor` anywhere else, and keeps `name`
@@ -181,13 +191,14 @@ two operators, each with one job.
       `functionalscript-output.md` and `interpret-edag.md` repointed.
 - [ ] `2360-built-in.md` removes `getOwnPropertyNames` and
       `getOwnPropertyDescriptors` from the allowed list, or redefines them over
-      entries, and names `hasEntry` in place of `hasOwn`.
+      entries, and marks `hasOwn` as following `2345`.
 - [ ] The spec todos updated in the same migration:
       [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
       spells `own_property` as the `entry` function, and
       [`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)
-      becomes `hasEntry` over the same descriptor read, in place of the
-      `Object`-only scope it inherits from the current `own`.
+      takes `entry`'s enumerability rule in place of the `Object`-only scope
+      it inherits from the current `own`, and keeps the `{ a: undefined }`
+      question it defers to `1015`.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
