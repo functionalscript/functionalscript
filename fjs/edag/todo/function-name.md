@@ -43,7 +43,9 @@ source means:
   computed-key rule and comes from the access half of the pattern, since an
   access needs a known key: `{ [x()]: (...a) => 5 }[x()]` is refused. So
   the name operand is a primitive or a constant's node, evaluated once, a
-  number kept as a number and named by its `ToString`, and any name is
+  number kept as a number and named by its `ToString`; a constant whose
+  value is neither a string nor a number, `const k = true`, is refused, as
+  a computed key of that type is; and any name is
   allowed, `constructor` and `__proto__` included, since nothing reads a
   property: `const constructor = (...a) => 5` round-trips through
   `{ ["constructor"]: (...$a) => 5 }["constructor"]`. The writer uses the
@@ -61,8 +63,12 @@ source means:
       the name always present, `""` for none — and the README's table.
 - [ ] Lowering: the compiler computes the name by JavaScript's rules at every
       position a function can stand, with proofs for each of the five above.
-- [ ] Amnesia and the operation table set `name` on construction; proof that
-      `f.name` reads it back and that `Object.entries` omits it.
+- [ ] Amnesia and the operation table construct the function through the same
+      computed-key spelling in host JavaScript, `{ [name]: (...a) => … }[name]`,
+      so `name` carries JavaScript's own descriptor — not writable, not
+      enumerable, configurable — with no `defineProperty` anywhere; proof that
+      `f.name` reads it back, that `Object.entries` omits it, and that
+      `Object.getOwnPropertyDescriptor(f, "name")` is what JavaScript gives.
 - [ ] The parser recognizes the pattern `{ [k]: (...a) => body }[k]`, `k` a
       string or number literal or a reference to a constant, the same at both
       places, as the named function, with any name, and refuses

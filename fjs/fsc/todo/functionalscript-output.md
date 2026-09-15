@@ -167,7 +167,8 @@ contract stays for `.data.js` and `.json`, which are values.
       refused, naming the four; `x.edag.data.js` pinned as the EDAG route.
 - [ ] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
       with a numeric or function base hoisted, functions with parameters named by
-      depth, the root comma as `const` anchors, shared constructors hoisted and
+      depth, the root comma as `const` anchors, shared identity-minting nodes —
+      constructors and calls — hoisted and
       merged nodes written in place, every `const` named `$n` by position — one
       line, normalized.
 - [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
