@@ -110,7 +110,11 @@ accepts, so that compiling the output again yields the same EDAG:
 - An access, `['.', base, key]`, is the own read
   ([`own-access.md`](../../edag/todo/own-access.md)), whose general spelling
   is `Object.getOwnPropertyDescriptor(base, key)?.value`; the writer uses
-  the simpler form wherever it means the same, which today is always:
+  the simpler form wherever it means the same, which today is always —
+  under the assumption `own-access.md` states, a realm whose prototypes are
+  the standard's, which every FunctionalScript file run by a JavaScript
+  engine already relies on, since every standard prototype name is refused
+  at the key and so `a.x` and the own read agree on every accepted name:
   `base.key` for a key that is an identifier and `base[key]` otherwise, a
   number key as a number, a computed number as `base[Number(k)]` — a
   non-finite one, which `a[1e999]` produces, as `1e999` or `-1e999`, the

@@ -31,16 +31,19 @@ source means:
 - The name operand denotes a property key: a string as is, a number by
   its `ToString` — `{ [1]: (...a) => 5 }[1].name` is `"1"` — and nothing
   else, since the language has no symbol; the executor sets that string as
-  the function's `name`. The analysis treats the operand as any other, so a
-  name that reads the arguments is a body-scope dependency like a frame's.
+  the function's `name`.
 - **Writing it back, and reading it.** The spelling
   `{ [$name]: (...$a) => body }[$name]` is a pattern the parser recognizes
   as one operator, the named function, and lowers straight to
   `['=>', frame, body, name]` — no object and no access in the graph, as
   `Object.is(a, b)` lowers to `is` and `hasOwn` to its own read
   ([`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)).
-  The key and the index must be the same identifier or the same string
-  literal, so the name is one expression evaluated once, and any name is
+  The key and the index must be the same at both places and known — a
+  string or number literal, or a reference to a constant — which is the
+  computed-key rule and comes from the access half of the pattern, since an
+  access needs a known key: `{ [x()]: (...a) => 5 }[x()]` is refused. So
+  the name operand is a primitive or a constant's node, evaluated once, a
+  number kept as a number and named by its `ToString`, and any name is
   allowed, `constructor` and `__proto__` included, since nothing reads a
   property: `const constructor = (...a) => 5` round-trips through
   `{ ["constructor"]: (...$a) => 5 }["constructor"]`. The writer uses the
@@ -60,10 +63,11 @@ source means:
       position a function can stand, with proofs for each of the five above.
 - [ ] Amnesia and the operation table set `name` on construction; proof that
       `f.name` reads it back and that `Object.entries` omits it.
-- [ ] The parser recognizes the pattern `{ [k]: (...a) => body }[k]`, `k` one
-      identifier or one string literal at both places, as the named function,
-      with any name; the writer's spellings, with the round trip proved on each
-      position.
+- [ ] The parser recognizes the pattern `{ [k]: (...a) => body }[k]`, `k` a
+      string or number literal or a reference to a constant, the same at both
+      places, as the named function, with any name, and refuses
+      `{ [x()]: … }[x()]`; the writer's spellings, with the round trip proved on
+      each position, a number name included.
 - [ ] `own-access.md`'s "implementation-defined" replaced by this.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
