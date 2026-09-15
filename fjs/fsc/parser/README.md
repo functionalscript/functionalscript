@@ -85,8 +85,11 @@ the fold's:
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
-- an access naming the prototype chain, `a.__proto__` or `a["constructor"]`
-  in either spelling, which
+- an access naming a property of a built-in prototype, `a.push`,
+  `a["toString"]` or `a.__proto__` in either spelling — every name
+  [`fjs/js/prototype`](../../js/prototype/module.f.mjs) lists but `length`,
+  which a value owns — since an access reads an own property and JavaScript
+  would read the prototype's, as
   [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
   prohibits. The key of an access is a constant — an identifier after `.`, a
   string or a number in `[ ]` — so what remains is the EDAG's own form,

@@ -59,6 +59,7 @@ import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
+import { prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
@@ -492,12 +493,24 @@ const imported = ({ module, attribute }) => {
 }
 
 /**
- * A key that names the prototype chain, at the key. `__proto__` and
- * `constructor` reach a function's constructor through any object, which
+ * A key that names a property of a built-in prototype, at the key, in
+ * either spelling. An access reads an own property, and JavaScript reads
+ * the prototype's where the value owns none: `a.push` is a function there
+ * and nothing here, `a.__proto__` and `a.constructor` reach a function's
+ * constructor through any object — so every such name is refused, as
  * [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
- * prohibits in either spelling; the bare and quoted spellings alike.
+ * has it, and a module means one thing in both languages.
  */
 const prohibitedKey = foldError('prohibited property name')
+
+/**
+ * The names an access may not read: every name a built-in prototype gives
+ * a value, `fjs/js/prototype`, but `length` — an own property of an array,
+ * a string and a function, which the two languages read alike.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
 /** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = ({ token }) => {
@@ -519,7 +532,7 @@ const keyNamed = ({ token }) => {
  */
 const accessClosed = (key, base) => {
     const named = keyNamed(key)
-    if (named === protoKey || named === 'constructor') { return error(prohibitedKey(key)) }
+    if (typeof named === 'string' && prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
     /** @type {AstAccess} */
     const access = ['.', base, named]
     return ok(access)
@@ -657,7 +670,7 @@ const returned = (stack, env, frame, value) => {
  * The value a node denotes under `env`, or the first error met in document
  * order: a reference to a keyword, to a name bound outside the function
  * being resolved, or to a name nothing binds, a plain `__proto__` key, or
- * an access naming the prototype chain.
+ * an access naming a built-in prototype's property.
  *
  * Over an explicit stack: a frame per container being built, its items
  * resolved in order, and per function, its body resolved under its own

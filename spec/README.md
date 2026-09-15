@@ -438,6 +438,31 @@ it is the only spelling whose evaluation reproduces the property. In JSON
 output the plain key stays: `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the bracketed form is not JSON at all.
 
+## Property Access
+
+```js
+const cfg = { ports: [80, 443] };
+export default [cfg.ports[0], cfg["ports"].length];
+```
+
+A property access reads an **own property** of a value named by a
+reference: a member of an object, an element or the `length` of an array, a
+code unit or the `length` of a string. The key is a constant — an identifier
+after `.`, or a string or a number in brackets — and `0` and `"0"` name the
+same element, as in JavaScript. A property the value does not own is
+`undefined`, and reading one of `null` or `undefined` is an error, as
+JavaScript throws.
+
+FunctionalScript has no prototype chains, so a name a built-in prototype
+gives a value — `push`, `toString`, `valueOf`, `constructor`, `__proto__`
+and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
+— is a **compilation error** as a key, in either spelling: JavaScript would
+find a function there and this language nothing, and a module must mean one
+thing in both. `length` is the exception, since an array, a string and a
+function own it. The rules are
+[property-accessor](./todo/2330-property-accessor.md)'s; a key computed at
+run time, and a method call, are not recognized yet.
+
 ## Importing Other Modules
 
 ```js
