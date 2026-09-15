@@ -48,8 +48,9 @@ schema, the README's table and amnesia.
   engine gives a function — `"f"` for `const f = (...a) => 5` in
   JavaScript, another name after the writer, whatever the memo executor's
   closure carries, since the graph is name-erased — so the specification
-  states it as implementation-defined, as a function's `toString` is, and
-  no guarantee mentions it.
+  states it as implementation-defined until `=>` carries the name
+  ([`function-name.md`](./function-name.md)), after which it is
+  JavaScript's.
 - **Writing it back.** The general spelling is
   `Object.getOwnPropertyDescriptor(a, b)?.value`, which needs a call and
   optional chaining in the language; the writer uses the simpler forms
