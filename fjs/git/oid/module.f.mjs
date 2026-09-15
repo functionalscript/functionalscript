@@ -130,17 +130,18 @@ export const of = oidBytes => {
  * and it is built on this rather than beside it so that the choice of hash is
  * made in one place.
  *
- * Private until something outside this module hashes bytes that are no object.
- * A pack and a pack index each end in a checksum over their own preceding bytes,
- * with no framing at all, so a reader of either wants this — and those readers
- * are not in this change. The export moves with them rather than waiting here for
- * a consumer, which is the one-feature rule applied to an API of one line.
+ * Exported because a reader that is not reading an object needs it. A pack index
+ * ends in a checksum over its own preceding bytes, with no framing at all, and
+ * [`fjs/git/packidx`](../packidx/module.f.mjs)'s `checksumAgrees` is what asks:
+ * it hashes the file up to the trailing id and compares. A pack ends the same
+ * way. This stayed private while nothing outside the module hashed bytes that
+ * are no object, and it is public here because that reader arrives here.
  *
  * @throws If an item of the bytes is not a byte.
  *
  * @type {(oidBytes: OidBytes) => (bytes: Bytes) => Oid}
  */
-const digestOf = oidBytes => {
+export const digestOf = oidBytes => {
     const hash = oidBytes === 20 ? computeSync(sha1) : computeSync(sha256)
     return bytes => hash(chunks(bytes))
 }
