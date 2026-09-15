@@ -8,10 +8,11 @@ import type { Exp } from '../../edag/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 
-/** The nodes a reference can name: one per import, and one per entry lowered so far. */
+/** The nodes a reference can name: one per import, one per entry lowered so far, and the arguments of the function being lowered. */
 export type _Nodes = {
     readonly parameters: readonly Exp[]
     readonly consts: readonly Exp[]
+    readonly args: Exp
 }
 
 /**

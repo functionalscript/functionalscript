@@ -467,6 +467,19 @@ export const proof = {
             const result = tokenizeString(' \t\n\r ')
             assertEq(result, '[{"kind":"nl"},{"kind":"eof"}]')
         },
+        () => {
+            // the Unicode line and paragraph separators are no token outside a
+            // string: not a newline, not comment text — a line comment ends at
+            // one as JavaScript's does, and a block comment cannot hold one
+            assertEq(tokenizeString('\u2028'), 'error')
+            assertEq(tokenizeString('a \u2029 b'), 'error')
+            assertEq(tokenizeString('/* a\u2028b */'), 'error')
+            assertEq(tokenizeString('/* a\u2029b */'), 'error')
+            assertEq(tokenizeString('// a\u2028b'), 'error')
+            assertEq(tokenizeString('// a\u2029b'), 'error')
+            assertEq(tokenizeString('"a\u2028b"'), '[{"kind":"string","value":"a\u2028b"},{"kind":"eof"}]')
+            assertEq(tokenizeString('"a\u2029b"'), '[{"kind":"string","value":"a\u2029b"},{"kind":"eof"}]')
+        },
     ],
     id: [
         () => {

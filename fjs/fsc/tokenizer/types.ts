@@ -25,11 +25,12 @@ import type {
  * plus its own punctuator kinds and `-Infinity`, the one word the `-` folds
  * into as it folds into a number. `;` is a member because a statement may
  * end with one — see the module-structure rule in `spec/README.md`, and
- * DataJS, which requires it.
+ * DataJS, which requires it — and `(`, `)`, `...` and `=>` because a
+ * function is written with them.
  */
 export type DjsToken = |
   {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity' | '-Infinity'} |
-  {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' | ';' } |
+  {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' | ';' | '(' | ')' | '=>' | '...' } |
   StringToken |
   NumberToken |
   ErrorToken |

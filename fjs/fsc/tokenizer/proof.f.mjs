@@ -19,6 +19,14 @@ export const proof = {
             assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":";"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
+            // the four tokens a function is written with are tokens of their
+            // own, `...` one token where it was three; `..` is no token
+            const kinds = toArray(tokenize(stringToList('(...a)=>a'))('')).map(t => t.token.kind)
+            assertEq(kinds.join(' '), '( ... id ) => id eof')
+            const dots = toArray(tokenize(stringToList('..'))('')).map(t => t.token.kind)
+            assertEq(dots.join(' '), 'error')
+        },
+        () => {
             // keywords other than the literals become plain ids
             const result = toArray(tokenize(stringToList('break'))(''))
             assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"id","value":"break"}},{"metadata":{"column":6,"line":1,"path":""},"token":{"kind":"eof"}}]')
