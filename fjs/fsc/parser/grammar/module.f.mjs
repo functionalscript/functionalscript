@@ -140,7 +140,8 @@ export const trivia = repeatFrom0({
  * Trivia on one line: {@link trivia} less the newline, where JavaScript
  * has `[no LineTerminator here]` — before `=>`. A block comment holding a
  * newline is refused too, since the tokenizer follows it with `nl`, and a
- * line comment ends at the newline it is followed by.
+ * line comment ends at the newline it is followed by; the Unicode line and
+ * paragraph separators are no token outside a string, so none stands here.
  */
 export const sameLine = repeatFrom0({
     ws: sym('ws'),

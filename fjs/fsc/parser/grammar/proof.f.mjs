@@ -141,6 +141,10 @@ export const proof = {
         assertStructurallySame(read('export default (...a)\n=> 1;'), ['error', 'nl'])
         assertStructurallySame(read('export default (...a) // c\n=> 1;'), ['error', 'nl'])
         assertStructurallySame(read('export default (...a) /* x\ny */ => 1;'), ['error', 'nl'])
+        // the Unicode line and paragraph separators are no token outside a
+        // string, so neither stands here, in a comment or bare
+        assertStructurallySame(read('export default (...a) /* x\u2028y */ => 1;'), ['error', 'error'])
+        assertStructurallySame(read('export default (...a)\u2029=> 1;'), ['error', 'error'])
     },
     // A reference takes accesses, `.name` and `[key]`, trivia allowed
     // around each token since a value ends with its own; a primitive or a
