@@ -76,11 +76,16 @@ accepts, so that compiling the output again yields the same EDAG:
   names its columns — `$a` at the top, `$b` one level in, `$z` then `$aa`,
   `$ab` — so the sequence is total, never digits alone, which keeps it apart
   from the hoisted `$n`, and never the same name in nested functions
-  ([`3150-shadowing.md`](../../../spec/todo/3150-shadowing.md)); sharing inside a
-  body — the arguments reached twice, a node held twice within the body — is
-  written by naming the node twice, since a body has no `const` to hoist
-  into yet, and the parser reads the arguments as one node however many
-  references reach them. A body that is an object literal is written in
+  ([`3150-shadowing.md`](../../../spec/todo/3150-shadowing.md)). Sharing
+  inside a body has no `const` to hoist into yet: the arguments reached
+  twice are written by naming the parameter twice, which the parser reads
+  as one node, and a merged access is written in place as anywhere else;
+  but a constructor shared within a body, `['=>', null, ['[]', [s, s]]]`
+  with `s` an array, has no spelling that keeps it one array per call, and
+  is refused until body constants
+  ([`3130-body-const.md`](../../../spec/todo/3130-body-const.md)) give it a
+  `const` inside the body — which makes that feature the one this writer
+  waits on first. A body that is an object literal is written in
   parentheses once the grouping operator is in the language
   ([`2350-grouping.md`](../../../spec/todo/2350-grouping.md)), and refused
   until then.
@@ -131,8 +136,8 @@ contract stays for `.data.js` and `.json`, which are values.
       merged nodes written in place, every `const` named `$n` by position — one
       line, normalized.
 - [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
-      refusal does: a comma anywhere but the root, an object-literal body, a node
-      kind without a spelling.
+      refusal does: a comma anywhere but the root, an object-literal body, a
+      constructor shared within a body, a node kind without a spelling.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
       analyses whole — root, nodes, scope and shared, equal up to the
@@ -156,6 +161,9 @@ contract stays for `.data.js` and `.json`, which are values.
 - [`spec/todo/serialization.md`](../../../spec/todo/serialization.md) — the
   EDAG as the canonical representation of a function, which the writer
   renders back to source; `toString(f)` will be this writer over one node.
+- [`3130-body-const.md`](../../../spec/todo/3130-body-const.md) — the
+  `const` inside a body that a shared constructor there needs; the writer's
+  first dependency on the language.
 - [`interpret-edag.md`](./interpret-edag.md) — the other consumer of the linked
   EDAG; the writer and the interpreter should agree on what a node means, and
   its value-producing contract yields to this issue for `.f.js`.
