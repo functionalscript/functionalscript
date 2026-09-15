@@ -1,21 +1,24 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoChannel, IoError, IoResult, ReadFile } from "./types.ts"
+ * @import { IoChannel, IoError, IoResult, ReadBytes, ReadFile, Stat } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
+ * @import { List as List_ } from "../../types/list/types.ts"
  * @import { OperationMap } from "../types.ts"
+ * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { empty, isVec, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
 // through `match` keeps the `Pure`/`Do` layout out of this module: the map key
@@ -499,6 +502,45 @@ export const proof = {
         missingFile: () => {
             const [_, [t, result]] = virtual(emptyState)(readBytes('missing', 0, 4))
             assert(t === 'error', result)
+        },
+    },
+    readWholeBytes: {
+        // A file of one chunk and a file of more read the same, and the chunks
+        // come back joined into one byte list. The virtual filesystem holds a
+        // file as its chunks already, so this is the shape a real open answers.
+        whole: () => {
+            for (const chunks of [
+                /** @type {readonly Vec[]} */ ([]),
+                [vec8(0x2An)],
+                [vec8(0x01n), vec8(0x02n)],
+                [u8ListToVec(msb)([1, 2, 3]), u8ListToVec(msb)([4, 5])],
+            ]) {
+                const [, [t, result]] = virtual({ ...emptyState, root: { file: chunks } })(
+                    readWholeBytes('file'))
+                assert(t === 'ok', result)
+                assertStructurallySame(
+                    toArray(/** @type {List_<number>} */ (result)),
+                    chunks.flatMap(v => toArray(u8List(msb)(v))))
+            }
+        },
+        // A whole file is not bounded by a `Vec`, which is the reason the
+        // operation answers chunks: `readFile` refuses the same fixture.
+        pastTheVecCap: () => {
+            const big = Array.from({ length: 3 }, () => u8ListToVec(msb)(Array.from(
+                { length: Number(maxLengthBytes) },
+                (_, i) => i % 251)))
+            const root = { file: big }
+            const [, [t, result]] = virtual({ ...emptyState, root })(readWholeBytes('file'))
+            assert(t === 'ok', result)
+            assertEq(toArray(/** @type {List_<number>} */ (result)).length, Number(maxLengthBytes) * 3)
+            // and the bounded read of the same file refuses
+            const [, [rt]] = virtual({ ...emptyState, root })(readFile('file'))
+            assertEq(rt, 'error')
+        },
+        // A path that is not there is the channel's, as every other read is.
+        missingFile: () => {
+            const [, [t]] = virtual(emptyState)(readWholeBytes('missing'))
+            assertEq(t, 'error')
         },
     },
     randomInt: {
