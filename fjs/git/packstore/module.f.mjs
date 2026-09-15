@@ -90,7 +90,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { inflate, isNotFound, leadsNowhere, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { inflate, isNotFound, leadsNowhere, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { join, under } from '../../path/module.f.mjs'
 import { length, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
@@ -152,6 +152,16 @@ const entryRefusal = (path, at) => what =>
     pureError(ioError({ code: packEntryCode, message: `${path}:${at} ${what}` }))
 
 /**
+ * The refusal for a path that is there and is no regular file, in the words
+ * {@link readWhole} uses for the same thing — so the diagnosis is the one
+ * message whichever of the two notices first.
+ *
+ * @type {(path: string) => Effect<never, never, IoChannel>}
+ */
+const notAFile = path =>
+    pureError(ioError({ code: notAFileCode, message: notAFileMessage(path) }))
+
+/**
  * One entry of the pack directory that ends in `.idx`, kept where it is a file.
  *
  * **A listing cannot classify a symlink, and a pack pair may be one.** Node's
@@ -166,13 +176,37 @@ const entryRefusal = (path, at) => what =>
  * leads nowhere is skipped, as Git's listing skips one; any other failure is the
  * channel's, because a pack dropped in silence is every object in it missing.
  *
+ * **Which is why a `.idx` that is there and is not a regular file is refused
+ * rather than dropped.** An earlier revision dropped it, on no rule — it was
+ * neither a link leading nowhere nor a failure, so it fell through the two
+ * cases into silence, and every object of the pack beside it went missing with
+ * it. Git never answers that way. Measured on Git 2.43.0, a valid `.pack`
+ * beside each:
+ *
+ * | the `.idx` is | `git cat-file -p` of a blob in another pack |
+ * | --- | --- |
+ * | a directory, or a link to one | `fatal: mmap failed: No such device`, exit 128 |
+ * | a FIFO | never returns — the open waits for a writer |
+ * | a link to `/dev/null` | `error: index file … is too small`, exit 0 |
+ * | an empty regular file | `error: index file … is too small`, exit 0 |
+ * | a link leading nowhere | skipped, exit 0 |
+ *
+ * So Git dies, hangs, or names the file; the one thing it never does is take
+ * the pack out of the repository without saying so. Only the last row is a
+ * skip, and that is the row this keeps skipping. A directory the *listing*
+ * classifies takes the same refusal without the `stat`, since the kind is
+ * already known.
+ *
  * @type {(pd: string) => (e: Dirent) => (names: List<string>) => Effect<Stat, List<string>, IoChannel>}
  */
-const namedIdx = pd => e => names => e.isFile
-    ? pureOk(concat(names)([e.name]))
-    : catchStep(
-        mapStep(stat(under(pd, e.name)), s => s.isFile ? concat(names)([e.name]) : names),
+const namedIdx = pd => e => names => {
+    if (e.isFile) { return pureOk(concat(names)([e.name])) }
+    const path = under(pd, e.name)
+    if (e.isDirectory) { return notAFile(path) }
+    return catchStep(
+        step(stat(path), s => s.isFile ? pureOk(concat(names)([e.name])) : notAFile(path)),
         c => leadsNowhere(c) ? pureOk(names) : pureError(c))
+}
 
 /**
  * The `.idx` names a pack directory holds, and nothing else in it: the `.pack`
@@ -189,7 +223,7 @@ const idxNames = pd => catchStep(
     step(
         readdir(pd, {}),
         es => foldStep(
-            pureOk(es.filter(e => e.name.endsWith(idxSuffix) && !e.isDirectory)),
+            pureOk(es.filter(e => e.name.endsWith(idxSuffix))),
             /** @type {List<string>} */ (null),
             namedIdx(pd))),
     e => isNotFound(e) ? pureOk(/** @type {List<string>} */ (null)) : pureError(e))

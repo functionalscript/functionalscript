@@ -11,6 +11,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
+import { notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
@@ -409,14 +410,14 @@ export const proof = {
         assertStructurallySame(r, ok(null))
         assertStructurallySame(log, [`readdir ${dirPath}`])
     },
-    // Everything in the directory that is not an `.idx` file is skipped: the
-    // packs, the `.rev` a newer Git writes beside them, and a directory whose
-    // name ends in `.idx`, which is no file and so no index.
+    // Everything in the directory whose name does not end in `.idx` is skipped
+    // by the suffix alone: the packs and the `.rev` a newer Git writes beside
+    // them, and with them a `.keep` and the partial file a fetch is still
+    // writing.
     otherNames: () => {
         const only = /** @type {readonly Dirent[]} */ ([
             dirent(`${name}.pack`, true),
             dirent(`${name}.rev`, true),
-            dirent('nested.idx', false),
         ])
         const [log, r] = readBy(
             hostOf(only, files, inflatedBy(streams)),
@@ -610,17 +611,28 @@ export const proof = {
             hostOf(linkedListing, () => null, inflatedBy(streams)),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(gone, ok(null))
-        // a link to something that is no file — a directory, a FIFO — is no pack
-        // either, and costs the same one `stat`
+        // A link to something that is no file — a directory, a FIFO — is not a
+        // skip. An earlier revision made it one, on no rule: it was neither a
+        // link leading nowhere nor a failure, so it fell between the two cases
+        // into silence, and every object of the pack beside it went missing
+        // without a word. Measured on Git 2.43.0 with a valid `.pack` beside
+        // each, Git says so instead: a directory or a link to one gives `fatal:
+        // mmap failed: No such device` at exit 128, a FIFO never returns at all,
+        // and a link to `/dev/null` gives `error: index file … is too small`.
+        // Only the row above, the link leading nowhere, is skipped.
         const whole = hostOf(linkedListing, files, inflatedBy(streams))
-        const notAFile = {
+        const aDirectory = {
             ...whole,
             stat: /** @type {typeof whole.stat} */ (
                 path => log => [[...log, `stat ${path}`], ok({ size: 0, isFile: false, isDirectory: true })]),
         }
-        const [, kind] = readBy(notAFile, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
-        assertStructurallySame(kind, ok(null))
-    // and any other failure is the channel's
+        const [kindLog, kind] = readBy(aDirectory, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        const e = refusal(kind)
+        assertEq(e.code, notAFileCode)
+        assertEq(e.message, notAFileMessage(idxPath))
+        // and nothing of the pack beside it is opened after the refusal
+        assertStructurallySame(kindLog, [`readdir ${dirPath}`, `stat ${idxPath}`])
+        // and any other failure is the channel's
         const refused = {
             ...whole,
             stat: /** @type {typeof whole.stat} */ (
@@ -628,14 +640,19 @@ export const proof = {
         }
         assertEq(refusal(readBy(refused, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')[1]).code, 'EIO')
     },
-    // A directory named `*.idx` is skipped by the listing alone: the `stat` is
-    // only for an entry the listing could not classify.
+    // A directory named `*.idx` is refused by the listing alone: the kind is
+    // already known, so it costs no `stat`, and it is the same refusal a link to
+    // a directory takes one `stat` later. An earlier revision filtered it out
+    // instead, which took the pack beside it out of the repository in silence
+    // where Git answers `fatal: mmap failed: No such device` and exits 128.
     idxIsADirectory: () => {
         const asDir = /** @type {readonly Dirent[]} */ ([dirent(`${name}.idx`, false)])
         const [log, r] = readBy(
             hostOf(asDir, files, inflatedBy(streams)),
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
-        assertStructurallySame(r, ok(null))
+        const e = refusal(r)
+        assertEq(e.code, notAFileCode)
+        assertEq(e.message, notAFileMessage(idxPath))
         assertStructurallySame(log, [`readdir ${dirPath}`])
     },
     // A chain that comes back to an entry it has already read is refused rather
