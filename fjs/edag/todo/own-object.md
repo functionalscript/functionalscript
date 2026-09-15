@@ -66,16 +66,26 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
   `getOwnPropertyDescriptor` converts the key exactly so — the pattern
   accepts `b` as a number, a boolean or anything else, and the operator
   means what the pattern means. The one divergence is the function key,
-  fail-stop as `f.name` is. Splitting the guards into nodes of their own
+  fail-stop as `f.name` is: the executor throws where JavaScript reads the
+  property named by the function's source text, and the writer spells no
+  guard for it, since JavaScript has no throw expression and the value
+  JavaScript would read is one the graph cannot carry either way. Splitting
+  the guards into nodes of their own
   was weighed and set aside for later: one operator that owns its
   preconditions is the simpler contract, and a node the schema types is
   a refinement it can grow into.
 - **`name` is unobservable.** `.` refuses it statically and `own` throws on
   a function, so no FunctionalScript program reads a function's `name`. `=>`
   carries no name, the graph stays name-erased, the writer's `$0` is
-  invisible, and `function-name.md` closes. `Object.getOwnPropertyNames(f)`
-  still lists `name`, which is the same for every function and reveals
-  nothing.
+  invisible, and `function-name.md` closes. The same guard applies to every
+  `Object` function the language admits
+  ([`2360-built-in.md`](../../../spec/todo/2360-built-in.md)) — `entries`,
+  `keys`, `values`, `getOwnPropertyNames`, `getOwnPropertyDescriptors`,
+  `hasOwn` — each a pattern whose receiver is `typeof a === 'object' ? a : null`,
+  so a function is not an object to any of them and
+  `Object.getOwnPropertyDescriptors(f)` throws rather than handing `name`'s
+  descriptor out as data. That is the principle applied uniformly: a
+  function of `Object` reads objects.
 - **`a[b]` with an unknown `b` stays refused.** It cannot lower to `own`:
   JavaScript's `a[b]` walks the prototype chain and `own` does not, and `b`
   may be `"constructor"` at run time. The descriptor pattern is the source
@@ -120,6 +130,9 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
+- [ ] `2360-built-in.md` states the receiver guard for every admitted
+      `Object` function, `getOwnPropertyDescriptors` included, so that no
+      reflection reaches a function's `name`.
 - [ ] The spec todos updated in the same migration:
       [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
       spells `own_property` with the guarded descriptor read instead of the
