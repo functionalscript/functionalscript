@@ -136,6 +136,14 @@ export const proof = {
             expectEdag(compile('const a = []; const b = [a]; export default 1;').edag, [',', [['[]', [['[]', []]]], 1]])
             expectEdag(compile('import a from "./a.f.js"; const b = [a]; export default 1;').edag, [',', [['[]', [['.', ['args'], 0]]], 1]])
         },
+        // an alias is the node it names, so it anchors nothing: `b` is `a`'s
+        // node, in the export or below another anchor
+        alias: () => {
+            expectEdag(compile('const a = []; const b = a; export default a;').edag, ['[]', []])
+            expectEdag(compile('const a = []; const b = a; const c = [a]; export default 1;').edag, [',', [['[]', [['[]', []]]], 1]])
+            expectEdag(compile('const a = []; const b = a; export default 1;').edag, [',', [['[]', []], 1]])
+            expectEdag(compile('import a from "./a.f.js"; const b = a; export default 1;').edag, [',', [['.', ['args'], 0], 1]])
+        },
         // source order: the imports, then the entries, then the export
         order: () => {
             expectEdag(compile('import a from "./a.f.js"; const b = 1; const c = 2; export default 3;').edag, [',', [['.', ['args'], 0], 1, 2, 3]])
@@ -224,6 +232,13 @@ export const proof = {
             expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default [b];'), 'b.f.js': file('const x = 1; export default 2;') })('a.f.js'), ['[]', [[',', [1, 2]]]])
             expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default 1;'), 'b.f.js': file('export default 2;') })('a.f.js'), [',', [2, 1]])
             expectEdag(program({ 'a.f.js': file('import b from "./b.f.js"; export default 1;'), 'b.f.js': file('const x = 1; export default 2;') })('a.f.js'), [',', [[',', [1, 2]], 1]])
+            // two imports of one module are one node once bound, so the
+            // unreached one is anchored only where the node is not already
+            // in the graph; before binding they are two parameters
+            const twice = { 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];'), 'm.f.js': file('export default [1];') }
+            expectEdag(program(twice)('a.f.js'), ['[]', [['[]', [1]]]])
+            expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['args'], 1], ['[]', [['.', ['args'], 0]]]]])
+            expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
         },
     },
 }

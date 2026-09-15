@@ -89,8 +89,9 @@ dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
 `run` evaluates every `const`, so a failure behind an unused one fails the
 compile, and the graph keeps the computation the same way — its operands the
 roots of the unreached part in source order, an entry another unreached entry
-reaches being anchored through it. A module the export reaches entirely has
-no comma.
+reaches being anchored through it, an alias being the node it names, and two
+imports of one module being one node. A module the export reaches entirely
+has no comma.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.

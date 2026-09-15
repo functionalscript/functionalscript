@@ -17,7 +17,7 @@ const b = { specifier: './b', json: false }
 
 /** @type {(module: import('./types.ts').AstModule) => string} */
 const anchorsOf = module => {
-    const { consts, imports } = anchors(module)
+    const { consts, imports } = anchors(module)(module[0])
     return `consts ${consts.join()}; imports ${imports.join()}`
 }
 
@@ -80,7 +80,7 @@ export const proof = {
         },
         consts: () => {
             assertEq(anchorsOf([[], [['array', []], 1]]), 'consts 0; imports ')
-            assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 1,2; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 2; imports ')
         },
         // an access reaches its base
         access: () => {
@@ -90,7 +90,7 @@ export const proof = {
         imports: () => {
             assertEq(anchorsOf([[a], [1]]), 'consts ; imports 0')
             assertEq(anchorsOf([[a, b], [['aref', 1]]]), 'consts ; imports 0')
-            assertEq(anchorsOf([[a, b], [['aref', 1], 1]]), 'consts 0; imports 0')
+            assertEq(anchorsOf([[a, b], [['aref', 1], 1]]), 'consts ; imports 0,1')
         },
         // an unreached entry another unreached entry reaches is anchored
         // through it: only the roots of the unreached part are named
@@ -98,9 +98,36 @@ export const proof = {
             assertEq(anchorsOf([[], [['array', []], ['array', [['cref', 0]]], 1]]), 'consts 1; imports ')
             assertEq(anchorsOf([[], [['array', []], ['.', ['cref', 0], 'x'], 1]]), 'consts 1; imports ')
             assertEq(anchorsOf([[a], [['array', [['aref', 0]]], 1]]), 'consts 0; imports ')
-            assertEq(anchorsOf([[a, b], [['array', [['aref', 1]]], ['cref', 0], 1]]), 'consts 1; imports 0')
+            assertEq(anchorsOf([[a, b], [['array', [['aref', 1]]], ['cref', 0], 1]]), 'consts 0; imports 0')
             // a reached entry's references do not anchor: what it reaches is reached
             assertEq(anchorsOf([[a], [['array', []], ['array', [['cref', 0], ['aref', 0]]], ['cref', 1]]]), 'consts ; imports ')
+        },
+        // a `const` that is a bare reference is the node it names, not a
+        // node of its own: it anchors nothing, and what it names is anchored
+        // where any reference to that node would be
+        alias: () => {
+            assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['cref', 0]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], 1]]), 'consts 2; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['cref', 0], 1]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['cref', 1], 1]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[a], [['aref', 0], 1]]), 'consts ; imports 0')
+            assertEq(anchorsOf([[a], [['aref', 0], ['cref', 0]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['aref', 0], ['array', [['cref', 0]]], 1]]), 'consts 1; imports ')
+        },
+        // two imports are one node where the nodes given for them are one —
+        // as the linker binds two imports of one module — and the first
+        // names it
+        sameImport: () => {
+            const x = {}
+            /** @type {(module: import('./types.ts').AstModule) => string} */
+            const bound = module => {
+                const { consts, imports } = anchors(module)([x, x])
+                return `consts ${consts.join()}; imports ${imports.join()}`
+            }
+            assertEq(bound([[a, b], [['aref', 0]]]), 'consts ; imports ')
+            assertEq(bound([[a, b], [['aref', 1]]]), 'consts ; imports ')
+            assertEq(bound([[a, b], [1]]), 'consts ; imports 0')
+            assertEq(bound([[a, b], [['array', [['aref', 1]]], 1]]), 'consts 0; imports ')
         },
     },
     // a property access reads its base's own property — never the

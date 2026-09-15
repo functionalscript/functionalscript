@@ -72,7 +72,9 @@ const entry = parameters => (consts, ast) => [...consts, lower({ parameters, con
  * it without a word. The comma operation is the anchor — `[',', [...roots,
  * exported]]`, every operand evaluated and the last one's value taken — its
  * operands the roots of the unreached part in source order, the imports
- * before the entries, each a node the graph would not otherwise hold;
+ * before the entries, each a node the graph would not otherwise hold — an
+ * alias is the node it names, and two imports bound to one module are one
+ * node, which `imports` says by identity;
  * nothing decides here whether an anchored part could fail, only whether it
  * is reached. A module the export reaches entirely is its export's node.
  *
@@ -81,7 +83,7 @@ const entry = parameters => (consts, ast) => [...consts, lower({ parameters, con
 const lowered = imports => module => {
     const nodes = module[1].reduce(entry(imports), [])
     const exported = nodes[nodes.length - 1]
-    const { consts, imports: unbound } = anchors(module)
+    const { consts, imports: unbound } = anchors(module)(imports)
     return unbound.length === 0 && consts.length === 0
         ? exported
         : [',', [...unbound.map(i => imports[i]), ...consts.map(i => nodes[i]), exported]]
