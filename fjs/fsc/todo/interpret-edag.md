@@ -77,13 +77,16 @@ function: an invocation holds only the entries of its own body's scope. The
 table names its operands by index, so the interpreter runs the table and never
 walks the EDAG's objects.
 The operations themselves are amnesia's, factored into a table both executors
-share, so the interpreter differs from amnesia only in reusing a value. What
-keeps amnesia's host read, `obj[prop]`, safe there is validation, not the
-executor: an access whose index is a prohibited property name — `constructor`,
-`__proto__`, every name a built-in prototype gives, by the parser's list in
-[`fjs/js/prototype`](../../js/prototype/module.f.mjs), all but `length` — is
-an invalid EDAG, refused on reading as a wrong shape is, so no executor sees
-one, and on a valid graph the host read reaches own properties alone.
+share, so the interpreter differs from amnesia only in reusing a value. The
+table's `.` reads an own property, `Object.getOwnPropertyDescriptor(a, key)?.value`,
+as the specification defines an access and as amnesia's `own` reads today
+([`fjs/edag/todo/own-access.md`](../../edag/todo/own-access.md)), so an
+inherited property is `undefined` whatever a realm puts on a prototype.
+Validation refuses, besides, an access whose index is a prohibited property
+name — `constructor`, `__proto__`, every name a built-in prototype gives by
+the parser's list in [`fjs/js/prototype`](../../js/prototype/module.f.mjs),
+all but `length` and `name` — since such a graph is not one the compiler
+emits.
 
 ### Existing value-producing API integration
 
@@ -132,8 +135,8 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Reject EDAGs that share an operation node across a function boundary; keep body
       graphs disjoint while allowing sharing inside one body.
 - [ ] Reject an access whose index is a prohibited property name, by the parser's
-      list, in `validate`: `['.', ['{}', []], 'constructor']` is not an EDAG, and
-      the executor never reads one.
+      list, in `validate`: `['.', ['{}', []], 'constructor']` is not an EDAG the
+      compiler emits, and the executor never reads one.
 - [ ] Return the interpreted value for a valid final EDAG.
 - [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
       `transpile` / `fjs compile` path without changing its success result/output

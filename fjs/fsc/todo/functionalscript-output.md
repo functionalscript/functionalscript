@@ -89,8 +89,12 @@ accepts, so that compiling the output again yields the same EDAG:
   parentheses once the grouping operator is in the language
   ([`2350-grouping.md`](../../../spec/todo/2350-grouping.md)), and refused
   until then.
-- An access, `['.', base, key]`, is written as `base.key` for a key that is
-  an identifier and `base[key]` otherwise, a number key as a number — a
+- An access, `['.', base, key]`, is the own read
+  ([`own-access.md`](../../edag/todo/own-access.md)), whose general spelling
+  is `Object.getOwnPropertyDescriptor(base, key)?.value`; the writer uses
+  the simpler form wherever it means the same, which today is always:
+  `base.key` for a key that is an identifier and `base[key]` otherwise, a
+  number key as a number, a computed number as `base[Number(k)]` — a
   non-finite one, which `a[1e999]` produces, as `1e999` or `-1e999`, the
   literal the tokenizer reads back to the same key, since `Infinity` is a
   reserved word and not a key token. The
