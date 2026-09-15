@@ -70,7 +70,7 @@ Sharing within one body remains valid and is memoized per invocation.
 
 Which nodes an invocation memoizes is not the interpreter's to discover: the
 analysis in [`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md) returns
-the operation nodes of the whole program in evaluation order, each with its
+the operation nodes of the whole program in walk order, each with its
 scope, and the shared indices, and the interpreter indexes its per-invocation
 cache by those integers — one map for the whole code, values cached per
 function: an invocation holds only the entries of its own body's scope.

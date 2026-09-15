@@ -38,7 +38,7 @@ downstream:
 
 ```ts
 type Analysis = {
-    readonly nodes: readonly Exp[]      // every operation node of the program, in evaluation order, each once
+    readonly nodes: readonly Exp[]      // every operation node of the program, in walk order, each once
     readonly scope: readonly number[]   // per node: the index of the `=>` whose body holds it, or -1 at the module level
     readonly shared: readonly number[]  // the indices reached by more than one edge within their scope, in that order
 }
@@ -48,6 +48,14 @@ type Analysis = {
   sits, inside a body or at the module level, so a program has one map and
   one numbering; a primitive is a leaf, written and evaluated in place, and
   takes no index. Which scope a node belongs to the table says beside it.
+- **Walk order, not run order.** The numbering is a depth-first walk from
+  the root, operands in the order written, each node listed after its
+  operands and on the first edge that reaches it. That is a function of
+  the graph alone — a conditional's two arms and a comma's operands are
+  walked whether or not a run would evaluate them — so two analyses of one
+  graph are one table, and the writer's `$n` names are canonical. Where a
+  run is eager and left to right the walk is its evaluation order, and a
+  hoisted node always follows the hoisted nodes it reads.
 - **Cached per scope.** The `=>` boundary is the scope: a module-level node
   shared by the program is computed once per program, a node shared inside a
   body once per call, and nothing crosses the boundary, which the compiler's
@@ -102,7 +110,7 @@ outputs keep it until they read the EDAG.
 ### Tasks
 
 - [ ] `fjs/edag/analysis`: the table over an `Exp` — operation nodes in
-      evaluation order, the scope of each, shared indices — with the merge of
+      walk order, the scope of each, shared indices — with the merge of
       identity-free nodes and no merge of constructors; proofs for a shared
       constructor, a shared access, two equal accesses, two equal constructors,
       a primitive taking no index, sharing inside a body against sharing
