@@ -50,7 +50,7 @@
  *
  * @module
  *
- * @import { Inflate, IoChannel, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Inflate, IoChannel, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -168,7 +168,7 @@ const packedOr = (idOf, pd, id, loose) => r =>
  * @throws On an id that is not `oidBytes` wide: a caller that mixes the
  * widths has a bug, not a missing object.
  *
- * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
  */
 export const tryRead = (dir, oidBytes) => {
     const idOf = of(oidBytes)

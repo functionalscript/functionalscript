@@ -372,6 +372,31 @@ export const proof = {
         // the same file with index 0 reads, so the refusal is the index's
         assertEq(offsetOf(decoded(built))(small), 12)
     },
+    // The whole 4-byte word is a version 1 offset, with no bit reserved: the
+    // same word that means "an index into the 8-byte table" in a version 2 index
+    // is 2 GiB and one byte here.
+    //
+    // So version 1's ceiling is higher than version 2's 4-byte table and lower
+    // than what version 2 can reach at all — it has no second table, so it
+    // cannot name a byte at or past 4 GiB. Built rather than captured, because
+    // Git writes such an index only for a pack over 2 GiB.
+    version1WholeWord: () => {
+        const only = id('1800000000000000000000000000000000000000')
+        const oid = idBytes(only)
+        /** @type {(offset: readonly number[]) => readonly number[]} */
+        const v1 = offset => sealed([
+            ...Array.from({ length: 256 }, (_, k) => k).flatMap(k => u32(k < oid[0] ? 0 : 1)),
+            ...offset,
+            ...oid,
+            ...Array.from({ length: width }, () => 0),
+        ])
+        // the high bit set is an offset and not a flag
+        assertEq(offsetOf(decoded(v1(u32(0x80000001))))(only), 0x80000001)
+        // and the largest word a version 1 index can hold, one byte short of 4 GiB
+        assertEq(offsetOf(decoded(v1(u32(0xFFFFFFFF))))(only), 0xFFFFFFFF)
+        // where the same word in a version 2 index names the table instead —
+        // `largeOffsetPastTable` above reads it that way
+    },
     // The 8-byte table is exactly as long as the words that name it ask for.
     // Git derives its length from the file's length alone, so a spare block
     // before the checksums divides evenly and reads — and that block is not
@@ -419,6 +444,14 @@ export const proof = {
         assertEq(read(twoSlots([...u32(0x80000000), ...u32(0x80000000)])), null)
         // In the wrong order, which Git never writes — it hands out slots as it
         // walks the objects — and which no count can see either.
+        //
+        // Git's own *index* reader refuses that file too, which makes this the
+        // one strictness here that is not a divergence: measured on Git 2.43.0
+        // by handing `git show-index` a two-object index built with the same
+        // table, it answers `fatal: inconsistent 64b offset index` and exits
+        // 128, where the same table in order is read and printed. Git's
+        // *object* reader is laxer and takes it, so the two disagree and this
+        // follows the one whose job is the same as this module's.
         assertEq(read(twoSlots([...u32(0x80000001), ...u32(0x80000000)])), null)
     },
     // The trailing checksum is the index's own, over every byte before it, and

@@ -17,6 +17,7 @@
  * @import { _Readable, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
 import http from 'node:http'
@@ -34,8 +35,8 @@ import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
-    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage, toIoError,
-    usesInlineTestContext,
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage,
+    notAFileCode, notAFileMessage, toIoError, usesInlineTestContext,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -359,6 +360,58 @@ const runNodeEffect = asyncRun({
                 taken += bytesRead
             }
             return toVec(buffer.subarray(0, taken))
+        } finally {
+            await fh.close()
+        }
+    }),
+    // One open for the whole file, which is the point of the operation: a caller
+    // reading in windows through `readBytes` opens the path per window and can
+    // straddle two files, since each open resolves the name again. `git
+    // pack-refs` replaces `packed-refs` by rename on every run, so that is not a
+    // rare race — and where the replacement is the same length, every window is
+    // exactly as long as it should be and the join is an old prefix on a new
+    // suffix that still parses.
+    //
+    // The kind is checked before the open rather than after it, because opening
+    // a FIFO with no writer blocks until one appears — there is no answer to
+    // wait for. That leaves a window between the `stat` and the `open` in which
+    // the path could become one, which is the host's own race and not one this
+    // operation creates; what it removes is the race *between* reads.
+    //
+    // Each chunk is filled rather than read once, for the reason the note on
+    // `readBytes` gives: one `read` may answer short of the end of the file. The
+    // reads take no position, so they walk the descriptor's own cursor, and a
+    // chunk that comes back short of its buffer is the end.
+    readWhole: path => io(async () => {
+        const s = await stat(path)
+        if (!s.isFile()) {
+            throw Object.assign(new Error(notAFileMessage(path)), { code: notAFileCode })
+        }
+        const fh = await open(path, 'r')
+        try {
+            // Rebuilt rather than appended to: a file is however many `Vec`s it
+            // takes and the count is small — 128 KiB a chunk, so eighty of them
+            // for ten megabytes — where {@link collectBounded} mutates because
+            // *its* count is the caller's. §3.1 has no exception to spend here.
+            let chunks = /** @type {readonly Vec[]} */ ([])
+            for (;;) {
+                const buffer = Buffer.alloc(maxFileSizeBytes)
+                let taken = 0
+                while (taken < buffer.length) {
+                    const { bytesRead } = await fh.read(buffer, taken, buffer.length - taken)
+                    if (bytesRead === 0) {
+                        break
+                    }
+                    taken += bytesRead
+                }
+                if (taken !== 0) {
+                    chunks = [...chunks, toVec(buffer.subarray(0, taken))]
+                }
+                if (taken < buffer.length) {
+                    break
+                }
+            }
+            return chunks
         } finally {
             await fh.close()
         }

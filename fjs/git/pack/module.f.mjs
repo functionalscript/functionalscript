@@ -88,6 +88,15 @@ const u32 = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + 
  * and 5 is reserved, so both read as `undefined` and refuse the entry; 6 and
  * 7 are the two delta kinds and are not objects.
  *
+ * A table of its own and not [`fjs/git/object`](../object/module.f.mjs)'s
+ * name lookup, because the two read different encodings of the same
+ * `ObjectType`: a pack entry's header carries a three-bit *code*, where an
+ * envelope and a tag header spell the *name*. Going through a shared lookup
+ * would mean turning a code into `'blob'` and the bytes of `'blob'` back into a
+ * code — see
+ * [`todo/object-type-lookup.md`](../todo/object-type-lookup.md), which says so
+ * on the other side.
+ *
  * @type {readonly (ObjectType | undefined)[]}
  */
 const objectTypes = [undefined, 'commit', 'tree', 'blob', 'tag']
@@ -269,8 +278,12 @@ const selected = (b, at, mask, count, k, value) => {
  * `RangeError: Maximum call stack size exceeded`, where 3,000 answered. That is
  * the shape [`fjs/effects`](../../effects/module.f.mjs)' `_walkLoop` removes
  * for a walk, and the same answer applies here: depth is constant in the
- * instruction count, and the only bound left is the target size the header
- * declares. A limit of this module's own would be a number Git does not have.
+ * instruction count, so what the *loop* is bounded by is the target size the
+ * header declares — a number the delta itself states, not one invented here. A
+ * cap on the instruction count would be such an invention, and Git has none.
+ * The one bound this module does add is on the declared target itself, the
+ * `Vec` ceiling at {@link maxTargetBytes}, and it is applied before the loop
+ * begins rather than inside it.
  *
  * **The declared target size is a bound and not a tally.** It is checked as the
  * pieces are named, not once at the end, because the end is too late to have
@@ -361,11 +374,12 @@ const maxTargetBytes = Number(maxLengthBytes)
  * declared; it does nothing about one that declares the amplification honestly.
  * A hundred bytes of copy instructions against a 64 KiB base can name 6.5 MB and
  * be telling the truth, and measured on node 22 that read raised RSS from 54 MiB
- * to 222 MiB — a byte of object costs about ten of heap here, since `Bytes` is a
- * list of numbers and the pieces are held while they are joined. Joining them
- * differently does not help: the same delta through `toArray(named).flat()`
- * instead of a list flatten runs faster, 246 ms against 747, and dies at exactly
- * the same size — under a 256 MiB heap both build 6.5 MB and neither builds 25.
+ * to 222 MiB — a byte of object costs about eight of heap here, measured over
+ * 20,000 byte values, since `Bytes` is a list of numbers and the pieces are held
+ * while they are joined. Joining them differently does not help: the same delta
+ * through `toArray(named).flat()` instead of a list flatten runs faster, 246 ms
+ * against 747, and dies at exactly the same size — under a 256 MiB heap both
+ * build 6.5 MB and neither builds 25.
  *
  * So the answer is a ceiling rather than a cleverer join, and the ceiling is the
  * one the rest of this layer already has: `inflate` and `readFile` each answer a

@@ -14,7 +14,9 @@
  * the JavaScript tokenizer's, shared with every other reader of JavaScript
  * text. What this layer adds is the language's: every keyword is demoted
  * to an identifier but the literals — `true`, `false`, `null`,
- * `undefined`, `NaN`, `Infinity` — which stay reserved; a `-` folds into
+ * `undefined`, `NaN`, `Infinity` — which stay reserved, since a key or the
+ * name after `.` may be any word and the parser refuses a keyword where
+ * JavaScript wants an identifier; a `-` folds into
  * the number, bigint or `Infinity` after it, and is an error before
  * anything else; and every other operator is an error, since the data
  * language has none.

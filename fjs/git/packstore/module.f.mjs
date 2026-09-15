@@ -77,7 +77,7 @@
  *
  * @module
  *
- * @import { Dirent, Inflate, IoChannel, ReadBytes, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, Inflate, IoChannel, ReadBytes, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
@@ -202,15 +202,25 @@ const idxNames = pd => catchStep(
  * objects — 28 bytes an object over a 1,072-byte frame. This repository's own
  * `objects/pack` holds indexes of 161,764 bytes and more, so reading one through
  * `readFile` failed for the ordinary case rather than an extreme one.
- * [`readWholeBytes`](../../effects/node/module.f.mjs) reads it in windows into a
- * byte list, which has no such bound and is what `tryIdx` takes.
+ * [`readWholeBytes`](../../effects/node/module.f.mjs) answers the chunks one
+ * open took — each a `Vec` and so each within the cap, the file however many it
+ * takes — joined into a byte list, which has no such bound and is what `tryIdx`
+ * takes.
+ *
+ * **One operation, not a fold over `readBytes`.** That resolves the path per
+ * call, so a file read in windows can straddle two: `git gc` writes a new index
+ * beside the old one and renames it into place, and a window taken after the
+ * rename joins an old prefix to a new suffix. The result parses — the frame is
+ * still a frame — and names objects at offsets no version of the pack pair ever
+ * held. Nothing a caller can ask closes that, so the snapshot has to come from
+ * the host, which is what `readWhole` is.
  *
  * The bound that remains is memory and the host's own: an index is as long as
  * the pack it names has objects, and the whole of it is held while it is decoded.
  * Reading only the fanout and one bucket is what
  * [`todo/lazy-index-ids.md`](../packidx/todo/lazy-index-ids.md) is for.
  *
- * @type {(path: string, oidBytes: OidBytes) => Effect<Stat | ReadBytes, Idx, IoChannel>}
+ * @type {(path: string, oidBytes: OidBytes) => Effect<ReadWhole, Idx, IoChannel>}
  */
 const idxAt = (path, oidBytes) => {
     const read = mapStep(readWholeBytes(path), b => tryIdx(oidBytes)(b))
@@ -460,7 +470,7 @@ const objectAt = (path, oidBytes, idx, at) => {
  * `.idx` under another suffix, which is how Git names the pair and the only way
  * to find one from the other.
  *
- * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Envelope>) => Effect<Stat | ReadBytes | Inflate, readonly [Nullable<Envelope>, List<string>], IoChannel>}
+ * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Envelope>) => Effect<ReadWhole | Stat | ReadBytes | Inflate, readonly [Nullable<Envelope>, List<string>], IoChannel>}
  */
 const packOf = (pd, oidBytes, id) => name => {
     // Both paths are the pack pair's and neither depends on what the index says,
@@ -493,7 +503,7 @@ const packOf = (pd, oidBytes, id) => name => {
  * @throws On an id that is not `oidBytes` wide: a caller that mixes the widths
  * has a bug, not a missing object.
  *
- * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
  */
 export const tryRead = (dir, oidBytes) => {
     const pd = packDir(dir)

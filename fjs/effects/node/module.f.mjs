@@ -21,20 +21,20 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
-    foldStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
@@ -186,7 +186,7 @@ const nodeCommandSet = {
     createServer: null, exec: null, fetch: null, forever: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
-    read: null, readBytes: null, readFile: null, readdir: null,
+    read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
     rename: null, rm: null, sandbox: null, stat: null,
     test: null, write: null, writeBytes: null, writeFile: null,
 }
@@ -360,103 +360,70 @@ export const writeFromStream = (path, e) =>
 /** @type {Func<Stat>} */
 export const stat = do_('stat')
 
-/**
- * How many bytes of a file one {@link readBytes} may take: a `Vec` holds 2^20
- * bits, and the operation refuses a larger window before a host sees it.
- */
-const windowBytes = Number(maxLengthBytes)
+/** @type {Func<ReadWhole>} */
+export const readWhole = do_('readWhole')
 
 /**
- * The code {@link readWholeBytes} refuses with when a window does not come back
- * the length the file's own size said it would be.
- */
-export const shortReadCode = /** @type {const} */ ('ERR_SHORT_READ')
-
-/**
- * The code {@link readWholeBytes} refuses with when the path is no regular file.
+ * The code {@link readWhole} refuses with when the path is no regular file.
+ *
+ * **The kind and the size are two questions, and this is the kind.** A FIFO and
+ * a device are not files with contents to read to the end of: a FIFO is a
+ * stream with a writer at the other end, and one with no writer cannot even be
+ * opened to find out — the open waits for a writer. So the kind is asked before
+ * the open, and a path that is not a regular file is refused here rather than
+ * read.
+ *
+ * The *size* is a separate matter, and it is why this reads to the end rather
+ * than to `stat`'s answer: a procfs file is a regular file — `/proc/self/maps`
+ * `stat`s as `S_IFREG`, `isFile()` true — of nought bytes that yields thousands
+ * when read, 10,598 through this operation in one run. Going by the size would
+ * answer an empty file. So the refusal does not cover it and does not need to:
+ * the read takes what the descriptor gives until it gives nothing.
  */
 export const notAFileCode = /** @type {const} */ ('ERR_NOT_A_FILE')
 
-/** @type {(path: string) => string} */
-const notAFileMessage = path => `${path} is not a regular file`
-
 /**
- * Where each window of a file of this length begins, and how long that window
- * is: the allowance, or what is left of the file where that is less.
+ * The message beside {@link notAFileCode}: the path that is no regular file.
  *
- * The length rides with the offset so the fold has both without reaching back
- * for the size — which is what lets {@link readWholeBytes} be two names rather
- * than a read sequence built inside a continuation.
+ * Declared here rather than in a runner, so the two that raise it — the node
+ * one's `readWhole` and the virtual one's, for a `JsModule` — say the same
+ * thing, and a caller matching on either gets the same answer. This is the pair
+ * {@link inflateTrailingCode} and {@link inflateTrailingMessage} already are.
  *
- * @type {(size: number) => List_<readonly [number, number]>}
+ * @type {(path: string) => string}
  */
-const windowsOf = size => Array.from(
-    { length: Math.ceil(size / windowBytes) },
-    (_, k) => [k * windowBytes, Math.min(windowBytes, size - k * windowBytes)])
+export const notAFileMessage = path => `${path} is not a regular file`
 
 /**
- * One window of a file, appended to the bytes already read.
- *
- * The read asks for the whole allowance every time, even for the last window,
- * and what comes back is checked against the length that window should be.
- *
- * **Exactly that length, neither less nor more, because the file can change
- * under the read.** A window *shorter* than its length is a host that answered
- * before the end of the file: one `read` is not obliged to fill a buffer — a
- * positional read of `/proc/self/maps` answers 4,007 bytes for a 1 MiB request
- * and 4,034 more at the next offset, measured on node 22 — and since the window
- * starts are fixed, the next one would skip the gap and hand a parser a file with
- * a run missing out of its middle. A window *longer* than its length is a file
- * that grew between the `stat` and the read: `packed-refs` replaced atomically by
- * a longer one, say. The windows after it were never scheduled, so the answer
- * would be a prefix of the new file — and a prefix that ends on a record boundary
- * is one a parser accepts, which is the silent half of the same loss.
- *
- * A file that shrinks is caught by the same comparison from the other side.
- *
- * @type {(path: string) => (window: readonly [number, number]) => (bytes: List_<number>) => Effect<ReadBytes, List_<number>, IoChannel>}
- */
-const windowOf = path => ([at, want]) => bytes => ioStep(
-    readBytes(path, at, windowBytes),
-    v => {
-        const got = Number(length(v)) / 8
-        return got === want
-            ? pureOk(concat(bytes)(u8List(msb)(v)))
-            : pureError(ioError({
-                code: shortReadCode,
-                message: `${path}:${at} ${got} bytes of ${want}`,
-            }))
-    })
-
-/**
- * A whole file as a byte *list*, read in windows.
+ * A whole file as a byte *list*.
  *
  * **{@link readFile} cannot read a large file, and that bound is the `Vec`'s
- * rather than the format's.** It answers a `Vec`, 128 KiB at most, and the node
+ * rather than the format's.** It answers one, 128 KiB at most, and the node
  * runner refuses a larger file before reading it — so any format whose files
- * outgrow that is unreadable through it. A byte list has no such bound:
- * {@link readBytes} fills it a window at a time and `concat` joins the windows
- * without copying either side, so a parser that reads a list reads any size.
+ * outgrow that is unreadable through it. {@link readWhole} answers the chunks one
+ * open took instead, each a `Vec` and so each within the cap, and `concat` joins
+ * them into a list, which has no cap at all.
  *
- * **A path that is no regular file is refused rather than read as empty.** A
- * FIFO, a device and a procfs file all `stat` as nought bytes while still
- * producing content when opened, so taking the size alone would schedule no reads
- * and answer an empty file — a caller would then see a `packed-refs` with no
- * records rather than a path it cannot read. The kind is the same question
- * `FileStat` documents for exactly this, and {@link readFile} ahead of it does
- * not have to ask because it opens the file itself.
+ * **The chunks are one open's, which is why this is not a fold over
+ * {@link readBytes}.** That operation resolves the path per call, so reading a
+ * file in windows can straddle two files — `git pack-refs` replaces
+ * `packed-refs` by rename on every run, and where the replacement is the same
+ * length every window is exactly as long as it should be, so the join is an old
+ * prefix on a new suffix that parses and names refs no version of the file held.
+ * Nothing a caller can ask closes that: `FileStat` carries no identity to compare
+ * and re-reading races the same way. The snapshot has to come from the host, and
+ * `readWhole` is the operation that gives one.
  *
  * The bound that remains is memory and the host's own: the whole file is held
  * while it is parsed.
  *
- * @type {(path: string) => Effect<Stat | ReadBytes, List_<number>, IoChannel>}
+ * @type {(path: string) => Effect<ReadWhole, List_<number>, IoChannel>}
  */
-export const readWholeBytes = path => {
-    const windows = ioStep(stat(path), s => s.isFile
-        ? pureOk(windowsOf(s.size))
-        : pureError(ioError({ code: notAFileCode, message: notAFileMessage(path) })))
-    return foldStep(windows, /** @type {List_<number>} */ (null), windowOf(path))
-}
+export const readWholeBytes = path => ioMapStep(
+    readWhole(path),
+    chunks => chunks.reduce(
+        (bytes, v) => concat(bytes)(u8List(msb)(v)),
+        /** @type {List_<number>} */ (null)))
 
 // createServer
 

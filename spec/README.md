@@ -30,9 +30,8 @@ leaf set gains `undefined`, `bigint`, `NaN` and the infinities — and with a
 DJS described here requires it too), no `import`, no comments, no
 identifier keys and no trailing commas. The data subset
 described in *this* document is wider and is what the compiler accepts today.
-The two converge as
-[`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
-proceeds.
+The compiler bridges the two: `fjs compile` writes a module of the wider
+subset as a DataJS document, through DataJS's own writer.
 
 ## Principles
 
@@ -154,7 +153,9 @@ graph of values a `.f.js` is. The repository extension contract is
 ### JSON Input
 
 A `.json` input is a JSON document, read by the JSON reader. Anything else is
-a FunctionalScript module, read by the module parser.
+a FunctionalScript module, read by the module parser. An imported `.json`
+file is a JSON document too, and its import says so with `with { type: "json" }`
+([importing](#importing-other-modules)).
 
 ```json
 {
@@ -361,7 +362,8 @@ A key is a constant, written in one of three ways:
 
 The three spellings denote the same key and mix freely inside one object. An
 identifier key is spelled as a JavaScript identifier — letters, digits, `_`,
-`$`, not starting with a digit.
+`$`, not starting with a digit — and may be a reserved word, `{ if: 1 }`, as
+it may in JavaScript.
 
 The brackets hold a **string literal**, not an expression: a key is a constant
 in every form. A key computed from a reference or any other expression, and a
@@ -446,19 +448,35 @@ An `import` statement binds the exported value of another module to a name, so
 modules can be shared and reused — a common configuration, a shared table of
 constants, a fragment that several outputs include.
 
-- Only the **default import** form is recognized. Named imports, namespace
-  imports ([namespace-import](./todo/2220-namespace-import.md)), and import
-  attributes ([import-attributes](./todo/2140-import-attributes.md)) are not.
+- Only the **default import** form is recognized. Named imports and namespace
+  imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
 - The path is a [string literal](#strings), resolved relative to the importing
   module.
 - Each module is parsed and evaluated once per resolved path, and its value is
   shared by every importer. A circular dependency is an error.
-- An imported file is read as a FunctionalScript module whatever its
-  extension, so a **JSON document cannot be imported**: choosing the language
-  is the import statement's job, and the language has no `with { type: "json" }`
-  clause yet ([import-attributes](./todo/2140-import-attributes.md)).
+- The name is a JavaScript identifier that JavaScript does not reserve:
+  `import class from "./a.f.js";` is an error here as there.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
+
+A JSON document is imported with the attribute JavaScript requires of it, and
+denotes the value `JSON.parse` gives it:
+
+```js
+import a from "./a.json" with { type: "json" };
+```
+
+- The attribute is `with { type: "json" }`, spelled as JavaScript spells it:
+  the key `type` and the string `"json"`, in braces after the path. Any other
+  key or value is an error, as it is in JavaScript. `"json"` is the one type
+  ECMAScript defines; `"text"` and `"bytes"` are proposals, blocked on their
+  standardization ([import-text-bytes](../todo/blocked/import-text-bytes.md)).
+- The attribute declares the file's language and never reinterprets the file,
+  so it must agree with the extension: a `.json` file imported without it, and
+  any other file imported with it, are errors — JavaScript refuses both, so
+  that data a program did not declare cannot stand where it expects a module.
+- The document is read by the JSON reader, as a `.json` input is
+  ([JSON input](#json-input)): a `.json` file is JSON and nothing more.
 
 `fjs compile` resolves imports and inlines them, so its output is one
 self-contained file that imports nothing.
@@ -489,6 +507,11 @@ the author had in mind. In FunctionalScript the sharing *is* the language:
 JavaScript engine loading the module rebuilds exactly the graph that was
 written.
 
+- A name is a JavaScript identifier that JavaScript does not reserve:
+  `const if = 1;`, `const export = 1;` and `const let = 1;` are errors here as
+  they are there — any broken JavaScript program is a broken FunctionalScript
+  program — while a key or a property name may be any word, `{ if: 1 }` and
+  `a.default` included, as in JavaScript.
 - A name must be declared before it is used. Forward references are not
   recognized yet ([forward-references](./todo/3140-forward-references.md)).
 - Imported and constant names share one namespace: declaring the same name
@@ -539,16 +562,26 @@ FunctionalScript module — `const $0=[1];export default [$0,$0];` is normalized
 DataJS, one line, and it parses here. JavaScript accepts the same module with
 the same meaning, so the subset law holds; what FunctionalScript refuses from
 JavaScript is the empty statement and automatic semicolon insertion — a
-statement here ends at a `;`, never at a spot an engine infers. This is the
-rule [`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
-settles on for the compiler-formatted `.f.js` output language (its stage 5),
-landed ahead of that stage with the parser's move to the LL(1) backend, where
-telling a newline from a `;` reached through newlines took unbounded
-lookahead. The compiler writes the `;` after every statement it emits.
+statement here ends at a `;`, never at a spot an engine infers. The rule
+landed with the parser's move to the LL(1) backend, where telling a newline
+from a `;` reached through newlines took unbounded lookahead, and it is the
+rule of the compiler-formatted `.f.js` output language: the compiler writes
+the `;` after every statement it emits. Trivia between tokens — whitespace
+or a comment — is optional here, `export default[1];`, `export default{};`
+and `import a from"./a.f.js";` included. Where two words would otherwise
+lex as one identifier some trivia is needed — after `const`, `export` and
+`import`, and between an import's name and `from`, since `const$0`,
+`exportdefault`, `importa` and `afrom` are each one identifier — and a
+comment separates as a space does: `const/**/a=1;` and
+`import/**/a/**/from/**/"./a.f.js";` parse. After `default`, and before an
+import's string, nothing is needed. DataJS requires a space after `const`,
+`export` and `default` and admits no comment, more than this language asks,
+so every DataJS document parses here.
 
 |Statement|Form|
 |---------|----|
 |default import|`import name from "./path";`|
+|JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
 |default export|`export default expression;`|
 

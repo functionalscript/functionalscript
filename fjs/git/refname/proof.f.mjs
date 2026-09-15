@@ -1,6 +1,6 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { isName } from './module.f.mjs'
+import { hasRefComponents, isName } from './module.f.mjs'
 
 export const proof = {
     // A name below a prefix: every rule `git check-ref-format` applies to
@@ -27,6 +27,34 @@ export const proof = {
             assert(isName(latin1(n)), n)
         }
         for (const n of ['/a', 'a/', 'a//b', '/', 'a/.b', 'a/b.lock']) {
+            assert(!isName(latin1(n)), n)
+        }
+    },
+    // The component half on its own, which a walk of `refs/` needs: it is what
+    // Git's own walk skips without a word, and it is the only half safe to ask
+    // about a *prefix*, since a component keeps its shape however a name is
+    // extended.
+    //
+    // Measured on Git 2.43.0 by writing a valid id into each name under
+    // `refs/heads/`: `.hidden` and `x.lock` are skipped by `show-ref` at exit 0,
+    // while `bad.`, `a..b`, `a@{b`, `has space`, `tilde~x` and `caret^x` each
+    // exit 128 with `bad ref`. The first two are the names this refuses.
+    refComponents: () => {
+        // every rule that is not a component's: a name this takes may still be
+        // no ref name, and `bad.` is the one that matters to a walk — with
+        // `refs/heads/bad.` a link to `refs/tags`, Git lists
+        // `refs/heads/bad./v1`, which `check-ref-format` accepts.
+        for (const n of ['a', 'a/b', 'bad.', 'a..b', 'a@{b', 'has space', 'tilde~x', 'caret^x', 'lock', 'a.locky', '@']) {
+            assert(hasRefComponents(latin1(n)), n)
+        }
+        // and the two conventions, at any depth, plus the empty component a
+        // path never produces
+        for (const n of ['.hidden', 'x.lock', 'a/.hidden', 'a/x.lock', '.hidden/b', 'x.lock/b', '', 'a//b', '/a', 'a/']) {
+            assert(!hasRefComponents(latin1(n)), n)
+        }
+        // The whole-name rule is the stricter one, and the difference is
+        // exactly the names in the first list that `isName` refuses.
+        for (const n of ['bad.', 'a..b', 'has space']) {
             assert(!isName(latin1(n)), n)
         }
     },

@@ -1,9 +1,9 @@
 /**
- * @import { Effect, IoChannel } from '../../effects/types.ts'
+ * @import { Effect, IoChannel, IoErrorInfo } from '../../effects/types.ts'
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { Dirent, FileStat, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, FileStat, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Oid } from '../types.ts'
@@ -22,7 +22,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, tryResolve, tryRoots } from './module.f.mjs'
+import { badNameCode, headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, packedHeadCode, packedTwiceCode, tryResolve, tryRoots, zeroIdCode } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -190,17 +190,14 @@ const packedRefs = /** @type {const} */ ('packed-refs')
 const missing = path => state => [state, error(ioError({ code: 'ENOENT', message: path }))]
 
 /**
- * A `stat` for a repository with nothing packed: `packed-refs` is not there, and
- * every other path is the host's own business.
+ * A `stat` no case below should reach: the lookup asks one only where a read
+ * answered bytes that are no ref, so a case that gets here answers a code its
+ * assertions do not take.
  *
- * Each case below that is about something else says this, because
- * {@link tryPackedRefs} reads that one file in windows and so asks for its length
- * before anything else — see its doc for why a `Vec` cannot hold it.
- *
- * @type {<S>(f: (path: string) => (state: S) => readonly [S, Result<FileStat, IoChannel>]) => (path: string) => (state: S) => readonly [S, Result<FileStat, IoChannel>]}
+ * @type {(path: string) => (state: any) => readonly [any, Result<FileStat, IoChannel>]}
  */
-const noPacked = f => path =>
-    path === packedRefs || path.endsWith(`/${packedRefs}`) ? missing(path) : f(path)
+const statUnasked = path => state => [state, error(ioError({ code: 'EIO', message: path }))]
+
 
 /**
  * What `stat` answers about an entry, as the two questions it is.
@@ -208,14 +205,6 @@ const noPacked = f => path =>
  * @type {(isFile: boolean, isDirectory: boolean) => FileStat}
  */
 const kind = (isFile, isDirectory) => ({ size: 41, isFile, isDirectory })
-
-/**
- * A regular file of a given length, for the one read that asks how long a file
- * is before reading it.
- *
- * @type {(size: number) => FileStat}
- */
-const kindOf = size => ({ size, isFile: true, isDirectory: false })
 
 /** @type {(name: string, parentPath: string, isFile: boolean, isDirectory: boolean) => Dirent} */
 const dirent = (name, parentPath, isFile, isDirectory) => ({ name, parentPath, isFile, isDirectory })
@@ -230,10 +219,10 @@ const dirent = (name, parentPath, isFile, isDirectory) => ({ name, parentPath, i
  * The virtual filesystem has neither links nor FIFOs, which is why these cases
  * use a host rather than a `Dir`.
  *
- * @type {(entry: string, answer: FileStat | string) => MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, readonly string[]>}
+ * @type {(entry: string, answer: FileStat | string) => MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>}
  */
 const kindHost = (entry, answer) => ({
-    readBytes: missing,
+    readWhole: missing,
     readFile: path => log => [
         [...log, `readFile ${path}`],
         // the link's target is a ref file, which is what makes `alias` a root and
@@ -250,12 +239,12 @@ const kindHost = (entry, answer) => ({
                 ? [dirent('master', path, true, false), dirent(entry, path, false, false)]
                 : []),
     ],
-    stat: noPacked(path => log => [
+    stat: path => log => [
         [...log, `stat ${path}`],
         typeof answer === 'string'
             ? error(ioError({ code: answer, message: path }))
             : ok(answer),
-    ]),
+    ],
 })
 
 /**
@@ -265,6 +254,90 @@ const kindHost = (entry, answer) => ({
  */
 const rootsBy = (entry, answer) =>
     mockRun(kindHost(entry, answer))(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+
+/**
+ * A host whose gitdir holds `HEAD` and `ORIG_HEAD` as a listing reports them —
+ * `HEAD` a file or not, `ORIG_HEAD` never — and answers `bytes` for a read of
+ * either, which is what a read of a *link* to a file outside the repository
+ * gives back.
+ *
+ * The bytes lead the kind so this closes over nothing: one function for the whole
+ * file instead of a fresh closure per case (`fjs/AGENTS.md` §3.3).
+ *
+ * @type {(bytes: readonly number[]) => (headIsFile: boolean) => MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>}
+ */
+const linkedHeadHost = bytes => headIsFile => ({
+    stat: statUnasked,
+    // the read follows the link, which is the whole problem
+    readFile: path => state => [
+        state,
+        path === 'HEAD' || path === 'ORIG_HEAD'
+            ? ok(toVec(bytes))
+            : error(ioError({ code: 'ENOENT', message: path })),
+    ],
+    readWhole: missing,
+    readdir: path => state => [
+        state,
+        ok(path === '' ? [
+            dirent('HEAD', path, headIsFile, false),
+            dirent('ORIG_HEAD', path, false, false),
+        ] : []),
+    ],
+})
+
+/**
+ * The `IoError` a listing refuses with, over the virtual filesystem: every
+ * refusal here has that shape, so a case asserts the code and the message
+ * instead of unwrapping three tags.
+ *
+ * @type {(root: Dir, dirs: Dirs) => IoErrorInfo}
+ */
+const rootsRefusal = (root, dirs) => {
+    const [, r] = virtual({ ...emptyState, root })(tryRoots(dirs, 20))
+    assert(r[0] === 'error')
+    const e = r[1]
+    assert(e[0] === 'ioError')
+    return e[1]
+}
+
+/**
+ * Asserts that a listing of `root` refuses with this code and this message: the
+ * code leads, so a case binds one and drives several repositories through it.
+ *
+ * @type {(code: string) => (root: Dir, dirs: Dirs, message: string) => void}
+ */
+const refusesWith = code => (root, dirs, message) => {
+    const e = rootsRefusal(root, dirs)
+    assertEq(e.code, code)
+    assertEq(e.message, message)
+}
+
+/**
+ * A host that *reads* a directory instead of failing: `refs/heads` answers bytes
+ * a listing of it might hold, `packed-refs` answers `packed`, and a `stat` of
+ * anything answers `statted` — a kind, or the failure it comes back with.
+ *
+ * Both are leading parameters, so this closes over nothing and lives here rather
+ * than inside the one case that uses it.
+ *
+ * @type {(packed: readonly number[], statted: Result<FileStat, IoChannel>) => MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>}
+ */
+const readsADirectoryHost = (packed, statted) => ({
+    readFile: path => log => [
+        [...log, `readFile ${path}`],
+        path === 'refs/heads'
+            ? ok(toVec(latin1('master\n')))
+            : error(ioError({ code: 'ENOENT', message: path })),
+    ],
+    readdir: missing,
+    stat: path => log => [[...log, `stat ${path}`], statted],
+    readWhole: path => log => [
+        [...log, `readWhole ${path}`],
+        path === packedRefs
+            ? ok([toVec(packed)])
+            : error(ioError({ code: 'ENOENT', message: path })),
+    ],
+})
 
 export const proof = {
     // The loose refs, including one nested two directories down, and no
@@ -302,22 +375,129 @@ export const proof = {
             assertEq(run({ ...shadowed, refs: { heads } }, tryRoots(one(''), 20)), null)
         }
     },
-    // A file under `refs/` whose name is no ref name is skipped without a
-    // word, which is Git's own walk: each of these is refused by
-    // `git check-ref-format` and missing from `git show-ref`.
+    // A file under `refs/` whose name is no ref name gets one of two answers,
+    // and Git gives the same two. Measured on Git 2.43.0 by writing a valid id
+    // into each name under `refs/heads/` and asking `git show-ref`: `.hidden`
+    // and `x.lock` are skipped and it exits 0, while every other name here
+    // exits 128 with `bad ref refs/heads/<name>` — the message a loose file
+    // whose *contents* are no ref gets. `check-ref-format` refuses all eight,
+    // so it is the wrong line to cut a listing on.
     skipped: () => {
         /** @type {Dir} */
-        const heads = {
-            master: ref(a),
-            '.hidden': ref(b), 'x.lock': ref(b), 'bad.': ref(b),
-            'a..b': ref(b), 'a@{b': ref(b), 'has space': ref(b),
-            'tilde~x': ref(b), 'caret^x': ref(b),
-        }
+        const heads = { master: ref(a), '.hidden': ref(b), 'x.lock': ref(b) }
         sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [['refs/heads/master', a]])
+        // And a *directory* of either name is skipped whole, refs and all, which
+        // is Git's too: measured with `refs/heads/.hidden/v1` holding a valid id,
+        // `show-ref` and `for-each-ref` list `refs/heads/master` alone at exit 0.
+        /** @type {Dir} */
+        const dirs = { master: ref(a), '.hidden': { v1: ref(b) }, 'x.lock': { v1: ref(b) } }
+        sameRoots(run({ refs: { heads: dirs } }, tryRoots(one(''), 20)), [['refs/heads/master', a]])
+        // The name settles it before the directory is *listed*, which is what
+        // makes that a skip rather than a walk that happens to find nothing: a
+        // child of `.hidden` carries the component too, so judging children alone
+        // would answer the same list — but it would read the directory to do it,
+        // and a listing of it can refuse on its own account. Here it answers one
+        // name twice, which `lossyNameCode` refuses wherever this module looks,
+        // and Git skips the subtree without looking at all.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readWhole: missing,
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'refs/heads/master'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs'
+                    ? [dirent('heads', path, false, true)]
+                    : path === 'refs/heads'
+                        ? [dirent('master', path, true, false), dirent('.hidden', path, false, true)]
+                        : path === 'refs/heads/.hidden'
+                            // one name twice, which is a refusal where it is read
+                            ? [dirent('\uFFFD', path, true, false), dirent('\uFFFD', path, true, false)]
+                            : []),
+            ],
+            stat: statUnasked,
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        assert(r[0] === 'ok', r)
+        sameRoots(r[1], [['refs/heads/master', a]])
+        assert(!log.includes('readdir refs/heads/.hidden'), log)
+    },
+    // The other six refuse the listing, each naming the file.
+    badName: () => {
+        for (const bad of ['bad.', 'a..b', 'a@{b', 'has space', 'tilde~x', 'caret^x']) {
+            /** @type {Dir} */
+            const heads = { master: ref(a), [bad]: ref(b) }
+            refusesWith(badNameCode)(
+                { refs: { heads } }, one(''), `refs/heads/${bad} is not a ref name`)
+        }
+        // And the lookup does not refuse: a name that is no ref name is `null`
+        // there, before any file is opened. See `resolveBadNameReadsNothing`.
+        assertEq(resolved({ refs: { heads: { 'bad.': ref(b) } } }, 'refs/heads/bad.'), null)
     },
     // A symbolic loose ref is answered resolved, which is what
-    // `git show-ref` lists for one.
+    // `git show-ref` lists for one, and the listing reads `packed-refs` once
+    // while doing it: the walk records the ref and the pass after the packed
+    // read resolves it against the lines already in hand, rather than each
+    // pending ref reading the file for itself.
     symbolicRoot: () => {
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'refs/heads/master'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : path === 'refs/heads/sym'
+                        ? ok(toVec(latin1('ref: refs/heads/master\n')))
+                        : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs'
+                    ? [dirent('heads', path, false, true)]
+                    : path === 'refs/heads'
+                        ? [dirent('master', path, true, false), dirent('sym', path, true, false)]
+                        : []),
+            ],
+            readWhole: path => log => [
+                [...log, `readWhole ${path}`],
+                error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            stat: statUnasked,
+        }
+        const [log, rs] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        assert(rs[0] === 'ok')
+        sameRoots(rs[1], [['refs/heads/master', a], ['refs/heads/sym', a]])
+        assertEq(log.filter(l => l === `readWhole ${packedRefs}`).length, 1)
+        // And where the target has no loose file — the case that would send a
+        // resolution to the packed lines — it is still one read, because the
+        // pass is seeded with the file the listing already read.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const dangling = {
+            ...host,
+            readFile: path => log2 => [
+                [...log2, `readFile ${path}`],
+                path === 'refs/heads/sym'
+                    ? ok(toVec(latin1('ref: refs/heads/gone\n')))
+                    : path === 'refs/heads/master'
+                        ? ok(toVec(latin1(`${a}\n`)))
+                        : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readWhole: path => log2 => [
+                [...log2, `readWhole ${path}`],
+                path === packedRefs
+                    ? ok([toVec(latin1(`${b} refs/heads/other\n`))])
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [log2, rs2] = mockRun(dangling)(/** @type {readonly string[]} */ ([]))(
+            tryRoots(one(''), 20))
+        assert(rs2[0] === 'ok', rs2)
+        sameRoots(rs2[1], [['refs/heads/master', a], ['refs/heads/other', b]])
+        assertEq(log2.filter(l => l === `readWhole ${packedRefs}`).length, 1)
         /** @type {Dir} */
         const heads = { master: ref(a), sym: file('ref: refs/heads/master\n') }
         sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [
@@ -365,28 +545,52 @@ export const proof = {
     // is the channel's, not an empty answer. The virtual filesystem only
     // ever reports `ENOENT`, so this one case runs over a host that reports
     // something else — once for each of the two reads, which take different
-    // shapes: a loose ref file is read whole, and `packed-refs` in windows.
+    // shapes: a loose ref file through `readFile`, and `packed-refs` through
+    // `readWhole`.
     readError: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
         // the loose read refuses, with `packed-refs` simply not there
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Stat, null>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
         const loose = {
             readFile: () => state => [state, error(denied)],
-            stat: missing,
-            readBytes: missing,
+            readWhole: missing,
+            readdir: missing,
+            stat: statUnasked,
         }
         assertStructurallySame(
             mockRun(loose)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
             error(denied))
-        // and the windowed read refuses, at the `stat` that asks for the length
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Stat, null>} */
+        // and the whole-file read refuses, which the loose read has to reach
+        // first: with no loose file the name falls back to `packed-refs`, and a
+        // read of it that is not an absence is the channel's — see
+        // `tryWholeBytes`.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
         const packed = {
-            readFile: () => state => [state, error(denied)],
-            stat: () => state => [state, error(denied)],
-            readBytes: () => state => [state, error(denied)],
+            readFile: missing,
+            readWhole: () => state => [state, error(denied)],
+            readdir: missing,
+            stat: statUnasked,
         }
         assertStructurallySame(
             mockRun(packed)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
+            error(denied))
+        // and the same where the loose file *answers*: the packed file is read
+        // at the end anyway, because a `packed-refs` Git refuses is every name's
+        // answer, so its failure is the channel's there too
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
+        const hit = {
+            readFile: path => state => [
+                state,
+                path === 'refs/heads/master'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readWhole: () => state => [state, error(denied)],
+            readdir: missing,
+            stat: statUnasked,
+        }
+        assertStructurallySame(
+            mockRun(hit)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))[1],
             error(denied))
     },
     // A `packed-refs` Git refuses is the answer, and nothing after it is read.
@@ -395,29 +599,110 @@ export const proof = {
     // permission, a broken host — arrives as a channel error in place of the
     // `null` this had already decided on. The host below answers the malformed
     // file and refuses every other read, so a chain that reads on fails.
+    // The loose files are read before `packed-refs`, and a `git pack-refs`
+    // running underneath is why.
+    //
+    // That command writes the new packed file and then prunes the loose refs it
+    // packed — `git pack-refs -h` marks `--prune` as the default, and `git gc`
+    // runs it — so a reader that snapshots `packed-refs` first can see neither
+    // copy of a ref that was loose when it started: not the packed file, which
+    // predates the pack, and not the loose file, which is gone by the time the
+    // walk arrives.
+    //
+    // The host below is that transition at its worst: the pack completes before
+    // the walk reaches `refs/heads`, so the directory lists nothing, and the
+    // packed file answers its *new* contents to any read that happens after the
+    // listing. Reading the loose files first therefore finds the ref in the
+    // packed lines; reading the packed file first would find it in neither.
+    packedRefsMovedUnderfoot: () => {
+        const packedNow = latin1(`${a} refs/heads/x\n`)
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs' ? [dirent('heads', path, false, true)] : []),
+            ],
+            stat: statUnasked,
+            readWhole: path => log => [
+                [...log, `readWhole ${path}`],
+                path === packedRefs
+                    // before the walk it holds nothing; after it, the ref that
+                    // was loose when this began
+                    ? ok(log.includes('readdir refs/heads') ? [toVec(packedNow)] : [])
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
+        assert(r[0] === 'ok', r)
+        sameRoots(r[1], [['refs/heads/x', a]])
+        // the order that makes it so, in the log itself
+        assert(log.indexOf('readdir refs/heads') < log.indexOf(`readWhole ${packedRefs}`), log)
+        // The lookup is the same transition seen through one name: the loose
+        // file is gone by the time it is read, and the packed file read after it
+        // carries the ref. A snapshot taken first would have neither.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const one_ = {
+            readFile: path => log2 => [
+                [...log2, `readFile ${path}`],
+                error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: missing,
+            stat: statUnasked,
+            readWhole: path => log2 => [
+                [...log2, `readWhole ${path}`],
+                path === packedRefs
+                    ? ok(log2.includes('readFile refs/heads/x') ? [toVec(packedNow)] : [])
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+        }
+        const [log2, r2] = mockRun(one_)(/** @type {readonly string[]} */ ([]))(
+            tryResolve(one(''), 20)(latin1('refs/heads/x')))
+        assert(r2[0] === 'ok' && r2[1] !== null, r2)
+        assertEq(codePointListToString(toHex(r2[1])), a)
+        assertStructurallySame(log2, ['readFile refs/heads/x', `readWhole ${packedRefs}`])
+    },
     rootsBadPackedStops: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
         const badPacked = latin1('# hello\n')
-        // Every read but the malformed file fails, and so does every listing, so
-        // a chain that goes on after the refusal cannot answer at all.
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, null>} */
+        // A repository whose loose half reads: one symbolic ref, which the walk
+        // records and leaves pending, and a `master` whose *read* refuses — so a
+        // chain that went on to resolve the pending ref could not answer at all.
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
         const host = {
-            readFile: () => state => [state, error(denied)],
-            readdir: () => state => [state, error(denied)],
-            // the malformed file, answered the way `tryPackedRefs` asks for it:
-            // a length, then the bytes. The length is the file's own, because a
-            // window shorter than the `stat` promised is refused as a short read.
-            stat: path => state => [
-                state,
-                path === packedRefs ? ok({ ...kind(true, false), size: badPacked.length }) : error(denied),
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'refs/heads/sym'
+                    ? ok(toVec(latin1('ref: refs/heads/master\n')))
+                    // an absent `HEAD` is an answer, so the only refusals this
+                    // host has are the ones a chain that read on would hit
+                    : path === 'HEAD'
+                        ? error(ioError({ code: 'ENOENT', message: path }))
+                        : error(denied),
             ],
-            readBytes: path => state => [
-                state,
-                path === packedRefs ? ok(toVec(badPacked)) : error(denied),
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'refs'
+                    ? [dirent('heads', path, false, true)]
+                    : path === 'refs/heads'
+                        ? [dirent('sym', path, true, false)]
+                        : []),
+            ],
+            stat: statUnasked,
+            // the malformed file, as the chunks one open answered
+            readWhole: path => log => [
+                [...log, `readWhole ${path}`],
+                path === packedRefs ? ok([toVec(badPacked)]) : error(denied),
             ],
         }
-        const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
         assertStructurallySame(r, ok(null))
+        // the refusal is the packed file's, and the resolution after it is not
+        // attempted — the pending ref's target is never read
+        assert(!log.includes('readFile refs/heads/master'), log)
     },
     // A listing that answers one name twice is refused rather than read. Node
     // decodes a directory entry as UTF-8 and replaces what is not, so a file
@@ -433,12 +718,12 @@ export const proof = {
     // answers the listing node would.
     lossyNames: () => {
         const twice = '\uFFFD'
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, null>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
         const host = {
             readFile: missing,
-            readBytes: missing,
+            readWhole: missing,
             // an entry the listing calls a file costs no `stat` either
-            stat: noPacked(path => state => [state, error(ioError({ code: 'EIO', message: path }))]),
+            stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
             readdir: path => state => [
                 state,
                 path === 'refs'
@@ -479,17 +764,17 @@ export const proof = {
     // `.git/HEAD` a writerless FIFO, `git status` and `git rev-parse HEAD` both
     // had to be killed, and this refuses at once.
     symlinkHead: () => {
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, null>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
         const host = {
             readFile: missing,
-            readBytes: missing,
+            readWhole: missing,
             readdir: path => state => [
                 state,
                 ok(path === 'refs' ? [] : [dirent('HEAD', path, false, false)]),
             ],
             // `HEAD`'s kind costs no `stat`, and this says so: a `stat` reached
             // here answers a code the assertions below do not accept.
-            stat: noPacked(path => state => [state, error(ioError({ code: 'EIO', message: path }))]),
+            stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
         }
         const [, r] = mockRun(host)(null)(tryRoots(one(''), 20))
         assert(r[0] === 'error')
@@ -558,6 +843,38 @@ export const proof = {
         assertEq(e[1].code, linkedDirCode)
         assertEq(e[1].message, 'refs/heads/linkdir is a link to a directory')
     },
+    // The name rule runs before the kind is asked, which is Git's order. An entry
+    // the listing cannot classify would otherwise cost a `stat`, and a link to a
+    // directory is refused by it — so a name Git never looks at could refuse a
+    // whole repository.
+    //
+    // Measured on Git 2.43.0 in a repository of `refs/heads/master` and
+    // `refs/tags/v1`. With `refs/heads/.hidden` linked to `master`: two refs,
+    // exit 0. With the same name linked to `../tags`, a link to a directory:
+    // the same two refs, exit 0 — the name is skipped whatever it points at,
+    // where `refs/heads/ok` linked to `../tags` lists `refs/heads/ok/v1`
+    // instead. `x.lock` behaves as `.hidden` does, by the same rule.
+    nameBeforeKind: () => {
+        for (const entry of ['.hidden', 'x.lock']) {
+            const [log, r] = rootsBy(entry, kind(false, true))
+            assert(r[0] === 'ok', entry)
+            sameRoots(r[1], [['refs/heads/master', a]])
+            // and the `stat` is not paid for at all: the name settled it
+            assert(!log.includes(`stat refs/heads/${entry}`), log)
+        }
+        // A name that fails only the *whole-name* rule is a different case, and
+        // the one a skip would lose in silence: `refs/heads/bad.` is no ref name
+        // and `refs/heads/bad./v1` is one, so with the first linked to
+        // `refs/tags` Git lists the second at exit 0. Here the kind is asked,
+        // the entry is a link to a directory, and it is refused *loudly* — the
+        // divergence `linkedDirCode` argues, not a subtree dropped quietly.
+        const [log, r] = rootsBy('bad.', kind(false, true))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, linkedDirCode)
+        assert(log.includes('stat refs/heads/bad.'), log)
+    },
     // A link that leads nowhere is skipped, which is Git's. Measured on Git
     // 2.43.0 with `refs/heads/dangling` linked to a name that is not there and
     // `refs/heads/loop` linked to itself: `show-ref` and `for-each-ref` list
@@ -583,8 +900,65 @@ export const proof = {
     // refused: every link inside the tree being refused is what bounds following
     // the root to one level, so `refs` linked to `..` lists the gitdir and is
     // refused at the same entry one level down.
+    // Each walk lists only the directories it could take a name from, which is a
+    // rule about a *prefix* and not the one about a name: `refs/bisect` is not
+    // itself a per-worktree name — the rule is the prefix with its slash — so
+    // `isShared` says "mine" about the directory and "not mine" about every ref
+    // in it.
+    //
+    // Measured on Git 2.43.0 with a linked worktree, `refs/bisect/shared-only` in
+    // the shared directory and `refs/bisect/own` in the worktree's: the worktree
+    // lists its own and `rev-parse --verify refs/bisect/shared-only` there
+    // answers `Needed a single revision`, so the shared copy is invisible to it.
+    // A walk that listed it anyway could fail over refs it would never answer —
+    // another worktree is free to remove that directory while `git bisect reset`
+    // runs, and a `readdir` that cannot find what a listing named is the
+    // channel's.
+    scopedDirectories: () => {
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readWhole: missing,
+            stat: statUnasked,
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'repo/refs/heads/master' || path === 'repo/refs/bisect/shared-only'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'repo'
+                    ? [dirent('refs', path, false, true)]
+                    : path === 'repo/refs'
+                        ? [dirent('heads', path, false, true), dirent('bisect', path, false, true)]
+                        : path === 'repo/refs/heads'
+                            ? [dirent('master', path, true, false)]
+                            : path === 'repo/refs/bisect'
+                                ? [dirent('shared-only', path, true, false)]
+                                : []),
+            ],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
+        assert(r[0] === 'ok', r)
+        // the shared `refs/bisect/` is no ref of this worktree, and it is not
+        // listed to find that out
+        sameRoots(r[1], [['refs/heads/master', a]])
+        assert(!log.includes('readdir repo/refs/bisect'), log)
+        // The same question the other way, in a main worktree, where both walks
+        // read one directory: no per-worktree name can sit under `refs/heads`,
+        // so the worktree's walk does not list it — the tree is listed once
+        // rather than twice — while `refs/bisect/` *is* this worktree's there,
+        // which is what the main worktree's `show-ref` lists.
+        const [mainLog, m] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryRoots(one('repo'), 20))
+        assert(m[0] === 'ok', m)
+        sameRoots(m[1], [['refs/heads/master', a], ['refs/bisect/shared-only', a]])
+        assertEq(mainLog.filter(l => l === 'readdir repo/refs/heads').length, 1)
+        assertEq(mainLog.filter(l => l === 'readdir repo/refs/bisect').length, 1)
+    },
     linkedWorktreeRefs: () => {
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, readonly string[]>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
         const host = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
@@ -603,9 +977,9 @@ export const proof = {
                             ? [dirent('bad', path, true, false)]
                             : []),
             ],
-            readBytes: missing,
+            readWhole: missing,
             // the link's target, which is a directory
-            stat: noPacked(path => log => [[...log, `stat ${path}`], ok(kind(false, true))]),
+            stat: path => log => [[...log, `stat ${path}`], ok(kind(false, true))],
         }
         const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
             tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
@@ -618,7 +992,7 @@ export const proof = {
     // since the walk has nothing to read either way.
     linkedWorktreeRefsNotADir: () => {
         for (const answer of [kind(true, false), kind(false, false), 'ENOENT', 'ELOOP']) {
-            /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, null>} */
+            /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
             const host = {
                 readFile: path => state => [state, error(ioError({ code: 'ENOENT', message: path }))],
                 readdir: path => state => [
@@ -632,13 +1006,13 @@ export const proof = {
                             ? error(ioError({ code: 'ENOTDIR', message: path }))
                             : ok([]),
                 ],
-                readBytes: missing,
-                stat: noPacked(path => state => [
+                readWhole: missing,
+                stat: path => state => [
                     state,
                     typeof answer === 'string'
                         ? error(ioError({ code: answer, message: path }))
                         : ok(answer),
-                ]),
+                ],
             }
             const [, r] = mockRun(host)(null)(tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
             assert(r[0] === 'ok')
@@ -648,7 +1022,7 @@ export const proof = {
     // A `refs` the *listing* calls a regular file needs no `stat` at all: the
     // question is only for an entry the listing could not classify.
     ownRefsIsAFile: () => {
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, readonly string[]>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
         const host = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
@@ -658,8 +1032,8 @@ export const proof = {
                 [...log, `readdir ${path}`],
                 ok(path === 'wt' ? [dirent('refs', path, true, false)] : []),
             ],
-            readBytes: missing,
-            stat: noPacked(path => log => [[...log, `stat ${path}`], ok(kind(false, true))]),
+            readWhole: missing,
+            stat: path => log => [[...log, `stat ${path}`], ok(kind(false, true))],
         }
         const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
             tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
@@ -672,15 +1046,15 @@ export const proof = {
     // the entry, so a host that then cannot describe it is a ref tree this would
     // otherwise drop out of an answer a `gc` reads.
     ownRefsStatRefused: () => {
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, null>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
         const host = {
             readFile: missing,
-            readBytes: missing,
+            readWhole: missing,
             readdir: path => state => [
                 state,
                 ok(path === 'wt' ? [dirent('refs', path, false, false)] : []),
             ],
-            stat: noPacked(path => state => [state, error(ioError({ code: 'EIO', message: path }))]),
+            stat: path => state => [state, error(ioError({ code: 'EIO', message: path }))],
         }
         const [, r] = mockRun(host)(null)(tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
         assert(r[0] === 'error')
@@ -719,11 +1093,12 @@ export const proof = {
     // the repository into a path that leaves it.
     resolveBadNameReadsNothing: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Stat, readonly string[]>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
         const host = {
             readFile: path => log => [[...log, `readFile ${path}`], error(denied)],
+            readWhole: path => log => [[...log, `readWhole ${path}`], error(denied)],
+            readdir: path => log => [[...log, `readdir ${path}`], error(denied)],
             stat: path => log => [[...log, `stat ${path}`], error(denied)],
-            readBytes: path => log => [[...log, `readBytes ${path}`], error(denied)],
         }
         for (const name of ['../secret', '.hidden', 'x.lock', 'a..b', 'has space']) {
             const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
@@ -731,12 +1106,13 @@ export const proof = {
             assertStructurallySame(r, ok(null))
             assertStructurallySame(log, [])
         }
-        // and a name that *is* one still reaches the read, so the case above is
-        // about the name and not about the host being unreachable. The read is a
-        // `stat` because `packed-refs` is taken in windows — see `tryPackedRefs`.
+        // and a name that *is* one still reaches a read, so the case above is
+        // about the name and not about the host being unreachable. The loose
+        // file is what it reaches first — see `fromPacked` for why that order —
+        // and this host refuses it, so the chain ends there.
         const [log] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
             tryResolve(one(''), 20)(latin1('refs/heads/master')))
-        assertStructurallySame(log, ['stat packed-refs'])
+        assertStructurallySame(log, ['readFile refs/heads/master'])
     },
     // The same rule one link further in, and where it is actually enforced: a
     // symbolic ref whose *target* is no ref name never reaches a path, because
@@ -801,41 +1177,87 @@ export const proof = {
     // own note at `packedId` is about 20,000 names, five times past the point a
     // `readFile` could open the file at all.
     //
-    // The windows are asked for in order and the lookup answers from the joined
-    // bytes, so this pins the joining and not only the reading.
+    // The chunks are joined and the lookup answers from the join, so this pins
+    // the joining and not only the reading — the last name in the file is in the
+    // third chunk.
     bigPackedRefs: () => {
         const lines = Array.from({ length: 4000 }, (_, i) => `${a} refs/heads/topic/feature-${i}\n`)
         const text = latin1(`# pack-refs with: peeled fully-peeled sorted \n${lines.join('')}`)
-        const window = Number(maxLengthBytes)
-        assert(text.length > window, text.length)
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Stat, readonly string[]>} */
+        const chunk = Number(maxLengthBytes)
+        assert(text.length > chunk * 2, text.length)
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
         const host = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
                 error(ioError({ code: 'ENOENT', message: path })),
             ],
-            stat: path => log => [
-                [...log, `stat ${path}`],
-                path === packedRefs ? ok(kindOf(text.length)) : error(ioError({ code: 'ENOENT', message: path })),
-            ],
-            readBytes: (path, at, size) => log => [
-                [...log, `readBytes ${path} ${at} ${size}`],
-                ok(toVec(text.slice(at, at + size))),
+            readdir: missing,
+            stat: statUnasked,
+            // what one open answers: the file in `Vec`-sized pieces, which is
+            // the only shape that cannot be a join of two different files
+            readWhole: path => log => [
+                [...log, `readWhole ${path}`],
+                path === packedRefs
+                    ? ok(Array.from(
+                        { length: Math.ceil(text.length / chunk) },
+                        (_, k) => toVec(text.slice(k * chunk, (k + 1) * chunk))))
+                    : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
         const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
             tryResolve(one(''), 20)(latin1('refs/heads/topic/feature-3999')))
         assert(r[0] === 'ok' && r[1] !== null)
         assertEq(codePointListToString(toHex(r[1])), a)
-        // three windows, in order, and then the loose file the name would shadow
-        // the packed line with
+        // the loose file the name would shadow the packed line with, then one
+        // read of the packed file — that order is `fromPacked`'s, and the file
+        // is read once
         assertStructurallySame(log, [
-            `stat ${packedRefs}`,
-            `readBytes ${packedRefs} 0 ${window}`,
-            `readBytes ${packedRefs} ${window} ${window}`,
-            `readBytes ${packedRefs} ${window * 2} ${window}`,
             'readFile refs/heads/topic/feature-3999',
+            `readWhole ${packedRefs}`,
         ])
+    },
+    // The *lookup* refuses a symlink `HEAD` too, which it used to follow.
+    //
+    // Measured on Git 2.43.0, and the rule is `HEAD`'s alone:
+    //
+    //   $ ln -s /elsewhere/holding-an-id .git/HEAD
+    //   $ git rev-parse HEAD        # fatal: not a git repository
+    //   $ ln -s /elsewhere/holding-an-id .git/ORIG_HEAD
+    //   $ git rev-parse ORIG_HEAD   # the id
+    //
+    // So Git refuses the repository over `HEAD` and follows the link for every
+    // other name in the same directory. Before this, `.git/HEAD` naming a file
+    // whose first line reads as an id answered that id — a value from the other
+    // side of the boundary this module claims.
+    //
+    // The listing is what sees it, so the lookup pays one `readdir`, and only
+    // for `HEAD`: `readFile` follows the link and `stat` answers for what is at
+    // the other end.
+    symlinkHeadLookup: () => {
+        const host = linkedHeadHost(latin1(`${b}\n`))
+        const [, r] = mockRun(host(false))(null)(tryResolve(one(''), 20)(latin1('HEAD')))
+        assert(r[0] === 'error')
+        const e = r[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, headKindCode)
+        assertEq(e[1].message, 'HEAD is not a regular file')
+        // an ordinary `HEAD` still reads, so the refusal is the kind's
+        const [, ok_] = mockRun(host(true))(null)(tryResolve(one(''), 20)(latin1('HEAD')))
+        assert(ok_[0] === 'ok' && ok_[1] !== null)
+        assertEq(codePointListToString(toHex(ok_[1])), b)
+        // and `ORIG_HEAD`, a link in the same listing, is followed — which is
+        // Git's answer and why this asks about one name rather than a kind
+        const [, orig] = mockRun(host(true))(null)(tryResolve(one(''), 20)(latin1('ORIG_HEAD')))
+        assert(orig[0] === 'ok' && orig[1] !== null)
+        assertEq(codePointListToString(toHex(orig[1])), b)
+    },
+    // A gitdir that is not there is no `HEAD` rather than a failure, which is
+    // what the plain read this replaced answered.
+    symlinkHeadNoGitdir: () => {
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
+        const host = { readFile: missing, readWhole: missing, readdir: missing, stat: statUnasked }
+        const [, r] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('HEAD')))
+        assertStructurallySame(r, ok(null))
     },
     // A packed name that is also a directory resolves to the packed id.
     //
@@ -851,7 +1273,7 @@ export const proof = {
     // and a directory is not one.
     packedNameIsADirectory: () => {
         const packed = latin1(`${b} refs/heads\n`)
-        /** @type {MemOperationMap<ReadBytes | ReadFile | Readdir | Stat, null>} */
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, null>} */
         const host = {
             // what node answers for a read of a directory
             readFile: path => state => [
@@ -870,16 +1292,11 @@ export const proof = {
                         ? [dirent('master', path, true, false)]
                         : []),
             ],
-            stat: path => state => [
+            stat: missing,
+            readWhole: path => state => [
                 state,
                 path === packedRefs
-                    ? ok(kindOf(packed.length))
-                    : error(ioError({ code: 'ENOENT', message: path })),
-            ],
-            readBytes: (path, at, size) => state => [
-                state,
-                path === packedRefs
-                    ? ok(toVec(packed.slice(at, at + size)))
+                    ? ok([toVec(packed)])
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
@@ -891,6 +1308,43 @@ export const proof = {
         const [, m] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))
         assert(m[0] === 'ok' && m[1] !== null, m)
         assertEq(codePointListToString(toHex(m[1])), a)
+    },
+    // And the same repository on a host that *reads* a directory instead of
+    // failing: the rule is the entry's kind and not the error code, so the
+    // packed line answers there too.
+    //
+    // A read of a directory is `EISDIR` on Linux, macOS and Windows, and a host
+    // is free to answer its bytes instead — `fjs/effects/node/virtual` records
+    // that FreeBSD does. Forgiving the code alone left such a host answering
+    // `null` for a name Git resolves, so the bytes that are no ref cost one
+    // `stat`, and what it says is what decides.
+    packedNameReadAsBytes: () => {
+        const packed = latin1(`${b} refs/heads\n`)
+        const [log, r] = mockRun(readsADirectoryHost(packed, ok(kind(false, true))))(
+            /** @type {readonly string[]} */ ([]))(tryResolve(one(''), 20)(latin1('refs/heads')))
+        assert(r[0] === 'ok' && r[1] !== null, r)
+        assertEq(codePointListToString(toHex(r[1])), b)
+        assert(log.includes('stat refs/heads'), log)
+        // A *file* holding the same bytes is the other repository, and it keeps
+        // Git's answer: the loose file shadows the packed line by existing, so
+        // the name has no value rather than the packed one.
+        const [, f] = mockRun(readsADirectoryHost(packed, ok(kind(true, false))))(
+            /** @type {readonly string[]} */ ([]))(tryResolve(one(''), 20)(latin1('refs/heads')))
+        assertStructurallySame(f, ok(null))
+        // A `stat` that cannot find what the read just answered is a name gone
+        // between the two questions, and that is the same `null` — not a failure,
+        // since the answer is about what was read. Every other `stat` failure is
+        // the channel's, as every other read failure is.
+        const gone = ioError({ code: 'ENOENT', message: 'refs/heads' })
+        assertStructurallySame(
+            mockRun(readsADirectoryHost(packed, error(gone)))(
+                /** @type {readonly string[]} */ ([]))(tryResolve(one(''), 20)(latin1('refs/heads')))[1],
+            ok(null))
+        const denied = ioError({ code: 'EACCES', message: 'refs/heads' })
+        assertStructurallySame(
+            mockRun(readsADirectoryHost(packed, error(denied)))(
+                /** @type {readonly string[]} */ ([]))(tryResolve(one(''), 20)(latin1('refs/heads')))[1],
+            error(denied))
     },
     // A loose file that is no ref answers `null` and not the packed line,
     // the same refusal `tryRoots` makes for the whole listing.
@@ -1033,9 +1487,59 @@ export const proof = {
                 'packed-refs': file(`${first} refs/heads/dup\n${second} refs/heads/dup\n`),
                 refs: {},
             }
-            sameRoots(run(root, tryRoots(one(''), 20)), [['refs/heads/dup', second]])
+            // The lookup answers the last line, which is `git rev-parse`'s
+            // answer in either order of the two.
             assertEq(hexOf(root, 'refs/heads/dup'), second)
+            // The listing refuses, because both lines are roots and one entry
+            // per name can hold neither answer. Measured on Git 2.43.0:
+            // `show-ref` and `for-each-ref` print both lines, `rev-list --all`
+            // lists both ids, and `gc --prune=now` with every reflog expired
+            // keeps the commit only the *earlier* line names — so taking the
+            // last silently dropped a live root.
+            refusesWith(packedTwiceCode)(
+                root, one(''), 'packed-refs names refs/heads/dup at two ids')
         }
+        // One name repeated at *one* id loses nothing, so it is answered once.
+        /** @type {Dir} */
+        const same = {
+            'packed-refs': file(`${a} refs/heads/dup\n${a} refs/heads/dup\n`),
+            refs: {},
+        }
+        sameRoots(run(same, tryRoots(one(''), 20)), [['refs/heads/dup', a]])
+        // A name a `packed-refs` may carry and no path can spell is written as
+        // its bytes: `refs/heads/\x80` is a name `check-ref-format` accepts,
+        // measured, and a message built through the path decoding would say
+        // nothing about which ref it was.
+        /** @type {Dir} */
+        const byteNamed = {
+            'packed-refs': file(`${a} refs/heads/\x80\n${b} refs/heads/\x80\n`),
+            refs: {},
+        }
+        assertEq(
+            rootsRefusal(byteNamed, one('')).message,
+            'packed-refs names 726566732f68656164732f80 at two ids')
+    },
+    // A ref holding the id no object has refuses the listing, whichever file it
+    // sits in. Measured on Git 2.43.0 with `refs/heads/zero` at forty zeros:
+    // `show-ref` answers `bad ref refs/heads/zero (0000…)` and exits 128 and
+    // `rev-list --all` answers `fatal: bad object`, loose and packed alike —
+    // while `rev-parse` prints the zero id and exits 0, which is the lookup's
+    // answer here too, and `for-each-ref` warns and skips it.
+    zeroIdRoot: () => {
+        const zero = '0'.repeat(40)
+        /** @type {readonly Dir[]} */
+        const roots = [
+            { refs: { heads: { master: ref(a), zero: ref(zero) } } },
+            { 'packed-refs': file(`${zero} refs/heads/zero\n`), refs: { heads: { master: ref(a) } } },
+            { HEAD: ref(zero), refs: {} },
+        ]
+        for (const root of roots) {
+            assertEq(rootsRefusal(root, one('')).code, zeroIdCode)
+        }
+        // the message names the ref, and `HEAD` is a name like any other here
+        assertEq(rootsRefusal({ HEAD: ref(zero), refs: {} }, one('')).message, 'HEAD holds the zero id')
+        // And the lookup answers it, as `rev-parse` does.
+        assertEq(hexOf({ refs: { heads: { zero: ref(zero) } } }, 'refs/heads/zero'), zero)
     },
     // A ref name is bytes, and Git takes any byte the name rule allows with no
     // encoding requirement: measured on Git 2.43.0, `check-ref-format` accepts
@@ -1196,31 +1700,51 @@ export const proof = {
             run({ refs: { heads: { master: ref(a) }, bisect: { good: ref(b) } } }, tryRoots(one(''), 20)),
             [['refs/heads/master', a], ['refs/bisect/good', b]])
     },
-    // A `packed-refs` line naming `HEAD` is shadowed by the `HEAD` file, which is
-    // this module's shadowing rule applied to the one name outside `refs/`.
-    // Measured on Git 2.43.0 with both present: `show-ref --head` prints two
-    // `HEAD` lines and `rev-list --all` keeps both ids, while `rev-parse HEAD`
-    // answers the file and `for-each-ref` lists neither — so Git does hold two,
-    // and the file is what the name means. `git pack-refs` never writes such a
-    // line, so this is a file made by hand either way.
+    // A `packed-refs` line naming `HEAD` beside a `HEAD` file refuses the
+    // listing, because Git keeps *both* and one entry per name can hold neither
+    // answer. Measured on Git 2.43.0 with both present: `show-ref --head` prints
+    // two `HEAD` lines, `rev-list --all` lists both ids, `fsck` calls neither
+    // unreachable, and `gc --prune=now` after
+    // `reflog expire --expire=now --expire-unreachable=now --all` keeps the
+    // packed line's commit — while `rev-parse HEAD` answers the file and
+    // `for-each-ref` lists neither. A shadowed name under `refs/` is the
+    // opposite: with `refs/heads/x` loose and packed at two ids, `show-ref` and
+    // `rev-list --all` answer only the loose one and that same `gc` prunes the
+    // packed commit. So shadowing is right there and drops a live root here.
+    //
+    // `git pack-refs --all` writes no such line — measured with a detached
+    // `HEAD` and an `ORIG_HEAD` set — so the collision is a file made by hand,
+    // though `git gc` carries one forward once it is there.
     packedHead: () => {
-        /** @type {Dir} */
-        const detached = { 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} }
-        sameRoots(run(detached, tryRoots(one(''), 20)), [['HEAD', a]])
-        // The file wins even when it adds no root of its own: an attached `HEAD`
-        // shadows the packed line and contributes nothing, so the name is gone
-        // rather than stale.
-        /** @type {Dir} */
-        const attached = {
-            'packed-refs': file(`${b} HEAD\n`),
-            HEAD: file('ref: refs/heads/master\n'),
-            refs: { heads: { master: ref(t) } },
-        }
-        sameRoots(run(attached, tryRoots(one(''), 20)), [['refs/heads/master', t]])
-        // With no `HEAD` file the packed line is all there is, so it is listed:
-        // the shadow is the file existing, here as everywhere else.
+        const refuses = refusesWith(packedHeadCode)
+        refuses(
+            { repo: { 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} } },
+            one('repo'),
+            'repo/packed-refs names HEAD beside repo/HEAD')
+        // An attached `HEAD` is refused too. It adds no root of its own — the
+        // branch is the root — and the packed id is still one nothing else
+        // names, so answering the branch alone would lose it.
+        //
+        // The two paths come from the two directories, which is what a linked
+        // worktree shows: `packed-refs` is the shared one's and `HEAD` is the
+        // worktree's own.
+        refuses(
+            {
+                wt: { HEAD: file('ref: refs/heads/master\n') },
+                repo: { 'packed-refs': file(`${b} HEAD\n`), refs: { heads: { master: ref(t) } } },
+            },
+            { gitdir: 'wt', common: 'repo' },
+            'repo/packed-refs names HEAD beside wt/HEAD')
+        // With no `HEAD` file there is no collision to refuse: the packed line
+        // is all there is about the name, and it is listed.
         sameRoots(run({ 'packed-refs': file(`${b} HEAD\n`), refs: {} }, tryRoots(one(''), 20)), [['HEAD', b]])
-        // And the lookup answers the file, which is what `rev-parse` does.
-        assertEq(hexOf(detached, 'HEAD'), a)
+        // And a `packed-refs` that does not name `HEAD` is the ordinary
+        // repository, answered rather than refused.
+        sameRoots(
+            run({ 'packed-refs': file(`${b} refs/heads/other\n`), HEAD: ref(a), refs: {} }, tryRoots(one(''), 20)),
+            [['HEAD', a], ['refs/heads/other', b]])
+        // The lookup is not the listing and does not refuse: it answers the
+        // file, which is what `rev-parse HEAD` does.
+        assertEq(hexOf({ 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} }, 'HEAD'), a)
     },
 }

@@ -211,9 +211,40 @@ export type FileStat = {
 
 export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
 
+// readWhole
+
+/**
+ * A whole file's bytes, as the chunks one open answered.
+ *
+ * **One open, so the bytes are one file.** {@link ReadBytes} opens the path per
+ * call, so a caller reading a file in windows can straddle two of them: a
+ * `packed-refs` replaced atomically between two windows — which `git pack-refs`
+ * does on every run — yields an old prefix joined to a new suffix, and where the
+ * replacement is the same length, every window is exactly as long as it should
+ * be and nothing downstream can tell. The result parses, and names a set of refs
+ * no version of that file ever held.
+ *
+ * A caller cannot close that gap with the operations beside it: `stat` carries
+ * no identity to compare, and re-reading races the same way. So the snapshot is
+ * the host's to give, which it does by reading to the end under the descriptor
+ * it opened — the same thing `readFile` does, without its `Vec` ceiling.
+ *
+ * Chunks rather than one value for that ceiling's sake: each is a `Vec` and so
+ * at most 128 KiB, and the file is however many of them it takes. The reader in
+ * `fjs/effects/node/module.f.mjs` joins them into a byte list, which has no
+ * bound at all.
+ *
+ * A path that is no regular file — a FIFO, a device — is refused rather than
+ * opened: a FIFO is a stream and not a file, and opening one with no writer
+ * blocks for as long as none appears. A regular file whose size is a lie is
+ * read, not refused: a procfs file `stat`s as nought bytes and yields thousands,
+ * and this reads to the end rather than to the size.
+ */
+export type ReadWhole = readonly['readWhole', (path: string) => IoResult<readonly Vec[]>]
+
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
 
 // Server
 

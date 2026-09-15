@@ -1,4 +1,4 @@
-## A reflog entry keeps an object too, and `tryRoots` does not list it
+## A reflog entry and the index keep objects too, and `tryRoots` lists neither
 
 **Priority:** P3
 **Status:** open
@@ -35,7 +35,36 @@ The consequence for this module is a claim rather than an answer. Every entry
 was wrong is that its doc called the list "the retention roots", which a caller
 could read as *everything the repository is keeping* and prune by. The doc now
 says refs, says what else keeps an object, and says not to prune by it. This
-issue is the missing half.
+issue is where the rest is written down.
+
+### The index is a root too, and it is not a reflog
+
+A reflog is not the only other kind, which is why this issue is not "refs and
+reflogs". `.git/index` holds the id of every staged blob and Git keeps those
+whether or not a ref or a reflog ever names them. Measured on Git 2.43.0, with
+every reflog expired first:
+
+```
+$ git add s                    # staged, never committed
+$ git hash-object -w --stdin   # written, never staged
+$ git reflog expire --expire=now --expire-unreachable=now --all
+$ git gc --prune=now
+$ git cat-file -t $STAGED
+blob                           # kept
+$ git cat-file -t $UNSTAGED
+fatal: git cat-file: could not get object info    # pruned
+```
+
+`git rev-list --all --objects` does not list the staged blob, so no walk of the
+refs can find it: it is a root a list of refs cannot see, rather than one it
+happens to miss. `git fsck` reads the index the same way it reads the reflog.
+
+That makes three kinds — refs, reflogs, the index — and the index is the one
+whose file this repository cannot read at all: the index is a binary format of
+its own, which nothing under `fjs/git` decodes yet. Reading it is its own piece
+of work and wants its own issue once someone needs a prune list; this one names
+it so that the count is right and the doc does not say "the other half" of a
+thing with three halves.
 
 An earlier revision of [ref-writing.md](../../todo/ref-writing.md) had it
 backwards — "the reflog is not retention", reasoning from expiry to irrelevance.
@@ -83,3 +112,6 @@ name for it.
   which appends to a reflog, and where the wrong reading of expiry came from.
 - [`fjs/git/ident`](../../ident/module.f.mjs) — the `who` and `when` of an
   entry, already read for a commit and a tag.
+- [`fjs/git/todo/object-store.md`](../../todo/object-store.md) — where the
+  store's own reading is listed; the index sits beside it as a file `fjs/git`
+  does not read.

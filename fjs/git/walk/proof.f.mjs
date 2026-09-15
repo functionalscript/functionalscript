@@ -1,5 +1,5 @@
 /**
- * @import { Inflate, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { Bytes, ObjectType, Oid } from '../types.ts'
@@ -247,7 +247,7 @@ const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}
  * and a directory that is not there is the ordinary way to have none. They log
  * nothing, so the log stays the list of objects the walk asked for.
  *
- * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadBytes | Inflate, readonly string[]>}
+ * @type {MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
  */
 const host = {
     readFile: path => log => {
@@ -257,6 +257,7 @@ const host = {
     readdir: path => log => [log, error(noFile(path))],
     stat: path => log => [log, error(noFile(path))],
     readBytes: path => log => [log, error(noFile(path))],
+    readWhole: path => log => [log, error(noFile(path))],
     inflate: data => log => [log, ok(data)],
 }
 

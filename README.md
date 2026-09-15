@@ -93,7 +93,9 @@ shared — all three outputs are trees, and `output.json` is:
 
 The compiler currently accepts `import` statements, `const` declarations, and
 data expressions (objects, arrays, strings, numbers, `bigint`, booleans, `null`,
-`undefined`). Functions and computed expressions are not supported yet. See
+`undefined`), and property access on a name — `a.b`, `a[0]`, an own property
+and never the prototype chain. Functions and other computed expressions are
+not supported yet. See
 [fjs/fsc/README.md](fjs/fsc/README.md) for the compiler, the data language it
 accepts today, and its roadmap.
 

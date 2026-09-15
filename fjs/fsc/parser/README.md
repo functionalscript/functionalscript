@@ -15,15 +15,16 @@ symbols here.
 
 ```
 module ::= t import* const* export eof
-import ::= 'import' t id t 'from' t string t ';' t
-const  ::= 'const' t id t '=' t value t ';' t
-export ::= 'export' t 'default' t value t ';' t
-value  ::= primitive | id | array | object
-array  ::= '[' t [ items(value) ] ']'
-object ::= '{' t [ items(member) ] '}'
+import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+const  ::= 'const' t id t '=' t value ';' t
+export ::= 'export' t 'default' t value ';' t
+value  ::= primitive t | id t access* | array | object
+access ::= '.' t id t | '[' t (string | number) t ']' t
+array  ::= '[' t [ items(value) ] ']' t
+object ::= '{' t [ items(member) ] '}' t
 member ::= key t ':' t value
 key    ::= id | string | '[' t string t ']'
-items  ::= item t [ ',' t [ items ] ]
+items  ::= item [ ',' t [ items ] ]
 t      ::= (ws | nl | comment)*
 ```
 
@@ -33,13 +34,16 @@ for that, each a conflict the backtracking grammar this replaced had
 ([the record](../README.md#both-grammars-are-ll1) of all eight):
 
 - **Trivia follows a token, never leads a rule.** Every token is followed by
-  `t`, so no rule begins with trivia and no two branches begin with it.
+  `t`, so no rule begins with trivia and no two branches begin with it. A
+  value ends with its own `t`, and what follows a value adds none: a
+  reference may be followed by an access, `a . b` and `a [0]` included, and
+  the trivia between them would otherwise have to lead the access rule.
 - **`;` ends every statement, the export included.** A newline does not: it is
   trivia, read past, so a missing `;` is found at what came instead — the next
   statement's keyword, or the end of input. This is the rule
-  [`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md)
-  settles on for FunctionalScript (stage 5) and what DataJS requires; telling a
-  newline from a `;` reached through newlines took unbounded lookahead.
+  [`spec/README.md`](../../../spec/README.md) states for FunctionalScript and
+  what DataJS requires; telling a newline from a `;` reached through newlines
+  took unbounded lookahead.
 - **A list is right-recursive.** After an item and its comma, the lookahead says
   whether an item or the closing bracket follows, so a trailing comma is a comma
   nothing follows.
@@ -64,9 +68,22 @@ the fold's:
 - an identifier naming no `const` or `import`;
 - a `const` or `import` name already bound — they share one map, so a name taken
   by either is taken for both;
+- a JavaScript keyword where JavaScript wants an identifier — a name bound or
+  referenced. The tokenizer hands every keyword over as an `id` token, since
+  a key or the name after `.` may be one, so `const if = 1;` and
+  `export default class;` are the fold's to refuse and `{ if: 1 }` is a
+  member: a broken JavaScript program is a broken FunctionalScript program;
+- an import attribute other than `type: "json"`, the one JavaScript defines,
+  read from the key's and the value's words;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
-  ordinary property and is accepted, so this is not a lexical rule either.
+  ordinary property and is accepted, so this is not a lexical rule either;
+- an access naming the prototype chain, `a.__proto__` or `a["constructor"]`
+  in either spelling, which
+  [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
+  prohibits. The key of an access is a constant — an identifier after `.`, a
+  string or a number in `[ ]` — so what remains is the EDAG's own form,
+  `['.', base, key]`, and the grammar refuses a runtime key at the token.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
@@ -108,23 +125,26 @@ public types in `./types.ts`, as the rewrite set is.
 
 ## Framing keywords are terminals of their own
 
-The tokenizer emits `import`, `const`, `export`, `default` and `from` as `id`
-tokens carrying the word in `value`. An alphabet keyed on a token's *kind* would
-give all five the symbol of any other identifier, and the grammar could not tell
-`export default` from two arbitrary names — module framing would be
-inexpressible.
+The tokenizer emits `import`, `const`, `export`, `default`, `from` and `with`
+as `id` tokens carrying the word in `value`. An alphabet keyed on a token's
+*kind* would give all six the symbol of any other identifier, and the grammar
+could not tell `export default` from two arbitrary names — module framing
+would be inexpressible.
 
 They therefore get their own names in the alphabet, which a registered mapping
 allows because a symbol comes from a name's position in a list and a name has no
 length limit.
 
-**Splitting them off obliges the grammar to provide an identifier rule.** None of
-the five is reserved: `const export = 1;`, `export default export;`, and
-`{ from: 2, default: 3 }` all parse. So wherever an identifier is accepted —
-binding names, references, object keys, import names — the terminal is the
-*union* of `id` and the five keyword symbols, and only the framing positions
-demand a specific keyword. Giving a word its own symbol narrows where it is
-**required**, never where it is **allowed**.
+**Splitting them off obliges the grammar to provide an identifier rule.**
+Wherever an identifier is accepted — binding names, references, object keys,
+import names, the name after `.` — the terminal is the *union* of `id` and the
+six keyword symbols, and only the framing positions demand a specific keyword.
+Which of them a position may hold is the fold's question, as it is for every
+other keyword, since it is a property of the word: JavaScript reserves five of
+the six and `from` alone is ordinary, so `{ from: 2, default: 3 }` and
+`a.with` parse and `const export = 1;` is refused, exactly as `const if = 1;`
+is. Giving a word its own symbol narrows where it is **required**, never where
+it is **allowed**.
 
 ## Why a registered alphabet is enough
 

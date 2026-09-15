@@ -1,5 +1,5 @@
 /**
- * @import { Dirent, Inflate, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Oid } from '../types.ts'
@@ -99,7 +99,7 @@ const dirent = n => ({ name: n, parentPath: 'repo/objects/pack', isFile: true, i
  * which is what a repository without one answers — `sha` and `odd` below have no
  * packs, and their reads say so through the same ENOENT.
  *
- * @type {(fs: StringMap<readonly number[]>) => MemOperationMap<ReadFile | Readdir | Stat | ReadBytes | Inflate, readonly string[]>}
+ * @type {(fs: StringMap<readonly number[]>) => MemOperationMap<ReadFile | Readdir | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
  */
 const hostOf = fs => ({
     readFile: path => log => {
@@ -128,6 +128,13 @@ const hostOf = fs => ({
             file === undefined ? error(noFile(path)) : ok(toVec(file.slice(at, at + size))),
         ]
     },
+    readWhole: path => log => {
+        const file = fs[path]
+        return [
+            [...log, `readWhole ${path}`],
+            file === undefined ? error(noFile(path)) : ok([toVec(file)]),
+        ]
+    },
     inflate: data => log => [
         [...log, 'inflate'],
         ok(uint(data) === uint(compressed) ? tagEnvelope
@@ -140,10 +147,9 @@ const host = hostOf(files)
 
 const runHost = run(host)([])
 
-/** What reading the one pack's index costs, in windows of the host's bound. */
+/** What reading the one pack's index costs: one operation, whatever its size. */
 const idxRead = /** @type {readonly string[]} */ ([
-    `stat repo/objects/pack/${packName}.idx`,
-    `readBytes repo/objects/pack/${packName}.idx 0 ${Number(maxLengthBytes)}`,
+    `readWhole repo/objects/pack/${packName}.idx`,
 ])
 
 /**

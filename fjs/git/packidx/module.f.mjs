@@ -9,13 +9,14 @@
  *
  * Every claim below was measured against Git 2.43.0 on packs it wrote.
  *
- * **Reading a large index is dominated by building its ids.** Measured on a
- * synthetic 100,000-object index of 2.80 MB, `tryIdx` costs 3498 ms, of which
- * 2122 ms is the checksum hash and 1161 ms is materialising the ids as bit
- * vectors. Two scans that used to cost the rest are gone — see {@link upTo} and
- * {@link differsAt} — and the eager ids are the shape of {@link Idx} rather than
- * a mistake in a loop, so they are
- * [`todo/lazy-index-ids.md`](./todo/lazy-index-ids.md) and not a change here.
+ * **Reading an index costs the whole file, whatever a caller wants from it.**
+ * Hashing the whole file to check its trailer and materialising every id as a
+ * bit vector are both linear in the index and neither is optional: the first is
+ * what refuses a corrupt file, and the second is the shape of {@link Idx} rather
+ * than a mistake in a loop. Together they dominate the read, and a lookup uses
+ * about `log2(n)` of the ids it built. That is
+ * [`todo/lazy-index-ids.md`](./todo/lazy-index-ids.md) and not a change here;
+ * the figures are there, pinned to the commit they were taken at.
  *
  * **Two versions are live, and the second is not a superset of the first.**
  * Version 2 begins with the four bytes `\377tOc` and a version word; version
@@ -33,7 +34,8 @@
  * | magic and version | absent | `\377tOc`, then `2` |
  * | fanout | 256 words at 0 | 256 words at 8 |
  * | ids and offsets | interleaved, offset first | two tables, ids then CRCs then offsets |
- * | offsets over 2 GiB | cannot be spelled | a second table of 8-byte offsets |
+ * | largest offset | just under 4 GiB | any, through a second table |
+ * | how | the whole 4-byte word | the high bit indexes 8-byte offsets |
  *
  * **The fanout is a cumulative count, not a count.** `fanout[k]` is how many
  * ids have a first byte of `k` or less, so `fanout[255]` is the object count
@@ -105,10 +107,9 @@ const oidAt = (b, at, width) => toVec(b.slice(at, at + width))
  *
  * A recursion over the width rather than a `find` over an array of positions,
  * because the array was allocated once per *pair of ids*: on a 100,000-object
- * index that is a hundred thousand throwaway arrays of twenty numbers. In
- * isolation over 100,000 pairs, the array shape takes 137 ms and this 4 ms. The
- * depth is the id width — 20 or 32 — so it is bounded by the format and not by
- * the file.
+ * index that is a hundred thousand throwaway arrays of twenty numbers, and it
+ * measured tens of times slower than this. The depth is the id width — 20 or
+ * 32 — so it is bounded by the format and not by the file.
  *
  * @type {(b: readonly number[], x: number, y: number, width: number, k: number) => number}
  */
@@ -123,9 +124,9 @@ const differsAt = (b, x, y, width, k) =>
  * ascend. That is a real dependency and not a coincidence: this function is
  * wrong on an unsorted list, and the only caller checks the order first.
  *
- * A filter per bucket instead is 256 full passes over the ids, which is the shape
- * this replaced. In isolation on 100,000 first bytes, the 256 filters take
- * 427 ms and the 256 searches 1 ms.
+ * A filter per bucket instead is 256 full passes over the ids, which is the
+ * shape this replaced: linear in the index per bucket against logarithmic, and
+ * measured hundreds of times slower on an index of a hundred thousand.
  *
  * The range it searches is a parameter rather than a capture, as `k` and the list
  * are, so this is closed and lives at module scope like {@link differsAt}: one
@@ -211,6 +212,11 @@ const checksumAgrees = (b, oidBytes) => {
  * past 4 GiB at all. That is the reason version 2 exists and not a gap in
  * this reader.
  *
+ * The whole word is the offset, with no bit reserved: `0x80000001` is 2 GiB and
+ * one byte here, where the same word in a version 2 index is an *index* into the
+ * 8-byte table — see {@link largeOffsetFlag}. So version 1's ceiling is higher
+ * than version 2's 4-byte table and lower than what version 2 can reach at all.
+ *
  * @type {(b: readonly number[], oidBytes: OidBytes) => Nullable<Idx>}
  */
 const tryV1 = (b, oidBytes) => {
@@ -286,6 +292,13 @@ const tryV2 = (b, oidBytes) => {
     // which is an index disagreeing with itself answered as two plausible
     // offsets. An index past the table and a table longer than its words ask
     // for are both refused by the same line.
+    //
+    // The *order* half is Git's rule and not this module's own: measured on Git
+    // 2.43.0, `git show-index` given a two-object index whose two words name
+    // slots 1 and 0 answers `fatal: inconsistent 64b offset index` and exits
+    // 128, and reads the same table in order. So this is not one of the three
+    // divergences at {@link tryIdx} — Git's index reader refuses it too, and it
+    // is Git's *object* reader, which takes such a file, that disagrees.
     if (large !== named.length || named.some((at, k) => at !== k)) { return null }
     const offsets = words.map(w =>
         w < largeOffsetFlag ? w : u64(b, largeAt + (w - largeOffsetFlag) * 8))
@@ -305,12 +318,22 @@ const tryV2 = (b, oidBytes) => {
  * not 2, a fanout that disagrees with the ids, or an 8-byte offset too large to
  * be one.
  *
- * **That is a stricter subset than Git's, in one place, on purpose.** A version 2
- * index whose 8-byte offset table is longer than any 4-byte word refers to is a
- * file Git reads and this refuses — see {@link tryV2}, where the reason is that
- * the spare block turns an index *past* the table into one inside it and the
- * garbage there reads as an offset. So `null` here means "not one of the indexes
- * this reads", and a caller that needs Git's exact set needs that case too.
+ * **That is a stricter subset than Git's, in three places, each on purpose.**
+ * Each is a file Git reads and this refuses, measured on a 42-object index:
+ *
+ * - a version 2 index whose 8-byte offset table is longer than any 4-byte word
+ *   refers to — see {@link tryV2}: the spare block turns an index *past* the
+ *   table into one inside it, and the garbage there reads as an offset;
+ * - a file whose own trailing checksum does not match its bytes — Git maps the
+ *   file and trusts it, verifying only under `index-pack --strict` and
+ *   `verify-pack`, and reads all 42 objects out of a corrupted one where this
+ *   answers `null`. See {@link checksumAgrees} for why the price is paid here;
+ * - a file whose ids do not ascend inside a fanout bucket — Git's bisection
+ *   leans on the order without re-deriving it and still found 41 of the 42,
+ *   quietly missing one, where this answers `null`. See {@link fanoutAgrees}.
+ *
+ * So `null` here means "not one of the indexes this reads", and a caller that
+ * needs Git's exact set needs all three cases.
  *
  * The width is the repository's, the same argument every reader here takes,
  * and reading a SHA-256 index at 20 bytes refuses rather than mis-parses —

@@ -1,16 +1,16 @@
 /**
- * @import { Dirent, Inflate, ReadBytes, ReadFile, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, Inflate, ReadBytes, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
  * @import { IoChannel, IoErrorInfo } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Envelope } from '../object/types.ts'
  * @import { Oid } from '../types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ioError } from '../../effects/module.f.mjs'
-import { shortReadCode } from '../../effects/node/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
@@ -23,6 +23,20 @@ import { packEntryCode, packFileCode, packIdxCode, tryRead } from './module.f.mj
 const toVec = u8ListToVec(msb)
 
 const toBytes = u8List(msb)
+
+/** How many bytes of a file one chunk of a `readWhole` carries at most. */
+const chunkBytes = Number(maxLengthBytes)
+
+/**
+ * A file as the chunks one open takes, each a `Vec` and so each within the cap —
+ * which is what the node host's `readWhole` answers, and what makes an index
+ * larger than the cap arrive in more than one piece.
+ *
+ * @type {(b: readonly number[]) => readonly Vec[]}
+ */
+const chunked = b => Array.from(
+    { length: Math.max(1, Math.ceil(b.length / chunkBytes)) },
+    (_, k) => toVec(b.slice(k * chunkBytes, (k + 1) * chunkBytes)))
 
 /** How wide an id is in every fixture here, and so how long each checksum is. */
 const width = /** @type {const} */ (20)
@@ -182,7 +196,7 @@ const notZlib = ioError({ code: 'Z_DATA_ERROR', message: 'incorrect header check
  *     dir: Nullable<readonly Dirent[]>,
  *     files: (path: string) => Nullable<readonly number[]>,
  *     inflate: (input: readonly number[]) => Nullable<readonly number[]>,
- * ) => MemOperationMap<Readdir | ReadFile | Stat | ReadBytes | Inflate, readonly string[]>}
+ * ) => MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>}
  */
 const hostOf = (dir, files, inflate) => ({
     readdir: path => log => [
@@ -209,6 +223,13 @@ const hostOf = (dir, files, inflate) => ({
             b === null ? error(notFound(path)) : ok(toVec(b.slice(at, at + size))),
         ]
     },
+    readWhole: path => log => {
+        const b = files(path)
+        return [
+            [...log, `readWhole ${path}`],
+            b === null ? error(notFound(path)) : ok(chunked(b)),
+        ]
+    },
     inflate: v => log => {
         const b = inflate(toArray(toBytes(v)))
         return [[...log, 'inflate'], b === null ? error(notZlib) : ok(toVec(b))]
@@ -233,7 +254,7 @@ const withIdx = (idx, count) => path =>
 
 const read = tryRead('', width)
 
-/** @type {(host: MemOperationMap<Readdir | ReadFile | Stat | ReadBytes | Inflate, readonly string[]>, hex: string) => readonly [readonly string[], Result<Nullable<Envelope>, IoChannel>]} */
+/** @type {(host: MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>, hex: string) => readonly [readonly string[], Result<Nullable<Envelope>, IoChannel>]} */
 const readBy = (host, hex) => run(host)([])(read(id(hex)))
 
 /**
@@ -289,11 +310,12 @@ const chainedIdx = [
     ['f21ff1cae7f0e9897eef760f163b1c86a822bcb1', 545],
 ]
 
-/** What reading an index costs, in windows of the host's bound. */
-const idxRead = /** @type {readonly string[]} */ ([
-    `stat ${idxPath}`,
-    `readBytes ${idxPath} 0 ${Number(maxLengthBytes)}`,
-])
+/**
+ * What reading an index costs: one operation, however long the file is. The
+ * chunks a large one comes back in are the host's and not this module's, so no
+ * count of them belongs in a log.
+ */
+const idxRead = /** @type {readonly string[]} */ ([`readWhole ${idxPath}`])
 
 /**
  * What checking a pack's framing costs: its length, its header, and the trailing
@@ -598,7 +620,7 @@ export const proof = {
         }
         const [, kind] = readBy(notAFile, 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertStructurallySame(kind, ok(null))
-        // and any other failure is the channel's
+    // and any other failure is the channel's
         const refused = {
             ...whole,
             stat: /** @type {typeof whole.stat} */ (
@@ -695,7 +717,7 @@ export const proof = {
     // repository with no packs.
     dirRefused: () => {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
-        /** @type {MemOperationMap<Readdir | ReadFile | Stat | ReadBytes | Inflate, readonly string[]>} */
+        /** @type {MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>} */
         const host = {
             ...hostOf(listing, files, inflatedBy(streams)),
             readdir: path => log => [[...log, `readdir ${path}`], error(denied)],
@@ -751,14 +773,18 @@ export const proof = {
             refusedFor(packMixed.slice(0, 31)),
             `${packPath} is 31 bytes, too short to be a pack file`)
     },
-    // An index larger than a `Vec` is read in windows. A version 2 SHA-1 index
-    // outgrows 128 KiB at 4,643 objects — 28 bytes an object over a 1,072-byte
-    // frame — and this repository's own `objects/pack` holds indexes of 161,764
-    // bytes and more, so this is the ordinary case and not an extreme one.
+    // An index larger than a `Vec` arrives in more than one chunk. A version 2
+    // SHA-1 index outgrows 128 KiB at 4,643 objects — 28 bytes an object over a
+    // 1,072-byte frame — and this repository's own `objects/pack` holds indexes
+    // of 161,764 bytes and more, so this is the ordinary case and not an extreme
+    // one.
     //
-    // The index here is built at 5,000 objects, one window and a bit: what the
-    // case pins is that the windows are asked for in order, that the bytes they
-    // carry are joined into one list, and that the lookup then answers from it.
+    // The index here is built at 5,000 objects, one chunk and a bit: what the
+    // case pins is that the chunks are joined in order into one list and that the
+    // lookup then answers from it — and that the whole file costs one operation,
+    // since `readWhole` opens the path once and reads it to the end. An earlier
+    // revision folded over `readBytes` instead, and paid a `stat` and a window
+    // per 128 KiB for it.
     bigIdx: () => {
         // every id but the first sits at 525, which is what closes the window of
         // the entry at 508 — an index whose offsets are all one number leaves the
@@ -767,49 +793,13 @@ export const proof = {
             { length: 5000 },
             (_, k) => [`${k.toString(16).padStart(8, '0')}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
         assert(many.length > Number(maxLengthBytes))
+        // the host hands it back in two, which is what a join has to survive
+        assertEq(chunked(many).length, 2)
         const [log, r] = readBy(
             hostOf(listing, withIdx(many, 5000), inflatedBy(streams)),
             `00000000${'0'.repeat(32)}`)
         assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
-        assertStructurallySame(log.slice(0, 4), [
-            `readdir ${dirPath}`,
-            `stat ${idxPath}`,
-            `readBytes ${idxPath} 0 ${Number(maxLengthBytes)}`,
-            `readBytes ${idxPath} ${Number(maxLengthBytes)} ${Number(maxLengthBytes)}`,
-        ])
-    },
-    // A host that answers a window short of the end of the file is refused, and
-    // not carried on from the next fixed window start — which would skip the bytes
-    // it did not answer and hand `tryIdx` an index with a run missing out of its
-    // middle, so a file Git reads would be reported as no pack index at all.
-    //
-    // One `read` is allowed to do this. Measured on node 22, a positional read of
-    // `/proc/self/maps` answers 4,007 bytes for a 1 MiB request and 4,034 more at
-    // the next offset; a regular local file filled the buffer and came back short
-    // only at its end. `fjs/effects/node` fills the window for that reason, so the
-    // host below is the one this module cannot assume it is running on.
-    shortWindow: () => {
-        const many = idxOf(Array.from(
-            { length: 5000 },
-            (_, k) => [`${k.toString(16).padStart(8, '0')}${'0'.repeat(32)}`, k === 0 ? 508 : 525]))
-        assert(many.length > Number(maxLengthBytes))
-        const whole = hostOf(listing, withIdx(many, 5000), inflatedBy(streams))
-        const short = {
-            ...whole,
-            // one byte less than asked for, on the first window only
-            readBytes: /** @type {typeof whole.readBytes} */ (
-                (path, at, size) => whole.readBytes(path, at, at === 0 ? size - 1 : size)),
-        }
-        const [log, r] = readBy(short, `00000000${'0'.repeat(32)}`)
-        const e = refusal(r)
-        assertEq(e.code, shortReadCode)
-        assertEq(e.message, `${idxPath}:0 ${Number(maxLengthBytes) - 1} bytes of ${Number(maxLengthBytes)}`)
-        // and the second window is never asked for
-        assertStructurallySame(log, [
-            `readdir ${dirPath}`,
-            `stat ${idxPath}`,
-            `readBytes ${idxPath} 0 ${Number(maxLengthBytes) - 1}`,
-        ])
+        assertStructurallySame(log.slice(0, 2), [`readdir ${dirPath}`, `readWhole ${idxPath}`])
     },
     // An index with no pack beside it is the channel's, at the `stat` that asks
     // the pack for its length.

@@ -87,5 +87,7 @@ it can read:
 - [`fjs/git/README.md`](../README.md) — the readers the store feeds.
 - [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md) —
   what an id check means in a SHA-1 repository.
-- [refs.md](./refs.md) — from a name to the id the walk starts from.
+- [`fjs/git/refstore`](../refstore/module.f.mjs) — from a name to the id the
+  walk starts from, which is read rather than pending; writing one is
+  [ref-writing.md](./ref-writing.md).
 - [packfiles.md](./packfiles.md) — where most objects are.

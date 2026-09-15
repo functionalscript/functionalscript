@@ -14,8 +14,8 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, array, constStatement, djsModule,
-    exportStatement, identifier, importStatement, items, key, member, object, primitive, sym, symbolOf, trivia,
+    _ordinaryTokenNames as names, access, array, attribute, constStatement, djsModule,
+    exportStatement, identifier, importStatement, index, items, key, member, object, primitive, sym, symbolOf, trivia,
     value,
 } from './module.f.mjs'
 
@@ -60,10 +60,13 @@ export const proof = {
         parser(identifier)
         parser(primitive)
         parser(key)
+        parser(index)
+        parser(access)
         parser(/** @type {Rule} */ (member))
         parser(/** @type {Rule} */ (value))
         parser(/** @type {Rule} */ (array))
         parser(/** @type {Rule} */ (object))
+        parser(attribute)
         parser(/** @type {Rule} */ (importStatement))
         parser(/** @type {Rule} */ (constStatement))
         parser(/** @type {Rule} */ (exportStatement))
@@ -96,10 +99,41 @@ export const proof = {
         assertStructurallySame(read('export default 1;'), ['ok'])
         assertStructurallySame(read(' /* c */ export default [1, [2,], {a: 1, "b": 2, ["c"]: 3,},] ; // c\n'), ['ok'])
         assertStructurallySame(read('import x from "m";\nconst a = [x];\nconst b = { a: a, };\nexport default [x, a, b];\n'), ['ok'])
+        // a framing keyword is an identifier's symbol wherever a name may
+        // stand, JavaScript's reserved ones included: which words are
+        // reserved is the fold's to say, as for every other keyword
         assertStructurallySame(read('const export = 1;export default export;'), ['ok'])
+        assertStructurallySame(read('const with = 1;export default { with: with.with };'), ['ok'])
+        assertStructurallySame(read('const if = 1;export default if;'), ['ok'])
+        // the import attribute: `with`, a key, a string, the braces
+        assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with { "type": "json" };export default x;'), ['error', 'string'])
+        assertStructurallySame(read('import x from "m" with { type: json };export default x;'), ['error', 'json'])
+        assertStructurallySame(read('import x from "m" with { type: "json", };export default x;'), ['error', ','])
+        assertStructurallySame(read('import x from "m" with {};export default x;'), ['error', '}'])
         assertStructurallySame(read('export default\n1\n;'), ['ok'])
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
+    },
+    // A reference takes accesses, `.name` and `[key]`, trivia allowed
+    // around each token since a value ends with its own; a primitive or a
+    // container takes none, and a key is a string or a number.
+    access: () => {
+        assertStructurallySame(read('const a = {}; export default a.b;'), ['ok'])
+        assertStructurallySame(read('const a = {}; export default a["b"];'), ['ok'])
+        assertStructurallySame(read('const a = []; export default a[0];'), ['ok'])
+        assertStructurallySame(read('const a = {}; export default a . b [ "c" ] . default [ 1 ] ;'), ['ok'])
+        assertStructurallySame(read('const a = {}; export default [a.b, { c: a.b.c, }];'), ['ok'])
+        assertStructurallySame(read('export default 1 .x;'), ['error', '.'])
+        assertStructurallySame(read('export default [1].x;'), ['error', '.'])
+        assertStructurallySame(read('export default {}.x;'), ['error', '.'])
+        assertStructurallySame(read('const a = []; export default a[1n];'), ['error', 'bigint'])
+        assertStructurallySame(read('const a = []; export default a[b];'), ['error', 'b'])
+        assertStructurallySame(read('const a = []; export default a[];'), ['error', ']'])
+        assertStructurallySame(read('const a = {}; export default a.1;'), ['error', 'number'])
+        assertStructurallySame(read('const a = {}; export default a.;'), ['error', ';'])
+        assertStructurallySame(read('const a = {}; export default a."b";'), ['error', 'string'])
     },
     // `;` ends every statement: a newline does not, and neither does the
     // end of input. A newline is trivia, read past, so the failure is at

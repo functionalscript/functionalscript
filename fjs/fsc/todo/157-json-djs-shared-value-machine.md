@@ -46,8 +46,7 @@ That belongs to whichever JSON work needs it, not to a JSON/DJS extraction.
 
 The same recursive `typeof`-dispatch walker over the value tree is written
 three times, and the count is what is left after the old `fjs/djs/serializer`
-was retired in stage 7 of
-[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md):
+was retired:
 
 - `fjs/media/json/serializer/module.f.mjs` — `treeSerialize(leafSerialize)(sort)`,
   a factory. `fjs/media/json`'s `serialize` and the extended codec are two
@@ -136,8 +135,8 @@ asked for is done by deletion.
       survives of the parser sub-task, and it is not a DJS concern.
 - [x] Collapse the two DJS serializer variants through an optional ref hook —
       landed as `buildSerialize` in `fjs/djs/serializer/module.f.mjs`, and
-      retired with that module in stage 7; the compiler's dump kept the
-      half without seams.
+      retired with that module; the compiler's dump kept the half without
+      seams.
 - [ ] Extract the serializer walker independently, shared between JSON's
       `serialize`, the compiler's `_stringifyTree` and DataJS's walk — three
       consumers, and the entry-enumeration seam has to be a parameter for

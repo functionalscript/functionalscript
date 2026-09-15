@@ -30,17 +30,26 @@ export type ParseError = {
     readonly message: string,
     readonly metadata: TokenMetadata | null
     readonly end?: TokenPosition | undefined
+    /**
+     * The file a failure with no token is in, when the failure knows one: a
+     * missing file, a cycle, a body that fails to evaluate — each in an
+     * imported module as readily as in the one being compiled, which
+     * `metadata: null` alone would name.
+     */
+    readonly path?: string | undefined
 }
 
 /**
  * A value as the mappings build it, before names are resolved: a primitive
  * converted from its token, a reference by the identifier token that spells
- * it — its name, and the position an error is anchored at — or a container
- * of its items in the order written.
+ * it — its name, and the position an error is anchored at — a property
+ * access by the token its key is read from, or a container of its items in
+ * the order written.
  */
 export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
+    | readonly ['.', Node, DjsTokenWithMetadata]
     | Container
 
 /** An array of its items, or an object of its members, each in the order written. */
@@ -60,10 +69,16 @@ export type Entry = {
     readonly value: Node
 }
 
-/** An `import`: the token naming what it binds, and the module specifier. */
+/**
+ * An `import`: the token naming what it binds, the module specifier, and
+ * its attribute when it has one — the tokens its key and value are read
+ * from, which anchor the error a key or value the language does not know
+ * earns.
+ */
 export type Import = {
     readonly name: DjsTokenWithMetadata
     readonly module: string
+    readonly attribute: readonly [DjsTokenWithMetadata, DjsTokenWithMetadata] | null
 }
 
 /** A `const`: the token naming what it binds, and its value. */
