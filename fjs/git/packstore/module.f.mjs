@@ -86,13 +86,14 @@
  * @import { Idx } from '../packidx/types.ts'
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
  * @import { _Chain, _Delta } from './private.ts'
+ * @import { Held } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { inflate, isNotFound, leadsNowhere, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { join, under } from '../../path/module.f.mjs'
+import { under } from '../../path/module.f.mjs'
 import { length, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
@@ -110,15 +111,24 @@ const idxSuffix = /** @type {const} */ ('.idx')
 const packSuffix = /** @type {const} */ ('.pack')
 
 /**
- * Where a repository keeps its packs, below the directory `objects/` is in.
+ * Where an object store keeps its packs: `pack/` below the `objects/` directory
+ * itself.
+ *
+ * **The key is the `objects/` directory and not the repository**, because an
+ * `objects/info/alternates` names object directories directly — a borrowed
+ * store is `…/other/.git/objects` with no repository of this one's above it.
+ * Measured on Git 2.43.0: a borrower whose alternates file names the donor's
+ * `objects/` reads the donor's objects, packed ones included, after the donor
+ * was `git repack -adq`'d. [`fjs/git/store`](../store/module.f.mjs) is what
+ * turns a repository into the object directories to search, this one included.
  *
  * Joined with {@link under} rather than by writing a separator, for the reason
- * [`fjs/git/store`](../store/module.f.mjs)'s `objectPath` is: `dir` is the
- * caller's and may already end in one.
+ * [`fjs/git/store`](../store/module.f.mjs)'s `objectPath` is: the directory is
+ * the caller's and may already end in one.
  *
- * @type {(dir: string) => string}
+ * @type {(od: string) => string}
  */
-export const packDir = dir => under(dir, join('objects', 'pack'))
+export const packsIn = od => under(od, 'pack')
 
 /**
  * The code an `.idx` is refused with when it is not one Git would read at the
@@ -139,6 +149,23 @@ export const packEntryCode = /** @type {const} */ ('ERR_PACK_ENTRY')
 
 /** @type {(path: string) => string} */
 const idxMessage = path => `${path} is no pack index`
+
+/**
+ * What a channel error says, for a message that carries it on.
+ *
+ * The host's own diagnosis is kept rather than replaced: `Z_DATA_ERROR` and a
+ * missing `inflate` handler are different repairs, and a refusal that said only
+ * "does not inflate" would make them one. Git keeps both halves too — measured
+ * on Git 2.43.0 with a byte flipped inside a pack entry's zlib stream, it prints
+ * `error: inflate: data stream error (incorrect header check)` and then `fatal:
+ * packed object … (stored in …pack) is corrupt`, the inflater's words and the
+ * file's.
+ *
+ * @type {(c: IoChannel) => string}
+ */
+const channelText = c => c[0] === 'ioError'
+    ? c[1].code === undefined ? c[1].message : `${c[1].code} ${c[1].message}`
+    : c[0]
 
 /**
  * A refusal about the entry at an offset, as the channel error it becomes.
@@ -290,9 +317,11 @@ const framedAt = (oidBytes, path, at, window) => {
     const e = tryEntry(oidBytes)(window)
     return e === null
         ? entryRefusal(path, at)('is no pack entry')
-        : mapStep(
-            inflate(toVec(window.slice(e.dataAt))),
-            v => /** @type {const} */ ([e, byteArray(toBytes(v))]))
+        : catchStep(
+            mapStep(
+                inflate(toVec(window.slice(e.dataAt))),
+                v => /** @type {const} */ ([e, byteArray(toBytes(v))])),
+            c => entryRefusal(path, at)(`does not inflate: ${channelText(c)}`))
 }
 
 /**
@@ -504,7 +533,7 @@ const objectAt = (path, oidBytes, idx, at) => {
  * `.idx` under another suffix, which is how Git names the pair and the only way
  * to find one from the other.
  *
- * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Envelope>) => Effect<ReadWhole | Stat | ReadBytes | Inflate, readonly [Nullable<Envelope>, List<string>], IoChannel>}
+ * @type {(pd: string, oidBytes: OidBytes, id: Oid) => (name: string) => (found: Nullable<Held>) => Effect<ReadWhole | Stat | ReadBytes | Inflate, readonly [Nullable<Held>, List<string>], IoChannel>}
  */
 const packOf = (pd, oidBytes, id) => name => {
     // Both paths are the pack pair's and neither depends on what the index says,
@@ -521,29 +550,40 @@ const packOf = (pd, oidBytes, id) => name => {
                 ? pureOk(/** @type {Nullable<Envelope>} */ (null))
                 : objectAt(packPath, oidBytes, i, at)
         })
-        return mapStep(got, e => /** @type {const} */ ([e, null]))
+        return mapStep(got, e => /** @type {const} */ ([
+            e === null ? null : /** @type {Held} */ ({ envelope: e, path: packPath }),
+            null,
+        ]))
     }
 }
 
 /**
- * Reads the object an id names from the packs below `dir`, at the repository's
- * width: `null` where no pack there holds it, the `Envelope` where one does, and
- * the channel's where one holds it and cannot answer for it. See the module doc
- * for which failures are which and why.
+ * Reads the object an id names from the packs of the object directory `od`, at
+ * the repository's width: `null` where no pack there holds it, a {@link Held}
+ * where one does, and the channel's where one holds it and cannot answer for
+ * it. See the module doc for which failures are which and why.
+ *
+ * **`od` is an `objects/` directory and not a repository**, for the reason
+ * {@link packsIn} gives: an `objects/info/alternates` names object directories,
+ * so a borrowed store has no repository of the borrower's above it.
  *
  * The bytes are not hashed here. `fjs/git/store` does that for whichever file
- * answered, and doing it twice would hash every object read twice.
+ * answered, and doing it twice would hash every object read twice — which is
+ * why the answer carries the pack that held it. The caller that finds bytes
+ * hashing to another id is not the one that knows which file they came from,
+ * and a store searching several directories of several packs has no one pack
+ * to blame by default.
  *
  * @throws On an id that is not `oidBytes` wide: a caller that mixes the widths
  * has a bug, not a missing object.
  *
- * @type {(dir: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Envelope>, IoChannel>}
+ * @type {(od: string, oidBytes: OidBytes) => (id: Oid) => Effect<Readdir | Stat | ReadWhole | ReadBytes | Inflate, Nullable<Held>, IoChannel>}
  */
-export const tryRead = (dir, oidBytes) => {
-    const pd = packDir(dir)
+export const tryRead = (od, oidBytes) => {
+    const pd = packsIn(od)
     const bits = BigInt(oidBytes) * 8n
     return id => {
         assert(length(id) === bits, ['not an id of the width', id])
-        return walkStep(idxNames(pd), /** @type {Nullable<Envelope>} */ (null), packOf(pd, oidBytes, id))
+        return walkStep(idxNames(pd), /** @type {Nullable<Held>} */ (null), packOf(pd, oidBytes, id))
     }
 }

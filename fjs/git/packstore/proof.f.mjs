@@ -7,6 +7,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Envelope } from '../object/types.ts'
  * @import { Oid } from '../types.ts'
+ * @import { Held } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -19,7 +20,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
-import { packEntryCode, packFileCode, packIdxCode, tryRead } from './module.f.mjs'
+import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -111,6 +112,9 @@ const idxOf = named => {
 const packCounting = count => [
     ...packMixed.slice(0, 8), ...u32(count), ...packMixed.slice(12),
 ]
+
+/** The `objects/` directory the fixture's pack pair sits under. */
+const objectsPath = /** @type {const} */ ('objects')
 
 const dirPath = /** @type {const} */ ('objects/pack')
 
@@ -253,27 +257,34 @@ const files = /** @type {(path: string) => Nullable<readonly number[]>} */ (path
 const withIdx = (idx, count) => path =>
     path === idxPath ? idx : path === packPath ? packCounting(count) : null
 
-const read = tryRead('', width)
+const read = tryRead(objectsPath, width)
 
-/** @type {(host: MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>, hex: string) => readonly [readonly string[], Result<Nullable<Envelope>, IoChannel>]} */
+/** @type {(host: MemOperationMap<Readdir | ReadFile | Stat | ReadWhole | ReadBytes | Inflate, readonly string[]>, hex: string) => readonly [readonly string[], Result<Nullable<Held>, IoChannel>]} */
 const readBy = (host, hex) => run(host)([])(read(id(hex)))
 
 /**
  * The object a read answered, asserting that it answered one.
  *
- * @type {(r: Result<Nullable<Envelope>, IoChannel>) => Envelope}
+ * @type {(r: Result<Nullable<Held>, IoChannel>) => Envelope}
  */
-const envelope = r => {
+const envelope = r => held(r).envelope
+
+/**
+ * The object *and the pack that held it*, asserting that a read answered one.
+ *
+ * @type {(r: Result<Nullable<Held>, IoChannel>) => Held}
+ */
+const held = r => {
     assert(r[0] === 'ok')
-    const e = r[1]
-    assert(e !== null)
-    return e
+    const h = r[1]
+    assert(h !== null)
+    return h
 }
 
 /**
  * The error a read was refused with.
  *
- * @type {(r: Result<Nullable<Envelope>, IoChannel>) => IoErrorInfo}
+ * @type {(r: Result<Nullable<Held>, IoChannel>) => IoErrorInfo}
  */
 const refusal = r => {
     assert(r[0] === 'error')
@@ -332,6 +343,30 @@ const packFraming = /** @type {readonly string[]} */ ([
 const host = hostOf(listing, files, inflatedBy(streams))
 
 export const proof = {
+    // The exported path builder, asked directly rather than reached through a
+    // read. A directory that already ends in a separator does not get another,
+    // which is what keeps a root's kind: `/` and `//` are the POSIX and UNC
+    // roots, and a second separator would move the packs from one to the other.
+    packsIn: () => {
+        assertEq(packsIn('repo/objects'), 'repo/objects/pack')
+        assertEq(packsIn('/objects'), '/objects/pack')
+        assertEq(packsIn('/'), '/pack')
+        assertEq(packsIn('//'), '//pack')
+        assertEq(packsIn('C:/'), 'C:/pack')
+        assertEq(packsIn('objects/'), 'objects/pack')
+        // a directory of no characters names the packs against the caller's own
+        // directory rather than the root
+        assertEq(packsIn(''), 'pack')
+    },
+    // The answer carries the pack that held the object, which is what lets
+    // `fjs/git/store` name a file rather than a directory when the bytes hash to
+    // another id — it is the caller that hashes, and this is the caller's only
+    // way to know which of a directory's packs answered.
+    heldBy: () => {
+        const [, r] = readBy(hostOf(listing, files, inflatedBy(streams)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        assertEq(held(r).path, packPath)
+        assertEq(hashed(held(r).envelope), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+    },
     // An object stored whole, at the offset the index names: the blob at 508.
     // Four commands and no more — the directory, the index, the pack's length,
     // the one window — and then the host's inflate.
@@ -438,6 +473,28 @@ export const proof = {
             'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assertEq(hashed(envelope(r)), 'b00a3b66a7a094e6165bfcd39e0b8524042140db')
         assert(!log.includes(`readFile ${dirPath}/pack-second.idx`))
+    },
+    // A stream that does not inflate is refused with the pack and the offset, and
+    // the host's own diagnosis carried on — not the bare channel error, which
+    // names neither file nor entry and so tells a reader scanning several packs
+    // nothing about which one is damaged.
+    //
+    // Git keeps both halves too. Measured on Git 2.43.0 with a byte flipped
+    // inside a pack entry's zlib stream, `git cat-file -p` prints `error:
+    // inflate: data stream error (incorrect header check)`, then names the
+    // offset and the pack — `failed to read delta base object … at offset 12
+    // from …pack` — and ends `fatal: packed object … (stored in …pack) is
+    // corrupt`. The inflater's words and the file's, never one without the
+    // other.
+    entryNotZlib: () => {
+        const [, r] = readBy(
+            hostOf(listing, files, () => null),
+            'b00a3b66a7a094e6165bfcd39e0b8524042140db')
+        const e = refusal(r)
+        assertEq(e.code, packEntryCode)
+        assertEq(
+            e.message,
+            `${packPath}:508 does not inflate: Z_DATA_ERROR incorrect header check`)
     },
     // An `.idx` that is not one Git would read is a failure and not a miss: it
     // names the objects of the pack beside it, so nothing there is reachable.
