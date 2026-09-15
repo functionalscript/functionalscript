@@ -31,6 +31,20 @@ export type _Entry = {
 }
 
 /**
+ * Which names one walk of `refs/` owns: the leaves it keeps, and the directories
+ * it descends into.
+ *
+ * Two rules and not one, because a directory is a *prefix* of names rather than
+ * a name: `refs/bisect` is not a per-worktree name and everything inside it is,
+ * so a walk that asked `keep` about the directory would list a subtree it then
+ * dropped whole. See `holdsPerWorktreeOnly` in the module.
+ */
+export type _Scope = {
+    readonly keep: (text: string) => boolean
+    readonly descend: (text: string) => boolean
+}
+
+/**
  * What the walk of `refs/` has found so far: the roots, and every ref name it
  * has seen a loose file for.
  *

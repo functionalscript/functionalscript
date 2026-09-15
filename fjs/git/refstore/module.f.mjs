@@ -192,7 +192,7 @@
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
  * @import { PackedRef, Ref } from '../ref/types.ts'
  * @import { Dirs, Root } from './types.ts'
- * @import { _Entry, _Found, _Lookup, _Walked } from './private.ts'
+ * @import { _Entry, _Found, _Lookup, _Scope, _Walked } from './private.ts'
  */
 
 import { catchStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
@@ -441,6 +441,52 @@ const isPerWorktree = text =>
 
 /** @type {(text: string) => boolean} */
 const isShared = text => !isPerWorktree(text)
+
+/**
+ * The two walks of `refs/` divide the names between them, and a *directory* is
+ * where that division has to be asked differently: `keep` is a rule about a
+ * whole ref name, and a directory is a prefix of names that do not exist yet.
+ *
+ * `refs/bisect` is the case. It is not itself a per-worktree name — the rule is
+ * the prefix `refs/bisect/`, with the slash — so the shared walk's `isShared`
+ * says "mine" about the directory and "not mine" about every ref inside it. It
+ * listed a subtree it then dropped whole, which is a `readdir` of a directory
+ * this walk has no name to take from it, and a directory another worktree is
+ * free to remove while a `git bisect reset` runs: a listing that fails there is
+ * the channel's, so a lookup could fail over refs it would never have answered.
+ *
+ * So each walk carries a second rule, about a prefix rather than a name:
+ *
+ * - the shared walk descends unless **every** name under the prefix is per
+ *   worktree, which is {@link holdsPerWorktreeOnly};
+ * - the worktree's walk descends only where **some** name under it could be,
+ *   which is {@link mayHoldPerWorktree} — so it no longer walks `refs/heads`
+ *   and the rest of the tree to drop every leaf, and in a main worktree, where
+ *   both walks read one directory, the tree is listed once rather than twice.
+ *
+ * The pseudoref half of {@link isPerWorktree} is no part of either: a walk that
+ * starts at `refs` produces names holding a `/`, and those are never spelled
+ * like a pseudoref.
+ *
+ * @type {(text: string) => boolean}
+ */
+const holdsPerWorktreeOnly = text => perWorktreePrefixes.some(p => `${text}/`.startsWith(p))
+
+/** @type {(text: string) => boolean} */
+const mayHoldPerWorktree = text =>
+    perWorktreePrefixes.some(p => p.startsWith(`${text}/`) || `${text}/`.startsWith(p))
+
+/** What the walk of the shared directory owns: every name no worktree keeps for itself. */
+const sharedScope = /** @type {_Scope} */ ({
+    keep: isShared,
+    descend: text => !holdsPerWorktreeOnly(text),
+})
+
+/** And what a worktree's own walk owns: the per-worktree names, and nothing else. */
+const worktreeScope = /** @type {_Scope} */ ({
+    keep: isPerWorktree,
+    descend: mayHoldPerWorktree,
+})
 
 /**
  * Which of the two directories a name's loose file sits in.
@@ -1018,14 +1064,17 @@ const statted = (readRef, resolve, name, item, found) => step(
  * been told the file is there, so a read that cannot find it is a race or a
  * broken host rather than an absence, and the channel is where that belongs.
  *
- * `keep` says which names this walk owns, so the two walks of a `refs/` — the
+ * `scope` says which names this walk owns, so the two walks of a `refs/` — the
  * shared directory's and the worktree's — divide the names between them and
  * neither lists one twice. In a main worktree both walks read the same
- * directory, and the division is still exactly one walk per name.
+ * directory, and the division is still exactly one walk per name. Its `descend`
+ * is the same division asked of a *directory*, which is a prefix rather than a
+ * name: see {@link holdsPerWorktreeOnly} for why that is a second rule and not
+ * the same one.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], keep: (text: string) => boolean) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], scope: _Scope) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Stat | Readdir | ReadFile, _Walked, IoChannel>}
  */
-const looseOf = (dirs, oidBytes, packed, keep) => {
+const looseOf = (dirs, oidBytes, packed, scope) => {
     const readRef = tryRef(oidBytes)
     const resolve = resolveWith(dirs, oidBytes, packed)
     return item => state => {
@@ -1036,8 +1085,14 @@ const looseOf = (dirs, oidBytes, packed, keep) => {
         // the kind, and before a directory is descended into — and the whole-name
         // rule after the kind: see the doc above.
         if (!hasRefComponents(name)) { return pureOk(walked(found, null)) }
-        if (item.isDirectory) { return descendInto(item, found) }
-        if (!keep(item.name)) { return pureOk(walked(found, null)) }
+        if (item.isDirectory) {
+            // and the scope's own prefix rule, so a walk lists no directory it
+            // has no name to take from: see {@link holdsPerWorktreeOnly}
+            return scope.descend(item.name)
+                ? descendInto(item, found)
+                : pureOk(walked(found, null))
+        }
+        if (!scope.keep(item.name)) { return pureOk(walked(found, null)) }
         return item.isFile
             ? readAsRef(readRef, resolve, name, item, found)
             : statted(readRef, resolve, name, item, found)
@@ -1468,7 +1523,7 @@ export const tryRoots = (dirs, oidBytes) => {
     // place of an answer this function had already decided.
     const sharedWalk = historyStep(read, packed => packed === null
         ? pureOk(/** @type {Nullable<_Found>} */ (null))
-        : walkStep(pureOk([shared]), init, looseOf(dirs, oidBytes, packed, isShared)))
+        : walkStep(pureOk([shared]), init, looseOf(dirs, oidBytes, packed, sharedScope)))
     // The refusals are tested oldest first, which is not a style choice: a later
     // one implies every earlier one, so asking about an earlier refusal after a
     // later one is a question with only one answer — a branch no input reaches.
@@ -1487,7 +1542,7 @@ export const tryRoots = (dirs, oidBytes) => {
         : walkStep(
             ownRefs(dirs, entries),
             found,
-            looseOf(dirs, oidBytes, packed, isPerWorktree)))
+            looseOf(dirs, oidBytes, packed, worktreeScope)))
     const headRead = historyStep(ownWalk, (found, entries) => found === null
         ? pureOk(/** @type {Nullable<_Found>} */ (null))
         : tryHeadFound(dirs, oidBytes, entries))

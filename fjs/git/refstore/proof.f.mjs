@@ -736,6 +736,63 @@ export const proof = {
     // refused: every link inside the tree being refused is what bounds following
     // the root to one level, so `refs` linked to `..` lists the gitdir and is
     // refused at the same entry one level down.
+    // Each walk lists only the directories it could take a name from, which is a
+    // rule about a *prefix* and not the one about a name: `refs/bisect` is not
+    // itself a per-worktree name — the rule is the prefix with its slash — so
+    // `isShared` says "mine" about the directory and "not mine" about every ref
+    // in it.
+    //
+    // Measured on Git 2.43.0 with a linked worktree, `refs/bisect/shared-only` in
+    // the shared directory and `refs/bisect/own` in the worktree's: the worktree
+    // lists its own and `rev-parse --verify refs/bisect/shared-only` there
+    // answers `Needed a single revision`, so the shared copy is invisible to it.
+    // A walk that listed it anyway could fail over refs it would never answer —
+    // another worktree is free to remove that directory while `git bisect reset`
+    // runs, and a `readdir` that cannot find what a listing named is the
+    // channel's.
+    scopedDirectories: () => {
+        /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
+        const host = {
+            readWhole: missing,
+            stat: statUnasked,
+            readFile: path => log => [
+                [...log, `readFile ${path}`],
+                path === 'repo/refs/heads/master' || path === 'repo/refs/bisect/shared-only'
+                    ? ok(toVec(latin1(`${a}\n`)))
+                    : error(ioError({ code: 'ENOENT', message: path })),
+            ],
+            readdir: path => log => [
+                [...log, `readdir ${path}`],
+                ok(path === 'repo'
+                    ? [dirent('refs', path, false, true)]
+                    : path === 'repo/refs'
+                        ? [dirent('heads', path, false, true), dirent('bisect', path, false, true)]
+                        : path === 'repo/refs/heads'
+                            ? [dirent('master', path, true, false)]
+                            : path === 'repo/refs/bisect'
+                                ? [dirent('shared-only', path, true, false)]
+                                : []),
+            ],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryRoots({ gitdir: 'wt', common: 'repo' }, 20))
+        assert(r[0] === 'ok', r)
+        // the shared `refs/bisect/` is no ref of this worktree, and it is not
+        // listed to find that out
+        sameRoots(r[1], [['refs/heads/master', a]])
+        assert(!log.includes('readdir repo/refs/bisect'), log)
+        // The same question the other way, in a main worktree, where both walks
+        // read one directory: no per-worktree name can sit under `refs/heads`,
+        // so the worktree's walk does not list it — the tree is listed once
+        // rather than twice — while `refs/bisect/` *is* this worktree's there,
+        // which is what the main worktree's `show-ref` lists.
+        const [mainLog, m] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryRoots(one('repo'), 20))
+        assert(m[0] === 'ok', m)
+        sameRoots(m[1], [['refs/heads/master', a], ['refs/bisect/shared-only', a]])
+        assertEq(mainLog.filter(l => l === 'readdir repo/refs/heads').length, 1)
+        assertEq(mainLog.filter(l => l === 'readdir repo/refs/bisect').length, 1)
+    },
     linkedWorktreeRefs: () => {
         /** @type {MemOperationMap<ReadWhole | ReadFile | Readdir | Stat, readonly string[]>} */
         const host = {
