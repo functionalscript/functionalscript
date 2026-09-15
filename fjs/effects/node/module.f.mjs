@@ -20,14 +20,15 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { List as List_ } from '../../types/list/types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { reverse } from '../../types/list/module.f.mjs'
-import { length } from '../../types/bit_vec/module.f.mjs'
+import { concat } from '../../types/list/module.f.mjs'
+import { length, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
@@ -130,6 +131,44 @@ export const isNotFound = ([tag, payload]) =>
     tag === 'ioError' && payload.code === 'ENOENT'
 
 /**
+ * Whether a failure means the path leads nowhere rather than that the host is in
+ * trouble: nothing at the other end of a link, or a link that leads to itself.
+ *
+ * The pair a caller wants after a `stat` of a *directory entry*, where the entry
+ * exists — a listing named it — and following it is what failed. Node answers
+ * `ENOENT` for a dangling link and `ELOOP` for a cycle, and both are entries
+ * Git's own listings pass over: measured on Git 2.43.0 with
+ * `refs/heads/dangling` linked to a name that is not there and
+ * `refs/heads/loop` linked to itself, `git show-ref` and `git for-each-ref`
+ * list neither and both exit 0.
+ *
+ * Those two and no others, which is the point of having it rather than catching
+ * every failure: an entry a listing named and the host then cannot describe for
+ * any other reason is a file the caller would be dropping in silence.
+ *
+ * Beside {@link isNotFound} and node's for the same reason — both read POSIX
+ * codes no browser reports.
+ *
+ * @type {(e: IoChannel) => boolean}
+ */
+export const leadsNowhere = e => isNotFound(e) || (e[0] === 'ioError' && e[1].code === 'ELOOP')
+
+/**
+ * Whether a failure is a read of a *directory*.
+ *
+ * Node answers `EISDIR` for a `readFile` of one, and a caller that asked for a
+ * file's contents by name often wants that to mean "no file here" rather than a
+ * failure — `fjs/git/refstore` does, because a ref name can be both a packed
+ * line and the directory the loose refs below it live in.
+ *
+ * Beside {@link isNotFound} for the same reason: a POSIX code no browser reports.
+ *
+ * @type {(e: IoChannel) => boolean}
+ */
+export const isDirectory = ([tag, payload]) =>
+    tag === 'ioError' && payload.code === 'EISDIR'
+
+/**
  * `NodeOp`'s commands as data, so a runner that implements only part of them
  * can still tell an operation it lacks from a `Do` node whose `command` was
  * never a `NodeOp` at all — see `CommandSet` in `../types.ts` for why the
@@ -147,7 +186,7 @@ const nodeCommandSet = {
     createServer: null, exec: null, fetch: null, forever: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
-    read: null, readBytes: null, readFile: null, readdir: null,
+    read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
     rename: null, rm: null, sandbox: null, stat: null,
     test: null, write: null, writeBytes: null, writeFile: null,
 }
@@ -320,6 +359,71 @@ export const writeFromStream = (path, e) =>
 
 /** @type {Func<Stat>} */
 export const stat = do_('stat')
+
+/** @type {Func<ReadWhole>} */
+export const readWhole = do_('readWhole')
+
+/**
+ * The code {@link readWhole} refuses with when the path is no regular file.
+ *
+ * **The kind and the size are two questions, and this is the kind.** A FIFO and
+ * a device are not files with contents to read to the end of: a FIFO is a
+ * stream with a writer at the other end, and one with no writer cannot even be
+ * opened to find out — the open waits for a writer. So the kind is asked before
+ * the open, and a path that is not a regular file is refused here rather than
+ * read.
+ *
+ * The *size* is a separate matter, and it is why this reads to the end rather
+ * than to `stat`'s answer: a procfs file is a regular file — `/proc/self/maps`
+ * `stat`s as `S_IFREG`, `isFile()` true — of nought bytes that yields thousands
+ * when read, 10,598 through this operation in one run. Going by the size would
+ * answer an empty file. So the refusal does not cover it and does not need to:
+ * the read takes what the descriptor gives until it gives nothing.
+ */
+export const notAFileCode = /** @type {const} */ ('ERR_NOT_A_FILE')
+
+/**
+ * The message beside {@link notAFileCode}: the path that is no regular file.
+ *
+ * Declared here rather than in a runner, so the two that raise it — the node
+ * one's `readWhole` and the virtual one's, for a `JsModule` — say the same
+ * thing, and a caller matching on either gets the same answer. This is the pair
+ * {@link inflateTrailingCode} and {@link inflateTrailingMessage} already are.
+ *
+ * @type {(path: string) => string}
+ */
+export const notAFileMessage = path => `${path} is not a regular file`
+
+/**
+ * A whole file as a byte *list*.
+ *
+ * **{@link readFile} cannot read a large file, and that bound is the `Vec`'s
+ * rather than the format's.** It answers one, 128 KiB at most, and the node
+ * runner refuses a larger file before reading it — so any format whose files
+ * outgrow that is unreadable through it. {@link readWhole} answers the chunks one
+ * open took instead, each a `Vec` and so each within the cap, and `concat` joins
+ * them into a list, which has no cap at all.
+ *
+ * **The chunks are one open's, which is why this is not a fold over
+ * {@link readBytes}.** That operation resolves the path per call, so reading a
+ * file in windows can straddle two files — `git pack-refs` replaces
+ * `packed-refs` by rename on every run, and where the replacement is the same
+ * length every window is exactly as long as it should be, so the join is an old
+ * prefix on a new suffix that parses and names refs no version of the file held.
+ * Nothing a caller can ask closes that: `FileStat` carries no identity to compare
+ * and re-reading races the same way. The snapshot has to come from the host, and
+ * `readWhole` is the operation that gives one.
+ *
+ * The bound that remains is memory and the host's own: the whole file is held
+ * while it is parsed.
+ *
+ * @type {(path: string) => Effect<ReadWhole, List_<number>, IoChannel>}
+ */
+export const readWholeBytes = path => ioMapStep(
+    readWhole(path),
+    chunks => chunks.reduce(
+        (bytes, v) => concat(bytes)(u8List(msb)(v)),
+        /** @type {List_<number>} */ (null)))
 
 // createServer
 
