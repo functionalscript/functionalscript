@@ -366,6 +366,12 @@ export const proof = {
             expect('const a = []; export default a[0];', '[[],[["array",[]],[".",["cref",0],0]]]')
             expect('const a = []; export default a[-1.5];', '[[],[["array",[]],[".",["cref",0],-1.5]]]')
             expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],[".",[".",[".",["cref",0],"b"],1],"default"]]]')
+            // any value takes accesses, a literal as a reference does
+            expect('export default [1].length;', '[[],[[".",["array",[1]],"length"]]]')
+            expect('export default "ab"[0];', '[[],[[".","ab",0]]]')
+            expect('export default { a: [1] }.a[0];', '[[],[[".",[".",["object",[["a",["array",[1]]]]],"a"],0]]]')
+            expect('export default null.x;', '[[],[[".",null,"x"]]]')
+            expect('export default 1 .x;', '[[],[[".",1,"x"]]]')
             expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]')
         },
         prohibited: () => {

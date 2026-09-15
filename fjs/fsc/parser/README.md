@@ -18,7 +18,7 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
-value  ::= primitive t | id t access* | array | object
+value  ::= (primitive t | id t | array | object) access*
 access ::= '.' t id t | '[' t (string | number) t ']' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t

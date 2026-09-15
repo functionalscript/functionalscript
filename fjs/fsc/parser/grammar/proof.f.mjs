@@ -116,18 +116,23 @@ export const proof = {
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
     },
-    // A reference takes accesses, `.name` and `[key]`, trivia allowed
-    // around each token since a value ends with its own; a primitive or a
-    // container takes none, and a key is a string or a number.
+    // Any value takes accesses, `.name` and `[key]`, trivia allowed around
+    // each token since a value ends with its own, and a key is a string or
+    // a number.
     access: () => {
         assertStructurallySame(read('const a = {}; export default a.b;'), ['ok'])
         assertStructurallySame(read('const a = {}; export default a["b"];'), ['ok'])
         assertStructurallySame(read('const a = []; export default a[0];'), ['ok'])
         assertStructurallySame(read('const a = {}; export default a . b [ "c" ] . default [ 1 ] ;'), ['ok'])
         assertStructurallySame(read('const a = {}; export default [a.b, { c: a.b.c, }];'), ['ok'])
-        assertStructurallySame(read('export default 1 .x;'), ['error', '.'])
-        assertStructurallySame(read('export default [1].x;'), ['error', '.'])
-        assertStructurallySame(read('export default {}.x;'), ['error', '.'])
+        assertStructurallySame(read('export default 1 .x;'), ['ok'])
+        assertStructurallySame(read('export default [1].x;'), ['ok'])
+        assertStructurallySame(read('export default {}.x;'), ['ok'])
+        assertStructurallySame(read('export default "ab"[0].length;'), ['ok'])
+        assertStructurallySame(read('export default [ 1 ] . length [ "x" ] ;'), ['ok'])
+        assertStructurallySame(read('export default { a: [1] }.a[0];'), ['ok'])
+        assertStructurallySame(read('export default null.x;'), ['ok'])
+        assertStructurallySame(read('export default 1.x;'), ['error', 'error'])
         assertStructurallySame(read('const a = []; export default a[1n];'), ['error', 'bigint'])
         assertStructurallySame(read('const a = []; export default a[b];'), ['error', 'b'])
         assertStructurallySame(read('const a = []; export default a[];'), ['error', ']'])

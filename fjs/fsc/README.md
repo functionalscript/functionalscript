@@ -14,8 +14,8 @@ its `.json` output refuses what JSON cannot spell rather than approximating
 it — see [`module.f.mjs`](./module.f.mjs).
 
 What the compiler accepts today is the data language the sections below call
-DJS, and the roadmap is theirs too — plus property access, `a.b` and `a[0]`
-on a reference: an own property of the base, never the prototype chain, as
+DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
+and `[1].length`, on any value: an own property of the base, never the prototype chain, as
 [spec: property accessor](../../spec/todo/2330-property-accessor.md) has
 it, so `a.toString` is `undefined` here where JavaScript finds a function;
 `undefined` where there is no such property; and a `null` or `undefined`

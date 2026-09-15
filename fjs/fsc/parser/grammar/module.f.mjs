@@ -181,7 +181,7 @@ export const index = /** @type {const} */ ({
 })
 
 /**
- * One step of a property access after a reference: `.name`, the name any
+ * One step of a property access after a value: `.name`, the name any
  * identifier, or `[key]`, the key a constant. What the two spellings may
  * name is the fold's to check, since the name is a word the grammar does
  * not see. Each step ends with its trivia, as a value does.
@@ -191,20 +191,26 @@ export const access = /** @type {const} */ ({
     index: [sym('['), trivia, index, trivia, sym(']'), trivia],
 })
 
+/** The accesses after a value, `a.b[0]`, none or more. */
+const accesses = repeatFrom0(access)
+
 /**
- * A value ends with its own trivia, so that a reference may be followed by
- * an access, which the trivia after the reference would otherwise have to
- * lead — and a rule trivia leads is a rule one symbol of lookahead cannot
- * enter. Every value's last token is followed by trivia exactly once, here,
- * and what follows a value adds none.
+ * A value ends with its own trivia, so that it may be followed by an
+ * access, which the trivia after the value would otherwise have to lead —
+ * and a rule trivia leads is a rule one symbol of lookahead cannot enter.
+ * Every value's last token is followed by trivia exactly once, here, and
+ * what follows a value adds none. Any value takes accesses, as any
+ * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`,
+ * `1 .x` — the last with a space, since `1.x` is one number and a stray
+ * word in JavaScript too.
  *
  * @type {Value}
  */
 export const value = () => ['const', {
-    primitive: [primitive, trivia],
-    ref: [identifier, trivia, repeatFrom0(access)],
-    array,
-    object,
+    primitive: [[primitive, trivia], accesses],
+    ref: [[identifier, trivia], accesses],
+    array: [array, accesses],
+    object: [object, accesses],
 }]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */

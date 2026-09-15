@@ -294,29 +294,32 @@ const accessKey = round => tokenAt(unmapped(unmapped(unmapped(round)[1])[2])[1])
 const accessed = (base, round) => ['.', base, accessKey(round)]
 
 /**
- * A value is the node its branch made: a primitive converted from its
- * token, a reference by its token with each access after it applied in
- * turn, and a container of the items its list returned —
- * `[ open t [ items ] close t ]`, the list at the third position.
+ * The node a value's own part makes, before the accesses after it: a
+ * primitive converted from its token, a reference by its token, and a
+ * container of the items its list returned — `[ open t [ items ] close t
+ * ]`, the list at the third position.
+ *
+ * @type {(node: Children<Value, DjsTokenWithMetadata, Out>) => Node}
+ */
+const baseOf = ([tag, branch]) => {
+    switch (tag) {
+        case 'primitive': { return ['primitive', primitiveOf(unmapped(unmapped(unmapped(branch)[0])[0]))] }
+        case 'ref': { return ['ref', tokenAt(unmapped(unmapped(unmapped(branch)[0])[0])[1])] }
+        case 'array': { return ['array', toArray(valueItems(unmapped(unmapped(branch)[0])[2]))] }
+        case 'object': { return ['object', toArray(memberItems(unmapped(unmapped(branch)[0])[2]))] }
+    }
+}
+
+/**
+ * A value is the node its branch made, with each access after it applied
+ * in turn — the accesses at the second position of every branch, after
+ * the value's own part.
  *
  * @type {(node: Children<Value, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toNode = ([tag, branch]) => {
-    switch (tag) {
-        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(unmapped(branch)[0]))] }) }
-        case 'ref': {
-            const [name, , accesses] = unmapped(branch)
-            /** @type {Node} */
-            const ref = ['ref', tokenAt(unmapped(name)[1])]
-            return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, ref) })
-        }
-        case 'array': {
-            return symbol({ id: 'value', node: ['array', toArray(valueItems(unmapped(branch)[2]))] })
-        }
-        case 'object': {
-            return symbol({ id: 'value', node: ['object', toArray(memberItems(unmapped(branch)[2]))] })
-        }
-    }
+const toNode = node => {
+    const [, accesses] = unmapped(node[1])
+    return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, baseOf(node)) })
 }
 
 /**

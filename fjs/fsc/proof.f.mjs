@@ -437,6 +437,9 @@ export const proof = {
     access: {
         own: () => {
             assertEq(compileSource('const a = { b: [1, 2] }; export default [a.b, a["b"][1], a.b.length];')('output.f.js'), 'export default [[1,2],2,2];')
+            // a literal takes accesses as a reference does
+            assertEq(compileSource('export default [[1, 2].length, "ab"[1], { a: 3 }.a, 1 .x];')('output.f.js'), 'export default [2,"b",3,undefined];')
+            assertEq(moduleRefused('export default null.x;'), 'input.f.js - error: cannot read property "x" of null')
             assertEq(compileSource('const s = "ab"; export default [s[0], s["1"], s.length];')('output.json'), '["a","b",2]')
             assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.toString, a.b.x];')('output.f.js'), 'export default [undefined,undefined,undefined];')
             assertEq(compileSource('const n = 1; const b = true; const g = 2n; export default [n.x, b.x, g.x];')('output.f.js'), 'export default [undefined,undefined,undefined];')
