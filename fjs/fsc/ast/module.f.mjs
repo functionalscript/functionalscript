@@ -226,7 +226,7 @@ const argStep = (args, { ref: [kind, i] }) => kind === 'aref' ? args | bit(i) : 
 /** The indices a set of `n` leaves out. @type {(set: bigint) => (n: number) => readonly number[]} */
 const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (set & bit(i)) === 0n)
 
-/** Whether an entry is a bare reference: a `const` naming another entry or an import is that node, not a node of its own. @type {(ast: AstConst) => ast is AstModuleRef} */
+/** Whether an entry is a bare reference: a `const` naming another entry or an import is that node, not a node of its own. @type {(ast: AstConst) => boolean} */
 const isAlias = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'cref' || ast[0] === 'aref')
 
 /** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
@@ -237,10 +237,19 @@ const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
  * the node it names — an alias names an earlier entry, so its node is known
  * by the time the fold arrives at it.
  *
- * @type {(imports: readonly unknown[]) => (nodes: readonly AstModuleRef[], ast: AstConst, i: number) => readonly AstModuleRef[]}
+ * @type {(imports: readonly unknown[]) => (ast: AstConst, i: number, nodes: readonly AstModuleRef[]) => AstModuleRef}
  */
-const nodeEntry = imports => (nodes, ast, i) =>
-    [...nodes, !isAlias(ast) ? ['cref', i] : ast[0] === 'cref' ? nodes[ast[1]] : importNode(imports)(ast[1])]
+const nodeOf = imports => (ast, i, nodes) => {
+    if (ast === null || typeof ast !== 'object') { return ['cref', i] }
+    switch (ast[0]) {
+        case 'cref': { return nodes[ast[1]] }
+        case 'aref': { return importNode(imports)(ast[1]) }
+        default: { return ['cref', i] }
+    }
+}
+
+/** @type {(imports: readonly unknown[]) => (nodes: readonly AstModuleRef[], ast: AstConst, i: number) => readonly AstModuleRef[]} */
+const nodeEntry = imports => (nodes, ast, i) => [...nodes, nodeOf(imports)(ast, i, nodes)]
 
 /** A reference by the node it reaches, aliases and imports resolved. @type {(imports: readonly unknown[], nodes: readonly AstModuleRef[]) => (r: _Ref) => _Ref} */
 const resolved = (imports, nodes) => ({ ref, keys }) => ({ ref: ref[0] === 'cref' ? nodes[ref[1]] : importNode(imports)(ref[1]), keys })
