@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen } from '../module.f.mjs'
+import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -221,6 +221,50 @@ export const proof = {
             const root = { 'a.f.ts': () => ({}) }
             virtual({ ...emptyState, root })(readBytes('a.f.ts', 0, 1))
         },
+    },
+    // `readWhole` of a `JsModule` is that same `IoResult` and not a panic, and it
+    // carries the *node runner's* code: that runner refuses a FIFO or a device
+    // before it opens the path, with `ERR_NOT_A_FILE`, so a caller that branches
+    // on it must be able to reach the branch here too. A procfs file is not one
+    // of them — it is a regular file whose size lies, which that runner reads to
+    // the end rather than refuses. The two
+    // reads beside it, `readFile` and `readBytes`, still panic — their contract
+    // is to produce bytes and a module has none, so a fixture aiming them at one
+    // is a fixture bug.
+    readWholeOnJsModule: () => {
+        /** @type {Dir} */
+        const root = { 'a.f.ts': () => ({}) }
+        const [, result] = virtual({ ...emptyState, root })(readWhole('a.f.ts'))
+        assert(result[0] === 'error')
+        const e = result[1]
+        assert(e[0] === 'ioError')
+        assertEq(e[1].code, notAFileCode)
+        assertEq(e[1].message, notAFileMessage('a.f.ts'))
+        // And the message is the path the caller asked for, not the entry name
+        // the resolver reduced it to: an operation descends before it runs, so a
+        // nested entry arrives as one segment, and the node runner names the
+        // whole path. Two files of one name under different directories are the
+        // case a basename cannot tell apart.
+        /** @type {Dir} */
+        const nested = { dir: { 'a.f.ts': () => ({}) } }
+        const [, deep] = virtual({ ...emptyState, root: nested })(readWhole('dir/a.f.ts'))
+        assert(deep[0] === 'error')
+        const d = deep[1]
+        assert(d[0] === 'ioError')
+        assertEq(d[1].code, notAFileCode)
+        assertEq(d[1].message, notAFileMessage('dir/a.f.ts'))
+        // A *directory* is the other thing that is no regular file, and it gets
+        // the same refusal here as on the host: the node runner `stat`s before it
+        // opens and answers `ERR_NOT_A_FILE`, where an `ENOENT` would read as
+        // absence — `fjs/git/refstore` forgives that one, so a directory called
+        // `packed-refs` would be an empty packed-ref set on this runner and a
+        // refusal on the host.
+        const [, asDir] = virtual({ ...emptyState, root: nested })(readWhole('dir'))
+        assert(asDir[0] === 'error')
+        const e2 = asDir[1]
+        assert(e2[0] === 'ioError')
+        assertEq(e2[1].code, notAFileCode)
+        assertEq(e2[1].message, notAFileMessage('dir'))
     },
     writeBytesOnJsModule: () => {
         // writeBytes shares `resolveFile` with the two reads but not their

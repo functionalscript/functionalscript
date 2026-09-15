@@ -60,8 +60,11 @@ what a grammar can and cannot do for the formats.
   rather than by being good, so a loose file that is no ref leaves the name
   with no value instead of the packed one; and a symbolic ref is followed
   five lookups and no further, which is Git's bound and what catches a ref
-  pointing at itself. A file under `refs/` whose name is no ref name is
-  skipped in silence, as Git's own walk skips it.
+  pointing at itself. A file under `refs/` whose name is no ref name gets one
+  of the two answers Git gives: the two file-name conventions its own walk
+  skips — a component beginning with `.`, one ending in `.lock` — are skipped
+  in silence, and every other broken name refuses the whole listing, which is
+  Git's `bad ref`, measured.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
   block: `object`, `type`, `tag` and `tagger` as functions over the header
   list, read by position as Git reads them, and a `validate`.
@@ -397,8 +400,14 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`refstore/`](refstore/module.f.mjs) over the effects — and reading the
   *reflog* is not, which is why `tryRoots` answers the refs and not everything
   the repository is keeping: a reflog entry keeps an object alive until it
-  expires, measured, so a caller must not prune by that list
-  ([`refstore/todo/reflog-roots.md`](refstore/todo/reflog-roots.md)).
+  expires, and so does the *index* — a staged blob survives `gc --prune=now`
+  though no ref names it and `rev-list --all` never lists it, both measured — so
+  a caller must not prune by that list
+  ([`refstore/todo/reflog-roots.md`](refstore/todo/reflog-roots.md)). The one
+  repository that list cannot describe at all is refused: a `packed-refs` line
+  naming `HEAD` is a root Git keeps beside the `HEAD` file's, and one entry per
+  name holds neither answer
+  ([`refstore/todo/packed-head.md`](refstore/todo/packed-head.md)).
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. Where it binds today is the
@@ -414,15 +423,26 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 
   A *whole file* is not bound by it any more, which is the half that used to
   fail on ordinary repositories rather than extreme ones.
-  [`fjs/effects/node`](../effects/node/module.f.mjs)'s `readWholeBytes` reads
-  one in windows — a `stat` for the length, a `readBytes` per window, joined
-  into a byte list — and refuses a window that comes back short of the end of
-  the file rather than skipping the gap. `packed-refs` is read that way: a
-  record is 70 bytes at `refs/heads/topic/feature-<n>`, measured, so
-  `readFile` was spent at about 1,870 refs and a repository of 4,000 branches
-  writes a 282,939-byte file that Git reads without comment. A *ref file* is
-  still read whole, because it is one line and an extra `stat` per lookup
-  would double the walk's syscalls.
+  [`fjs/effects/node`](../effects/node/module.f.mjs)'s `readWhole` is one
+  operation: the host opens the path once, reads it to the end under that
+  descriptor, and answers the chunks it took — each a `Vec` and so within the
+  cap, the file however many it takes — which `readWholeBytes` joins into a byte
+  list, which has no cap. `packed-refs` is read that way: a record is 70 bytes
+  at `refs/heads/topic/feature-<n>`, measured, so `readFile` was spent at about
+  1,870 refs and a repository of 4,000 branches writes a 282,939-byte file that
+  Git reads without comment.
+
+  **One operation and not a fold over `readBytes`, because that one resolves
+  the path per call.** `git pack-refs` replaces `packed-refs` by rename on every
+  run, so a windowed read could join an old prefix to a new suffix — and where
+  the replacement is the same length, every window is exactly as long as it
+  should be and nothing downstream can tell. The result parses and names refs no
+  version of the file held. A caller cannot close that: `stat` carries no
+  identity to compare and re-reading races the same way, so the snapshot is the
+  host's to give.
+
+  A *ref file* still goes through `readFile`, because it is one line and the
+  extra operation per lookup would be paid on every name a walk reads.
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.

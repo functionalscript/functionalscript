@@ -6,7 +6,8 @@
 
 import type { List } from '../../types/list/types.ts'
 import type { Nullable } from '../../types/nullable/types.ts'
-import type { Oid } from '../types.ts'
+import type { Bytes, Oid } from '../types.ts'
+import type { PackedRef } from '../ref/types.ts'
 import type { Root } from './types.ts'
 
 /**
@@ -31,6 +32,20 @@ export type _Entry = {
 }
 
 /**
+ * Which names one walk of `refs/` owns: the leaves it keeps, and the directories
+ * it descends into.
+ *
+ * Two rules and not one, because a directory is a *prefix* of names rather than
+ * a name: `refs/bisect` is not a per-worktree name and everything inside it is,
+ * so a walk that asked `keep` about the directory would list a subtree it then
+ * dropped whole. See `holdsPerWorktreeOnly` in the module.
+ */
+export type _Scope = {
+    readonly keep: (text: string) => boolean
+    readonly descend: (text: string) => boolean
+}
+
+/**
  * What the walk of `refs/` has found so far: the roots, and every ref name it
  * has seen a loose file for.
  *
@@ -40,22 +55,41 @@ export type _Entry = {
  * name — otherwise a name whose loose file replaced a packed one comes back
  * with the stale packed id, which is the opposite of what the loose file says.
  *
+ * The `HEAD` file records its name here too, and that one does not shadow: a
+ * packed line naming `HEAD` is a root Git keeps beside the file's, so the name
+ * being here is what *refuses* the listing rather than what hides the line. See
+ * `packedHeadCode` in the module.
+ *
  * Both are lists and not arrays because the walk appends to them once per file
  * it visits. A fresh array per step copies everything found so far, so a
  * repository with many loose refs pays the square of their count in copying;
  * `concat` copies nothing, and the one place that needs an array — the listing
  * this all feeds — materialises each once at the end.
  *
- * Measured in isolation, 10,000 appends cost 111 ms as array copies and 13 ms as
- * `concat` plus one `toArray`, and 20,000 cost 1194 ms and 13 ms — the first
- * more than decuples while the second does not move. End to end the gain is
- * smaller, since reading the files dominates at that size: a walk of 10,000
- * loose refs went from 1608 ms to 1293 ms. The shape is what matters, not the
- * present size of the constant.
+ * Measured in isolation at ten and twenty thousand appends, the copying shape
+ * more than decuples between the two while this one does not move. End to end
+ * the gain is smaller, since reading the files dominates at that size — the
+ * shape is what matters and not the present size of the constant, and the
+ * figures are in the pull request that took this shape.
  */
 export type _Found = {
     readonly roots: List<Root>
     readonly names: List<readonly number[]>
+    readonly pending: List<_Pending>
+}
+
+/**
+ * A symbolic loose ref the walk has read and not resolved: its own name, and the
+ * name it points at.
+ *
+ * The walk does not resolve one, because resolving reads `packed-refs` and this
+ * module reads that file *after* the loose ones — see `tryRoots`, where the
+ * order is the answer to a `git pack-refs` running underneath. So the walk
+ * records the pair and a later pass answers it.
+ */
+export type _Pending = {
+    readonly name: readonly number[]
+    readonly target: Bytes
 }
 
 /**
@@ -81,4 +115,5 @@ export type _Walked = readonly [Nullable<_Found>, Nullable<readonly _Entry[]>]
 export type _Lookup = {
     readonly id: Nullable<Oid>
     readonly left: number
+    readonly packed: Nullable<readonly PackedRef[]>
 }

@@ -17,7 +17,7 @@ import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
-import { emptyHost, emptyHostError, ioError, nodeCommands } from '../module.f.mjs'
+import { emptyHost, emptyHostError, ioError, nodeCommands, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
@@ -184,6 +184,25 @@ const jsModuleUnsupported = op => name => { throw new Error(`'${name}' is a JsMo
 const jsModuleNotAFile = name => fail(`'${name}' is not a file`)
 
 /**
+ * What `readWhole` answers for the same name, and it carries the *node runner's*
+ * code rather than this runner's own.
+ *
+ * The difference from {@link jsModuleNotAFile} beside it is which runner has a
+ * counterpart. A write to a FIFO fails on a real host with whatever the OS says,
+ * so `writeBytes` above states a failure in this runner's own words. A `readWhole`
+ * of one is refused by the node runner *before it opens the path*, with
+ * {@link notAFileCode} — so answering anything else here would give a caller a
+ * branch it cannot reach on the host it ships against.
+ *
+ * The argument is the path the caller asked for rather than the entry name the
+ * resolver reduced it to, so the message is the one the node runner would have
+ * produced — see {@link readWhole}.
+ *
+ * @type {(path: string) => Error<IoError>}
+ */
+const jsModuleNotRegular = path => error(ioError({ code: notAFileCode, message: notAFileMessage(path) }))
+
+/**
  * The chunk list the entry `p` names holds, or the `IoResult` error that says
  * why there is none. Every operation whose subject is a *file* — `readFile`,
  * `readBytes`, `writeBytes` — starts here, so the three answer one question
@@ -253,6 +272,46 @@ const readFile = path => readOperation((dir, p) => {
         result = msb.concat(result)(chunk)
     }
     return ok(result)
+})(path)
+
+/**
+ * The file's chunks as the fixture holds them, which is what one open would have
+ * answered: this filesystem has no descriptors, and a `Dir` entry cannot change
+ * while an operation runs, so a fixture is a snapshot by construction.
+ *
+ * Unlike {@link readFile} there is no cap to apply — the chunks stay chunks, each
+ * already a `Vec`, and the caller joins them into a byte list.
+ *
+ * **A `JsModule` is a value here and not a panic**, which is where this parts
+ * company with `readFile` and `readBytes`. Those two panic because a module has
+ * no bytes and their contract is to produce some, so a fixture pointing them at
+ * one is a fixture bug and reaches a human. `readWhole` has an answer for that
+ * input: a `JsModule` stands in for a host's FIFO, device or socket (see
+ * {@link notRegular}), and the node runner refuses exactly those with
+ * {@link notAFileCode} rather than reading them. A caller's branch for that
+ * refusal can only be reached — let alone proven — against this runner if the
+ * runner returns it, which is the argument {@link jsModuleNotAFile} already
+ * makes for `writeBytes`. It carries node's code rather than this runner's, for
+ * the reason {@link jsModuleNotRegular} gives.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<readonly Vec[]>]}
+ */
+const readWhole = path => readOperation((dir, p) => {
+    // A *directory* is the other thing that is no regular file, and `ENOENT` is
+    // the wrong answer for it here: the node runner `stat`s before it opens and
+    // refuses one with {@link notAFileCode}, while `resolveFile`'s `ENOENT` reads
+    // as absence — `tryWholeBytes` in `fjs/git/refstore` forgives it, so a
+    // directory called `packed-refs` would be an empty packed-ref set on this
+    // runner and a refusal on the host. An empty `p` is what says the path named
+    // a directory; see {@link resolveFile}.
+    //
+    // The refusal carries the requested path and not `p`'s entry name, for the
+    // reason {@link readFile} gives about its cap: a nested entry reaches here as
+    // one segment, so taking what the resolver offers would answer `device`
+    // where the host answers `dir/device`.
+    if (p.length === 0) { return jsModuleNotRegular(path) }
+    const resolved = resolveFile(() => jsModuleNotRegular(path))(dir, p)
+    return resolved[0] === 'error' ? resolved : ok(resolved[1])
 })(path)
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Module>]} */
@@ -750,6 +809,7 @@ const map = {
     readBytes: readBytesOp,
     createExclusive,
     writeBytes: writeBytesOp,
+    readWhole,
     stat: statOp,
     createServer,
     listen,
