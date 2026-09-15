@@ -38,11 +38,18 @@ The FunctionalScript writer reads the linked EDAG of
 [`fjs/fsc/edag`](../edag/module.f.mjs) and writes a module the parser
 accepts, so that compiling the output again yields the same EDAG:
 
-- A node the graph holds more than once is hoisted into a `const`, as the
-  DataJS serializer hoists a shared value, so sharing survives; a node held
-  once is written in place. Which nodes those are is the analysis's to say
+- A constructor — `[]`, `{}`, `=>` — the graph holds more than once is
+  hoisted into a `const`, as the DataJS serializer hoists a shared value,
+  so its identity survives; a node held once is written in place. Which
+  nodes those are is the analysis's to say
   ([`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md)): the writer
-  reads its table and hoists in table order.
+  reads its table and hoists in table order. A node the analysis merged —
+  an access, an operator — is never hoisted, however many times it is
+  reached: it is written in place at every occurrence, and the recompiled
+  occurrences merge again, which is the equality the round trip is stated
+  over. Hoisting one would also evaluate it eagerly where the source kept
+  it lazy, `[a && x.y, b && x.y]` once the operators land, and turn a
+  short-circuit into a throw.
 - Every `const` the writer emits, an anchor or a hoisted node, is named by
   its position among the written statements — the first is `$0`, the next
   `$1` — one sequence for both, so the same graph is the same text and an
@@ -58,7 +65,11 @@ accepts, so that compiling the output again yields the same EDAG:
   `['[]', [[',', [1, 2]]]]`). Until then a comma anywhere but the root is
   refused by the writer, as JSON refuses a shared node.
 - A function, `['=>', null, body]`, is written as `(...$a) => body` with
-  `['args']` as the parameter, one name per nesting depth; sharing inside a
+  `['args']` as the parameter, named by nesting depth as a spreadsheet
+  names its columns — `$a` at the top, `$b` one level in, `$z` then `$aa`,
+  `$ab` — so the sequence is total, never digits alone, which keeps it apart
+  from the hoisted `$n`, and never the same name in nested functions
+  ([`3150-shadowing.md`](../../../spec/todo/3150-shadowing.md)); sharing inside a
   body — the arguments reached twice, a node held twice within the body — is
   written by naming the node twice, since a body has no `const` to hoist
   into yet, and the parser reads the arguments as one node however many
@@ -68,12 +79,15 @@ accepts, so that compiling the output again yields the same EDAG:
   until then.
 - An access, `['.', base, key]`, is written as `base.key` for a key that is
   an identifier and `base[key]` otherwise, a number key as a number. The
-  parser refuses a numeric literal as a base but accepts a reference to one,
-  and linking makes such a base out of an accepted module — `n.x` with `n`
-  imported from a module exporting `1` links to `['.', 1, 'x']` — so a
-  number or bigint base is hoisted, `const $0=1;` and `$0.x`, whether or
-  not it is shared: the one case where the writer hoists for the grammar's
-  sake, and the recompiled node is `['.', 1, 'x']` again.
+  grammar takes no access on two bases the parser accepts through a
+  reference and linking then puts in place: a number or bigint literal —
+  `n.x` with `n` imported from a module exporting `1` links to
+  `['.', 1, 'x']`, which `1.x` cannot spell — and a function — `f.length`
+  with `f` exporting `(...a) => a` links to `['.', ['=>', null, ['args']], 'length']`,
+  which `(...$a) => $a.length` would read as a body access. Such a base is
+  hoisted, `const $0=1;` and `$0.x`, whether or not it is shared: the one
+  hoist the writer makes for the grammar's sake, and the recompiled node is
+  the same access on the same base.
 - A node kind the writer has no spelling for is refused, naming the kind.
   Calls and operators are not in the language yet; each feature that adds a
   node kind adds its spelling to this writer in the same PR, which the
@@ -99,9 +113,10 @@ contract stays for `.data.js` and `.json`, which are values.
 - [ ] Route the output by extension: `.json`, `.data.js`/`.data.mjs`, `.f.js`/`.f.mjs`,
       `.edag.data.js`/`.edag.data.mjs`; any other extension is refused, naming the four.
 - [ ] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
-      with a numeric base hoisted, functions, the root comma as `const` anchors,
-      and shared nodes hoisted, every `const` named `$n` by position — one line,
-      normalized.
+      with a numeric or function base hoisted, functions with parameters named by
+      depth, the root comma as `const` anchors, shared constructors hoisted and
+      merged nodes written in place, every `const` named `$n` by position — one
+      line, normalized.
 - [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
       refusal does: a comma anywhere but the root, an object-literal body, a node
       kind without a spelling.

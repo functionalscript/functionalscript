@@ -91,8 +91,9 @@ Two consumers then follow, and share amnesia's operations:
   JavaScript's; a proof of such a case pins both answers, not one against
   the other.
 - **The writers**: the FunctionalScript writer hoists exactly the
-  module-level `shared`, in table order, and the DataJS writer refuses JSON
-  when `shared` names a container.
+  constructors among the module-level `shared`, in table order — a merged
+  node it writes in place, since the recompiled occurrences merge again —
+  and the DataJS writer refuses JSON when `shared` names a container.
 
 The table replaces, for the EDAG-backed outputs, the sharing sweep in
 `fjs/fsc/ast`, whose route-following becomes the merge step here; the value
