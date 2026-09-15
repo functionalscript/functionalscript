@@ -60,7 +60,12 @@ accepts, so that compiling the output again yields the same EDAG:
 - Every `const` the writer emits, an anchor or a hoisted node, is named by
   its position among the written statements — the first is `$0`, the next
   `$1` — one sequence for both, so the same graph is the same text and an
-  anchor's name cannot collide with a hoisted node's.
+  anchor's name cannot collide with a hoisted node's. The statements come in
+  one pass over the root in the analysis's walk order: the root comma's
+  operands in order, each preceded by the hoisted constructors its subtree
+  reaches that are not yet written, so
+  `const unused = 0; const s = []; export default [s, s];` is
+  `const $0=0;const $1=[];export default [$1,$1];` and nothing else.
 - The comma operation, `[',', [...anchors, result]]`, at the module root is
   written as the source form it came from: an unused `const` per anchor,
   in order, then `export default` the result — an unreached `const` *is* the
