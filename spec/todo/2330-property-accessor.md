@@ -1,5 +1,11 @@
 # Property Accessor
 
+**Status:** the constant-key read is in the language
+([spec: property access](../README.md#property-access)): an own-property
+read, with every built-in prototype name but `length` a compilation error,
+the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs).
+The computed key, `a[Number(b)]`, and the method call below are not.
+
 Syntax examples:
 
 ```js

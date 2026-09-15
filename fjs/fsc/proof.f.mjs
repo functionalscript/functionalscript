@@ -431,14 +431,15 @@ export const proof = {
         },
     },
     // A property access on the value path: an own property, never the
-    // prototype chain — the property-accessor spec's rule, where JavaScript
-    // reads `a.toString` as a function — `undefined` where there is none,
+    // prototype chain — the property-accessor spec's rule, a prototype's
+    // name being refused by the parser — `undefined` where there is none,
     // and the failure JavaScript throws for on a `null` or `undefined` base.
     access: {
         own: () => {
             assertEq(compileSource('const a = { b: [1, 2] }; export default [a.b, a["b"][1], a.b.length];')('output.f.js'), 'export default [[1,2],2,2];')
             assertEq(compileSource('const s = "ab"; export default [s[0], s["1"], s.length];')('output.json'), '["a","b",2]')
-            assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.toString, a.b.x];')('output.f.js'), 'export default [undefined,undefined,undefined];')
+            assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.b.x];')('output.f.js'), 'export default [undefined,undefined];')
+            assertEq(moduleRefused('const a = { b: 1 }; export default a.toString;'), 'input.f.js:1:38 - error: prohibited property name')
             assertEq(compileSource('const n = 1; const b = true; const g = 2n; export default [n.x, b.x, g.x];')('output.f.js'), 'export default [undefined,undefined,undefined];')
         },
         failure: () => {
