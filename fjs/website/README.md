@@ -215,6 +215,14 @@ true of the whole page rather than only of its text.
 The `48rem` measure is kept. In a monospace face at 16px it holds about eighty
 characters, which is the width this repository's source is written to.
 
+**A line may break inside a word.** A path has no space to break at, so on a
+phone a page's title, a proof's name or a digest was wider than the screen: the
+page scrolled sideways, or the report's panel clipped the line. At 360px that
+was 63 of 216 pages. `overflow-wrap: anywhere` on `body` lets any line break
+where it has to; an identifier split mid-word is still read, and one cut off is
+not. Breaking a title after its `/` would read better, and needs the generator
+to mark where.
+
 **Prose is not exempt, and there is no prose yet.** Rendering `README.md` files
 is still on [`todo/`](./todo/generate-website.md), and a long paragraph is
 slower to read in a monospace face than a proportional one. Whoever builds that
