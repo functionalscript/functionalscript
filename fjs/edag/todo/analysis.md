@@ -123,9 +123,11 @@ type Analysis = {
   rather than "once, eagerly", so the EDAG survives that transformation
   with its logic intact and only the count of calls optimized. What the two
   models disagree on is identity, as §4 says: `result[0] === result[1]` is
-  `true` under the CAVM and not necessarily under JavaScript. A CAVM-merged
-  graph written back to FunctionalScript un-merges, since the writer writes
-  the JavaScript meaning, and the CAVM merges it again on load.
+  `true` under the CAVM and not necessarily under JavaScript. The writer
+  writes the JavaScript meaning, so an EDAG the CAVM has optimized is not
+  necessarily expressible in `.f.js` and is not promised to survive the
+  round trip; that promise is made for the JavaScript-compatible model
+  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)).
 - **Numbered, not keyed.** The table is built as the DataJS serializer builds
   its graph, a finished list numbered once, and the one `Map` by object
   lives inside that build; no consumer holds one, since each reads indices:

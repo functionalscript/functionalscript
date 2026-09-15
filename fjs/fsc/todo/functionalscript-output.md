@@ -137,7 +137,11 @@ contract stays for `.data.js` and `.json`, which are values.
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
       analyses — the node tables and shared indices, equal up to the analysis's
       merge — with each refusal pinned by its message; the DataJS corpus keeps
-      writing through `.data.js`.
+      writing through `.data.js`. The promise is for the JavaScript-compatible
+      model: an EDAG optimized by a content-addressable VM
+      ([`fjs/edag/execution-models.md`](../../edag/execution-models.md) §4)
+      is not necessarily expressible in `.f.js` and may not survive the round
+      trip, since the writer writes the JavaScript meaning.
 - [ ] Update `spec/README.md` (File Types, Output) and `fjs/fsc/README.md` for the
       four outputs, and retire `.edag.f.js` where it is named.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
