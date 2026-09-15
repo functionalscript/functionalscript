@@ -26,8 +26,24 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, or a property access. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstFunction|AstArgs
+
+/**
+ * A function of its arguments alone: `(...a) => body`, the body a value in
+ * which {@link AstArgs} is the arguments array and no `aref` or `cref`
+ * stands — a capture is refused where it is written, since a function
+ * has no frame yet. The EDAG's `['=>', null, body]`.
+ *
+ * The body is typed as any value, as a `cref` is typed as any index: the
+ * parser never writes a module reference into a body, and one written by
+ * hand is not rejected — `lower` gives it no node, as it gives none to a
+ * `cref` past the entry holding it.
+ */
+export type AstFunction = readonly ['=>', AstConst]
+
+/** The arguments array of the function whose body holds it — the rest parameter, whatever it is named. The EDAG's `['args']`. */
+export type AstArgs = readonly ['args']
 
 /**
  * A reference to a value defined outside this `AstConst`.
@@ -67,8 +83,9 @@ export type AstObject = readonly ['object', readonly AstMember[]]
  * A property access, `base.key` or `base[key]`: the base a reference and
  * the accesses before it, the key the constant written — a string, or a
  * number from `[0]`. The EDAG's own form, `['.', object, index]`, so the
- * lowering carries it as it is. A key naming the prototype chain,
- * `__proto__` or `constructor`, is refused by the parser.
+ * lowering carries it as it is. A key naming a property of a built-in
+ * prototype — every name `fjs/js/prototype` lists but `length` — is
+ * refused by the parser, so `run` never reads one.
  */
 export type AstAccess = readonly ['.', AstConst, string | number]
 

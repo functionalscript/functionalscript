@@ -52,13 +52,17 @@ const lower = nodes => ast => {
         case 'cref': { return nodes.consts[ast[1]] }
         case 'array': { return ['[]', ast[1].map(lower(nodes))] }
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
+        // a function's body is a scope of its own: it names its arguments,
+        // one node however many references reach them, and nothing outside
+        case '=>': { return ['=>', null, lower({ parameters: [], consts: [], args: ['args'] })(ast[1])] }
+        case 'args': { return nodes.args }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
 }
 
 /** @type {(parameters: readonly Exp[]) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]} */
-const entry = parameters => (consts, ast) => [...consts, lower({ parameters, consts })(ast)]
+const entry = parameters => (consts, ast) => [...consts, lower({ parameters, consts, args })(ast)]
 
 /**
  * The module as an EDAG over the nodes given for its imports. The body is
