@@ -15,7 +15,9 @@ it — see [`module.f.mjs`](./module.f.mjs).
 
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
-and `[1].length`, on any value: an own property of the base, never the prototype chain, as
+and `[1].length`, on any value but a number or a bigint literal, which is
+refused since JavaScript reads `-1 .x` as `-(1 .x)`: an own property of the
+base, never the prototype chain, as
 [spec: property accessor](../../spec/todo/2330-property-accessor.md) has
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
 is refused at the key rather than read as `undefined` where JavaScript
