@@ -61,11 +61,15 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
   on every case, since the source spells both halves. The source form of
   `own` is the descriptor pattern whose first argument is an `asObject`
   pattern or an object literal; over anything else it is refused. The key
-  is a known string for now — a literal or a constant — so the pattern's
-  second argument is checked statically, as `.`'s key is; a run-time key
-  needs a `toKey` guard beside `asObject`, since `getOwnPropertyDescriptor`
-  coerces its key and would call `toString` on an object, and that guard
-  and what it does with a non-string are a follow-up.
+  is a known string for now — a string literal or a constant whose value
+  is a string — so the pattern's second argument is checked statically, as
+  `.`'s key is, and no executor ever meets a non-string key: a number key
+  is `.`'s, `a[0]`, and the existing refusal of a non-string key in the
+  schema, amnesia and `Any::own_property` stays as the run-time backstop.
+  A run-time key needs a `toKey` guard beside `asObject`, since
+  `getOwnPropertyDescriptor` coerces its key and would call `toString` on
+  an object, and that guard and what it does with a non-string are a
+  follow-up.
 - **`name` is unobservable.** `.` refuses it statically and `own` throws on
   a function, so no FunctionalScript program reads a function's `name`. `=>`
   carries no name, the graph stays name-erased, the writer's `$0` is
@@ -117,6 +121,14 @@ the guard makes a throw instead of the boxing JavaScript performs silently.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
+- [ ] The spec todos updated in the same migration:
+      [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
+      spells `own_property` with `asObject` as its receiver instead of the
+      unguarded descriptor read, and
+      [`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)
+      takes the same receiver rule for `Object.hasOwn(asObject(a), b)` — an
+      array a receiver, a primitive or a function a throw — in place of the
+      `Object`-only scope it inherits from the current `own`.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
