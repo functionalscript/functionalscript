@@ -66,16 +66,21 @@ two operators, each with one job.
   has no entries, so `entry` on one is `undefined` for every key, which is
   the right answer for "a function has no data", and nothing throws that
   JavaScript would not throw.
-- **The source form is the function, recognized whole.** A developer
-  defines the read once and calls it, so the pattern is the definition and
-  not the call site:
+- **`['entry']` is the function, and the source form is its definition.**
+  The node is nullary: its value is the function `(a, b) => …` with the
+  semantics above and arity `2`, the first node whose value is a function
+  the language defines rather than one the program builds. A developer
+  defines the read once and calls it, so the pattern is the definition,
+  recognized whole and lowered to the node:
 
   ```js
   const entry = (a, b) => {
       const x = Object.getOwnPropertyDescriptor(a, b)
       return x?.enumerable ? x.value : undefined
   }
-  // ['=>', null, ['entry', ['.', ['args'], 0], ['.', ['args'], 1]]]
+  // ['entry']
+  entry(o, k)
+  // ['()', E, ['[]', [o, k]]], E the node the `const` holds
   ```
 
   `a`, `b` and `x` are identifier placeholders, each the same identifier at
@@ -87,18 +92,17 @@ two operators, each with one job.
   descriptor, returns it, reads `writable`, is not the pattern and is
   refused. The parser matches the definition as a fixed token shape, as
   `["__proto__"]` is one token, so it needs none of named parameters, a
-  block body, a body constant or `return` in general; a use site,
-  `entry(o, k)`, is an ordinary call, which is the one real dependency.
-  Since the parser emits the node nowhere else, in a compiled graph an
-  `entry` node occurs only as the body of this function, over `args[0]`
-  and `args[1]`; a graph holding one anywhere else is not one the compiler
-  emits, and the writer refuses it by name, as it refuses a comma outside
-  the root. The writer recognizes the function by that body and spells it
-  as the pattern's text, two named parameters and all, never as
-  `(...$a) => …`, so `entry.length` is `2` in the source, in the output and
-  in the executor, which constructs the function through the same spelling
-  in host JavaScript; the function round-trips as itself. JavaScript reads
-  the definition as the function it is, so the text means the same in both.
+  block body, a body constant or `return` in general; a use site is an
+  ordinary call, which is the one real dependency. The node mints identity
+  as `=>` does — each evaluation is a function object, so two definitions
+  in one program are two functions, as two `const` definitions are in
+  JavaScript, and the analysis counts it as a constructor. It can stand
+  anywhere a value can, `[entry, entry]`, an argument, an export, and the
+  writer spells it as the pattern's text wherever it stands, hoisted when
+  shared, so it round-trips from any position; the executor maps it to one
+  host function of arity `2`, and `entry.length` is `2` by definition.
+  JavaScript reads the definition as the function it is, so the text means
+  the same in both.
 - **`name` is unobservable.** `.` refuses it statically, and `entry` reads
   `undefined` because `name` is not an entry, so no FunctionalScript program
   reads a function's `name`. `=>` carries no name, the graph stays
@@ -126,15 +130,18 @@ two operators, each with one job.
   corpus, the generated vectors, `Any::own_property` and
   its documentation change with amnesia, in the same PR, so the JavaScript
   and native executions keep agreeing on every listed input.
-- **Unchanged.** The analysis merges `.` and `entry` alike as plain reads,
-  since neither mints identity; `?.` and `|.` stay control flow.
+- **Unchanged.** The analysis merges `.` as a plain read, since it mints
+  no identity, and a call of `entry` as any call; `?.` and `|.` stay
+  control flow.
 
 ### Tasks
 
-- [ ] `entry` replaces `own` in the `op2` ids, `['entry', Exp, Exp]`, with the
-      enumerable-own semantics; the README's table says which read each node
-      is and why.
-- [ ] Amnesia's `entry` reads the descriptor and its `enumerable` flag, with
+- [ ] `entry` replaces `own`: `['entry']` joins the `op0` ids as the function
+      value, with the enumerable-own semantics; the README's table says which
+      read each node is and why, and that this one's value is a function the
+      language defines.
+- [ ] Amnesia evaluates `['entry']` to one host function of arity `2` that
+      reads the descriptor and its `enumerable` flag, with
       proofs for an object, an array, a string, `null`, a number and a
       function as the base; a number, a boolean and `null` as the key
       converting, and an array, an object and a function as the key
@@ -146,13 +153,13 @@ two operators, each with one job.
       key converted by `ToString`, any other key a throw — and `Any::own_property` in
       `nanvm-lib`, renamed with the node, and its documentation with them.
 - [ ] The parser recognizes the `entry` function as a fixed token shape with
-      identifier placeholders and lowers it to the function with the node as
-      its body, refuses `Object.getOwnPropertyDescriptor` anywhere else, and
-      keeps `name` prohibited for `.`; proofs for the definition, a call of it
-      once calls land, `entry.length` reading `2`, a function that returns the
-      descriptor refused, and `f.name` refused through `.`; the writer spells
-      the function as the pattern's text and refuses an `entry` node anywhere
-      but in that body.
+      identifier placeholders and lowers it to `['entry']`, refuses
+      `Object.getOwnPropertyDescriptor` anywhere else, and keeps `name`
+      prohibited for `.`; proofs for the definition, a call of it once calls
+      land, `entry.length` reading `2`, two definitions being two functions, a
+      function that returns the descriptor refused, and `f.name` refused
+      through `.`; the writer spells the node as the pattern's text from any
+      position.
 - [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
