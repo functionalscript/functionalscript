@@ -133,10 +133,4 @@ pre { white-space: pre-wrap }
 [data-demo-working] button { cursor: default }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 [data-section] > ul { margin-top: .5rem }
-/* A finger is wider than a pointer. A listed file or directory is one line of
-   text with the next directly under it, so on a touch screen each link is
-   padded to a target a finger can pick without taking its neighbour. */
-@media (pointer: coarse) {
-    [data-section] > ul a { display: inline-block; padding-block: .25rem }
-}
 `

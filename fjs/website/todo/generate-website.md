@@ -12,6 +12,10 @@
 - [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root as `_main.css` and linked root-relative)
 - [x] One monospace face for the whole site (`ui-monospace` first, `pre`
       inheriting it; the reasoning is [`../README.md`](../README.md))
+- [x] Pages fit a phone screen (any line may break inside a word; the
+      reasoning is [`../README.md`](../README.md))
+- [ ] Touch-sized links in a page's lists — see
+      [touch-targets](touch-targets.md)
 - [ ] Decide what the build owes its own leftovers — see
       [stale-generated-pages](stale-generated-pages.md)
 - [x] Convention for a `demo` export — an optional pure demo, discovered like a
