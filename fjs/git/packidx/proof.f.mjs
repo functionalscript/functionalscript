@@ -407,6 +407,14 @@ export const proof = {
         assertEq(read(twoSlots([...u32(0x80000000), ...u32(0x80000000)])), null)
         // In the wrong order, which Git never writes — it hands out slots as it
         // walks the objects — and which no count can see either.
+        //
+        // Git's own *index* reader refuses that file too, which makes this the
+        // one strictness here that is not a divergence: measured on Git 2.43.0
+        // by handing `git show-index` a two-object index built with the same
+        // table, it answers `fatal: inconsistent 64b offset index` and exits
+        // 128, where the same table in order is read and printed. Git's
+        // *object* reader is laxer and takes it, so the two disagree and this
+        // follows the one whose job is the same as this module's.
         assertEq(read(twoSlots([...u32(0x80000001), ...u32(0x80000000)])), null)
     },
     // The trailing checksum is the index's own, over every byte before it, and

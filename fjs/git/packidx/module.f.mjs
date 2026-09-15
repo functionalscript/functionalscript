@@ -292,6 +292,13 @@ const tryV2 = (b, oidBytes) => {
     // which is an index disagreeing with itself answered as two plausible
     // offsets. An index past the table and a table longer than its words ask
     // for are both refused by the same line.
+    //
+    // The *order* half is Git's rule and not this module's own: measured on Git
+    // 2.43.0, `git show-index` given a two-object index whose two words name
+    // slots 1 and 0 answers `fatal: inconsistent 64b offset index` and exits
+    // 128, and reads the same table in order. So this is not one of the three
+    // divergences at {@link tryIdx} — Git's index reader refuses it too, and it
+    // is Git's *object* reader, which takes such a file, that disagrees.
     if (large !== named.length || named.some((at, k) => at !== k)) { return null }
     const offsets = words.map(w =>
         w < largeOffsetFlag ? w : u64(b, largeAt + (w - largeOffsetFlag) * 8))
