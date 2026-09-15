@@ -37,7 +37,15 @@ source means:
   computed one — the spelling is the computed-key object read,
   `{ [$name]: (...$a) => 5 }[$name]`, which names the function `$name`'s
   value and is its own read, so it round-trips; `""` is that spelling with
-  `""`, since `(0, fn)` waits on the comma and grouping.
+  `""`, since `(0, fn)` waits on the comma and grouping. The name operand
+  is written twice there, and follows the writer's general rule
+  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)):
+  a primitive takes no index and costs nothing; an identity-free node, an
+  access or an operator, is written in place at both positions and the
+  recompiled pair merges again; an identity-minting node, a call, is
+  hoisted into a `const` at module level so both positions read one node,
+  and inside a body that hoist is refused until body constants, like every
+  other body hoist. So the graph's one evaluation stays one.
 - **Hashing.** The graph is no longer fully name-erased: a function's own
   name is part of what it denotes, since a program can read it, and so part
   of its hash. Binding names stay erased.

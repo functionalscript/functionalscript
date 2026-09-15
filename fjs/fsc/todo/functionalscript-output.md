@@ -45,9 +45,12 @@ The FunctionalScript writer reads the linked EDAG of
 whose entries name their operands by index — and writes a module the parser
 accepts, so that compiling the output again yields the same EDAG:
 
-- A constructor — `[]`, `{}`, `=>` — the graph holds more than once is
-  hoisted into a `const`, as the DataJS serializer hoists a shared value,
-  so its identity survives; a node held once is written in place. Which
+- A node that mints identity — a constructor, `[]`, `{}` or `=>`, or a
+  call in any spelling, `()` and an access whose continuation calls, since
+  `const x = f(); export default [x, x];` is one call and `f` may return a
+  fresh array — is hoisted into a `const` when the graph holds it more than
+  once, as the DataJS serializer hoists a shared value, so its identity
+  survives; a node held once is written in place. Which
   nodes those are is the analysis's to say
   ([`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md)): the writer
   reads its table and hoists in table order. A node the analysis merged —
@@ -56,15 +59,15 @@ accepts, so that compiling the output again yields the same EDAG:
   occurrences merge again, which is the equality the round trip is stated
   over. Hoisting one would also evaluate it eagerly where the source kept
   it lazy, `[a && x.y, b && x.y]` once the operators land, and turn a
-  short-circuit into a throw. Hoisting a shared constructor changes no
-  order, because in a compiled graph it always has an eager edge: a `const`
+  short-circuit into a throw. Hoisting a shared identity-minting node
+  changes no order, because in a compiled graph it always has an eager edge: a `const`
   the export reaches only through lazy positions is anchored by the comma
   ([`2340-operators.md`](../../../spec/todo/2340-operators.md)), so
   `const s = [null.x]; export default [a && s, b && s];` throws at load in
-  JavaScript, in the EDAG and in the output alike. A graph holding a
-  constructor reached only through lazy edges, `[a && s, b && s]` with no
-  anchor for `s`, is not one the compiler emits, and the writer refuses it
-  by name, as it refuses a comma outside the root.
+  JavaScript, in the EDAG and in the output alike. A graph holding an
+  identity-minting node reached only through lazy edges, `[a && s, b && s]`
+  with no anchor for `s`, is not one the compiler emits, and the writer
+  refuses it by name, as it refuses a comma outside the root.
 - Every `const` the writer emits, an anchor or a hoisted node, is named by
   its position among the written statements — the first is `$0`, the next
   `$1` — one sequence for both, so the same graph is the same text and an
@@ -93,8 +96,8 @@ accepts, so that compiling the output again yields the same EDAG:
   inside a body has no `const` to hoist into yet: the arguments reached
   twice are written by naming the parameter twice, which the parser reads
   as one node, and a merged access is written in place as anywhere else;
-  but a constructor shared within a body, `['=>', null, ['[]', [s, s]]]`
-  with `s` an array, has no spelling that keeps it one array per call, and
+  but an identity-minting node shared within a body, `['=>', null, ['[]', [s, s]]]`
+  with `s` an array or a call, has no spelling that keeps it one value per call, and
   is refused until body constants
   ([`3130-body-const.md`](../../../spec/todo/3130-body-const.md)) give it a
   `const` inside the body — which makes that feature the one this writer
@@ -110,7 +113,8 @@ accepts, so that compiling the output again yields the same EDAG:
   number key as a number, a computed number as `base[Number(k)]` — a
   non-finite one, which `a[1e999]` produces, as `1e999` or `-1e999`, the
   literal the tokenizer reads back to the same key, since `Infinity` is a
-  reserved word and not a key token. The
+  reserved word and not a key token; a `NaN` key, which no literal spells
+  and the compiler never emits, is refused by name. The
   grammar takes no access on two bases the parser accepts through a
   reference and linking then puts in place: a number or bigint literal —
   `n.x` with `n` imported from a module exporting `1` links to
@@ -158,8 +162,9 @@ contract stays for `.data.js` and `.json`, which are values.
       line, normalized.
 - [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
       refusal does: a comma anywhere but the root, an object-literal body, a
-      constructor shared within a body, a numeric or function base within a
-      body, a constructor reached only through lazy edges, a node kind
+      identity-minting node shared within a body, a numeric or function base
+      within a body, an identity-minting node reached only through lazy edges,
+      a `NaN` key, a node kind
       without a spelling.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'

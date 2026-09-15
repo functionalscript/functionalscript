@@ -156,9 +156,10 @@ Two consumers then follow, and share amnesia's operations:
   amnesia's `false` is its own and the memo executor's `true` is
   JavaScript's; a proof of such a case pins both answers, not one against
   the other.
-- **The FunctionalScript writer** hoists exactly the constructors among the
-  module-level `shared`, in table order — a merged node it writes in place,
-  since the recompiled occurrences merge again.
+- **The FunctionalScript writer** hoists exactly the identity-minting nodes
+  among the module-level `shared` — a constructor or a call in any spelling —
+  in table order; a merged node it writes in place, since the recompiled
+  occurrences merge again.
 - **The value outputs**, `.data.js` and `.json`, read no table. The memo
   executor returns a value whose sharing is JavaScript's own identity,
   `[s, s]` one array, and the DataJS serializer hoists and refuses JSON by
