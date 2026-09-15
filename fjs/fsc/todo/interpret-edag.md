@@ -94,6 +94,10 @@ This integration must preserve the public contract. `transpile` still returns th
 module's `Denotation` on success — the evaluated exported value and whether its
 graph is shared (`fjs/fsc/ast/types.ts`) — and `fjs compile <input> <output>` still
 serializes that value rather than serializing the EDAG as if it were the module result.
+That holds for the value outputs, `.data.js` and `.json`; the `.f.js` output is
+a rewrite of the linked EDAG that does not evaluate the module, per
+[`functionalscript-output.md`](./functionalscript-output.md), which supersedes this
+contract for that extension.
 The separately serializable final EDAG remains a compiler artifact/API from the P2 task.
 
 This TODO does not define resource budgets, deterministic stopped outcomes, iterative

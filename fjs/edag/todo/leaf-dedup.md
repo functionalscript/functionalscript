@@ -10,12 +10,13 @@ primitive inline, since primitive sharing is not observable and counting
 primitives by value would raise the `0`/`-0` and `NaN` questions the
 `Object.is` guarantee forbids answering
 ([`spec/datajs/README.md`](../../../spec/datajs/README.md), normalized form),
-and the EDAG analysis ([`analysis.md`](./analysis.md)) counts nodes, not
-leaves. That is right for a number, a boolean, `null` and `undefined`, which
-always fit in a machine word. A string or a bigint does not: a long string
-repeated in a graph is written out once per occurrence and held once per
-occurrence at run time, and a bigint past the word likewise, where one copy
-would do and nothing could tell the difference.
+and the EDAG analysis ([`analysis.md`](./analysis.md)) lists operation
+nodes, a primitive taking no index. That is right for a number, a boolean,
+`null` and `undefined`, which always fit in a machine word. A string or a
+bigint does not: a long string repeated in a graph is written out once per
+occurrence and held once per occurrence at run time, and a bigint past what
+the VM holds inline likewise, where one copy would do and nothing could tell
+the difference.
 
 A string and a bigint are immutable in JavaScript, and their equality is
 their whole identity, so deduplicating them by value is safe wherever it is
@@ -40,14 +41,19 @@ investigation listed under Tasks before it is.
   against inline copies only around five characters and a few occurrences,
   and a one-character string repeated twice grows the document.
 - *A threshold.* Keep the normalized form as it is, and deduplicate only
-  above a size — a string of more than *n* code units, a bigint of more than
-  64 bits, the ones a NaN-boxed VM cannot hold inline. The threshold would
-  be a parameter of the analysis, not a constant of the graph, so that a VM
-  with another value representation asks for its own and a writer whose
-  reader cannot tell a string from a copy may ask for none; the same
-  graph with the same threshold returns the same table, so an output stays
-  canonical. The cost is a second knob, and a normalized form that depends
-  on it if a writer ever hoists.
+  above a size — a string of more than *n* code units, a bigint past what
+  the VM holds inline. That size is the representation's, not a constant:
+  the NaN-box layout of
+  [`nanvm-lib/todo/optimal-nanvm.md`](../../../nanvm-lib/todo/optimal-nanvm.md)
+  holds 48 bits of bigint inline, and the naive VM of
+  [`nanvm-lib/src/naive`](../../../nanvm-lib/src/naive/mod.rs) boxes every
+  bigint, so "64 bits" is no VM's cutoff. The threshold would be a
+  parameter of the analysis, not a constant of the graph, so that a VM with
+  another value representation asks for its own and a writer whose reader
+  cannot tell a string from a copy may ask for none; the same graph with
+  the same threshold returns the same table, so an output stays canonical.
+  The cost is a second knob, and a normalized form that depends on it if a
+  writer ever hoists.
 
 The two are not exclusive: the VM's table may use a threshold while the
 writers follow the format's rule, or the format may fix one threshold as

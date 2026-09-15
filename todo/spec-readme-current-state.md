@@ -32,8 +32,12 @@ property-access, function, prototype-name and literal-access work:
 
 - Rewrite the introduction without the layers: the document specifies
   FunctionalScript as the compiler accepts it today, and names DataJS as the
-  data subset with its own specification and its own extension. Every `DJS`
-  goes; where a sentence needs the data subset, it says DataJS.
+  interchange format it contains, with its own specification and its own
+  extension. Every `DJS` goes, and nothing replaces it as a name: the
+  function-free part of the language is wider than DataJS — imports,
+  comments, property access, identifier keys, trailing commas — so where a
+  sentence needs it, it says "a module without functions" in words, and
+  DataJS names only what `spec/datajs/README.md` defines.
 - Walk every section against the parser and the compiler, section by section,
   and pin each claim to the proof that holds it: the value types, property
   access with its refusals, functions, imports with the attribute, module

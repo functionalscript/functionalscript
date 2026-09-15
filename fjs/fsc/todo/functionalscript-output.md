@@ -38,17 +38,24 @@ The FunctionalScript writer reads the linked EDAG of
 [`fjs/fsc/edag`](../edag/module.f.mjs) and writes a module the parser
 accepts, so that compiling the output again yields the same EDAG:
 
-- A node the graph holds more than once is hoisted into a `const` named
-  `$0`, `$1`, … as the DataJS serializer hoists a shared value, so sharing
-  survives; a node held once is written in place. Which nodes those are is
-  the analysis's to say ([`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md)):
-  the writer reads its table and takes the `$n` names from the indices.
+- A node the graph holds more than once is hoisted into a `const`, as the
+  DataJS serializer hoists a shared value, so sharing survives; a node held
+  once is written in place. Which nodes those are is the analysis's to say
+  ([`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md)): the writer
+  reads its table and hoists in table order.
+- Every `const` the writer emits, an anchor or a hoisted node, is named by
+  its position among the written statements — the first is `$0`, the next
+  `$1` — one sequence for both, so the same graph is the same text and an
+  anchor's name cannot collide with a hoisted node's.
 - The comma operation, `[',', [...anchors, result]]`, at the module root is
   written as the source form it came from: an unused `const` per anchor,
   in order, then `export default` the result — an unreached `const` *is* the
   anchor syntax ([`2340-operators.md`](../../../spec/todo/2340-operators.md)).
-  Inside a function body a comma has no statement to become until the
-  operator itself is in the source language; until then such a body is
+  Anywhere else a comma has no statement to become until the operator itself
+  is in the source language — inside a function body, and inside a container
+  where linking leaves one, as `import b …; export default [b];` does when
+  `b`'s module has an unused `const` (the `resolve.anchored` proof pins
+  `['[]', [[',', [1, 2]]]]`). Until then a comma anywhere but the root is
   refused by the writer, as JSON refuses a shared node.
 - A function, `['=>', null, body]`, is written as `(...$a) => body` with
   `['args']` as the parameter, one name per nesting depth; sharing inside a
@@ -60,8 +67,18 @@ accepts, so that compiling the output again yields the same EDAG:
   ([`2350-grouping.md`](../../../spec/todo/2350-grouping.md)), and refused
   until then.
 - An access, `['.', base, key]`, is written as `base.key` for a key that is
-  an identifier and `base[key]` otherwise, a number key as a number; the
-  base written as a value, never a numeric literal, which the parser refuses.
+  an identifier and `base[key]` otherwise, a number key as a number. The
+  parser refuses a numeric literal as a base but accepts a reference to one,
+  and linking makes such a base out of an accepted module — `n.x` with `n`
+  imported from a module exporting `1` links to `['.', 1, 'x']` — so a
+  number or bigint base is hoisted, `const $0=1;` and `$0.x`, whether or
+  not it is shared: the one case where the writer hoists for the grammar's
+  sake, and the recompiled node is `['.', 1, 'x']` again.
+- A node kind the writer has no spelling for is refused, naming the kind.
+  Calls and operators are not in the language yet; each feature that adds a
+  node kind adds its spelling to this writer in the same PR, which the
+  round-trip proof below enforces, so the writer never falls behind the
+  parser.
 - Leaves are written as the DataJS serializer writes them: JSON's spellings,
   `undefined`, `NaN`, the infinities, `-0`, a bigint with its suffix, and
   `["__proto__"]:` for that key.
@@ -72,20 +89,27 @@ accepts, so that compiling the output again yields the same EDAG:
 outputs. The FunctionalScript output does not evaluate the module: it is a
 rewrite of the linked graph, so a module holding a function compiles, and a
 module whose value the readers would refuse — a read of `null` — still
-compiles, the failure being the program's to make when it runs.
+compiles, the failure being the program's to make when it runs. For the
+`.f.js` output this supersedes the value-producing contract that
+[`interpret-edag.md`](./interpret-edag.md) preserves for `fjs compile`; that
+contract stays for `.data.js` and `.json`, which are values.
 
 ### Tasks
 
 - [ ] Route the output by extension: `.json`, `.data.js`/`.data.mjs`, `.f.js`/`.f.mjs`,
       `.edag.data.js`/`.edag.data.mjs`; any other extension is refused, naming the four.
-- [ ] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses,
-      functions, the root comma as `const` anchors, and shared nodes hoisted as
-      `$n` — one line, normalized.
+- [ ] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
+      with a numeric base hoisted, functions, the root comma as `const` anchors,
+      and shared nodes hoisted, every `const` named `$n` by position — one line,
+      normalized.
 - [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
-      refusal does: a comma inside a body, an object-literal body.
-- [ ] Pin the round trip: for every accepted module in the proofs, compile to
-      `.f.js`, compile the output again, and compare the EDAGs structurally and by
-      sharing; the DataJS corpus keeps writing through `.data.js`.
+      refusal does: a comma anywhere but the root, an object-literal body, a node
+      kind without a spelling.
+- [ ] Pin the round trip: for every module in the proofs the writer accepts,
+      compile to `.f.js`, compile the output again, and compare the two EDAGs'
+      analyses — the node tables and shared indices, equal up to the analysis's
+      merge — with each refusal pinned by its message; the DataJS corpus keeps
+      writing through `.data.js`.
 - [ ] Update `spec/README.md` (File Types, Output) and `fjs/fsc/README.md` for the
       four outputs, and retire `.edag.f.js` where it is named.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
@@ -100,4 +124,5 @@ compiles, the failure being the program's to make when it runs.
   EDAG as the canonical representation of a function, which the writer
   renders back to source; `toString(f)` will be this writer over one node.
 - [`interpret-edag.md`](./interpret-edag.md) — the other consumer of the linked
-  EDAG; the writer and the interpreter should agree on what a node means.
+  EDAG; the writer and the interpreter should agree on what a node means, and
+  its value-producing contract yields to this issue for `.f.js`.

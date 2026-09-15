@@ -38,24 +38,37 @@ downstream:
 
 ```ts
 type Analysis = {
-    readonly nodes: readonly Exp[]      // every node, in evaluation order, each once
-    readonly shared: readonly number[]  // the indices reached by more than one edge, in that order
-    // per function body: the same, scoped — a body's table is its own
+    readonly nodes: readonly Exp[]      // every operation node of the program, in evaluation order, each once
+    readonly scope: readonly number[]   // per node: the index of the `=>` whose body holds it, or -1 at the module level
+    readonly shared: readonly number[]  // the indices reached by more than one edge within their scope, in that order
 }
 ```
 
-- **Counted per scope.** The `=>` boundary is the scope: a module-level node
+- **One table, the whole program.** A node is numbered once wherever it
+  sits, inside a body or at the module level, so a program has one map and
+  one numbering; a primitive is a leaf, written and evaluated in place, and
+  takes no index. Which scope a node belongs to the table says beside it.
+- **Cached per scope.** The `=>` boundary is the scope: a module-level node
   shared by the program is computed once per program, a node shared inside a
   body once per call, and nothing crosses the boundary, which the compiler's
-  scope rule guarantees. So each function body has its own table, and a
-  shared node is "this node, in this scope".
+  scope rule guarantees. Sharing is counted within the scope, and a consumer
+  caches by scope: an invocation of a function holds values for the shared
+  indices of that body alone, and the module-level ones are held once — one
+  map for the whole code, values cached per function.
 - **Merged before counted.** A node whose result identity is decided by its
   inputs — an access, an operator, the comma — is the same node as another
   spelled the same over the same inputs, so `[cfg.a, cfg.a]` becomes one
   node reached twice. A constructor, `[]`, `{}` or `=>`, mints identity and
-  is never merged: two `[]` are two arrays. This is the content-addressed
-  reading of the graph, and it is what lets the EDAG-backed outputs retire
-  the AST's route sweep.
+  is never merged: two `[]` are two arrays. The merge is the analysis's
+  view, not a rewrite of the graph: the EDAG keeps its nodes and its hash,
+  and a merged node's value is one value however many nodes compute it,
+  since nothing in it mints identity, so an executor that reuses the value
+  answers as one that computes it twice does. It is what lets the
+  EDAG-backed outputs retire the AST's route sweep, and it is the equality
+  the writer's round trip is stated over
+  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)):
+  two graphs are the same to the analysis when they differ only where the
+  merge says they are one.
 - **Laziness respected.** A node under a lazy position — the right operand of
   `&&`, `||`, `??`, a function body — is memoized when first demanded, never
   before; the table records sharing, the executor decides when.
@@ -71,11 +84,15 @@ Two consumers then follow, and share amnesia's operations:
   value reused. Amnesia's per-tag operations become a table both executors
   read, parameterized by how a child is evaluated — amnesia recurses, the
   memo executor looks the child up and records it — so the two agree on every
-  value and amnesia stays the proof oracle, never the executor
-  ([`../execution-models.md`](../execution-models.md) §2.2).
-- **The writers**: the FunctionalScript writer hoists exactly `shared` as
-  `const $n`, in table order, and the DataJS writer refuses JSON when `shared`
-  names a container.
+  value that sharing does not decide, and amnesia stays the proof oracle,
+  never the executor ([`../execution-models.md`](../execution-models.md)
+  §2.2). Where sharing decides the value, `===` over a shared constructor,
+  amnesia's `false` is its own and the memo executor's `true` is
+  JavaScript's; a proof of such a case pins both answers, not one against
+  the other.
+- **The writers**: the FunctionalScript writer hoists exactly the
+  module-level `shared`, in table order, and the DataJS writer refuses JSON
+  when `shared` names a container.
 
 The table replaces, for the EDAG-backed outputs, the sharing sweep in
 `fjs/fsc/ast`, whose route-following becomes the merge step here; the value
@@ -83,16 +100,19 @@ outputs keep it until they read the EDAG.
 
 ### Tasks
 
-- [ ] `fjs/edag/analysis`: the table over an `Exp` — nodes in evaluation order,
-      shared indices, one table per function body — with the merge of
+- [ ] `fjs/edag/analysis`: the table over an `Exp` — operation nodes in
+      evaluation order, the scope of each, shared indices — with the merge of
       identity-free nodes and no merge of constructors; proofs for a shared
       constructor, a shared access, two equal accesses, two equal constructors,
-      sharing inside a body against sharing outside, and a lazy operand.
+      a primitive taking no index, sharing inside a body against sharing
+      outside and a body inside a body, and a lazy operand.
 - [ ] Amnesia's operations factored into a table parameterized by the child
       evaluation, amnesia unchanged in behavior and its proofs green.
 - [ ] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`
       holds one array, that a body's node is fresh per call, and that a lazy
-      operand is evaluated only when demanded — each beside amnesia's answer.
+      operand is evaluated only when demanded — each beside amnesia's answer
+      where sharing does not decide it, and `['===', s, s]` pinned as `true`
+      here and `false` in amnesia.
 - [ ] The writers read the table: `functionalscript-output.md`'s `$n` hoisting
       from `shared`, the DataJS writer's JSON refusal from it.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
