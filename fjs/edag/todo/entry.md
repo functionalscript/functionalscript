@@ -103,6 +103,22 @@ two operators, each with one job.
   host function of arity `2`, and `entry.length` is `2` by definition.
   JavaScript reads the definition as the function it is, so the text means
   the same in both.
+- **The technique is general, and `entry` is its first instance.** A
+  built-in the program cannot name — a global object is a namespace, never
+  a value — is delivered as a function the program defines, in three parts
+  that are the same every time: the source form is a definition matched
+  whole as a fixed token shape with identifier placeholders, so the parser
+  needs none of the general features the definition uses and nothing
+  inside the fixed body can leak; the node is nullary and its value is the
+  function, arity by definition, identity like `=>`, standing anywhere a
+  value can, every use an ordinary call, one host function in the executor
+  and one operation in the native VM; and the built-in it wraps exists
+  nowhere else, which makes the wrapped semantics the only semantics. The
+  next such function — `hasEntry` over the same descriptor read, the
+  `Number` cast, the string and array functions
+  [`2360-built-in.md`](../../../spec/todo/2360-built-in.md) lists as
+  allowed — is one pattern, one `op0` node and one row in the table, and no
+  new rule.
 - **`name` is unobservable.** `.` refuses it statically, and `entry` reads
   `undefined` because `name` is not an entry, so no FunctionalScript program
   reads a function's `name`. `=>` carries no name, the graph stays
