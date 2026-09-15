@@ -223,14 +223,17 @@ export const proof = {
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.f.js'), 'export default 1;')
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.json'), '1')
         },
+        // what the export does not reach is anchored by the comma operation,
+        // so the graph holds it where the value outputs refuse the module or
+        // drop the value: `n.x` on a `null` fails `run`, and is a node here
+        anchored: () => {
+            assertEq(compileSource('const a = []; export default 1;')('output.edag.f.js'), 'export default [",",[["[]",[]],1]];')
+            assertEq(compileSource('const n = null; const check = n.x; export default 1;')('output.edag.f.js'), 'export default [",",[[".",null,"x"],1]];')
+            assertEq(moduleRefused('const n = null; const check = n.x; export default 1;'), 'input.f.js - error: cannot read property "x" of null')
+        },
         // a program the linker refuses is reported against the input, as a
-        // parse error is, and nothing is written; a missing import likewise
+        // parse error is, and nothing is written: a missing import
         refused: () => {
-            const root = { 'input.f.js': [utf8('const a = []; export default 1;')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.f.js']))
-            assertEq(exitCode(code), 1)
-            assertEq(state.stderr.trim(), 'input.f.js - error: unreachable const 0')
-            assertEq(state.root['output.edag.f.js'], undefined)
             const missing = { 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')] }
             const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.f.js']))
             assertEq(exitCode(missingCode), 1)

@@ -6,7 +6,7 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Unreached } from './types.ts'
+ * @import { AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
  * @import { _Node, _Reach, _Ref, _Routes, _RunState } from './private.ts'
  */
 
@@ -226,26 +226,68 @@ const argStep = (args, { ref: [kind, i] }) => kind === 'aref' ? args | bit(i) : 
 /** The indices a set of `n` leaves out. @type {(set: bigint) => (n: number) => readonly number[]} */
 const missing = set => n => Array.from({ length: n }, (_, i) => i).filter(i => (set & bit(i)) === 0n)
 
+/** Whether an entry is a bare reference: a `const` naming another entry or an import is that node, not a node of its own. @type {(ast: AstConst) => boolean} */
+const isAlias = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'cref' || ast[0] === 'aref')
+
+/** The first import standing for the same node as import `k`, which `imports` says by identity. @type {(imports: readonly unknown[]) => (k: number) => AstModuleRef} */
+const importNode = imports => k => ['aref', imports.indexOf(imports[k])]
+
 /**
- * What the export does not reach, by index: the body entries no chain of
- * references from the last entry leads to, and the imports likewise — the
- * sweep {@link sharing} runs, read for what it left out. `run` evaluates
- * every entry and `transpile` reads every import whether the export reaches
- * them or not, so a compiler that follows references alone would drop what
- * this names, and asks first.
+ * One entry's node as a reference: the entry itself, or through an alias
+ * the node it names — an alias names an earlier entry, so its node is known
+ * by the time the fold arrives at it.
+ *
+ * @type {(imports: readonly unknown[]) => (ast: AstConst, i: number, nodes: readonly AstModuleRef[]) => AstModuleRef}
+ */
+const nodeOf = imports => (ast, i, nodes) => {
+    if (ast === null || typeof ast !== 'object') { return ['cref', i] }
+    switch (ast[0]) {
+        case 'cref': { return nodes[ast[1]] }
+        case 'aref': { return importNode(imports)(ast[1]) }
+        default: { return ['cref', i] }
+    }
+}
+
+/** @type {(imports: readonly unknown[]) => (nodes: readonly AstModuleRef[], ast: AstConst, i: number) => readonly AstModuleRef[]} */
+const nodeEntry = imports => (nodes, ast, i) => [...nodes, nodeOf(imports)(ast, i, nodes)]
+
+/** A reference by the node it reaches, aliases and imports resolved. @type {(imports: readonly unknown[], nodes: readonly AstModuleRef[]) => (r: _Ref) => _Ref} */
+const resolved = (imports, nodes) => ({ ref, keys }) => ({ ref: ref[0] === 'cref' ? nodes[ref[1]] : importNode(imports)(ref[1]), keys })
+
+/**
+ * What an EDAG of the module anchors, by index: exactly the code the graph
+ * would not otherwise hold — the body entries no chain of references from
+ * the export leads to, and the imports likewise, the sweep {@link sharing}
+ * runs read for what it left out, less what those entries reach
+ * themselves, which the graph holds through them. `run` evaluates every
+ * entry and `transpile` reads every import whether the export reaches them
+ * or not, so a compiler that follows references alone would drop what this
+ * names, and anchors it instead.
+ *
+ * Counted by node, not by entry, since it is the graph that holds or lacks
+ * a node: a `const` that is a bare reference is the node it names and is
+ * no code of its own, and two imports are one node where `imports` holds
+ * one value for both — as the linker binds two imports of one module — so
+ * `const b = a; export default a;` anchors nothing, and `const c = [a]`
+ * beside the alias anchors `c` alone.
  *
  * A member a later duplicate shadows counts here where it does not for
  * sharing: the value drops it, but an EDAG's object constructor applies
  * every member written and evaluates each, so what its reference names is
  * in the graph, not dropped.
  *
- * @type {(module: AstModule) => Unreached}
+ * @type {(module: AstModule) => (imports: readonly unknown[]) => Anchors}
  */
-export const unreached = ([specifiers, body]) => {
+export const anchors = ([specifiers, body]) => imports => {
+    const nodes = body.reduce(nodeEntry(imports), [])
     const { reachable, refs } = reach(memberValuesWritten)(body)
+    const unreached = missing(reachable)(body.length).filter(i => !isAlias(body[i]))
+    const within = map(resolved(imports, nodes))(flat(unreached.map(i => refsOf(memberValuesWritten)(body[i]))))
+    const reachedWithin = toArray(within).reduce(reachStep, 0n)
+    const reachedImports = toArray(concat(map(resolved(imports, nodes))(refs))(within)).reduce(argStep, 0n)
     return {
-        consts: missing(reachable)(body.length),
-        imports: missing(toArray(refs).reduce(argStep, 0n))(specifiers.length),
+        consts: unreached.filter(i => (reachedWithin & bit(i)) === 0n),
+        imports: missing(reachedImports)(specifiers.length).filter(k => imports.indexOf(imports[k]) === k),
     }
 }
 

@@ -9,7 +9,6 @@
  * @import { AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
  * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
- * @import { Result } from '../../types/result/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
@@ -18,10 +17,9 @@
  * @import { _Binding, _Link, _Nodes } from './private.ts'
  */
 
-import { unreached } from '../ast/module.f.mjs'
+import { anchors } from '../ast/module.f.mjs'
 import { _attributeError, _importPath, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
-import { error, mapOk, ok } from '../../types/result/module.f.mjs'
-import { foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
@@ -62,32 +60,33 @@ const lower = nodes => ast => {
 /** @type {(parameters: readonly Exp[]) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]} */
 const entry = parameters => (consts, ast) => [...consts, lower({ parameters, consts })(ast)]
 
-/** A refusal with no position: the module parsed, and what it lacks has no token. @type {(message: string) => Result<never, ParseError>} */
-const refuse = message => error({ message, metadata: null })
-
 /**
- * The module as an EDAG over the nodes given for its imports, or the
- * refusal. The body is lowered entry by entry, each `cref` taking the node
- * of the entry it names, and the last entry's node is the export.
+ * The module as an EDAG over the nodes given for its imports. The body is
+ * lowered entry by entry, each `cref` taking the node of the entry it
+ * names, and the last entry's node is the export.
  *
- * Refused is a module whose export does not reach every import and every
- * `const`: `transpile` reads each import and `run` evaluates each entry
- * whether the export needs them or not, so a missing file or a bad module
- * behind an unused import fails the compile today, and an EDAG that follows
- * references alone would drop it without a word. The issue keeps that
- * behaviour by refusing the module until EDAG can anchor a computation
- * whose value nothing takes; nothing decides here whether the dropped
- * part could fail, only whether it is reached.
+ * What the export does not reach is anchored, not dropped: `transpile`
+ * reads each import and `run` evaluates each entry whether the export needs
+ * them or not, so a missing file or a bad module behind an unused import
+ * fails the compile, and an EDAG that followed references alone would drop
+ * it without a word. The comma operation is the anchor — `[',', [...roots,
+ * exported]]`, every operand evaluated and the last one's value taken — its
+ * operands the roots of the unreached part in source order, the imports
+ * before the entries, each a node the graph would not otherwise hold — an
+ * alias is the node it names, and two imports bound to one module are one
+ * node, which `imports` says by identity;
+ * nothing decides here whether an anchored part could fail, only whether it
+ * is reached. A module the export reaches entirely is its export's node.
  *
- * @type {(imports: readonly Exp[]) => (module: AstModule) => Result<Exp, ParseError>}
+ * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
  */
 const lowered = imports => module => {
-    const [specifiers, body] = module
-    const { consts, imports: unbound } = unreached(module)
-    if (unbound.length !== 0) { return refuse(`unreachable import "${specifiers[unbound[0]].specifier}"`) }
-    if (consts.length !== 0) { return refuse(`unreachable const ${consts[0]}`) }
-    const nodes = body.reduce(entry(imports), [])
-    return ok(nodes[nodes.length - 1])
+    const nodes = module[1].reduce(entry(imports), [])
+    const exported = nodes[nodes.length - 1]
+    const { consts, imports: unbound } = anchors(module)(imports)
+    return unbound.length === 0 && consts.length === 0
+        ? exported
+        : [',', [...unbound.map(i => imports[i]), ...consts.map(i => nodes[i]), exported]]
 }
 
 /** @type {(imports: readonly AstImport[]) => (edag: Exp) => Unresolved} */
@@ -98,9 +97,9 @@ const over = imports => edag => ({ imports, edag })
  * import is its parameter node, and the specifiers ride beside the graph
  * for the resolution to read.
  *
- * @type {(module: AstModule) => Result<Unresolved, ParseError>}
+ * @type {(module: AstModule) => Unresolved}
  */
-export const unresolved = module => mapOk(over(module[0]))(lowered(module[0].map(parameter))(module))
+export const unresolved = module => over(module[0])(lowered(module[0].map(parameter))(module))
 
 // ── resolution ────────────────────────────────────────────────────────────────
 
@@ -157,10 +156,7 @@ const sourceOf = path => ({ specifier, json }) => ({ path: _importPath(path)(spe
  */
 const linkModule = path => context => module => step(
     foldStep(pureOk(module[0].map(sourceOf(path))), { context, bound: [] }, linkImport),
-    ({ context: linked, bound }) => pure(mapOk(completed(path)(linked))(inModule(path)(lowered(bound)(module)))))
-
-/** A refusal of a module named for the module, which the refusal alone does not know. @type {(path: string) => (result: Result<Exp, ParseError>) => Result<Exp, ParseError>} */
-const inModule = path => result => result[0] === 'error' ? error({ ...result[1], path }) : result
+    ({ context: linked, bound }) => pureOk(completed(path)(linked)(lowered(bound)(module))))
 
 /**
  * The file at `path` resolved to its EDAG within one link: a module met

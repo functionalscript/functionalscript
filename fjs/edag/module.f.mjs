@@ -444,13 +444,14 @@ export const optionCall = or(
  * ```
  *
  * Establishes all of its operands and takes the value of the last one; the
- * earlier operands exist for their throw-potential only. The shape is a
- * known-incomplete placeholder — it cannot yet say "at least two operands,
- * last is the result, each pre-result operand a true root (not reachable
- * from another operand of the same `,`)". A single-operand `,` is the
- * identity and a reachable operand a redundant anchor — both non-canonical,
- * each splitting one function into two hashes. See the header of
- * `./proof.f.mjs`.
+ * earlier operands exist for their throw-potential only — the anchors of
+ * computations whose value nothing takes. The shape says nothing of the
+ * contract, which the emitter keeps: at least two operands, the last the
+ * result, each earlier operand a true root, not reachable from another
+ * operand of the same `,`. A single-operand `,` is the identity and a
+ * reachable operand a redundant anchor — both non-canonical, each splitting
+ * one function into two hashes. `fjs/fsc/edag` emits it for what a module's
+ * export does not reach; see the Caveats of `./README.md`.
  */
 export const comma = /** @type {const} */ ([',', exps])
 
