@@ -105,4 +105,16 @@ export type Value = () => readonly ['const', {
     readonly ref: readonly [typeof identifier, typeof trivia, RepeatFrom<0, typeof access>]
     readonly array: Container<Value>
     readonly object: Container<Member>
+    readonly func: Func
 }]
+
+/** A function's body: a value less the object, since `=> {` opens a block in JavaScript. */
+export type Body = () => readonly ['const', {
+    readonly primitive: readonly [typeof primitive, typeof trivia]
+    readonly ref: readonly [typeof identifier, typeof trivia, RepeatFrom<0, typeof access>]
+    readonly array: Container<Value>
+    readonly func: Func
+}]
+
+/** `(`, trivia, `...`, trivia, the parameter, trivia, `)`, trivia, `=>`, trivia, and the body. */
+export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifier, typeof trivia, number, typeof trivia, number, typeof trivia, Body]

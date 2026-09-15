@@ -26,8 +26,19 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, or a property access. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstFunction|AstArgs
+
+/**
+ * A function of its arguments alone: `(...a) => body`, the body a value in
+ * which {@link AstArgs} is the arguments array and no `aref` or `cref`
+ * stands — a capture is refused where it is written, since a function
+ * has no frame yet. The EDAG's `['=>', null, body]`.
+ */
+export type AstFunction = readonly ['=>', AstConst]
+
+/** The arguments array of the function whose body holds it — the rest parameter, whatever it is named. The EDAG's `['args']`. */
+export type AstArgs = readonly ['args']
 
 /**
  * A reference to a value defined outside this `AstConst`.

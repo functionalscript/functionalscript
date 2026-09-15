@@ -45,7 +45,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Items, Member, Value } from './types.ts'
+ * @import { Body, Func, Items, Member, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -58,7 +58,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
  * mapped, and the backend synthesizes its own logical one.
  *
  * The names are the *token* vocabulary, not the tokenizer grammar's tag
- * vocabulary: only eight punctuators survive into `DjsToken`, so the JS
+ * vocabulary: only twelve punctuators survive into `DjsToken`, so the JS
  * operator set the tokenizer recognizes is far larger than what reaches
  * this layer.
  *
@@ -69,7 +69,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
  */
 export const _tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity', '-Infinity',
-    '{', '}', ':', ',', '[', ']', '.', '=', ';',
+    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -191,6 +191,37 @@ export const access = /** @type {const} */ ({
     index: [sym('['), trivia, index, trivia, sym(']'), trivia],
 })
 
+/** A primitive value, and its trivia. */
+const primitiveValue = /** @type {const} */ ([primitive, trivia])
+
+/** A reference, its trivia, and the accesses after it. */
+const reference = /** @type {const} */ ([identifier, trivia, repeatFrom0(access)])
+
+/**
+ * A function's body: a value, but not an object — after `=>` JavaScript
+ * reads `{` as a block, never as an object, so the spelling is refused
+ * rather than read another way — and not yet a block.
+ *
+ * @type {Body}
+ */
+export const body = () => ['const', {
+    primitive: primitiveValue,
+    ref: reference,
+    array,
+    func,
+}]
+
+/**
+ * A function: one rest parameter, `(...a)`, then `=>` and the body, which
+ * ends with its own trivia as every value does. The parameter is the
+ * arguments array, and the body names it and nothing outside — which
+ * names it may use is the fold's to say, since a name is a word the
+ * grammar does not see.
+ *
+ * @type {Func}
+ */
+export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), trivia, sym('=>'), trivia, body]
+
 /**
  * A value ends with its own trivia, so that a reference may be followed by
  * an access, which the trivia after the reference would otherwise have to
@@ -201,10 +232,11 @@ export const access = /** @type {const} */ ({
  * @type {Value}
  */
 export const value = () => ['const', {
-    primitive: [primitive, trivia],
-    ref: [identifier, trivia, repeatFrom0(access)],
+    primitive: primitiveValue,
+    ref: reference,
     array,
     object,
+    func,
 }]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */

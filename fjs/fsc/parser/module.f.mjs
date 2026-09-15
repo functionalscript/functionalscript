@@ -47,9 +47,9 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArray, AstConst, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstConst, AstFunction, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
- * @import { Items, Member, Value } from './grammar/types.ts'
+ * @import { Body, Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
@@ -62,7 +62,7 @@ import { keywords } from '../../js/keywords/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, value, values,
+    body, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, value, values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -296,10 +296,13 @@ const accessed = (base, round) => ['.', base, accessKey(round)]
 /**
  * A value is the node its branch made: a primitive converted from its
  * token, a reference by its token with each access after it applied in
- * turn, and a container of the items its list returned —
- * `[ open t [ items ] close t ]`, the list at the third position.
+ * turn, a container of the items its list returned —
+ * `[ open t [ items ] close t ]`, the list at the third position — and a
+ * function by the token naming its parameter, at the fifth position of
+ * `( t ... t id t ) t => t body`, and its body at the eleventh. A body is
+ * a value less the object, and its node is made the same way.
  *
- * @type {(node: Children<Value, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * @type {(node: Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = ([tag, branch]) => {
     switch (tag) {
@@ -315,6 +318,10 @@ const toNode = ([tag, branch]) => {
         }
         case 'object': {
             return symbol({ id: 'value', node: ['object', toArray(memberItems(unmapped(branch)[2]))] })
+        }
+        case 'func': {
+            const [, , , , name, , , , , , b] = unmapped(branch)
+            return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
         }
     }
 }
@@ -403,6 +410,7 @@ const toMembers = node => symbol({ id: 'members', items: membersOf(node) })
  */
 export const mappings = [
     map(value, toNode),
+    map(body, toNode),
     map(values, toValues),
     map(member, toMember),
     map(members, toMembers),
@@ -437,6 +445,12 @@ const duplicateId = foldError('duplicate id')
 
 /** A keyword where JavaScript wants an identifier, at the word. */
 const reservedWord = foldError('reserved word')
+
+/** A reference in a function's body to a name bound outside it, at the reference: a function has no frame yet. */
+const capture = foldError('capture not supported')
+
+/** The arguments of the function whose body is being resolved. @type {AstArgs} */
+const args = ['args']
 
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
@@ -568,72 +582,103 @@ const close = ([kind, members], done) => {
  * The next item of a container, its key checked first, or the container
  * closed when none is left.
  *
- * @type {(stack: _Stack, frame: _ContainerFrame) => _State}
+ * @type {(stack: _Stack, env: _Env, frame: _ContainerFrame) => _State}
  */
-const round = (stack, frame) => {
+const round = (stack, env, frame) => {
     const { container, index, done } = frame
-    if (index >= container[1].length) { return [stack, ok(close(container, toArray(done)))] }
+    if (index >= container[1].length) { return [stack, env, ok(close(container, toArray(done)))] }
     const rejected = badKey(container, index)
     return rejected === null
-        ? [{ top: frame, rest: stack }, ['enter', itemAt(container, index)]]
-        : [stack, error(rejected)]
+        ? [{ top: frame, rest: stack }, env, ['enter', itemAt(container, index)]]
+        : [stack, env, error(rejected)]
+}
+
+/**
+ * Whether a name is bound outside the function being resolved: bound by
+ * the names a function frame on the stack holds for after its body, which
+ * the body may not use — a function has no frame to capture with yet.
+ *
+ * @type {(stack: _Stack, word: string) => boolean}
+ */
+const bound = (stack, word) => {
+    for (let s = stack; s !== null; s = s.rest) {
+        if ('outer' in s.top && at(word)(s.top.outer) !== null) { return true }
+    }
+    return false
 }
 
 /**
  * Enters a node: a primitive is its value, a reference the binding `env`
- * holds for its name, an access its base under a frame holding the key,
- * and a container the first round of a new frame.
+ * holds for its name, an access its base under a frame holding the key, a
+ * container the first round of a new frame, and a function its body under
+ * a frame holding `env` — the body resolved against its parameter alone,
+ * so a reference to a name bound outside is a capture, refused where it is
+ * written, and a name it does not find anywhere is `const not found` as
+ * ever.
  *
- * @type {(env: _Env, stack: _Stack, node: Node) => _State}
+ * @type {(stack: _Stack, env: _Env, node: Node) => _State}
  */
-const enter = (env, stack, node) => {
+const enter = (stack, env, node) => {
     switch (node[0]) {
-        case 'primitive': { return [stack, ok(node[1])] }
+        case 'primitive': { return [stack, env, ok(node[1])] }
         case 'ref': {
             const [tag, word] = identifierOf(node[1])
-            if (tag === 'error') { return [stack, error(word)] }
+            if (tag === 'error') { return [stack, env, error(word)] }
             const ref = at(word)(env)
-            return [stack, ref === null ? error(constNotFound(node[1])) : ok(ref)]
+            if (ref !== null) { return [stack, env, ok(ref)] }
+            return [stack, env, error(bound(stack, word) ? capture(node[1]) : constNotFound(node[1]))]
         }
-        case '.': { return [{ top: { key: node[2] }, rest: stack }, ['enter', node[1]]] }
-        default: { return round(stack, { container: node, index: 0, done: null }) }
+        case '.': { return [{ top: { key: node[2] }, rest: stack }, env, ['enter', node[1]]] }
+        case '=>': {
+            const [tag, word] = identifierOf(node[1])
+            if (tag === 'error') { return [stack, env, error(word)] }
+            return [{ top: { outer: env }, rest: stack }, setReplace(word)(args)(empty), ['enter', node[2]]]
+        }
+        default: { return round(stack, env, { container: node, index: 0, done: null }) }
     }
 }
 
 /**
  * A value handed to the frame on top: the next round of a container with
- * the value among its items, or an access closed over its base.
+ * the value among its items, an access closed over its base, or a function
+ * closed over its body, the names bound outside it in force again.
  *
- * @type {(stack: _Stack, frame: _Frame, value: AstConst) => _State}
+ * @type {(stack: _Stack, env: _Env, frame: _Frame, value: AstConst) => _State}
  */
-const returned = (stack, frame, value) => 'container' in frame
-    ? round(stack, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
-    : [stack, accessClosed(frame.key, value)]
+const returned = (stack, env, frame, value) => {
+    if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('key' in frame) { return [stack, env, accessClosed(frame.key, value)] }
+    /** @type {AstFunction} */
+    const fn = ['=>', value]
+    return [stack, frame.outer, ok(fn)]
+}
 
 /**
  * The value a node denotes under `env`, or the first error met in document
- * order: a reference to a keyword or to a name `env` does not bind, a plain
- * `__proto__` key, or an access naming the prototype chain.
+ * order: a reference to a keyword, to a name bound outside the function
+ * being resolved, or to a name nothing binds, a plain `__proto__` key, or
+ * an access naming the prototype chain.
  *
  * Over an explicit stack: a frame per container being built, its items
- * resolved in order, so that a value nested as deep as the input allows
- * costs no call stack.
+ * resolved in order, and per function, its body resolved under its own
+ * names, so that a value nested as deep as the input allows costs no call
+ * stack.
  *
  * @type {(env: _Env) => (root: Node) => Result<AstConst, ParseError>}
  */
 const evaluate = env => root => {
     /** @type {_State} */
-    let state = [null, ['enter', root]]
+    let state = [null, env, ['enter', root]]
     while (true) {
-        const [stack, [tag, payload]] = state
+        const [stack, scope, [tag, payload]] = state
         if (tag === 'enter') {
-            state = enter(env, stack, payload)
+            state = enter(stack, scope, payload)
         } else if (tag === 'error') {
             return error(payload)
         } else if (stack === null) {
             return ok(payload)
         } else {
-            state = returned(stack.rest, stack.top, payload)
+            state = returned(stack.rest, scope, stack.top, payload)
         }
     }
 }
@@ -643,7 +688,7 @@ const evaluate = env => root => {
  * `import` and `const` share the one map, so a name taken by either is
  * taken for both.
  *
- * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef) => Result<_Env, ParseError>}
+ * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef | AstArgs) => Result<_Env, ParseError>}
  */
 const bind = env => (name, ref) => {
     const [tag, word] = identifierOf(name)

@@ -22,7 +22,9 @@ it, so `a.toString` is `undefined` here where JavaScript finds a function;
 base is the one failure a data module can make, reported as JavaScript's
 throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. Across modules the sweep is coarser: a module whose own value
+node it is. A function, `(...a) => body`, is accepted for the EDAG output
+alone — see below — and refused by the value outputs, since a value has no
+function in it. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
@@ -92,6 +94,13 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
+A function is `['=>', null, body]`: no frame yet, and the body a scope of
+its own, in which the rest parameter is `['args']` — one node however many
+references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
+nothing outside stands: a reference to a `const`, an import or an enclosing
+function's parameter is a capture, refused where it is written, so no module
+node is ever shared into a body. The body is a value but an object, since
+`=> {` opens a block in JavaScript, and there is no call yet.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
