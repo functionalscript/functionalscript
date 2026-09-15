@@ -54,9 +54,12 @@ property-access, function, prototype-name and literal-access work:
 - Check the other documents that lean on the DJS name —
   [`fjs/fsc/README.md`](../fjs/fsc/README.md), the parser's README and module
   docs, [`spec/todo/README.md`](../spec/todo/README.md), which sorts its
-  roadmap into a DJS section — and rename or reword them the same way, in the
-  same PR where the reference is only a name and in a follow-up where it
-  carries a decision.
+  roadmap into a DJS section, and the paragraph of
+  [`spec/datajs/README.md`](../spec/datajs/README.md) (Status) that explains
+  the two uses of "DJS", which has nothing left to explain once the wider use
+  is gone — and rename, reword or remove them the same way, in the same PR
+  where the reference is only a name and in a follow-up where it carries a
+  decision.
 
 ### Tasks
 
@@ -66,7 +69,8 @@ property-access, function, prototype-name and literal-access work:
 - [ ] Module Structure states that a module is a function, and the scope
       sentences elsewhere point at it.
 - [ ] Rename the DJS sections of `spec/todo/README.md` and the DJS names in
-      `fjs/fsc` docs where they are only names.
+      `fjs/fsc` docs where they are only names; remove the two-uses paragraph
+      from `spec/datajs/README.md`.
 - [ ] Broken-link sweep unchanged; `npm run gen` unchanged.
 
 ### Related

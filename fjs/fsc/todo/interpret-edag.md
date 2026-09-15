@@ -127,7 +127,9 @@ hardening TODO after the baseline interpreter exists.
       graphs disjoint while allowing sharing inside one body.
 - [ ] Return the interpreted value for a valid final EDAG.
 - [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
-      `transpile` / `fjs compile` path without changing its success result/output.
+      `transpile` / `fjs compile` path without changing its success result/output
+      for the value outputs, `.data.js` and `.json`; the `.f.js` output is the
+      writer's, per `functionalscript-output.md`.
 - [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [ ] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
@@ -150,8 +152,9 @@ hardening TODO after the baseline interpreter exists.
       final EDAG and then interpreted produces the same final value as the current DJS
       transpiler.
 - [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
-      result — the `Denotation`, value and sharing alike — and `fjs compile` output
-      remain unchanged after switching their internals to final-EDAG interpretation.
+      result — the `Denotation`, value and sharing alike — and the `.data.js` and
+      `.json` outputs of `fjs compile` remain unchanged after switching their
+      internals to final-EDAG interpretation.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
