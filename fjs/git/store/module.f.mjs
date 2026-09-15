@@ -121,6 +121,13 @@ export const objectsDir = dir => under(dir, 'objects')
 const alternatesPath = od => under(od, join('info', 'alternates'))
 
 /**
+ * What {@link alternateLine} answers for a line naming a byte this layer cannot
+ * spell, told from a path by identity rather than by its text — a path may be
+ * any string at all, so no string could stand for a refusal.
+ */
+const refused = /** @type {const} */ (['refused'])
+
+/**
  * One line of an `objects/info/alternates`, unquoted where it is quoted, or
  * `null` where the line names nothing: it is empty, or it is a comment.
  *
@@ -147,12 +154,16 @@ const alternatesPath = od => under(od, join('info', 'alternates'))
  *   So the unquoting is attempted and the line used as it stands where it does
  *   not succeed, which is why this answers the raw line rather than a refusal.
  *
- * @type {(line: string) => Nullable<string>}
+ * @type {(line: string) => Nullable<string | typeof refused>}
  */
-const alternateLine = line =>
-    line.length === 0 || line.startsWith('#') ? null
-        : line.startsWith('"') ? unquoted(line) ?? line
-        : line
+const alternateLine = line => {
+    if (line.length === 0 || line.startsWith('#')) { return null }
+    if (!line.startsWith('"')) { return line }
+    const u = unquoted(line)
+    if (u === null) { return line }
+    const [text, high] = u
+    return high ? refused : text
+}
 
 /**
  * The single-character escapes Git's own `unquote_c_style` decodes, as a map
@@ -182,37 +193,17 @@ const octalAt = (line, i) =>
         : null
 
 /**
- * Whether an octal escape in `line` names a byte above ASCII.
+ * A C-quoted line decoded and whether its escapes named a byte above ASCII, or
+ * `null` where it is not a quoted line — an unterminated quote, an escape that
+ * is not a character Git decodes, or a short octal escape.
  *
- * Asked because an escape of `\200` or above names a *byte*, and a byte above
- * ASCII is a path this layer cannot spell — see {@link alternatesCode}. The
- * decoded string would hold one character of that value, which the host encodes
- * as two UTF-8 bytes, so the directory opened would not be the directory the
- * file names. The whole-file check on the bytes cannot see it, because a line
- * spelling a byte in octal is plain ASCII itself. Git has no such trouble:
- * `"/tmp/\377/objects"` makes it open a path holding the byte `0xFF`.
- *
- * Whether, and not which: one such escape is enough to refuse the file, so a
- * largest is a number nothing would read.
- *
- * @type {(line: string) => boolean}
- */
-const hasHighOctal = line => {
-    let i = 0
-    while (true) {
-        const at = line.indexOf('\\', i)
-        if (at === -1) { return false }
-        const v = octalAt(line, at + 1)
-        if (v !== null && v > 0x7F) { return true }
-        // an escape is two characters at least, so a `\\` cannot have its second
-        // backslash read as the start of another
-        i = at + 2
-    }
-}
-
-/**
- * A C-quoted line decoded, or `null` where it is not one — an unterminated
- * quote, an escape that is not a character Git decodes, or a short octal escape.
+ * **The byte is reported from the decoding and not from the text**, because only
+ * an escape this actually consumed names one. A `\377` in a comment, in an
+ * unquoted line, or after the closing quote is four ordinary characters that Git
+ * reads as a path, and a scan over the raw line would refuse all three. A
+ * non-ASCII *character* in the line is not one either: it is already UTF-8, the
+ * host writes back the bytes it came from, and the whole-file check has passed
+ * it — see {@link alternatesCode}.
  *
  * `null` is not a refusal here: {@link alternateLine} takes the line verbatim
  * instead, because that is what Git does with a line whose unquoting fails.
@@ -223,15 +214,16 @@ const hasHighOctal = line => {
  * at exit 0 — while also reporting a second entry Git made of the remainder, a
  * meaning this does not invent for it.
  *
- * @type {(line: string) => Nullable<string>}
+ * @type {(line: string) => Nullable<readonly [string, boolean]>}
  */
 const unquoted = line => {
     let out = ''
+    let high = false
     let i = 1
     while (true) {
         if (i === line.length) { return null }
         const c = line[i]
-        if (c === '"') { return out }
+        if (c === '"') { return [out, high] }
         if (c !== '\\') {
             out += c
             i += 1
@@ -248,6 +240,7 @@ const unquoted = line => {
         const v = octalAt(line, i + 1)
         if (v === null) { return null }
         out += String.fromCharCode(v)
+        high = high || v > 0x7F
         i += 4
     }
 }
@@ -280,11 +273,9 @@ const unquoted = line => {
  * @type {(od: string, text: string) => Nullable<readonly string[]>}
  */
 export const alternatesIn = (od, text) => {
-    const lines = text.split('\n')
-    if (lines.some(hasHighOctal)) { return null }
-    return lines
-        .map(alternateLine)
-        .filter(l => l !== null)
+    const named = text.split('\n').map(alternateLine)
+    if (named.includes(refused)) { return null }
+    return /** @type {readonly string[]} */ (named.filter(l => l !== null && l !== refused))
         .map(l => root(l) === '' ? under(od, l) : l)
 }
 

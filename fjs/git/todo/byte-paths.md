@@ -33,6 +33,14 @@ would put one *character* of that value in the string and the host would write
 it back as two bytes. `alternatesIn` refuses an octal escape above `\177` for
 that reason, which is the same limit reached by a second road.
 
+It refuses one the *quoting decodes*, and nothing else. In a comment, in an
+unquoted line, or after a closing quote, `\377` is four ordinary characters that
+Git reads as part of a path — measured at exit 0 for all three — and refusing
+them would take a repository Git reads and make it unreadable, which is the
+failure this limit exists to avoid rather than one to commit. A path that is
+merely not ASCII is not affected at all: it is already UTF-8, and the host
+writes back the bytes it came from.
+
 **There is nowhere for a warning to go, which is the other half.** Git reports
 an unusable alternate — `error: object directory … does not exist; check
 .git/objects/info/alternates` — and carries on. `store` carries on too, because

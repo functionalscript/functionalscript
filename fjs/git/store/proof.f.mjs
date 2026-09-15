@@ -499,6 +499,20 @@ export const proof = {
         // and `\\` is an escape of its own: its second backslash does not start
         // another, so this names no byte above ASCII and spells a path
         assertStructurallySame(alternatesIn('od', '"/a\\\\377b"'), ['/a\\377b'])
+        // A byte is named only where the quoting *decodes* one. Everywhere else
+        // `\377` is four ordinary characters, and Git reads all three of these
+        // at exit 0 — measured on Git 2.43.0 with a second line naming the
+        // donor, which was read every time.
+        assertStructurallySame(
+            alternatesIn('od', '# \\377\n/a/objects\n'),
+            ['/a/objects'])
+        assertStructurallySame(
+            alternatesIn('od', '/tmp/\\377/objects'),
+            ['/tmp/\\377/objects'])
+        assertStructurallySame(alternatesIn('od', '"/a"\\377'), ['/a'])
+        // and a path that is simply not ASCII is not a byte this cannot spell:
+        // it is already UTF-8, so the host writes back the bytes it came from
+        assertStructurallySame(alternatesIn('od', '/tmp/é/objects'), ['/tmp/é/objects'])
         const [, r] = runHost(objectsDirs('octal'))
         assert(r[0] === 'error')
         const e = r[1]
