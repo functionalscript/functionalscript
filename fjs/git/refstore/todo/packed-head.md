@@ -62,7 +62,8 @@ refusal and not by a wrong answer.
 
 ### Related
 
-- [`reflog-roots.md`](reflog-roots.md) — the other half of "not every root Git
-  has", and the same kind of gap: a root this list does not name.
+- [`reflog-roots.md`](reflog-roots.md) — the rest of "not every root Git has":
+  a reflog entry and the index each keep an object this list does not name, and
+  this issue is a third kind of gap, one it names and cannot carry.
 - [`symlink-head.md`](symlink-head.md) — the other refusal that is narrower than
   Git for a `HEAD` this module cannot read faithfully.

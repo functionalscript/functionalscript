@@ -44,8 +44,11 @@ what a grammar can and cannot do for the formats.
   rather than by being good, so a loose file that is no ref leaves the name
   with no value instead of the packed one; and a symbolic ref is followed
   five lookups and no further, which is Git's bound and what catches a ref
-  pointing at itself. A file under `refs/` whose name is no ref name is
-  skipped in silence, as Git's own walk skips it.
+  pointing at itself. A file under `refs/` whose name is no ref name gets one
+  of the two answers Git gives: the two file-name conventions its own walk
+  skips — a component beginning with `.`, one ending in `.lock` — are skipped
+  in silence, and every other broken name refuses the whole listing, which is
+  Git's `bad ref`, measured.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
   block: `object`, `type`, `tag` and `tagger` as functions over the header
   list, read by position as Git reads them, and a `validate`.
