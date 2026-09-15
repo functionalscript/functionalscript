@@ -357,6 +357,13 @@ export const proof = {
             assertEq(compileSource('const x = []; export default [x, [x]][1];')('output.json'), '[[]]')
             assertEq(compileSource('const x = []; export default { a: [x, x], a: 1 }.a;')('output.json'), '1')
             assertEq(compileSource('const x = []; export default [[x, x]].length;')('output.json'), '1')
+            // an item selected from a literal may be an access itself, on a
+            // literal or on a reference, and is read on to what it names
+            assertEq(jsonRefused('const x = []; const z = [x, x]; export default [{ a: z }.a][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const x = []; export default [[{ a: [x, x] }.a]][0][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const x = []; const z = { a: [x, x] }; export default [z.a][0];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; const z = [x, x]; export default [{ a: z, b: 1 }.b][0];')('output.json'), '1')
+            assertEq(compileSource('const x = []; const z = { a: [x, x], b: 2 }; export default [z.b][0];')('output.json'), '2')
         },
         leafTwice: () => {
             assert(!sharedOf({ 'a.f.js': [utf8('const a = 1; export default [a, a];')] })('a.f.js'))

@@ -339,21 +339,25 @@ const literalAt = (ast, key) => ast[0] === 'object'
 /**
  * What an access denotes once the keys that select inside a literal are
  * applied, for the value's view: the literal's item the key names, through
- * a chain of accesses — `[[x, x], 0][0]` is `[x, x]` — `undefined` where
- * the literal has none or the base is a primitive, and the access itself
- * on a reference, whose value the syntax does not hold.
+ * a chain of accesses — `[[x, x], 0][0]` is `[x, x]` — and through an
+ * access the item itself is, `[{ a: z }.a][0]` being `z`; `undefined`
+ * where the literal has none or the base is a primitive; and the access
+ * itself where the chain reaches a reference, whose value the syntax does
+ * not hold — an access on a reference, on an access on one, and so on.
  *
  * @type {(ast: AstAccess) => AstConst}
  */
 const selected = ast => {
-    const under = ast[1]
-    const base = under !== null && typeof under === 'object' && under[0] === '.' ? selected(under) : under
+    const base = selectedOf(ast[1])
     if (base === null || typeof base !== 'object') { return undefined }
-    if (isContainerLiteral(base)) { return literalAt(base, `${ast[2]}`) }
+    if (isContainerLiteral(base)) { return selectedOf(literalAt(base, `${ast[2]}`)) }
     /** @type {AstAccess} */
     const access = ['.', base, ast[2]]
     return access
 }
+
+/** A node as the value's view reads it: an access {@link selected}, anything else itself. @type {(ast: AstConst) => AstConst} */
+const selectedOf = ast => ast !== null && typeof ast === 'object' && ast[0] === '.' ? selected(ast) : ast
 
 /** The syntax as the EDAG evaluates it: every member written, and a literal whole before it is read. @type {_View} */
 const written = { members: memberValuesWritten, through: ast => ast }
