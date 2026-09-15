@@ -51,8 +51,13 @@ source means:
   `{ ["constructor"]: (...$a) => 5 }["constructor"]`. The writer uses the
   pattern wherever its own binding would not infer the name — a hoisted
   `$0`, a name that is not an identifier, a computed one, `""` — and
-  `const f = (...$a) => 5` where it would. JavaScript reads the pattern as
-  it reads any computed key, so the text means the same in both.
+  `const f = (...$a) => 5` where it would; a name operand that is a node,
+  a constant's call, is hoisted into a `const` first so the pattern can
+  reference it, shared or not, as the writer hoists a numeric base
+  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)),
+  and inside a body that hoist waits on body constants. JavaScript reads
+  the pattern as it reads any computed key, so the text means the same in
+  both.
 - **Hashing.** The graph is no longer fully name-erased: a function's own
   name is part of what it denotes, since a program can read it, and so part
   of its hash. Binding names stay erased.

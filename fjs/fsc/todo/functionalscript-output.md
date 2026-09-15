@@ -127,9 +127,14 @@ accepts, so that compiling the output again yields the same EDAG:
   `['.', 1, 'x']`, which `1.x` cannot spell — and a function — `f.length`
   with `f` exporting `(...a) => a` links to `['.', ['=>', null, ['args']], 'length']`,
   which `(...$a) => $a.length` would read as a body access. Such a base is
-  hoisted, `const $0=1;` and `$0.x`, whether or not it is shared: the one
-  hoist the writer makes for the grammar's sake, and the recompiled node is
-  the same access on the same base. That hoist is a module-level spelling:
+  hoisted, `const $0=1;` and `$0.x`, whether or not it is shared: a hoist
+  the writer makes for the grammar's sake, and the recompiled node is the
+  same access on the same base. A function's name operand that is a node
+  rather than a primitive — `const k = makeKey()` as the name — is hoisted
+  for the same reason, since the named-function pattern's key must be a
+  literal or a reference
+  ([`function-name.md`](../../edag/todo/function-name.md)). That hoist is a
+  module-level spelling:
   inside a body it would move a function's constructor to the module's
   scope, and a hoisted number would be read back as a capture, so a numeric
   or function base inside a body is refused, as a shared constructor there
@@ -175,7 +180,8 @@ contract stays for `.data.js` and `.json`, which are values.
       refusal does: a comma anywhere but the root, an object-literal body, a
       identity-minting node shared within a body, a numeric or function base
       within a body, an identity-minting node reached only through lazy edges,
-      a `NaN` key, an object key that is not a string, a node kind
+      a `NaN` key, an object key that is not a string, a function name that
+      is a node within a body, a node kind
       without a spelling.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
