@@ -384,6 +384,10 @@ export const proof = {
             assertEq(compileSource('const x = []; const a = { a: [x, x], b: 1 }.b; export default [a, 1];')('output.json'), '[1,1]')
             assertEq(compileSource('const a = [[1, 2]][0]; export default [a[0], a[1]];')('output.json'), '[1,2]')
             assertEq(compileSource('const x = []; const a = { a: [x, 1] }.a; export default [a[1], x];')('output.json'), '[1,[]]')
+            // a route into a `const` whose entry selects an item that is an
+            // access itself reads that item on too
+            assertEq(jsonRefused('const x = []; const a = [{ b: [x, x] }.b][0]; export default [a[0], x];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('const x = []; const a = [{ b: [x, 1] }.b][0]; export default [a[1], x];')('output.json'), '[1,[]]')
         },
         leafTwice: () => {
             assert(!sharedOf({ 'a.f.js': [utf8('const a = 1; export default [a, a];')] })('a.f.js'))
