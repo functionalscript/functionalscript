@@ -5,25 +5,34 @@
 
 ### Problem
 
-[`fjs/git/store`](../store/module.f.mjs) takes an id and gives the
-`Envelope` the object is, as the Proposal below asks, so the first half of
-this is done — for loose objects, and at a directory the caller spells.
-[`fjs/git/walk`](../walk/module.f.mjs) is the walk both consumers under
-[`todo/`](../../../todo/) needed — a commit to its tree, a tree to its
-entries, an entry to a blob — over whatever reads objects, and
-[`fjs/git/repo`](../repo/module.f.mjs) finds that directory from a
-worktree of any kind, so a caller no longer has to know which directory
-`objects/` sits in when a worktree is linked. What is left is under the
-store rather than over it: an id in a pack, since a caller should not have
-to know that an id `ab12…` lives at `objects/ab/12…` if it is loose and
-elsewhere if it is packed, and the directories `alternates` adds to the
-search.
+[`fjs/git/store`](../store/module.f.mjs) takes an id and gives the `Envelope`
+the object is, as the Proposal below asks, from either place an object lives:
+the loose file, and the packs below `objects/pack/` through
+[`fjs/git/packstore`](../packstore/module.f.mjs). A caller no longer has to know
+that an id `ab12…` sits at `objects/ab/12…` when it is loose and somewhere in a
+pack when it is not. [`fjs/git/walk`](../walk/module.f.mjs) is the walk both
+consumers under [`todo/`](../../../todo/) needed — a commit to its tree, a tree
+to its entries, an entry to a blob — over whatever reads objects, and
+[`fjs/git/repo`](../repo/module.f.mjs) finds the directory to read at from a
+worktree of any kind.
+
+Two things are left, and both are about where a store may look rather than what
+it can read:
+
+- the directories `objects/info/alternates` adds, which a store searches after
+  its own, so that an id in a borrowed object store is found;
+- a `refDelta` whose base is not in the pack that names it, which `packstore`
+  refuses rather than guess at — the base may be loose, in another pack, or
+  nowhere, and only a reader of the whole store can say. See
+  [packfiles.md](./packfiles.md).
 
 ### Proposal
 
 - `read(id)`: the loose path first, then every pack the directory holds,
   answering the `Envelope` or refusing with a channel error that names the
-  id. Finding the directory was its own step and is done:
+  id. Done for one directory, and it is where the two things left above would
+  land — a base outside the pack that names it, and a second directory to
+  search. Finding the directory was its own step and is done:
   [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir` takes a worktree
   of any kind to the common directory `objects/` lives in, by the one rule
   Git uses — `.git` is the repository or a file whose `gitdir:` line names
@@ -60,7 +69,18 @@ search.
       and `oidBytes` in [`fjs/git/store`](../store/module.f.mjs).
 - [x] `tryRead(id)` over loose objects, with the id check on read, in
       `fjs/git/store`.
-- [ ] `tryRead` over packs once [packfiles.md](./packfiles.md) lands.
+- [x] `tryRead` over packs: [`fjs/git/packstore`](../packstore/module.f.mjs)
+      answers from the `.idx` and the pack beside it, and
+      [`fjs/git/store`](../store/module.f.mjs) reads the loose file first and
+      the packs where it cannot answer. That is *not* Git's order — measured on
+      Git 2.43.0, a file of garbage planted at a packed object's loose path
+      leaves `git cat-file -p` printing the object and only `git fsck`
+      complaining, so Git asks its packs first. The same answers come out of
+      either order, since an object is the same object wherever it is stored
+      and the id is checked against whichever copy answered; this one is
+      cheaper, because an index is hashed whole when it is opened and asking
+      the packs first would pay that on every read of a repository whose
+      objects are loose.
 - [x] The common directory found: a linked worktree's `gitdir` and
       `commondir`, in [`fjs/git/repo`](../repo/module.f.mjs).
 - [ ] `alternates`: the directories `objects/info/alternates` adds, which

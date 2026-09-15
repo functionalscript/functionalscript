@@ -9,7 +9,7 @@ import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1, packIdx1, packIdx2 } from '../testlib.f.mjs'
-import { offsetOf, tryIdx } from './module.f.mjs'
+import { after, holdsEntryAt, offsetOf, tryIdx } from './module.f.mjs'
 
 const read = tryIdx(20)
 
@@ -233,6 +233,43 @@ export const proof = {
     },
     // The lookup finds every id the pack holds, at either version, and
     // answers nothing for an id it does not.
+    // Where the entry beginning at an offset ends: the least offset greater than
+    // it, and `null` for the last one, which ends at the pack's own length less
+    // its trailing checksum.
+    //
+    // The fixture's offsets are 12, 330 and 340, and the table above lists them
+    // in *id* order — 12, 340, 330 — so this also shows the answer is the least
+    // greater and not the next one along.
+    after: () => {
+        for (const bytes of [packIdx1, packIdx2]) {
+            const next = after(decoded(bytes))
+            assertEq(next(12), 330)
+            assertEq(next(330), 340)
+            // the last entry, which the index cannot close
+            assertEq(next(340), null)
+            // an offset that is no entry still answers the least greater, since
+            // this asks where the bytes after it begin and not what is at it
+            assertEq(next(0), 12)
+            assertEq(next(331), 340)
+            // and nothing is above the last
+            assertEq(next(341), null)
+        }
+    },
+    // Whether an entry begins at an offset, which an `ofsDelta`'s distance back
+    // has to satisfy: the offsets are exactly where entries begin, so a byte
+    // position that is not one of them is the start of nothing.
+    holdsEntryAt: () => {
+        for (const bytes of [packIdx1, packIdx2]) {
+            const holds = holdsEntryAt(decoded(bytes))
+            for (const at of [12, 330, 340]) {
+                assert(holds(at), at)
+            }
+            // one before, one inside, one after: none of them an entry
+            for (const at of [0, 11, 13, 339, 341]) {
+                assert(!holds(at), at)
+            }
+        }
+    },
     lookup: () => {
         for (const bytes of [packIdx1, packIdx2]) {
             const at = offsetOf(decoded(bytes))
