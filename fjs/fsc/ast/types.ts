@@ -34,6 +34,11 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstFu
  * which {@link AstArgs} is the arguments array and no `aref` or `cref`
  * stands — a capture is refused where it is written, since a function
  * has no frame yet. The EDAG's `['=>', null, body]`.
+ *
+ * The body is typed as any value, as a `cref` is typed as any index: the
+ * parser never writes a module reference into a body, and one written by
+ * hand is not rejected — `lower` gives it no node, as it gives none to a
+ * `cref` past the entry holding it.
  */
 export type AstFunction = readonly ['=>', AstConst]
 

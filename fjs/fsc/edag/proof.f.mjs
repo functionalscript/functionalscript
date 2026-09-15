@@ -171,8 +171,10 @@ export const proof = {
         expectEdag(both, ['[]', [['=>', null, 1], ['=>', null, 1]]])
         assert(both instanceof Array && both[0] === '[]' && both[1][0] === both[1][1], both)
         expectEdag(compile('export default [(...a) => a, (...a) => a];').edag, ['[]', [['=>', null, ['args']], ['=>', null, ['args']]]])
-        // an unreached function is anchored as any entry is
+        // an unreached function is anchored as any entry is, and takes no
+        // anchor from an import beside it: the sweep reads it as a leaf
         expectEdag(compile('const f = (...a) => 1; export default 2;').edag, [',', [['=>', null, 1], 2]])
+        expectEdag(compile('import y from "./y.f.js"; const f = (...a) => 0; export default 1;').edag, [',', [['.', ['args'], 0], ['=>', null, 0], 1]])
         // linked beside an import: the body's arguments are not rewritten
         expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default [y, (...x) => x];'), 'y.f.js': file('export default 1;') })('a.f.js'), ['[]', [1, ['=>', null, ['args']]]])
     },

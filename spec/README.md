@@ -559,7 +559,7 @@ body is an expression. It denotes a function of its arguments alone:
   or an enclosing function's parameter is a **capture**, which is an error
   ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
   a module name, as in JavaScript.
-- The body is a value but an object literal: after `=>` JavaScript reads `{`
+- The body is any value except an object literal: after `=>` JavaScript reads `{`
   as a block, never as an object, so the spelling is refused rather than read
   another way. A block body, `=> { return 1 }`, named parameters and a call
   are not recognized yet ([function](./todo/3110-function.md),

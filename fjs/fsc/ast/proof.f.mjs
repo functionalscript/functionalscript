@@ -69,8 +69,12 @@ export const proof = {
         assertStructurallySame(run([['=>', ['args']]])([]), ['error', 'functions are compiled to the EDAG only'])
         assertStructurallySame(values([['=>', 1], 2])([]), ['error', 'functions are compiled to the EDAG only'])
         assertStructurallySame(run([['args']])([]), ['error', 'functions are compiled to the EDAG only'])
-        // a function names nothing outside itself, so it is a leaf to the sweep
+        // a function names nothing outside itself, so it is a leaf to the
+        // sweep — a leaf, not a reference: read as one, its body would pass
+        // for an import's index, and `0` would mark the import reached
         assertEq(anchorsOf([[a], [['=>', ['args']], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0], ['cref', 0]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['=>', ['array', [['args'], ['args']]]], ['cref', 0]]]), 'consts ; imports 0')
     },
     // what the sweep from the export leaves out, by index, less what the
