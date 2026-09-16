@@ -10,6 +10,7 @@ mod impls;
 mod int32_coercion;
 mod internal;
 mod join;
+mod member_access;
 mod nullish;
 mod number_coercion;
 mod numeric;

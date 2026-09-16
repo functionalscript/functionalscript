@@ -94,22 +94,25 @@ node is a different, larger contract:
   rather than teaching the shared corpus generator this node shape. Filing
   the corpus extension as a follow-up remains open.
 
-#### Stage 2 — String indexing + `.length`
+#### Stage 2 — String indexing + `.length` (done)
 
-- Same shape, for `String<A>`: leave `String<A>`'s `Index<u32>`
-  (`vm/string/index.rs`) untouched, for the same reason as Stage 1 —
-  bounds-check before indexing rather than changing the panic contract.
-- Add `String::member_access(&self, key: Any<A>) -> Option<Any<A>>` in a
-  new `vm/string/member_access.rs`, the same split Stage 1 used for
-  `Array`: an in-bounds integer key returns the single UTF-16 code unit as
-  a one-character `String<A>` (matches JS `str[i]`, *not* `.charAt`, which
-  is a prototype method and out of scope); `"length"` returns the UTF-16
-  length; anything else returns `None`. Wire the new arm into
-  `Any::member_access`'s dispatch in `vm/any/member_access.rs`.
-- Reuse Stage 1's key-classification helpers (`canonical_index`,
-  `string_to_index`, private to `vm/array/member_access.rs`) rather than
-  re-deriving them; if `String` needs them too, move them somewhere both
-  modules can reach rather than duplicating.
+- Same shape, for `String<A>`: `String<A>`'s `Index<u32>`
+  (`vm/string/index.rs`) is left untouched, for the same reason as Stage 1 —
+  bounds-checked before indexing rather than changing the panic contract.
+- `String::member_access(&self, key: Any<A>) -> Option<Any<A>>`, in a new
+  `vm/string/member_access.rs`, the same split Stage 1 used for `Array`: an
+  in-bounds integer key returns the single UTF-16 code unit as a
+  one-character `String<A>` (matches JS `str[i]`, *not* `.charAt`, which is
+  a prototype method and out of scope — this includes a lone unpaired
+  surrogate, which `String<A>` stores and indexes without validating, same
+  as real JS); `"length"` returns the UTF-16 length; anything else returns
+  `None`. Wired into `Any::member_access`'s dispatch in
+  `vm/any/member_access.rs`.
+- `canonical_index`/`string_to_index` moved out of `vm/array/member_access.rs`
+  into a new shared `vm/member_access.rs` (a flat cross-type module, the
+  same pattern `dispatch.rs`/`nullish.rs`/`primitive.rs` already use in
+  `vm/`), so `Array` and `String` share one key-classification
+  implementation instead of two.
 
 #### Stage 3 — Object generalization: `member_access` becomes *the* operator
 
