@@ -57,7 +57,7 @@
  */
 
 import { analysis } from '../../edag/analysis/module.f.mjs'
-import { _keySerialize, _leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
+import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap } from '../../media/json/serializer/module.f.mjs'
 import { flat, toArray } from '../../types/list/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -134,7 +134,7 @@ const every = xs => {
  * @type {(s: _Scope, depth: number) => (v: Operand) => Document}
  */
 const operand = (s, depth) => v => {
-    if (!(v instanceof Array)) { return ok(_leafSerialize(v)) }
+    if (!(v instanceof Array)) { return ok(leafSerialize(v)) }
     const name = nameOf(s.names, ['entry', v[1]])
     return name === null ? entry(s, depth)(v[1]) : ok([name])
 }
@@ -167,11 +167,11 @@ const property = (s, depth) => p => {
     const [, k, v] = p
     return typeof k !== 'string'
         ? error('an object key that is not a string')
-        : mapOk(value => flat([_keySerialize(k), colon, value]))(operand(s, depth)(v))
+        : mapOk(value => flat([keySerialize(k), colon, value]))(operand(s, depth)(v))
 }
 
 /** A key in brackets, `[k]`, where no word follows a `.`. @type {(k: string | number) => Document} */
-const bracketed = k => ok(flat([['['], _leafSerialize(k), [']']]))
+const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
 
 /**
  * An access's key: a name after `.` where the word admits it, and a key in
@@ -307,7 +307,7 @@ const operands = node => {
 
 /** The text a hoisted value's `const` holds. @type {(s: _Scope) => (h: _Hoisted) => Document} */
 const hoistedText = s => h => h[0] === 'leaf'
-    ? ok(_leafSerialize(h[1]))
+    ? ok(leafSerialize(h[1]))
     : entry(s, 0)(h[1])
 
 /**

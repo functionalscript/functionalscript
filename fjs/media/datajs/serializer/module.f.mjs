@@ -100,14 +100,15 @@ const undefinedSerialize = ['undefined']
 export const _numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
 
 /**
- * A leaf as a document spells it. Exported for the same reason
- * {@link _numberSerialize} is: the FunctionalScript writer in `fjs/fsc`
- * writes the leaves of its own documents the same way, and the rule has one
- * owner. The `_` prefix says that export is linkage rather than API.
+ * A leaf as a document spells it — this format's counterpart to JSON's
+ * `stringSerialize` and `numberSerialize`, and public as those are: the
+ * FunctionalScript writer in `fjs/fsc` spells the leaves of its own
+ * documents this way, DataJS's leaves being FunctionalScript's, and the
+ * rule has one owner.
  *
  * @type {(value: Primitive) => List<string>}
  */
-export const _leafSerialize = value => {
+export const leafSerialize = value => {
     switch (typeof value) {
         case 'boolean': { return boolSerialize(value) }
         case 'number': { return _numberSerialize(value) }
@@ -129,12 +130,12 @@ const protoKey = '__proto__'
  * [157](../../../fsc/todo/157-json-djs-shared-value-machine.md) §2 counts,
  * and since the old `fjs/djs/serializer` was retired its only implementation.
  *
- * Exported beside {@link _leafSerialize}, and for the same reason: the
+ * Public beside {@link leafSerialize}, and for the same reason: the
  * FunctionalScript writer spells an object's key this way too.
  *
  * @type {(key: string) => List<string>}
  */
-export const _keySerialize = key => key === protoKey
+export const keySerialize = key => key === protoKey
     ? flat([['['], stringSerialize(key), [']']])
     : stringSerialize(key)
 
@@ -408,14 +409,14 @@ const write = graph => {
     const names = constNames(graph)
     /** @type {(value: _Value<number>) => List<string>} */
     const value = v => {
-        if (v[0] === 'leaf') { return _leafSerialize(v[1]) }
+        if (v[0] === 'leaf') { return leafSerialize(v[1]) }
         const name = names.get(v[1])
         return name === undefined ? () => chunks[v[1]] : [name]
     }
     /** @type {(node: _Node<number>) => List<string>} */
     const inline = node => node.kind === 'array'
         ? arrayWrap(node.items.map(value))
-        : objectWrap(node.members.map(([key, v]) => flat([_keySerialize(key), colon, value(v)])))
+        : objectWrap(node.members.map(([key, v]) => flat([keySerialize(key), colon, value(v)])))
     /** @type {readonly List<string>[]} */
     const chunks = graph.nodes.map(inline)
     const statements = [...names].map(([i, name]) => flat([[`const ${name}=`], chunks[i], [';']]))
