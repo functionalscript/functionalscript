@@ -109,6 +109,12 @@ pub(crate) fn number_to_string<A: IVm>(v: f64) -> String<A> {
 /// more than Rust's `exp`, since the spec fixes the decimal point after
 /// all `k` digits rather than after the first one:
 /// `digits * 10^(n-k) = digits * 10^(exp-k+1)`.
+///
+/// Known gap: when `v`'s exact binary value sits precisely halfway between
+/// two equally-short round-tripping decimals, the spec breaks the tie
+/// round-half-to-even; Rust's formatter breaks it the other way in that rare
+/// case (`v` with bit pattern `0xc23a0480a70a2400`, for one). See
+/// [`nanvm-lib/todo/number-to-string-tie-breaking.md`](../../todo/number-to-string-tie-breaking.md).
 fn js_digits_to_string(v: f64) -> std::string::String {
     let sci = format!("{v:e}");
     let (mantissa, exp) = sci.split_once('e').expect("`{:e}` always has an 'e'");
