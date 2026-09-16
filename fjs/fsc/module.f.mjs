@@ -1,8 +1,10 @@
 /**
  * `fjs compile`: a FunctionalScript module read, its imports resolved and
  * inlined, and the value it denotes written out — as normalized DataJS, as
- * JSON when the output name says so, or as the EDAG the program compiles
- * to, a DataJS document of the graph.
+ * JSON when the output name says so, as the EDAG the program compiles to (a
+ * DataJS document of the graph), or as a generated Rust module calling the
+ * `nanvm-lib` API when the output name ends `.rs`
+ * ([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md)).
  *
  * @module
  *
@@ -18,6 +20,7 @@
 
 import { transpile } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
+import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { empty, flat, map } from '../types/list/module.f.mjs'
@@ -178,6 +181,15 @@ const isEdag = outputFileName => outputFileName.endsWith('.edag.f.js') || output
 const edagText = path => mapStep(resolve(path), tryStringify)
 
 /**
+ * The program at `path` as the text of its `.rs` output: linked by `./edag`
+ * into one graph, the same as {@link edagText}, and printed against the
+ * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
+ *
+ * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ */
+const rustText = path => mapStep(resolve(path), toRust)
+
+/**
  * The module at `path` as the text `write` makes of what it denotes.
  *
  * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
@@ -185,15 +197,18 @@ const edagText = path => mapStep(resolve(path), tryStringify)
 const denotedText = write => path => mapStep(transpile(path), write)
 
 /**
- * The text an output name asks for, from the input: JSON for `.json`, the
- * EDAG for `.edag.f.js` and `.edag.f.mjs`, and otherwise the value as a
- * DataJS module. A refusal of the output — a value JSON cannot spell — is
- * the inner `Result`; a failure of the input is the effect's.
+ * The text an output name asks for, from the input: JSON for `.json`, a
+ * generated Rust module for `.rs`, the EDAG for `.edag.f.js` and
+ * `.edag.f.mjs`, and otherwise the value as a DataJS module. A refusal of the
+ * output — a value JSON cannot spell, a node shape the Rust printer has no
+ * `nanvm-lib` spelling for — is the inner `Result`; a failure of the input is
+ * the effect's.
  *
  * @type {(outputFileName: string) => (inputFileName: string) => Effect<ReadFile, Result<string, string>, ParseError>}
  */
 const outputText = outputFileName => {
     if (outputFileName.endsWith('.json')) { return denotedText(jsonText) }
+    if (outputFileName.endsWith('.rs')) { return rustText }
     return isEdag(outputFileName) ? edagText : denotedText(moduleText)
 }
 
@@ -238,20 +253,24 @@ export const _stringifyTree = value => concat(treeValue(value))
 
 /**
  * Compiles the FunctionalScript module `args[0]` into `args[1]`: JSON when
- * the output name ends with `.json`, the program's EDAG when it ends with
- * `.edag.f.js` or `.edag.f.mjs`, and otherwise a DataJS document in
+ * the output name ends with `.json`, a generated Rust module calling the
+ * `nanvm-lib` API when it ends with `.rs`, the program's EDAG when it ends
+ * with `.edag.f.js` or `.edag.f.mjs`, and otherwise a DataJS document in
  * normalized form — one line, shared nodes hoisted into `$0`, `$1`, … and
  * an object's members in the order the module gave them. The EDAG output is
  * a DataJS document too, of the graph the program compiles to, with its
- * shared nodes hoisted the same way.
+ * shared nodes hoisted the same way; the `.rs` output prints that same graph
+ * as `let` bindings and a `pub fn module<A: IVm>() -> Any<A>`.
  *
  * Returns the process exit code: `0` once the output file is written, `1` on
  * every failure — too few arguments, a missing input file, a parse error, a
- * `.json` output asked of a value JSON cannot spell, or an EDAG asked of a
- * program whose export does not reach every import and `const` — so a caller
- * can detect a failed compile from the exit status alone. A refused output
- * is reported against the output file, since the module itself is sound; a
- * refused program is reported against the input, as a parse error is.
+ * `.json` output asked of a value JSON cannot spell, an EDAG asked of a
+ * program whose export does not reach every import and `const`, or a `.rs`
+ * output asked of a node shape it has no `nanvm-lib` spelling for — so a
+ * caller can detect a failed compile from the exit status alone. A refused
+ * output is reported against the output file, since the module itself is
+ * sound; a refused program is reported against the input, as a parse error
+ * is.
  *
  * @type {(args: readonly string[]) => Effect<_CompileOp, 0, number>}
  */

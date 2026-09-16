@@ -232,6 +232,13 @@ export const proof = {
          */
         unknownOperation: () => nodeExpr(['!==', 1, 2]),
         /**
+         * The same gap, met through {@link generate} rather than directly:
+         * a group whose `op` has no entry in {@link rustName} has no Rust
+         * function name to print, so `generate` refuses before printing a
+         * single case.
+         */
+        noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: '!==', cases: [] }] }),
+        /**
          * A lambda other than `() => undefined`: no closure prints, so each
          * way of not being the smallest one is refused — a frame that is a
          * primitive, one that is a node but not an array literal, one that is
