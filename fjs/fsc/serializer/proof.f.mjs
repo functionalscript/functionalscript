@@ -203,5 +203,11 @@ export const proof = {
             })(),
             'a spread')
         refuses([',', [['+', 1], 1]], 'a + node')
+        // A root comma with no anchor to write: with one operand it would
+        // read back as that operand alone, and with none it is no module.
+        // Linking emits neither — a comma is built only where an anchor or
+        // an unbound import is there to carry.
+        refuses([',', [1]], 'a root comma with fewer than two operands')
+        refuses([',', []], 'a root comma with fewer than two operands')
     },
 }

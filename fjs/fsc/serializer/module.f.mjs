@@ -64,7 +64,7 @@ import { arrayWrap, colon, objectWrap } from '../../media/json/serializer/module
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { prohibitedNames } from '../parser/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { error, mapOk, ok } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
 
 /** The node kinds a compiled graph holds and this writer spells. @type {(node: Node) => boolean} */
 const minting = node => {
@@ -363,11 +363,22 @@ const statement = (a, last) => ({ text, names }, v) => {
  * root is the source form it came from, an unused `const` per anchor and
  * then the export, and any other root is the export alone.
  *
- * @type {(a: Analysis) => _Root}
+ * A root comma holding fewer than two operands is refused: an anchor is an
+ * unreached `const`, so a comma with one operand has no anchor to write and
+ * would be read back as its operand alone, and one with none is not a
+ * module at all. Linking emits neither — a comma is built only where an
+ * anchor or an unbound import is there to carry.
+ *
+ * @type {(a: Analysis) => Result<_Root, string>}
  */
-const roots = a => a.root instanceof Array && a.nodes[a.root[1]][0] === ','
-    ? /** @type {readonly Operand[]} */ (a.nodes[a.root[1]][1])
-    : [a.root]
+const roots = a => {
+    if (!(a.root instanceof Array)) { return ok([a.root]) }
+    const node = a.nodes[a.root[1]]
+    if (node[0] !== ',') { return ok([a.root]) }
+    return node[1].length < 2
+        ? error('a root comma with fewer than two operands')
+        : ok(node[1])
+}
 
 /**
  * A linked EDAG as the chunks of a FunctionalScript module, or why this
@@ -377,15 +388,18 @@ const roots = a => a.root instanceof Array && a.nodes[a.root[1]][0] === ','
  */
 export const trySerialize = e => {
     const a = analysis(e)
-    const all = roots(a)
-    /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
-    const step = (acc, v, i) => acc[0] === 'error'
-        ? acc
-        : statement(a, i === all.length - 1)(acc[1], v)
-    return mapOk(
-        /** @type {(s: _Statement) => List<string>} */
-        (s => s.text),
-    )(all.reduce(step, ok({ text: null, names: [] })))
+    /** @type {(all: _Root) => Document} */
+    const written = all => {
+        /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
+        const step = (acc, v, i) => acc[0] === 'error'
+            ? acc
+            : statement(a, i === all.length - 1)(acc[1], v)
+        return mapOk(
+            /** @type {(s: _Statement) => List<string>} */
+            (s => s.text),
+        )(all.reduce(step, ok({ text: null, names: [] })))
+    }
+    return okThen(written)(roots(a))
 }
 
 /** The same as one string. @type {(e: Exp) => Result<string, string>} */
