@@ -130,7 +130,7 @@ fn js_digits_to_string<A: IVm>(v: f64) -> std::string::String {
         .expect("`digits` is a run of ASCII decimal characters");
     let m = n - k;
     let (mant, exp2) = mantissa_exp2(v);
-    let corrected = round_tie_to_even::<A>(mant, exp2, s, m);
+    let corrected = round_tie_to_even::<A>(v, mant, exp2, s, m);
     let (digits, k, n) = if corrected == s {
         (digits, k, n)
     } else {
@@ -189,24 +189,36 @@ fn mantissa_exp2(v: f64) -> (u64, i32) {
 /// the one case where *a* correctly-rounded, round-tripping `s` (what
 /// Rust's formatter guarantees) is not necessarily *the* spec-mandated one.
 ///
-/// Decided by exact arbitrary-precision comparison, not another
-/// floating-point heuristic: an earlier attempt approximated "is this a
-/// tie" by checking whether `s`'s neighboring digit also round-trips to
-/// `v`, which answers a *round-trip-validity* question, not an
-/// *exact-equidistance* one, and produced false positives that broke
-/// `Number.MAX_VALUE` and `Number.MIN_VALUE`. `BigInt<A>` — already
-/// `nanvm-lib`'s own arbitrary-precision integer facility, reused here
-/// rather than adding a dependency for a second one (`nanvm-lib` is
-/// zero-dependency) — computes `2v` against `(2s±1) * 10^m` exactly, cross
-/// multiplied by both sides' denominators (`2^-exp2` when `exp2` is
-/// negative, `10^-m` when `m` is) so no division ever runs.
+/// Exact arithmetic equidistance alone is not sufficient to switch, and
+/// this has already broken twice by stopping one check short of the full
+/// spec condition:
 ///
-/// At most one of the two candidates (`s-1`/`s`, or `s`/`s+1`) can be an
-/// exact tie — `s-0.5` and `s+0.5` are different real numbers — and ties are
-/// otherwise so rare that this pays for an exact comparison on every call
-/// rather than a cheap-but-unproven pre-filter: the one already tried here
-/// silently reintroduced the same class of bug this function exists to fix.
-fn round_tie_to_even<A: IVm>(mantissa: u64, exp2: i32, s: u64, m: i64) -> u64 {
+/// - An earlier attempt approximated "is this a tie" by checking only
+///   whether `s`'s neighboring digit round-trips to `v`, with no
+///   equidistance check at all, and produced false positives that broke
+///   `Number.MAX_VALUE` and `Number.MIN_VALUE`.
+/// - This function's own first version checked equidistance exactly (via
+///   `BigInt<A>`, `nanvm-lib`'s own arbitrary-precision facility — reused
+///   rather than adding a dependency, since `nanvm-lib` is
+///   zero-dependency) but, on the strength of that alone, assumed the
+///   neighboring candidate was automatically a legitimate one too. Found
+///   in review: at a power-of-two boundary (`2^-24`, for one) the ULP
+///   spacing changes, so a candidate decimal-equidistant from `v` in
+///   *this* scale can round-trip to the float *below* `v` instead of to
+///   `v` — `v`'s only valid `k`-digit representation is `s` itself, and
+///   there never was a tie to break.
+///
+/// The two checks are independent and both required: equidistance decides
+/// whether `v` is even a *candidate* for a tie (ruling out `MAX_VALUE`
+/// /`MIN_VALUE`, where round-trip-only would false-positive), and the
+/// neighbor's own round-trip decides whether it is *also* a legitimate
+/// `k`-digit representation of `v` at all (ruling out `2^-24`, where
+/// equidistance-only would false-positive) — ECMA-262's own definition of
+/// a candidate `s` already requires "the Number value for `s *
+/// 10^(n-k)` is `x`", so a neighbor that fails this was never a candidate
+/// to tie-break between in the first place, no matter how exactly
+/// equidistant it is in decimal.
+fn round_tie_to_even<A: IVm>(v: f64, mantissa: u64, exp2: i32, s: u64, m: i64) -> u64 {
     let one = || BigInt::<A>::from(1u64);
     let pow2 = |e: i32| -> BigInt<A> {
         (one() << BigInt::from(e as u64))
@@ -232,18 +244,38 @@ fn round_tie_to_even<A: IVm>(mantissa: u64, exp2: i32, s: u64, m: i64) -> u64 {
     // Compares `2v` against `target * 10^m`, i.e. whether `v` is exactly
     // `target / 2` away from zero at this scale — the shared shape of both
     // tie checks below, cross-multiplied so no side is ever divided.
-    let compare = |target: u64| -> Ordering {
+    let equidistant = |target: u64| -> bool {
         let v_num = BigInt::<A>::from(2 * mantissa) * v_extra.clone();
         let s_num = BigInt::<A>::from(target) * s_extra.clone();
-        (v_num * s_den.clone()).cmp(&(s_num * v_den.clone()))
+        (v_num * s_den.clone()).cmp(&(s_num * v_den.clone())) == Ordering::Equal
     };
-    if compare(2 * s - 1) == Ordering::Equal {
-        // v is exactly halfway between s-1 and s: keep whichever is even.
-        return if (s - 1).is_multiple_of(2) { s - 1 } else { s };
+    // Whether `candidate * 10^m`, read back as a `Number` the way ECMA-262's
+    // own candidate condition requires, is `v` itself and not some other
+    // float — the guard `equidistant` alone cannot give.
+    let is_legitimate_candidate = |candidate: u64| -> bool {
+        format!("{candidate}e{m}")
+            .parse::<f64>()
+            .is_ok_and(|parsed| parsed == v)
+    };
+    if equidistant(2 * s - 1) {
+        let candidate = s - 1;
+        // v is exactly halfway between s-1 and s: keep whichever is both
+        // even and a legitimate candidate — s already is (Rust guarantees
+        // it), s-1 needs checking.
+        return if candidate.is_multiple_of(2) && is_legitimate_candidate(candidate) {
+            candidate
+        } else {
+            s
+        };
     }
-    if compare(2 * s + 1) == Ordering::Equal {
-        // v is exactly halfway between s and s+1: keep whichever is even.
-        return if (s + 1).is_multiple_of(2) { s + 1 } else { s };
+    if equidistant(2 * s + 1) {
+        let candidate = s + 1;
+        // Symmetric case: v is exactly halfway between s and s+1.
+        return if candidate.is_multiple_of(2) && is_legitimate_candidate(candidate) {
+            candidate
+        } else {
+            s
+        };
     }
     s
 }
@@ -323,5 +355,19 @@ mod tests {
         check(f64::MAX, "1.7976931348623157e+308");
         check(f64::MIN_POSITIVE, "2.2250738585072014e-308");
         check(5e-324, "5e-324");
+    }
+
+    /// A review found this one: `2^-24`'s exact value sits precisely at the
+    /// arithmetic decimal midpoint between two 17-digit candidates, exactly
+    /// the condition `round_tie_to_even` checks first — but only one of the
+    /// two, `...063`, is a real 17-digit representation of `2^-24` at all
+    /// (`...062` round-trips to the float *below* it, since a power-of-two
+    /// boundary is where binary64's ULP spacing changes). There was never a
+    /// tie to break, and the round-trip guard is what tells the two cases
+    /// apart from `round_half_to_even_ties` above, where both candidates are
+    /// legitimate and the choice is real.
+    #[test]
+    fn power_of_two_boundary_is_not_a_tie() {
+        check(2f64.powi(-24), "5.960464477539063e-8");
     }
 }
