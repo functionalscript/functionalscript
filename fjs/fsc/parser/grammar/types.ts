@@ -35,23 +35,24 @@ import type {
 // the shape exactly.
 
 /**
- * The words that frame a module, which the grammar has to tell apart from an
- * ordinary identifier.
+ * The words a rule requires in some position — six framing a module and
+ * `return` framing a function's block body — which the grammar has to tell
+ * apart from an ordinary identifier.
  *
- * The tokenizer emits all six as `{ kind: 'id' }` with the word in `value`, so
+ * The tokenizer emits all seven as `{ kind: 'id' }` with the word in `value`, so
  * a parser layer keyed on `kind` alone would give them the same symbol as any
  * other identifier — and a grammar over that alphabet could not distinguish
  * `export default` from two arbitrary names. They therefore get terminals of
  * their own, which is what a registered alphabet allows: a name's symbol comes
  * from its position in the list, so a name has no length limit.
  */
-export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with'
+export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from' | 'with' | 'return'
 
 type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 
 /**
  * A token name the grammar can name as a terminal: every `DjsToken` kind
- * except `eof`, plus the framing keywords.
+ * except `eof`, plus the keywords with symbols of their own.
  *
  * `eof` is excluded because the backend synthesizes its own logical
  * end-of-input; the tokenizer's physical `eof` token is split off the stream
@@ -109,13 +110,20 @@ export type Value = () => readonly ['const', {
     readonly func: Func
 }]
 
-/** A function's body: a value less the object, since `=> {` opens a block in JavaScript. */
+/**
+ * A function's body: a value less the object, since `=> {` opens a block in
+ * JavaScript — or that block, in which an object is a value again.
+ */
 export type Body = () => readonly ['const', {
     readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
     readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
     readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
     readonly func: Func
+    readonly block: Block
 }]
+
+/** `{`, trivia, `return`, same-line trivia, the value, `;`, trivia, `}`, and the trivia after it. */
+export type Block = readonly [number, typeof trivia, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
 
 /** `(`, trivia, `...`, trivia, the parameter, trivia, `)`, same-line trivia, `=>`, trivia, and the body. */
 export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifier, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]

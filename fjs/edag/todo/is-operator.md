@@ -36,6 +36,10 @@ spells as a call ([`entry.md`](./entry.md)).
   on calls in the language (Stage 2 of
   [`compile-modules-to-edag.md`](../../fsc/todo/compile-modules-to-edag.md));
   the node does not, as `own` did not in its day.
+- **Native.** `nanvm-lib` has no SameValue operation yet, so the corpus in
+  [`fjs/nanvm`](../../nanvm/module.f.mjs) does not pin `is`; a case is pinned
+  only where both executors can run it, and `is` joins the corpus with the
+  Rust operation, as `===` did with `strict_eq`.
 - **Output.** The FunctionalScript writer
   ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md))
   writes `['is', a, b]` as `Object.is(a, b)`, so the round trip holds once the
@@ -43,10 +47,13 @@ spells as a call ([`entry.md`](./entry.md)).
 
 ### Tasks
 
-- [ ] `is` in the `op2` ids, the RTTI schema and `types.ts`, and the README's
+- [x] `is` in the `op2` ids, the RTTI schema and `types.ts`, and the README's
       node table.
-- [ ] Amnesia evaluates `is` as `Object.is`, with proofs for `NaN`, `-0`, an
-      object with itself and two equal objects, each beside `===`.
+- [x] The operations table evaluates `is` as `Object.is`, so amnesia and memo
+      both do, with proofs for `NaN`, `-0`, an object with itself and two
+      equal objects, each beside `===`.
+- [ ] `nanvm-lib` gains the operation, and the corpus pins `is` as it pins
+      `===`.
 - [ ] Once calls land: `Object.is(a, b)` lowered to the node, with proofs; the
       writer spells the node back.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.

@@ -103,10 +103,11 @@ accepts, so that compiling the output again yields the same EDAG:
   is refused until body constants
   ([`3130-body-const.md`](../../../spec/todo/3130-body-const.md)) give it a
   `const` inside the body — which makes that feature the one this writer
-  waits on first. A body that is an object literal is written in
-  parentheses once the grouping operator is in the language
-  ([`2350-grouping.md`](../../../spec/todo/2350-grouping.md)), and refused
-  until then.
+  waits on first. A body that is an object literal is written as a block,
+  `(...a) => { return { x: a }; }`, the spelling the expression body has
+  none of; the parenthesized `=> ({ x: a })` waits on the grouping operator
+  ([`2350-grouping.md`](../../../spec/todo/2350-grouping.md)) and is the
+  writer's only once it lands, if it prefers it.
 - An access, `['.', base, key]`, is the own read
   ([`entry.md`](../../edag/todo/entry.md)), whose general spelling
   is `Object.getOwnPropertyDescriptor(base, key)?.value`; the writer uses

@@ -110,7 +110,7 @@ const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
-    '=>', 'own',
+    '=>', 'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
@@ -587,7 +587,7 @@ export const proof = {
     op2: {
         ok: () => {
             // Every id `op2` accepts, pinned individually: deleting any one
-            // of the twenty-one from `op2Id` reddens exactly this loop, not
+            // of the twenty-two from `op2Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op2Ids) {
                 assertOk(v([id, 1, 2]))

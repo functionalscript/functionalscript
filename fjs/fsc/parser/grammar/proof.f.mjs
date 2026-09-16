@@ -14,7 +14,7 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, attribute, body, constStatement, djsModule,
+    _ordinaryTokenNames as names, access, array, attribute, block, body, constStatement, djsModule,
     exportStatement, func, identifier, importStatement, index, items, key, member, object, primitive, sym, symbolOf, trivia,
     value,
 } from './module.f.mjs'
@@ -68,6 +68,7 @@ export const proof = {
         parser(/** @type {Rule} */ (object))
         parser(/** @type {Rule} */ (func))
         parser(/** @type {Rule} */ (body))
+        parser(/** @type {Rule} */ (block))
         parser(attribute)
         parser(/** @type {Rule} */ (importStatement))
         parser(/** @type {Rule} */ (constStatement))
@@ -107,9 +108,14 @@ export const proof = {
         assertStructurallySame(read('const export = 1;export default export;'), ['ok'])
         assertStructurallySame(read('const with = 1;export default { with: with.with };'), ['ok'])
         assertStructurallySame(read('const if = 1;export default if;'), ['ok'])
+        assertStructurallySame(read('const return = 1;export default { return: return.return };'), ['ok'])
         // the import attribute: `with`, a key, a string, the braces
         assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])
+        // the key is an identifier, so a word with a symbol of its own
+        // stands here as any other word does and the fold names it unknown
+        assertStructurallySame(read('import x from "m" with { return: "json" };export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with { export: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with { "type": "json" };export default x;'), ['error', 'string'])
         assertStructurallySame(read('import x from "m" with { type: json };export default x;'), ['error', 'json'])
         assertStructurallySame(read('import x from "m" with { type: "json", };export default x;'), ['error', ','])
@@ -119,13 +125,13 @@ export const proof = {
         assertStructurallySame(read('export default [];'), ['ok'])
     },
     // A function: `(`, `...`, one parameter, `)`, `=>`, and a body that is
-    // a value less the object — `=> {` opens a block in JavaScript — each
-    // token followed by its trivia; no other parameter form yet
+    // a value less the object — `=> {` opens a block, which `block` below
+    // covers — each token followed by its trivia; no other parameter form
+    // yet
     func: () => {
         assertStructurallySame(read('export default (...a) => a;'), ['ok'])
         assertStructurallySame(read('export default ( ... a ) => /* c */ [ a , (...b) => 1 , ] ;'), ['ok'])
         assertStructurallySame(read('const f = (...a) => a.b[0]; export default { f: f };'), ['ok'])
-        assertStructurallySame(read('export default (...a) => {};'), ['error', '{'])
         assertStructurallySame(read('export default () => 1;'), ['error', ')'])
         assertStructurallySame(read('export default (a) => 1;'), ['error', 'a'])
         assertStructurallySame(read('export default (...1) => 1;'), ['error', 'number'])
@@ -147,6 +153,32 @@ export const proof = {
         assertStructurallySame(read('export default (...a) /* x\u2029y */ => 1;'), ['error', 'error'])
         assertStructurallySame(read('export default (...a)\u2028=> 1;'), ['error', 'error'])
         assertStructurallySame(read('export default (...a)\u2029=> 1;'), ['error', 'error'])
+    },
+    // A block body: `{ return value; }`, one `return` statement and nothing
+    // else. The value is an ordinary value, the object included, since `{`
+    // opens a block only where a statement may start and after `return` an
+    // expression is expected.
+    block: () => {
+        assertStructurallySame(read('export default (...a) => { return a; };'), ['ok'])
+        assertStructurallySame(read('export default (...a)=>{return a;};'), ['ok'])
+        assertStructurallySame(read('export default (...a) =>\n{\n    return a;\n};'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return { x: 1 }; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return (...b) => { return b; }; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return a.b[0]; };'), ['ok'])
+        // `;` is required, as after every statement, and `return` is the one
+        // statement a body holds until body constants land
+        assertStructurallySame(read('export default (...a) => { return a };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => {};'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { a; };'), ['error', 'a'])
+        assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['error', 'return'])
+        assertStructurallySame(read('export default (...a) => { return; };'), ['error', ';'])
+        // no line terminator between `return` and the value, where
+        // JavaScript's automatic semicolon insertion would end the
+        // statement and return `undefined`; a comment on the line is fine
+        assertStructurallySame(read('export default (...a) => { return /* c */ a; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { return\na; };'), ['error', 'nl'])
+        assertStructurallySame(read('export default (...a) => { return // c\na; };'), ['error', 'nl'])
+        assertStructurallySame(read('export default (...a) => { return /* x\ny */ a; };'), ['error', 'nl'])
     },
     // Any value takes accesses, `.name` and `[key]`, trivia allowed around
     // each token since a value ends with its own, and a key is a string or
