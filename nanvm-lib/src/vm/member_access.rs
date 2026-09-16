@@ -1,8 +1,8 @@
 //! Key classification shared by every receiver's `.` / `[]`
-//! (`Any::member_access`, `nanvm-lib/todo/member-access-operator.md`):
-//! `Array::member_access` and `String::member_access` both index by an
-//! in-bounds integer, given as a `Number` or its canonical decimal string,
-//! so the classification lives once here rather than twice.
+//! (`Any::member_access`): `Array::member_access` and
+//! `String::member_access` both index by an in-bounds integer, given as a
+//! `Number` or its canonical decimal string, so the classification lives
+//! once here rather than twice.
 
 use crate::{
     common::sized_index::SizedIndex,
