@@ -20,7 +20,7 @@
       [visited-link-colour](visited-link-colour.md)
 - [ ] A link colour of the site's own, green — see
       [green-link-colour](green-link-colour.md)
-- [ ] A favicon, generated and linked like the stylesheet — see
+- [ ] A favicon, committed at the root and linked from every head — see
       [favicon](favicon.md)
 - [ ] Decide what the build owes its own leftovers — see
       [stale-generated-pages](stale-generated-pages.md)
