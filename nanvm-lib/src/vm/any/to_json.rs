@@ -52,10 +52,17 @@ impl<A: IVm> Dispatch<A> for ToJson {
     }
 
     fn number(self, v: f64) -> Self::Result {
-        if v.is_finite() {
-            Ok(v.to_string())
+        if !v.is_finite() {
+            return Err(JsonError::NonFiniteNumber(v));
+        }
+        // `-0.0.to_string()` renders as `"-0"`, but ECMAScript's
+        // `Number::toString` (and so `JSON.stringify(-0)`) renders `-0` as
+        // `"0"` — the same special case `StringCoercion::number` already
+        // makes (`string_coercion.rs`).
+        if v == 0.0 {
+            Ok("0".into())
         } else {
-            Err(JsonError::NonFiniteNumber(v))
+            Ok(v.to_string())
         }
     }
 
@@ -130,6 +137,13 @@ mod tests {
     fn number() {
         assert_eq!(42.0.to_any::<A>().to_json(), Ok("42".into()));
         assert_eq!((-1.5).to_any::<A>().to_json(), Ok("-1.5".into()));
+    }
+
+    #[test]
+    fn negative_zero_renders_as_zero() {
+        // ECMAScript's `Number::toString(-0)` (and so `JSON.stringify(-0)`)
+        // is `"0"`, not `"-0"` — see `StringCoercion::number`'s same case.
+        assert_eq!((-0.0).to_any::<A>().to_json(), Ok("0".into()));
     }
 
     #[test]
