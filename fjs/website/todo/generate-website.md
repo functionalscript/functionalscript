@@ -16,6 +16,12 @@
       reasoning is [`../README.md`](../README.md))
 - [ ] Touch-sized links in a page's lists — see
       [touch-targets](touch-targets.md)
+- [ ] A link looks the same once it has been followed — see
+      [visited-link-colour](visited-link-colour.md)
+- [ ] A link colour of the site's own, green — see
+      [green-link-colour](green-link-colour.md)
+- [ ] A favicon, generated and linked like the stylesheet — see
+      [favicon](favicon.md)
 - [ ] Decide what the build owes its own leftovers — see
       [stale-generated-pages](stale-generated-pages.md)
 - [x] Convention for a `demo` export — an optional pure demo, discovered like a
