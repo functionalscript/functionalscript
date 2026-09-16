@@ -357,6 +357,108 @@ naming and lock-map designs.
 Git is an initial history, storage, and transport projection of this model, not
 the definition of a document's identity or the only possible protocol.
 
+### Why Git
+
+The main reason to start with Git is its adoption and ecosystem. It combines
+**decentralized, local-first operation with general-purpose document storage**,
+while already having widely used tools, services, and hosting. Its
+[ecosystem](https://git-scm.com/about) includes command-line tools, graphical
+clients, editor integrations, and providers such as GitHub and GitLab. As one
+measure of that adoption, Git was the most-used version-control system in the
+[2022 Stack Overflow Developer Survey](https://survey.stackoverflow.co/2022/#version-control-version-control-system),
+reported by 93.87% of respondents to that question. Starting here lets people
+keep their existing tools instead of requiring a new ecosystem before DISOT
+becomes useful.
+
+**Local-first** means that, with the required objects in a local repository,
+people can inspect history, create revisions, branch, and merge without a
+server's permission or an Internet connection. Synchronization happens when
+needed; it is not a prerequisite for creating local history. This follows
+Git's [local operation model](https://git-scm.com/book/en/v2/Getting-Started-What-is-Git%3F).
+DISOT's requirement for accepted timestamp evidence still applies before local
+work becomes authoritative shared history.
+
+**Decentralized** describes Git, not every hosting service built around it.
+Repositories can be copied and exchanged through different remotes; Git does
+not require one company or one central server. A hosted collaboration service
+is an option, not the definition of the repository. See Git's
+[distributed model](https://git-scm.com/book/en/v2/Getting-Started-About-Version-Control#_distributed_version_control_systems).
+A repository copy preserves the Git data it contains, not automatically a
+hosting service's separate issues, reviews, or other service-specific data.
+
+**Universal** here means content-agnostic, not optimized for every workload.
+Git's [object model](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)
+can store arbitrary document bytes, organize them into directory snapshots,
+and connect revisions through parent hashes. Code, text, images, and structured
+data do not need to adopt an application-specific schema. Storing a format
+does not imply that Git understands how to merge it semantically.
+
+For DISOT, this is a practical starting point: reuse storage, history, transport,
+and existing workflows, then add the naming, identity, and trust conventions
+that Git alone does not define. Choosing Git first does not make Git the only
+permitted representation or transport.
+
+### Comparison With IPFS, Nostr, And AT Protocol
+
+These systems emphasize different layers. The question is what each already
+provides for DISOT, and what would need to be added, not whether only one can
+be decentralized.
+
+#### IPFS
+
+IPFS provides content-addressed data distribution using
+[Merkle DAGs](https://docs.ipfs.tech/concepts/merkle-dag/), with local storage
+and [pinning](https://docs.ipfs.tech/concepts/persistence/) to retain content.
+It is well suited to distributing immutable documents, and a revision graph
+can be stored in it. However, the graph's authorship, branching, and merge
+semantics still need a versioning layer. [IPNS](https://docs.ipfs.tech/concepts/ipns/)
+adds signed mutable names whose resolution seeks the latest record; it does
+not itself preserve every naming update and conflicting revision as a Git-like
+history. Git supplies an existing version-control workflow, while IPFS is a
+possible complementary distribution layer. Neither system's content hashes
+alone guarantee that someone retains every document.
+
+#### Nostr
+
+Nostr's [base protocol](https://github.com/nostr-protocol/nips/blob/master/01.md)
+exchanges hash-identified, signed events through relays. Public-key identity and
+verifiable events make it useful for publishing statements and discovering
+updates without trusting one relay. Its base abstraction is an event, not a
+versioned directory with a commit/merge graph. Replaceable and addressable event
+kinds allow older versions to be discarded, so complete history needs explicit
+retention and revision conventions. This is not limited to social posts:
+[NIP-34](https://github.com/nostr-protocol/nips/blob/master/34.md) already describes
+Git repository announcements, patches, and collaboration over Nostr. For DISOT,
+Nostr can complement Git with discovery and signed communication rather than
+replace Git's document-history layer.
+
+#### AT Protocol (atproto)
+
+AT Protocol provides DID-based accounts and
+[signed, content-addressed repositories](https://atproto.com/specs/repository)
+of public structured records, with separately stored media blobs. Repositories
+can be exported for offline backup and account migration. Its
+[federated architecture](https://atproto.com/guides/overview) identifies a
+Personal Data Server (PDS) as the account's authoritative repository location,
+rather than making independent end-device repositories the normal write model.
+
+A signed repository is not the same as retained version history: the
+[repository specification](https://atproto.com/specs/repository#commit-objects)
+does not require Git-style ancestry, and the version-3 `prev` field is normally
+`null`. Deletions need not preserve previous records. Git gives DISOT arbitrary
+document trees and multi-parent revision history without requiring a record
+schema or PDS. AT Protocol remains a possible integration for applications,
+identity, and publishing structured records.
+
+The design goal is interoperability: Git for the initial local-first history
+workflow, with IPFS, Nostr, and AT Protocol available for complementary roles.
+Adapters must preserve the document hashes and evidence needed by DISOT rather
+than treating a transport's current pointer or account state as sufficient
+proof of history or authority. These are integration directions, not claims
+that the adapters already exist.
+
+### Mapping DISOT To Git
+
 This projection uses the global and relative names defined above; it does not
 introduce a separate naming system. For Git-backed entities, signed directories
 help with trust-path traversal and discovery; they do not override the
