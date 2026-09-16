@@ -1,0 +1,196 @@
+/**
+ * The FunctionalScript writer, claim by claim.
+ *
+ * Every graph that has a spelling is checked twice: the text itself, so the
+ * output is pinned rather than merely round-tripping, and the graph the
+ * front end reads back out of that text, so the output is FunctionalScript
+ * and not only a string. The second check goes through `parse` and
+ * `unresolved`, the front end's own two halves, which is what makes it the
+ * compiler's answer rather than a second writer's; the graphs are compared
+ * as their tables, since that is what a round trip preserves — the names and
+ * the places a value is written are the writer's to choose.
+ *
+ * A refusal is checked by its message, since a message is what a user of the
+ * compiler meets, and every one of them names a feature that will replace it.
+ *
+ * @import { Exp } from '../../edag/types.ts'
+ */
+
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
+import { invert, unwrap } from '../../types/result/module.f.mjs'
+import { unresolved } from '../edag/module.f.mjs'
+import { parse } from '../transpiler/module.f.mjs'
+import { trySerialize, tryStringify } from './module.f.mjs'
+
+/** The name the front end gives the text it reads back. */
+const path = '/proof.f.js'
+
+/**
+ * The text the writer writes for a graph, once the front end has read it
+ * back to the same table. A module of the writer's own making imports
+ * nothing, so `unresolved` needs no resolution to hand back its graph.
+ *
+ * @type {(e: Exp) => string}
+ */
+const reads = e => {
+    const text = unwrap(tryStringify(e))
+    const { imports, edag } = unresolved(unwrap(parse(path)(text)))
+    assertEq(imports.length, 0, text)
+    assertStructurallySame(analysis(edag), analysis(e), text)
+    return text
+}
+
+/** That, and the text. @type {(e: Exp, expected: string) => void} */
+const writes = (e, expected) => { assertEq(reads(e), expected) }
+
+/** Why the writer has no spelling for a graph, with nothing written. @type {(e: Exp, expected: string) => void} */
+const refuses = (e, expected) => { assertEq(unwrap(invert(tryStringify(e))), expected) }
+
+/** `(...a) => ... => a`, `n` bodies deep. @type {(n: number) => Exp} */
+const nested = n => n === 0 ? ['args'] : ['=>', null, nested(n - 1)]
+
+/** `(...a) => a`, the graph a spelling is wanted for rather than read from. @type {Exp} */
+const identity = ['=>', null, ['args']]
+
+export const proof = {
+    // A module is one line and one statement when nothing is shared: the
+    // export, its value spelled where it stands. The leaves are the DataJS
+    // serializer's, this writer owning none of their spelling.
+    leaves: () => {
+        writes(1, 'export default 1;')
+        writes('x', 'export default "x";')
+        writes(['undefined'], 'export default undefined;')
+        writes(['[]', []], 'export default [];')
+        writes(['{}', []], 'export default {};')
+        writes(
+            ['[]', [null, true, false, 1, -0, 1.5, 1n, 'a"b', '\u{1f600}']],
+            'export default [null,true,false,1,-0,1.5,1n,"a\\"b","\u{1f600}"];')
+        writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
+    },
+    // A node that mints identity is one value however many edges reach it,
+    // and a `const` is the only thing in text that keeps that, so a shared
+    // one is hoisted and written once. An unshared one is written where it
+    // stands, every occurrence its own value.
+    identity: () => {
+        /** @type {Exp} */
+        const o = ['{}', []]
+        writes(['[]', [o, o]], 'const $0={};export default [$0,$0];')
+        writes(['[]', [['{}', []], ['{}', []]]], 'export default [{},{}];')
+        writes(['[]', [identity, identity]], 'const $0=(...$a)=>$a;export default [$0,$0];')
+    },
+    // An access is not hoisted, though the analysis merged its occurrences:
+    // the merge happens again when the output is read, and a `const` would
+    // evaluate it where the source did not.
+    merged: () => {
+        /** @type {Exp} */
+        const o = ['{}', [[':', 'a', 1]]]
+        writes(['[]', [['.', o, 'a'], ['.', o, 'a']]], 'const $0={"a":1};export default [$0.a,$0.a];')
+    },
+    // A base the grammar takes no access on — a number, a bigint, a function
+    // — gets a `const` of its own, since `1.x` is no spelling of `['.', 1,
+    // 'x']`. A container base is written in place, where `{}.a` is a
+    // spelling the parser reads back.
+    bases: () => {
+        writes(['.', 1, 'x'], 'const $0=1;export default $0.x;')
+        writes(['.', 1n, 'x'], 'const $0=1n;export default $0.x;')
+        writes(['.', identity, 'length'], 'const $0=(...$a)=>$a;export default $0.length;')
+        writes(['.', ['{}', [[':', 'a', 1]]], 'a'], 'export default {"a":1}.a;')
+        writes(['.', ['[]', [1, 2]], 0], 'export default [1,2][0];')
+        // One `const` per base, and one only: two accesses on one base share
+        // it, two bases do not, and a base named by an earlier statement is
+        // not named again.
+        writes(['[]', [['.', 1, 'x'], ['.', 1, 'y']]], 'const $0=1;export default [$0.x,$0.y];')
+        writes(['[]', [['.', 1, 'x'], ['.', 2, 'y']]], 'const $0=1;const $1=2;export default [$0.x,$1.y];')
+        writes([',', [['.', 1, 'x'], ['.', 1, 'y']]], 'const $0=1;const $1=$0.x;export default $0.y;')
+    },
+    // A key is a name after `.` where the word admits one, and a key in
+    // brackets otherwise: the empty word, a word a digit opens, a word
+    // holding what an identifier may not, and every number.
+    keys: () => {
+        writes(['=>', null, ['.', ['args'], 'length']], 'export default (...$a)=>$a.length;')
+        writes(['=>', null, ['.', ['args'], 'A_$9']], 'export default (...$a)=>$a.A_$9;')
+        writes(['=>', null, ['.', ['args'], '']], 'export default (...$a)=>$a[""];')
+        writes(['=>', null, ['.', ['args'], '0a']], 'export default (...$a)=>$a["0a"];')
+        writes(['=>', null, ['.', ['args'], 'a-b']], 'export default (...$a)=>$a["a-b"];')
+        writes(['=>', null, ['.', ['args'], 0]], 'export default (...$a)=>$a[0];')
+        writes(['=>', null, ['.', ['args'], 1.5]], 'export default (...$a)=>$a[1.5];')
+    },
+    // A function is written with its parameter and no other, since a body
+    // reads its arguments as one node: the parameters are named as a
+    // spreadsheet names its columns, by depth, so a body names its own and
+    // reaches the ones outside it.
+    functions: () => {
+        writes(identity, 'export default (...$a)=>$a;')
+        writes(['=>', null, ['=>', null, ['args']]], 'export default (...$a)=>(...$b)=>$b;')
+        writes(['=>', null, ['[]', [['=>', null, 1]]]], 'export default (...$a)=>[(...$b)=>1];')
+        // `$z` then `$aa`: the letters carry past the twenty-sixth body.
+        assert(reads(nested(27)).endsWith('(...$y)=>(...$z)=>(...$aa)=>$aa;'))
+    },
+    // An object body is written as a block: `=> {` opens one, so the object
+    // has to be returned from it rather than stand as the body's expression.
+    block: () => {
+        writes(['=>', null, ['{}', [[':', 'x', 1]]]], 'export default (...$a)=>{return {"x":1};};')
+        writes(['=>', null, ['[]', [1]]], 'export default (...$a)=>[1];')
+    },
+    // A comma at the root is the module it came from: an unused `const` per
+    // anchor and then the export, each anchor taking a name it does not
+    // spend so that one graph is one text. Any other root is the export
+    // alone.
+    roots: () => {
+        writes([',', [['[]', []], 1]], 'const $0=[];export default 1;')
+        /** @type {Exp} */
+        const o = ['{}', []]
+        writes([',', [['[]', []], ['[]', [o, o]]]], 'const $0=[];const $1={};export default [$1,$1];')
+        writes([',', [['[]', [o, o]], ['[]', [o]]]], 'const $0={};const $1=[$0,$0];export default [$0];')
+    },
+    // The chunks, which is what the writer writes and the string is joined
+    // from.
+    chunks: () => {
+        assertStructurallySame(toArray(unwrap(trySerialize(1))), ['export default ', '1', ';'])
+    },
+    // Every refusal, by the message it carries: a node kind with no spelling
+    // yet, a position a spelling has none in, and a key no literal reads
+    // back. Each names the feature that replaces it.
+    refuses: () => {
+        // A node kind this writer has no spelling for, which is how the
+        // feature that adds one is made to add its spelling here too.
+        refuses(['+', 1], 'a + node')
+        refuses(['[]', [['...', ['[]', []]]]], 'a spread')
+        refuses(['{}', [['...', ['[]', []]]]], 'a spread')
+        refuses(['.', ['args'], 'b', ['|()', ['args']]], 'a chain step')
+        refuses(['=>', ['frame'], 1], 'a function with a frame')
+        // A node kind with a spelling, in a position that has none.
+        refuses(['args'], 'the arguments outside a function')
+        refuses(['[]', [[',', [1, 2]]]], 'a comma outside the root')
+        refuses(
+            (() => {
+                /** @type {Exp} */
+                const o = ['{}', []]
+                return ['=>', null, ['[]', [o, o]]]
+            })(),
+            'a shared constructor inside a function body')
+        refuses(['=>', null, ['.', 1, 'x']], 'a hoisted access base inside a function body')
+        // A key no literal spells: a computed one, an object key that is not
+        // a string, and the three numbers the tokenizer does not read back.
+        refuses(['=>', null, ['.', ['args'], ['Number', ['args']]]], 'an access key that is no literal')
+        refuses(['{}', [[':', 1, 2]]], 'an object key that is not a string')
+        refuses(['=>', null, ['.', ['args'], NaN]], 'a number key no literal reads back')
+        refuses(['=>', null, ['.', ['args'], Infinity]], 'a number key no literal reads back')
+        refuses(['=>', null, ['.', ['args'], -0]], 'a number key no literal reads back')
+        // The first refusal is the one reported, and nothing after it is
+        // written: among the values a statement hoists, and among the
+        // statements of a module.
+        refuses(
+            (() => {
+                /** @type {Exp} */
+                const bad = ['[]', [['...', 1]]]
+                /** @type {Exp} */
+                const good = ['{}', []]
+                return ['[]', [bad, bad, good, good]]
+            })(),
+            'a spread')
+        refuses([',', [['+', 1], 1]], 'a + node')
+    },
+}

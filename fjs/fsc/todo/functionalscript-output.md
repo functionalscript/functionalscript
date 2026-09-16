@@ -116,14 +116,20 @@ accepts, so that compiling the output again yields the same EDAG:
   the standard's, which every FunctionalScript file run by a JavaScript
   engine already relies on, since every standard prototype name is refused
   at the key and so `a.x` and the own read agree on every accepted name:
-  `base.key` for a key that is an identifier and `base[key]` otherwise, a
-  number key as a number, a computed number as `base[Number(k)]` — a
-  non-finite one, which `a[1e999]` produces, as `1e999` or `-1e999`, the
-  literal the tokenizer reads back to the same key, since `Infinity` is a
-  reserved word and not a key token; a `NaN` key, which no literal spells
-  and the compiler never emits, is refused by name. The
-  grammar takes no access on two bases the parser accepts through a
-  reference and linking then puts in place: a number or bigint literal —
+  `base.key` for a key that is an identifier and `base[key]` otherwise, and
+  a number key as a number. Three numbers are refused instead, since no
+  literal reads back as the same key: `NaN` and the two infinities have no
+  literal at all — `Infinity` is a word and not a key token, and `1e999`,
+  which this issue first proposed for it, is read back as the key `null`
+  rather than as an infinity, which is the tokenizer's own bug and not a
+  spelling to build on — and `-0`, whose literal the parser already reads
+  as `0`. The compiler emits none of the three: `a[-0]` is the key `0` by
+  the time a graph holds it. A computed key, `['Number', e]`, is refused
+  too, rather than written `base[Number(k)]` as this issue first proposed:
+  the grammar's index is a string or a number literal, so that spelling is
+  one the parser would not read back, and it is a spelling to add with
+  computed keys. The grammar takes no access on two bases the parser accepts
+  through a reference and linking then puts in place: a number or bigint literal —
   `n.x` with `n` imported from a module exporting `1` links to
   `['.', 1, 'x']`, which `1.x` cannot spell — and a function — `f.length`
   with `f` exporting `(...a) => a` links to `['.', ['=>', null, ['args']], 'length']`,
@@ -166,18 +172,24 @@ contract stays for `.data.js` and `.json`, which are values.
 - [ ] Route the output by extension, longest suffix first: `.edag.data.js`/`.edag.data.mjs`,
       then `.data.js`/`.data.mjs`, `.f.js`/`.f.mjs`, `.json`; any other extension is
       refused, naming the four; `x.edag.data.js` pinned as the EDAG route.
-- [ ] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
+- [x] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
       with a numeric or function base hoisted, functions with parameters named by
       depth, the root comma as `const` anchors, shared identity-minting nodes —
       constructors and calls — hoisted and
       merged nodes written in place, every `const` named `$n` by position — one
       line, normalized.
-- [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
-      refusal does: a comma anywhere but the root, an object-literal body, a
+- [x] Refuse what the writer cannot spell yet, each by a message of its own,
+      for the compiler to name the output file with as the JSON refusal does:
+      a comma anywhere but the root, an
       identity-minting node shared within a body, a numeric or function base
       within a body, an identity-minting node reached only through lazy edges,
-      a `NaN` key, an object key that is not a string, a node kind
-      without a spelling.
+      a key no number literal reads back, a computed key, an object key that is
+      not a string, a node kind without a spelling. An object-literal body is
+      not among them: it is written as a block, which the block body
+      ([`3110-function.md`](../../../spec/todo/3110-function.md)) gives it.
+      An identity-minting node reached only through lazy edges needs no rule
+      of its own: every lazy node kind is a kind with no spelling, so such a
+      graph is refused at the operator before its sharing is reached.
 - [ ] Pin the round trip: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
       analyses whole — root, nodes, scope and shared, equal up to the
