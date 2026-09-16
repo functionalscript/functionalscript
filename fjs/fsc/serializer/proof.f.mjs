@@ -23,6 +23,7 @@ import { invert, unwrap } from '../../types/result/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { trySerialize, tryStringify } from './module.f.mjs'
+import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -56,11 +57,12 @@ const identity = ['=>', null, ['args']]
 
 /**
  * The keys a generated access is given: a word that follows `.`, a number,
- * the one prototype name an access may read, and one it may not.
+ * the one prototype name an access may read, one it may not, a word that
+ * denotes a value, and a letter that is no letter.
  *
  * @type {readonly (string | number)[]}
  */
-const keys = ['a', 0, 'length', 'constructor']
+const keys = ['a', 0, 'length', 'constructor', 'true', '\u212a']
 
 /**
  * One graph per shape over the graphs `p`: each container, an access with
@@ -156,8 +158,34 @@ export const proof = {
         writes(['=>', null, ['.', ['args'], '']], 'export default (...$a)=>$a[""];')
         writes(['=>', null, ['.', ['args'], '0a']], 'export default (...$a)=>$a["0a"];')
         writes(['=>', null, ['.', ['args'], 'a-b']], 'export default (...$a)=>$a["a-b"];')
+        writes(['=>', null, ['.', ['args'], '_x']], 'export default (...$a)=>$a._x;')
+        writes(['=>', null, ['.', ['args'], '$x']], 'export default (...$a)=>$a.$x;')
+        // The Kelvin sign lowercases to `k` and is no letter the tokenizer
+        // takes, so a key holding one is a key in brackets. The characters
+        // are classified by code point for that reason, never by case fold.
+        writes(['=>', null, ['.', ['args'], '\u212a']], 'export default (...$a)=>$a["\u212a"];')
         writes(['=>', null, ['.', ['args'], 0]], 'export default (...$a)=>$a[0];')
         writes(['=>', null, ['.', ['args'], 1.5]], 'export default (...$a)=>$a[1.5];')
+    },
+    // A keyword is a name after `.` — the tokenizer gives it an `id` token
+    // carrying the word — but the six words that *denote* a value are token
+    // kinds of their own, and no name: `$a.class` is an access and
+    // `$a.true` is not. Every keyword is checked, so a word that changes
+    // sides is a failure here rather than a module the compiler cannot read
+    // back.
+    keywords: () => {
+        /** @type {ReadonlySet<string>} */
+        const literal = new Set(/** @type {readonly string[]} */(literalWords))
+        keywords.forEach(k => {
+            const written = tryStringify(['=>', null, ['.', ['args'], k]])
+            // `arguments` and `eval` are on the prototypes, and an access
+            // on either has no text at all.
+            if (written[0] === 'error') {
+                assertEq(written[1], 'a prohibited property name', k)
+                return
+            }
+            assertEq(reads(['=>', null, ['.', ['args'], k]]), `export default (...$a)=>$a${literal.has(k) ? `["${k}"]` : `.${k}`};`)
+        })
     },
     // A function is written with its parameter and no other, since a body
     // reads its arguments as one node: the parameters are named as a

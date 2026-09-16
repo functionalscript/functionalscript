@@ -62,7 +62,10 @@ import { analysis } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap } from '../../media/json/serializer/module.f.mjs'
 import { first, flat, toArray } from '../../types/list/module.f.mjs'
-import { prohibitedNames } from '../parser/module.f.mjs'
+import { _prohibitedNames } from '../parser/module.f.mjs'
+import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
+import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { literalWords } from '../../js/keywords/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
 
@@ -99,19 +102,50 @@ const nameOf = (names, h) => {
     return i === -1 ? null : `$${i}`
 }
 
+/** How many letters a column digit has. */
+const letters = latinSmallLetterZ - latinSmallLetterA + 1
+
 /** The letters a parameter is named by, as a spreadsheet names its columns: `a`, `z`, `aa`. @type {(n: number) => string} */
 const column = n => {
-    const q = Math.floor((n - 1) / 26)
-    return `${q === 0 ? '' : column(q)}${'abcdefghijklmnopqrstuvwxyz'[(n - 1) % 26]}`
+    const q = Math.floor((n - 1) / letters)
+    return `${q === 0 ? '' : column(q)}${codePointToString(latinSmallLetterA + (n - 1) % letters)}`
 }
 
 /** The parameter of the body at `depth`, `1` being the outermost. @type {(depth: number) => string} */
 const parameter = depth => `$${column(depth)}`
 
-/** Whether a word may follow `.`, or must be written as a key in brackets. @type {(key: string) => boolean} */
-const identifierKey = key => key.length !== 0
-    && !'0123456789'.includes(key[0])
-    && [...key].every(c => 'abcdefghijklmnopqrstuvwxyz'.includes(c.toLowerCase()) || '0123456789_$'.includes(c))
+/** What may open an identifier: a Latin letter, `_` or `$`. @type {(codePoint: number) => boolean} */
+const identifierStart = codePoint =>
+    isLatinLetter(codePoint) || codePoint === lowLine || codePoint === dollarSign
+
+/**
+ * Whether a word is one the tokenizer reads as a single `id` token, and so
+ * may follow a `.` rather than be written as a key in brackets.
+ *
+ * The characters are classified by code point through
+ * [`text/ascii`](../../text/ascii/module.f.mjs), which is where the rest of
+ * the repository's lexical rules ask what a character is
+ * ([`../../js/identifier/todo`](../../js/identifier/todo/lexical-predicates-from-text-ascii.md)).
+ * A case fold would not do: `'\u212a'`, the Kelvin sign, lowercases to `k`
+ * and is no letter the tokenizer takes.
+ *
+ * @type {(key: string) => boolean}
+ */
+const identifierKey = key => {
+    const word = toArray(stringToCodePointList(key))
+    return word.length !== 0
+        && identifierStart(word[0])
+        && word.every(c => identifierStart(c) || isDigit(c))
+}
+
+/**
+ * The words that are no `id` token, and so no name after a `.`: a tokenizer
+ * gives each a token kind of its own, and every other keyword an `id`, so
+ * `a.class` is an access and `a.true` is not.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
 
 /**
  * The results of a list, or the first error in it. A list of values is
@@ -197,8 +231,8 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
  */
 const key = k => {
     if (typeof k === 'string') {
-        if (prohibitedNames.has(k)) { return error('a prohibited property name') }
-        return identifierKey(k) ? ok(['.', k]) : bracketed(k)
+        if (_prohibitedNames.has(k)) { return error('a prohibited property name') }
+        return identifierKey(k) && !literalWordSet.has(k) ? ok(['.', k]) : bracketed(k)
     }
     if (typeof k !== 'number') { return error('an access key that is no literal') }
     return Number.isFinite(k) && !Object.is(k, -0)

@@ -116,8 +116,13 @@ accepts, so that compiling the output again yields the same EDAG:
   the standard's, which every FunctionalScript file run by a JavaScript
   engine already relies on, since every standard prototype name is refused
   at the key and so `a.x` and the own read agree on every accepted name:
-  `base.key` for a key that is an identifier and `base[key]` otherwise, and
-  a number key as a number. Three numbers are refused instead, since no
+  `base.key` for a key the tokenizer reads as one `id` token and
+  `base[key]` otherwise — the characters classified by code point through
+  [`fjs/text/ascii`](../../text/ascii/module.f.mjs), never by a case fold,
+  which would make `\u212a` a letter, and the six words that denote a value
+  ([`literalWords`](../../js/keywords/module.f.mjs)) bracketed, being token
+  kinds of their own where every other keyword is an `id` — and a number key
+  as a number. Three numbers are refused instead, since no
   literal reads back as the same key: `NaN` and the two infinities have no
   literal at all — `Infinity` is a word and not a key token, and `1e999`,
   which this issue first proposed for it, is read back as the key `null`
