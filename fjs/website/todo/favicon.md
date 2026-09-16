@@ -11,15 +11,22 @@ row of identical blank marks over titles that differ in their last segment.
 
 ### Proposal
 
-Commit `favicon.svg` and `favicon.ico` at the repository root. The site serves
-the repository directory itself (`wrangler.jsonc`), so both are served from `/`
-with nothing to generate, and `/favicon.ico` is the path a browser asks for on
-its own. The mark is not derived from anything in the tree and will not change
-often, so a build step for it would buy nothing.
+Commit the two files. The site serves the repository directory itself
+(`wrangler.jsonc`), so a file is served from where it sits and there is nothing
+to generate; the mark will not change often, so a build step for it would buy
+nothing either.
 
-The generator's part is one `['link', { rel: 'icon', href: '/favicon.svg' }]`,
-exported beside `stylesheetLink` so no page spells the path, and taken by both
-heads — `page` for a directory, and the root page's own frame.
+- **`favicon.ico` at the repository root**, because `/favicon.ico` is the path
+  a browser asks for on its own, with no link to tell it otherwise. That one
+  is fixed by the protocol.
+- **`favicon.svg` in `fjs/website/`**, next to the generator that links it. It
+  is reached only through that link, so its path is ours to choose, and the
+  root keeps only the file it has to hold.
+
+The generator's part is one
+`['link', { rel: 'icon', href: '/fjs/website/favicon.svg' }]`, exported beside
+`stylesheetLink` so no page spells the path, and taken by both heads — `page`
+for a directory, and the root page's own frame.
 
 Draw the mark as geometry rather than text: an SVG that names a font renders as
 whatever the browser resolves it to. What the mark is, is the open question —
@@ -28,7 +35,7 @@ the site has no logo to inherit.
 ### Tasks
 
 - [ ] Decide the mark.
-- [ ] Commit `favicon.svg` and `favicon.ico` at the root.
+- [ ] Commit `favicon.svg` in `fjs/website/` and `favicon.ico` at the root.
 - [ ] Export the link and carry it in both heads.
 
 ### Related
