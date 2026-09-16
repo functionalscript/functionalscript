@@ -109,11 +109,18 @@ via the `Function` constructor — no rustc at the user's run time.
       identity-based sharing), and property access (`.`, via
       `Any::own_property`, string keys only — a numeric index has no
       `nanvm-lib` spelling until [`entry`](../fjs/edag/todo/entry.md) lands,
-      and is refused rather than approximated). Operators are not wired in:
-      the current parser/compiler do not emit operator EDAG nodes yet (see
-      [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s accepted subset), so
-      there is nothing yet to print through the `op1`/`op2`/`op3` tables. The
-      printer is shared with the operator-test generator via
+      and is refused rather than approximated). Arithmetic/logical operators
+      are not wired in: the current parser/compiler do not accept operator
+      *expressions* yet (see [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
+      accepted subset), so there is nothing yet to print through the
+      `op1`/`op2`/`op3` tables. `=>` is a different case — the compiler does
+      emit it, for a function literal compiled to `.edag.f.js` — but it
+      stays out of the `.rs` subset too: this printer accepts only the one
+      placeholder closure the operator-test corpus uses (`() => undefined`)
+      and refuses every real one, since `nanvm-lib` has no closures yet
+      (P2, `fjs/edag/todo/entry.md` and the `Function` constructor task in
+      [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)). The printer is
+      shared with the operator-test generator via
       [`fjs/edag/rust`](../fjs/edag/rust/module.f.mjs), not duplicated. Not
       yet covered: multi-module output layout (see the open question below)
       and wiring the harness (next task) to the generated output.

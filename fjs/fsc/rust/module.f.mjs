@@ -23,8 +23,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { error } from '../../types/result/module.f.mjs'
-import { tryCatch } from '../../types/result/module.mjs'
+import { error, mapOk, ok, okThen, unwrap } from '../../types/result/module.f.mjs'
 import { expExpr, sharedNodesOf } from '../../edag/rust/module.f.mjs'
 
 const indent = '    '
@@ -98,25 +97,38 @@ const importsFor = text => [...new Set([
 ])].sort()
 
 /**
- * The module's value as a Rust expression of type `Any<A>`, and the `let`
- * bindings its implicitly shared nodes need first.
+ * The `let` binding lines for the first `i` of `bindings`, each printed
+ * against the bindings established before it — or the refusal, from
+ * whichever one `expExpr` meets first that it has no `nanvm-lib` spelling
+ * for. Recursive rather than a fold, so that a refusal partway through short
+ * -circuits the rest without a mutable accumulator.
  *
- * @type {(root: Exp) => readonly string[]}
+ * @type {(bindings: readonly (readonly [Exp, string])[]) => (i: number) => Result<readonly string[], readonly unknown[]>}
+ */
+const letLines = bindings => i => {
+    if (i === 0) { return ok([]) }
+    const [node] = bindings[i - 1]
+    return okThen(prev => mapOk(s => [...prev, `${indent}let c${i - 1}: Any<A> = ${s};`])(expExpr(bindings.slice(0, i - 1))(node)))(letLines(bindings)(i - 1))
+}
+
+/**
+ * The module's value as a Rust expression of type `Any<A>`, and the `let`
+ * bindings its implicitly shared nodes need first — or the refusal.
+ *
+ * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
 const bodyLines = root => {
     const shared = sharedNodesOf(root)
     /** @type {readonly (readonly [Exp, string])[]} */
     const bindings = shared.map((node, i) => [node, `c${i}.clone()`])
-    return [
-        ...bindings.map(([node], i) =>
-            `${indent}let c${i}: Any<A> = ${expExpr(bindings.slice(0, i))(node)};`),
-        `${indent}${expExpr(bindings)(root)}`,
-    ]
+    return okThen(lines => mapOk(s => [...lines, `${indent}${s}`])(expExpr(bindings)(root)))(letLines(bindings)(bindings.length))
 }
 
 /**
- * The EDAG as a generated Rust module — throws where {@link expExpr} refuses
- * a node shape, as it does for every gap in what `nanvm-lib` implements.
+ * The EDAG as a generated Rust module, or the refusal: a node shape this
+ * printer has no `nanvm-lib` spelling for. Never throws — see
+ * `fjs/edag/rust/module.f.mjs`'s `expExpr` for why a gap here is a `Result`
+ * and not a thrown value.
  *
  * `pub fn module` carries `#[rustfmt::skip]`, the same as every function
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) emits: one node prints as
@@ -127,10 +139,9 @@ const bodyLines = root => {
  * depth would have to reproduce rustfmt's own wrapping, which is what the
  * skip avoids paying for.
  *
- * @type {(root: Exp) => string}
+ * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-export const generate = root => {
-    const body = bodyLines(root)
+const generateResult = root => mapOk(body => {
     const bodyText = body.join('\n')
     const helpers = helpersFor(bodyText)
     const uses = importsFor(`${bodyText}\n${helpers.join('\n')}`)
@@ -146,12 +157,23 @@ export const generate = root => {
         '}',
         '',
     ].join('\n')
-}
+})(bodyLines(root))
 
 /**
- * The reason {@link generate} refused, as text. Every refusal `expExpr`
- * throws (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]` pair —
- * `lookup`'s convention, kept by every throw site added since — never a
+ * {@link generateResult} as a throwing convenience, for direct use and for
+ * this module's own proofs — `unwrap`'s throw is the ordinary FunctionalScript
+ * panic `fjs/AGENTS.md` §1.5 describes, not a caught exception: nothing here
+ * recovers from it, so it propagates uncaught exactly as a thrown value with
+ * no `try`/`catch` does.
+ *
+ * @type {(root: Exp) => string}
+ */
+export const generate = root => unwrap(generateResult(root))
+
+/**
+ * The reason {@link generateResult} refused, as text. Every refusal
+ * `expExpr` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
+ * pair — `lookup`'s convention, kept by every refusal added since — never a
  * bare value, so joining the pair's own `String` forms is exact rather than
  * approximate.
  *
@@ -163,19 +185,17 @@ const reasonText = reason => reason.map(String).join(': ')
  * The EDAG as Rust, or the refusal: a node shape this printer has no
  * `nanvm-lib` spelling for, reported the same way a `.json` output's refusal
  * is — against the output rather than the input, since the module compiled
- * without complaint.
- *
- * `generate` signals a refusal by throwing, the convention this printer
- * shares with [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs); FunctionalScript
- * itself has no `try`/`catch` (`fjs/AGENTS.md` §1.5), so the boundary back to
- * a `Result` is {@link tryCatch}, the impure companion built for exactly
- * this, rather than a `try`/`catch` written here.
+ * without complaint. Built directly from {@link generateResult}'s own
+ * `Result`, so this module never throws and never needs to catch anything:
+ * no `try`/`catch`, and no dependency on a `.mjs` host boundary to supply
+ * one, since there is nothing here for FunctionalScript itself to recover
+ * from.
  *
  * @type {(root: Exp) => Result<string, string>}
  */
 export const toRust = root => {
-    const result = tryCatch(() => generate(root))
-    if (result[0] === 'ok') { return result }
-    const reason = /** @type {readonly unknown[]} */ (result[1])
-    return error(`no Rust spelling for this module: ${reasonText(reason)}`)
+    const result = generateResult(root)
+    return result[0] === 'ok'
+        ? result
+        : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
 }

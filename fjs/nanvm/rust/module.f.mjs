@@ -53,9 +53,22 @@ import {
     valueExp,
 } from '../module.f.mjs'
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
-import { expExpr, nodeExpr } from '../../edag/rust/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
+import { expExpr as sharedExpExpr, nodeExpr as sharedNodeExpr } from '../../edag/rust/module.f.mjs'
 
-export { nodeExpr }
+/**
+ * The shared printer as a throwing convenience, for this module's own use:
+ * every case in the shared operator corpus is already valid, so a refusal
+ * here is a bug in the corpus, not an expected outcome to report as a
+ * `Result` — the same distinction {@link expExpr}'s own doc comment draws,
+ * decided the other way for a different consumer.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
+ */
+const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
+
+/** @type {(e: Exp) => string} */
+export const nodeExpr = e => unwrap(sharedNodeExpr(e))
 
 const indent = '    '
 

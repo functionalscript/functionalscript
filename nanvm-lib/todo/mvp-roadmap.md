@@ -280,9 +280,11 @@ as a generic `Any` facility, post-MVP.
       constant-default-export walking-skeleton subset (literals, arrays,
       objects, `const` sharing, property access); see
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) for what
-      it does and does not cover yet. Still needed before the MVP is reached:
-      the harness (next task), which this generator's output is unverified
-      against end-to-end until it exists.
+      it does and does not cover yet. Verified manually against the real
+      `nanvm-lib` crate (`cargo run` / `cargo fmt --check` on generated
+      samples), but not yet continuously verified by the repository's own
+      harness and CI — that is still the next task, and the MVP is not
+      reached until it exists and runs this generator's output end-to-end.
 - [ ] **Harness + walking skeleton** — a harness crate (or generated tests
       in `nanvm-lib`) whose `main` evaluates a generated module's
       `export default` and prints the result as JSON; wire the pipeline
