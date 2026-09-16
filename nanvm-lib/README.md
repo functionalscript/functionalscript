@@ -63,7 +63,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 |------------|---------------------|----------|-------|
 | `?:`       | Conditional         | [x]      | [`any/conditional.rs`](src/vm/any/conditional.rs) — `Any::conditional()` method; the EDAG's `["?:", c, t, e]` (`op3Id`), covered by the corpus as a `Group3`. The arms reach `nanvm-lib` already established, so the node's laziness — exactly one arm established — is proven on the FunctionalScript side alone |
 | `own`      | Own-property lookup | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) / [`object/own_property.rs`](src/vm/object/own_property.rs) — `Any::own_property()` method, exactly `Object.getOwnPropertyDescriptor(object, key)?.value`: no getter invocation, no prototype chain (`nanvm-lib` objects have none), last-duplicate-wins flat key lookup on `Object<A>`; the key must already be a `String<A>` (`Result::Err`, not a coercion); a non-object, non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`, a function) always answers `undefined`; a nullish one throws |
-| `.` / `[]` | Member access       | [ ]      | not yet: full property access still needs prototype-chain walking, getters, and `Array<A>` indexing beyond what `own` covers |
+| `.` / `[]` | Member access       | [x]      | [`any/member_access.rs`](src/vm/any/member_access.rs) — `Any::member_access` dispatches to [`array/member_access.rs`](src/vm/array/member_access.rs), [`string/member_access.rs`](src/vm/string/member_access.rs), and [`object/member_access.rs`](src/vm/object/member_access.rs); `Number`/`Boolean`/`BigInt`/`Function` have no own properties, so every key on one answers `undefined`; still no prototype chain or built-in methods (`.map`, `.push`, `.slice`, getters), which is out of scope, same as the EDAG's chain-step nodes (`|.`, `?.`, etc.) |
 | `in`       | Property check      | [ ]      | |
 | `instanceof` | Instance check    | [ ]      | |
 
@@ -72,7 +72,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | Coercion       | Status | Location |
 |----------------|--------|----------|
 | To number      | [x]    | [`number_coercion.rs`](src/vm/number_coercion.rs) |
-| To string      | [x]    | [`string_coercion.rs`](src/vm/string_coercion.rs) |
+| To string      | [x]    | [`string_coercion.rs`](src/vm/string_coercion.rs) — `Number::toString`'s round-half-to-even tie-break (`round_tie_to_even`) is decided by exact `BigInt` comparison, not a floating-point heuristic |
 | To boolean     | [x]    | [`boolean_coercion.rs`](src/vm/boolean_coercion.rs) — never throws, unlike the others |
 | To primitive   | [x]    | [`primitive_coercion.rs`](src/vm/primitive_coercion.rs) |
 | To numeric     | [x]    | `Any::to_numeric()` |

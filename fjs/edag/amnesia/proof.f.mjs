@@ -157,6 +157,22 @@ export const proof = {
         eq(['**', 2, 3], 8)
         eq(['===', 2, 2], true)
         eq(['!==', 2, 3], true)
+        // `is` beside `===`, on the four inputs where the two part or meet:
+        // `NaN` with itself, `0` with `-0`, an object with itself, and two
+        // equal objects.
+        eq(['is', NaN, NaN], true)
+        eq(['===', NaN, NaN], false)
+        eq(['is', 0, -0], false)
+        eq(['===', 0, -0], true)
+        eq(['is', 2, 2], true)
+        /** @type {Exp} */
+        const o = ['{}', []]
+        /** @type {readonly (readonly[Exp, unknown])[]} */
+        const one = [[o, ev(o)]]
+        assertEq(vm({ ...context, memo: one })(['is', o, o]), true)
+        assertEq(vm({ ...context, memo: one })(['===', o, o]), true)
+        eq(['is', ['{}', []], ['{}', []]], false)
+        eq(['===', ['{}', []], ['{}', []]], false)
         eq(['<', 2, 3], true)
         eq(['<=', 3, 3], true)
         eq(['>', 2, 3], false)

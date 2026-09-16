@@ -45,13 +45,22 @@ type Analysis = {
     readonly root: Operand              // the program's value: an index into `nodes`, or a primitive
     readonly nodes: readonly Node[]     // every operation node of the program, in walk order, each once
     readonly scope: readonly number[]   // per node: the index of the `=>` whose body holds it, or -1 at the module level
-    readonly shared: readonly number[]  // the indices reached by more than one edge within their scope, in that order
+    readonly shared: readonly number[]  // the indices written at more than one place, in that order
 }
 // an Operand is an index, `['#', i]`, or a primitive; a Node is the EDAG
 // node with each operation-node operand replaced by its index, so that
 // `export default 1;` is an empty table with the root `1`
 ```
 
+- **Shared is written more than once.** An identity-minting entry is
+  written once, hoisted where more than one place reaches it; a merged entry
+  is written at every place that reaches it. So an entry's count is the sum,
+  over the edges into it, of the places its parent is written — one for a
+  parent that mints identity, the parent's own count for one that merges —
+  and `shared` is every entry counted more than once. That is what makes
+  `[r, r]` over one access node `r` of `a` and `[a.x, a.x]` over two the
+  same table, with `a` hoisted in both: the round trip's equality, stated
+  over the count rather than over the edge.
 - **One table, the whole program.** A node is numbered once wherever it
   sits, inside a body or at the module level, so a program has one map and
   one numbering; a primitive is a leaf, written and evaluated in place, and
@@ -174,7 +183,7 @@ value outputs keep the sweep until they run the EDAG.
 
 ### Tasks
 
-- [ ] `fjs/edag/analysis`: the table over an `Exp` — operation nodes in
+- [x] `fjs/edag/analysis`: the table over an `Exp` — operation nodes in
       walk order with operands by index, the scope of each, shared indices —
       with the merge of identity-free nodes within a scope and no merge of
       constructors; proofs for a shared constructor, a shared access, two
@@ -182,9 +191,9 @@ value outputs keep the sweep until they run the EDAG.
       operators over `0` and `-0` left apart and two over `NaN` merged, two
       equal constructors, a primitive taking no index, sharing inside a body
       against sharing outside and a body inside a body, and a lazy operand.
-- [ ] Amnesia's operations factored into a table parameterized by the child
+- [x] Amnesia's operations factored into a table parameterized by the child
       evaluation, amnesia unchanged in behavior and its proofs green.
-- [ ] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`
+- [x] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`
       holds one array, that a body's node is fresh per call, and that a lazy
       operand is evaluated only when demanded — each beside amnesia's answer
       where sharing does not decide it, and `['===', s, s]` pinned as `true`
