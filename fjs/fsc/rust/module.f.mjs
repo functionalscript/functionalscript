@@ -149,13 +149,15 @@ export const generate = root => {
 }
 
 /**
- * The reason {@link generate} refused, as text: every refusal it throws is
- * either a `[reason, detail]` pair or a bare string, never a value meant for
- * a human to read as JSON.
+ * The reason {@link generate} refused, as text. Every refusal `expExpr`
+ * throws (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]` pair —
+ * `lookup`'s convention, kept by every throw site added since — never a
+ * bare value, so joining the pair's own `String` forms is exact rather than
+ * approximate.
  *
- * @type {(reason: unknown) => string}
+ * @type {(reason: readonly unknown[]) => string}
  */
-const reasonText = reason => reason instanceof Array ? reason.map(String).join(': ') : String(reason)
+const reasonText = reason => reason.map(String).join(': ')
 
 /**
  * The EDAG as Rust, or the refusal: a node shape this printer has no
@@ -173,5 +175,7 @@ const reasonText = reason => reason instanceof Array ? reason.map(String).join('
  */
 export const toRust = root => {
     const result = tryCatch(() => generate(root))
-    return result[0] === 'ok' ? result : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
+    if (result[0] === 'ok') { return result }
+    const reason = /** @type {readonly unknown[]} */ (result[1])
+    return error(`no Rust spelling for this module: ${reasonText(reason)}`)
 }
