@@ -101,9 +101,22 @@ via the `Function` constructor — no rustc at the user's run time.
 
 ### Tasks
 
-- [ ] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
+- [x] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
       exposing the compiled module's value (e.g.
-      `pub fn module<A: IVm>() -> Any<A>`), not a `main`.
+      `pub fn module<A: IVm>() -> Any<A>`), not a `main`. Covers literals,
+      arrays, objects, `const` sharing (generalized from the operator-test
+      printer's explicit named `shared` to a linked EDAG's implicit,
+      identity-based sharing), and property access (`.`, via
+      `Any::own_property`, string keys only — a numeric index has no
+      `nanvm-lib` spelling until [`entry`](../fjs/edag/todo/entry.md) lands,
+      and is refused rather than approximated). Operators are not wired in:
+      the current parser/compiler do not emit operator EDAG nodes yet (see
+      [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s accepted subset), so
+      there is nothing yet to print through the `op1`/`op2`/`op3` tables. The
+      printer is shared with the operator-test generator via
+      [`fjs/edag/rust`](../fjs/edag/rust/module.f.mjs), not duplicated. Not
+      yet covered: multi-module output layout (see the open question below)
+      and wiring the harness (next task) to the generated output.
 - [ ] Create the harness: a crate (or generated tests in `nanvm-lib`) with a
       thin `main` that evaluates a generated module's `export default` and
       prints the result as JSON; wire it into CI via `cargo test`.
