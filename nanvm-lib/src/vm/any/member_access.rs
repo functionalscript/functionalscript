@@ -2,15 +2,20 @@ use super::CANNOT_CONVERT_NULLISH_TO_OBJECT;
 use crate::vm::{Any, IVm, ToAny, Unpacked, nullish::Nullish};
 
 impl<A: IVm> Any<A> {
-    /// The EDAG's `.` / `[]` (`['.', receiver, index]`) — see
-    /// `nanvm-lib/todo/member-access-operator.md` for the staged plan.
-    /// An `Array` or `String` receiver is dispatched to
-    /// `Array::member_access` / `String::member_access`
-    /// (`vm/array/member_access.rs`, `vm/string/member_access.rs`), the
+    /// The EDAG's `.` / `[]` (`['.', receiver, index]`). An `Array`,
+    /// `String`, or `Object` receiver is dispatched to its own
+    /// `member_access` (`vm/array/member_access.rs`,
+    /// `vm/string/member_access.rs`, `vm/object/member_access.rs`), the
     /// same split `own_property` has between this dispatcher and
-    /// `Object::own_property`. Every other receiver is Stage 3 (`Object`,
-    /// and the `undefined` fallback for `Number`/`Boolean`/`BigInt`/
-    /// `Function`) and is not implemented yet.
+    /// `Object::own_property`. Every remaining receiver — `Number`,
+    /// `Boolean`, `BigInt`, a function — has no own properties, so it
+    /// always answers `undefined`, the same fallback `own_property` has.
+    /// No prototype chain and no built-in methods (`.map`, `.push`,
+    /// `.slice`, getters) on any receiver — out of scope, since
+    /// `nanvm-lib` objects have no `__proto__` to walk in the first place
+    /// (see `own_property`'s own doc comment); nor the EDAG's chain-step
+    /// nodes (`|.`, `?.`, etc. — `fjs/edag/README.md`'s Chains section),
+    /// which carry hidden control flow this plain read doesn't.
     ///
     /// A nullish receiver throws the same `TypeError` `own_property` does:
     /// real JS's `[]` runs the same `ToObject` failure ahead of any key
@@ -27,9 +32,10 @@ impl<A: IVm> Any<A> {
             Unpacked::String(s) => s
                 .member_access(key)
                 .unwrap_or_else(|| Nullish::Undefined.to_any()),
-            _ => todo!(
-                "member access on a Number/Boolean/BigInt/Object/Function receiver: see nanvm-lib/todo/member-access-operator.md"
-            ),
+            Unpacked::Object(o) => o
+                .member_access(key)
+                .unwrap_or_else(|| Nullish::Undefined.to_any()),
+            _ => Nullish::Undefined.to_any(),
         })
     }
 }
@@ -76,12 +82,30 @@ mod tests {
         );
     }
 
-    /// Stage 3 (`Object`, and everything else) of
-    /// `nanvm-lib/todo/member-access-operator.md` is not implemented yet.
+    /// The dispatch wiring itself, as opposed to `Object::member_access`'s
+    /// own behavior, which is tested in `vm/object/member_access.rs`.
     #[test]
-    #[should_panic]
-    fn object_receiver_is_not_implemented_yet() {
-        let object: Any<A> = [].to_object::<A>().to_any();
-        let _ = object.member_access(0.0.to_any());
+    fn object_receiver_dispatches_to_object_member_access() {
+        let object: Any<A> = [("a".into(), 1.0.to_any())].to_object().to_any();
+        assert_eq!(object.clone().member_access("a".into()), Ok(1.0.to_any()));
+        assert_eq!(
+            object.member_access("b".into()),
+            Ok(Nullish::Undefined.to_any())
+        );
+    }
+
+    /// `Number`, `Boolean`, `BigInt`, and `Function` receivers have no own
+    /// properties at all, so every key on one reads `undefined` — the same
+    /// fallback `own_property` has.
+    #[test]
+    fn primitive_receiver_has_no_properties() {
+        assert_eq!(
+            1.0.to_any::<A>().member_access(0.0.to_any()),
+            Ok(Nullish::Undefined.to_any())
+        );
+        assert_eq!(
+            true.to_any::<A>().member_access("length".into()),
+            Ok(Nullish::Undefined.to_any())
+        );
     }
 }
