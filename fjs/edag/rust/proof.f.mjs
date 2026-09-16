@@ -52,10 +52,30 @@ export const proof = {
             nodeExpr(['.', ['{}', [[':', 'a', 1]]], 'a']),
             'Any::own_property([(string_key("a"), (1f64).to_any())].to_object().to_any(), string_any("a")).unwrap()')
         // Atomic as an operand: the method chain binds tighter than any
-        // infix operator, so no parentheses are needed around it.
+        // infix operator, so no parentheses are needed around it. The base
+        // is an object literal — the one shape `own_property` reads
+        // correctly — so this exercises parenthesization, not a refusal.
         assertEq(
-            nodeExpr(['-', ['.', 'a', 'b']]),
-            '-(Any::own_property(string_any("a"), string_any("b")).unwrap())')
+            nodeExpr(['-', ['.', ['{}', []], 'b']]),
+            '-(Any::own_property(Object::default().to_any(), string_any("b")).unwrap())')
+    },
+    /**
+     * `,` — new relative to the operator-test printer, whose corpus has no
+     * anchored, unreached roots. Every operand is established, in the order
+     * `fjs/fsc/edag/module.f.mjs`'s `resolve` puts them in (imports, then
+     * unreached `const`s, then the export), and the last one's value is the
+     * whole node's.
+     */
+    comma: () => {
+        assertEq(nodeExpr([',', [1, 2]]), '{ let _: Any<A> = (1f64).to_any(); (2f64).to_any() }')
+        assertEq(
+            nodeExpr([',', [1, 2, 3]]),
+            '{ let _: Any<A> = (1f64).to_any(); let _: Any<A> = (2f64).to_any(); (3f64).to_any() }')
+        // Atomic as an operand, the same as `.`: a brace-delimited block
+        // needs no parentheses wherever it stands.
+        assertEq(
+            nodeExpr(['-', [',', [1, 2]]]),
+            '-({ let _: Any<A> = (1f64).to_any(); (2f64).to_any() })')
     },
     /** A shared node prints once and clones at every later reference. */
     sharing: () => {
@@ -78,6 +98,7 @@ export const proof = {
         shared: () => {
             /** @type {Exp} */
             const base = ['[]', []]
+            /** @type {Exp} */
             const root = ['[]', [base, base]]
             const found = sharedNodesOf(root)
             assertEq(found.length, 1)
@@ -93,6 +114,7 @@ export const proof = {
             const inner = ['[]', []]
             /** @type {Exp} */
             const outer = ['[]', [inner]]
+            /** @type {Exp} */
             const root = ['[]', [outer, outer, inner, inner]]
             const found = sharedNodesOf(root)
             assertEq(found.length, 2)
@@ -101,6 +123,7 @@ export const proof = {
         },
         /** The root itself is never reported, however the graph is shaped. */
         excludesRoot: () => {
+            /** @type {Exp} */
             const root = ['[]', [1]]
             assert(!sharedNodesOf(root).includes(root), sharedNodesOf(root))
         },
@@ -113,8 +136,26 @@ export const proof = {
         /** An object key the printer cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /** A numeric index: no `nanvm-lib` spelling until `entry` lands. */
-        numericIndex: () => nodeExpr(['.', 'a', 0]),
+        numericIndex: () => nodeExpr(['.', ['{}', []], 0]),
         /** A `.` chain step: out of scope, refused rather than dropped. */
-        dotChainStep: () => nodeExpr(['.', 'a', 'b', ['|()', ['[]', []]]]),
+        dotChainStep: () => nodeExpr(['.', ['{}', []], 'b', ['|()', ['[]', []]]]),
+        /**
+         * A property read on a nullish base throws at run time — refused
+         * rather than compiled to a Rust panic (`fjs/fsc/README.md`: "a
+         * `null` or `undefined` base is the one failure a data module can
+         * make").
+         */
+        dotOnNull: () => nodeExpr(['.', null, 'a']),
+        dotOnUndefined: () => nodeExpr(['.', ['undefined'], 'a']),
+        /**
+         * `own_property` only inspects a plain object, so a base this
+         * printer can *prove* is something else — an array or string
+         * literal, a boolean, a number, a bigint — is refused rather than
+         * silently swapped for `undefined` (`[1].length`, `"ab"[0]` are
+         * accepted DJS, per `fjs/fsc/README.md`).
+         */
+        dotOnArrayLiteral: () => nodeExpr(['.', ['[]', [1]], 'length']),
+        dotOnStringLiteral: () => nodeExpr(['.', 'ab', '0']),
+        dotOnBooleanLiteral: () => nodeExpr(['.', true, 'x']),
     },
 }

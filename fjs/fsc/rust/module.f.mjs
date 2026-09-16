@@ -23,7 +23,8 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error } from '../../types/result/module.f.mjs'
+import { tryCatch } from '../../types/result/module.mjs'
 import { expExpr, sharedNodesOf } from '../../edag/rust/module.f.mjs'
 
 const indent = '    '
@@ -162,12 +163,15 @@ const reasonText = reason => reason instanceof Array ? reason.map(String).join('
  * is — against the output rather than the input, since the module compiled
  * without complaint.
  *
+ * `generate` signals a refusal by throwing, the convention this printer
+ * shares with [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs); FunctionalScript
+ * itself has no `try`/`catch` (`fjs/AGENTS.md` §1.5), so the boundary back to
+ * a `Result` is {@link tryCatch}, the impure companion built for exactly
+ * this, rather than a `try`/`catch` written here.
+ *
  * @type {(root: Exp) => Result<string, string>}
  */
 export const toRust = root => {
-    try {
-        return ok(generate(root))
-    } catch (reason) {
-        return error(`no Rust spelling for this module: ${reasonText(reason)}`)
-    }
+    const result = tryCatch(() => generate(root))
+    return result[0] === 'ok' ? result : error(`no Rust spelling for this module: ${reasonText(result[1])}`)
 }
