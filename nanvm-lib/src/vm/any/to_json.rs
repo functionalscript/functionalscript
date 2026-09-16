@@ -51,6 +51,16 @@ impl<A: IVm> Dispatch<A> for ToJson {
         Ok(if v { "true" } else { "false" }.into())
     }
 
+    // Known divergence from `JSON.stringify`, left as-is: Rust's `f64:
+    // :Display` (used below via `v.to_string()`) never switches to
+    // exponential notation, so a magnitude JS would render as `"1e+21"` or
+    // `"5e-324"` instead comes out as a long plain-decimal expansion here —
+    // still round-trips, just not byte-identical to a real JS engine.
+    // `string_coercion.rs`'s `number_to_string` (added by PR #2068) already
+    // implements ECMA-262's actual notation rule; once that lands, this
+    // should call it instead of `v.to_string()` rather than duplicating a
+    // 25-case-verified algorithm into a second place. Tracked there, not
+    // fixed here, to keep this walking-skeleton PR's patch minimal.
     fn number(self, v: f64) -> Self::Result {
         if !v.is_finite() {
             return Err(JsonError::NonFiniteNumber(v));
@@ -72,6 +82,8 @@ impl<A: IVm> Dispatch<A> for ToJson {
             match r {
                 Ok('"') => out.push_str("\\\""),
                 Ok('\\') => out.push_str("\\\\"),
+                Ok('\u{8}') => out.push_str("\\b"),
+                Ok('\u{c}') => out.push_str("\\f"),
                 Ok('\n') => out.push_str("\\n"),
                 Ok('\r') => out.push_str("\\r"),
                 Ok('\t') => out.push_str("\\t"),
@@ -164,6 +176,14 @@ mod tests {
     fn string() {
         assert_eq!(s("hello").to_json(), Ok(r#""hello""#.into()));
         assert_eq!(s("a\"b\\c\nd").to_json(), Ok(r#""a\"b\\c\nd""#.into()));
+    }
+
+    #[test]
+    fn backspace_and_form_feed_use_short_escapes() {
+        // `JSON.stringify` spells U+0008/U+000C as the two-character `\b`/
+        // `\f`, not the generic four-hex-digit ``/`` form.
+        assert_eq!(s("\u{8}").to_json(), Ok(r#""\b""#.into()));
+        assert_eq!(s("\u{c}").to_json(), Ok(r#""\f""#.into()));
     }
 
     #[test]
