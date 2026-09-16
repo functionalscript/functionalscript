@@ -2,6 +2,7 @@ use core::fmt::{self, Display, Formatter, Write};
 
 use crate::vm::{
     Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
+    string_coercion::number_to_string,
 };
 
 /// An `Any<A>` shape [`Any::to_json`] does not (yet) know how to render.
@@ -51,29 +52,18 @@ impl<A: IVm> Dispatch<A> for ToJson {
         Ok(if v { "true" } else { "false" }.into())
     }
 
-    // Known divergence from `JSON.stringify`, left as-is: Rust's `f64:
-    // :Display` (used below via `v.to_string()`) never switches to
-    // exponential notation, so a magnitude JS would render as `"1e+21"` or
-    // `"5e-324"` instead comes out as a long plain-decimal expansion here —
-    // still round-trips, just not byte-identical to a real JS engine.
-    // `string_coercion.rs`'s `number_to_string` (added by PR #2068) already
-    // implements ECMA-262's actual notation rule; once that lands, this
-    // should call it instead of `v.to_string()` rather than duplicating a
-    // 25-case-verified algorithm into a second place. Tracked there, not
-    // fixed here, to keep this walking-skeleton PR's patch minimal.
     fn number(self, v: f64) -> Self::Result {
         if !v.is_finite() {
             return Err(JsonError::NonFiniteNumber(v));
         }
-        // `-0.0.to_string()` renders as `"-0"`, but ECMAScript's
-        // `Number::toString` (and so `JSON.stringify(-0)`) renders `-0` as
-        // `"0"` — the same special case `StringCoercion::number` already
-        // makes (`string_coercion.rs`).
-        if v == 0.0 {
-            Ok("0".into())
-        } else {
-            Ok(v.to_string())
-        }
+        // `number_to_string` (`string_coercion.rs`) is `Number::toString`
+        // proper: correct exponential-notation switching and the `-0` ->
+        // `"0"` case, not Rust's `f64::to_string()` (which never switches to
+        // exponential notation, so e.g. `1e21` would come out as a 22-digit
+        // plain integer instead of `"1e+21"`). `v` is already known finite
+        // above, so the `NaN`/`Infinity` spellings that function also
+        // produces never surface here.
+        Ok(number_to_string::<A>(v).into())
     }
 
     fn string(self, v: String<A>) -> Self::Result {
@@ -154,8 +144,17 @@ mod tests {
     #[test]
     fn negative_zero_renders_as_zero() {
         // ECMAScript's `Number::toString(-0)` (and so `JSON.stringify(-0)`)
-        // is `"0"`, not `"-0"` — see `StringCoercion::number`'s same case.
+        // is `"0"`, not `"-0"` — handled by `number_to_string`.
         assert_eq!((-0.0).to_any::<A>().to_json(), Ok("0".into()));
+    }
+
+    #[test]
+    fn large_and_small_magnitudes_use_exponential_notation() {
+        // `f64::to_string()` never switches to exponential notation, but
+        // `JSON.stringify` (via `Number::toString`) does; `number_to_string`
+        // (`string_coercion.rs`) gets this right, so `to_json` inherits it.
+        assert_eq!(1e21.to_any::<A>().to_json(), Ok("1e+21".into()));
+        assert_eq!(1e-7.to_any::<A>().to_json(), Ok("1e-7".into()));
     }
 
     #[test]
@@ -181,7 +180,7 @@ mod tests {
     #[test]
     fn backspace_and_form_feed_use_short_escapes() {
         // `JSON.stringify` spells U+0008/U+000C as the two-character `\b`/
-        // `\f`, not the generic four-hex-digit ``/`` form.
+        // `\f`, not the generic four-hex-digit `\u0008`/`\u000c` form.
         assert_eq!(s("\u{8}").to_json(), Ok(r#""\b""#.into()));
         assert_eq!(s("\u{c}").to_json(), Ok(r#""\f""#.into()));
     }
