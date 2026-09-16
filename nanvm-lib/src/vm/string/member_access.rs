@@ -11,9 +11,9 @@ impl<A: IVm> String<A> {
     /// `self[key]`: an in-bounds index — given as a `Number` or its
     /// canonical decimal string — reads the single UTF-16 code unit at
     /// that position, as a one-character `String<A>` (matches JS `str[i]`,
-    /// *not* `.charAt`, which is a prototype method and out of scope —
-    /// `nanvm-lib/todo/member-access-operator.md`); the string key
-    /// `"length"` reads the UTF-16 length; every other key is `None`, for
+    /// *not* `.charAt`, which is a prototype method and out of scope, same
+    /// as every other built-in method); the string key `"length"` reads
+    /// the UTF-16 length; every other key is `None`, for
     /// the caller (`Any::member_access`) to turn into `undefined` — the
     /// same contract `Array::member_access` and `Object::own_property`
     /// have.

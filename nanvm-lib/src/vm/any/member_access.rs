@@ -2,15 +2,20 @@ use super::CANNOT_CONVERT_NULLISH_TO_OBJECT;
 use crate::vm::{Any, IVm, ToAny, Unpacked, nullish::Nullish};
 
 impl<A: IVm> Any<A> {
-    /// The EDAG's `.` / `[]` (`['.', receiver, index]`) — see
-    /// `nanvm-lib/todo/member-access-operator.md` for the completed staged
-    /// plan. An `Array`, `String`, or `Object` receiver is dispatched to
-    /// its own `member_access` (`vm/array/member_access.rs`,
+    /// The EDAG's `.` / `[]` (`['.', receiver, index]`). An `Array`,
+    /// `String`, or `Object` receiver is dispatched to its own
+    /// `member_access` (`vm/array/member_access.rs`,
     /// `vm/string/member_access.rs`, `vm/object/member_access.rs`), the
     /// same split `own_property` has between this dispatcher and
     /// `Object::own_property`. Every remaining receiver — `Number`,
     /// `Boolean`, `BigInt`, a function — has no own properties, so it
     /// always answers `undefined`, the same fallback `own_property` has.
+    /// No prototype chain and no built-in methods (`.map`, `.push`,
+    /// `.slice`, getters) on any receiver — out of scope, since
+    /// `nanvm-lib` objects have no `__proto__` to walk in the first place
+    /// (see `own_property`'s own doc comment); nor the EDAG's chain-step
+    /// nodes (`|.`, `?.`, etc. — `fjs/edag/README.md`'s Chains section),
+    /// which carry hidden control flow this plain read doesn't.
     ///
     /// A nullish receiver throws the same `TypeError` `own_property` does:
     /// real JS's `[]` runs the same `ToObject` failure ahead of any key
