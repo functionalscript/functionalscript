@@ -260,33 +260,81 @@ target documents. Several paths can reference the same document. Changing a
 mapping creates a new directory document; the old directory remains addressable
 by its hash.
 
+## Global Names
+
+A **global name** includes an explicit root: a cryptographic hash or a DID.
+It does not depend on the reader's local names or require a base directory to
+identify that root. Global naming is independent of storage and transport.
+
+### Hash-Based Names
+
+A hash-based global name, such as `sha256:...`, identifies one immutable
+document under the hash algorithm's security assumptions. It includes both
+the algorithm and its hash value. The same document has the same name for
+that algorithm, regardless of who stores or retrieves it.
+
+A directory document can itself be named by its hash, providing an immutable
+base for the paths stored in that directory. Changing the directory's mappings
+creates a different document with its own hash-based name.
+
+### DID-Based Names
+
+A DID, such as `did:example:alice`, globally identifies an identity rather than
+one particular document revision. In DISOT, it can also serve as the root of a
+namespace. For example, `/did:example:alice/parser` names `parser` within that
+DID's namespace.
+
+Unlike a hash-based name, a DID-based name can follow an evolving entity.
+Accepted signed revisions can bind the same name to different document hashes
+over time. The name does not itself pin the content: resolving it requires
+the relevant history, authority, and trusted timestamp evidence. New revisions
+do not rewrite earlier statements, and conflicting histories remain available
+for inspection even when a resolver's policy selects one for use.
+
+“Global” means that the root is explicit, not that everyone must trust its
+controller or agree on the current revision. A global name is neither a promise
+of availability nor a globally allocated human-readable spelling.
+
 ## Relative Names
 
-Hashes identify immutable documents. Human-readable names let people discover
-and follow evolving entities without a global DNS-style registrar.
+A **relative name** omits the global root and is interpreted against a supplied
+base: a directory, a namespace, or the reader's identity and trust relationships.
+The same spelling can resolve differently with different bases. The base belongs
+to the context in which a document is used; it is not necessarily intrinsic to
+the document's bits.
 
-A name can be rooted in a DID, such as `/did:example:alice/parser`, or reached
-through a personal Web of Trust, such as `~/alice/charlie/parser`. Here `~` is
-the reader's identity root; each relationship is resolved in that context.
-Another reader can associate `alice` with a different identity. There is no
-requirement for one globally popular account to own the spelling.
+With a hash-named directory as the base, `./a.js` uses that immutable directory's
+`a.js` entry and yields the referenced document's hash-based global name.
+With a DID namespace as the base, a relative name can instead expand to a
+DID-based global name:
+
+```text
+base namespace = /did:example:alice/
+relative name  = ./json
+global name    = /did:example:alice/json
+```
+
+A personal Web of Trust supplies another context. In `~/alice/charlie/parser`,
+`~` denotes the reader's identity root: `alice` is resolved from that root,
+`charlie` through that Alice's relationships, and `parser` within the resulting
+namespace. Another reader can associate `alice` with a different identity.
+There is no requirement for one globally popular account to own the spelling.
 
 Signed statements record names, relationships, and delegation. Each resolver
 chooses which identities to trust for the relevant subject and operation;
 validating a signature does not grant its signer authority over somebody
 else's namespace. Trust is contextual, not a single global reputation score.
 
-New signed revisions can change a name's resolution without rewriting earlier
-statements. Conflicting histories remain available for inspection, even when
-a resolver's policy selects one for use. For Git-backed entities, signed
-directories help with trust-path traversal and discovery; they do not override
-the authoritative history described in [Git Projection](#git-projection).
+Resolving a relative name supplies its missing context. Resolving an evolving
+DID-based name to a particular document is a separate step; a hash-based name
+already identifies the selected content.
 
 ## Snapshot
 
 A **snapshot** records the exact immutable resolutions used for a document's
-references. It separates a human-readable dependency name from the revision
-chosen for a particular use:
+references. A relative name may first expand to a DID-based global name and
+then resolve to a hash-based global name. For example, with
+`/did:example:alice/` as the base namespace:
 
 ```text
 ./json -> /did:example:alice/json -> sha256:...
@@ -308,6 +356,12 @@ naming and lock-map designs.
 
 Git is an initial history, storage, and transport projection of this model, not
 the definition of a document's identity or the only possible protocol.
+
+This projection uses the global and relative names defined above; it does not
+introduce a separate naming system. For Git-backed entities, signed directories
+help with trust-path traversal and discovery; they do not override the
+authoritative history determined by the metadata, evidence, and ancestry rules
+below.
 
 Keep semantic metadata in a root `.disot.json`, with `.disot.data.js` as the
 planned alternative encoding of the same logical value:
