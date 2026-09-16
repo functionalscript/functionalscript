@@ -677,9 +677,12 @@ export const proof = {
                 readFile: /** @type {typeof whole.readFile} */ (path => log => below(path)
                     ? [[...log, `readFile ${path}`], error(ioError({ code, message: path }))]
                     : whole.readFile(path)(log)),
-                readdir: /** @type {typeof whole.readdir} */ (path => log => below(path)
+                // `readdir` takes the options as well as the path, so both are
+                // passed on: a handler may declare fewer parameters than the
+                // operation has, but a call has to give every one.
+                readdir: /** @type {typeof whole.readdir} */ ((path, options) => log => below(path)
                     ? [[...log, `readdir ${path}`], error(ioError({ code, message: path }))]
-                    : whole.readdir(path)(log)),
+                    : whole.readdir(path, options)(log)),
             })
             const [log, r] = run(host)([])(tryRead('borrowsUnusable', 20)(id(tagId)))
             assert(r[0] === 'error', code)
