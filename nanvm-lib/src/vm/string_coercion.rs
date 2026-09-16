@@ -218,7 +218,37 @@ fn mantissa_exp2(v: f64) -> (u64, i32) {
 /// 10^(n-k)` is `x`", so a neighbor that fails this was never a candidate
 /// to tie-break between in the first place, no matter how exactly
 /// equidistant it is in decimal.
+///
+/// The full check is exact-arithmetic work this function must not spend on
+/// every call — it is on `StringCoercion::number`'s path, not just the
+/// rare numeric-object-key one — so two free filters run first, cheapest
+/// first, either of which already proves no correction is possible: a
+/// correction only ever moves an *odd* `s` to an even neighbor (an
+/// already-even `s` is already the spec's answer, tie or not), and it only
+/// ever moves to a neighbor that round-trips (plain `str::parse`, no
+/// `BigInt`) — both conditions this function's own doc comment already
+/// requires, just checked before the arithmetic that would otherwise
+/// confirm them.
 fn round_tie_to_even<A: IVm>(v: f64, mantissa: u64, exp2: i32, s: u64, m: i64) -> u64 {
+    if s.is_multiple_of(2) {
+        return s;
+    }
+    let roundtrips = |candidate: u64| -> bool {
+        format!("{candidate}e{m}")
+            .parse::<f64>()
+            .is_ok_and(|parsed| parsed == v)
+    };
+    let lo_roundtrips = roundtrips(s - 1);
+    let hi_roundtrips = roundtrips(s + 1);
+    if !lo_roundtrips && !hi_roundtrips {
+        return s;
+    }
+
+    // Past both filters, `s` is odd and has a legitimate even neighbor:
+    // decide, exactly, whether `v` is truly equidistant between them (a
+    // real tie) rather than merely close, which round-tripping alone
+    // cannot tell apart (an earlier attempt at exactly that approximation
+    // broke `Number.MAX_VALUE` and `Number.MIN_VALUE`).
     let one = || BigInt::<A>::from(1u64);
     let pow2 = |e: i32| -> BigInt<A> {
         (one() << BigInt::from(e as u64))
@@ -249,33 +279,11 @@ fn round_tie_to_even<A: IVm>(v: f64, mantissa: u64, exp2: i32, s: u64, m: i64) -
         let s_num = BigInt::<A>::from(target) * s_extra.clone();
         (v_num * s_den.clone()).cmp(&(s_num * v_den.clone())) == Ordering::Equal
     };
-    // Whether `candidate * 10^m`, read back as a `Number` the way ECMA-262's
-    // own candidate condition requires, is `v` itself and not some other
-    // float — the guard `equidistant` alone cannot give.
-    let is_legitimate_candidate = |candidate: u64| -> bool {
-        format!("{candidate}e{m}")
-            .parse::<f64>()
-            .is_ok_and(|parsed| parsed == v)
-    };
-    if equidistant(2 * s - 1) {
-        let candidate = s - 1;
-        // v is exactly halfway between s-1 and s: keep whichever is both
-        // even and a legitimate candidate — s already is (Rust guarantees
-        // it), s-1 needs checking.
-        return if candidate.is_multiple_of(2) && is_legitimate_candidate(candidate) {
-            candidate
-        } else {
-            s
-        };
+    if lo_roundtrips && equidistant(2 * s - 1) {
+        return s - 1;
     }
-    if equidistant(2 * s + 1) {
-        let candidate = s + 1;
-        // Symmetric case: v is exactly halfway between s and s+1.
-        return if candidate.is_multiple_of(2) && is_legitimate_candidate(candidate) {
-            candidate
-        } else {
-            s
-        };
+    if hi_roundtrips && equidistant(2 * s + 1) {
+        return s + 1;
     }
     s
 }
