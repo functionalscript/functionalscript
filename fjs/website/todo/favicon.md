@@ -41,10 +41,19 @@ project's initials and a terminal prompt are both obvious, and the site has no
 logo to inherit.
 
 **A raster fallback is a separate decision.** Not every browser takes an SVG
-icon; one that does not falls back to the placeholder again. A PNG or `.ico`
-would have to be a committed file rather than a generated one — `fjs/media/`
-knows what an image's media type is and nothing there writes image bytes — so
-it is the one piece of this that does not follow the stylesheet's pattern.
+icon; one that does not falls back to the placeholder again. Whether a PNG or
+`.ico` is committed or generated is then a choice, not a constraint: nothing
+here *encodes* an image — `fjs/media/` knows what a PNG's media type is and
+nothing there writes its bytes — but a fixed icon needs no encoder, and
+`writeFile` takes an arbitrary `Vec`, so its bytes can be held as data and
+written beside `_main.css` like everything else the build emits.
+
+What the choice is actually about is reviewability. An SVG is text: a reader
+diffs it, and a change to the mark is a change someone can read. A raster's
+bytes are opaque either way, and holding them as a literal in a module puts a
+blob that changes wholesale in the middle of source — against a committed file
+that costs the build nothing and sits where the rest of the site's assets
+would.
 
 The tab's background is the browser's, not the site's, so the mark has to hold
 up light and dark. An SVG can carry its own `prefers-color-scheme` rule, and
@@ -57,7 +66,8 @@ worth more than one that does.
 - [ ] Export `faviconLink` and carry it in both heads.
 - [ ] Write `_favicon.svg` in the build beside `_main.css`, proven over the
       virtual tree.
-- [ ] Decide whether a raster fallback ships, and where it lives if it does.
+- [ ] Decide whether a raster fallback ships, and if it does, whether its
+      bytes are data the build writes or a file in the tree.
 - [ ] Check a tab in both colour schemes.
 
 ### Related
