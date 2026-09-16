@@ -41,7 +41,11 @@ kind by node kind — validation behavior, not execution semantics — with
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
-not a VM to run FunctionalScript on. The broader identity and memoization
+not a VM to run FunctionalScript on. [analysis](analysis/module.f.mjs) reads
+a graph into one table — every operation node once, in walk order, its
+operands by index, its scope, and which entries are shared — so that a
+writer can hoist what is shared and an executor can cache it without a
+structure keyed by node identity. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
 are compared in [execution-models.md](execution-models.md).
 

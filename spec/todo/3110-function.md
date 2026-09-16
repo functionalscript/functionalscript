@@ -10,24 +10,13 @@ Depends on [export default](../README.md#exporting-a-value).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions.
 
-Full function definition command:
-
-```js
-const name = "Hello!"
-// translated into one command which accepts `name` and the function's EDAG.
-const f = {[name]:() => 0}[name]
-// alternatives:
-const f1 = { some: () => 0 }.some // f1.name === "some"
-const f2 = { '#$': () => 0 }['#$'] // f1.name === "#$"
-// f2.name === "something" // if the function name is a valid identifier
-const f3 = function something() {
-    return 0
-}
-const v = { ok: () => 0, a: 7 } // v.ok.name === "ok" // if the function name matches the property name
-const hello = () => 0 // hello.name === "hello" // if the function name is the same as a variable name
-
-const x = (i => i)(() => 0) // when the function name is "".
-```
+A function carries no name. Its EDAG is `['=>', frame, body]`, name-erased,
+so `{ some: () => 0 }.some`, `const hello = () => 0` and `export default
+() => 0` compile to the same node whatever JavaScript would name them, and
+no program observes the difference: `f.name` is refused at the key of `.`,
+and `entry(f, 'name')` is `undefined`, since `name` is not an enumerable
+own property
+([`fjs/edag/todo/entry.md`](../../fjs/edag/todo/entry.md)).
 
 ## Recursive Functions
 

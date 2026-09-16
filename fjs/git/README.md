@@ -106,8 +106,17 @@ what a grammar can and cannot do for the formats.
   `config`. The loose file is read first and anything but a good object there
   — no file, no stream, no object, another object — asks the packs, since Git
   answers a packed copy over a loose one that cannot be read and the hash
-  check stands behind either. What `objects/info/alternates` adds is
-  [`todo/object-store.md`](todo/object-store.md).
+  check stands behind either, and the same two questions are put to each
+  directory `objects/info/alternates` names, and to the directories *those*
+  borrow from, six deep — where Git stops, measured. A borrowing already reached
+  is skipped and one that cannot be read is passed over, as Git passes over it.
+  Two line shapes name a directory this cannot reach — a path spelled in bytes,
+  and the mangled second entry Git makes of text after a closing quote — and
+  each is read as an ordinary path that is not found rather than refused, since
+  a miss loses one borrowing where a refusal loses the whole store
+  ([`todo/alternates-line-quirks.md`](todo/alternates-line-quirks.md)). `objectsDirs` answers that list
+  and `readIn` reads over it, so a caller reading many objects resolves the
+  borrowings once instead of per object.
 - [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
   over whatever reads objects: `peel`, a tag to what it names;
   `tryEntries`, a commit or a tree to the entries of its tree; and
@@ -403,12 +412,9 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`packstore/`](packstore/module.f.mjs) once per *link* — a base and every
   delta above it — which is the path a clone takes for most of its objects. A
   FunctionalScript inflater is [`todo/inflate.md`](../../todo/inflate.md).
-- **Alternates.** `repo` finds the repository a worktree belongs to, and
-  `store` and `walk` read at the directory they are given, so a caller
-  puts the two together. What is left is
-  `objects/info/alternates`, which adds directories to search after the
-  repository's own and so makes the store read several rather than one:
-  [`todo/object-store.md`](todo/object-store.md). What the id check means
+- **The common directory.** `repo` finds the repository a worktree belongs to,
+  and `store` and `walk` read at the directory they are given, so a caller puts
+  the two together. What the id check means
   in a SHA-1 repository, and what a trust layer does about a hash that can
   collide, is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).

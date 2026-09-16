@@ -49,7 +49,8 @@ be reused, and allocate memoization only for them. Nodes reached once can be
 computed directly.
 
 This preserves the behavior of §2.1 while reducing runtime memory and memo-table
-work.
+work. The traversal is [`analysis`](./analysis/module.f.mjs): one table per
+program, the shared entries by index, each cached within its scope.
 
 ### 2.3 Generate JavaScript
 
@@ -154,3 +155,54 @@ The key architectural boundary is between **implementation strategies** and
   JavaScript-compatible EDAG semantics.
 - Amnesia, global memoization, and CAVM intentionally have different identity
   semantics and therefore need separate behavioral expectations.
+
+## Transformations
+
+An EDAG is transformed on its way through the toolchain: written to `.f.js`
+and compiled back
+([`fjs/fsc/todo/functionalscript-output.md`](../fsc/todo/functionalscript-output.md)),
+loaded into a CAVM and serialized back, reduced by a global memoizer. Three
+requirements say what a transformation may change.
+
+1. **A round trip preserves the number of computations.** After
+   `.f.js` → EDAG → `.f.js` → EDAG, every computation a program can observe
+   — a call, a constructor, anything that mints identity — happens as many
+   times under the JS-compatible model as in the original program, unless a
+   function or an expression throws; then only the throw is promised, not
+   which of two failing computations fails first. This is why the writer
+   spells a shared identity-minting node as one `const` and never
+   duplicates a call. A pure node — an access, an operator, `is` — mints
+   nothing and no program can count it, so the analysis may merge two into
+   one and the writer may spell one at each use
+   ([`todo/analysis.md`](./todo/analysis.md)).
+
+2. **A CAVM-optimized EDAG need not be expressible in `.f.js`.** A CAVM may
+   reduce many calls of one content to a few in the EDAG. `.f.js` shares a
+   value only through a `const`, which evaluates once, eagerly, in its
+   scope: a merged call the program reaches in eager positions of one scope
+   is spelled as that `const` and keeps the CAVM's count, but a merged call
+   the program reaches only through lazy edges — `[a && x(), b && x()]`
+   merged into one node — has no spelling that computes it once and only
+   when the program would. A `const` would compute it when the program
+   would not, and the alternative duplicates the call, which restores the
+   original count on a non-CAVM path. So there are valid EDAGs, a CAVM's
+   output among them, that `.f.js` cannot express without duplicating
+   calls; the writer refuses the lazy-edge case by name, and the round trip
+   of requirement 1 is promised for the graphs the compiler emits, not for
+   them. Merging never crosses a `=>` boundary: a node shared across
+   function bodies is not a valid EDAG
+   ([README](./README.md), identity-dependent canonicality), so a CAVM
+   keeps content identity across bodies in its own representation and
+   serializes one node per body.
+
+3. **A VM may compute fewer times than the program says.** A CAVM resolving
+   equal content to one value, a global memoizer reusing a
+   context-independent result. On a CAVM this changes nothing observable,
+   since identity is content there; on a non-CAVM engine the reduced EDAG
+   can make two values one, `result[0] === result[1]` where JavaScript
+   allocates two objects. That side effect is almost impossible to
+   eliminate on a non-CAVM engine and is accepted as the model's, per the
+   table above. Computing more times than the program says is what no
+   transformation and no JS-compatible executor may do, by requirement 1;
+   Amnesia does it by design, evaluating a shared node at every edge, and
+   the table above marks it as not JavaScript-compatible for that reason.

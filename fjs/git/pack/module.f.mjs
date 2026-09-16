@@ -327,6 +327,10 @@ const selected = (b, at, mask, count, k, value) => {
  * | two bytes | accepts | ok | `blob 2` |
  * | nothing | accepts, and indexes the empty blob | `bad` | `missing` |
  *
+ * — the second row taken with the delta written in four bytes, which is the
+ * shortest payload Git parses at all; see {@link minDeltaBytes}, since the same
+ * delta spelled in two is refused by every Git reader and so by this one.
+ *
  * — with the empty blob stored *whole* in the same hand-built shape accepted
  * and read by all three, so the disagreement is the delta's emptiness and not
  * the object's. Git's indexer applies the delta and hashes an empty blob out of
@@ -371,6 +375,31 @@ const deltaPieces = (d, src, at, want) => {
         i = afterSize
     }
 }
+
+/**
+ * The shortest delta payload Git reads, and so the shortest this reads: four
+ * bytes.
+ *
+ * Not a rule the format's grammar gives — two bytes can spell a whole valid
+ * delta, a source size and a target size of nothing — but one every Git reader
+ * enforces before parsing. Measured on Git 2.43.0 over hand-built two-object v2
+ * packs, a one-byte base blob and a `refDelta` against it:
+ *
+ * | payload | `git index-pack --strict` |
+ * | --- | --- |
+ * | `01 00`, two bytes | `fatal: pack has bad object at offset 22: failed to apply delta`, exit 128 |
+ * | `81 00 00`, three bytes | the same |
+ * | `81 00 80 00`, four bytes | accepted, and the empty blob indexed |
+ * | `01 80 80 00`, four bytes | accepted |
+ *
+ * The two four-byte rows are the same delta as the two-byte one, written with a
+ * padded size, so what Git is refusing is the length of the payload and not
+ * anything it says. Reading the short spelling would answer where Git and every
+ * tool over it refuse, which is the one direction this module does not take:
+ * being stricter than Git is a documented divergence, answering an input Git
+ * calls corrupt is a wrong answer.
+ */
+const minDeltaBytes = /** @type {const} */ (4)
 
 /**
  * The longest object a delta may build: what a `Vec` holds, 128 KiB.
@@ -426,6 +455,7 @@ const maxTargetBytes = Number(maxLengthBytes)
 export const tryApplyDelta = (base, delta) => {
     const src = byteArray(base)
     const d = byteArray(delta)
+    if (d.length < minDeltaBytes) { return null }
     const sourceSize = littleVarint(d, 0, 0, 1)
     if (sourceSize === null) { return null }
     const [source, afterSource] = sourceSize
