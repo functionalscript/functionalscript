@@ -48,7 +48,9 @@ operand is evaluated, so that every executor means the same by a node.
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a
-structure keyed by node identity. The broader identity and memoization
+structure keyed by node identity; [memo](memo/module.f.mjs) is that
+executor, JavaScript-compatible, every shared entry evaluated once per
+scope. The broader identity and memoization
 choices, including JS-compatible executors, global memoization, and the CAVM,
 are compared in [execution-models.md](execution-models.md).
 

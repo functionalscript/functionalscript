@@ -50,7 +50,9 @@ computed directly.
 
 This preserves the behavior of §2.1 while reducing runtime memory and memo-table
 work. The traversal is [`analysis`](./analysis/module.f.mjs): one table per
-program, the shared entries by index, each cached within its scope.
+program, the shared entries by index, each cached within its scope; the
+executor over it is [`memo`](./memo/module.f.mjs), one slot per shared entry
+of an invocation, filled on first demand.
 
 ### 2.3 Generate JavaScript
 
