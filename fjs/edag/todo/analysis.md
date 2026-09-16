@@ -193,7 +193,7 @@ value outputs keep the sweep until they run the EDAG.
       against sharing outside and a body inside a body, and a lazy operand.
 - [x] Amnesia's operations factored into a table parameterized by the child
       evaluation, amnesia unchanged in behavior and its proofs green.
-- [ ] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`
+- [x] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`
       holds one array, that a body's node is fresh per call, and that a lazy
       operand is evaluated only when demanded — each beside amnesia's answer
       where sharing does not decide it, and `['===', s, s]` pinned as `true`
