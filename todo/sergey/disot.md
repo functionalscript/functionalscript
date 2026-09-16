@@ -201,3 +201,10 @@ Relative names and Web Of Trust.
 ## Git Projection
 
 `.disot.json` for metainformation.
+
+---
+
+- relative names. DNS - thanks but no.
+- web of trust
+- Git scalability and content already on Git.
+- How to integrate BlueSky (ATproto, IPFS), Nostr. But more focus on data formats than on protocols, lexicons.
