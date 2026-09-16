@@ -206,5 +206,24 @@ export const proof = {
          * silently drop the continuation on the way.
          */
         dotOnChainStepBase: () => printed(['.', ['.', ['{}', []], 'y', ['|()', ['[]', []]]], 'z']),
+        /**
+         * `resolvedBase` folds through a `.` node only as far as an actual
+         * literal object — a chain whose middle step resolves to something
+         * else (an array, here) stops there, unresolved, rather than
+         * assuming an object further down. The refusal still surfaces —
+         * from the middle step's own direct check when it is printed, the
+         * same one `dotOnArrayLiteral` pins — proving the fold neither
+         * crashed nor wrongly treated the array as an object two hops up.
+         */
+        dotOnNonObjectMiddleStep: () => printed(['.', ['.', ['[]', [1]], 'length'], 'toString']),
+        /**
+         * A key absent from an object holding a spread cannot be resolved
+         * soundly — the spread's own contribution isn't known statically —
+         * so `resolvedBase` declines to look inside it at all, the same way
+         * it declines a `const` or an import. The refusal surfaces from
+         * `propertyExpr`'s own spread check when the object is printed,
+         * the same one `objectSpread` (`fjs/nanvm/rust/proof.f.mjs`) pins.
+         */
+        dotOnObjectWithSpread: () => printed(['.', ['.', ['{}', [['...', 'x']]], 'y'], 'z']),
     },
 }
