@@ -1,5 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "nanvm-lib"
+    "nanvm-lib",
+    "nanvm-harness"
 ]
