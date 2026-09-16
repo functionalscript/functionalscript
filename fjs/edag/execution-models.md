@@ -172,12 +172,19 @@ requirements say what a transformation may change.
    duplicates a call.
 
 2. **A CAVM-optimized EDAG need not be expressible in `.f.js`.** A CAVM may
-   reduce many calls of one content to a few in the EDAG. `.f.js` has no way
-   to say that one call is another, so writing such an EDAG and compiling it
-   back on a non-CAVM path restores the calls: there are valid EDAGs, a
-   CAVM's output among them, that `.f.js` cannot express without duplicating
-   calls. The round trip of requirement 1 is promised for the graphs the
-   compiler emits, not for them.
+   reduce many calls of one content to a few in the EDAG. `.f.js` shares a
+   value only through a `const`, which evaluates once, eagerly, in its
+   scope: a merged call the program reaches in eager positions of one scope
+   is spelled as that `const` and keeps the CAVM's count, but a merged call
+   the program reaches only through lazy edges — `[a && x(), b && x()]`
+   merged into one node — or from more than one function body has no
+   spelling that computes it once and only when the program would. A
+   `const` would compute it when the program would not, and the alternative
+   duplicates the call, which restores the original count on a non-CAVM
+   path. So there are valid EDAGs, a CAVM's output among them, that `.f.js`
+   cannot express without duplicating calls; the writer refuses the
+   lazy-edge case by name, and the round trip of requirement 1 is promised
+   for the graphs the compiler emits, not for them.
 
 3. **A VM may compute fewer times than the program says.** A CAVM resolving
    equal content to one value, a global memoizer reusing a
