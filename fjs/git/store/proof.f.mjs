@@ -158,6 +158,12 @@ const files = {
     'octal/objects/info/alternates': latin1('"/tmp/\\377/objects"\n'),
     // A line with text after its closing quote, which is refused.
     'suffix/objects/info/alternates': latin1('"/a/objects"junk\n'),
+    // A borrower naming a store that cannot be a directory at all, and then one
+    // that can and does not hold the object. Nothing is written at `unusable`;
+    // the host in the case answers `ENOTDIR` or `ELOOP` for every path below it,
+    // which is what node says for a component that is a regular file or a link
+    // cycle.
+    'borrowsUnusable/objects/info/alternates': latin1('../../unusable\n../../sha/objects\n'),
     // A borrower holding nothing, whose lender's pack index is not one.
     'borrowsBroken/objects/info/alternates': latin1('../../broken/objects\n'),
     // The reverse order: the borrower's *own* index is the broken one, and the
@@ -632,6 +638,60 @@ export const proof = {
         const [log] = runHost(tryRead('twoMisses', 20)(id(junkId)))
         assert(log.some(l => l.startsWith('readFile twoMisses/objects/../../sha/objects/')))
     },
+    // An alternates entry that cannot be a directory at all contributes nothing.
+    // A regular file gives `ENOTDIR` for every path below it and a symlink cycle
+    // gives `ELOOP`, and neither is the object being withheld: it is the path
+    // naming nothing, which is a miss like `ENOENT`.
+    //
+    // Measured on Git 2.43.0, each as the first of two alternates with the blob
+    // in the second:
+    //
+    // | first entry | `git cat-file -p` |
+    // | --- | --- |
+    // | a regular file | exit 0, after `error: object directory <file> does not exist` |
+    // | a link to itself | exit 0, after `error: unable to normalize alternate object path` |
+    //
+    // With the object nowhere, Git fails at 128 for *not finding it* and says
+    // nothing more about the unusable borrowing — so what this asserts is the
+    // borrower's own `ENOENT`, naming its own loose path.
+    //
+    // An earlier revision asked `isNotFound`, so only `ENOENT` was a miss and
+    // either of these refused the whole store, reporting the unusable
+    // directory's code for a repository Git reads.
+    //
+    // The object is **nowhere** on purpose: a directory that answers the object
+    // discards every earlier refusal, so a case with a good lender behind the
+    // unusable one passes whichever way the code classifies it. `sha/objects`
+    // is a usable store that simply does not hold this id, so the walk reaches
+    // past the unusable entry as well.
+    //
+    // `borrowedUnusable` above does not reach this either: it breaks the
+    // *alternates file* read, which `borrowedBy` already catches.
+    borrowedUnusableDirectory: () => {
+        const whole = hostOf(files)
+        for (const code of ['ENOTDIR', 'ELOOP']) {
+            const below = /** @type {(p: string) => boolean} */ (
+                p => normalize(p).startsWith('unusable/'))
+            const host = /** @type {typeof whole} */ ({
+                ...whole,
+                readFile: /** @type {typeof whole.readFile} */ (path => log => below(path)
+                    ? [[...log, `readFile ${path}`], error(ioError({ code, message: path }))]
+                    : whole.readFile(path)(log)),
+                readdir: /** @type {typeof whole.readdir} */ (path => log => below(path)
+                    ? [[...log, `readdir ${path}`], error(ioError({ code, message: path }))]
+                    : whole.readdir(path)(log)),
+            })
+            const [log, r] = run(host)([])(tryRead('borrowsUnusable', 20)(id(tagId)))
+            assert(r[0] === 'error', code)
+            const e = r[1]
+            assert(e[0] === 'ioError', code)
+            // the borrower's own miss, not the unusable directory's code
+            assertEq(e[1].code, 'ENOENT')
+            assertEq(e[1].message, `no such file: ${objectPath('borrowsUnusable')(id(tagId))}`)
+            // and the store behind the unusable entry was still asked
+            assert(log.some(l => l.startsWith('readFile borrowsUnusable/objects/../../sha/objects/')), code)
+        }
+    },
     // A drive-rooted entry names a directory on its own only where the store
     // itself is drive-rooted. `C:/donor/objects` is an absolute path on Windows
     // and a directory named `C:` on POSIX, and nothing in the line says which —
@@ -659,13 +719,24 @@ export const proof = {
         // and the two roots that are roots everywhere
         assertStructurallySame(alternatesIn('/home/r/objects', '/donor/objects'), ['/donor/objects'])
         assertStructurallySame(alternatesIn('/home/r/objects', '//unc/objects'), ['//unc/objects'])
-        // A store on a UNC share is on Windows as surely as a drive-rooted one,
-        // and `root` answers `//` for it rather than a drive — so asking only
-        // whether the store's root is a drive read these two as relative names.
+        // A `//` root is *not* evidence of Windows, although a UNC share begins
+        // with one: it is a legal POSIX root too, and Linux resolves `//tmp/r`
+        // as `/tmp/r`. Measured on Git 2.43.0, a borrower opened through
+        // `//<tmp>/b` read a `C:/donor/objects` entry as a name below its own
+        // `objects/` and answered the blob at exit 0.
+        //
+        // A revision that counted `//` as Windows sent that entry to the host
+        // unprefixed, where node resolves it against the *process* directory —
+        // the third place named by nobody that the drive-root test exists to
+        // prevent. What it costs is the mirror case, a Windows store on a UNC
+        // share, which now reads these as relative and misses the donor; a miss
+        // below a directory the file named beats a lookup nobody asked for.
         assertStructurallySame(
             alternatesIn('//srv/share/r/.git/objects', 'C:/donor/objects'),
-            ['C:/donor/objects'])
-        assertStructurallySame(alternatesIn('//srv/share/r/.git/objects', '\\x'), ['\\x'])
+            ['//srv/share/r/.git/objects/C:/donor/objects'])
+        assertStructurallySame(
+            alternatesIn('//srv/share/r/.git/objects', '\\x'),
+            ['//srv/share/r/.git/objects/\\x'])
     },
     // A store with no `alternates` file borrows from nowhere, which is almost
     // every repository: the missing file is no borrowing rather than a failure.

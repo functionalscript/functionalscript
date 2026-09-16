@@ -65,7 +65,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
-import { isNotFound, readUtf8File } from '../../effects/node/module.f.mjs'
+import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
 import { join, root, under } from '../../path/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -360,24 +360,36 @@ const isDrive = x => x.length > 1 && x[1] === ':'
 
 /**
  * Whether an object directory is on a system where a drive and a backslash are
- * roots, read off the directory's own spelling: a drive root, or the `//` a UNC
- * share begins with.
+ * roots, read off the directory's own spelling.
  *
- * **A relative directory says nothing, and is read as POSIX.** A repository
- * opened through a relative path — `fjs/git/repo`'s `tryCommonDir` answers one
- * for a `.git` beside the caller — has no root to read, so a Windows caller's
- * `C:/donor/objects` entry is joined below it instead of taken whole, and the
- * donor's objects are not found. The signal is the best one a path carries and
- * it is not the host's own answer;
- * [`todo/byte-paths.md`](../todo/byte-paths.md) records both the inference and
- * this gap in it, under the task for asking the host which roots it has.
+ * **A drive root is the only spelling that says so.** No POSIX absolute path has
+ * one — a directory named `C:` at the root spells `/C:/…`, whose root is `/` —
+ * so `C:/` can only have come from a Windows path.
+ *
+ * **`//` is not evidence, although a UNC share begins with one.** It is a legal
+ * POSIX root too: Linux resolves `//tmp/r` as `/tmp/r`, and measured on Git
+ * 2.43.0 a borrower opened through `//<tmp>/b` read a `C:/donor/objects` entry
+ * as a name below its own `objects/` and answered the blob at exit 0. A revision
+ * that counted `//` as Windows sent that entry to the host unprefixed, where it
+ * resolves against the *process* directory — a third place named by nobody,
+ * which is the failure the drive-root test exists to prevent. So the ambiguous
+ * root is read as the platform that can be measured.
+ *
+ * What this costs is the mirror case: a Windows store on a UNC share reads a
+ * drive-rooted or backslash-led entry as relative and does not find the donor.
+ * Both that and the relative-`od` gap below are misses and never wrong objects.
+ *
+ * **A relative directory says nothing either, and is read as POSIX.** A
+ * repository opened through a relative path — `fjs/git/repo`'s `tryCommonDir`
+ * answers one for a `.git` beside the caller — has no root to read at all.
+ *
+ * Every one of these is an inference from a path where an answer from the host
+ * is what is wanted; [`todo/byte-paths.md`](../todo/byte-paths.md) records them
+ * under the task for asking the host which roots it has.
  *
  * @type {(od: string) => boolean}
  */
-const isWindows = od => {
-    const r = root(od)
-    return isDrive(r) || r === '//'
-}
+const isWindows = od => isDrive(root(od))
 
 /**
  * The code an object is refused with when the bytes at its path hash to
@@ -562,16 +574,19 @@ const inOne = (idOf, oidBytes, id) => od => {
     const loose = resultStep(readLoose(p), r => pureOk(checkedAt(idOf, p, id)(r)))
     return step(loose, r => {
         if (r[0] === 'ok' && r[1] !== null) { return pureOk(/** @type {_Outcome} */ ([r, false])) }
-        // On the loose side, `ENOENT` is the one failure that is not a refusal:
-        // it is the host saying there is no such file, which is what a store
-        // without the object looks like. Everything else that read can say is a
-        // refusal — a hash mismatch, because the file is there and holds
-        // something else; a stream that is no zlib stream, because the file is
-        // there and is broken; a read the host turns down, because the file is
-        // there and cannot be had. An earlier revision named only the hash
-        // mismatch, so a borrowed store's corrupt loose object hid behind the
-        // repository's own `ENOENT`.
-        const looseRefused = r[0] === 'error' && !isNotFound(r[1])
+        // On the loose side, a failure meaning *nothing is at this path* is not
+        // a refusal: it is what a store without the object looks like. That is
+        // `ENOENT`, and also the `ENOTDIR` of a path whose component is a
+        // regular file and the `ELOOP` of one whose links cycle — an alternates
+        // entry naming either is a borrowing Git warns about and reads past.
+        // Everything else that read can say is a refusal — a hash mismatch,
+        // because the file is there and holds something else; a stream that is
+        // no zlib stream, because the file is there and is broken; an `EACCES`,
+        // because the file may be there and the host will not say. An earlier
+        // revision named only the hash mismatch, so a borrowed store's corrupt
+        // loose object hid behind the repository's own `ENOENT`; a later one
+        // named only `ENOENT`, so an unusable *directory* refused the store.
+        const looseRefused = r[0] === 'error' && !namesNothing(r[1])
         return resultStep(readPacked(od, oidBytes)(id), h => {
             const answered = packedOr(idOf, id, r)(h)
             return pureOk(/** @type {_Outcome} */ ([

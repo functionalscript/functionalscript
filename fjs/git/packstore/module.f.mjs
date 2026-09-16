@@ -91,7 +91,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
-import { inflate, isNotFound, leadsNowhere, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
+import { inflate, leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { length, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
@@ -248,6 +248,13 @@ const namedIdx = pd => e => names => {
  * makes an empty `objects/pack/`, but a repository is not required to keep one
  * and a caller asking for an object should not have to know whether it does.
  *
+ * {@link namesNothing} and not `isNotFound`, so a `pack/` below a path that is a
+ * regular file or a symlink cycle is also no packs. An `objects/info/alternates`
+ * may name either, and Git reads past such a borrowing with a warning at exit 0
+ * — measured on 2.43.0 for both — where refusing here would fail the whole
+ * store. `EACCES` stays a failure: the packs may be there and the host will not
+ * say.
+ *
  * @type {(pd: string) => Effect<Stat | Readdir, List<string>, IoChannel>}
  */
 const idxNames = pd => catchStep(
@@ -257,7 +264,7 @@ const idxNames = pd => catchStep(
             pureOk(es.filter(e => e.name.endsWith(idxSuffix))),
             /** @type {List<string>} */ (null),
             namedIdx(pd))),
-    e => isNotFound(e) ? pureOk(/** @type {List<string>} */ (null)) : pureError(e))
+    e => namesNothing(e) ? pureOk(/** @type {List<string>} */ (null)) : pureError(e))
 
 /**
  * The index at `path`, or a refusal naming it.
