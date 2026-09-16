@@ -4,7 +4,10 @@
 //! in-bounds integer, given as a `Number` or its canonical decimal string,
 //! so the classification lives once here rather than twice.
 
-use crate::vm::{IVm, String};
+use crate::{
+    common::sized_index::SizedIndex,
+    vm::{IVm, String},
+};
 
 /// A `Number` key that denotes a valid array/string index: a non-negative
 /// integer that fits in `u32`. `-0.0` passes (`-0.0 < 0.0` is `false` and
@@ -25,18 +28,34 @@ pub(crate) fn canonical_index(n: f64) -> Option<u32> {
 /// `"01"` and `"+1"` — neither is `array[1]`'s or `string[1]`'s key in
 /// real JS, only `["1"]` is, and admitting them here would make two
 /// different strings read the same element.
+///
+/// Walks the UTF-16 code units directly (`String<A>`'s `Index<u32>` /
+/// `SizedIndex`) instead of decoding the whole key into a heap-allocated
+/// `std::string::String` first — this runs on every string-keyed
+/// `Array`/`String` access, not just the rare match, so it avoids both the
+/// allocation and `char::decode_utf16`'s lossy surrogate replacement for
+/// what is otherwise a pure ASCII-digit scan.
 pub(crate) fn string_to_index<A: IVm>(s: &String<A>) -> Option<u32> {
-    let text: std::string::String = s.clone().into();
-    if text == "0" {
-        return Some(0);
-    }
-    let mut chars = text.chars();
-    match chars.next() {
-        Some(first) if first.is_ascii_digit() && first != '0' => {}
-        _ => return None,
-    }
-    if !chars.as_str().bytes().all(|b| b.is_ascii_digit()) {
+    let len = s.length();
+    if len == 0 {
         return None;
     }
-    text.parse().ok()
+    let digit = |unit: u16| -> Option<u32> {
+        (b'0' as u16..=b'9' as u16)
+            .contains(&unit)
+            .then(|| (unit - b'0' as u16) as u32)
+    };
+    let first = digit(s[0])?;
+    if len == 1 {
+        return Some(first);
+    }
+    // More than one digit: a leading zero (as in "01") is never canonical.
+    if first == 0 {
+        return None;
+    }
+    let mut value = first;
+    for i in 1..len {
+        value = value.checked_mul(10)?.checked_add(digit(s[i])?)?;
+    }
+    Some(value)
 }
