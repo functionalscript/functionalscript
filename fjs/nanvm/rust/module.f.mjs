@@ -10,13 +10,19 @@
  * Each statement is printed from the EDAG expression the case denotes, the
  * same expression [`../proof.f.mjs`](../proof.f.mjs) evaluates, so the two
  * consumers read one program rather than each reading the case its own way.
+ * The node printer and its `let`-binding sharing mechanism are not this
+ * module's own: they live in
+ * [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared with the `.rs`
+ * output branch of `fjs compile` (`fjs/fsc/rust/module.f.mjs`), so the
+ * operator tables and the sharing mechanism have one copy between the two
+ * generators. What stays here is everything test-corpus-specific: naming a
+ * group's Rust function, the per-group `let` bindings a case's shared
+ * operands need, and the assertion statements themselves.
  *
  * Rust naming is this module's alone and never leaks back into the shared
  * data: {@link rustName} maps a group's key to a Rust identifier explicitly,
  * because `snakeCase` over a punctuation tag such as `*` produces nothing
- * usable. Literal syntax comes from
- * [`fjs/media/rust`](../../media/rust/module.f.mjs); what is specific to this
- * module is the `nanvm-lib` API the statements target.
+ * usable.
  *
  * Every emitted function carries `#[rustfmt::skip]`: the line layout here is
  * one statement per case, and `cargo fmt -- --check` runs in CI, so the
@@ -24,8 +30,8 @@
  *
  * @module
  *
- * @import { Exp, Primitive, Properties } from '../../edag/types.ts'
- * @import { Data, Expectation, Group, OpId, SharedNode, Value } from '../types.ts'
+ * @import { Exp } from '../../edag/types.ts'
+ * @import { Data, Expectation, Group, SharedNode, Value } from '../types.ts'
  *
  * @example
  *
@@ -46,12 +52,23 @@ import {
     sharedExp,
     valueExp,
 } from '../module.f.mjs'
-import {
-    f64Literal,
-    i64Literal,
-    snakeCase,
-    stringLiteral,
-} from '../../media/rust/module.f.mjs'
+import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
+import { expExpr as sharedExpExpr, nodeExpr as sharedNodeExpr } from '../../edag/rust/module.f.mjs'
+
+/**
+ * The shared printer as a throwing convenience, for this module's own use:
+ * every case in the shared operator corpus is already valid, so a refusal
+ * here is a bug in the corpus, not an expected outcome to report as a
+ * `Result` — the same distinction {@link expExpr}'s own doc comment draws,
+ * decided the other way for a different consumer.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
+ */
+const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
+
+/** @type {(e: Exp) => string} */
+export const nodeExpr = e => unwrap(sharedNodeExpr(e))
 
 const indent = '    '
 
@@ -112,231 +129,16 @@ export const rustName = {
 }
 
 /**
- * The `nanvm-lib` expression each unary operation prints as.
+ * What a key names in {@link rustName}. A key with no entry is a gap here,
+ * not a case to print a plausible wrong function name for.
  *
- * @type {{ readonly [k in OpId]?: (a: string) => string }}
+ * @type {(id: string) => string}
  */
-const op1Rust = {
-    '+': a => `Any::unary_plus(${a})`,
-    '-': a => `-(${a})`,
-    '!': a => `!(${a})`,
-    '~': a => `Any::bitwise_not(${a})`,
-    typeof: a => `Any::typeof_(${a})`,
-    String: a => `${a}.to_string().map(|v| v.to_any())`,
-}
-
-/**
- * The same, for the binary operations.
- *
- * An operator not yet implemented in `nanvm-lib` (such as `=>`) has every one
- * of its cases carry a `rust` reason, and `emit` prints this text as a
- * comment rather than a statement — this entry only has to read as the
- * operation, not compile.
- *
- * Rust has no exponentiation operator, so `**` is printed as a call
- * (`Any::pow`) rather than an infix expression, following the
- * `Any::unary_plus` precedent for an operation with no Rust operator to
- * spell. The comparisons follow the same precedent for a different reason:
- * `check` takes a `Result<Any<A>, Any<A>>` against an `Any<A>` expectation,
- * which a `PartialOrd`-derived `<`/`<=`/`>`/`>=` on `Any<A>` would not give
- * back. `&&`/`||`/`??` follow it for a third reason: Rust's own `&&`/`||`
- * take `bool` operands and short-circuit *evaluation*, neither of which fits
- * an operator over already-evaluated `Any<A>` values, and `?` is Rust's own
- * try-operator, unrelated to JS `??` — so all three are `Any` methods, named
- * for what they do rather than reusing punctuation Rust already owns. `>>>`
- * follows it for a fourth reason: Rust has no unsigned-right-shift operator
- * at all (only `>>`, which is arithmetic on a signed type), so it is
- * `Any::unsigned_right_shift`. `own` follows it for a fifth: no Rust
- * operator spells a keyed property lookup at all, so it is
- * `Any::own_property`.
- *
- * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
- */
-const op2Rust = {
-    '*': (a, b) => `${a} * ${b}`,
-    '/': (a, b) => `${a} / ${b}`,
-    '**': (a, b) => `Any::pow(${a}, ${b})`,
-    '-': (a, b) => `${a} - ${b}`,
-    '+': (a, b) => `${a} + ${b}`,
-    '%': (a, b) => `${a} % ${b}`,
-    '&': (a, b) => `${a} & ${b}`,
-    '|': (a, b) => `${a} | ${b}`,
-    '^': (a, b) => `${a} ^ ${b}`,
-    '<<': (a, b) => `${a} << ${b}`,
-    '>>': (a, b) => `${a} >> ${b}`,
-    '>>>': (a, b) => `Any::unsigned_right_shift(${a}, ${b})`,
-    '<': (a, b) => `Any::lt(${a}, ${b})`,
-    '<=': (a, b) => `Any::le(${a}, ${b})`,
-    '>': (a, b) => `Any::gt(${a}, ${b})`,
-    '>=': (a, b) => `Any::ge(${a}, ${b})`,
-    '&&': (a, b) => `Any::logical_and(${a}, ${b})`,
-    '||': (a, b) => `Any::logical_or(${a}, ${b})`,
-    '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
-    own: (a, b) => `Any::own_property(${a}, ${b})`,
-    // `==` on `Any` *is* JavaScript's `===`, but it yields a `bool` and so
-    // pins neither operand's `A`, and `check` takes the `Result` every other
-    // operator returns — both of which `strict_eq` in the harness settles.
-    '===': (a, b) => `strict_eq(${a}, ${b})`,
-}
-
-/**
- * The same, for the one ternary operation (`?:`) — another method, for the
- * same reason as `&&`/`||`/`??`: Rust's own `if`/`else` takes a `bool`
- * condition, not an `Any<A>` one, so there is no infix spelling to reuse.
- *
- * @type {{ readonly [k in OpId]?: (a: string, b: string, c: string) => string }}
- */
-const op3Rust = {
-    '?:': (a, b, c) => `Any::conditional(${a}, ${b}, ${c})`,
-}
-
-/**
- * What a key names in this printer. A key with no entry is a gap here, not a
- * case to print a plausible wrong statement for.
- *
- * @type {<K extends string, T>(table: { readonly [k in K]?: T }) => (id: K) => T}
- */
-const lookup = table => id => {
-    const v = table[id]
+const fnName = id => {
+    const v = rustName[id]
     if (v === undefined) { throw ['no Rust for', id] }
     return v
 }
-
-const op1 = lookup(op1Rust)
-
-const op2 = lookup(op2Rust)
-
-const op3 = lookup(op3Rust)
-
-const fnName = lookup(rustName)
-
-/** @type {(v: Primitive) => string} */
-const primitiveExpr = v => {
-    if (v === null) { return 'Nullish::Null.to_any()' }
-    switch (typeof v) {
-        case 'boolean': { return `${v}.to_any()` }
-        case 'number': { return `(${f64Literal(v)}).to_any()` }
-        case 'string': { return `string_any(${stringLiteral(v)})` }
-        case 'bigint': { return `bigint_any(${i64Literal(v)})` }
-    }
-}
-
-/**
- * An object key.
- *
- * An EDAG object key is an `exp` — one form for `a:`, `"a":`, and computed
- * `[exp]:` keys alike — and the corpus lowers JavaScript property names, so
- * the key is always the string literal `string_key` takes. A computed one has
- * no `nanvm-lib` spelling here and is refused rather than approximated.
- *
- * @type {(k: Exp) => string}
- */
-const keyExpr = k => {
-    if (typeof k !== 'string') { throw ['not a literal key', k] }
-    return `string_key(${stringLiteral(k)})`
-}
-
-/**
- * A Rust expression of type `Any<A>` for an EDAG node.
- *
- * `shared` names the nodes that already have a `let` binding, so a node
- * reached from several places is constructed once and cloned at every
- * reference — EDAG sharing in printed form, and the reason `arrayByItself`
- * compares one object with itself.
- *
- * Every use site fixes `A`, so no expression needs a turbofish: the harness
- * helpers take `Any<A>` arguments and the shared `let` bindings are annotated.
- *
- * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
- */
-const expExpr = shared => {
-    /**
-     * `true` when a node prints as an operator expression.
-     *
-     * Every other rendering is atomic — a literal, a constructor call, a
-     * method chain, or a shared binding's `.clone()` — and survives being an
-     * operand as written. An operator expression does not: Rust parses
-     * `a * b * c` to the left and binds a method call tighter than `*`, so an
-     * unparenthesized composed operand is a different program from the node
-     * it was printed from. A shared node is a lowered value and so never an
-     * operation, which is why the tag alone decides this.
-     *
-     * @type {(e: Exp) => boolean}
-     */
-    const composed = e => e instanceof Array
-        && e[0] !== 'undefined' && e[0] !== '[]' && e[0] !== '{}' && e[0] !== '=>'
-    /** @type {(e: Exp) => string} */
-    const f = e => {
-        if (!(e instanceof Array)) { return primitiveExpr(e) }
-        const bound = shared.find(([n]) => n === e)
-        if (bound !== undefined) { return bound[1] }
-        const [id, a, b, c] = /** @type {readonly any[]} */ (e)
-        if (id === 'undefined') { return 'Nullish::Undefined.to_any()' }
-        if (id === '[]') {
-            return a.length === 0
-                ? 'Array::default().to_any()'
-                : `[${a.map(f).join(', ')}].to_array().to_any()`
-        }
-        if (id === '{}') {
-            return a.length === 0
-                ? 'Object::default().to_any()'
-                : `[${a.map(propertyExpr).join(', ')}].to_object().to_any()`
-        }
-        if (id === '=>') {
-            // `nanvm-lib` has no closures yet, so no `=>` node prints as one.
-            // The corpus's function value is `() => undefined` (`lambdaExp` in
-            // `../module.f.mjs`), which no operator inspects, and the harness
-            // has one function value to stand in for it; exactly that node
-            // prints as the stand-in, and any other lambda is refused rather
-            // than printed as a function it is not.
-            if (!isSmallestLambda(a, b)) { throw ['no Rust for', e] }
-            return 'function_any()'
-        }
-        return e.length === 2 ? op1(id)(nested(a))
-            : e.length === 3 ? op2(id)(nested(a), nested(b))
-            : op3(id)(nested(a), nested(b), nested(c))
-    }
-    /** An operand, parenthesized where its rendering would otherwise re-associate. */
-    /** @type {(e: Exp) => string} */
-    const nested = e => composed(e) ? `(${f(e)})` : f(e)
-    /**
-     * One object entry.
-     *
-     * `Properties` is `Property | Spread`, so `['...', exp]` is a valid entry
-     * this printer has no `nanvm-lib` spelling for. Read as a property it
-     * would take the spread's operand as the key and its absent third element
-     * as the value, printing a bare `undefined` into the generated file — text
-     * that looks like Rust and is not. Refused for the reason `lookup` refuses
-     * an unmapped id, and so that the two entry shapes agree: a spread as an
-     * *array* item already refuses, having no operator to render as.
-     *
-     * @type {(p: Properties) => string}
-     */
-    const propertyExpr = p => {
-        if (p[0] !== ':') { throw ['not a property', p] }
-        return `(${keyExpr(p[1])}, ${f(p[2])})`
-    }
-    return f
-}
-
-/**
- * `true` for the operands of `() => undefined`: an empty frame and the
- * `undefined` node — the one `=>` this printer has a spelling for.
- *
- * @type {(frame: Exp, body: Exp) => boolean}
- */
-const isSmallestLambda = (frame, body) =>
-    frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
-    && body instanceof Array && body[0] === 'undefined'
-
-/**
- * The same, for a node nothing shares — every node in a group that reaches
- * no shared value,
- * and every `expected`.
- *
- * @type {(e: Exp) => string}
- */
-export const nodeExpr = expExpr([])
 
 /**
  * Comments out a statement `nanvm-lib` cannot pass yet, keeping the case

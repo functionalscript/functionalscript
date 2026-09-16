@@ -101,9 +101,29 @@ via the `Function` constructor — no rustc at the user's run time.
 
 ### Tasks
 
-- [ ] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
+- [x] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
       exposing the compiled module's value (e.g.
-      `pub fn module<A: IVm>() -> Any<A>`), not a `main`.
+      `pub fn module<A: IVm>() -> Any<A>`), not a `main`. Covers literals,
+      arrays, objects, `const` sharing (generalized from the operator-test
+      printer's explicit named `shared` to a linked EDAG's implicit,
+      identity-based sharing), and property access (`.`, via
+      `Any::own_property`, string keys only — a numeric index has no
+      `nanvm-lib` spelling until [`entry`](../fjs/edag/todo/entry.md) lands,
+      and is refused rather than approximated). Arithmetic/logical operators
+      are not wired in: the current parser/compiler do not accept operator
+      *expressions* yet (see [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
+      accepted subset), so there is nothing yet to print through the
+      `op1`/`op2`/`op3` tables. `=>` is a different case — the compiler does
+      emit it, for a function literal compiled to `.edag.f.js` — but it
+      stays out of the `.rs` subset too: this printer accepts only the one
+      placeholder closure the operator-test corpus uses (`() => undefined`)
+      and refuses every real one, since `nanvm-lib` has no closures yet
+      (P2, `fjs/edag/todo/entry.md` and the `Function` constructor task in
+      [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)). The printer is
+      shared with the operator-test generator via
+      [`fjs/edag/rust`](../fjs/edag/rust/module.f.mjs), not duplicated. Not
+      yet covered: multi-module output layout (see the open question below)
+      and wiring the harness (next task) to the generated output.
 - [ ] Create the harness: a crate (or generated tests in `nanvm-lib`) with a
       thin `main` that evaluates a generated module's `export default` and
       prints the result as JSON; wire it into CI via `cargo test`.
