@@ -64,11 +64,22 @@ const identity = ['=>', null, ['args']]
  */
 const keys = ['a', 0, 'length', 'constructor', 'true', '\u212a']
 
+/** Every array rebuilt, every leaf as it stands. @type {(x: unknown) => unknown} */
+const deep = x => x instanceof Array ? x.map(deep) : x
+
+/** A structural copy: the same graph, sharing no node with the original. @type {(e: Exp) => Exp} */
+const copy = e => /** @type {Exp} */ (deep(e))
+
 /**
  * One graph per shape over the graphs `p`: each container, an access with
  * each key, a function body, a node shared twice, each side of a root
- * comma, a root comma whose two sides are one node, and a root comma with
- * one operand.
+ * comma, a root comma whose two sides are one node, a root comma with one
+ * operand, and the same graph twice over in two scopes.
+ *
+ * That last one is a copy and not the node again: two nodes, one in a body
+ * and one outside it, which is a graph the compiler emits — and which the
+ * writer has to spell so that reading it back gives two nodes again, since
+ * one node in two scopes is no EDAG and the analysis refuses it.
  *
  * A shared node is duplicated within one container, never across a `=>`, so
  * a later shape that wraps it in a body takes both occurrences with it —
@@ -87,6 +98,7 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */([',', [['[]', []], x]])),
     ...p.map(x => /** @type {Exp} */([',', [x, x]])),
     ...p.map(x => /** @type {Exp} */([',', [x]])),
+    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', null, copy(x)]]])),
 ]
 
 /** Every leaf, the arguments, both empty containers, and `undefined`. @type {readonly Exp[]} */
