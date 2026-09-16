@@ -177,14 +177,18 @@ requirements say what a transformation may change.
    scope: a merged call the program reaches in eager positions of one scope
    is spelled as that `const` and keeps the CAVM's count, but a merged call
    the program reaches only through lazy edges — `[a && x(), b && x()]`
-   merged into one node — or from more than one function body has no
-   spelling that computes it once and only when the program would. A
-   `const` would compute it when the program would not, and the alternative
-   duplicates the call, which restores the original count on a non-CAVM
-   path. So there are valid EDAGs, a CAVM's output among them, that `.f.js`
-   cannot express without duplicating calls; the writer refuses the
-   lazy-edge case by name, and the round trip of requirement 1 is promised
-   for the graphs the compiler emits, not for them.
+   merged into one node — has no spelling that computes it once and only
+   when the program would. A `const` would compute it when the program
+   would not, and the alternative duplicates the call, which restores the
+   original count on a non-CAVM path. So there are valid EDAGs, a CAVM's
+   output among them, that `.f.js` cannot express without duplicating
+   calls; the writer refuses the lazy-edge case by name, and the round trip
+   of requirement 1 is promised for the graphs the compiler emits, not for
+   them. Merging never crosses a `=>` boundary: a node shared across
+   function bodies is not a valid EDAG
+   ([README](./README.md), identity-dependent canonicality), so a CAVM
+   keeps content identity across bodies in its own representation and
+   serializes one node per body.
 
 3. **A VM may compute fewer times than the program says.** A CAVM resolving
    equal content to one value, a global memoizer reusing a
