@@ -1,7 +1,13 @@
 ## Member access operator (`.` / `[]`)
 
 **Priority:** P1
-**Status:** open
+**Status:** done — all three stages landed.
+
+Kept rather than deleted: `nanvm-lib/README.md`'s operator table, and the
+`member_access` implementations themselves (`vm/any/`, `vm/array/`,
+`vm/string/`, `vm/object/`), cite it for the design decisions below —
+the `index` schema's number-or-string key, why `own` and `.`/`[]` stay
+separate operations, and what's deliberately still out of scope.
 
 ### Problem
 
@@ -112,21 +118,32 @@ node is a different, larger contract:
   `vm/`), so `Array` and `String` share one key-classification
   implementation instead of two.
 
-#### Stage 3 — Object generalization: `member_access` becomes *the* operator
+#### Stage 3 — Object generalization: `member_access` becomes *the* operator (done)
 
-- Extend `Any::member_access`'s dispatch to `Object<A>`, generalizing
-  `own_property`: a numeric key is stringified before the lookup (plain
-  objects don't special-case numeric keys the way `Array`/`String` do —
-  `{0:'a'}[0]` and `{0:'a'}['0']` must agree); otherwise the same
-  prototype-free, last-duplicate-wins lookup `own_property` already does.
-  Whether this lives in `object/own_property.rs` itself or a sibling
-  `object/member_access.rs` is this PR's call.
+- `Object::member_access(&self, key: Any<A>) -> Option<Any<A>>`, in a new
+  `vm/object/member_access.rs` (the same one-file-per-receiver split Stage
+  1/2 used, rather than folding into `object/own_property.rs`): a `Number`
+  key is stringified first — `ToString(number)`, via a helper
+  (`string_coercion::number_to_string`) extracted from `StringCoercion`'s
+  own number arm so the two share it rather than duplicating JS's
+  number-to-string rules — since a plain object doesn't special-case a
+  numeric-looking key the way `Array`/`String` do (`{0:'a'}[0]` and
+  `{0:'a'}['0']` must agree); a `String` key goes straight to
+  `own_property`, unchanged. Wired into `Any::member_access`'s dispatch.
+- `own_property` stays a separate method, not a thin wrapper: its contract
+  genuinely differs from `.`/`[]`'s. `own` is an `Op2Id` whose key operand
+  is a full `exp` (any value), and a non-`String` key reaching it is a bug
+  upstream — `own_property` reports it as a hard `Err`. `.`/`[]`'s `index`
+  is schema-restricted to `number | string`, and both are legitimate,
+  expected keys — `Object::member_access` accepts either and only answers
+  `None` for anything else, never errors. Conflating the two would weaken
+  `own`'s stricter contract to match the more permissive one.
 - Every remaining receiver (`Number`, `Boolean`, `BigInt`, a function) has
-  no own properties yet, so always answers `undefined` — the same fallback
-  `own_property` has today.
-- `nanvm-lib/README.md`'s `.` / `[]` row flips to `[x]`. Whether
-  `own_property` stays a separate method or becomes a thin wrapper around
-  `member_access` with a string-only key is this PR's call, not this plan's.
+  no own properties, so `Any::member_access`'s final fallback arm always
+  answers `undefined` directly — the same fallback `own_property` has, and
+  the `todo!()` Stage 1/2 left for these is gone now that every receiver
+  is handled.
+- `nanvm-lib/README.md`'s `.` / `[]` row flips to `[x]`.
 
 ### Related
 

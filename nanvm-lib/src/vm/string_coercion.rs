@@ -48,12 +48,7 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
     }
 
     fn number(self, v: f64) -> Self::Result {
-        match v {
-            f64::INFINITY => to_result("Infinity"),
-            f64::NEG_INFINITY => to_result("-Infinity"),
-            -0.0 => to_result("0"),
-            v => to_result(&v.to_string()),
-        }
+        Ok(number_to_string(v))
     }
 
     fn string(self, v: String<A>) -> Self::Result {
@@ -79,4 +74,19 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
 
 fn to_result<A: IVm>(s: &str) -> Result<String<A>, Any<A>> {
     Ok(s.into())
+}
+
+/// `ToString` restricted to `Number`, infallible unlike the full coercion
+/// (`StringCoercion::number` above is the one throwable-`Result` wrapper
+/// around it) — also reused directly by `Object::member_access`
+/// (`vm/object/member_access.rs`) to stringify a numeric key before a
+/// plain-object lookup, the same way real JS's `ToPropertyKey` runs ahead
+/// of `[[Get]]`.
+pub(crate) fn number_to_string<A: IVm>(v: f64) -> String<A> {
+    match v {
+        f64::INFINITY => "Infinity".into(),
+        f64::NEG_INFINITY => "-Infinity".into(),
+        -0.0 => "0".into(),
+        v => v.to_string().as_str().into(),
+    }
 }
