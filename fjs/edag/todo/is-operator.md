@@ -20,9 +20,9 @@ never a value.
 
 `is` is a binary operation node, `['is', a, b]`, with `Object.is` semantics:
 `true` when its operands are the same value — the same object, the same
-primitive, `NaN` with `NaN`, and `0` apart from `-0` — as `own` was the
-node for an own-property read the source spells as a call, before `.`
-absorbed it ([`own-access.md`](./own-access.md)).
+primitive, `NaN` with `NaN`, and `0` apart from `-0` — as `own` is the
+operation behind the `entry` function, an own-property read the source
+spells as a call ([`entry.md`](./entry.md)).
 
 - **Schema.** `is` joins the `op2` ids in [`fjs/edag`](../module.f.mjs)'s
   schema and the README's table, beside `===` and `!==`.
