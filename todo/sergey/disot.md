@@ -117,7 +117,16 @@ A DID can root a namespace for evolving things:
 /did:example:alice/parser
 ```
 
-Unlike a hash, this name can resolve to different document hashes over time. Resolution requires signed history and trust rules.
+Unlike a hash, this name can resolve to different document hashes over time. But the name itself is **not a mutable pointer**. Every change is a new signed immutable revision that references its previous revision, so the history of the name is preserved:
+
+```text
+name revision r2 -> sha256:bcd2...
+|
+v
+name revision r1 -> sha256:abcd...
+```
+
+This is important for renames, ownership changes, forks, and conflicting updates: old states are not overwritten. Resolution means selecting a revision from immutable history using signatures, timestamps, and trust rules.
 
 “Global” means the root is explicit. It does not mean everyone must trust the same DID or agree about an authoritative revision.
 
@@ -141,15 +150,17 @@ A personal Web of Trust can provide the context:
 
 Here `~` is the reader's root. Another reader may resolve `alice` differently. This avoids requiring one globally allocated human-readable namespace.
 
+Relative-name mappings follow the same rule as global DID names: changing a mapping creates a new immutable revision instead of overwriting the old mapping.
+
 ## Snapshot
 
-Mutable names are convenient; immutable hashes are reproducible. A snapshot connects them:
+Evolving names are convenient; immutable hashes are reproducible. A snapshot connects them:
 
 ```text
 ./json -> /did:example:alice/json -> sha256:abcd...
 ```
 
-Once locked, later changes to the DID name do not change this dependency. Locks can be scoped, so different modules may intentionally use different revisions of the same dependency.
+Once locked, later revisions of the DID name do not change this dependency. Locks can be scoped, so different modules may intentionally use different revisions of the same dependency.
 
 ## Git Projection
 
@@ -182,8 +193,8 @@ commit d0c0 -> tree -> document abcd...
 The main missing pieces are:
 
 - **trusted timestamps** — Git's author and committer times are assertions, not trusted timestamps;
-- **decentralized names** — names such as `/did:example:alice/parser` should not depend on a Git branch, DNS name, or hosting provider;
-- **locks/snapshots** — relative and mutable names should resolve reproducibly to exact hashes.
+- **decentralized names** — names such as `/did:example:alice/parser` should have immutable revision history and not depend on a Git branch, DNS name, or hosting provider;
+- **locks/snapshots** — relative and evolving names should resolve reproducibly to exact hashes.
 
 Git submodules are already a limited example of the last idea: one repository pins another repository to an exact commit. DISOT generalizes this from repositories to arbitrary named documents and dependencies.
 
@@ -196,7 +207,7 @@ For Git-backed entities, `.disot.json` can carry the DISOT metadata:
 }
 ```
 
-Git branches remain retention and workflow names; they are not DISOT identities.
+Git branches are mutable refs: moving a branch replaces the commit it currently points to. The old commits may still exist, but the branch itself does not contain an immutable history of its own changes. Therefore branches are useful for workflow and retention, but they are not DISOT global or relative names.
 
 Embedded evidence can extend a Git commit with DID signatures and trusted timestamps:
 
@@ -222,7 +233,7 @@ AT Protocol: DID -> signed record repository
 Git:        commit -> directory snapshot + parent history
 ```
 
-**IPFS** is especially useful for content-addressed storage and distribution. IPNS adds mutable signed names, but Git already supplies a mature revision, branch, and merge model.
+**IPFS** is especially useful for content-addressed storage and distribution. IPNS adds a signed name that can be updated to point to new content. Like a Git branch, that is a mutable current pointer rather than an immutable revision history of the name itself. DISOT can use IPFS for immutable content, but would represent name changes as immutable revisions instead of using IPNS as its naming model.
 
 **Nostr** already supplies public-key identities, signed events, and decentralized relay distribution. [NIP-34](https://github.com/nostr-protocol/nips/blob/master/34.md) even uses Nostr for Git collaboration. It can be useful for discovery and communication around DISOT objects.
 
