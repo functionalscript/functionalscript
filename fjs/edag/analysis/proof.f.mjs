@@ -143,6 +143,7 @@ export const proof = {
         assertEq(nodesOf(['[]', [['undefined'], ['undefined']]]).length, 2)
         assertEq(nodesOf(['[]', [[',', [1, 2]], [',', [1, 2]]]]).length, 2)
         assertEq(nodesOf(['[]', [['?:', 1, 2, 3], ['?:', 1, 2, 3]]]).length, 2)
+        assertEq(nodesOf(['[]', [['is', 1, 1], ['is', 1, 1]]]).length, 2)
         /** @type {Exp} */
         const s = ['[]', [1]]
         table(['[]', [['&&', ['args'], s], ['&&', ['args'], s]]], {
