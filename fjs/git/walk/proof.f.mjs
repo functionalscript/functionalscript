@@ -15,7 +15,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
 import { hexText, of, tryFromHex } from '../oid/module.f.mjs'
-import { objectPath, tryRead as readStore } from '../store/module.f.mjs'
+import { objectPath, objectsDir, readIn } from '../store/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { mode, write as writeTree } from '../tree/module.f.mjs'
 import { peel, tryEntries, tryEntry } from './module.f.mjs'
@@ -263,7 +263,11 @@ const host = {
 
 const runHost = run(host)([])
 
-const read = readStore(dir, 20)
+// The object directories are resolved once and the reader built over them, which
+// is what a caller reading many objects does: `tryRead` would ask this
+// repository for its `objects/info/alternates` again for every id the walk
+// visits. This repository borrows from nowhere, so the list is its own.
+const read = readIn([objectsDir(dir)], 20)
 
 const peeled = peel(read, 20)
 
