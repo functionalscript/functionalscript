@@ -94,5 +94,5 @@
       - `.gitmodule` file contains a path and repository URL, not pinned commit ID.
       - `gitlink` has a specific commit ID
     - subtree: use the files directly but `git subtree` provides a workflow for importing upstream changes and exporting your changes back.
-  -
+  - workflow
 - [ ] FJS serializer
