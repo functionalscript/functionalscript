@@ -16,14 +16,14 @@ to its entries, an entry to a blob — over whatever reads objects, and
 [`fjs/git/repo`](../repo/module.f.mjs) finds the directory to read at from a
 worktree of any kind.
 
-Two things are left, and both are about where a store may look rather than what
-it can read:
+One thing is left, and it is about where a store may look rather than what it
+can read:
 
-- the directories `objects/info/alternates` adds, which a store searches after
-  its own, so that an id in a borrowed object store is found;
 - a `refDelta` whose base is not in the pack that names it, which `packstore`
   refuses rather than guess at — the base may be loose, in another pack, or
-  nowhere, and only a reader of the whole store can say. See
+  nowhere, and only a reader of the whole store can say. Now that a store is
+  several object directories rather than one, that reader exists: `readIn` is
+  the whole-store read such a base would be resolved through. See
   [packfiles.md](./packfiles.md).
 
 ### Proposal
@@ -41,7 +41,9 @@ it can read:
   directory: a caller that starts from a checkout puts the two together,
   which is what [`fjs/git/README.md`](../README.md) says and what
   `tryRead(dir, oidBytes)` is. `objects/info/alternates` adds directories
-  to search after the repository's own, and is the step that remains.
+  to search after the repository's own, and is done: `objectsDirs` answers
+  them, transitively, and `readIn` reads over the list so a caller reading
+  many objects resolves the borrowings once.
 - An id given by a caller is checked against the object read, which is
   where [SHA-1](../../crypto/todo/sha1.md) and `fjs/crypto/sha2` come in:
   a store that does not hash trusts its file names. In a SHA-1 repository
@@ -83,8 +85,15 @@ it can read:
       objects are loose.
 - [x] The common directory found: a linked worktree's `gitdir` and
       `commondir`, in [`fjs/git/repo`](../repo/module.f.mjs).
-- [ ] `alternates`: the directories `objects/info/alternates` adds, which
-      the store searches after its own.
+- [x] `alternates`: the directories `objects/info/alternates` adds, which
+      the store searches after its own — `objectsDirs` answers the list,
+      transitively and with a directory already reached skipped, and `readIn`
+      reads over it. Two line shapes send Git to a directory this reader does
+      not open — each a miss and never a wrong object, since the id is checked
+      against whatever answers — and neither is refused:
+      [alternates-line-quirks.md](./alternates-line-quirks.md) records them and
+      [byte-paths.md](./byte-paths.md) owns the one that is really about a path
+      being bytes.
 - [x] The walk from a commit to a blob by path:
       [`fjs/git/walk`](../walk/module.f.mjs), `peel`, `tryEntries` and
       `tryEntry` over whatever reads objects.

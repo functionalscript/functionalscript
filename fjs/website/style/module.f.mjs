@@ -45,7 +45,13 @@ export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text
 @media (prefers-color-scheme: dark) {
     :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
 }
-body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
+/* Nearly every word on this site is a path, and a path has no space for a line
+   to break at. On a phone a page's title, a proof's name or a digest is wider
+   than the screen, and with nowhere to break it the whole page scrolls
+   sideways, or the report's panel clips the line. So any line may break inside
+   a word: an identifier split across two lines is still read, and one cut off
+   is not. */
+body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; overflow-wrap: anywhere; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }
@@ -55,26 +61,27 @@ body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace,
    line a chevron, a dot for its verdict, the module's path, and its counts at
    the right edge. A group that passed folds and recedes; one that failed stays
    open with a red dot. A failure's error is a tinted, bordered box in the
-   ordinary text colour, so a stack is readable rather than a wall of red, and
-   it may break inside a word because a stack line is often one long URL. The
+   ordinary text colour, so a stack is readable rather than a wall of red. The
    panel is not drawn until a run has put something in it. The runner's demo
-   draws the same report into its own container, so both are the panel. */
+   draws the same report into its own container, so both are the panel.
+   Where a line has no room for both, the counts move under the path rather
+   than squeezing it into a column a few characters wide. */
 [data-test-results], [data-example-report] { border: 1px solid var(--border); border-radius: 10px; margin-top: .5rem; overflow: hidden }
 [data-test-results]:empty, [data-example-report]:empty { display: none }
 [data-test-module] { color: var(--text) }
 [data-test-module] + [data-test-module] { border-top: 1px solid var(--border) }
-[data-test-module] > summary { align-items: center; cursor: pointer; display: flex; gap: .5rem; list-style: none; padding: .4rem .75rem }
+[data-test-module] > summary { align-items: center; cursor: pointer; display: flex; flex-wrap: wrap; gap: .5rem; list-style: none; padding: .4rem .75rem }
 [data-test-module] > summary::-webkit-details-marker { display: none }
 [data-test-module] > summary::before { color: var(--muted); content: "▸"; display: inline-block; flex: none; transition: transform .15s; width: 1ch }
 [data-test-module][open] > summary::before { transform: rotate(90deg) }
 [data-dot] { background: var(--muted); border-radius: 50%; flex: none; height: .5rem; width: .5rem }
 [data-status="passed"] > summary > [data-dot] { background: var(--pass) }
 [data-status="failed"] > summary > [data-dot] { background: var(--fail) }
-[data-path] { overflow-wrap: anywhere }
+[data-path] { flex: 1 1 16ch }
 [data-counts] { color: var(--muted); margin-left: auto; white-space: nowrap }
 [data-test-module] > ol { margin: 0 0 .5rem; padding: 0 .75rem 0 3rem }
 li[data-status="passed"] { color: var(--muted) }
-[data-test-error] { background: var(--fail-bg); border: 1px solid color-mix(in srgb, var(--fail) 40%, transparent); border-radius: 6px; color: var(--text); margin: .25rem 0 .5rem; overflow-wrap: anywhere; padding: .5rem .6rem }
+[data-test-error] { background: var(--fail-bg); border: 1px solid color-mix(in srgb, var(--fail) 40%, transparent); border-radius: 6px; color: var(--text); margin: .25rem 0 .5rem; padding: .5rem .6rem }
 /* The run's counts sit in the section's own title — green for what passed,
    red for what failed, and the time at the right edge — so they stay in sight
    with the section folded. The line under the title keeps only what the title

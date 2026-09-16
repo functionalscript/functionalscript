@@ -94,6 +94,11 @@ see [serialization](./serialization.md).
 4. [ ] [template-literals](./3440-template-literals.md)
 5. [ ] `async`/`await`. Depends on the implementation of promises.
 
+### 3.5. Priority 4
+
+1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
+   name an enclosing scope binds; a warning or an error, undecided.
+
 ## 4. ECMAScript Proposals
 
 1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations), Stage 1:

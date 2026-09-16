@@ -247,12 +247,34 @@ export const proof = {
         assertEq(tryApplyDelta(packDeltaBase.slice(0, 474), packDelta), null)
         // a delta with no source size at all, and one whose source size runs off
         // the end: there is nothing to check the base against, which is a
-        // refusal before either size is compared
+        // refusal before either size is compared. Both are written long enough
+        // to pass the four-byte floor, so what refuses them is the varint and
+        // not the length — `[0x80, 0x80, 0x80, 0x80]` is a source size still
+        // asking for another byte when the delta ends.
         assertEq(tryApplyDelta(packDeltaBase, []), null)
-        assertEq(tryApplyDelta(packDeltaBase, [0x80]), null)
+        assertEq(tryApplyDelta(packDeltaBase, [0x80, 0x80, 0x80, 0x80]), null)
+        // and a *target* size that runs off the end the same way, after a source
+        // size that reads
+        assertEq(tryApplyDelta([120], [0x01, 0x80, 0x80, 0x80]), null)
         // a target size one too large, with the instructions unchanged
         const [, ...rest] = packDelta.slice(2)
         assertEq(tryApplyDelta(packDeltaBase, [...packDelta.slice(0, 2), packDelta[2] + 1, ...rest]), null)
+    },
+    // A copy instruction whose own fields run off the end of the delta, which is
+    // the other half of the same rule: the bitmap says which bytes are present,
+    // so a delta can promise an offset or a size byte and then end.
+    //
+    // Each is written at four bytes or more, since a shorter delta is refused
+    // for its length before any instruction is read — see {@link
+    // applyDeltaTooShort}.
+    applyDeltaCopyRunsOff: () => {
+        // source 1 in the padded form, target 1, then a copy whose bitmap
+        // promises all four offset bytes and ends. Written at four bytes on
+        // purpose: at three the floor refuses it first, and the case would pass
+        // without ever reaching the instruction it is about.
+        assertEq(tryApplyDelta([120], [0x81, 0x00, 0x01, 0x8F]), null)
+        // and one whose offset byte is present and whose size byte is promised
+        assertEq(tryApplyDelta([120], [0x01, 0x01, 0x91, 0x00]), null)
     },
     // A delta whose target is nothing builds the empty object, and that answer
     // is not the refusal. `List` spells the empty list `null`, so the pieces a
@@ -271,15 +293,34 @@ export const proof = {
     // emptiness of the delta's output is what Git trips on, and building the
     // object is the answer two of its three readers give.
     applyDeltaEmptyTarget: () => {
-        // source size 1, target size 0, and no instructions at all
-        assertStructurallySame(tryApplyDelta([120], [0x01, 0x00]), [])
-        // the same, with both sizes written in the padded two-byte form a real
-        // encoder may emit — which is the shape the pack above carries
+        // source size 1, target size 0, and no instructions at all, in the
+        // four-byte spelling Git reads — both sizes written in the padded
+        // two-byte form, which is the shape the pack above carries
         assertStructurallySame(tryApplyDelta([120], [0x81, 0x00, 0x80, 0x00]), [])
+        // and with only the source size padded, the other four-byte spelling
+        assertStructurallySame(tryApplyDelta([120], [0x01, 0x80, 0x80, 0x00]), [])
         // and the refusals it must stay distinct from: a delta that declares
         // bytes and names none, and one whose source size is not the base's
         assertEq(tryApplyDelta([120], [0x01, 0x02, 0x90, 0x01]), null)
-        assertEq(tryApplyDelta([120, 121], [0x01, 0x00]), null)
+        assertEq(tryApplyDelta([120, 121], [0x81, 0x00, 0x80, 0x00]), null)
+    },
+    // The same delta written short is refused, because Git refuses it. Two
+    // bytes spell it — a source size and a target size of nothing — and the
+    // format's grammar allows that, but no Git reader parses a payload under
+    // four bytes. Measured on Git 2.43.0 over the same hand-built two-object v2
+    // packs: `01 00` and `81 00 00` give `fatal: pack has bad object at offset
+    // 22: failed to apply delta` and exit 128, where the four-byte spellings of
+    // the *same* delta above are accepted and the empty blob indexed. So what
+    // Git refuses is the payload's length and not anything it says.
+    //
+    // This module is stricter than Git in three documented places and that is a
+    // divergence; answering an input Git calls corrupt would not be one, it
+    // would be a wrong answer, so the floor is Git's.
+    applyDeltaTooShort: () => {
+        assertEq(tryApplyDelta([120], [0x01, 0x00]), null)
+        assertEq(tryApplyDelta([120], [0x81, 0x00, 0x00]), null)
+        // and the boundary from the other side: four bytes is read
+        assertStructurallySame(tryApplyDelta([120], [0x81, 0x00, 0x80, 0x00]), [])
     },
     // A delta that names more than the layer can hold is refused before it
     // builds anything. The instruction bound stops a delta building more than it

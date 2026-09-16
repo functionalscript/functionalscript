@@ -66,6 +66,27 @@ operation-node identities shared across function boundaries; otherwise a single
 semantic node could produce different runtime values in different invocation contexts.
 Sharing within one body remains valid and is memoized per invocation.
 
+### The memoization table
+
+Which nodes an invocation memoizes is not the interpreter's to discover: the
+analysis in [`fjs/edag/todo/analysis.md`](../../edag/todo/analysis.md) returns
+the operation nodes of the whole program in walk order, each with its
+scope, and the shared indices, and the interpreter indexes its per-invocation
+cache by those integers — one map for the whole code, values cached per
+function: an invocation holds only the entries of its own body's scope. The
+table names its operands by index, so the interpreter runs the table and never
+walks the EDAG's objects.
+The operations themselves are amnesia's, factored into a table both executors
+share, so the interpreter differs from amnesia only in reusing a value. The
+table's `.` reads an own property, `Object.getOwnPropertyDescriptor(a, key)?.value`,
+as the specification defines an access and as amnesia's `own` reads today
+([`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)), so an
+inherited property is `undefined` whatever a realm puts on a prototype.
+Validation refuses, besides, an access whose index is a prohibited property
+name — `constructor`, `__proto__`, every name a built-in prototype gives by
+the parser's list in [`fjs/js/prototype`](../../js/prototype/module.f.mjs),
+all but `length` — since such a graph is not one the compiler emits.
+
 ### Existing value-producing API integration
 
 The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
@@ -85,6 +106,10 @@ This integration must preserve the public contract. `transpile` still returns th
 module's `Denotation` on success — the evaluated exported value and whether its
 graph is shared (`fjs/fsc/ast/types.ts`) — and `fjs compile <input> <output>` still
 serializes that value rather than serializing the EDAG as if it were the module result.
+That holds for the value outputs, `.data.js` and `.json`; the `.f.js` output is
+a rewrite of the linked EDAG that does not evaluate the module, per
+[`functionalscript-output.md`](./functionalscript-output.md), which supersedes this
+contract for that extension.
 The separately serializable final EDAG remains a compiler artifact/API from the P2 task.
 
 This TODO does not define resource budgets, deterministic stopped outcomes, iterative
@@ -108,9 +133,14 @@ hardening TODO after the baseline interpreter exists.
       not reuse memoized body results across different argument contexts.
 - [ ] Reject EDAGs that share an operation node across a function boundary; keep body
       graphs disjoint while allowing sharing inside one body.
+- [ ] Reject an access whose index is a prohibited property name, by the parser's
+      list, in `validate`: `['.', ['{}', []], 'constructor']` is not an EDAG the
+      compiler emits, and the executor never reads one.
 - [ ] Return the interpreted value for a valid final EDAG.
 - [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
-      `transpile` / `fjs compile` path without changing its success result/output.
+      `transpile` / `fjs compile` path without changing its success result/output
+      for the value outputs, `.data.js` and `.json`; the `.f.js` output is the
+      writer's, per `functionalscript-output.md`.
 - [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [ ] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
@@ -133,8 +163,9 @@ hardening TODO after the baseline interpreter exists.
       final EDAG and then interpreted produces the same final value as the current DJS
       transpiler.
 - [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
-      result — the `Denotation`, value and sharing alike — and `fjs compile` output
-      remain unchanged after switching their internals to final-EDAG interpretation.
+      result — the `Denotation`, value and sharing alike — and the `.data.js` and
+      `.json` outputs of `fjs compile` remain unchanged after switching their
+      internals to final-EDAG interpretation.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

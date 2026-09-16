@@ -19,6 +19,15 @@ what that gap was waiting for: `['+', 2, 3]` is `5` and
 makes by evaluating the node, not by evaluating the JavaScript it was modeled
 on.
 
+What a node means is not this module's to say: the operations live in
+[`../operations`](../operations/module.f.mjs), one per tag, parameterized by
+how an operand is evaluated. This evaluator supplies recursion;
+[memo](../memo/module.f.mjs), the executor over the
+[analysis](../analysis/module.f.mjs) table, supplies a lookup; both run
+the same table, so they agree on every value that sharing does not decide,
+and this one stays the oracle
+([execution-models.md](../execution-models.md) §2.2).
+
 ## Why it is not a VM
 
 ### It trusts its host

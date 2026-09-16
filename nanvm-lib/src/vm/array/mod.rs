@@ -1,4 +1,5 @@
 mod index;
+mod member_access;
 mod partial_eq;
 mod sized_index;
 
