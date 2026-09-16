@@ -89,3 +89,4 @@
     - `lock.json` - mapping. We also need to investigate submodules.
     - `tts.json` - a set of trusted time stamp for previous commits.
 - [ ] Git Submodules
+- [ ] FJS serializer
