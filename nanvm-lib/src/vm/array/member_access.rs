@@ -77,7 +77,10 @@ fn string_to_index<A: IVm>(s: &String<A>) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::Array;
-    use crate::{naive::Naive, vm::ToAny, vm::ToArray};
+    use crate::{
+        naive::Naive,
+        vm::{ToAny, ToArray},
+    };
 
     type A = Naive;
 

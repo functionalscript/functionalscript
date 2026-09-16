@@ -62,45 +62,62 @@ node is a different, larger contract:
 
 ### Proposal — three PRs
 
-#### Stage 1 — Array indexing + `.length`
+#### Stage 1 — Array indexing + `.length` (done)
 
-- Fix `Array<A>`'s `Index<u32>` (`vm/array/index.rs`) to stop panicking
-  out of bounds, per its own `TODO`.
-- Add `Any::member_access(self, key: Self) -> Result<Self, Self>` (new file
-  under `vm/any/`, following the existing one-operator-per-file layout) with
-  the `Array` receiver arm implemented: an in-bounds integer key (as a
-  `number` or a canonical numeric string) returns the element; the string
-  key `"length"` returns `Array::length()` as a `Number`; any other key
-  returns `undefined`. A nullish receiver throws the same
-  `Cannot convert undefined or null to object`-style error `own_property`
-  throws today (reuse/rename its constant). Every other receiver type is an
-  explicit "not yet" (`todo!()`) so Stage 2/3 are pure additions.
-- Settle the test-corpus question from Problem above for this PR: either
-  (a) give `fjs/nanvm/module.f.mjs` and its two consumers a case shape for
-  `.`/`[]`, or (b) add hand-written cases to `nanvm-lib/tests/test/main.rs`
-  and file a follow-up todo for corpus support. Recommendation: (b), to
-  keep this PR's scope to the operator itself — but call the choice out
-  explicitly in the PR description either way.
+- `Array<A>`'s `Index<u32>` (`vm/array/index.rs`) is left panicking out of
+  bounds, unchanged — that's ordinary Rust `Index` convention (`Vec`/slice
+  do the same), not a defect. Its own `TODO` floated changing it, but that
+  turned out to be unnecessary: `Array::member_access` checks `index < len`
+  itself before ever indexing, so the panicking path is never reached from
+  here.
+- `Array::member_access(&self, key: Any<A>) -> Option<Any<A>>`, in a new
+  `vm/array/member_access.rs`, `pub(crate)` — mirroring the exact split
+  `Object::own_property` already has from `Any::own_property`: an in-bounds
+  integer key (as a `number` or a canonical numeric string) returns the
+  element; the string key `"length"` returns `Array::length()` as a
+  `Number`; any other key returns `None`, for the caller to turn into
+  `undefined`.
+- `Any::member_access(self, key: Self) -> Result<Self, Self>`, in a new
+  `vm/any/member_access.rs` (its own file, following the existing
+  one-operator-per-file layout — `conditional.rs` is the precedent for a
+  non-`core::ops` method living in its own file rather than in `mod.rs`) —
+  a thin dispatcher: a nullish receiver throws the same
+  `Cannot convert undefined or null to object` `own_property` throws today
+  (reused, not renamed, its private constant); an `Array` receiver
+  delegates to `Array::member_access`, mapping `None` to `undefined`; every
+  other receiver is an explicit `todo!()` so Stage 2/3 are pure additions.
+- Settled the test-corpus question from Problem above: went with (b) —
+  hand-written cases (in `Array::member_access`'s own `#[cfg(test)]`
+  module, plus a couple of dispatcher-level ones next to `Any::member_access`)
+  rather than teaching the shared corpus generator this node shape. Filing
+  the corpus extension as a follow-up remains open.
 
 #### Stage 2 — String indexing + `.length`
 
-- Same shape, for `String<A>`: fix `String<A>`'s `Index<u32>`
-  (`vm/string/index.rs`) to stop panicking; add the `Any::member_access`
-  arm — an in-bounds integer key returns the single UTF-16 code unit as a
-  one-character `String<A>` (matches JS `str[i]`, *not* `.charAt`, which is
-  a prototype method and out of scope); `"length"` returns the UTF-16
-  length; anything else returns `undefined`.
-- Reuse Stage 1's key classification (integer-vs-`"length"`-vs-other)
-  rather than re-deriving it; if it needs to move out of the `Array` arm to
-  be shared, do that here.
+- Same shape, for `String<A>`: leave `String<A>`'s `Index<u32>`
+  (`vm/string/index.rs`) untouched, for the same reason as Stage 1 —
+  bounds-check before indexing rather than changing the panic contract.
+- Add `String::member_access(&self, key: Any<A>) -> Option<Any<A>>` in a
+  new `vm/string/member_access.rs`, the same split Stage 1 used for
+  `Array`: an in-bounds integer key returns the single UTF-16 code unit as
+  a one-character `String<A>` (matches JS `str[i]`, *not* `.charAt`, which
+  is a prototype method and out of scope); `"length"` returns the UTF-16
+  length; anything else returns `None`. Wire the new arm into
+  `Any::member_access`'s dispatch in `vm/any/member_access.rs`.
+- Reuse Stage 1's key-classification helpers (`canonical_index`,
+  `string_to_index`, private to `vm/array/member_access.rs`) rather than
+  re-deriving them; if `String` needs them too, move them somewhere both
+  modules can reach rather than duplicating.
 
 #### Stage 3 — Object generalization: `member_access` becomes *the* operator
 
-- Extend the dispatch to `Object<A>`, generalizing `own_property`: a
-  numeric key is stringified before the lookup (plain objects don't
-  special-case numeric keys the way `Array`/`String` do —
+- Extend `Any::member_access`'s dispatch to `Object<A>`, generalizing
+  `own_property`: a numeric key is stringified before the lookup (plain
+  objects don't special-case numeric keys the way `Array`/`String` do —
   `{0:'a'}[0]` and `{0:'a'}['0']` must agree); otherwise the same
   prototype-free, last-duplicate-wins lookup `own_property` already does.
+  Whether this lives in `object/own_property.rs` itself or a sibling
+  `object/member_access.rs` is this PR's call.
 - Every remaining receiver (`Number`, `Boolean`, `BigInt`, a function) has
   no own properties yet, so always answers `undefined` — the same fallback
   `own_property` has today.

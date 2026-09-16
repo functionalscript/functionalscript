@@ -34,7 +34,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, Nullish, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
@@ -52,7 +52,7 @@ mod tests {
     /// own behavior, which is tested in `vm/array/member_access.rs`.
     #[test]
     fn array_receiver_dispatches_to_array_member_access() {
-        let array: crate::vm::Any<A> = [10.0.to_any(), 20.0.to_any()].to_array().to_any();
+        let array: Any<A> = [10.0.to_any(), 20.0.to_any()].to_array().to_any();
         assert_eq!(array.clone().member_access(1.0.to_any()), Ok(20.0.to_any()));
         assert_eq!(
             array.member_access(2.0.to_any()),
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn non_array_receiver_is_not_implemented_yet() {
-        let object: crate::vm::Any<A> = [].to_object::<A>().to_any();
+        let object: Any<A> = [].to_object::<A>().to_any();
         let _ = object.member_access(0.0.to_any());
     }
 }
