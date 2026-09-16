@@ -89,8 +89,10 @@ export const proof = {
         const h = callable(g())
         const x = array(h())
         assert(x[0] === x[1] && x[0] !== array(h())[0])
-        // A primitive body has no scope to hold slots for, and is its value.
+        // A primitive body is its value and opens no invocation, as a
+        // primitive program is its value: no slot is built for either.
         assertEq(callable(run(['=>', null, 5]))(), 5)
+        eq(5, 5)
     },
     // Wherever sharing does not decide the value, the answer is amnesia's:
     // every operation once through both executors over one graph.

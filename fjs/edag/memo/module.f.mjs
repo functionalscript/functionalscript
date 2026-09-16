@@ -53,32 +53,37 @@ const slot = f => {
     }
 }
 
-/** The scope a body belongs to: its root's, or none for a primitive body, which no scope holds. @type {(a: Analysis, body: Operand) => number} */
-const scopeOf = ({ scope }, body) => body instanceof Array ? scope[body[1]] : -1
-
 /**
  * A new invocation of one scope: the slots of its shared entries, empty,
- * and the evaluation of an operand over them. `operand` looks an entry up —
+ * and the evaluation of an entry over them. `operand` looks an entry up —
  * its slot where it has one, computed in place where it has none — and
  * `invoke` is this again, for the body's scope, so a call starts with
- * every slot of the body empty.
+ * every slot of the body empty. A primitive body is its value and opens
+ * no invocation, since it names no entry and no scope holds it.
  *
- * @type {(a: Analysis, s: number) => (frame: unknown, args: readonly unknown[]) => (v: Operand) => unknown}
+ * @type {(a: Analysis, s: number) => (frame: unknown, args: readonly unknown[]) => (i: number) => unknown}
  */
 const invocation = (a, s) => (frame, args) => {
     const { nodes, scope, shared } = a
     /** @type {(i: number) => unknown} */
     const compute = i => run(nodes[i])
     const slots = new Map(shared.filter(i => scope[i] === s).map(i => [i, slot(() => compute(i))]))
-    /** @type {(v: Operand) => unknown} */
-    const operand = v => {
-        if (!(v instanceof Array)) { return v }
-        const cached = slots.get(v[1])
-        return cached === undefined ? compute(v[1]) : cached()
+    /** @type {(i: number) => unknown} */
+    const entry = i => {
+        const cached = slots.get(i)
+        return cached === undefined ? compute(i) : cached()
     }
-    const run = operation({ frame, args, operand, invoke: (frame, args, body) => invocation(a, scopeOf(a, body))(frame, args)(body) })
-    return operand
+    const run = operation({
+        frame,
+        args,
+        operand: v => v instanceof Array ? entry(v[1]) : v,
+        invoke: (frame, args, body) => body instanceof Array ? invocation(a, scope[body[1]])(frame, args)(body[1]) : body,
+    })
+    return entry
 }
 
-/** The program's value, its root evaluated in the module's invocation. @type {(a: Analysis) => (i: Invocation) => unknown} */
-export const memo = a => ({ frame, args }) => invocation(a, -1)(frame, args)(a.root)
+/** The program's value: its root, a primitive as it stands, an entry in the module's invocation. @type {(a: Analysis) => (i: Invocation) => unknown} */
+export const memo = a => ({ frame, args }) => {
+    const { root } = a
+    return root instanceof Array ? invocation(a, -1)(frame, args)(root[1]) : root
+}
