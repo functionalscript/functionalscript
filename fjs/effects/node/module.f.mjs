@@ -154,6 +154,33 @@ export const isNotFound = ([tag, payload]) =>
 export const leadsNowhere = e => isNotFound(e) || (e[0] === 'ioError' && e[1].code === 'ELOOP')
 
 /**
+ * Whether a failure means **nothing is at this path**: the three POSIX codes a
+ * path built from names can fail with before any file is reached.
+ *
+ * - `ENOENT` — no such name.
+ * - `ENOTDIR` — a component of the path is not a directory, so no name below it
+ *   can exist.
+ * - `ELOOP` — the links cycle, so the path resolves to nothing.
+ *
+ * Wider than {@link leadsNowhere}, which answers about an entry a listing named
+ * and is deliberately the two codes a `stat` of one can give. This answers about
+ * a path a caller *spelled*, where a component may be a regular file the caller
+ * never listed — `readFile('<a regular file>/ab/cdef')` is `ENOTDIR`, measured.
+ *
+ * **What it is for is telling absence from refusal.** A reader that builds a
+ * path and finds one of these has learned the file is not there, which is a
+ * different answer from `EACCES` or `EIO` — those mean the file may well be
+ * there and the host will not say. Treating the first three as failures makes a
+ * reader refuse where it should report nothing found.
+ *
+ * Beside {@link isNotFound} for the same reason: POSIX codes no browser reports.
+ *
+ * @type {(e: IoChannel) => boolean}
+ */
+export const namesNothing = e =>
+    leadsNowhere(e) || (e[0] === 'ioError' && e[1].code === 'ENOTDIR')
+
+/**
  * Whether a failure is a read of a *directory*.
  *
  * Node answers `EISDIR` for a `readFile` of one, and a caller that asked for a
