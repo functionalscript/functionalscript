@@ -193,5 +193,18 @@ export const proof = {
         dotOnNestedMissingKey: () => printed(['.', ['.', ['{}', []], 'missing'], 'x']),
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it. */
         emptyComma: () => printed([',', []]),
+        /**
+         * `resolvedBase` only folds through a literal object; a `.` node
+         * holding a chain-step continuation is exactly the shape it must
+         * *not* try to fold through (a continuation is control flow, not a
+         * value — see `fjs/edag/README.md`'s Chains section), so it is left
+         * unresolved rather than misread as an ordinary property access.
+         * That base is still opaque to the shape checks (it is not provably
+         * nullish or non-object), so the refusal here comes from printing
+         * the chain step itself, one level down, the same as
+         * `dotChainStep` above — proving `resolvedBase` did not crash or
+         * silently drop the continuation on the way.
+         */
+        dotOnChainStepBase: () => printed(['.', ['.', ['{}', []], 'y', ['|()', ['[]', []]]], 'z']),
     },
 }
