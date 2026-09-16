@@ -80,7 +80,7 @@ The operations themselves are amnesia's, factored into a table both executors
 share, so the interpreter differs from amnesia only in reusing a value. The
 table's `.` reads an own property, `Object.getOwnPropertyDescriptor(a, key)?.value`,
 as the specification defines an access and as amnesia's `own` reads today
-([`fjs/edag/todo/own-access.md`](../../edag/todo/own-access.md)), so an
+([`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)), so an
 inherited property is `undefined` whatever a realm puts on a prototype.
 Validation refuses, besides, an access whose index is a prohibited property
 name — `constructor`, `__proto__`, every name a built-in prototype gives by

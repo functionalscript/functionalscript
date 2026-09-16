@@ -1,7 +1,7 @@
 ## A function's `name`: `=>` carries a name expression
 
 **Priority:** P3
-**Status:** open — unnecessary under [`entry.md`](./entry.md), where `name` is unobservable
+**Status:** closed — unnecessary under [`entry.md`](./entry.md), where `name` is unobservable and `=>` carries no name
 
 ### Problem
 

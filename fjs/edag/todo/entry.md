@@ -1,7 +1,7 @@
 ## Two access nodes: `.` for a known name, `entry` for an object's entry at run time
 
 **Priority:** P2
-**Status:** open — the alternative to [`own-access.md`](./own-access.md)
+**Status:** open — chosen over [`own-access.md`](./own-access.md)
 
 ### Problem
 
@@ -32,8 +32,8 @@ two operators, each with one job.
   at the key, `name` among them, `length` allowed. `a.b`, `a["b"]`, `a[0]`
   and `a[Number(k)]` are its spellings. The executor reads it as an own
   property, `undefined` where there is none, as the value path does
-  through `hasOwn` and as [`own-access.md`](./own-access.md) defines — that
-  part of it stands; what this proposal changes is the run-time read and
+  through `hasOwn` — the read [`own-access.md`](./own-access.md) defined,
+  which stands; what this proposal changes is the run-time read and
   `name`. The writer's `a.b` agrees with that read under the assumption
   every FunctionalScript file run by a JavaScript engine already relies on,
   a realm whose prototypes are the standard's, since every standard
@@ -210,7 +210,7 @@ two operators, each with one job.
       descriptor refused, and `f.name` refused through `.`; the writer
       spells the node as the pattern's one line from any position, and
       `String(entry)` is that line.
-- [ ] `own-access.md` and `function-name.md` closed in favor of this, and the
+- [x] `own-access.md` and `function-name.md` closed in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
 - [ ] `2360-built-in.md` removes `getOwnPropertyNames` and
@@ -227,7 +227,7 @@ two operators, each with one job.
 
 ### Related
 
-- [`own-access.md`](./own-access.md) — the one-node proposal this replaces.
+- [`own-access.md`](./own-access.md) — the one-node proposal this replaced.
 - [`function-name.md`](./function-name.md) — the name operand this makes
   unnecessary.
 - [`../amnesia/README.md`](../amnesia/README.md) — the `own` read this

@@ -154,3 +154,37 @@ The key architectural boundary is between **implementation strategies** and
   JavaScript-compatible EDAG semantics.
 - Amnesia, global memoization, and CAVM intentionally have different identity
   semantics and therefore need separate behavioral expectations.
+
+## Transformations
+
+An EDAG is transformed on its way through the toolchain: written to `.f.js`
+and compiled back
+([`fjs/fsc/todo/functionalscript-output.md`](../fsc/todo/functionalscript-output.md)),
+loaded into a CAVM and serialized back, reduced by a global memoizer. Three
+requirements say what a transformation may change.
+
+1. **A round trip preserves the number of computations.** After
+   `.f.js` → EDAG → `.f.js` → EDAG, every expression is computed as many
+   times under the JS-compatible model as in the original program, unless a
+   function or an expression throws; then only the throw is promised, not
+   which of two failing computations fails first. This is why the writer
+   spells a shared identity-minting node as one `const` and never
+   duplicates a call.
+
+2. **A CAVM-optimized EDAG need not be expressible in `.f.js`.** A CAVM may
+   reduce many calls of one content to a few in the EDAG. `.f.js` has no way
+   to say that one call is another, so writing such an EDAG and compiling it
+   back on a non-CAVM path restores the calls: there are valid EDAGs, a
+   CAVM's output among them, that `.f.js` cannot express without duplicating
+   calls. The round trip of requirement 1 is promised for the graphs the
+   compiler emits, not for them.
+
+3. **A VM may compute fewer times than the program says.** A CAVM resolving
+   equal content to one value, a global memoizer reusing a
+   context-independent result. On a CAVM this changes nothing observable,
+   since identity is content there; on a non-CAVM engine the reduced EDAG
+   can make two values one, `result[0] === result[1]` where JavaScript
+   allocates two objects. That side effect is almost impossible to
+   eliminate on a non-CAVM engine and is accepted as the model's, per the
+   table above. Computing more times than the program says is never
+   allowed, by requirement 1.

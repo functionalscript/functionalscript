@@ -1,7 +1,7 @@
 ## One access node: `.` reads an own property, and `own` goes
 
 **Priority:** P2
-**Status:** open — [`entry.md`](./entry.md) proposes the alternative, two nodes with `entry` reading an enumerable own property
+**Status:** closed — superseded by [`entry.md`](./entry.md): `.` stays the own read this todo defines, the run-time read is the `entry` function, and `own` stays the operation behind it
 
 ### Problem
 
