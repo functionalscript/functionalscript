@@ -8,7 +8,8 @@
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t 'default' t value ';' t
  * value  ::= (primitive t | id t | array | object) access* | func
- * body   ::= (primitive t | id t | array) access* | func
+ * body   ::= (primitive t | id t | array) access* | func | block
+ * block  ::= '{' t 'return' s value ';' t '}' t
  * func   ::= '(' t '...' t id t ')' s '=>' t body
  * access ::= '.' t id t | '[' t (string | number) t ']' t
  * array  ::= '[' t [ items(value) ] ']' t
@@ -38,7 +39,7 @@
  *   grammar rested it on a failed repetition round rewinding.
  *
  * The alphabet is {@link _ordinaryTokenNames}: one name per token kind,
- * and the six framing keywords with names of their own, since the
+ * and the seven keywords with names of their own, since the
  * tokenizer emits them as identifiers — encoded by `fjs/ebnf/token_symbol`;
  * `eof` has none, since the backend synthesizes the end of input. A symbol
  * is a rule of one symbol, so a terminal is the symbol a token is encoded
@@ -49,7 +50,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Body, Func, Items, Member, Value } from './types.ts'
+ * @import { Block, Body, Func, Items, Member, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -79,27 +80,30 @@ export const _tokenKindNames = /** @type {const} */ ([
 ])
 
 /**
- * The framing keywords, which the tokenizer emits as `id` tokens carrying
- * the word in `value`. Kept as its own list because {@link symbolOf} has to
- * recognize exactly these values, not merely encode them.
+ * The keywords a rule below *requires* in some position, which the
+ * tokenizer emits as `id` tokens carrying the word in `value`. Kept as its
+ * own list because {@link symbolOf} has to recognize exactly these values,
+ * not merely encode them. Six frame a module and `return` frames a
+ * function's block body.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
  * symbol rejects every one of them, which is what {@link identifier} is
- * for: the union of `id` and the six. Which of them a position may hold is
+ * for: the union of `id` and the seven. Which of them a position may hold is
  * the fold's to say, since it is a property of the word — JavaScript
- * reserves five and `from` alone is ordinary, and it lets every reserved
- * word stand as a key or after `.`, so `{ default: 3 }` and `a.with` parse
- * and `const export = 1;` is refused by the fold, as `const if = 1;` is.
+ * reserves six and `from` alone is ordinary, and it lets every reserved
+ * word stand as a key or after `.`, so `{ default: 3 }`, `{ return: 3 }`
+ * and `a.with` parse and `const export = 1;` is refused by the fold, as
+ * `const if = 1;` is.
  *
  * Giving a word its own symbol narrows where it is *required*, never where
  * it is *allowed*.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
- * one per framing keyword. No keyword collides with a kind, so the two
+ * one per keyword above. No keyword collides with a kind, so the two
  * lists concatenate without a name being registered twice — which
  * `encoding` would reject anyway.
  */
@@ -112,7 +116,7 @@ export const sym = alphabet.encode
 
 /**
  * One token as the parser's input: the symbol of its kind — of its word,
- * for a framing keyword — with the whole token as metadata, so that a fold
+ * for a keyword with its own symbol — with the whole token as metadata, so that a fold
  * above still has its value and its position.
  *
  * `eof` has no symbol: a stream reaching here has had it split off, and
@@ -151,8 +155,9 @@ export const sameLine = repeatFrom0({
 
 /**
  * Every word that may stand where an identifier is expected: `id`, and the
- * framing keywords, which arrive as `id` tokens too. Whether the word is
- * reserved there is the fold's to check, as it is for every other keyword.
+ * keywords with symbols of their own, which arrive as `id` tokens too.
+ * Whether the word is reserved there is the fold's to check, as it is for
+ * every other keyword.
  */
 export const identifier = /** @type {const} */ ({
     id: sym('id'),
@@ -162,6 +167,7 @@ export const identifier = /** @type {const} */ ({
     default: sym('default'),
     from: sym('from'),
     with: sym('with'),
+    return: sym('return'),
 })
 
 /** A value that is one token. */
@@ -220,8 +226,12 @@ const reference = /** @type {const} */ ([[identifier, trivia], accesses])
 /**
  * A function's body: a value, but not an object — after `=>` JavaScript
  * reads `{` as a block, never as an object, so the spelling is refused
- * rather than read another way — and not yet a block. A function takes no
- * access of its own: after `=>` an access belongs to the body.
+ * rather than read another way — or that block, {@link block}, in which an
+ * object is an ordinary value again. A function takes no access of its
+ * own: after `=>` an access belongs to the body.
+ *
+ * `{` decides between the two in one symbol, since no other branch starts
+ * with it.
  *
  * @type {Body}
  */
@@ -230,6 +240,7 @@ export const body = () => ['const', {
     ref: reference,
     array: [array, accesses],
     func,
+    block,
 }]
 
 /**
@@ -289,14 +300,47 @@ export const object = /** @type {const} */ ([sym('{'), trivia, option(members), 
 const end = /** @type {const} */ ([sym(';'), trivia])
 
 /**
+ * A function's block body: `{ return value; }`, one `return` statement and
+ * nothing else — a body `const` before it is
+ * [3130](../../../../spec/todo/3130-body-const.md).
+ *
+ * The value is an ordinary {@link value}, the object included: `{` opens a
+ * block only where a statement may start, and after `return` an expression
+ * is expected, so `=> { return { a: 1 }; }` is how a function returns an
+ * object literal — the spelling the expression body has none of.
+ *
+ * `s` and not `t` before it, where JavaScript has
+ * `return [no LineTerminator here] Expression`: a newline there ends the
+ * statement by automatic semicolon insertion, so `return` and the value on
+ * two lines would return `undefined` in JavaScript and this value here.
+ * The same reason {@link func} has `s` before `=>`.
+ *
+ * The `;` is required, as it is after every statement: this language ends a
+ * statement at a `;` and never where an engine infers one.
+ *
+ * @type {Block}
+ */
+export const block = /** @type {const} */ ([
+    sym('{'), trivia, sym('return'), sameLine, value, ...end, sym('}'), trivia,
+])
+
+/**
  * An import's attribute, `with { type: "json" }` as JavaScript spells the
  * one attribute it defines: the key any identifier and the value any
  * string here, since the grammar sees symbols and the fold reads the words
  * — the key has to be `type` and the value `json`, and the fold says which
  * is not.
+ *
+ * The key is {@link identifier} and not the bare `id` symbol, so that a
+ * word with a symbol of its own stands here as any other word does:
+ * JavaScript's key is an `IdentifierName`, which admits every reserved
+ * word, and giving a word its own symbol narrows where it is *required*,
+ * never where it is *allowed*. `with { return: "json" }` is an unknown
+ * attribute, which is the fold's to say, not a token the grammar did not
+ * expect.
  */
 export const attribute = /** @type {const} */ ([
-    sym('with'), trivia, sym('{'), trivia, sym('id'), trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
+    sym('with'), trivia, sym('{'), trivia, identifier, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
 ])
 
 export const importStatement = /** @type {const} */ ([

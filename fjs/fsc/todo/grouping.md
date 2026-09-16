@@ -9,8 +9,10 @@ The language has no parentheses around a value, so what JavaScript spells
 with them cannot be spelled at all:
 
 - a function whose body is an object literal, `(...a) => ({ x: a })` — the
-  body rule refuses `{`, since JavaScript reads `=> {` as a block, and the
-  only JavaScript spelling of that body is the parenthesized one;
+  body rule refuses `{`, since JavaScript reads `=> {` as a block; the block
+  body spells that function another way,
+  `(...a) => { return { x: a }; }`, so this is the shorter spelling rather
+  than the only one;
 - a written comma, `(check, result)`, once the operator lands
   ([`2340-operators.md`](../../../spec/todo/2340-operators.md)), which
   cannot stand bare where a value is wanted;
@@ -18,9 +20,9 @@ with them cannot be spelled at all:
   expression to come, whose precedence parentheses override.
 
 The FunctionalScript writer
-([`functionalscript-output.md`](./functionalscript-output.md)) needs the
-first of these to write a function with an object body, and refuses such a
-function until then. [`2350-grouping.md`](../../../spec/todo/2350-grouping.md)
+([`functionalscript-output.md`](./functionalscript-output.md)) writes a
+function with an object body as a block until this lands.
+[`2350-grouping.md`](../../../spec/todo/2350-grouping.md)
 holds the feature with one example and no rules.
 
 ### Proposal
