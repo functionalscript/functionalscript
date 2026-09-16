@@ -41,7 +41,10 @@ kind by node kind — validation behavior, not execution semantics — with
 whose behavior the nodes are built around, which is how those semantics were
 pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
 does — a tree-walking evaluator for testing the semantics, and deliberately
-not a VM to run FunctionalScript on. [analysis](analysis/module.f.mjs) reads
+not a VM to run FunctionalScript on — over the one table of
+[operations](operations/module.f.mjs), one per tag, parameterized by how an
+operand is evaluated, so that every executor means the same by a node.
+[analysis](analysis/module.f.mjs) reads
 a graph into one table — every operation node once, in walk order, its
 operands by index, its scope, and which entries are shared — so that a
 writer can hoist what is shared and an executor can cache it without a

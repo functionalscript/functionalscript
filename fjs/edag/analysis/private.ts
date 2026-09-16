@@ -5,7 +5,7 @@
  * @module
  */
 
-import type { ExpOp, TagMap } from '../amnesia/types.ts'
+import type { ExpOp, TagMap } from '../types.ts'
 import type { Node } from './types.ts'
 
 /** The `=>` node whose body is being walked, or `null` at the module level. */
