@@ -39,9 +39,11 @@ two operators, each with one job.
   a realm whose prototypes are the standard's, since every standard
   prototype name is refused at the key. `f.name` and `person.name` are both
   refused here; the second has the other spelling.
-- **`['entry', a, b]` — an entry, at run time.** Both operands are
-  expressions, and the node is the value of `a`'s entry `b`, or `undefined`
-  if `a` has no such entry:
+- **`entry(a, b)` — an entry, at run time.** A call of the `entry`
+  function, `['()', E, ['[]', [a, b]]]` with `E` the node holding
+  `['entry']` from the next bullet; both arguments are expressions, and the
+  call is the value of `a`'s entry `b`, or `undefined` if `a` has no such
+  entry:
 
   | read | result |
   |-|-|
