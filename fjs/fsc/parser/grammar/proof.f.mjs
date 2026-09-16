@@ -112,6 +112,10 @@ export const proof = {
         // the import attribute: `with`, a key, a string, the braces
         assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])
+        // the key is an identifier, so a word with a symbol of its own
+        // stands here as any other word does and the fold names it unknown
+        assertStructurallySame(read('import x from "m" with { return: "json" };export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with { export: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with { "type": "json" };export default x;'), ['error', 'string'])
         assertStructurallySame(read('import x from "m" with { type: json };export default x;'), ['error', 'json'])
         assertStructurallySame(read('import x from "m" with { type: "json", };export default x;'), ['error', ','])

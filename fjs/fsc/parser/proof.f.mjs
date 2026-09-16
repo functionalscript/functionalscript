@@ -498,6 +498,10 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('import x from "m" with { kind: "json" };\nexport default x;', 'unknown import attribute', 26)
+            // a key with a symbol of its own is a word like any other here,
+            // as JavaScript's `IdentifierName` key is: the fold names it
+            expect('import x from "m" with { return: "json" };\nexport default x;', 'unknown import attribute', 26)
+            expect('import x from "m" with { export: "json" };\nexport default x;', 'unknown import attribute', 26)
             expect('import x from "m" with { type: "css" };\nexport default x;', 'unknown import type', 32)
         },
     },

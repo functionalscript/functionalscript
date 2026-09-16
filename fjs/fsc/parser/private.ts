@@ -47,8 +47,14 @@ export type _ListNode = readonly [
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
 export type _AccessNode = Unmapped<readonly [string, Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>]>
 
-/** The node of an import's optional attribute: no round, or one holding `with t { t id t : t string t } t`, the key's token at the fifth position and the value's at the ninth. */
-export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, _Leaf, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
+/**
+ * The node of an import's optional attribute: no round, or one holding
+ * `with t { t identifier t : t string t } t`, the key at the fifth position
+ * and the value's token at the ninth. The key is an `identifier`, a choice
+ * of one symbol per word, so its token is one level in, under the
+ * alternative the word matched — as a `const`'s name is.
+ */
+export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
 
 /** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments. */
 export type _Env = OrderedMap<AstModuleRef | AstArgs>

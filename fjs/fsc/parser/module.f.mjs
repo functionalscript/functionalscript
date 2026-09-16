@@ -370,8 +370,8 @@ const toMember = ([k, , , , v]) => {
 
 /**
  * An import's attribute, when the optional list holds one round: the key at
- * the fifth position of `with t { t id t : t string t } t`, the value at the
- * ninth.
+ * the fifth position of `with t { t identifier t : t string t } t`, under
+ * the alternative its word matched, and the value at the ninth.
  *
  * @type {(node: _AttributeNode) => Import['attribute']}
  */
@@ -379,7 +379,7 @@ const attributeOf = node => {
     const rounds = unmapped(node)
     if (rounds.length === 0) { return null }
     const round = unmapped(rounds[0])
-    return [tokenAt(round[4]), tokenAt(round[8])]
+    return [tokenAt(unmapped(round[4])[1]), tokenAt(round[8])]
 }
 
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
