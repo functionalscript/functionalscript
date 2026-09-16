@@ -11,11 +11,13 @@
 //! eventually be machine-generated, committed, and drift-checked in CI —
 //! see `nanvm-lib/todo/mvp-roadmap.md`'s Distribution section): every file
 //! here starts with a `NOT machine-generated` doc comment, and each has a
-//! sibling `.f.mjs` file under `../../fixtures/` showing, purely as
-//! documentation, the FunctionalScript source it stands in for. That
-//! `.f.mjs` file is not read by any build step and carries no meaning for
-//! the repository's separate `.f.mjs` -> `.f.js` compiler-compatibility
-//! migration (`fjs/fsc/README.md`).
+//! sibling `.mjs` file under `../../fixtures/` showing, purely as
+//! documentation, the FunctionalScript source it stands in for. Deliberately
+//! plain `.mjs`, not `.f.mjs`: it is not read by any build step, is not a
+//! FunctionalScript module the repository's tooling discovers or holds to
+//! `fjs/AGENTS.md`'s mandatory-proof-coverage rule (scoped to `.f.mjs`), and
+//! carries no meaning for the repository's separate `.f.mjs` -> `.f.js`
+//! compiler-compatibility migration (`fjs/fsc/README.md`).
 pub mod boolean;
 pub mod number;
 pub mod string;

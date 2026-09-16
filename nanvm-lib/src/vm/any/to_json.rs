@@ -1,4 +1,4 @@
-use core::fmt::{self, Display, Formatter};
+use core::fmt::{self, Display, Formatter, Write};
 
 use crate::vm::{
     Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
@@ -20,9 +20,6 @@ pub enum JsonError {
     Object,
     Array,
     Function,
-    /// A lone UTF-16 surrogate (half of a surrogate pair) with no partner —
-    /// representable in a `String<A>` but not in Unicode text.
-    UnpairedSurrogate,
 }
 
 impl Display for JsonError {
@@ -34,12 +31,6 @@ impl Display for JsonError {
             JsonError::Object => write!(f, "object-to-JSON serialization is not implemented yet"),
             JsonError::Array => write!(f, "array-to-JSON serialization is not implemented yet"),
             JsonError::Function => write!(f, "a function has no JSON representation"),
-            JsonError::UnpairedSurrogate => {
-                write!(
-                    f,
-                    "a string with an unpaired UTF-16 surrogate has no JSON representation"
-                )
-            }
         }
     }
 }
@@ -70,16 +61,26 @@ impl<A: IVm> Dispatch<A> for ToJson {
 
     fn string(self, v: String<A>) -> Self::Result {
         let mut out = std::string::String::from("\"");
-        for c in char::decode_utf16(v) {
-            let c = c.map_err(|_| JsonError::UnpairedSurrogate)?;
-            match c {
-                '"' => out.push_str("\\\""),
-                '\\' => out.push_str("\\\\"),
-                '\n' => out.push_str("\\n"),
-                '\r' => out.push_str("\\r"),
-                '\t' => out.push_str("\\t"),
-                c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-                c => out.push(c),
+        for r in char::decode_utf16(v) {
+            match r {
+                Ok('"') => out.push_str("\\\""),
+                Ok('\\') => out.push_str("\\\\"),
+                Ok('\n') => out.push_str("\\n"),
+                Ok('\r') => out.push_str("\\r"),
+                Ok('\t') => out.push_str("\\t"),
+                Ok(c) if (c as u32) < 0x20 => {
+                    let _ = write!(out, "\\u{:04x}", c as u32);
+                }
+                Ok(c) => out.push(c),
+                // A lone UTF-16 surrogate has no Unicode text representation,
+                // but well-formed JSON stringification (ES2019) still emits
+                // it as its own `\uXXXX` escape rather than refusing the
+                // whole string — the same convention this repository's own
+                // JSON serializer follows
+                // (`fjs/media/json/serializer/module.f.mjs`).
+                Err(e) => {
+                    let _ = write!(out, "\\u{:04x}", e.unpaired_surrogate());
+                }
             }
         }
         out.push('"');
@@ -116,7 +117,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{String, ToAny},
+        vm::{Function, IContainer, IVm, String, ToAny, ToArray, ToObject, ToString},
     };
 
     type A = Naive;
@@ -149,6 +150,40 @@ mod tests {
     fn string() {
         assert_eq!(s("hello").to_json(), Ok(r#""hello""#.into()));
         assert_eq!(s("a\"b\\c\nd").to_json(), Ok(r#""a\"b\\c\nd""#.into()));
+    }
+
+    #[test]
+    fn unpaired_surrogate_is_escaped_not_an_error() {
+        let lone_high_surrogate: String<A> = [0xd800u16].to_string();
+        assert_eq!(
+            lone_high_surrogate.to_any::<A>().to_json(),
+            Ok(r#""\ud800""#.into())
+        );
+    }
+
+    #[test]
+    fn bigint_errors() {
+        let bi: crate::vm::BigInt<A> = 123u64.into();
+        assert_eq!(bi.to_any::<A>().to_json(), Err(super::JsonError::BigInt));
+    }
+
+    #[test]
+    fn object_errors() {
+        let o = [].to_object::<A>();
+        assert_eq!(o.to_any::<A>().to_json(), Err(super::JsonError::Object));
+    }
+
+    #[test]
+    fn array_errors() {
+        let a = [].to_array::<A>();
+        assert_eq!(a.to_any::<A>().to_json(), Err(super::JsonError::Array));
+    }
+
+    #[test]
+    fn function_errors() {
+        let name: String<A> = "f".into();
+        let f: Function<A> = Function(<A as IVm>::InternalFunction::new_ok((name, 0), []));
+        assert_eq!(f.to_any::<A>().to_json(), Err(super::JsonError::Function));
     }
 
     #[test]
