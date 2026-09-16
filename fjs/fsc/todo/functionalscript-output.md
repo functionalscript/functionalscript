@@ -199,7 +199,11 @@ contract stays for `.data.js` and `.json`, which are values.
       An identity-minting node reached only through lazy edges needs no rule
       of its own: every lazy node kind is a kind with no spelling, so such a
       graph is refused at the operator before its sharing is reached.
-- [ ] Pin the round trip: for every module in the proofs the writer accepts,
+- [x] Pin the writer's law over generated graphs: every shape over every shape
+      over the atoms, each either refused or written to text the front end
+      reads back to the same table. Four accept sets chosen by hand missed a
+      hole each; this catches all four when the fix is removed.
+- [ ] Pin the round trip through the compiler: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
       analyses whole — root, nodes, scope and shared, equal up to the
       analysis's merge — so that `export default 1;`, whose table is empty,

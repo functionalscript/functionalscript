@@ -54,6 +54,48 @@ const nested = n => n === 0 ? ['args'] : ['=>', null, nested(n - 1)]
 /** `(...a) => a`, the graph a spelling is wanted for rather than read from. @type {Exp} */
 const identity = ['=>', null, ['args']]
 
+/**
+ * The keys a generated access is given: a word that follows `.`, a number,
+ * the one prototype name an access may read, and one it may not.
+ *
+ * @type {readonly (string | number)[]}
+ */
+const keys = ['a', 0, 'length', 'constructor']
+
+/**
+ * One graph per shape over the graphs `p`: each container, an access with
+ * each key, a function body, a node shared twice, each side of a root
+ * comma, a root comma whose two sides are one node, and a root comma with
+ * one operand.
+ *
+ * A shared node is duplicated within one container, never across a `=>`, so
+ * a later shape that wraps it in a body takes both occurrences with it —
+ * the EDAG's scope rule is about a node reached from two scopes, and these
+ * graphs never build one.
+ *
+ * @type {(p: readonly Exp[]) => readonly Exp[]}
+ */
+const shapes = p => [
+    ...p.map(x => /** @type {Exp} */(['[]', [x]])),
+    ...p.map(x => /** @type {Exp} */(['{}', [[':', 'k', x]]])),
+    ...p.flatMap(x => keys.map(k => /** @type {Exp} */(['.', x, k]))),
+    ...p.map(x => /** @type {Exp} */(['=>', null, x])),
+    ...p.map(x => /** @type {Exp} */(['[]', [x, x]])),
+    ...p.map(x => /** @type {Exp} */([',', [x, 1]])),
+    ...p.map(x => /** @type {Exp} */([',', [['[]', []], x]])),
+    ...p.map(x => /** @type {Exp} */([',', [x, x]])),
+    ...p.map(x => /** @type {Exp} */([',', [x]])),
+]
+
+/** Every leaf, the arguments, both empty containers, and `undefined`. @type {readonly Exp[]} */
+const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined']]
+
+/** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
+const generated = (() => {
+    const one = shapes(atoms)
+    return [...atoms, ...one, ...shapes(one)]
+})()
+
 export const proof = {
     // A module is one line and one statement when nothing is shared: the
     // export, its value spelled where it stands. The leaves are the DataJS
@@ -223,5 +265,22 @@ export const proof = {
                 return [',', [o, o]]
             })(),
             'an anchor that repeats a hoisted value')
+    },
+    // The writer's one law, over graphs nobody chose: a graph is refused,
+    // or its text is read back to the same table. Every case above is a
+    // text this module pins; this is the claim that nothing outside them
+    // is answered with a plausible wrong value
+    // ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)),
+    // which is what a writer whose contract is the round trip may not do,
+    // and which four hand-picked accept sets in a row did not catch.
+    //
+    // The graphs are every shape over every shape over the atoms — around
+    // nine hundred of them, of which some five hundred have a text.
+    law: () => {
+        generated.forEach(e => {
+            const written = tryStringify(e)
+            if (written[0] === 'error') { return }
+            reads(e)
+        })
     },
 }
