@@ -128,11 +128,15 @@ export const proof = {
         // `$z` then `$aa`: the letters carry past the twenty-sixth body.
         assert(reads(nested(27)).endsWith('(...$y)=>(...$z)=>(...$aa)=>$aa;'))
     },
-    // An object body is written as a block: `=> {` opens one, so the object
-    // has to be returned from it rather than stand as the body's expression.
+    // A body whose text opens with `{` is written as a block: `=> {` opens a
+    // block and not an object, so the value has to be returned from it. The
+    // question is the text's and not the node's — an access on an object
+    // literal opens with one too, and reads back as a block just the same.
     block: () => {
         writes(['=>', null, ['{}', [[':', 'x', 1]]]], 'export default (...$a)=>{return {"x":1};};')
+        writes(['=>', null, ['.', ['{}', [[':', 'a', 1]]], 'a']], 'export default (...$a)=>{return {"a":1}.a;};')
         writes(['=>', null, ['[]', [1]]], 'export default (...$a)=>[1];')
+        writes(['=>', null, ['.', 'x', 'length']], 'export default (...$a)=>"x".length;')
     },
     // A comma at the root is the module it came from: an unused `const` per
     // anchor and then the export, each anchor taking a name it does not
@@ -179,6 +183,13 @@ export const proof = {
         refuses(['=>', null, ['.', ['args'], NaN]], 'a number key no literal reads back')
         refuses(['=>', null, ['.', ['args'], Infinity]], 'a number key no literal reads back')
         refuses(['=>', null, ['.', ['args'], -0]], 'a number key no literal reads back')
+        // A key naming a property of a built-in prototype: the grammar
+        // refuses it in either spelling, `.k` and `["k"]` alike, so an
+        // access on one has no text at all — `length`, which both languages
+        // read as an own property, is the one such name that has.
+        refuses(['=>', null, ['.', ['args'], 'constructor']], 'a prohibited property name')
+        refuses(['=>', null, ['.', ['args'], '__proto__']], 'a prohibited property name')
+        refuses(['=>', null, ['.', ['args'], 'toString']], 'a prohibited property name')
         // The first refusal is the one reported, and nothing after it is
         // written: among the values a statement hoists, and among the
         // statements of a module.

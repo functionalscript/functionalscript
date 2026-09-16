@@ -183,10 +183,14 @@ contract stays for `.data.js` and `.json`, which are values.
       a comma anywhere but the root, an
       identity-minting node shared within a body, a numeric or function base
       within a body, an identity-minting node reached only through lazy edges,
-      a key no number literal reads back, a computed key, an object key that is
-      not a string, a node kind without a spelling. An object-literal body is
-      not among them: it is written as a block, which the block body
-      ([`3110-function.md`](../../../spec/todo/3110-function.md)) gives it.
+      a key no number literal reads back, a computed key, an access key naming
+      a property of a built-in prototype — which the grammar refuses in either
+      spelling, so `prohibitedNames` has one owner and the writer imports it —
+      an object key that is not a string, and a node kind without a spelling.
+      A body whose text opens with `{` is not among them: it is written as a
+      block, which the block body
+      ([`3110-function.md`](../../../spec/todo/3110-function.md)) gives it —
+      an object literal, and an access on one, alike.
       An identity-minting node reached only through lazy edges needs no rule
       of its own: every lazy node kind is a kind with no spelling, so such a
       graph is refused at the operator before its sharing is reached.

@@ -35,7 +35,9 @@
  * has no source form until the operator lands; a shared constructor or a
  * hoisted base inside a function body, until a body has a `const` to hoist
  * into ([`3130-body-const.md`](../../../spec/todo/3130-body-const.md)); and a
- * key no literal spells.
+ * key the parser would not read back — one no literal spells, and one naming
+ * a property of a built-in prototype, which the grammar refuses in either
+ * spelling.
  *
  * An identity-minting node reached only through lazy edges is refused too,
  * and needs no rule of its own yet: every lazy node kind is a kind this
@@ -59,7 +61,8 @@
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap } from '../../media/json/serializer/module.f.mjs'
-import { flat, toArray } from '../../types/list/module.f.mjs'
+import { first, flat, toArray } from '../../types/list/module.f.mjs'
+import { prohibitedNames } from '../parser/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
 
@@ -193,28 +196,34 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
  * @type {(k: Operand) => Document}
  */
 const key = k => {
-    if (typeof k === 'string') { return identifierKey(k) ? ok(['.', k]) : bracketed(k) }
+    if (typeof k === 'string') {
+        if (prohibitedNames.has(k)) { return error('a prohibited property name') }
+        return identifierKey(k) ? ok(['.', k]) : bracketed(k)
+    }
     if (typeof k !== 'number') { return error('an access key that is no literal') }
     return Number.isFinite(k) && !Object.is(k, -0)
         ? bracketed(k)
         : error('a number key no literal reads back')
 }
 
+/** The first chunk of a document, which no spelling leaves empty. @type {(text: List<string>) => string} */
+const firstChunk = first('')
+
 /**
- * A function's body: an object literal is a block, since `=> {` opens one.
+ * A function's body: a block where its text opens with `{`, since `=> {`
+ * opens a block and not an object.
  *
- * A body is never a name: the node a body is rooted at is in the `=>`'s own
- * scope, so no module-level `const` holds it.
+ * The question is the text's and not the node's: an object literal is not
+ * the only body that begins with one — `['.', ['{}', …], 'a']` writes
+ * `{"a":1}.a` — and a body that begins with `{` any other way would need
+ * the same block. `s` is the scope the body's text is written in.
  *
  * @type {(s: _Scope, depth: number) => (b: Operand) => Document}
  */
-const lambdaBody = (s, depth) => b => {
-    const object = b instanceof Array && s.a.nodes[b[1]][0] === '{}'
-    return mapOk(
-        /** @type {(text: List<string>) => List<string>} */
-        (text => object ? flat([['{return '], text, [';}']]) : text),
-    )(operand(s, depth)(b))
-}
+const lambdaBody = (s, depth) => b => mapOk(
+    /** @type {(text: List<string>) => List<string>} */
+    (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
+)(operand(s, depth)(b))
 
 /**
  * One entry of the table, written in place. A shared constructor inside a
