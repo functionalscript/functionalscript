@@ -6,6 +6,7 @@ mod bitxor;
 mod conditional;
 mod div;
 mod from;
+mod member_access;
 mod neg;
 mod not;
 mod nullish_coalescing;
