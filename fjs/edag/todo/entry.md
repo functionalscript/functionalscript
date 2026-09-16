@@ -142,13 +142,20 @@ two operators, each with one job.
   JavaScript's `a[b]` walks the prototype chain and `entry` does not, and
   `b` may be `"constructor"` at run time. The `entry` function is the
   source form for a run-time key, and it means the same in both.
-- **Both executors, one answer.** The native VM's `own` is pinned today by
-  the conformance corpus in [`fjs/nanvm`](../../nanvm/module.f.mjs)
-  (`ownCases`), which generates the Rust vectors and documents
-  `Any::own_property` in `nanvm-lib`. Its answers for a primitive or a
-  function receiver, `undefined`, already match `entry`; what changes is
-  that an array and a string are receivers with their items as entries and
-  `length` no longer read, and that a key is converted rather than refused.
+- **Both executors, one answer.** `own` stays in the schema as the
+  internal two-operand operation, `['own', a, b]`, redefined with the entry
+  semantics: it is what `['entry']`'s function performs on its two
+  arguments, in amnesia and in the native VM alike. The compiler never
+  emits it, since the source form lowers to the call of `['entry']`, so the
+  writer refuses it by name, as it refuses any node compiled graphs never
+  hold; there is no second arity of `entry` and no second round trip. The
+  native VM's `own` is pinned today by the conformance corpus in
+  [`fjs/nanvm`](../../nanvm/module.f.mjs) (`ownCases`), which generates the
+  Rust vectors and documents `Any::own_property` in `nanvm-lib`, and it
+  keeps that shape. Its answers for a primitive or a function receiver,
+  `undefined`, already match `entry`; what changes is that an array and a
+  string are receivers with their items as entries and `length` no longer
+  read, and that a key is converted rather than refused.
   A primitive key converts with no call into user code; an object or an
   array key converts through `ToPrimitive`, which can call a function the
   program wrote, so the native operation needs a native call for that
@@ -163,10 +170,11 @@ two operators, each with one job.
 
 ### Tasks
 
-- [ ] `entry` replaces `own`: `['entry']` joins the `op0` ids as the function
-      value, with the enumerable-own semantics; the README's table says which
-      read each node is and why, and that this one's value is a function the
-      language defines.
+- [ ] `['entry']` joins the `op0` ids as the function value, and `own` stays
+      an `op2` id as the internal operation it calls, redefined with the
+      enumerable-own semantics; the README's table says which read each
+      node is and why, that `['entry']`'s value is a function the language
+      defines, and that `own` is the operation the compiler never emits.
 - [ ] Amnesia evaluates `['entry']` to one host function of arity `2` that
       reads the descriptor and its `enumerable` flag, with
       proofs for an object, an array, a string, `null`, a number and a
@@ -175,12 +183,14 @@ two operators, each with one job.
       converting; a missing property; and `name` and `length` on a function
       reading `undefined`.
 - [ ] The native VM follows in the same PR. It implements the function's
-      semantics as its own two-operand operation, the successor of
-      `Any::own_property`, and the conformance corpus in `fjs/nanvm` keeps
-      pinning that operation as `ownCases` does today, `[op, a, b]`, since the
-      Rust emitter has no call yet; the node's value as a callable in Rust
-      and an object or array key, whose conversion can call user code, wait
-      on native calls. The answers change to the entry answers — an array
+      semantics as the `own` operation, the successor of `Any::own_property`,
+      and the conformance corpus in `fjs/nanvm` keeps pinning it as
+      `ownCases` does today, `['own', a, b]`, a group over an `Op2Id` as
+      `types.ts` requires, since the Rust emitter has no call yet; a call of
+      `['entry']` joins the corpus once it can. The node's value as a
+      callable in Rust and an object or array key, whose conversion can
+      call user code, wait on native calls. The answers change to the entry
+      answers — an array
       and a string receivers with their items, `length` and `name`
       `undefined`, a primitive key converted as JavaScript converts it —
       and the number conversion is ECMAScript's `Number::toString`, the
