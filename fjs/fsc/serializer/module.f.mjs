@@ -324,6 +324,12 @@ const hoistedText = s => h => h[0] === 'leaf'
  * then the operand itself — an anchor as a `const` of its own, and the last
  * operand as the export.
  *
+ * An anchor whose operand already has a name is refused. Its statement
+ * would be a bare alias, `const $1=$0;`, which the front end reads back as
+ * nothing at all — an alias to a reached `const` is not an anchored
+ * computation — and the comma would be lost with it. Linking emits no such
+ * graph, dropping the alias where the source writes one.
+ *
  * @type {(a: Analysis, last: boolean) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
 const statement = (a, last) => ({ text, names }, v) => {
@@ -343,6 +349,9 @@ const statement = (a, last) => ({ text, names }, v) => {
     const hoisted = hoists({ a, names })(v).reduce(emit, ok({ text, names }))
     if (hoisted[0] === 'error') { return hoisted }
     const before = hoisted[1]
+    if (!last && v instanceof Array && nameOf(before.names, ['entry', v[1]]) !== null) {
+        return error('an anchor that repeats a hoisted value')
+    }
     const s = { a, names: before.names }
     return mapOk(
         /** @type {(value: List<string>) => _Statement} */

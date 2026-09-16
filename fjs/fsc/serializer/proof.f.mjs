@@ -144,6 +144,7 @@ export const proof = {
     // alone.
     roots: () => {
         writes([',', [['[]', []], 1]], 'const $0=[];export default 1;')
+        writes([',', [1, 2]], 'const $0=1;export default 2;')
         /** @type {Exp} */
         const o = ['{}', []]
         writes([',', [['[]', []], ['[]', [o, o]]]], 'const $0=[];const $1={};export default [$1,$1];')
@@ -209,5 +210,18 @@ export const proof = {
         // an unbound import is there to carry.
         refuses([',', [1]], 'a root comma with fewer than two operands')
         refuses([',', []], 'a root comma with fewer than two operands')
+        // An anchor whose operand already has a name: its statement would be
+        // the alias `const $1=$0;`, which the front end reads back as
+        // nothing — an alias to a reached `const` is not an anchored
+        // computation — and the comma would go with it. Linking emits no
+        // such graph: `const a = []; const b = a; export default a;` drops
+        // the alias and is the array alone.
+        refuses(
+            (() => {
+                /** @type {Exp} */
+                const o = ['[]', []]
+                return [',', [o, o]]
+            })(),
+            'an anchor that repeats a hoisted value')
     },
 }

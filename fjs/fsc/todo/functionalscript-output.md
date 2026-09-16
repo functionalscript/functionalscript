@@ -185,7 +185,9 @@ contract stays for `.data.js` and `.json`, which are values.
       within a body, an identity-minting node reached only through lazy edges,
       a root comma with fewer than two operands — with one it has no anchor to
       write and reads back as its operand alone, with none it is no module,
-      and linking emits neither —
+      and linking emits neither — an anchor whose operand already has a name,
+      whose statement would be the alias `const $1=$0;` that the front end
+      reads back as nothing, taking the comma with it,
       a key no number literal reads back, a computed key, an access key naming
       a property of a built-in prototype — which the grammar refuses in either
       spelling, so `prohibitedNames` has one owner and the writer imports it —
