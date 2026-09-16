@@ -16,9 +16,12 @@ mod rem;
 mod shl;
 mod shr;
 mod sub;
+mod to_json;
 mod typeof_;
 
 pub mod to_any;
+
+pub use to_json::JsonError;
 
 use crate::vm::{
     IVm, String, ToAny, Unpacked,

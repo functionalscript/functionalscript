@@ -21,7 +21,7 @@ mod string_coercion;
 mod unpacked;
 
 pub use crate::vm::{
-    any::{Any, to_any::ToAny},
+    any::{Any, JsonError, to_any::ToAny},
     array::{Array, to_array::ToArray},
     bigint::BigInt,
     function::{Function, header::FunctionHeader},
