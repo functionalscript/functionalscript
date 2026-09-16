@@ -82,4 +82,10 @@
 - [ ] Document about DAG
 - [ ] EDAG: Object.is
 - [X] EDAG implicit function frame can't be done because the exp may contain wrong `arg`, `self` and `frame`.
--
+- [ ] Remove `Result<>` from `nanvm` and replace it with panic. The idea is that engines can span processes if needed and control memory and time of the process outside. It can work on a normal OS and also in WebAssembly, see Worker.
+- [ ] DISOT in Git. It looks like we have more and more features that we would like to have in the DISOT. For example:
+  - `.disot/`
+    - `name.json` - a name of the object, it can be just a JSON string.
+    - `lock.json` - mapping. We also need to investigate submodules.
+    - `tts.json` - a set of trusted time stamp for previous commits.
+- [ ] Git Submodules
