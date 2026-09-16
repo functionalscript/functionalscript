@@ -580,8 +580,15 @@ See
 export default (...args) => [args, args[0]];
 ```
 
+The same function, written with a block body:
+
+```js
+export default (...args) => { return [args, args[0]]; };
+```
+
 A function is written as an arrow function of one rest parameter, and its
-body is an expression. It denotes a function of its arguments alone:
+body is an expression or a block. It denotes a function of its arguments
+alone:
 
 - The parameter is the arguments array, `args[0]` the first argument, and
   the body may name it and nothing declared outside — a `const`, an import,
