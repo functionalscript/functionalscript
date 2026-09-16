@@ -137,10 +137,15 @@ const map3 = f => (ra, rb, rc) => map2((a, [b, c]) => f(a, b, c))(ra, map2((b, c
 const map4 = f => (ra, rb, rc, rd) => map2((a, [b, c, d]) => f(a, b, c, d))(ra, map3((b, c, d) => [b, c, d])(rb, rc, rd))
 
 /**
- * A list of `Result`s as one `Result` of a list, short-circuiting on the
- * first `error` — an array literal's items and an object literal's members
- * are each printed this way, so one failed item refuses the whole literal
- * rather than an array of holes.
+ * A non-empty list of `Result`s as one `Result` of a list, short-circuiting
+ * on the first `error` — an array literal's items and an object literal's
+ * members are each printed this way, so one failed item refuses the whole
+ * literal rather than an array of holes. Every call site already special-
+ * cases the empty list itself, one level up, since an empty array, object,
+ * or comma prints differently from a non-empty one (`Array::default()`, not
+ * `[].to_array()`; an empty comma has no value to give and is refused) — so
+ * this is never called with one, and takes a lone element as its base case
+ * rather than carrying a never-taken empty branch.
  *
  * Builds the prefix before appending the last element, so a prefix that
  * already carries an error short-circuits without `map2` ever looking at
@@ -148,8 +153,8 @@ const map4 = f => (ra, rb, rc, rd) => map2((a, [b, c, d]) => f(a, b, c, d))(ra, 
  *
  * @type {(results: readonly Result<string, readonly unknown[]>[]) => Result<readonly string[], readonly unknown[]>}
  */
-const allOk = results => results.length === 0
-    ? ok([])
+const allOk = results => results.length === 1
+    ? mapOk(x => [x])(results[0])
     : map2((xs, x) => [...xs, x])(allOk(results.slice(0, -1)), results[results.length - 1])
 
 const op1 = lookup(op1Rust)
