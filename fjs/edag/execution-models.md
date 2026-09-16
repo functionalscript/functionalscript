@@ -201,5 +201,7 @@ requirements say what a transformation may change.
    can make two values one, `result[0] === result[1]` where JavaScript
    allocates two objects. That side effect is almost impossible to
    eliminate on a non-CAVM engine and is accepted as the model's, per the
-   table above. Computing more times than the program says is never
-   allowed, by requirement 1.
+   table above. Computing more times than the program says is what no
+   transformation and no JS-compatible executor may do, by requirement 1;
+   Amnesia does it by design, evaluating a shared node at every edge, and
+   the table above marks it as not JavaScript-compatible for that reason.
