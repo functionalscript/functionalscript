@@ -1,3 +1,5 @@
+use core::cmp::Ordering;
+
 use crate::vm::{
     Array, BigInt, Function, IVm, Object, String, ToAny, any::Any, dispatch::Dispatch,
     nullish::Nullish, primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
@@ -95,8 +97,8 @@ pub(crate) fn number_to_string<A: IVm>(v: f64) -> String<A> {
         f64::NEG_INFINITY => "-Infinity".into(),
         v if v.is_nan() => "NaN".into(),
         0.0 => "0".into(),
-        v if v < 0.0 => format!("-{}", js_digits_to_string(-v)).as_str().into(),
-        v => js_digits_to_string(v).as_str().into(),
+        v if v < 0.0 => format!("-{}", js_digits_to_string::<A>(-v)).as_str().into(),
+        v => js_digits_to_string::<A>(v).as_str().into(),
     }
 }
 
@@ -110,17 +112,37 @@ pub(crate) fn number_to_string<A: IVm>(v: f64) -> String<A> {
 /// all `k` digits rather than after the first one:
 /// `digits * 10^(n-k) = digits * 10^(exp-k+1)`.
 ///
-/// Known gap: when `v`'s exact binary value sits precisely halfway between
-/// two equally-short round-tripping decimals, the spec breaks the tie
-/// round-half-to-even; Rust's formatter breaks it the other way in that rare
-/// case (`v` with bit pattern `0xc23a0480a70a2400`, for one). See
-/// [`nanvm-lib/todo/number-to-string-tie-breaking.md`](../../todo/number-to-string-tie-breaking.md).
-fn js_digits_to_string(v: f64) -> std::string::String {
+/// Rust's formatter picks *a* correctly-rounded, round-tripping `digits` —
+/// but not always the spec's own one: when `v`'s exact binary value sits
+/// precisely halfway between two equally-short round-tripping decimals,
+/// `Number::toString` step 5 breaks the tie round-half-to-even, and Rust's
+/// formatter can break it the other way. `round_tie_to_even` below corrects
+/// exactly that case.
+fn js_digits_to_string<A: IVm>(v: f64) -> std::string::String {
     let sci = format!("{v:e}");
     let (mantissa, exp) = sci.split_once('e').expect("`{:e}` always has an 'e'");
     let digits: std::string::String = mantissa.chars().filter(|&c| c != '.').collect();
     let k = digits.len() as i64;
     let n = exp.parse::<i64>().expect("`{:e}`'s exponent is an integer") + 1;
+
+    let s = digits
+        .parse::<u64>()
+        .expect("`digits` is a run of ASCII decimal characters");
+    let m = n - k;
+    let (mant, exp2) = mantissa_exp2(v);
+    let corrected = round_tie_to_even::<A>(mant, exp2, s, m);
+    let (digits, k, n) = if corrected == s {
+        (digits, k, n)
+    } else {
+        // A tie corrected at a power-of-10 boundary (`s` was e.g. `100` and
+        // the even neighbor is `99`, or `999` and it's `1000`) changes the
+        // digit count, so both are recomputed from `m` rather than patched:
+        // `m` — the tie's own position — is unaffected by which of the two
+        // adjacent candidates is chosen, only how many digits spell it.
+        let digits = corrected.to_string();
+        let k = digits.len() as i64;
+        (digits, k, m + k)
+    };
 
     if k <= n && n <= 21 {
         digits + &"0".repeat((n - k) as usize)
@@ -139,6 +161,91 @@ fn js_digits_to_string(v: f64) -> std::string::String {
             format!("{first}.{rest}e{sign}{}", e.abs())
         }
     }
+}
+
+/// `v`'s exact value as `mantissa * 2^exp2` — the plain IEEE 754 binary64
+/// decomposition (`mantissa` folds in the implicit leading bit for a normal
+/// `v`, and is the raw significand for a subnormal one), used only by
+/// [`round_tie_to_even`] below. Not reduced to lowest terms — `mantissa` may
+/// have trailing zero bits, so `exp2` is not necessarily the *smallest*
+/// exponent that works, only *a* correct one — but the tie-break comparison
+/// that consumes it is exact either way, so reducing it first would only
+/// spend work without changing the answer.
+fn mantissa_exp2(v: f64) -> (u64, i32) {
+    let bits = v.to_bits();
+    let exponent_bits = (bits >> 52) & 0x7ff;
+    let mantissa_bits = bits & 0xf_ffff_ffff_ffff;
+    if exponent_bits == 0 {
+        (mantissa_bits, -1074) // subnormal: no implicit leading bit
+    } else {
+        (mantissa_bits | (1u64 << 52), exponent_bits as i32 - 1075)
+    }
+}
+
+/// The ECMA-262 `Number::toString` round-half-to-even tie-break: corrects
+/// `s` (`digits` parsed as an integer) when `v`'s exact value —
+/// `mantissa * 2^exp2` — sits precisely halfway between two `k`-digit
+/// decimal candidates at scale `10^m` (`m` is the spec's `n - k`), which is
+/// the one case where *a* correctly-rounded, round-tripping `s` (what
+/// Rust's formatter guarantees) is not necessarily *the* spec-mandated one.
+///
+/// Decided by exact arbitrary-precision comparison, not another
+/// floating-point heuristic: an earlier attempt approximated "is this a
+/// tie" by checking whether `s`'s neighboring digit also round-trips to
+/// `v`, which answers a *round-trip-validity* question, not an
+/// *exact-equidistance* one, and produced false positives that broke
+/// `Number.MAX_VALUE` and `Number.MIN_VALUE`. `BigInt<A>` — already
+/// `nanvm-lib`'s own arbitrary-precision integer facility, reused here
+/// rather than adding a dependency for a second one (`nanvm-lib` is
+/// zero-dependency) — computes `2v` against `(2s±1) * 10^m` exactly, cross
+/// multiplied by both sides' denominators (`2^-exp2` when `exp2` is
+/// negative, `10^-m` when `m` is) so no division ever runs.
+///
+/// At most one of the two candidates (`s-1`/`s`, or `s`/`s+1`) can be an
+/// exact tie — `s-0.5` and `s+0.5` are different real numbers — and ties are
+/// otherwise so rare that this pays for an exact comparison on every call
+/// rather than a cheap-but-unproven pre-filter: the one already tried here
+/// silently reintroduced the same class of bug this function exists to fix.
+fn round_tie_to_even<A: IVm>(mantissa: u64, exp2: i32, s: u64, m: i64) -> u64 {
+    let one = || BigInt::<A>::from(1u64);
+    let pow2 = |e: i32| -> BigInt<A> {
+        (one() << BigInt::from(e as u64))
+            .expect("a binary64 exponent's magnitude is far under BigInt's size limit")
+    };
+    let pow10 = |e: i64| -> BigInt<A> {
+        BigInt::<A>::from(10u64)
+            .pow(BigInt::from(e as u64))
+            .expect("`e` is non-negative by construction below")
+    };
+    // v == mantissa * 2^exp2 == (mantissa * v_extra) / v_den.
+    let (v_extra, v_den) = if exp2 >= 0 {
+        (pow2(exp2), one())
+    } else {
+        (one(), pow2(-exp2))
+    };
+    // A candidate's `target * 10^m == (target * s_extra) / s_den`.
+    let (s_extra, s_den) = if m >= 0 {
+        (pow10(m), one())
+    } else {
+        (one(), pow10(-m))
+    };
+    // Compares `2v` against `target * 10^m`, i.e. whether `v` is exactly
+    // `target / 2` away from zero at this scale — the shared shape of both
+    // tie checks below, cross-multiplied so no side is ever divided.
+    let compare = |target: u64| -> Ordering {
+        let v_num = BigInt::<A>::from(2 * mantissa) * v_extra.clone();
+        let s_num = BigInt::<A>::from(target) * s_extra.clone();
+        (v_num * s_den.clone()).cmp(&(s_num * v_den.clone()))
+    };
+    if compare(2 * s - 1) == Ordering::Equal {
+        // v is exactly halfway between s-1 and s: keep whichever is even.
+        return if (s - 1).is_multiple_of(2) { s - 1 } else { s };
+    }
+    if compare(2 * s + 1) == Ordering::Equal {
+        // v is exactly halfway between s and s+1: keep whichever is even.
+        return if (s + 1).is_multiple_of(2) { s + 1 } else { s };
+    }
+    s
 }
 
 #[cfg(test)]
@@ -193,5 +300,28 @@ mod tests {
         check(f64::INFINITY, "Infinity");
         check(f64::NEG_INFINITY, "-Infinity");
         check(f64::NAN, "NaN");
+    }
+
+    /// The three bit patterns a review found by differential-fuzzing against
+    /// `node` over ~60k values: each is exactly halfway between two
+    /// 17-digit round-tripping decimals, and Rust's formatter rounds away
+    /// from zero where the spec's round-half-to-even keeps the even (here,
+    /// lower) one.
+    #[test]
+    fn round_half_to_even_ties() {
+        check(f64::from_bits(0xc23a0480a70a2400), "-111744689930.14062");
+        check(f64::from_bits(0xc24e2a807a3c5a00), "-259124163704.70312");
+        check(f64::from_bits(0xc24ed800216b1200), "-264945812182.14062");
+    }
+
+    /// Non-tie regression guards: an earlier, rejected fix attempt (see
+    /// `round_tie_to_even`'s doc comment) approximated a tie by checking
+    /// whether a neighboring digit also round-trips, which flagged both of
+    /// these as false positives and corrupted them.
+    #[test]
+    fn non_tie_boundaries_unaffected() {
+        check(f64::MAX, "1.7976931348623157e+308");
+        check(f64::MIN_POSITIVE, "2.2250738585072014e-308");
+        check(5e-324, "5e-324");
     }
 }

@@ -72,7 +72,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | Coercion       | Status | Location |
 |----------------|--------|----------|
 | To number      | [x]    | [`number_coercion.rs`](src/vm/number_coercion.rs) |
-| To string      | [x]    | [`string_coercion.rs`](src/vm/string_coercion.rs) — known gap: an exact decimal tie in `Number::toString` is broken the wrong way ([`nanvm-lib/todo/number-to-string-tie-breaking.md`](todo/number-to-string-tie-breaking.md)) |
+| To string      | [x]    | [`string_coercion.rs`](src/vm/string_coercion.rs) — `Number::toString`'s round-half-to-even tie-break (`round_tie_to_even`) is decided by exact `BigInt` comparison, not a floating-point heuristic |
 | To boolean     | [x]    | [`boolean_coercion.rs`](src/vm/boolean_coercion.rs) — never throws, unlike the others |
 | To primitive   | [x]    | [`primitive_coercion.rs`](src/vm/primitive_coercion.rs) |
 | To numeric     | [x]    | `Any::to_numeric()` |
