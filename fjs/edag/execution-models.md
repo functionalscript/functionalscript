@@ -164,12 +164,16 @@ loaded into a CAVM and serialized back, reduced by a global memoizer. Three
 requirements say what a transformation may change.
 
 1. **A round trip preserves the number of computations.** After
-   `.f.js` → EDAG → `.f.js` → EDAG, every expression is computed as many
+   `.f.js` → EDAG → `.f.js` → EDAG, every computation a program can observe
+   — a call, a constructor, anything that mints identity — happens as many
    times under the JS-compatible model as in the original program, unless a
    function or an expression throws; then only the throw is promised, not
    which of two failing computations fails first. This is why the writer
    spells a shared identity-minting node as one `const` and never
-   duplicates a call.
+   duplicates a call. A pure node — an access, an operator, `is` — mints
+   nothing and no program can count it, so the analysis may merge two into
+   one and the writer may spell one at each use
+   ([`todo/analysis.md`](./todo/analysis.md)).
 
 2. **A CAVM-optimized EDAG need not be expressible in `.f.js`.** A CAVM may
    reduce many calls of one content to a few in the EDAG. `.f.js` shares a
