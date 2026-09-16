@@ -248,6 +248,9 @@ export const operations = {
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
     String: o1(String),
+    // The equality the language's guarantees are stated in: `NaN` is `NaN`
+    // and `0` is not `-0`, where `===` answers the other way on both.
+    is: o2(Object.is),
     '[]': ({ operand }) => ([, a]) => {
         // A spread operand is iterated, not spliced as one element: `[...'ab']`
         // is `['a', 'b']` and `[...1]` throws, per "array spread" in
