@@ -1,7 +1,10 @@
 use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, String, ToAny, Unpacked},
+    vm::{
+        Any, IVm, ToAny, Unpacked,
+        member_access::{canonical_index, string_to_index},
+    },
 };
 
 impl<A: IVm> Array<A> {
@@ -39,41 +42,6 @@ impl<A: IVm> Array<A> {
     }
 }
 
-/// A `Number` key that denotes a valid array index: a non-negative integer
-/// that fits in `u32`. `-0.0` passes (`-0.0 < 0.0` is `false` and
-/// `(-0.0).fract()` is `0.0`), matching real JS: a numeric `-0` key
-/// stringifies to `"0"` and indexes element `0`, unlike the *string* key
-/// `"-0"`, which `string_to_index` below rejects (it round-trips to `"0"`,
-/// not back to itself, so it never denotes an index).
-fn canonical_index(n: f64) -> Option<u32> {
-    if !n.is_finite() || n < 0.0 || n.fract() != 0.0 || n > u32::MAX as f64 {
-        return None;
-    }
-    Some(n as u32)
-}
-
-/// A `String` key that is the canonical decimal form of an array index:
-/// `"0"`, or a nonempty run of ASCII digits with no leading zero. This is
-/// deliberately narrower than `str::parse`, which alone would accept
-/// `"01"` and `"+1"` — neither is `array[1]`'s key in real JS, only
-/// `array["1"]` is, and admitting them here would make two different
-/// strings read the same element.
-fn string_to_index<A: IVm>(s: &String<A>) -> Option<u32> {
-    let text: std::string::String = s.clone().into();
-    if text == "0" {
-        return Some(0);
-    }
-    let mut chars = text.chars();
-    match chars.next() {
-        Some(first) if first.is_ascii_digit() && first != '0' => {}
-        _ => return None,
-    }
-    if !chars.as_str().bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    text.parse().ok()
-}
-
 #[cfg(test)]
 mod tests {
     use super::Array;
@@ -101,7 +69,8 @@ mod tests {
 
     /// A numeric `-0` key stringifies to `"0"` before it is ever used as a
     /// key, in real JS as here, so it reads the same element `0` does —
-    /// unlike the *string* key `"-0"`, covered below.
+    /// unlike the *string* key `"-0"`, which `non_canonical_string_index_is_none`
+    /// below covers.
     #[test]
     fn negative_zero_index_reads_first_element() {
         let a = array([10.0]);
