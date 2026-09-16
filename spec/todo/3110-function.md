@@ -3,8 +3,15 @@
 Parse a function that has no parameters and returns a constant.
 
 ```js
-export default () => { return 6 }
+export default () => { return 6; };
 ```
+
+The block body is in the language: `(...a) => { return value; }`, one
+`return` statement, which denotes the same function as the expression body
+([functions](../README.md#functions)). What this issue still holds is the
+empty parameter list `()`, which the grammar's one rest parameter does not
+admit — a sibling of [parameters](./3120-parameters.md), whose named list
+it shares a rule with.
 
 Depends on [export default](../README.md#exporting-a-value).
 

@@ -501,7 +501,11 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
  * evaluate to a string: a runtime-value constraint the shape-only schema
  * cannot express — a computed key's value is only known at execution, so
  * upholding it falls to the executor (`ownJs` in `./proof.f.mjs`; the
- * Operations table in `../../todo/edag-stage1-discussion.md`). The rest
+ * Operations table in `../../todo/edag-stage1-discussion.md`). `is` is
+ * `Object.is`, the equality the language's guarantees are stated in —
+ * `NaN` is `NaN` and `0` is not `-0`, where `===` says the opposite — as a
+ * node, since `Object.is` is a function of a namespace the language cannot
+ * name as a value (`./todo/is-operator.md`). The rest
  * are the JS comparison, arithmetic, bitwise, and logical operators they
  * name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
  * right operand is conditional, never established eagerly. All this
@@ -510,7 +514,7 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
  * here: each is also a unary operator, so both are `op12` below.
  */
 export const op2Id = or(
-    '=>', 'own',
+    '=>', 'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

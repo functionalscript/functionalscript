@@ -53,9 +53,8 @@
  *
  * @module
  *
- * @import { Exp, Index, Items, Op0, Op1, Op2, Op3, Op12, Properties } from '../types.ts'
+ * @import { Exp, ExpOp, Index, Items, Op0, Op1, Op2, Op3, Op12, Properties, TagMap } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
- * @import { ExpOp, TagMap } from '../amnesia/types.ts'
  * @import { Analysis, IndexOperand, ItemOperand, Node, Operand, PropertyOperand, Ref, Step } from './types.ts'
  * @import { _Entry, _Handlers, _Scope, _State, _Walk } from './private.ts'
  */
@@ -149,9 +148,9 @@ const fresh = scope => (state, e) => {
 }
 
 /**
- * Generic over the tag, as amnesia's dispatch is, so that `handlers[e[0]]`
- * is the one signature for `e`'s tuple rather than the union of all of them
- * — see `TagMap` in `../amnesia/types.ts`.
+ * Generic over the tag, so that `handlers[e[0]]` is the one signature for
+ * `e`'s tuple rather than the union of all of them — see `TagMap` in
+ * `../types.ts`.
  *
  * @type {<K extends ExpOp[0]>(
  *  scope: _Scope,
@@ -257,6 +256,7 @@ const handlers = {
     '+': o12,
     '-': o12,
     own: o2,
+    is: o2,
     '===': o2,
     '!==': o2,
     '>': o2,

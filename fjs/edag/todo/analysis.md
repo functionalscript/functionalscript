@@ -191,9 +191,9 @@ value outputs keep the sweep until they run the EDAG.
       operators over `0` and `-0` left apart and two over `NaN` merged, two
       equal constructors, a primitive taking no index, sharing inside a body
       against sharing outside and a body inside a body, and a lazy operand.
-- [ ] Amnesia's operations factored into a table parameterized by the child
+- [x] Amnesia's operations factored into a table parameterized by the child
       evaluation, amnesia unchanged in behavior and its proofs green.
-- [ ] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`
+- [x] `fjs/edag/memo`: the executor over the table, with proofs that `[s, s]`
       holds one array, that a body's node is fresh per call, and that a lazy
       operand is evaluated only when demanded — each beside amnesia's answer
       where sharing does not decide it, and `['===', s, s]` pinned as `true`

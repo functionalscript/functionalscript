@@ -10,7 +10,7 @@
 
 import type { Assert } from '../asserts/types.ts'
 import type { Check, Check3 } from '../rtti/ts/types.ts'
-import type { Equal } from '../types/ts/types.ts'
+import type { And, Equal } from '../types/ts/types.ts'
 import type {
     _exp,
     _optionLambda,
@@ -224,7 +224,7 @@ export type Op1 = readonly[Op1Id, Exp]
 // Op2Ids
 
 export type Op2Id =
-    | '=>' | 'own'
+    | '=>' | 'own' | 'is'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
@@ -249,6 +249,97 @@ export type Op12 =
 export type Op3Id = '?:'
 
 export type Op3 = readonly[Op3Id, Exp, Exp, Exp]
+
+// Operation nodes by tag
+
+/** The operation nodes: every `Exp` but a primitive. */
+export type ExpOp = Extract<Exp, readonly unknown[]>
+
+type Get0<T extends ExpOp, K extends ExpOp[0]> =
+    T extends readonly [infer Op, ...readonly unknown[]]
+        ? K extends Op
+            ? T
+            : never
+        : never
+
+/**
+ * The tag → node-tuple correlation as one mapped type, so that a dispatcher
+ * generic over `K` sees a handler table's `[K]` as the one signature for
+ * `TagMap[K]` rather than the union of every handler's — the
+ * correlated-union workaround (microsoft/TypeScript#47109). Indexing a
+ * table with a non-generic union key still yields the uncallable union, so
+ * dispatch must go through such a `K`; `operation` in
+ * [`operations`](./operations/module.f.mjs) and the walk in
+ * [`analysis`](./analysis/module.f.mjs) both do.
+ */
+export type TagMap = { readonly[K in ExpOp[0]]: Get0<ExpOp, K> }
+
+// The correlation pinned tag by tag, the tags whose node kinds are not
+// `op1`/`op2` included. Each was falsified once and seen to fail before
+// being restored (`../AGENTS.md` §1.4).
+
+type _MulIsOp2 = Assert<Equal<TagMap['*'], Op2>>
+type _NotIsOp1 = Assert<Equal<TagMap['!'], Op1>>
+type _PlusIsOp12 = Assert<Equal<TagMap['+'], Op12>>
+type _MinusIsOp12 = Assert<Equal<TagMap['-'], Op12>>
+type _ConditionalIsOp3 = Assert<Equal<TagMap['?:'], Op3>>
+type _BracketsIsArray = Assert<Equal<TagMap['[]'], Array>>
+type _CallIsCall = Assert<Equal<TagMap['()'], Call>>
+type _DotIsDot = Assert<Equal<TagMap['.'], Dot>>
+
+// The node kinds over another operand type
+
+/**
+ * A chain step whose operands are `E`, and whose naming operand — `|.`'s —
+ * is `I`. The EDAG keeps three step types, one per state a chain can be
+ * in; over another operand type there is one, since which step may follow
+ * which is the schema's question, settled before a graph is read by the
+ * consumers that use this — an executor's step walk carries no state.
+ */
+export type StepOver<E, I = E> =
+    | readonly ['|()', E]
+    | readonly ['|()', E, StepOver<E, I>]
+    | readonly ['|.', I]
+    | readonly ['|.', I, StepOver<E, I>]
+    | readonly ['|?.()', E]
+    | readonly ['|?.()', E, StepOver<E, I>]
+    | readonly ['|!()', E]
+
+/**
+ * One position of a node kind, by the type the EDAG declares for it: an
+ * operand position becomes `E`, a naming position `I`, an operand list a
+ * list of them, a continuation a {@link StepOver}, and a tag stays the tag.
+ */
+type Position<T, E, I> =
+    Equal<T, Exp> extends true ? E :
+    Equal<T, Index> extends true ? I :
+    Equal<T, Exps> extends true ? readonly E[] :
+    Equal<T, readonly Items[]> extends true ? readonly (E | readonly ['...', E])[] :
+    Equal<T, readonly Properties[]> extends true ? readonly (readonly [':', E, E] | readonly ['...', E])[] :
+    Equal<T, PropertyLambda> extends true ? StepOver<E, I> :
+    Equal<T, OptionLambda> extends true ? StepOver<E, I> :
+    Equal<T, OptionPropertyLambda> extends true ? StepOver<E, I> :
+    T
+
+/**
+ * The node kinds `T` with every operand position translated, one tuple per
+ * arity as in the EDAG: `Over<ExpOp, E>` is the operation nodes whose
+ * operands are `E` rather than `Exp` — indices into a table for the
+ * analysis, values for a table of operations — and a node kind added to
+ * the EDAG is a node kind there without a second declaration. `Over<ExpOp,
+ * Exp>` admits every `ExpOp`, which is what lets one table of operations
+ * serve the EDAG's own nodes and a table's entries alike.
+ */
+export type Over<T, E, I = E> = T extends readonly unknown[] ? { readonly [K in keyof T]: Position<T[K], E, I> } : never
+
+type _OverExp = Assert<Equal<ExpOp extends Over<ExpOp, Exp> ? true : false, true>>
+type _OverOp2 = Assert<Equal<Over<Op2, 0>, readonly [Op2Id, 0, 0]>>
+type _OverDot = Assert<Equal<Over<Dot, 0, 1>,
+    | readonly ['.', 0, 1]
+    | readonly ['.', 0, 1, StepOver<0, 1>]>>
+type _OverIsClosed = Assert<And<
+    Equal<Over<ExpOp, 0> extends readonly [ExpOp[0], ...readonly unknown[]] ? true : false, true>,
+    Equal<Over<Call, 0>, readonly ['()', 0, 0]>>>
 
 // Each RTTI constant in `./module.f.mjs` matches its declared type above.
 //

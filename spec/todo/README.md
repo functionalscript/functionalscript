@@ -59,8 +59,10 @@ see [serialization](./serialization.md).
 ### 3.1. Required
 
 1. [ ] [function](./3110-function.md) — the non-capturing rest-parameter
-   form `(...a) => expression` is in the language
-   ([functions](../README.md#functions)); the block body is not.
+   form is in the language with either body,
+   `(...a) => expression` and `(...a) => { return expression; }`
+   ([functions](../README.md#functions)); the empty parameter list `()` is
+   not.
 2. [ ] [parameters](./3120-parameters.md)
 3. [ ] [body-const](./3130-body-const.md)
 4. [ ] [forward-references](./3140-forward-references.md)

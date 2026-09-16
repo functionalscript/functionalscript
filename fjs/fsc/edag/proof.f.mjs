@@ -181,6 +181,13 @@ export const proof = {
         expectEdag(compile('import y from "./y.f.js"; const f = (...a) => 0; export default 1;').edag, [',', [['.', ['args'], 0], ['=>', null, 0], 1]])
         // linked beside an import: the body's arguments are not rewritten
         expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default [y, (...x) => x];'), 'y.f.js': file('export default 1;') })('a.f.js'), ['[]', [1, ['=>', null, ['args']]]])
+        // a block body is the same function as the expression body it
+        // returns, so the two spell one graph — and the object literal the
+        // expression body cannot spell reaches the lowering through it
+        expectEdag(compile('export default (...a) => { return a; };').edag, ['=>', null, ['args']])
+        expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
+        expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
+        expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', null, ['=>', null, ['args']]])
     },
     // The imports bound: the linked program is one EDAG, the imported
     // module's node where the importer's parameter was, and no path in it.

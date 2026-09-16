@@ -498,6 +498,10 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('import x from "m" with { kind: "json" };\nexport default x;', 'unknown import attribute', 26)
+            // a key with a symbol of its own is a word like any other here,
+            // as JavaScript's `IdentifierName` key is: the fold names it
+            expect('import x from "m" with { return: "json" };\nexport default x;', 'unknown import attribute', 26)
+            expect('import x from "m" with { export: "json" };\nexport default x;', 'unknown import attribute', 26)
             expect('import x from "m" with { type: "css" };\nexport default x;', 'unknown import type', 32)
         },
     },
@@ -537,7 +541,29 @@ export const proof = {
             expect('const c = 1; export default (...a) => (...b) => a;', 'capture not supported', 49)
             expect('export default (...a) => zzz;', 'const not found', 26)
             expect('export default (...if) => 1;', 'reserved word', 20)
+            expect('export default (...return) => 1;', 'reserved word', 20)
             expect('export default (...a) => a.__proto__;', 'prohibited property name', 28)
+        },
+        // A block body is the value it returns and nothing more: `{ return
+        // v; }` and `v` are one function in JavaScript, so the fold gives
+        // them one node and everything downstream sees only the value.
+        block: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (...a) => { return a; };', '[[],[["=>",["args"]]]]')
+            expect('export default (...a) => { return a[0]; };', '[[],[["=>",[".",["args"],0]]]]')
+            // the object literal an expression body has no spelling for
+            expect('export default (...a) => { return { x: 1 }; };', '[[],[["=>",["object",[["x",1]]]]]]')
+            expect('export default (...a) => { return (...b) => { return b; }; };', '[[],[["=>",["=>",["args"]]]]]')
+            // the parameter is still the arguments array, and a name bound
+            // outside is still a capture
+            const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { return c; };'))
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'capture not supported')
         },
     },
     valid: [
