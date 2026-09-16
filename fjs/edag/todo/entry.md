@@ -64,9 +64,11 @@ two operators, each with one job.
   JavaScript engine returns the source as written; the two agree exactly
   when the source is the writer's spelling, which the `.f.js` output is,
   and a hand-written definition names its own text until it is normalized.
-  That is `String(f)`'s property and `entry` adds nothing to it; for
-  `['entry']` itself the writer's spelling is the pattern's text below, so
-  `String(entry)` is that one line in every executor. No guard on the base
+  That is `String(f)`'s property and `entry` adds nothing to it, `entry`
+  itself included: the writer's spelling of `['entry']` is the pattern's
+  one line below, so `String(entry)` is that line in the VMs and in the
+  `.f.js` output, and an engine running a hand-written definition returns
+  the authored text, as for any function. No guard on the base
   or the key is needed: a function has no entries, so `entry` on one is
   `undefined` for every key, which is the right answer for "a function has
   no data", and nothing throws that JavaScript would not throw.
@@ -88,8 +90,8 @@ two operators, each with one job.
   every occurrence, and whitespace is free; `x?.enumerable` because a
   missing property has no descriptor. Both executors follow this function
   exactly, since it is JavaScript and JavaScript runs it as written; the
-  one line above is the writer's spelling and `String(entry)` in every
-  executor. The pattern fixes the whole body, so the descriptor is
+  one line above is the writer's spelling, and `String(entry)` in the VMs
+  and in the output. The pattern fixes the whole body, so the descriptor is
   declared and consumed inside it and never becomes a value of the
   language — `Object.getOwnPropertyDescriptor` exists nowhere but inside
   this pattern, and a function that does anything else with the
