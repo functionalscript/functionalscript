@@ -298,10 +298,10 @@ const accessed = (base, round) => ['.', base, accessKey(round)]
  * The node a value's own part makes, before the accesses after it: a
  * primitive converted from its token, a reference by its token, and a
  * container of the items its list returned — `[ open t [ items ] close t
- * ]`, the list at the third position. A function is not here: it takes no
- * access, so its node is made whole.
+ * ]`, the list at the third position. A function and a block are not here:
+ * neither takes an access, so each node is made whole.
  *
- * @type {(node: Exclude<Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['func', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['func' | 'block', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -320,6 +320,12 @@ const baseOf = ([tag, branch]) => {
  * the eleventh. A body is a value less the object, and its node is made
  * the same way.
  *
+ * A block body is the value it returns and nothing more: `{ return v; }`
+ * and `v` are one function in JavaScript, so they are one node here, and
+ * everything downstream — the resolution, the lowering, the EDAG — sees
+ * only the value. The value stands at the fifth position of
+ * `{ t return s value ; t } t`.
+ *
  * @type {(node: Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = node => {
@@ -327,6 +333,7 @@ const toNode = node => {
         const [, , , , name, , , , , , b] = unmapped(node[1])
         return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
     }
+    if (node[0] === 'block') { return symbol({ id: 'value', node: nodeAt(unmapped(node[1])[4]) }) }
     const [, accesses] = unmapped(node[1])
     return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, baseOf(node)) })
 }

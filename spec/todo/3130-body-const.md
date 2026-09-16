@@ -11,6 +11,10 @@ export default () => {
 
 Depends on [function](./3110-function.md) and [const](../README.md#shared-values-constants).
 
+The block body it is written in is in the language
+([functions](../README.md#functions)); what this issue adds is a second
+statement before the `return`.
+
 Wanted first by the FunctionalScript writer
 ([`fjs/fsc/todo/functionalscript-output.md`](../../fjs/fsc/todo/functionalscript-output.md)):
 a constructor shared within a function body, one array reached twice, has no

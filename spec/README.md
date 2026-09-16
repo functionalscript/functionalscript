@@ -588,11 +588,20 @@ body is an expression. It denotes a function of its arguments alone:
   or an enclosing function's parameter is a **capture**, which is an error
   ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
   a module name, as in JavaScript.
-- The body is any value except an object literal: after `=>` JavaScript reads `{`
-  as a block, never as an object, so the spelling is refused rather than read
-  another way. A block body, `=> { return 1 }`, named parameters and a call
-  are not recognized yet ([function](./todo/3110-function.md),
-  [parameters](./todo/3120-parameters.md)).
+- The body is an expression or a block, and the two denote the same
+  function. As an expression it is any value except an object literal:
+  after `=>` JavaScript reads `{` as a block, never as an object, so the
+  spelling is refused rather than read another way. The block is
+  `{ return value; }` — one `return` statement, its `;` required as after
+  every statement, and an object literal an ordinary value again, since
+  after `return` JavaScript expects an expression. `return` and the value
+  share a line: a newline between them ends the statement in JavaScript,
+  which would return `undefined`, so it is refused here rather than read
+  another way, exactly as a newline before `=>` is. A second statement in
+  the block ([body-const](./todo/3130-body-const.md)), a parameter list
+  other than one rest parameter ([function](./todo/3110-function.md),
+  [parameters](./todo/3120-parameters.md)) and a call are not recognized
+  yet.
 - A function is compiled to the EDAG output only: `fjs compile` refuses to
   write a module holding one as a module or as JSON, since a value has no
   function in it.
