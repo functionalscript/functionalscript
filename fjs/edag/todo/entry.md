@@ -1,17 +1,19 @@
 ## Two access nodes: `.` for a known name, `entry` for an object's entry at run time
 
 **Priority:** P2
-**Status:** open — chosen over [`own-access.md`](./own-access.md)
+**Status:** open
 
 ### Problem
 
-[`own-access.md`](./own-access.md) folds `own` into `.` and makes every
-access an own read, and that decision drags a second one behind it: once
-`name` is readable through an own read, a function's `name` has to mean
-something, so [`function-name.md`](./function-name.md) gives `=>` a name
-operand, the graph stops being name-erased, and the writer grows a pattern
-to restore names it would rather not know. The cost is out of proportion to
-the value, which is `person.name` on a plain object.
+The one-node proposal that preceded this one, `own-access.md`, folded
+`own` into `.` and made every access an own read, and that decision dragged
+a second one behind it: once `name` is readable through an own read, a
+function's `name` has to mean something, so a second proposal,
+`function-name.md`, gave `=>` a name operand, the graph stopped being
+name-erased, and the writer grew a pattern to restore names it would rather
+not know. The cost was out of proportion to the value, which is
+`person.name` on a plain object. Both proposals are retired in favor of
+this one; their text is in git history.
 
 A static rule cannot separate `f.name` from `person.name`, since it sees the
 key and not the base. A guard on the base's type can, and was weighed: it
@@ -31,10 +33,11 @@ two operators, each with one job.
   compiler resolves, so every check is static: the prohibited names refused
   at the key, `name` among them, `length` allowed. `a.b`, `a["b"]`, `a[0]`
   and `a[Number(k)]` are its spellings. The executor reads it as an own
-  property, `undefined` where there is none, as the value path does
-  through `hasOwn` — the read [`own-access.md`](./own-access.md) defined,
-  which stands; what this proposal changes is the run-time read and
-  `name`. The writer's `a.b` agrees with that read under the assumption
+  property, `undefined` where there is none, as the specification defines
+  an access ([`spec/README.md`](../../../spec/README.md), Property Access)
+  and as the value path already reads it through `hasOwn`; what this
+  proposal changes is the run-time read and `name`. The writer's `a.b`
+  agrees with that read under the assumption
   every FunctionalScript file run by a JavaScript engine already relies on,
   a realm whose prototypes are the standard's, since every standard
   prototype name is refused at the key. `f.name` and `person.name` are both
@@ -130,8 +133,8 @@ two operators, each with one job.
 - **`name` is unobservable.** `.` refuses it statically, and `entry` reads
   `undefined` because `name` is not an entry, so no FunctionalScript program
   reads a function's `name`. `=>` carries no name, the graph stays
-  name-erased, the writer's `$0` is invisible, and `function-name.md`
-  closes. `Object.entries`, `keys` and `values` list entries only, so they
+  name-erased, and the writer's `$0` is invisible. `Object.entries`,
+  `keys` and `values` list entries only, so they
   agree with JavaScript as they are — `Object.keys(f)` is `[]`,
   `Object.keys([1, 2])` is `['0', '1']`. The functions that see
   non-enumerable properties, `getOwnPropertyNames` and
@@ -210,7 +213,7 @@ two operators, each with one job.
       descriptor refused, and `f.name` refused through `.`; the writer
       spells the node as the pattern's one line from any position, and
       `String(entry)` is that line.
-- [x] `own-access.md` and `function-name.md` closed in favor of this, and the
+- [x] `own-access.md` and `function-name.md` retired in favor of this, and the
       references to them in `analysis.md`, `is-operator.md`,
       `functionalscript-output.md` and `interpret-edag.md` repointed.
 - [ ] `2360-built-in.md` removes `getOwnPropertyNames` and
@@ -227,9 +230,6 @@ two operators, each with one job.
 
 ### Related
 
-- [`own-access.md`](./own-access.md) — the one-node proposal this replaced.
-- [`function-name.md`](./function-name.md) — the name operand this makes
-  unnecessary.
 - [`../amnesia/README.md`](../amnesia/README.md) — the `own` read this
   redefines as `entry`.
 - [`spec/todo/2360-built-in.md`](../../../spec/todo/2360-built-in.md) —
