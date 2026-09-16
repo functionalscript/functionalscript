@@ -4,12 +4,13 @@ use crate::vm::{Any, IVm, ToAny, Unpacked, nullish::Nullish};
 impl<A: IVm> Any<A> {
     /// The EDAG's `.` / `[]` (`['.', receiver, index]`) — see
     /// `nanvm-lib/todo/member-access-operator.md` for the staged plan.
-    /// Stage 1 only: an `Array` receiver is dispatched to
-    /// `Array::member_access` (`vm/array/member_access.rs`), the same split
-    /// `own_property` has between this dispatcher and `Object::own_property`.
-    /// Every other receiver is Stage 2 (`String`) or Stage 3 (`Object`, and
-    /// the `undefined` fallback for `Number`/`Boolean`/`BigInt`/`Function`)
-    /// and is not implemented yet.
+    /// An `Array` or `String` receiver is dispatched to
+    /// `Array::member_access` / `String::member_access`
+    /// (`vm/array/member_access.rs`, `vm/string/member_access.rs`), the
+    /// same split `own_property` has between this dispatcher and
+    /// `Object::own_property`. Every other receiver is Stage 3 (`Object`,
+    /// and the `undefined` fallback for `Number`/`Boolean`/`BigInt`/
+    /// `Function`) and is not implemented yet.
     ///
     /// A nullish receiver throws the same `TypeError` `own_property` does:
     /// real JS's `[]` runs the same `ToObject` failure ahead of any key
@@ -23,8 +24,11 @@ impl<A: IVm> Any<A> {
             Unpacked::Array(a) => a
                 .member_access(key)
                 .unwrap_or_else(|| Nullish::Undefined.to_any()),
+            Unpacked::String(s) => s
+                .member_access(key)
+                .unwrap_or_else(|| Nullish::Undefined.to_any()),
             _ => todo!(
-                "member access on a non-Array receiver: see nanvm-lib/todo/member-access-operator.md"
+                "member access on a Number/Boolean/BigInt/Object/Function receiver: see nanvm-lib/todo/member-access-operator.md"
             ),
         })
     }
@@ -60,11 +64,23 @@ mod tests {
         );
     }
 
-    /// Stage 2 (`String`) and Stage 3 (`Object`, and everything else) of
-    /// `nanvm-lib/todo/member-access-operator.md` are not implemented yet.
+    /// The dispatch wiring itself, as opposed to `String::member_access`'s
+    /// own behavior, which is tested in `vm/string/member_access.rs`.
+    #[test]
+    fn string_receiver_dispatches_to_string_member_access() {
+        let s: Any<A> = "ab".into();
+        assert_eq!(s.clone().member_access(1.0.to_any()), Ok("b".into()));
+        assert_eq!(
+            s.member_access(2.0.to_any()),
+            Ok(Nullish::Undefined.to_any())
+        );
+    }
+
+    /// Stage 3 (`Object`, and everything else) of
+    /// `nanvm-lib/todo/member-access-operator.md` is not implemented yet.
     #[test]
     #[should_panic]
-    fn non_array_receiver_is_not_implemented_yet() {
+    fn object_receiver_is_not_implemented_yet() {
         let object: Any<A> = [].to_object::<A>().to_any();
         let _ = object.member_access(0.0.to_any());
     }
