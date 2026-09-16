@@ -11,10 +11,12 @@ separate operations, and what's deliberately still out of scope.
 
 ### Problem
 
-[`nanvm-lib/README.md`](../README.md)'s operator table marks `.` / `[]` as
-the one basic operator still missing: "full property access still needs
-prototype-chain walking, getters, and `Array<A>` indexing beyond what `own`
-covers." It's the last item in the P1 "complete all basic FunctionalScript
+[`nanvm-lib/README.md`](../README.md)'s operator table originally marked
+`.` / `[]` as the one basic operator still missing: "full property access
+still needs prototype-chain walking, getters, and `Array<A>` indexing
+beyond what `own` covers" — that row is what Stage 1 below replaces, so
+the quote is this plan's starting point, not the table's current wording.
+It was the last item in the P1 "complete all basic FunctionalScript
 operators" task in [`mvp-roadmap.md`](./mvp-roadmap.md).
 
 `own` (`Any::own_property`, in `vm/any/mod.rs`) already does a flat,
