@@ -62,16 +62,36 @@ to be inferred from its absence from 2360's list.
 
 ### The list
 
-The list is MDN's, which is the page 2360 already works from:
+The list is the standard's. ECMAScript defines it in
+[ECMA-262 §19, The Global Object](https://tc39.es/ecma262/#sec-global-object),
+across four subclauses, and that is what the implementation transcribes:
+
+- [§19.1 Value Properties of the Global Object](https://tc39.es/ecma262/#sec-value-properties-of-the-global-object)
+  — `globalThis`, `Infinity`, `NaN`, `undefined`
+- [§19.2 Function Properties of the Global Object](https://tc39.es/ecma262/#sec-function-properties-of-the-global-object)
+  — `eval`, `isFinite`, `isNaN`, `parseFloat`, `parseInt`, and the four URI functions
+- [§19.3 Constructor Properties of the Global Object](https://tc39.es/ecma262/#sec-constructor-properties-of-the-global-object)
+  — every global constructor, `Object` through the typed arrays
+- [§19.4 Other Properties of the Global Object](https://tc39.es/ecma262/#sec-other-properties-of-the-global-object)
+  — `Atomics`, `JSON`, `Math`, `Reflect`
+
+The same names, grouped for reading rather than for specifying, are MDN's
+standard built-in objects — the page 2360 already works from:
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
-The table below is a working transcription of it, grouped as that page
-groups them, with ✓ marking a name FunctionalScript already refuses to bind.
-**It has not been checked against the page** — it was written from memory,
-the environment that drafted this document having no route to MDN — so
-implementing this issue starts by reading the page and correcting the table,
-not by trusting it.
+Two sources rather than one because they answer different questions: §19 is
+normative and says what the set *is*, MDN says which edition each name
+arrived in and which are deprecated, and the second is what decides the
+questions below.
+
+The table transcribes them, grouped as MDN groups them, with ✓ marking a
+name FunctionalScript already refuses to bind. **It has not been checked
+against either source** — it was written from memory, the environment that
+drafted this document having a route to neither — so implementing this issue
+starts by reading §19 and the MDN page and correcting the table, not by
+trusting it. The subclause titles above are cited the same way and want the
+same check.
 
 |Group|Names|
 |-|-|
@@ -98,8 +118,9 @@ not carry it forward.
 1. **The list ages.** ECMAScript adds globals — `Temporal` is the recent one
    — so a name legal today may be a global tomorrow, and adopting a new
    edition's list is a breaking change for any module that bound one of its
-   additions. Pin the list to an edition and say so, re-reading the page
-   above on each revision, or accept the churn?
+   additions. Pin the list to an edition of
+   [ECMA-262](https://tc39.es/ecma262/#sec-global-object) and say so,
+   re-reading §19 on each revision, or accept the churn?
    The same question the keyword list already has, and it has never been
    answered in writing.
 2. **Host globals.** `console`, `process`, `window`, `document`, `fetch`,
@@ -117,6 +138,7 @@ not carry it forward.
 ## Tasks
 
 - [ ] Correct the table above against
+      [ECMA-262 §19](https://tc39.es/ecma262/#sec-global-object) and
       https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
       — it is a transcription from memory and nothing has checked it.
 - [ ] `globalNames` in `fjs/js/keywords/module.f.mjs`, beside `literalGlobals`,
@@ -138,6 +160,11 @@ not carry it forward.
 
 ## Related
 
+- [ECMA-262 §19, The Global Object](https://tc39.es/ecma262/#sec-global-object)
+  — the normative list, and the one the implementation transcribes.
+- [MDN, Standard built-in objects](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects)
+  — the same names with their editions and deprecations, which the open
+  questions below turn on.
 - [`2360-built-in.md`](./2360-built-in.md) — which of these names become
   namespaces, the feature this one clears the way for.
 - [`3150-shadowing.md`](./3150-shadowing.md) — shadowing between a module's
