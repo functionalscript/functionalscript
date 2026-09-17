@@ -255,9 +255,8 @@ export const proof = {
         // a call is no statement of its own: it stands where a value does
         assertStructurallySame(read('const f = (...a) => 1; f(1); export default 1;'), ['error', 'f'])
         // the grammar takes a call on a numeric literal, as it takes an
-        // access on one: the grammar sees a value and not what it is, and
-        // the fold takes it too — a number is callable under no reading of
-        // the text, so nothing divides them
+        // access on one: which callees a call may have is the fold's, since
+        // the grammar sees a value and not what it is
         assertStructurallySame(read('export default -1();'), ['ok'])
         assertStructurallySame(read('export default 1();'), ['ok'])
     },

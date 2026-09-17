@@ -84,11 +84,7 @@ the fold's:
 - an access on a number or a bigint literal, `1 .x` or `-1n[0]`: JavaScript
   reads `-1 .x` as `-(1 .x)`, the tokenizer folds the minus into the number
   and `-0n` to `0n`, and the language has no negation to read it JavaScript's
-  way, so every access on a numeric literal is refused rather than some. A
-  *call* on one is taken: `-1()` calls `-1` here where JavaScript calls `1`,
-  but a number is callable under neither reading, so the two agree on
-  everything a program can observe and the call is the EDAG its operands
-  make, the one `const n = 1; n()` already makes;
+  way, so every access on a numeric literal is refused rather than some;
 - a reference in a function's body to a name bound outside it — a `const`, an
   import, or an enclosing function's parameter — which is a capture, and a
   function has no frame to capture with yet. The body is resolved against its

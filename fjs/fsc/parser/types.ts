@@ -57,7 +57,7 @@ export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
     | readonly ['.', Node, DjsTokenWithMetadata]
-    | readonly ['()', Node, readonly Node[]]
+    | readonly ['()', Node, readonly Node[], DjsTokenWithMetadata]
     | readonly ['=>', DjsTokenWithMetadata, Node]
     | readonly ['block', readonly Const[], Node]
     | Container

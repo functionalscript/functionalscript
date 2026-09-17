@@ -91,7 +91,7 @@ export type _ContainerFrame = {
  * the order written, which is the order they are evaluated in.
  */
 export type _CallFrame = {
-    readonly call: readonly ['()', Node, readonly Node[]]
+    readonly call: readonly ['()', Node, readonly Node[], DjsTokenWithMetadata]
     readonly index: number
     readonly done: List<AstConst>
 }
