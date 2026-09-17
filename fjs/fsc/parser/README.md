@@ -20,7 +20,7 @@ const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
 value  ::= (primitive t | id t | array | object) access* | func
 body   ::= (primitive t | id t | array) access* | func | block
-block  ::= '{' t 'return' s value ';' t '}' t
+block  ::= '{' t const* 'return' s value ';' t '}' t
 func   ::= '(' t '...' t id t ')' s '=>' t body
 access ::= '.' t id t | '[' t (string | number) t ']' t
 array  ::= '[' t [ items(value) ] ']' t
@@ -88,7 +88,12 @@ the fold's:
 - a reference in a function's body to a name bound outside it — a `const`, an
   import, or an enclosing function's parameter — which is a capture, and a
   function has no frame to capture with yet. The body is resolved against its
-  parameter alone, so the check is which map the name is found in;
+  own names alone — its parameter, and the `const`s it declares before the
+  `return` — so the check is which map the name is found in;
+- a body `const` that takes a name the body already binds, its parameter
+  included, which is a duplicate as a module's is. A name the *module* binds
+  is not: the body cannot reach the module's scope at all, so that name was
+  unreachable rather than hidden;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;

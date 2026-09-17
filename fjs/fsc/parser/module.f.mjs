@@ -51,7 +51,7 @@
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Body, Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _BodyFrame, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -322,11 +322,12 @@ const baseOf = ([tag, branch]) => {
  * the eleventh. A body is a value less the object, and its node is made
  * the same way.
  *
- * A block body is the value it returns and nothing more: `{ return v; }`
- * and `v` are one function in JavaScript, so they are one node here, and
- * everything downstream — the resolution, the lowering, the EDAG — sees
- * only the value. The value stands at the fifth position of
- * `{ t return s value ; t } t`.
+ * A block body is its `const` statements and the value it returns, at the
+ * third and sixth positions of `{ t const* return s value ; t } t`. With no
+ * statement it is that value and nothing more: `{ return v; }` and `v` are
+ * one function in JavaScript, so they are one node here, and nothing
+ * downstream sees a block at all — which is what keeps a body `const` from
+ * costing anything where none is written.
  *
  * @type {(node: Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -335,7 +336,12 @@ const toNode = node => {
         const [, , , , name, , , , , , b] = unmapped(node[1])
         return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
     }
-    if (node[0] === 'block') { return symbol({ id: 'value', node: nodeAt(unmapped(node[1])[4]) }) }
+    if (node[0] === 'block') {
+        const [, , consts, , , v] = unmapped(node[1])
+        const statements = unmapped(consts).map(constAt)
+        const returns = nodeAt(v)
+        return symbol({ id: 'value', node: statements.length === 0 ? returns : ['block', statements, returns] })
+    }
     const [, accesses] = unmapped(node[1])
     return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, baseOf(node)) })
 }
@@ -661,13 +667,34 @@ const bound = (stack, word) => {
 }
 
 /**
+ * The next step of a function's block body: the `const` at `index`, its name
+ * checked before its value is entered — as a module's `const` is, so that a
+ * statement wrong in both halves answers for the half a reader meets first
+ * — or, once the statements are done, the value the body returns.
+ *
+ * @type {(stack: _Stack, env: _Env, frame: _BodyFrame) => _State}
+ */
+const bodyRound = (stack, env, frame) => {
+    const { statements, index } = frame
+    if (index >= statements.length) { return [{ top: frame, rest: stack }, env, ['enter', frame.result]] }
+    const [tag, word] = bindable(env)(statements[index].name)
+    return tag === 'error'
+        ? [stack, env, error(word)]
+        : [{ top: { ...frame, word }, rest: stack }, env, ['enter', statements[index].value]]
+}
+
+/**
  * Enters a node: a primitive is its value, a reference the binding `env`
  * holds for its name, an access its base under a frame holding the key, a
  * container the first round of a new frame, and a function its body under
- * a frame holding `env` — the body resolved against its parameter alone,
- * so a reference to a name bound outside is a capture, refused where it is
+ * a frame holding `env` — the body resolved against its own names alone, so
+ * a reference to a name bound outside is a capture, refused where it is
  * written, and a name it does not find anywhere is `const not found` as
  * ever.
+ *
+ * A block body is entered the same way, under a frame that also holds its
+ * statements: the parameter is the only name bound when the first of them
+ * is resolved, and each binds its own as the module's `const`s do.
  *
  * @type {(stack: _Stack, env: _Env, node: Node) => _State}
  */
@@ -685,9 +712,15 @@ const enter = (stack, env, node) => {
         case '=>': {
             const [tag, word] = identifierOf(node[1])
             if (tag === 'error') { return [stack, env, error(word)] }
-            return [{ top: { outer: env }, rest: stack }, setReplace(word)(args)(empty), ['enter', node[2]]]
+            const inner = setReplace(word)(args)(empty)
+            const body = node[2]
+            return body[0] === 'block'
+                ? bodyRound(stack, inner, { outer: env, statements: body[1], index: 0, word: '', done: null, result: body[2] })
+                : [{ top: { outer: env }, rest: stack }, inner, ['enter', body]]
         }
-        default: { return round(stack, env, { container: node, index: 0, done: null }) }
+        // a block stands only as a function's body, which `'=>'` above
+        // enters; the mapping writes one nowhere else
+        default: { return round(stack, env, { container: /** @type {Container} */ (node), index: 0, done: null }) }
     }
 }
 
@@ -701,8 +734,21 @@ const enter = (stack, env, node) => {
 const returned = (stack, env, frame, value) => {
     if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) { return [stack, env, accessClosed(frame.key, value)] }
+    if ('statements' in frame) {
+        if (frame.index < frame.statements.length) {
+            // the binding lands after the value, keeping the name out of its
+            // own initializer's scope, and names entry `index` of this body
+            return bodyRound(
+                stack,
+                extended(env)(frame.word, ['cref', frame.index]),
+                { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
+        }
+        /** @type {AstFunction} */
+        const withConsts = ['=>', [...toArray(frame.done), value]]
+        return [stack, frame.outer, ok(withConsts)]
+    }
     /** @type {AstFunction} */
-    const fn = ['=>', value]
+    const fn = ['=>', [value]]
     return [stack, frame.outer, ok(fn)]
 }
 

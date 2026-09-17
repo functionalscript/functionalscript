@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
+ * @import { AstBody, AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
  * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -72,15 +72,41 @@ const lower = nodes => ast => {
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return ['=>', null, lower({ parameters: [], consts: [], args: ['args'] })(ast[1])] }
+        case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
 }
 
-/** @type {(parameters: readonly Exp[]) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]} */
-const entry = parameters => (consts, ast) => [...consts, lower({ parameters, consts, args })(ast)]
+/**
+ * One entry of a body, folded over the entries before it, under the
+ * arguments node that body names: a fresh one per function, since a node
+ * belongs to one scope and two bodies naming one `['args']` is no EDAG.
+ *
+ * @type {(parameters: readonly Exp[], args: Exp) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]}
+ */
+const entry = (parameters, args) => (consts, ast) => [...consts, lower({ parameters, consts, args })(ast)]
+
+/**
+ * A body as one node: its entries lowered in order, each `cref` taking the
+ * node of the entry it names, and the last entry's node the value — with
+ * what that value does not reach anchored by the comma, as a module's
+ * unreached entries are.
+ *
+ * A module and a function body are the same shape and the same rule, and
+ * `anchors` reads a body out of a module, so the body is handed over as one
+ * that imports nothing: a function names no import, a reference out of it
+ * being a capture the parser refused.
+ *
+ * @type {(body: AstBody) => Exp}
+ */
+const scope = body => {
+    const nodes = body.reduce(entry([], ['args']), [])
+    const value = nodes[nodes.length - 1]
+    const { consts } = anchors([[], body])([])
+    return consts.length === 0 ? value : [',', [...consts.map(i => nodes[i]), value]]
+}
 
 /**
  * The module as an EDAG over the nodes given for its imports. The body is
@@ -103,7 +129,7 @@ const entry = parameters => (consts, ast) => [...consts, lower({ parameters, con
  * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
  */
 const lowered = imports => module => {
-    const nodes = module[1].reduce(entry(imports), [])
+    const nodes = module[1].reduce(entry(imports, args), [])
     const exported = nodes[nodes.length - 1]
     const { consts, imports: unbound } = anchors(module)(imports)
     return unbound.length === 0 && consts.length === 0

@@ -537,14 +537,14 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), expected)
             }
-            expect('export default (...a) => a;', '[[],[["=>",["args"]]]]')
-            expect('export default (...a) => [a, a[0], a["x"], (...b) => b];', '[[],[["=>",["array",[["args"],[".",["args"],0],[".",["args"],"x"],["=>",["args"]]]]]]]')
-            expect('const f = (...a) => 1; export default [f, f];', '[[],[["=>",1],["array",[["cref",0],["cref",0]]]]]')
-            expect('const a = 1; export default (...a) => a;', '[[],[1,["=>",["args"]]]]')
-            expect('export default ( ... a ) => /* c */ a . b [ 0 ] ;', '[[],[["=>",[".",[".",["args"],"b"],0]]]]')
+            expect('export default (...a) => a;', '[[],[["=>",[["args"]]]]]')
+            expect('export default (...a) => [a, a[0], a["x"], (...b) => b];', '[[],[["=>",[["array",[["args"],[".",["args"],0],[".",["args"],"x"],["=>",[["args"]]]]]]]]]')
+            expect('const f = (...a) => 1; export default [f, f];', '[[],[["=>",[1]],["array",[["cref",0],["cref",0]]]]]')
+            expect('const a = 1; export default (...a) => a;', '[[],[1,["=>",[["args"]]]]]')
+            expect('export default ( ... a ) => /* c */ a . b [ 0 ] ;', '[[],[["=>",[[".",[".",["args"],"b"],0]]]]]')
             // a body takes accesses as a value does, and a function none of its own
-            expect('export default (...a) => [a][0];', '[[],[["=>",[".",["array",[["args"]]],0]]]]')
-            expect('export default (...a) => "s"[0];', '[[],[["=>",[".","s",0]]]]')
+            expect('export default (...a) => [a][0];', '[[],[["=>",[[".",["array",[["args"]]],0]]]]]')
+            expect('export default (...a) => "s"[0];', '[[],[["=>",[[".","s",0]]]]]')
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -562,9 +562,10 @@ export const proof = {
             expect('export default (...return) => 1;', 'reserved word', 20)
             expect('export default (...a) => a.__proto__;', 'prohibited property name', 28)
         },
-        // A block body is the value it returns and nothing more: `{ return
-        // v; }` and `v` are one function in JavaScript, so the fold gives
-        // them one node and everything downstream sees only the value.
+        // A block body with no statement is the value it returns and
+        // nothing more: `{ return v; }` and `v` are one function in
+        // JavaScript, so the fold gives them one node and nothing
+        // downstream sees a block at all.
         block: () => {
             /** @type {(source: string, expected: string) => void} */
             const expect = (source, expected) => {
@@ -572,16 +573,76 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), expected)
             }
-            expect('export default (...a) => { return a; };', '[[],[["=>",["args"]]]]')
-            expect('export default (...a) => { return a[0]; };', '[[],[["=>",[".",["args"],0]]]]')
+            expect('export default (...a) => { return a; };', '[[],[["=>",[["args"]]]]]')
+            expect('export default (...a) => { return a[0]; };', '[[],[["=>",[[".",["args"],0]]]]]')
             // the object literal an expression body has no spelling for
-            expect('export default (...a) => { return { x: 1 }; };', '[[],[["=>",["object",[["x",1]]]]]]')
-            expect('export default (...a) => { return (...b) => { return b; }; };', '[[],[["=>",["=>",["args"]]]]]')
+            expect('export default (...a) => { return { x: 1 }; };', '[[],[["=>",[["object",[["x",1]]]]]]]')
+            expect('export default (...a) => { return (...b) => { return b; }; };', '[[],[["=>",[["=>",[["args"]]]]]]]')
             // the parameter is still the arguments array, and a name bound
             // outside is still a capture
             const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { return c; };'))
             assert(tag === 'error', tag)
             assertEq(value.message, 'capture not supported')
+        },
+        // A body `const` is an entry of the function's own body, as a
+        // module's is of the module's: `['cref', i]` names entry `i` of the
+        // body it is written in, the value it returns is the last entry,
+        // and a `const` is one node however many references reach it.
+        bodyConst: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (...a) => { const x = 1; return x; };', '[[],[["=>",[1,["cref",0]]]]]')
+            expect('export default (...a) => { const x = 1; const y = 2; return [x, y]; };', '[[],[["=>",[1,2,["array",[["cref",0],["cref",1]]]]]]]')
+            // a later statement names an earlier one, and the body's own
+            // numbering is not the module's — both are entry 0 of their own
+            expect('const m = 9; export default (...a) => { const x = 1; const y = x; return y; };', '[[],[9,["=>",[1,["cref",0],["cref",1]]]]]')
+            // the parameter is in scope for the statements too
+            expect('export default (...a) => { const x = a[0]; return x; };', '[[],[["=>",[[".",["args"],0],["cref",0]]]]]')
+            // a nested body numbers its own entries from zero
+            expect('export default (...a) => { const x = (...b) => { const y = 1; return y; }; return x; };', '[[],[["=>",[["=>",[1,["cref",0]]],["cref",0]]]]]')
+            // an entry the return value never names is an entry all the
+            // same: the body keeps it, and the lowering anchors it
+            expect('export default (...a) => { const x = []; return 1; };', '[[],[["=>",[["array",[]],1]]]]')
+        },
+        // What a body `const` may not be named, each at the name.
+        bodyConstRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default (...a) => { const x = 1; const x = 2; return x; };', 'duplicate id', 47)
+            // the parameter is a name of the body, so a `const` may not
+            // take it — the same answer a module's duplicate gets
+            expect('export default (...a) => { const a = 1; return a; };', 'duplicate id', 34)
+            expect('export default (...a) => { const if = 1; return 1; };', 'reserved word', 34)
+            // the name is answered for before its value is read, as a
+            // module's `const` is
+            expect('export default (...a) => { const NaN = zzz; return 1; };', 'reserved word', 34)
+            // a statement's value is resolved in the body's scope: reaching
+            // out of it is a capture, and a name nothing binds is not found
+            expect('const c = 1; export default (...a) => { const x = c; return x; };', 'capture not supported', 51)
+            expect('export default (...a) => { const x = zzz; return x; };', 'const not found', 38)
+            // a `const` is not in its own initializer's scope
+            expect('export default (...a) => { const x = x; return x; };', 'const not found', 38)
+            // and a later statement is not in an earlier one's
+            expect('export default (...a) => { const x = y; const y = 1; return x; };', 'const not found', 38)
+        },
+        // A body `const` may take a name the module binds. The body cannot
+        // reach the module's scope at all — a reference out is a capture —
+        // so the module's name is unreachable here rather than hidden, and
+        // no-shadowing (`spec/todo/3150-shadowing.md`) has nothing to
+        // decide about this case.
+        bodyConstShadowsModule: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { const c = 2; return c; };'))
+            assert(tag === 'ok', value)
+            assertEq(stringifyDjsModule(value), '[[],[1,["=>",[2,["cref",0]]]]]')
         },
     },
     valid: [

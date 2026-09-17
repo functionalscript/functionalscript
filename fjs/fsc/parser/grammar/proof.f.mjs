@@ -163,10 +163,10 @@ export const proof = {
         assertStructurallySame(read('export default (...a)\u2028=> 1;'), ['error', 'error'])
         assertStructurallySame(read('export default (...a)\u2029=> 1;'), ['error', 'error'])
     },
-    // A block body: `{ return value; }`, one `return` statement and nothing
-    // else. The value is an ordinary value, the object included, since `{`
-    // opens a block only where a statement may start and after `return` an
-    // expression is expected.
+    // A block body: `{ const* return value; }` — any number of `const`
+    // statements and then the one `return`. The value is an ordinary value,
+    // the object included, since `{` opens a block only where a statement
+    // may start and after `return` an expression is expected.
     block: () => {
         assertStructurallySame(read('export default (...a) => { return a; };'), ['ok'])
         assertStructurallySame(read('export default (...a)=>{return a;};'), ['ok'])
@@ -174,8 +174,22 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { return { x: 1 }; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return (...b) => { return b; }; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return a.b[0]; };'), ['ok'])
-        // `;` is required, as after every statement, and `return` is the one
-        // statement a body holds until body constants land
+        // the body's `const` statements, the module's own rule: any number
+        // of them, each ended by its `;`, and all of them before the one
+        // `return` — which is where a body's names come from, the grammar
+        // saying nothing about which scope binds one
+        assertStructurallySame(read('export default (...a) => { const x = 1; return x; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { const x = 1; const y = 2; return [x, y]; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => {const x=1;return x;};'), ['ok'])
+        assertStructurallySame(read('export default (...a) => {\n    const x = 1;\n    return x;\n};'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { const x = (...b) => { const y = 1; return y; }; return x; };'), ['ok'])
+        // a `const` after the `return`, or with no `return` after it, is no
+        // body: the statements come first and the `return` is the last
+        assertStructurallySame(read('export default (...a) => { return 1; const x = 1; };'), ['error', 'const'])
+        assertStructurallySame(read('export default (...a) => { const x = 1; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { const x = 1 return x; };'), ['error', 'return'])
+        // `;` is required, as after every statement, and `return` is the
+        // only other statement a body holds
         assertStructurallySame(read('export default (...a) => { return a };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => {};'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { a; };'), ['error', 'a'])

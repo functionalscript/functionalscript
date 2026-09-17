@@ -394,7 +394,7 @@ export const proof = {
                 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
                 'm.f.js': [utf8('const u = []; export default 1;')],
             }
-            assertEq(fjsRefused(root), 'output.f.js - error: a comma outside the root')
+            assertEq(fjsRefused(root), 'output.f.js - error: a comma outside a scope')
             // the EDAG holds it, the comma being a node like any other
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
             assertEq(exitCode(code), 0, state.stderr)
@@ -483,6 +483,32 @@ export const proof = {
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: a function has no value')
             assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
+        },
+        // A body `const` compiles: the shared node it names is one node in
+        // the graph, and an entry the returned value does not reach is
+        // anchored by a comma inside the body — the first comma the
+        // compiler emits anywhere but a module's root.
+        bodyConst: () => {
+            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["=>",null,["[]",[$0,$0]]];')
+            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["=>",null,[",",[["[]",[]],1]]];')
+            // the value outputs refuse the module for its function, as ever
+            assertEq(moduleRefused('export default (...a) => { const x = 1; return x; };'), 'input.f.js - error: a function has no value')
+            // and the FunctionalScript output writes the body back as a
+            // body, `const`s and all: the round trip is the claim, and the
+            // text is pinned because the names are the writer's to choose
+            assertEq(fjsRoundTrip('export default (...a) => { const x = [1]; return [x, x]; };'), 'export default (...$a)=>{const $a0=[1];return [$a0,$a0];};')
+            assertEq(fjsRoundTrip('export default (...a) => { const x = []; return 1; };'), 'export default (...$a)=>{const $a0=[];return 1;};')
+            // a `const` the body does not need is not written: one naming a
+            // value reached once is that value in place, as at the module
+            // level
+            assertEq(fjsRoundTrip('export default (...a) => { const x = 1; return x; };'), 'export default (...$a)=>1;')
+            // each scope numbers its own `const`s, and no two scopes share a
+            // spelling: `$0` is the module's, `$a0` the outer body's, `$b0`
+            // the inner one's
+            assertEq(fjsRoundTrip('const m = [1]; export default [m, m, (...a) => { const x = [2]; return [x, x]; }];'), 'const $0=[1];export default [$0,$0,(...$a)=>{const $a0=[2];return [$a0,$a0];}];')
+            assertEq(fjsRoundTrip('export default (...a) => { const f = (...b) => { const y = [1]; return [y, y]; }; return f; };'), 'export default (...$a)=>(...$b)=>{const $b0=[1];return [$b0,$b0];};')
+            // a body's `const` may name the arguments, which no module `const` can
+            assertEq(fjsRoundTrip('export default (...a) => { const x = [a]; return [x, x]; };'), 'export default (...$a)=>{const $a0=[$a];return [$a0,$a0];};')
         },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written: a missing import

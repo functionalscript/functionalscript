@@ -14,7 +14,7 @@ import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { AstArgs, AstConst, AstModuleRef } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
-import type { Container, Node, Out, ParseError } from './types.ts'
+import type { Const, Container, Node, Out, ParseError } from './types.ts'
 
 /**
  * The ordinary token stream the grammar reads, with the tokenizer's one
@@ -81,7 +81,29 @@ export type _FunctionFrame = {
     readonly outer: _Env
 }
 
-export type _Frame = _ContainerFrame | _AccessFrame | _FunctionFrame
+/**
+ * A function whose block body is being evaluated: the names bound outside
+ * it, as {@link _FunctionFrame} holds them, and the statements to work
+ * through — `statements[index]` is the `const` being evaluated and `word`
+ * the name it binds, taken before its value was entered so that a statement
+ * wrong in both halves answers for the half a reader meets first; `done`
+ * holds the entries before it, a list for the reason a container's is; and
+ * `result` is the value the body returns, entered once the statements are.
+ *
+ * `index === statements.length` is how the frame says the value coming back
+ * is that result and not another entry — and where `word` names nothing,
+ * there being no statement to bind.
+ */
+export type _BodyFrame = {
+    readonly outer: _Env
+    readonly statements: readonly Const[]
+    readonly index: number
+    readonly word: string
+    readonly done: List<AstConst>
+    readonly result: Node
+}
+
+export type _Frame = _ContainerFrame | _AccessFrame | _FunctionFrame | _BodyFrame
 
 /** The containers, accesses and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null

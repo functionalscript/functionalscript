@@ -209,6 +209,40 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', null, ['=>', null, ['args']]])
     },
+    // A body `const` is an entry of the body, as a module's is of the
+    // module, and lowers the same way: a `const` is one node however many
+    // references reach it, an alias is the node it names, and what the
+    // returned value does not reach is anchored by the comma rather than
+    // dropped — which is the first comma the compiler emits anywhere but a
+    // module's root.
+    bodyConst: () => {
+        const shared = compile('export default (...a) => { const x = [1]; return [x, x]; };').edag
+        expectEdag(shared, ['=>', null, ['[]', [['[]', [1]], ['[]', [1]]]]])
+        assert(shared instanceof Array && shared[0] === '=>', shared)
+        const body = shared[2]
+        assert(body instanceof Array && body[0] === '[]', shared)
+        // one node, not two equal ones: that is what the `const` is for
+        assert(body[1][0] === body[1][1], shared)
+        expectEdag(compile('export default (...a) => { const x = 1; return x; };').edag, ['=>', null, 1])
+        expectEdag(compile('export default (...a) => { const x = a; return x; };').edag, ['=>', null, ['args']])
+        expectEdag(compile('export default (...a) => { const x = a[0]; const y = [x]; return [y, x]; };').edag, ['=>', null, ['[]', [['[]', [['.', ['args'], 0]]], ['.', ['args'], 0]]]])
+        // the anchor, inside a body
+        expectEdag(compile('export default (...a) => { const x = []; return 1; };').edag, ['=>', null, [',', [['[]', []], 1]]])
+        expectEdag(compile('export default (...a) => { const x = null.y; return 1; };').edag, ['=>', null, [',', [['.', null, 'y'], 1]]])
+        // an alias is no node of its own, so it anchors nothing
+        expectEdag(compile('export default (...a) => { const x = []; const y = x; return y; };').edag, ['=>', null, ['[]', []]])
+        // a nested body has its own entries and its own anchor
+        expectEdag(compile('export default (...a) => { const x = (...b) => { const y = []; return 1; }; return x; };').edag, ['=>', null, ['=>', null, [',', [['[]', []], 1]]]])
+        // each body names its own arguments: two `['args']` nodes, not one,
+        // since a node belongs to one scope
+        const nested = compile('export default (...a) => { const x = (...b) => b; return [x, a]; };').edag
+        assert(nested instanceof Array && nested[0] === '=>', nested)
+        const outer = nested[2]
+        assert(outer instanceof Array && outer[0] === '[]', nested)
+        const inner = outer[1][0]
+        assert(inner instanceof Array && inner[0] === '=>', nested)
+        assert(inner[2] !== outer[1][1], nested)
+    },
     // The imports bound: the linked program is one EDAG, the imported
     // module's node where the importer's parameter was, and no path in it.
     resolve: {
