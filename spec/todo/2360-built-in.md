@@ -27,7 +27,12 @@ module that already bound it — is
 
 ### Function Properties
 
-- [ ] `eval`
+- [ ] `eval` — never admitted rather than not yet: it runs source at run
+      time, which a subset with no free names and no effects cannot hold,
+      and the language already refuses the word as a name
+      ([`2365-global-names.md`](./2365-global-names.md)). The `no` beside it
+      in [Others](#others) is a reading of its *effects*, not of whether the
+      language admits it
 - [x] `isFinite()`
 - [x] `isNaN()`
 - [x] `parseFloat()`
