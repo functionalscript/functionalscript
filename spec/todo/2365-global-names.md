@@ -16,13 +16,24 @@ const Math = { PI: 3 };         // accepted
 const globalThis = 1;           // accepted
 ```
 
-— and a module may bind any of them. Three globals are already refused, for
-a reason that applies to the rest:
-[`literalGlobals`](../../fjs/js/keywords/module.f.mjs) — `undefined`, `NaN`
-and `Infinity` — which FunctionalScript keeps as words "so that each name
-denotes its value wherever it appears", and `eval`, which is a restricted
-name. Refusing `undefined` is already *stricter* than JavaScript, where
-`const undefined = 1;` at module scope is legal.
+— and a module may bind any of them. Four are already refused, for two
+different reasons, and neither is that the word is a keyword: ECMAScript has
+no keyword among them.
+
+- `eval` is refused because **JavaScript** refuses it: binding it in strict
+  code is an early error, so `const eval = 1;` is a `SyntaxError` in any
+  module, and the subset inherits that. `arguments` goes with it; the
+  repository's [`restrictedNames`](../../fjs/js/keywords/module.f.mjs) is
+  that pair.
+- `undefined`, `NaN` and `Infinity` are refused because
+  **FunctionalScript** chose to, keeping them as words "so that each name
+  denotes its value wherever it appears"
+  ([`literalGlobals`](../../fjs/js/keywords/module.f.mjs)). That is stricter
+  than JavaScript, where `const undefined = 1;` in a module is legal.
+
+The repository's `keywords` list holds all five, which is why each answers
+`reserved word` today — that list is "every name FunctionalScript treats as
+a keyword", broader than ECMAScript's reserved words on purpose.
 
 Two things make the rest worth the same treatment.
 
@@ -191,10 +202,17 @@ not carry it forward.
    may one day denote the name, not who standardized it — so answering this
    question means saying which host globals 2360 could ever reach, and
    reserving exactly those.
-3. **Where the check lives.** These names stay `id` tokens — they are not
-   keywords — so they need their own set and their own message rather than
-   joining [`keywords`](../../fjs/js/keywords/module.f.mjs), whose meaning is
-   "a word the tokenizer treats as a keyword".
+3. **Where the check lives.** Most of these names stay `id` tokens and are
+   no keyword in any sense, so they need a set of their own rather than
+   joining [`keywords`](../../fjs/js/keywords/module.f.mjs) — that list is
+   what the tokenizer and the fold already treat as keywords, and widening
+   it to `Object` and `Math` would refuse them as *references* too, which
+   is the one thing this document must not do.
+
+   The two sets overlap in five names — `eval`, `arguments`, `undefined`,
+   `NaN`, `Infinity` — and the answer there is to leave them alone: they are
+   refused already, for their own reasons, and `reserved word` is what they
+   say.
 
 ## Tasks
 
@@ -214,8 +232,14 @@ not carry it forward.
       parameter in `fjs/fsc/parser/module.f.mjs` — not in `identifierOf`,
       whose third caller is a *reference*, where refusing a global name
       would take `Object.entries()` with it and defeat the feature this
-      document clears the way for. A message of its own: `reserved word` is
-      for a keyword, and these are not keywords.
+      document clears the way for.
+- [ ] A message of its own for the names this document *adds*. The four
+      already refused keep the answer they already give: `bind` reaches
+      `identifierOf` first, and for `eval`, `arguments` and — once the
+      grammar admits them where a name may stand — `undefined`, `NaN` and
+      `Infinity`, `reserved word` is the answer and stays it. Ordering the
+      new check ahead of `identifierOf` to claim those five would say
+      `eval` is refused by this rule, when JavaScript refuses it first.
 - [ ] Proofs: each binding position refused — `const`, an import's name, a
       rest parameter — a reference still reaching `const not found` rather
       than the new refusal, and a property key of the same name still

@@ -28,8 +28,10 @@ module that already bound it — is
 ### Function Properties
 
 - [ ] `eval` — never admitted rather than not yet: it runs source at run
-      time, which a subset with no free names and no effects cannot hold,
-      and the language already refuses the word as a name
+      time, which a subset with no free names and no effects cannot hold.
+      Binding the word is refused already, and by JavaScript rather than by
+      us — an early error in strict code, so `const eval = 1;` is a
+      `SyntaxError` in any module
       ([`2365-global-names.md`](./2365-global-names.md)). The `no` beside it
       in [Others](#others) is a reading of its *effects*, not of whether the
       language admits it
