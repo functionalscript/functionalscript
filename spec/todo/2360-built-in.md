@@ -10,12 +10,20 @@ Some of the JS built-in objects and functions are "not allowed" in FS. It means,
 
 Global objects can't be assigned to a variable (`const r = Object`). They can only be used as namespaces (`Object.entries()`).
 
+The other half of that rule — that none of these names may be *bound* by a
+module either, so that admitting one later cannot change the meaning of a
+module that already bound it — is
+[`2365-global-names.md`](./2365-global-names.md), which lands first.
+
 ### Value Properties
 
 - [x] `Infinity`
 - [x] `NaN`
-- [ ] `undefined`
-- [ ] `globalThis`
+- [x] `undefined` — a literal global like the two above it: in the language,
+      and already refused as a binding name
+- [ ] `globalThis` — never admitted rather than not yet: it is the global
+      object itself, which is ambient authority
+      ([`2365-global-names.md`](./2365-global-names.md))
 
 ### Function Properties
 

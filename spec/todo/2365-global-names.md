@@ -175,9 +175,11 @@ not carry it forward.
       accepted, `{ Math: 1 }` and `a.Object`.
 - [ ] `spec/README.md`: one sentence beside the `NaN`/`Infinity`/`undefined`
       rule it already states, generalized to the list.
-- [ ] [`2360-built-in.md`](./2360-built-in.md): cross-reference this as the
-      half that lands first, and tick its stale `undefined` box — that name
-      is already a literal global and already refused.
+- [x] [`2360-built-in.md`](./2360-built-in.md) cross-references this as the
+      half that lands first, its stale `undefined` box is ticked — that name
+      is a literal global like the two above it — and its `globalThis` box
+      says never rather than not yet. Done here, since a `todo/` that
+      contradicts another is corrected rather than built on.
 - [ ] Answer the three open questions above in this document before the
       implementation, since each changes what the list is.
 - [ ] The implementing pull request declares the break: a `Changelog:`
