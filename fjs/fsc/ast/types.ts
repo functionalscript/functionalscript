@@ -30,17 +30,23 @@ export type AstModule = readonly [readonly AstImport[], AstBody]
 export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstFunction|AstArgs
 
 /**
- * A function of its arguments alone: `(...a) => body`, the body a value in
- * which {@link AstArgs} is the arguments array and no `aref` or `cref`
- * stands — a capture is refused where it is written, since a function
- * has no frame yet. The EDAG's `['=>', null, body]`.
+ * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
+ * an {@link AstBody} as a module has one — its entries the body's `const`s
+ * in order, the last the value it returns, and `['cref', i]` naming an
+ * entry of *this* body. `(...a) => v` is the same function as
+ * `(...a) => { return v; }`, so it is the one-entry body `[v]`.
  *
- * The body is typed as any value, as a `cref` is typed as any index: the
- * parser never writes a module reference into a body, and one written by
- * hand is not rejected — `lower` gives it no node, as it gives none to a
- * `cref` past the entry holding it.
+ * {@link AstArgs} is the arguments array; no `aref` stands here, and no
+ * `cref` of an enclosing body — a capture is refused where it is written,
+ * since a function has no frame yet. The EDAG's `['=>', null, body]`, its
+ * body a comma where an entry is unreached, as a module's is.
+ *
+ * An `aref` is typed as any index all the same, as a `cref` is: the parser
+ * never writes a module reference into a body, and one written by hand is
+ * not rejected — `lower` gives it no node, as it gives none to a `cref`
+ * past the entry holding it.
  */
-export type AstFunction = readonly ['=>', AstConst]
+export type AstFunction = readonly ['=>', AstBody]
 
 /** The arguments array of the function whose body holds it — the rest parameter, whatever it is named. The EDAG's `['args']`. */
 export type AstArgs = readonly ['args']
@@ -50,7 +56,8 @@ export type AstArgs = readonly ['args']
  *
  * - `['aref', i]` — the `i`-th argument of the body, i.e. the `i`-th imported
  *   module of the enclosing `AstModule`.
- * - `['cref', i]` — the `i`-th entry of the enclosing `AstBody`.
+ * - `['cref', i]` — the `i`-th entry of the enclosing `AstBody`, which is the
+ *   module's body or a function's, whichever the reference is written in.
  *
  * Both indices are absolute and zero-based, **not** offsets from the
  * referencing entry: in the body `[a, b, ['cref', 0]]` the reference resolves
@@ -91,8 +98,8 @@ export type AstObject = readonly ['object', readonly AstMember[]]
 export type AstAccess = readonly ['.', AstConst, string | number]
 
 /**
- * The constants of a module body, in declaration order. The **last** entry is
- * the value the module yields; the preceding entries exist to be named by
+ * The constants of a body, in declaration order. The **last** entry is the
+ * value the body yields; the preceding entries exist to be named by
  * `['cref', i]`.
  *
  * A body describes the function
@@ -101,7 +108,9 @@ export type AstAccess = readonly ['.', AstConst, string | number]
  * (...args) => { const c0 = ...; const c1 = ...; return <last> }
  * ```
  *
- * where `args` are the imported modules.
+ * A module's body is that function with `args` the imported modules; a
+ * function's body ({@link AstFunction}) is that function literally, `args`
+ * its rest parameter.
  */
 export type AstBody = readonly AstConst[]
 

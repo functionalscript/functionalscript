@@ -17,6 +17,7 @@ import type {
     _ordinaryTokenNames,
     _tokenKindNames,
     access,
+    constStatement,
     identifier,
     identifierName,
     key,
@@ -123,8 +124,15 @@ export type Body = () => readonly ['const', {
     readonly block: Block
 }]
 
-/** `{`, trivia, `return`, same-line trivia, the value, `;`, trivia, `}`, and the trivia after it. */
-export type Block = readonly [number, typeof trivia, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
+/**
+ * `{`, trivia, the body's `const` statements, `return`, same-line trivia,
+ * the value, `;`, trivia, `}`, and the trivia after it.
+ *
+ * The statements are {@link constStatement}, the module's own rule: a body
+ * binds names the way a module does, and which scope a name lands in is the
+ * fold's answer, not the grammar's.
+ */
+export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
 
 /**
  * `(`, trivia, `...`, trivia, the parameter, trivia, `)`, same-line trivia,

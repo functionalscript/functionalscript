@@ -44,14 +44,20 @@ export type ParseError = {
  * converted from its token, a reference by the identifier token that spells
  * it — its name, and the position an error is anchored at — a property
  * access by the token its key is read from, a function by the token naming
- * its parameter and its body, or a container of its items in the order
- * written.
+ * its parameter and its body, a block body by its `const` statements and
+ * the value it returns, or a container of its items in the order written.
+ *
+ * A `block` stands only as a function's body, and only when it has a
+ * statement: `{ return v; }` and `v` are one function in JavaScript, so the
+ * mapping gives the empty block the node of its value and nothing else sees
+ * a block at all.
  */
 export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
     | readonly ['.', Node, DjsTokenWithMetadata]
     | readonly ['=>', DjsTokenWithMetadata, Node]
+    | readonly ['block', readonly Const[], Node]
     | Container
 
 /** An array of its items, or an object of its members, each in the order written. */

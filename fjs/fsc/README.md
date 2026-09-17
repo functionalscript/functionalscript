@@ -108,10 +108,14 @@ references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
 nothing outside stands: a reference to a `const`, an import or an enclosing
 function's parameter is a capture, refused where it is written, so no module
 node is ever shared into a body. The body is any value except an object, since
-`=> {` opens a block in JavaScript — or that block, `{ return value; }`, one
-`return` statement in which an object is a value again and which lowers to the
-value it returns, since the two spellings are one function. There is no call
-yet.
+`=> {` opens a block in JavaScript — or that block, in which an object is a
+value again: any number of `const` statements and then one `return`. A body
+`const` is an entry of the function's own body, as a module `const` is of the
+module — one node however many references reach it, and what the returned
+value does not reach anchored by the comma rather than dropped, which is the
+one place a comma stands outside a module's root. With no statement the block
+lowers to the value it returns, the two spellings being one function. There is
+no call yet.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
