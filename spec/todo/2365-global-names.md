@@ -210,13 +210,21 @@ same check.
 |the embedder's, and 2360's|`WebAssembly`|
 
 A name on MDN's page is not always a name the global object has, and only
-the latter can be bound or referred to. `Generator`, `GeneratorFunction`,
+the latter is worth reserving. `Generator`, `GeneratorFunction`,
 `AsyncFunction`, `AsyncGeneratorFunction`, `AsyncGenerator` and
 `AsyncIterator` are intrinsics reached through a prototype, not global
-bindings — `typeof GeneratorFunction` is a `ReferenceError` — so nothing can
-bind one and there is nothing to reserve. What belongs in the set is what
-`name in globalThis` answers for, which is also how the four `UInt*`
-misspellings in 2360 were found.
+bindings: `'GeneratorFunction' in globalThis` is `false`, and the test is
+that one rather than `typeof`, which answers `"undefined"` for a name
+nothing declares and so cannot tell an absent global from a present one
+holding `undefined`.
+
+**A module keeps those names**, here and in JavaScript alike:
+`const GeneratorFunction = 1;` is legal in both and stays legal, because
+there is no global of that name for it to shadow. Reserving a name is
+worth a module's spelling only where the name means something without it.
+
+What belongs in the set is what `name in globalThis` answers for, which is
+also how the four `UInt*` misspellings in 2360 were found.
 
 2360 listed four of them as namespaces to admit, which would have left them
 bindable here and admitted there — the silent meaning change this document

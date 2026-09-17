@@ -100,13 +100,13 @@ module that already bound it — is
 The four that stood here — `Generator`, `GeneratorFunction`, `AsyncFunction`
 and `AsyncGeneratorFunction` — are gone, and cannot come back. They are no
 properties of the global object: each is an intrinsic reached through a
-prototype, so `typeof GeneratorFunction` is a `ReferenceError`. Admitting
-one as a namespace would mean inventing a global JavaScript does not have,
-and a FunctionalScript module must run the same as JavaScript. There is
-nothing here to admit, and so nothing to reserve
-([`2365-global-names.md`](./2365-global-names.md)). `AsyncIterator` and
-`AsyncGenerator`, which MDN lists beside them, are the same case and were
-never in this list.
+prototype, and `'GeneratorFunction' in globalThis` is `false`. Admitting one
+as a namespace would mean inventing a global JavaScript does not have, and a
+FunctionalScript module must run the same as JavaScript. There is nothing
+here to admit, nothing to reserve, and a module may bind the word as it may
+in JavaScript ([`2365-global-names.md`](./2365-global-names.md)).
+`AsyncIterator` and `AsyncGenerator`, which MDN lists beside them, are the
+same case and were never in this list.
 
 ### Reflection
 
