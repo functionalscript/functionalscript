@@ -4,7 +4,7 @@
 //!
 //! `fjs compile <module> <output>.rs` (the Rust code generator) compiles
 //! each of `fixtures/*.mjs` into a sibling `fixtures/*.rs`, committed and
-//! drift-checked by `npm run gen` (see `../fjs/ci/README.md`) the same way
+//! drift-checked by `npm run gen` (see `../../fjs/ci/README.md`) the same way
 //! `nanvm-lib/tests/test/generated.rs` is. The three modules below pull
 //! those generated files in via `#[path]`, since they live beside the FJS
 //! source they were compiled from rather than under `src/`.
