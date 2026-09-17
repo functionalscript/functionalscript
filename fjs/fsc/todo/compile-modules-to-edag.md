@@ -594,13 +594,22 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] `['()', callee, args]` and the `['|()', args]` step a `.` node carries for
       a method call are in the EDAG validation/type schema (`fjs/edag/`), shape only —
       the property-operand restriction below is this stage's own work.
-- [ ] Convert the corresponding parser call expressions to the EDAG call forms — `()`
+- [x] Convert the corresponding parser call expressions to the EDAG call forms — `()`
       for an ordinary call, a `.` node with a `['|()', args]` continuation for a
       method call; reject prohibited or runtime-computed string properties in that
-      node rather than bypassing the property-access safety rule.
-- [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
+      node rather than bypassing the property-access safety rule. Done: the grammar
+      takes a call as a step after a value, the callee picks the form in
+      [`../edag/module.f.mjs`](../edag/module.f.mjs)'s `call`, and a method call's
+      property is the access's, so the rule that refuses a built-in prototype's name
+      refuses `a.toString()` where it refuses `a.toString`. `(a.b)(c)`, the plain
+      call on an access, is unspellable until grouping, so no source writes one.
+- [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
-      properties and rejection of prohibited/runtime-computed string properties.
+      properties and rejection of prohibited/runtime-computed string properties. Done:
+      `call` in [`../parser/grammar/proof.f.mjs`](../parser/grammar/proof.f.mjs),
+      `func.call` and `func.callRefused` in [`../parser/proof.f.mjs`](../parser/proof.f.mjs),
+      `call` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs) and in
+      [`../proof.f.mjs`](../proof.f.mjs).
 - [ ] Whenever optional chaining enters the source subset, lower grouping and chain
       boundaries per "Chains" in [`../../edag/README.md`](../../edag/README.md), with
       proofs over the spellings the `chains` section of

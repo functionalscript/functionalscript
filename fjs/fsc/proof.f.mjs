@@ -510,6 +510,24 @@ export const proof = {
             // a body's `const` may name the arguments, which no module `const` can
             assertEq(fjsRoundTrip('export default (...a) => { const x = [a]; return [x, x]; };'), 'export default (...$a)=>{const $a0=[$a];return [$a0,$a0];};')
         },
+        // A call compiles: the EDAG holds it, the value outputs refuse the
+        // module for it — this evaluator has no function to apply — and the
+        // FunctionalScript writer has no spelling for it yet, which is the
+        // remaining Stage 2 task of
+        // `fjs/fsc/todo/compile-modules-to-edag.md`.
+        call: () => {
+            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["()",["=>",null,1],["[]",[1]]];')
+            assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default [".",["{}",[[":","b",1]]],"b",["|()",["[]",[2]]]];')
+            // a module whose entries hold no function still has no value
+            // once a call is reached: applying one is the interpreter's
+            assertEq(moduleRefused('export default [1][0](2);'), 'input.f.js - error: a call has no value')
+            assertEq(jsonRefused('export default [1][0](2);'), 'input.f.js - error: a call has no value')
+            // the writer refuses both forms, each by the name of the node
+            // it met: the plain call, and the step a method call hangs on
+            // its access
+            assertEq(fjsRefused({ 'input.f.js': [utf8('const f = (...a) => 1; export default f(1);')] }), 'output.f.js - error: a () node')
+            assertEq(fjsRefused({ 'input.f.js': [utf8('export default [1][0](2);')] }), 'output.f.js - error: a chain step')
+        },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written: a missing import
         refused: () => {

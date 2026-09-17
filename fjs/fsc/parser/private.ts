@@ -45,7 +45,21 @@ export type _ListNode = readonly [
 ]
 
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
-export type _AccessNode = Unmapped<readonly [string, Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>]>
+export type _AccessNode = Unmapped<readonly [string, unknown]>
+
+/**
+ * The branch of a property access, `. t name t` or `[ t key t ] t`: the
+ * token its key is read from at the third position, under the identifier's
+ * or the constant's own alternative.
+ */
+export type _KeyBranch = Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>
+
+/**
+ * The branch of a call, `( t [ items(value) ] ) t`: the `(` an error against
+ * the call is anchored at, and its arguments at the third position, the same
+ * optional list an array holds.
+ */
+export type _CallBranch = Unmapped<readonly [_Leaf, unknown, _OptionalList, ...unknown[]]>
 
 /**
  * The node of an import's optional attribute: no round, or one holding
@@ -67,6 +81,17 @@ export type _Env = OrderedMap<AstModuleRef | AstArgs>
  */
 export type _ContainerFrame = {
     readonly container: Container
+    readonly index: number
+    readonly done: List<AstConst>
+}
+
+/**
+ * A call being built: `operands(call)[index]` is being evaluated, and `done`
+ * holds the values before it — the callee first and then each argument, in
+ * the order written, which is the order they are evaluated in.
+ */
+export type _CallFrame = {
+    readonly call: readonly ['()', Node, readonly Node[], DjsTokenWithMetadata]
     readonly index: number
     readonly done: List<AstConst>
 }
@@ -103,7 +128,7 @@ export type _BodyFrame = {
     readonly result: Node
 }
 
-export type _Frame = _ContainerFrame | _AccessFrame | _FunctionFrame | _BodyFrame
+export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _FunctionFrame | _BodyFrame
 
 /** The containers, accesses and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null

@@ -227,6 +227,39 @@ export const proof = {
         assertStructurallySame(read('const a = {}; export default a.;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a."b";'), ['error', 'string'])
     },
+    // A call is a step after a value, as an access is: `(` decides it, and
+    // what it applies to is everything written before it. Its arguments are
+    // the list an array holds — none, one, several, a trailing comma — so
+    // `f(1,)` is `[1,]`'s rule, and `f(,)` is refused where `[,]` is.
+    call: () => {
+        assertStructurallySame(read('const f = (...a) => 1; export default f();'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1);'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1, "a", [2], { b: 3 });'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1,);'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f ( 1 , 2 ) ;'), ['ok'])
+        // steps upon steps, in the order written
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1)(2);'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o.b(1).c[0](2);'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o["b"](1);'), ['ok'])
+        // a call takes a value where a value stands: in a body, an array,
+        // an object, a `const`, and an argument of its own
+        assertStructurallySame(read('const f = (...a) => 1; export default (...b) => f(b);'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default [f(1), { x: f(2) }];'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; const x = f(1); export default x;'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(f(1));'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default (...b) => { const x = f(b); return x; };'), ['ok'])
+        // an argument is a value, and a hole is not one
+        assertStructurallySame(read('const f = (...a) => 1; export default f(,);'), ['error', ','])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1 2);'), ['error', 'number'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1;'), ['error', ';'])
+        // a call is no statement of its own: it stands where a value does
+        assertStructurallySame(read('const f = (...a) => 1; f(1); export default 1;'), ['error', 'f'])
+        // the grammar takes a call on a numeric literal, as it takes an
+        // access on one: which callees a call may have is the fold's, since
+        // the grammar sees a value and not what it is
+        assertStructurallySame(read('export default -1();'), ['ok'])
+        assertStructurallySame(read('export default 1();'), ['ok'])
+    },
     // `;` ends every statement: a newline does not, and neither does the
     // end of input. A newline is trivia, read past, so the failure is at
     // what came instead of the `;` — the next statement, or the end.

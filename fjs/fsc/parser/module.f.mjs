@@ -47,11 +47,11 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstConst, AstFunction, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Body, Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _BodyFrame, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -63,7 +63,8 @@ import { prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, value, values,
+    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, value,
+    values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -289,12 +290,28 @@ const symbol = out => ({ symbol: 0, meta: out })
  * constant — at the third position of either branch, under the identifier's
  * or the constant's own alternative.
  *
- * @type {(round: _AccessNode) => DjsTokenWithMetadata}
+ * @type {(branch: _KeyBranch) => DjsTokenWithMetadata}
  */
-const accessKey = round => tokenAt(unmapped(unmapped(unmapped(round)[1])[2])[1])
+const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
 
-/** One access applied to the node before it. @type {(base: Node, round: _AccessNode) => Node} */
-const accessed = (base, round) => ['.', base, accessKey(round)]
+/**
+ * One step applied to the node before it: a property access by the token
+ * its key is read from, or a call by its arguments — the optional list at
+ * the third position of `( t [ items(value) ] ) t`, read as an array's
+ * items are.
+ *
+ * What a step applies to is everything written before it, which is what
+ * folding them in order says: `a.b(1)[0]` is the index of the call of the
+ * access, and `f(1)(2)` is the call of the call.
+ *
+ * @type {(base: Node, round: _AccessNode) => Node}
+ */
+const accessed = (base, round) => {
+    const [tag, branch] = unmapped(round)
+    if (tag !== 'call') { return ['.', base, accessKey(/** @type {_KeyBranch} */(branch))] }
+    const call = unmapped(/** @type {_CallBranch} */(branch))
+    return ['()', base, toArray(valueItems(call[2])), tokenAt(call[0])]
+}
 
 /**
  * The node a value's own part makes, before the accesses after it: a
@@ -432,6 +449,9 @@ export const mappings = [
     map(value, toNode),
     map(body, toNode),
     map(values, toValues),
+    // a call's arguments are that same list, reached through a rule of its
+    // own, so the same reader serves both
+    map(callArguments, toValues),
     map(member, toMember),
     map(members, toMembers),
     map(importStatement, toImport),
@@ -559,6 +579,18 @@ export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== '
  */
 const numericBase = foldError('access on a numeric literal')
 
+/**
+ * A call on a number or a bigint literal, at the `(`. The same ambiguity
+ * {@link numericBase} refuses: JavaScript reads `-1()` as `-(1())`, the
+ * minus outside the call, while the tokenizer folds it into the number —
+ * so the callee here would be `-1` where JavaScript calls `1`. With no
+ * negation in the language to read the spelling JavaScript's way, a call on
+ * any numeric literal is refused rather than some, as an access on one is:
+ * `1()` is a `TypeError` in both and worth nothing, and a reference to a
+ * number keeps `n()`, which reads alike in both.
+ */
+const numericCallee = foldError('call on a numeric literal')
+
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
     const { token } = t
@@ -653,6 +685,53 @@ const round = (stack, env, frame) => {
 }
 
 /**
+ * How many operands a call has: its callee and its arguments.
+ *
+ * Counted and indexed rather than built into one list, which is what
+ * `[callee, ...args]` per round would be — a copy of every argument for
+ * each of them, and quadratic in a call's width where the parser is linear
+ * in an array's.
+ *
+ * @type {(call: _CallFrame['call']) => number}
+ */
+const callOperandCount = call => call[2].length + 1
+
+/**
+ * The operand a call evaluates at `index`: the callee first, then each
+ * argument as written — JavaScript's own order, and the order an error
+ * among them is reported in.
+ *
+ * @type {(call: _CallFrame['call'], index: number) => Node}
+ */
+const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1]
+
+/**
+ * The next operand of a call, or the call closed when none is left: the
+ * first value is the callee and the rest its arguments.
+ *
+ * @type {(stack: _Stack, env: _Env, frame: _CallFrame) => _State}
+ */
+const callRound = (stack, env, frame) => {
+    const { call, index } = frame
+    // The callee is answered for before an argument is read, as a method
+    // call's property is: the `(` comes before what follows it, and the
+    // first error in source order is the one reported.
+    //
+    // `done` holds the callee alone at this point, so reading it is one
+    // step and not a walk of the arguments — the list is flattened once, at
+    // the close below.
+    if (index === 1) {
+        const callee = toArray(frame.done)[0]
+        if (typeof callee === 'number' || typeof callee === 'bigint') { return [stack, env, error(numericCallee(call[3]))] }
+    }
+    if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, env, ['enter', callOperandAt(call, index)]] }
+    const [callee, ...args] = toArray(frame.done)
+    /** @type {AstCall} */
+    const closed = ['()', callee, args]
+    return [stack, env, ok(closed)]
+}
+
+/**
  * Whether a name is bound outside the function being resolved: bound by
  * the names a function frame on the stack holds for after its body, which
  * the body may not use — a function has no frame to capture with yet.
@@ -709,6 +788,7 @@ const enter = (stack, env, node) => {
             return [stack, env, error(bound(stack, word) ? capture(node[1]) : constNotFound(node[1]))]
         }
         case '.': { return [{ top: { key: node[2] }, rest: stack }, env, ['enter', node[1]]] }
+        case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
         case '=>': {
             const [tag, word] = identifierOf(node[1])
             if (tag === 'error') { return [stack, env, error(word)] }
@@ -733,6 +813,7 @@ const enter = (stack, env, node) => {
  */
 const returned = (stack, env, frame, value) => {
     if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('call' in frame) { return callRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) { return [stack, env, accessClosed(frame.key, value)] }
     if ('statements' in frame) {
         if (frame.index < frame.statements.length) {

@@ -22,7 +22,7 @@ value  ::= (primitive t | id t | array | object) access* | func
 body   ::= (primitive t | id t | array) access* | func | block
 block  ::= '{' t const* 'return' s value ';' t '}' t
 func   ::= '(' t '...' t id t ')' s '=>' t body
-access ::= '.' t id t | '[' t (string | number) t ']' t
+access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
 member ::= key t ':' t value

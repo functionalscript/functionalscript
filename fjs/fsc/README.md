@@ -114,8 +114,20 @@ value again: any number of `const` statements and then one `return`. A body
 module — one node however many references reach it, and what the returned
 value does not reach anchored by the comma rather than dropped, which is the
 one place a comma stands outside a module's root. With no statement the block
-lowers to the value it returns, the two spellings being one function. There is
-no call yet.
+lowers to the value it returns, the two spellings being one function.
+A call is a step after a value, as an access is, and the callee picks which of
+the EDAG's two forms it lowers to: an access as the callee is a method call,
+`a.b(c)`, whose receiver is that access's base, so the access owns the call
+and the two are one node, `['.', a, 'b', ['|()', args]]`; any other callee is
+the plain `['()', callee, args]`, its arguments one array node the call
+spreads. The plain form over an access is the *detached* receiver,
+`(0, a.b)(c)`, which needs the comma operator and is unspellable, so no
+source writes one — `(a.b)(c)` keeps the receiver and is the method call
+again, parentheses preserving the property reference. A call mints identity — two calls are
+two nodes and a `const` naming one is one — which is what a body's `const`
+keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
+form yet and refuses both by name, so a module with a call in it compiles to
+the EDAG output alone.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.

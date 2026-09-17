@@ -11,7 +11,7 @@
  * body   ::= (primitive t | id t | array) access* | func | block
  * block  ::= '{' t const* 'return' s value ';' t '}' t
  * func   ::= '(' t '...' t id t ')' s '=>' t body
- * access ::= '.' t id t | '[' t (string | number) t ']' t
+ * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
  * array  ::= '[' t [ items(value) ] ']' t
  * object ::= '{' t [ items(member) ] '}' t
  * member ::= key t ':' t value
@@ -50,7 +50,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Block, Body, Func, Items, Member, Value } from './types.ts'
+ * @import { Access, Block, Body, Func, Items, Member, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -229,14 +229,36 @@ export const index = /** @type {const} */ ({
 })
 
 /**
- * One step of a property access after a value: `.name`, the name any
- * identifier, or `[key]`, the key a constant. What the two spellings may
- * name is the fold's to check, since the name is a word the grammar does
- * not see. Each step ends with its trivia, as a value does.
+ * A call's arguments: the items an array holds, {@link values}, reached
+ * through a thunk.
+ *
+ * This is where the grammar's cycle is broken a second time — a value takes
+ * steps, a step may be a call, and a call holds values, so `access` would
+ * have to name `values` before it is declared. A rule of its own rather than
+ * a thunk over the value rule, because what a list embeds has to be the
+ * `value` rule itself: the rewrite set is keyed by rule, so a wrapper in the
+ * item's place would leave each argument unmapped.
+ *
+ * @type {() => ReturnType<Items<Value>>}
  */
-export const access = /** @type {const} */ ({
+export const callArguments = () => values()
+
+/**
+ * One step after a value: a property access, `.name` with the name any
+ * identifier or `[key]` with the key a constant, or a call, `(a, b)` with
+ * its arguments any values. What a property's two spellings may name is the
+ * fold's to check, since the name is a word the grammar does not see. Each
+ * step ends with its trivia, as a value does.
+ *
+ * Three symbols decide between them — `.`, `[` and `(` — and none of them
+ * follows a value any other way, so the step a value takes is read in one.
+ * `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what a
+ * step applies to is everything written before it.
+ */
+export const access = /** @type {Access} */ ({
     property: [sym('.'), trivia, identifierName, trivia],
     index: [sym('['), trivia, index, trivia, sym(']'), trivia],
+    call: [sym('('), trivia, option(callArguments), sym(')'), trivia],
 })
 
 /** The accesses after a value, `a.b[0]`, none or more. */
@@ -311,11 +333,11 @@ export const key = /** @type {const} */ ({
 /** @type {Member} */
 export const member = [key, trivia, sym(':'), trivia, value]
 
-/** The items of an array. A rule of its own, so that a reader may map it. */
-export const values = items(value)
-
 /** The members of an object, likewise. */
 export const members = items(member)
+
+/** The items of an array. A rule of its own, so that a reader may map it. */
+export const values = items(value)
 
 export const array = /** @type {const} */ ([sym('['), trivia, option(values), sym(']'), trivia])
 
