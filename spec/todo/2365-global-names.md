@@ -283,15 +283,27 @@ not carry it forward.
       refusal then needs no code: `identifierOf` already answers
       `reserved word` wherever a name is bound or referenced.
 - [ ] A proof that every name [`2360-built-in.md`](./2360-built-in.md)
-      lists is in the set, so that a namespace admitted there cannot be a
-      name a module was free to bind — `WebAssembly` is the one that is in
-      2360 and outside ECMA-262 §19 today, and the proof is what keeps the
-      next one from slipping through. 2360's four `UInt*` entries are
-      misspelled — `Uint8Array` and its three siblings are the names that
-      exist — and the proof cannot pass until they are corrected, which
-      this change does. Four more of its entries are no global binding at
-      all, being intrinsics reached through a prototype, so the proof reads
-      "every name 2360 lists that the global object has".
+      lists is in the set — **every** name it lists, with no predicate
+      filtering the list first. That one assertion catches all three things
+      that have gone wrong here: a namespace admitted there that a module was
+      free to bind (`WebAssembly`), a misspelling (2360's four `UInt*`
+      entries, corrected in this change), and a name that is no global at
+      all (its four intrinsics, struck in this change) — each of them fails
+      the same way, by being in 2360 and not in the set.
+
+      A filter would undo it. "Every name 2360 lists *that the global object
+      has*" — which this task said until the review caught it — passes
+      happily on `UInt8Array`, since a misspelling is in no `globalThis`
+      either, so the check would skip exactly the entries it exists to
+      catch.
+- [ ] Do not make `name in globalThis` the proof. It is the tool that built
+      the list and found all three mistakes, and it belongs in the pull
+      request that revises the list — but as an audit a person runs, not an
+      assertion CI runs, because the runtimes disagree. At `783e60c3`,
+      `'Float16Array' in globalThis` is `false` on Node 22 and `true` on
+      Bun, so the same assertion would pass on one row of the matrix and
+      fail on the next. The list is the standard's, and the proof is
+      list against list.
 - [ ] Proofs: each of the four positions in the table above, and a
       `const not found` still answering a name nothing binds, so that the
       new refusal is seen to be about the list rather than about references
