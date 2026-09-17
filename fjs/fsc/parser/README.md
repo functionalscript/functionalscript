@@ -18,10 +18,12 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
-value  ::= (primitive t | id t | array | object) access* | func
-body   ::= (primitive t | id t | array) access* | func | block
+value  ::= (primitive t | id t | array | object) access* | paren
+body   ::= (primitive t | id t | array) access* | paren | block
 block  ::= '{' t const* 'return' s value ';' t '}' t
-func   ::= '(' t '...' t id t ')' s '=>' t body
+paren  ::= '(' t (func | group)
+func   ::= '...' t id t ')' s '=>' t body
+group  ::= value ')' t access*
 access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
@@ -33,8 +35,19 @@ s      ::= (ws | comment)*
 ```
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
-refuses a grammar where it would not, before any input. Three things are spelled
-for that, each a conflict the backtracking grammar this replaced had
+refuses a grammar where it would not, before any input.
+
+A `(` opens two things, so `paren` takes the `(` and `func` and `group` part
+at the symbol after it: `...` against a value's first set, which no `...`
+is in. That is how a function and a group live in one grammar without
+looking past the `)` — where JavaScript itself has to look, and where
+parenthesized parameters will
+([`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)).
+It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
+is a group, and nothing may follow a value there.
+
+Three more things are spelled for one symbol of lookahead, each a conflict
+the backtracking grammar this replaced had
 ([the record](../README.md#both-grammars-are-ll1) of all eight):
 
 - **Trivia follows a token, never leads a rule.** Every token is followed by

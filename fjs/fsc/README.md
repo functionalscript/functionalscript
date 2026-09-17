@@ -125,7 +125,13 @@ spreads. The plain form over an access is the *detached* receiver,
 source writes one — `(a.b)(c)` keeps the receiver and is the method call
 again, parentheses preserving the property reference. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
-keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
+keeps.
+A group, `(x)`, is the value it holds: no node in the AST or the graph, and
+nothing downstream can tell one was written — the steps after the `)` read
+the value inside, which is why `(a.b)(c)` is the node `a.b(c)` is, and the
+sharing a module spells survives the parentheses. What it adds is spelling:
+a function returning an object, `(...a) => ({ x: 1 })`, and an access or a
+call on a value written in place, `([1]).length`. [`serializer`](serializer/module.f.mjs) has no spelling for either
 form yet and refuses both by name, so a module with a call in it compiles to
 the EDAG output alone.
 A member a later duplicate shadows is in the graph, since the constructor

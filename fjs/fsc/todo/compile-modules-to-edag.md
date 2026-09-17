@@ -601,8 +601,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       takes a call as a step after a value, the callee picks the form in
       [`../edag/module.f.mjs`](../edag/module.f.mjs)'s `call`, and a method call's
       property is the access's, so the rule that refuses a built-in prototype's name
-      refuses `a.toString()` where it refuses `a.toString`. `(a.b)(c)`, the plain
-      call on an access, is unspellable until grouping, so no source writes one.
+      refuses `a.toString()` where it refuses `a.toString`, and grouping the access is
+      no way around it: `(a.b)(c)` keeps the receiver and is that same method call,
+      while the detached `(0, a.b)(c)` waits on the comma operator.
 - [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
       properties and rejection of prohibited/runtime-computed string properties. Done:
@@ -610,13 +611,16 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `func.call` and `func.callRefused` in [`../parser/proof.f.mjs`](../parser/proof.f.mjs),
       `call` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs) and in
       [`../proof.f.mjs`](../proof.f.mjs).
-- [ ] Whenever optional chaining enters the source subset, lower grouping and chain
-      boundaries per "Chains" in [`../../edag/README.md`](../../edag/README.md), with
-      proofs over the spellings the `chains` section of
+- [ ] Whenever optional chaining enters the source subset, lower chain boundaries per
+      "Chains" in [`../../edag/README.md`](../../edag/README.md), with proofs over the
+      spellings the `chains` section of
       [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs) pins — among them `a?.b.c`
       against `(a?.b).c`, `a?.b(d)` against `(a?.b)(d)`, and `(a?.b.c)(d)` against
-      `(a?.b).c(d)`. The grammar removes most of what such a lowering used to have to
-      enforce: the duplicate spellings it had to avoid emitting are now unspellable.
+      `(a?.b).c(d)`. Grouping has landed, and it is where those pairs differ: a group
+      ends a chain's lazy region, so the second of each pair is a group whose steps
+      run whatever the `?.` found. Until `?.` is in the subset a group is transparent
+      and both sides of each pair are one node, which is the answer the lowering has
+      to keep for the non-optional spellings while it splits the optional ones.
 - [x] Add a scope-aware linking proof such as
       `import y from './y.f.js'; export default [y, (...x) => x]`: resolving `y` must not
       rewrite the nested function body's `['args']`. Done, in `func` of

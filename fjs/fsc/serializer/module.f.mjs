@@ -285,7 +285,10 @@ const firstChunk = first('')
  * `=> {` opens a block and not an object. That question is the text's and
  * not the node's: an object literal is not the only body that begins with
  * one — `['.', ['{}', …], 'a']` writes `{"a":1}.a` — and a body that begins
- * with `{` any other way would need the same block.
+ * with `{` any other way would need the same block. Grouping has since given
+ * the language `=> ({"a":1})`, which is the same function in four fewer
+ * characters; writing that instead is
+ * [`./todo/parenthesized-object-body.md`](./todo/parenthesized-object-body.md).
  *
  * A body needing one is a block, `=> {const $a0=…;return v;}`, which is
  * where a shared constructor inside a body, a numeric or function access

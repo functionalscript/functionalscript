@@ -654,6 +654,58 @@ export const proof = {
             // a trailing comma is the list's, as an array's is
             expect('const f = (...a) => 1; export default f(1,);', '[[],[["=>",[1]],["()",["cref",0],[1]]]]')
         },
+        // A group is no node: `(x)` is whatever `x` is, so the AST is the
+        // one the parentheses are not in — the sharing a module spells
+        // survives them, and a step after the `)` reads the value inside.
+        group: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (1);', '[[],[1]]')
+            expect('export default ((1));', '[[],[1]]')
+            expect('export default ( /* c */ [1] /* c */ );', '[[],[["array",[1]]]]')
+            // the object body, which `=> {` cannot spell
+            expect('export default (...a) => ({ x: 1 });', '[[],[["=>",[["object",[["x",1]]]]]]]')
+            // a group takes steps, and they apply to the value it holds
+            expect('export default ([1, 2]).length;', '[[],[[".",["array",[1,2]],"length"]]]')
+            expect('const a = { b: 1 }; export default (a).b;', '[[],[["object",[["b",1]]],[".",["cref",0],"b"]]]')
+            // a group of a reference is that reference, so two routes into
+            // one `const` are the one node they were
+            expect('const a = [1]; export default [(a), a];', '[[],[["array",[1]],["array",[["cref",0],["cref",0]]]]]')
+            // and parentheses keep a property reference, as JavaScript's do
+            // — `(a.at)(0) === 42` there, pinned by `chainsJs.receiver` in
+            // `fjs/edag/proof.f.mjs` — so a call on a grouped access is the
+            // method call, the very node `o.b(1)` is and not a detached one
+            const grouped = '[[],[["object",[["b",1]]],["()",[".",["cref",0],"b"],[1]]]]'
+            expect('const o = { b: 1 }; export default (o.b)(1);', grouped)
+            expect('const o = { b: 1 }; export default ((o.b))(1);', grouped)
+            expect('const o = { b: 1 }; export default o.b(1);', grouped)
+        },
+        // A group denotes its value, so it launders nothing: every rule the
+        // value earns it earns inside the parentheses, at the same token.
+        groupRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            // a numeric literal in a group is a numeric literal, whether the
+            // step after it is an access or a call
+            expect('export default (1).x;', 'access on a numeric literal', 20)
+            expect('export default (-1).x;', 'access on a numeric literal', 21)
+            expect('export default (1)(2);', 'call on a numeric literal', 19)
+            // a built-in prototype's name is refused whether the access is
+            // called in place or grouped and called after
+            expect('const o = {}; export default (o.toString)(1);', 'prohibited property name', 33)
+            expect('const o = {}; export default o.toString(1);', 'prohibited property name', 32)
+            // and a name nothing binds is not found where it stands
+            expect('export default (zzz);', 'const not found', 17)
+        },
         // What a call's operands earn, each where it is written: the callee
         // is resolved before the arguments, and an argument before the ones
         // after it, so the first failure in source order is the one reported.

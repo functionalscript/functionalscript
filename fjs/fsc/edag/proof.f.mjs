@@ -239,6 +239,26 @@ export const proof = {
         // the callee is one node however many calls reach it
         assert(twice[1][0] instanceof Array && twice[1][1] instanceof Array, twice)
         assert(twice[1][0][1] === twice[1][1][1], twice)
+        // grouping the access changes nothing: parentheses keep the
+        // property reference, so this is the method call above, node for
+        // node, and not the detached `(0, o.b)(3)` the comma operator will
+        // spell
+        expectEdag(compile('const o = { b: 1 }; export default (o.b)(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', ['[]', [3]]]])
+    },
+    // A group lowers to the node of the value it holds and adds none of its
+    // own: `(x)` *is* `x`, so the graph and its sharing are the ones the
+    // parentheses are not in.
+    group: () => {
+        expectEdag(compile('export default (1);').edag, 1)
+        expectEdag(compile('export default (([1]));').edag, ['[]', [1]])
+        expectEdag(compile('export default ([1, 2]).length;').edag, ['.', ['[]', [1, 2]], 'length'])
+        expectEdag(compile('export default (...a) => ({ x: a });').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
+        // a `const` reached through a group is the node it is reached
+        // without one: one node, two references
+        const shared = compile('const a = [1]; export default [(a), a];').edag
+        expectEdag(shared, ['[]', [['[]', [1]], ['[]', [1]]]])
+        assert(shared instanceof Array && shared[0] === '[]', shared)
+        assert(shared[1][0] === shared[1][1], shared)
     },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many

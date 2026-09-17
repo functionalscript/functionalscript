@@ -15,8 +15,8 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, constStatement, djsModule,
-    exportStatement, func, identifier, importStatement, index, items, key, member, object, primitive, sym, symbolOf, trivia,
-    value,
+    exportStatement, func, group, identifier, importStatement, index, items, key, member, object, paren, parenthesized,
+    primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -67,6 +67,9 @@ export const proof = {
         parser(/** @type {Rule} */ (array))
         parser(/** @type {Rule} */ (object))
         parser(/** @type {Rule} */ (func))
+        parser(/** @type {Rule} */ (group))
+        parser(/** @type {Rule} */ (parenthesized))
+        parser(/** @type {Rule} */ (paren))
         parser(/** @type {Rule} */ (body))
         parser(/** @type {Rule} */ (block))
         parser(attribute)
@@ -142,7 +145,12 @@ export const proof = {
         assertStructurallySame(read('export default ( ... a ) => /* c */ [ a , (...b) => 1 , ] ;'), ['ok'])
         assertStructurallySame(read('const f = (...a) => a.b[0]; export default { f: f };'), ['ok'])
         assertStructurallySame(read('export default () => 1;'), ['error', ')'])
-        assertStructurallySame(read('export default (a) => 1;'), ['error', 'a'])
+        // `(a)` is a group of a reference, so the failure is no longer at
+        // the name but at the `=>`, which cannot follow a value:
+        // parenthesized parameters wait on named parameters
+        // (`spec/todo/3120-parameters.md`), which JavaScript itself tells
+        // from a group only past the `)`
+        assertStructurallySame(read('export default (a) => 1;'), ['error', '=>'])
         assertStructurallySame(read('export default (...1) => 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a, ...b) => 1;'), ['error', ','])
         assertStructurallySame(read('export default (...a) 1;'), ['error', 'number'])
@@ -226,6 +234,40 @@ export const proof = {
         assertStructurallySame(read('const a = {}; export default a.1;'), ['error', 'number'])
         assertStructurallySame(read('const a = {}; export default a.;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a."b";'), ['error', 'string'])
+    },
+    // A group is a value in parentheses, the other thing a `(` opens: the
+    // two part at the symbol after it, `...` against a value's first, so
+    // one symbol of lookahead still decides and the grammar never looks
+    // past the `)`.
+    //
+    // A group takes steps as any value does, and the value inside is the
+    // whole value rule — the object included, which is what gives a
+    // function returning an object its short spelling.
+    group: () => {
+        assertStructurallySame(read('export default (1);'), ['ok'])
+        assertStructurallySame(read('export default ((1));'), ['ok'])
+        assertStructurallySame(read('export default ( /* c */ 1 /* c */ ) ;'), ['ok'])
+        assertStructurallySame(read('export default ({ a: 1 });'), ['ok'])
+        assertStructurallySame(read('export default ([1, 2]).length;'), ['ok'])
+        assertStructurallySame(read('const a = {}; export default (a).b[0];'), ['ok'])
+        // a function is a value, so a group holds one, and a group is a
+        // value, so a function's body is one — which is how a body spells
+        // the object `=> {` cannot
+        assertStructurallySame(read('export default ((...a) => 1);'), ['ok'])
+        assertStructurallySame(read('export default (...a) => (a);'), ['ok'])
+        assertStructurallySame(read('export default (...a) => ({ x: a });'), ['ok'])
+        assertStructurallySame(read('export default (...a) => ({ x: a }).x;'), ['ok'])
+        // a call on a group: the grammar takes it, and it is the same call
+        // `o.b(1)` is, since parentheses keep the property reference
+        assertStructurallySame(read('const o = {}; export default (o.b)(1);'), ['ok'])
+        // a group holds one value and holds it: no hole, no bare comma
+        // (which waits on the operator, `spec/todo/2340-operators.md`), and
+        // no missing `)`
+        assertStructurallySame(read('export default ();'), ['error', ')'])
+        assertStructurallySame(read('export default (,);'), ['error', ','])
+        assertStructurallySame(read('export default (1, 2);'), ['error', ','])
+        assertStructurallySame(read('export default (1;'), ['error', ';'])
+        assertStructurallySame(read('export default (1));'), ['error', ')'])
     },
     // A call is a step after a value, as an access is: `(` decides it, and
     // what it applies to is everything written before it. Its arguments are
