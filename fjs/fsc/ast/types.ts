@@ -26,8 +26,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstFunction|AstArgs
 
 /**
  * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
@@ -96,6 +96,19 @@ export type AstObject = readonly ['object', readonly AstMember[]]
  * access on a number or a bigint literal.
  */
 export type AstAccess = readonly ['.', AstConst, string | number]
+
+/**
+ * A call, `f(a, b)`: the callee any value, and the arguments in the order
+ * written.
+ *
+ * The EDAG spells a call two ways and the lowering picks by the callee: a
+ * callee that is an access is a *method* call, `a.b(c)`, whose receiver is
+ * that access's base — the `.` node owns its call, `['.', a, 'b', ['|()',
+ * args]]` — and any other callee is the plain `['()', callee, args]`. The
+ * two are different programs in JavaScript, and `a.b(c)` is the only
+ * spelling the language has for either, `(a.b)(c)` waiting on grouping.
+ */
+export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
 
 /**
  * The constants of a body, in declaration order. The **last** entry is the

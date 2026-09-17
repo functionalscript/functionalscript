@@ -9,7 +9,7 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — operators, calls, type
+Features the parser does not recognize yet — operators, type
 annotations — and the design documents for the VM, I/O,
 serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
@@ -286,8 +286,8 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression, a property access or a function.
-Operators, calls and grouping are not recognized yet — see the
+An expression is a data expression, a property access, a function or a call.
+Operators and grouping are not recognized yet — see the
 [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
@@ -506,8 +506,9 @@ and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
 find a function there and this language nothing, and a module must mean one
 thing in both. `length` is the exception, since an array, a string and a
 function own it. The rules are
-[property-accessor](./todo/2330-property-accessor.md)'s; a key computed at
-run time, and a method call, are not recognized yet.
+[property-accessor](./todo/2330-property-accessor.md)'s, and they hold for a
+method call too, `a.toString()` being refused where `a.toString` is; a key
+computed at run time is not recognized yet.
 
 ## Importing Other Modules
 
@@ -649,7 +650,7 @@ alone:
   than read another way, exactly as a newline before `=>` is. A parameter
   list other than one rest parameter
   ([function](./todo/3110-function.md), [parameters](./todo/3120-parameters.md))
-  and a call are not recognized yet.
+  is not recognized yet.
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
   written twice, and it is not in its own initializer's scope. The parameter
@@ -670,6 +671,24 @@ alone:
 
   `pair` is one array however many references reach it, as a module `const`
   is one value — which is the whole reason a body has them.
+- A function is **called** as JavaScript calls one: `f(a, b)` with no
+  receiver, and `o.m(a)` with `o` as the receiver. A call is a step after a
+  value, as a property access is, and what a step applies to is everything
+  written before it — so `f(1)(2)` calls what `f(1)` returns, and
+  `o.m(1).n(2)` calls `n` on what `o.m(1)` returned. The arguments are the
+  list an array holds, a trailing comma included.
+
+  `o.m(a)` and `(o.m)(a)` are different programs in JavaScript — the first
+  passes `o` as the receiver and the second passes none — and only the first
+  is spellable here, the parenthesized form waiting on grouping. A method
+  call's property is the access's, so the names an access may not read, a
+  built-in prototype's among them
+  ([property access](#property-access)), it may not call either.
+
+  What a call *returns* is not a value the compiler computes: a `.data.js` or
+  `.json` output of a module that reaches a call is refused, as one holding a
+  function is, since applying a function is the interpreter's work
+  ([`fjs/fsc/todo/interpret-edag.md`](../fjs/fsc/todo/interpret-edag.md)).
 - A function is written by the FunctionalScript and EDAG outputs
   ([output](#output)); `fjs compile` refuses to write a module holding one as
   DataJS or as JSON, since a value has no function in it.

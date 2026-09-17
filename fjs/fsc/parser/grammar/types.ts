@@ -16,10 +16,10 @@ import type {
     _framingKeywords,
     _ordinaryTokenNames,
     _tokenKindNames,
-    access,
     constStatement,
     identifier,
     identifierName,
+    index,
     key,
     primitive,
     sameLine,
@@ -99,16 +99,29 @@ export type Container<Item extends Rule> = readonly [number, typeof trivia, Opti
 export type Member = readonly [typeof key, typeof trivia, number, typeof trivia, Value]
 
 /**
+ * One step after a value: `.name`, `[key]`, or a call and its arguments.
+ *
+ * Spelled here rather than inferred, as {@link Value} is and for the same
+ * reason: a call holds values, a value takes steps, so the two name each
+ * other and neither can be read off its own initializer.
+ */
+export type Access = {
+    readonly property: readonly [number, typeof trivia, typeof identifierName, typeof trivia]
+    readonly index: readonly [number, typeof trivia, typeof index, typeof trivia, number, typeof trivia]
+    readonly call: readonly [number, typeof trivia, Option<Items<Value>>, number, typeof trivia]
+}
+
+/**
  * A value: a primitive token, a reference, an array of values, or an
  * object of members, each ending with its trivia and each followed by the
  * accesses after it — a `const` thunk whose payload names the thunk, which
  * is what lets a type alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
-    readonly object: readonly [Container<Member>, RepeatFrom<0, typeof access>]
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
+    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
     readonly func: Func
 }]
 
@@ -117,9 +130,9 @@ export type Value = () => readonly ['const', {
  * JavaScript — or that block, in which an object is a value again.
  */
 export type Body = () => readonly ['const', {
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
     readonly func: Func
     readonly block: Block
 }]

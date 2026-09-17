@@ -104,6 +104,14 @@ const entryStep = (acc, ast) => okThen(foldOp(ast))(acc)
 const noFunctionValue = 'a function has no value'
 
 /**
+ * The refusal of a call where a value is wanted: this evaluator computes
+ * the value a module denotes and has no function to apply, so what a call
+ * returns is not a value it can reach. Interpreting a call is
+ * [`../todo/interpret-edag.md`](../todo/interpret-edag.md)'s.
+ */
+const noCallValue = 'a call has no value'
+
+/**
  * The value of one entry, or the failure. An object's members are written
  * into a plain object in the order the syntax holds them, so the result is
  * the object JavaScript builds from the same literal: a repeated key keeps
@@ -121,6 +129,7 @@ const toDjs = state => ast => {
         case 'object': { return mapOk(objectOf)(fold(collect)(noMembers)(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
         case 'args': { return error(noFunctionValue) }
+        case '()': { return error(noCallValue) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -196,6 +205,10 @@ const refsOf = view => ast => {
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf(view))) }
         case 'object': { return flat(view.members(ast[1]).map(refsOf(view))) }
+        // a call reaches its callee and every argument, each written where
+        // it stands: what the call *returns* is not reachable from the
+        // syntax at all, which is why a module holding one has no value
+        case '()': { return flat([ast[1], ...ast[2]].map(refsOf(view))) }
         // an access reaches what its key names inside its base: the base's
         // reference, one key deeper — once the view has read the access
         case '.': {

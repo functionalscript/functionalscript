@@ -54,6 +54,33 @@ const parameter = (_, i) => ['.', args, i]
 const property = lower => ([key, value]) => [':', key, lower(value)]
 
 /**
+ * A call's EDAG, by what it calls.
+ *
+ * A callee that is a property access is a **method call**: `a.b(c)` passes
+ * `a` as the receiver, so the access owns the call and the two are one node,
+ * `['.', a, 'b', ['|()', args]]` — writing `['()', ['.', a, 'b'], args]`
+ * instead would be `(a.b)(c)`, which calls with no receiver and is a
+ * different program. That spelling waits on grouping
+ * ([`../todo/grouping.md`](../todo/grouping.md)), so every access-callee
+ * written today is a method call.
+ *
+ * Any other callee is the plain call, `['()', callee, args]`.
+ *
+ * The arguments are one array node in both, which is what the EDAG's call
+ * takes: `exp0(...exp1)`, its second operand spread. A fresh node per call
+ * site, since each call writes its own list.
+ *
+ * @type {(nodes: _Nodes) => (callee: AstConst, args: readonly AstConst[]) => Exp}
+ */
+const call = nodes => (callee, args) => {
+    /** @type {Exp} */
+    const spread = ['[]', args.map(lower(nodes))]
+    return callee !== null && typeof callee === 'object' && callee[0] === '.'
+        ? ['.', lower(nodes)(callee[1]), callee[2], ['|()', spread]]
+        : ['()', lower(nodes)(callee), spread]
+}
+
+/**
  * One entry's EDAG. A reference is the node it names — a `const` is one
  * node however many references reach it, which is how the sharing a module
  * spells survives into the graph — and an object's members are written as
@@ -74,6 +101,7 @@ const lower = nodes => ast => {
         // one node however many references reach them, and nothing outside
         case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
+        case '()': { return call(nodes)(ast[1], ast[2]) }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }

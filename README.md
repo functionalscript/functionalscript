@@ -121,7 +121,8 @@ data expressions (objects, arrays, strings, numbers, `bigint`, booleans,
 property and never the prototype chain — and functions: one rest parameter,
 `(...a) => …`, whose body reaches nothing outside itself, so a reference to a
 `const`, an import or an enclosing function's parameter is refused as a
-capture. Calls and operators are not supported yet. See
+capture; and calls, `f(a)` and `o.m(a)`, whose arguments are the list an
+array holds. Operators are not supported yet. See
 [fjs/fsc/README.md](fjs/fsc/README.md) for the compiler, the data language it
 accepts today, and its roadmap.
 

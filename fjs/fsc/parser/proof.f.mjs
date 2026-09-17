@@ -634,6 +634,48 @@ export const proof = {
             // and a later statement is not in an earlier one's
             expect('export default (...a) => { const x = y; const y = 1; return x; };', 'const not found', 38)
         },
+        // A call, `['()', callee, args]`: the callee and then the arguments
+        // in the order written, which is the order they are resolved in and
+        // the order an error among them is reported in. A method call keeps
+        // its access as the callee here — which of the EDAG's two call
+        // forms that becomes is the lowering's.
+        call: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('const f = (...a) => 1; export default f();', '[[],[["=>",[1]],["()",["cref",0],[]]]]')
+            expect('const f = (...a) => 1; export default f(1, 2);', '[[],[["=>",[1]],["()",["cref",0],[1,2]]]]')
+            expect('const o = {}; export default o.b(3);', '[[],[["object",[]],["()",[".",["cref",0],"b"],[3]]]]')
+            expect('const f = (...a) => 1; export default f(1)(2);', '[[],[["=>",[1]],["()",["()",["cref",0],[1]],[2]]]]')
+            expect('export default (...a) => a[0](1);', '[[],[["=>",[["()",[".",["args"],0],[1]]]]]]')
+            // a trailing comma is the list's, as an array's is
+            expect('const f = (...a) => 1; export default f(1,);', '[[],[["=>",[1]],["()",["cref",0],[1]]]]')
+        },
+        // What a call's operands earn, each where it is written: the callee
+        // is resolved before the arguments, and an argument before the ones
+        // after it, so the first failure in source order is the one reported.
+        callRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default zzz(1);', 'const not found', 16)
+            expect('const f = (...a) => 1; export default f(zzz);', 'const not found', 41)
+            expect('const f = (...a) => 1; export default f(1, zzz);', 'const not found', 44)
+            expect('const f = (...a) => 1; export default f(yyy, zzz);', 'const not found', 41)
+            // a method call's property is the access's, so the rule that
+            // refuses a built-in prototype's name refuses it here too
+            expect('const o = {}; export default o.toString(1);', 'prohibited property name', 32)
+            expect('const o = {}; export default o.__proto__(1);', 'prohibited property name', 32)
+            // and a body still reaches nothing outside itself
+            expect('const f = (...a) => 1; export default (...b) => f(b);', 'capture not supported', 49)
+        },
         // A body `const` may take a name the module binds. The body cannot
         // reach the module's scope at all — a reference out is a capture —
         // so the module's name is unreachable here rather than hidden, and
