@@ -116,14 +116,25 @@ accepts, so that compiling the output again yields the same EDAG:
   the standard's, which every FunctionalScript file run by a JavaScript
   engine already relies on, since every standard prototype name is refused
   at the key and so `a.x` and the own read agree on every accepted name:
-  `base.key` for a key that is an identifier and `base[key]` otherwise, a
-  number key as a number, a computed number as `base[Number(k)]` — a
-  non-finite one, which `a[1e999]` produces, as `1e999` or `-1e999`, the
-  literal the tokenizer reads back to the same key, since `Infinity` is a
-  reserved word and not a key token; a `NaN` key, which no literal spells
-  and the compiler never emits, is refused by name. The
-  grammar takes no access on two bases the parser accepts through a
-  reference and linking then puts in place: a number or bigint literal —
+  `base.key` for a key the tokenizer reads as one `id` token and
+  `base[key]` otherwise — the characters classified by code point through
+  [`fjs/text/ascii`](../../text/ascii/module.f.mjs), never by a case fold,
+  which would make `\u212a` a letter, and the six words that denote a value
+  ([`literalWords`](../../js/keywords/module.f.mjs)) bracketed, being token
+  kinds of their own where every other keyword is an `id` — and a number key
+  as a number. Three numbers are refused instead, since no
+  literal reads back as the same key: `NaN` and the two infinities have no
+  literal at all — `Infinity` is a word and not a key token, and `1e999`,
+  which this issue first proposed for it, is read back as the key `null`
+  rather than as an infinity, which is the tokenizer's own bug and not a
+  spelling to build on — and `-0`, whose literal the parser already reads
+  as `0`. The compiler emits none of the three: `a[-0]` is the key `0` by
+  the time a graph holds it. A computed key, `['Number', e]`, is refused
+  too, rather than written `base[Number(k)]` as this issue first proposed:
+  the grammar's index is a string or a number literal, so that spelling is
+  one the parser would not read back, and it is a spelling to add with
+  computed keys. The grammar takes no access on two bases the parser accepts
+  through a reference and linking then puts in place: a number or bigint literal —
   `n.x` with `n` imported from a module exporting `1` links to
   `['.', 1, 'x']`, which `1.x` cannot spell — and a function — `f.length`
   with `f` exporting `(...a) => a` links to `['.', ['=>', null, ['args']], 'length']`,
@@ -166,19 +177,38 @@ contract stays for `.data.js` and `.json`, which are values.
 - [ ] Route the output by extension, longest suffix first: `.edag.data.js`/`.edag.data.mjs`,
       then `.data.js`/`.data.mjs`, `.f.js`/`.f.mjs`, `.json`; any other extension is
       refused, naming the four; `x.edag.data.js` pinned as the EDAG route.
-- [ ] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
+- [x] Write the FunctionalScript writer over `Exp`: leaves, containers, accesses
       with a numeric or function base hoisted, functions with parameters named by
       depth, the root comma as `const` anchors, shared identity-minting nodes —
       constructors and calls — hoisted and
       merged nodes written in place, every `const` named `$n` by position — one
       line, normalized.
-- [ ] Refuse what the writer cannot spell yet, naming the output file as the JSON
-      refusal does: a comma anywhere but the root, an object-literal body, a
+- [x] Refuse what the writer cannot spell yet, each by a message of its own,
+      for the compiler to name the output file with as the JSON refusal does:
+      a comma anywhere but the root, an
       identity-minting node shared within a body, a numeric or function base
       within a body, an identity-minting node reached only through lazy edges,
-      a `NaN` key, an object key that is not a string, a node kind
-      without a spelling.
-- [ ] Pin the round trip: for every module in the proofs the writer accepts,
+      a root comma with fewer than two operands — with one it has no anchor to
+      write and reads back as its operand alone, with none it is no module,
+      and linking emits neither — an anchor whose operand already has a name,
+      whose statement would be the alias `const $1=$0;` that the front end
+      reads back as nothing, taking the comma with it,
+      a key no number literal reads back, a computed key, an access key naming
+      a property of a built-in prototype — which the grammar refuses in either
+      spelling, so `prohibitedNames` has one owner and the writer imports it —
+      an object key that is not a string, and a node kind without a spelling.
+      A body whose text opens with `{` is not among them: it is written as a
+      block, which the block body
+      ([`3110-function.md`](../../../spec/todo/3110-function.md)) gives it —
+      an object literal, and an access on one, alike.
+      An identity-minting node reached only through lazy edges needs no rule
+      of its own: every lazy node kind is a kind with no spelling, so such a
+      graph is refused at the operator before its sharing is reached.
+- [x] Pin the writer's law over generated graphs: every shape over every shape
+      over the atoms, each either refused or written to text the front end
+      reads back to the same table. Four accept sets chosen by hand missed a
+      hole each; this catches all four when the fix is removed.
+- [ ] Pin the round trip through the compiler: for every module in the proofs the writer accepts,
       compile to `.f.js`, compile the output again, and compare the two EDAGs'
       analyses whole — root, nodes, scope and shared, equal up to the
       analysis's merge — so that `export default 1;`, whose table is empty,

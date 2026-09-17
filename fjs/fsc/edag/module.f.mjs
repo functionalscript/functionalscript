@@ -26,8 +26,26 @@ import { definedEntries } from '../../types/object/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
 
-/** `undefined` is tagged in an EDAG, because a bare one is a missing tuple position. */
-const undefinedNode = /** @type {const} */ (['undefined'])
+/**
+ * `undefined` is tagged in an EDAG, because a bare one is a missing tuple
+ * position.
+ *
+ * A node per occurrence, as a body's `args` is, and for the same reason: a
+ * node belongs to one scope. As a module-level constant this was one node
+ * for every `undefined` in a module, so
+ * `export default [undefined, (...a) => undefined];` — ordinary source the
+ * parser accepts and the writer spells — linked to a graph with one node
+ * inside a function and outside it, which is no EDAG, and the analysis
+ * threw on it
+ * ([`fjs/edag/todo/scope-and-identity-free-nodes.md`](../../edag/todo/scope-and-identity-free-nodes.md)
+ * asks whether the rule should reach a node like this one at all).
+ *
+ * Two occurrences in one scope are still one entry: the analysis merges
+ * identity-free nodes there, and this one has no operands to tell apart.
+ *
+ * @type {() => Exp}
+ */
+const undefinedNode = () => ['undefined']
 
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
 const parameter = (_, i) => ['.', args, i]
@@ -45,7 +63,7 @@ const property = lower => ([key, value]) => [':', key, lower(value)]
  * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
  */
 const lower = nodes => ast => {
-    if (ast === undefined) { return undefinedNode }
+    if (ast === undefined) { return undefinedNode() }
     if (ast === null || typeof ast !== 'object') { return ast }
     switch (ast[0]) {
         case 'aref': { return nodes.parameters[ast[1]] }

@@ -519,9 +519,15 @@ const prohibitedKey = foldError('prohibited property name')
  * a value, `fjs/js/prototype`, but `length` — an own property of an array,
  * a string and a function, which the two languages read alike.
  *
+ * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
+ * which refuses the same names rather than write an access the parser here
+ * would not read back: the rule is the language's, and it has one owner.
+ * The `_` says that export is linkage rather than API, as it does for
+ * `_tokenKindNames` in [`./grammar`](./grammar/module.f.mjs).
+ *
  * @type {ReadonlySet<string>}
  */
-const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
+export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
 /**
  * An access on a number or a bigint literal, at the key. JavaScript reads
@@ -554,7 +560,7 @@ const keyNamed = ({ token }) => {
  */
 const accessClosed = (key, base) => {
     const named = keyNamed(key)
-    if (typeof named === 'string' && prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+    if (typeof named === 'string' && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
     if (typeof base === 'number' || typeof base === 'bigint') { return error(numericBase(key)) }
     /** @type {AstAccess} */
     const access = ['.', base, named]
