@@ -76,6 +76,14 @@ A module may not **bind** a name ECMAScript defines globally: not as a
 rule, as `reserved word` does for a keyword, rather than reporting a token
 the grammar did not expect.
 
+That promise reaches a name only where the grammar lets it reach the fold,
+and three of them do not today: `NaN`, `Infinity` and `undefined` carry
+their own token symbols, so `const NaN = 1;` dies at the token with
+`unexpected token` before any binding-site check could run. It is the same
+rule that keeps them out of key position, and admitting them where a name
+may stand lifts both at once — until then, the implementation owes either
+that grammar work or an honest note that the three answer differently.
+
 It is a rule about binding sites only. The words stay ordinary property
 keys — `{ Math: 1 }`, `a.Object` — and stay ordinary strings. What a module
 may not do is give one of them a second meaning.
