@@ -112,6 +112,17 @@ const noFunctionValue = 'a function has no value'
 const noCallValue = 'a call has no value'
 
 /**
+ * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
+ * bigint, and anything else becomes a number first — `-null` is `-0`,
+ * `-"2"` is `-2`, `-true` is `-1` and `-{}` is `NaN`. The operator is
+ * total, so there is no refusal here; a source that negates a function
+ * never reaches this, the function having no value to begin with.
+ *
+ * @type {(value: Unknown) => Unknown}
+ */
+const negated = value => typeof value === 'bigint' ? -value : -Number(value)
+
+/**
  * The value of one entry, or the failure. An object's members are written
  * into a plain object in the order the syntax holds them, so the result is
  * the object JavaScript builds from the same literal: a repeated key keeps
@@ -130,6 +141,7 @@ const toDjs = state => ast => {
         case '=>':
         case 'args': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
+        case '-': { return mapOk(negated)(toDjs(state)(ast[1])) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -217,6 +229,8 @@ const refsOf = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
+        // a negation reaches its operand, which stands where it is written
+        case '-': { return refsOf(view)(ast[1]) }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }

@@ -15,7 +15,7 @@
 |           |`*`      |1          |
 |           |`/`      |1          |
 |           |`%`      |1          |
-|           |unary `-`|1          |
+|           |unary `-`|**done**   |
 |           |`**`     |1          |
 |Bitwise    |`&`      |1          |
 |           |`\|`     |1          |
@@ -31,6 +31,25 @@
 |Conditional|`?:`     |1          |
 |Comma      |`,`      |1          |
 |Type       |`typeof` |EDAG only  |
+
+**Unary `-` is in the language.** It is the first operator, and the one the
+front end needed first: the tokenizer used to fold a `-` into the number,
+bigint or `Infinity` after it, which made `-1 .x` an access on `-1` where
+JavaScript reads `-(1 .x)`, and `-1()` a call on `-1` where JavaScript calls
+`1`. Both were refused rather than answered wrongly; reading the `-` as the
+prefix it is retired both refusals and the fold with them.
+
+The shape the rest can follow: the grammar reads the operator and computes
+nothing, so `-1` is `['-', 1]` from the parser through the lowering. What a
+value is worth is computed where a value is wanted — the `.json` and DataJS
+outputs evaluate the module — and folding `['-', 1]` back to the leaf is an
+optimization over the EDAG, which is where the arithmetic belongs and where
+it is still to be done. Until it lands, a graph holding a *negative leaf* —
+one a JSON input gives — writes as `-1` and reads back as `['-', 1]`: the
+same value, one node more.
+
+An index is not an expression: it is a constant key, a string or a number,
+so a negative key is written as the string it names, `a["-1"]`.
 
 The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Comma_operator) is allowed. It was previously rejected on the grounds that it is useful only when we want to mutate — but that is not its only use. In a pure language the sole side effect a discarded operand can have is *throwing*, which makes `,` the assertion form:
 

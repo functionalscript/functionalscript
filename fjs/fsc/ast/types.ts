@@ -26,8 +26,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstFunction|AstArgs
 
 /**
  * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
@@ -110,6 +110,20 @@ export type AstAccess = readonly ['.', AstConst, string | number]
  * today is a method call.
  */
 export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
+
+/**
+ * A negation, `-v`: the language's one prefix operator, and the EDAG's
+ * `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand or
+ * two.
+ *
+ * `-` binds looser than a step, so `-1 .x` is `['-', ['.', 1, 'x']]` and
+ * `-1()` is `['-', ['()', 1, []]]`, which is how JavaScript reads them. A
+ * negative literal is no longer a literal: `-1` is `['-', 1]` here and
+ * stays one node through the lowering, since nothing between the source
+ * and the graph computes. What the value is, the readers work out — `run`
+ * for the document outputs, and an EDAG pass later, for the rest.
+ */
+export type AstNeg = readonly ['-', AstConst]
 
 /**
  * The constants of a body, in declaration order. The **last** entry is the

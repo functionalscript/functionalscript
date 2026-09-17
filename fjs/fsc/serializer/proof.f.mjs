@@ -121,9 +121,27 @@ export const proof = {
         writes(['[]', []], 'export default [];')
         writes(['{}', []], 'export default {};')
         writes(
-            ['[]', [null, true, false, 1, -0, 1.5, 1n, 'a"b', '\u{1f600}']],
-            'export default [null,true,false,1,-0,1.5,1n,"a\\"b","\u{1f600}"];')
+            ['[]', [null, true, false, 1, 1.5, 1n, 'a"b', '\u{1f600}']],
+            'export default [null,true,false,1,1.5,1n,"a\\"b","\u{1f600}"];')
         writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
+    },
+    /**
+     * A negative number is a leaf — a JSON input gives one, and so does any
+     * graph built by hand — and the language's only spelling for it is the
+     * prefix. So the text is right and denotes the same value, but reading
+     * it back gives the negation of the literal where the graph held the
+     * literal itself: one node more, in each of the three numeric leaves.
+     *
+     * {@link writes} cannot say that, comparing graphs. Closing it is the
+     * fold of `['-', literal]` over the EDAG, which is an optimization of
+     * the graph rather than a step of this writer — and when that lands,
+     * this entry reddens and becomes an ordinary {@link writes} line.
+     */
+    negativeLeaves: () => {
+        const text = unwrap(tryStringify(['[]', [-0, -1.5, -1n]]))
+        assertEq(text, 'export default [-0,-1.5,-1n];')
+        const { edag } = unresolved(unwrap(parse(path)(text)))
+        assertStructurallySame(edag, ['[]', [['-', 0], ['-', 1.5], ['-', 1n]]])
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared

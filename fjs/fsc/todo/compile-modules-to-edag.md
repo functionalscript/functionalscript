@@ -427,7 +427,7 @@ rediscovered:
 | `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` |
 | `NaN` | `NaN` | `NaN` |
 | `Infinity` | `Infinity` | `Infinity` |
-| `-Infinity` | `-Infinity`, one token | `-Infinity` |
+| `-Infinity` | the prefix and `Infinity`, `['-', Infinity]` | `-Infinity` |
 
 **All four are done**, with the front end's move, and pinned end to end in
 `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,

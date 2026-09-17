@@ -115,6 +115,17 @@ module — one node however many references reach it, and what the returned
 value does not reach anchored by the comma rather than dropped, which is the
 one place a comma stands outside a module's root. With no statement the block
 lowers to the value it returns, the two spellings being one function.
+A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
+— and the language's only operator. It is no part of the literal after it, so
+`-1` is the negation of `1` and stays one node: nothing between the source and
+the graph computes, and folding `['-', 1]` back to the leaf is an optimization
+over the graph rather than a step of the lowering. It binds looser than a
+step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
+— which is what retired the two refusals the old fold needed, an access and a
+call on a numeric literal alike. What it takes is JavaScript's
+`UnaryExpression`, so not a function: `-(...a) => 1` is a syntax error in
+both, and the writer gives a negated function a `const` of its own, as it does
+an access base.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call

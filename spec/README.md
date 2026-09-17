@@ -336,14 +336,23 @@ bind or shadow them, so each denotes its value wherever a value stands.
 They still name a property, as every reserved word does: `{ NaN: 1 }` and
 `a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
 JavaScript, where a property is named by an `IdentifierName` and a value by
-an `IdentifierReference`. `-Infinity` names nothing in either language: here
-it is one token, and in JavaScript it is two — the operator and the word —
-which no property name may be.
+an `IdentifierReference`. `-Infinity` names nothing in either language: it is
+two tokens in both — the operator and the word — which no property name may
+be.
 
-The `-` is lexical: it joins the number to its left as part of one token, so
-`-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
-`Infinity` the same way — `-Infinity` is one token and `-NaN` is not a value.
-There is no negation operator ([operators](./todo/2340-operators.md)).
+The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
+and the only operator the language has. It is not part of the literal after
+it: `-42.5` is the negation of `42.5`, `- 42.5` is the same value written with
+a space, and `-NaN` and `-Infinity` are values as JavaScript has them. It binds
+looser than a property access or a call, as it does in JavaScript, so `-1 .x`
+is `-(1 .x)` and `-1()` is `-(1())`. What it takes is JavaScript's
+`UnaryExpression`, which an arrow function is not, so `-(...a) => 1` is a
+syntax error in both. Two adjacent `-` characters are the decrement operator,
+which the language has no rule for: a negation of a negation is `- -1`.
+
+A negative number is therefore an expression rather than a literal. What it is
+worth is computed where a value is wanted — a `.json` or DataJS output is the
+value, `-1` — and left as the expression where the graph is.
 
 ### Strings
 

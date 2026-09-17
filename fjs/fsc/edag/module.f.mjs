@@ -108,6 +108,10 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
         case '()': { return call(nodes)(ast[1], ast[2]) }
+        // `op12` of one operand, the EDAG's unary minus. Nothing is computed
+        // here, `-1` staying `['-', 1]`: folding it back to the literal is an
+        // optimization over the graph, and the graph is what this builds.
+        case '-': { return ['-', lower(nodes)(ast[1])] }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }

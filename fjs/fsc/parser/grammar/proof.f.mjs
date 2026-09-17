@@ -97,14 +97,15 @@ export const proof = {
     // of them may be *bound* is the fold's to say, as for every other
     // keyword. Where a value may stand, the word is the value.
     //
-    // `-Infinity` is one token and no name, so it is where the grammar
-    // still answers.
+    // `-Infinity` is no longer a word: it is the prefix and `Infinity`, so
+    // where a value may stand it is a negation, and where a key may stand
+    // the `-` is what the grammar answers at.
     reserved: () => {
         assertStructurallySame(read('const NaN = 1;\nexport default NaN;'), ['ok'])
         assertStructurallySame(read('export default { Infinity: 1 };'), ['ok'])
         assertStructurallySame(read('const a = { NaN: 1 };export default a.NaN;'), ['ok'])
         assertStructurallySame(read('export default [NaN, Infinity, -Infinity];'), ['ok'])
-        assertStructurallySame(read('export default { -Infinity: 1 };'), ['error', '-Infinity'])
+        assertStructurallySame(read('export default { -Infinity: 1 };'), ['error', '-'])
     },
     accepted: () => {
         assertStructurallySame(read('export default 1;'), ['ok'])

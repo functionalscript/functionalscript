@@ -802,7 +802,10 @@ pub fn module<A: IVm>() -> Any<A> {
             assertEq(compileSource('const a = { b: [1, 2] }; export default [a.b, a["b"][1], a.b.length];')('output.data.js'), 'export default [[1,2],2,2];')
             // a literal takes accesses as a reference does
             assertEq(compileSource('export default [[1, 2].length, "ab"[1], { a: 3 }.a, true.x];')('output.data.js'), 'export default [2,"b",3,undefined];')
-            assertEq(moduleRefused('export default 1 .x;'), 'input.f.js:1:19 - error: access on a numeric literal')
+            // a numeric literal takes an access as any other value does, and
+            // a sign before it negates what the access read, as JavaScript
+            // reads it: `-1 .x` is `-(1 .x)`, which is `NaN`
+            assertEq(compileSource('export default [1 .x, -1 .x, 0n.x, -1["x"]];')('output.data.js'), 'export default [undefined,NaN,undefined,NaN];')
             assertEq(moduleRefused('export default null.x;'), 'input.f.js - error: cannot read property "x" of null')
             assertEq(compileSource('const s = "ab"; export default [s[0], s["1"], s.length];')('output.json'), '["a","b",2]')
             assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.b.x];')('output.data.js'), 'export default [undefined,undefined];')
@@ -885,7 +888,7 @@ pub fn module<A: IVm>() -> Any<A> {
             assertEq(compileSource(withSelected('export default a.selected;'))('output.json'), '1')
             assertEq(compileSource(withSelected('export default a.other[0];'))('output.json'), '[]')
             // a key that is not an index's canonical spelling names no element
-            assertEq(compileSource(withSelected('export default [a.other["01"], a.other[1.5], a.other[-1], a.other["1e0"]];'))('output.data.js'), 'export default [undefined,undefined,undefined,undefined];')
+            assertEq(compileSource(withSelected('export default [a.other["01"], a.other[1.5], a.other["-1"], a.other["1e0"]];'))('output.data.js'), 'export default [undefined,undefined,undefined,undefined];')
             assertEq(jsonRefused(withSelected('export default a.other;')), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused(withSelected('export default [a.selected, a.other];')), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused(withSelected('export default [a.other[0], a.other[1]];')), 'output.json - error: no JSON spelling for a shared node')

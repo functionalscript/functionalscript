@@ -43,9 +43,11 @@ question.
 - **Mapping.** The group's node is its value's node with the accesses
   after the `)` applied; nothing is recorded.
 - **What it admits.** `(...a) => ({ x: a })`; `(5)`, `((5))`, `(a).b`,
-  `([1, 2]).length`. A group does not launder a numeric literal, since the
-  group is its value: `(-1).x` and `(1).x` are refused at the key as `1 .x`
-  is. `()` and `(,)` are refused by the grammar.
+  `([1, 2]).length`. `()` and `(,)` are refused by the grammar. A group is
+  where `(-1).x` becomes spellable — the access on the negation, which the
+  prefix alone cannot say, since `-1 .x` is `-(1 .x)`; and a group is what
+  lets `-` take a function, `-((...a) => 1)` being a `UnaryExpression`
+  where `-(...a) => 1` is a syntax error.
 - **Not in scope.** Parenthesized parameters `(a, b) => …`, which JavaScript
   tells from a group only past the `)`, wait on named parameters
   ([`3120-parameters.md`](../../../spec/todo/3120-parameters.md)); the
