@@ -21,14 +21,15 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { length, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
@@ -381,6 +382,52 @@ export const writeFromStream = (path, e) =>
     ioStep(
         createExclusive(path),
         () => writeLoop(path)(0, e))
+
+/** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
+const chunkBytes = Number(maxLengthBytes)
+
+/**
+ * The read mirror of {@link writeFromStream}: a byte stream from a chunk
+ * source, each cell at most one `Vec` and the list itself uncapped.
+ *
+ * **It takes a source rather than a path.** `fjs/cas` reads by name safely —
+ * a name in the store is its content's hash — while a served tree carries no
+ * such guarantee and must read through something bound to one inode. A
+ * parameter lets the two callers differ; a path would force one to wait for
+ * the other.
+ *
+ * **Bounded, it advances by the length it got.** Both `fjs/cas` loops stepped
+ * `offset + chunkBytes` whatever the read returned, which is sound only
+ * because an unbounded fold ends at the first empty read — on a local regular
+ * file a short read is the last one. Under a declared length a short chunk is
+ * not the last, and a fixed step would leave a hole in a body whose size the
+ * client has already been told.
+ *
+ * @type {_ReadChunks}
+ */
+export const readChunks = (source, bound) => {
+    /** @type {(offset: number) => List<any, Vec, IoChannel>} */
+    const loop = offset => {
+        const remaining = bound === null ? chunkBytes : bound - offset
+        if (remaining <= 0) { return elEmpty() }
+        return ioStep(
+            source(offset, Math.min(chunkBytes, remaining)),
+            chunk => {
+                const got = Number(length(chunk) >> 3n)
+                // An empty read ends an unbounded stream. Under a bound it is a
+                // file that shrank mid-read: a truncated body under a declared
+                // length, which is the plausible wrong value DESIGN §10 refuses,
+                // so it fails the cell instead of ending the stream short.
+                if (got === 0) {
+                    return bound === null
+                        ? elEmpty()
+                        : pureError(ioError({ message: `read ended at ${offset} of ${bound} bytes` }))
+                }
+                return nonEmpty(chunk, loop(offset + got))
+            })
+    }
+    return loop(0)
+}
 
 // stat
 

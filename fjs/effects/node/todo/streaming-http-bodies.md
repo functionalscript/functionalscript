@@ -710,11 +710,18 @@ answering `413` is a listener with a size policy of its own — correctly.
 
 ### Tasks
 
-- [ ] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
+- [x] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
       `writeFromStream`, generic in the op-set its chunk source names, with its
       byte bound, its advance by the actual chunk length, its chunk source as a
       parameter rather than a path, and proof coverage, and read `cas` through
-      it.
+      it. — `readChunks`, with `_ChunkSource` and `_ReadChunks` beside
+      `_WriteLoop`. Both `fjs/cas` loops (`read` and `streamFile`) call it and
+      the hand-written ones are gone. **No cast was needed**: the
+      `List<ReadBytes, …>` the source produces widens into `read`'s pinned
+      `List<FileCasOperation, …>` by ordinary `Effect` widening, which settles
+      the inference question
+      [66o](../../../cas/todo/66o-read-streamfile-dedup.md) left for `tsc`, and
+      that issue's own answer with it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`, and
       `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
       pump — its `drain` park released by a recorded `close`, including one

@@ -14,6 +14,7 @@ import type {
     Effect, IoChannel, IoError, IoErrorInfo, IoResult, NotImplemented, OpResult,
     Operation, ToAsyncOperationMap,
 } from '../types.ts'
+import type { Nullable } from '../../types/nullable/types.ts';
 import type { List } from '../list/types.ts'
 import type {
     All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
@@ -182,6 +183,38 @@ export type WriteBytes = readonly['writeBytes', (path: string, offset: number, d
 
 /** @internal */
 export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, IoChannel>) => Effect<O | WriteBytes, void, IoChannel>
+
+/**
+ * A chunk source: the bytes at `offset`, at most `size` of them.
+ *
+ * It is a *function* rather than a path because the two callers of
+ * {@link _ReadChunks} cannot share one. `fjs/cas` reads by name and is safe
+ * doing so — a name in the store is its content's hash, published by `rename`
+ * and only ever republishable with the same bytes, so whichever inode a
+ * per-chunk open lands on holds what the last one held. A served tree carries
+ * no such guarantee, so `fjs/web` must read through something bound to one
+ * inode. Parameterizing the source lets the two differ instead of forcing one
+ * to wait for the other.
+ */
+export type _ChunkSource<O extends Operation> = (offset: number, size: number) => Effect<O, Vec, IoChannel>
+
+/**
+ * A byte stream from a {@link _ChunkSource}, in chunks of at most one `Vec`.
+ *
+ * **The bound decides what the loop advances by, and it is not `chunkBytes`.**
+ * Unbounded, the fold ends at the first empty read, and stepping by a fixed
+ * `chunkBytes` is sound only because on a local regular file a short read *is*
+ * the last one. A bounded fold does not end there: a short chunk stops being
+ * the last chunk, and a fixed step would step over what the read did not
+ * return — a hole in a response whose length is already declared. `readBytes`
+ * promises nothing better, being one `FileHandle.read`. So this asks for
+ * `min(chunkBytes, bound - offset)` and advances by the length it got.
+ *
+ * With a `bound`, an empty read *short of* it fails the cell rather than ending
+ * the stream: a file that shrank mid-read is a truncated body under a declared
+ * length, which is a plausible wrong value rather than a shorter right one.
+ */
+export type _ReadChunks = <O extends Operation>(source: _ChunkSource<O>, bound: Nullable<number>) => List<O, Vec, IoChannel>
 
 // stat
 
