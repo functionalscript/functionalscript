@@ -188,80 +188,56 @@ const primitiveExpr = v => {
 const keyExpr = k => typeof k === 'string' ? ok(`string_key(${stringLiteral(k)})`) : error(['not a literal key', k])
 
 /**
- * A `.` node's index, as the `Any<A>` key `Any::own_property` takes.
+ * A `.` node's index, as the `Any<A>` key `Any::member_access` takes: a
+ * literal `number` or `string`, `Index`'s two variants `member_access`'s own
+ * key type (`number | string`) already covers directly.
  *
- * Only a string index has a `nanvm-lib` spelling today: `own_property`
- * answers `undefined` for every receiver but a plain object (see its doc
- * comment in `nanvm-lib`), so a numeric index — meant for an array or a
- * string receiver — would print Rust that compiles and silently always
- * evaluates to `undefined`, which is worse than refusing it. Widening this
- * once `nanvm-lib` gains the `entry` read
- * ([`fjs/edag/todo/entry.md`](../todo/entry.md)) is future work, not an
- * approximation to make now.
+ * `NumberCast` — `Index`'s third variant — names a sub-expression to
+ * evaluate and coerce at run time (`a[Number(k)]`), not a literal key this
+ * printer can spell directly, and there is no `Number(...)` cast primitive
+ * here to route it through (`op1Rust` has `String` but no `Number`), so it
+ * stays refused — a separate, larger task, the same way operators were kept
+ * out of the printer that first landed `.`/`[]`.
  *
  * @type {(index: Index) => Result<string, readonly unknown[]>}
  */
-const indexExpr = index => typeof index === 'string'
-    ? ok(`string_any(${stringLiteral(index)})`)
-    : error(['no Rust for a numeric index', index])
+const indexExpr = index => {
+    if (typeof index === 'string') { return ok(`string_any(${stringLiteral(index)})`) }
+    if (typeof index === 'number') { return ok(`(${f64Literal(index)}).to_any()`) }
+    return error(['no Rust for a Number(...) cast index', index])
+}
 
 /**
  * `true` for a `.` base a property read on always throws: `null` and the
- * tagged `['undefined']` node. Printing `Any::own_property(…).unwrap()` for
+ * tagged `['undefined']` node. Printing `Any::member_access(…).unwrap()` for
  * either would compile to a Rust panic in place of the compile-time refusal
  * every other DJS output gives the same input (`fjs/fsc/README.md`: "a
  * `null` or `undefined` base is the one failure a data module can make").
- * Provable only from the base's own literal shape — the same limit
- * {@link nonObjectLiteralBase} has, and for the same reason: a `const`, an
- * import, or another `.` node's result could still be nullish at run time,
- * and nothing short of evaluating the module would know.
+ * Provable only from the base's own literal shape: a `const`, an import, or
+ * another `.` node's result could still be nullish at run time, and nothing
+ * short of evaluating the module would know.
  *
  * @type {(base: Exp) => boolean}
  */
 const nullishBase = base => base === null || (base instanceof Array && base[0] === 'undefined')
 
 /**
- * `true` for a `.` base this printer can prove `own_property` answers wrong
- * for. `Any::own_property` only inspects `Unpacked::Object` and answers
- * `undefined` for everything else (see its doc comment in `nanvm-lib`), but
- * DJS accepts property access on an array, a string, a boolean, and a bigint
- * too — `[1].length`, `"ab"[0]` — per `fjs/fsc/README.md`. Printing the call
- * anyway for one of these would silently swap the accessed value for
- * `undefined`, so it is refused instead, the same choice
- * {@link indexExpr} makes for a numeric index and for the same underlying
- * gap ([`fjs/edag/todo/entry.md`](../todo/entry.md)).
- *
- * An opaque base — a `const`, an import, another `.` node's result — is not
- * refused here even though its run-time value could still be one of these:
- * this printer has no way to know, and refusing every opaque base would
- * refuse the common case (property access reaching into an object through a
- * reference) along with the wrong one.
- *
- * @type {(base: Exp) => boolean}
- */
-const nonObjectLiteralBase = base =>
-    typeof base === 'boolean' || typeof base === 'number' || typeof base === 'string' || typeof base === 'bigint'
-    || (base instanceof Array && base[0] === '[]')
-
-/**
  * The `Exp` a `.` node's base denotes when every step folding it is
  * statically visible: a literal object base and a literal string key fold
  * to the property's own value, the same way `{ a: [1] }.a` is `[1]` at run
  * time — so `{ a: [1] }.a.length` is checked exactly as `[1].length` is,
- * rather than missing the gap {@link nonObjectLiteralBase} exists to catch
- * just because it sits one hop further away. `fjs/fsc/ast/module.f.mjs`'s
+ * rather than missing the nullish-base gap {@link nullishBase} exists to
+ * catch just because it sits one hop further away. `fjs/fsc/ast/module.f.mjs`'s
  * `selected` does the same fold for the same reason, over the AST rather
  * than the EDAG, for the sharing sweep.
  *
  * Stops and hands back `e` unresolved wherever it cannot see through: a
- * `const`, an import, another operation, or an object holding a spread —
- * this is a fold over literals, not a general evaluator, so a shape it
- * cannot prove is left opaque rather than guessed at. A key absent from a
- * fully literal object folds to `['undefined']`, which {@link nullishBase}
- * then catches — reading no such property *is* reading `undefined`. An
- * array's own items are never indexed here: only a string key ever reaches
- * this far, since a numeric one is refused by {@link indexExpr} regardless
- * of what its base is.
+ * `const`, an import, another operation, an array, or an object holding a
+ * spread — this is a fold over literal *object* chains only, not a general
+ * evaluator, so a shape it cannot prove is left opaque rather than guessed
+ * at. A key absent from a fully literal object folds to `['undefined']`,
+ * which {@link nullishBase} then catches — reading no such property *is*
+ * reading `undefined`.
  *
  * @type {(e: Exp) => Exp}
  */
@@ -306,7 +282,7 @@ export const expExpr = shared => {
      * operand as written. An operator expression does not: Rust parses
      * `a * b * c` to the left and binds a method call tighter than `*`, so an
      * unparenthesized composed operand is a different program from the node
-     * it was printed from. A `.` node is a method chain (`Any::own_property(
+     * it was printed from. A `.` node is a method chain (`Any::member_access(
      * …).unwrap()`), which already binds tighter than any infix operator, so
      * it needs no parentheses either. A `,` node is a brace-delimited block
      * (`{ …; last }`), atomic the same way a parenthesized group is. A shared
@@ -339,8 +315,7 @@ export const expExpr = shared => {
             if (c !== undefined) { return error(['no Rust for a property-access chain step', e]) }
             const base = resolvedBase(a)
             if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
-            if (nonObjectLiteralBase(base)) { return error(['no nanvm-lib own-property read for this receiver type yet', e]) }
-            return map2((fa, k) => `Any::own_property(${fa}, ${k}).unwrap()`)(f(a), indexExpr(b))
+            return map2((fa, k) => `Any::member_access(${fa}, ${k}).unwrap()`)(f(a), indexExpr(b))
         }
         if (id === ',') {
             // `Exps` admits an empty operand list in the schema (shape-only,

@@ -54,7 +54,7 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    Any::own_property([(string_key("a"), string_any("x"))].to_object().to_any(), string_any("a")).unwrap()
+    Any::member_access([(string_key("a"), string_any("x"))].to_object().to_any(), string_any("a")).unwrap()
 }
 `)
     },
@@ -111,13 +111,14 @@ pub fn module<A: IVm>() -> Any<A> {
             assert(result[1].includes('pub fn module<A: IVm>() -> Any<A> {'), result)
         },
         /**
-         * A node shape the printer refuses — here, a numeric index, which has
-         * no `nanvm-lib` spelling until `entry` lands
-         * (`fjs/edag/todo/entry.md`) — is a `Result` error against the
-         * output, not a thrown exception a compiler caller has to catch.
+         * A node shape the printer refuses — here, a `Number(...)` cast
+         * index, which names a run-time coercion rather than a literal key
+         * and has no `nanvm-lib` cast primitive to route it through — is a
+         * `Result` error against the output, not a thrown exception a
+         * compiler caller has to catch.
          */
         refused: () => {
-            const result = toRust(['.', ['{}', []], 0])
+            const result = toRust(['.', ['{}', []], ['Number', 1]])
             assertEq(result[0], 'error')
             assert(typeof result[1] === 'string' && result[1].length > 0, result)
         },

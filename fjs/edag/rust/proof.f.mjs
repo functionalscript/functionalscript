@@ -63,14 +63,43 @@ export const proof = {
     dot: () => {
         assertEq(
             printed(['.', ['{}', [[':', 'a', 1]]], 'a']),
-            'Any::own_property([(string_key("a"), (1f64).to_any())].to_object().to_any(), string_any("a")).unwrap()')
+            'Any::member_access([(string_key("a"), (1f64).to_any())].to_object().to_any(), string_any("a")).unwrap()')
         // Atomic as an operand: the method chain binds tighter than any
-        // infix operator, so no parentheses are needed around it. The base
-        // is an object literal — the one shape `own_property` reads
-        // correctly — so this exercises parenthesization, not a refusal.
+        // infix operator, so no parentheses are needed around it.
         assertEq(
             printed(['-', ['.', ['{}', []], 'b']]),
-            '-(Any::own_property(Object::default().to_any(), string_any("b")).unwrap())')
+            '-(Any::member_access(Object::default().to_any(), string_any("b")).unwrap())')
+    },
+    /**
+     * `Any::member_access` reads an array, a string, a boolean, a number, and
+     * a bigint receiver correctly — unlike `Any::own_property`, which only
+     * inspects a plain object — so a base this printer can prove is one of
+     * these prints the call rather than refusing it: `[1].length`, `"ab"[0]`,
+     * `true.x` (`undefined`, since a boolean has no own properties at all)
+     * are accepted DJS, per `fjs/fsc/README.md`.
+     */
+    dotOnNonObjectLiteral: () => {
+        assertEq(
+            printed(['.', ['[]', [1]], 'length']),
+            'Any::member_access([(1f64).to_any()].to_array().to_any(), string_any("length")).unwrap()')
+        assertEq(
+            printed(['.', 'ab', '0']),
+            'Any::member_access(string_any("ab"), string_any("0")).unwrap()')
+        assertEq(
+            printed(['.', true, 'x']),
+            'Any::member_access(true.to_any(), string_any("x")).unwrap()')
+        assertEq(
+            printed(['.', 5, 'x']),
+            'Any::member_access((5f64).to_any(), string_any("x")).unwrap()')
+        assertEq(
+            printed(['.', 5n, 'x']),
+            'Any::member_access(bigint_any(5), string_any("x")).unwrap()')
+    },
+    /** A literal `number` index prints the same way a numeric primitive does elsewhere in this file. */
+    numericIndex: () => {
+        assertEq(
+            printed(['.', ['{}', []], 0]),
+            'Any::member_access(Object::default().to_any(), (0f64).to_any()).unwrap()')
     },
     /**
      * A `.` base folds through a literal object chain before the shape
@@ -81,7 +110,24 @@ export const proof = {
         // Resolves to an object two hops away: printed, not refused.
         assertEq(
             printed(['.', ['.', ['{}', [[':', 'a', ['{}', [[':', 'c', 5]]]]]], 'a'], 'c']),
-            'Any::own_property(Any::own_property([(string_key("a"), [(string_key("c"), (5f64).to_any())].to_object().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("c")).unwrap()')
+            'Any::member_access(Any::member_access([(string_key("a"), [(string_key("c"), (5f64).to_any())].to_object().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("c")).unwrap()')
+        // The same fold reaches a non-object receiver two hops away exactly
+        // as a direct one: `{ a: [1] }.a.length` is checked like `[1].length`
+        // is, rather than missing the case just because it sits one hop
+        // further away.
+        assertEq(
+            printed(['.', ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], 'length']),
+            'Any::member_access(Any::member_access([(string_key("a"), [(1f64).to_any()].to_array().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("length")).unwrap()')
+        // `resolvedBase` folds through a `.` node only as far as an actual
+        // literal object — a chain whose middle step resolves to something
+        // else (an array, here) stops there, unresolved, rather than
+        // assuming an object further down. Printed correctly all the same:
+        // the middle step's own base is checked directly when it is printed,
+        // proving the fold neither crashed nor wrongly treated the array as
+        // an object two hops up.
+        assertEq(
+            printed(['.', ['.', ['[]', [1]], 'length'], 'toString']),
+            'Any::member_access(Any::member_access([(1f64).to_any()].to_array().to_any(), string_any("length")).unwrap(), string_any("toString")).unwrap()')
     },
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
@@ -159,8 +205,12 @@ export const proof = {
         lambdaBodyNotUndefined: () => printed(['=>', ['[]', []], ['args']]),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
-        /** A numeric index: no `nanvm-lib` spelling until `entry` lands. */
-        numericIndex: () => printed(['.', ['{}', []], 0]),
+        /**
+         * A `Number(...)` cast index: it names a run-time coercion, not a
+         * literal key `indexExpr` can spell directly, and this printer has no
+         * `Number(...)` cast primitive to route it through.
+         */
+        numberCastIndex: () => printed(['.', ['{}', []], ['Number', 1]]),
         /** A `.` chain step: out of scope, refused rather than dropped. */
         dotChainStep: () => printed(['.', ['{}', []], 'b', ['|()', ['[]', []]]]),
         /**
@@ -172,24 +222,11 @@ export const proof = {
         dotOnNull: () => printed(['.', null, 'a']),
         dotOnUndefined: () => printed(['.', ['undefined'], 'a']),
         /**
-         * `own_property` only inspects a plain object, so a base this
-         * printer can *prove* is something else — an array or string
-         * literal, a boolean, a number, a bigint — is refused rather than
-         * silently swapped for `undefined` (`[1].length`, `"ab"[0]` are
-         * accepted DJS, per `fjs/fsc/README.md`).
+         * The same refusal, met through a base {@link resolvedBase} must fold
+         * through a literal object first — a nullish result from a key
+         * absent in a fully literal object, a hop further away than the
+         * direct cases above.
          */
-        dotOnArrayLiteral: () => printed(['.', ['[]', [1]], 'length']),
-        dotOnStringLiteral: () => printed(['.', 'ab', '0']),
-        dotOnBooleanLiteral: () => printed(['.', true, 'x']),
-        dotOnNumberLiteral: () => printed(['.', 5, 'x']),
-        dotOnBigintLiteral: () => printed(['.', 5n, 'x']),
-        /**
-         * The same two refusals, met through a base {@link resolvedBase}
-         * must fold through a literal object first — `{ a: [1] }.a.length`
-         * and a nullish result from a key absent in a fully literal object,
-         * each a hop further away than the direct cases above.
-         */
-        dotOnNestedArrayLiteral: () => printed(['.', ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], 'length']),
         dotOnNestedMissingKey: () => printed(['.', ['.', ['{}', []], 'missing'], 'x']),
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it. */
         emptyComma: () => printed([',', []]),
@@ -199,23 +236,12 @@ export const proof = {
          * *not* try to fold through (a continuation is control flow, not a
          * value — see `fjs/edag/README.md`'s Chains section), so it is left
          * unresolved rather than misread as an ordinary property access.
-         * That base is still opaque to the shape checks (it is not provably
-         * nullish or non-object), so the refusal here comes from printing
-         * the chain step itself, one level down, the same as
-         * `dotChainStep` above — proving `resolvedBase` did not crash or
-         * silently drop the continuation on the way.
+         * That base is still opaque to the nullish-base check, so the
+         * refusal here comes from printing the chain step itself, one level
+         * down, the same as `dotChainStep` above — proving `resolvedBase`
+         * did not crash or silently drop the continuation on the way.
          */
         dotOnChainStepBase: () => printed(['.', ['.', ['{}', []], 'y', ['|()', ['[]', []]]], 'z']),
-        /**
-         * `resolvedBase` folds through a `.` node only as far as an actual
-         * literal object — a chain whose middle step resolves to something
-         * else (an array, here) stops there, unresolved, rather than
-         * assuming an object further down. The refusal still surfaces —
-         * from the middle step's own direct check when it is printed, the
-         * same one `dotOnArrayLiteral` pins — proving the fold neither
-         * crashed nor wrongly treated the array as an object two hops up.
-         */
-        dotOnNonObjectMiddleStep: () => printed(['.', ['.', ['[]', [1]], 'length'], 'toString']),
         /**
          * A key absent from an object holding a spread cannot be resolved
          * soundly — the spread's own contribution isn't known statically —
