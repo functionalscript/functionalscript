@@ -22,11 +22,11 @@ property-access, function, prototype-name and literal-access work:
 
 - "Features the parser does not recognize yet — functions, operators,
   property access, type annotations" — two of the four are recognized.
-- Output: "the module the compiler writes contains `const` statements and one
-  `export default`, never a function", and `.f.js` as a DataJS document —
-  which [`functionalscript-output.md`](../fjs/fsc/todo/functionalscript-output.md)
-  changes.
-- The File Types table has no row for the DataJS output, `.data.js`.
+
+File Types and Output were the third way, and are current: they name the five
+output languages and the graph the `.f.js` writer
+([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes, where
+they used to say the compiler writes a module with no function in it.
 
 ### Proposal
 
@@ -48,9 +48,6 @@ property-access, function, prototype-name and literal-access work:
   and pin each claim to the proof that holds it: the value types, property
   access with its refusals, functions, imports with the attribute, module
   structure, comments, the `__proto__` key.
-- Update File Types and Output with
-  [`functionalscript-output.md`](../fjs/fsc/todo/functionalscript-output.md),
-  once that lands; until then, state the outputs as they are.
 - Check the other documents that lean on the DJS name —
   [`fjs/fsc/README.md`](../fjs/fsc/README.md), the parser's README and module
   docs, [`spec/todo/README.md`](../spec/todo/README.md), which sorts its
@@ -75,8 +72,8 @@ property-access, function, prototype-name and literal-access work:
 
 ### Related
 
-- [`functionalscript-output.md`](../fjs/fsc/todo/functionalscript-output.md) —
-  owns the Output section's new contract.
+- [`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs) — the writer the
+  Output section's contract is now stated over.
 - [`spec/datajs/README.md`](../spec/datajs/README.md) — the data subset's own
   specification, which the introduction should point to instead of defining a
   second data subset.

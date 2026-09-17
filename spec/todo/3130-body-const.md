@@ -21,7 +21,7 @@ The `()` this issue was filed with is the empty parameter list, which
 parameter the language has.
 
 Wanted first by the FunctionalScript writer
-([`fjs/fsc/todo/functionalscript-output.md`](../../fjs/fsc/todo/functionalscript-output.md)):
+([`fjs/fsc/serializer`](../../fjs/fsc/serializer/module.f.mjs)):
 a constructor shared within a function body, one array reached twice, has no
 spelling that keeps it one array per call until a body has a `const` to hoist
 it into, so the writer refuses such a body until this lands. A body `const`

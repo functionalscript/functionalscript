@@ -88,8 +88,11 @@ denotes, as `transpile` reads it; a `.json` file imported without the
 attribute, or another file imported with it, is refused as JavaScript refuses
 it.
 `fjs compile` writes the linked graph when the output name ends with
-`.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
-hoisted as the module output's are. What
+`.edag.data.js` or `.edag.data.mjs`, as a DataJS document with its shared
+nodes hoisted as the DataJS output's are, and writes it back as source when
+the name ends with `.f.js` or `.f.mjs`, through
+[`serializer`](serializer/module.f.mjs) — the one output that holds a
+function, since a value has none. What
 the export does not reach is anchored by the comma operation rather than
 dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
 `run` evaluates every `const`, so a failure behind an unused one fails the

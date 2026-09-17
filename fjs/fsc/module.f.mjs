@@ -1,10 +1,12 @@
 /**
  * `fjs compile`: a FunctionalScript module read, its imports resolved and
- * inlined, and the value it denotes written out — as normalized DataJS, as
- * JSON when the output name says so, as the EDAG the program compiles to (a
- * DataJS document of the graph), or as a generated Rust module calling the
- * `nanvm-lib` API when the output name ends `.rs`
- * ([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md)).
+ * inlined, and written out in the language the output name declares — JSON
+ * for `.json`, normalized DataJS for `.data.js`, FunctionalScript for
+ * `.f.js`, the EDAG the program compiles to for `.edag.data.js` (a DataJS
+ * document of the graph), or a generated Rust module calling the
+ * `nanvm-lib` API for `.rs`
+ * ([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md)). An output
+ * whose extension declares no such language is refused.
  *
  * @module
  *
@@ -22,6 +24,7 @@ import { transpile } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
+import { tryStringify as fjsStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { empty, flat, map } from '../types/list/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
@@ -156,18 +159,43 @@ export const _tryJson = value => mapOk(concat)(jsonValue(value))
 const jsonText = ({ value, shared }) => shared ? noJson('a shared node') : _tryJson(value)
 
 /** A denotation as a DataJS document, which denotes a graph and refuses nothing the front end builds. @type {(denotation: Denotation) => Result<string, string>} */
-const moduleText = ({ value }) => tryStringify(value)
+const dataJsText = ({ value }) => tryStringify(value)
 
-// ── EDAG output ───────────────────────────────────────────────────────────────
+// ── the route ─────────────────────────────────────────────────────────────────
+
+/** Whether an output name ends with one of the suffixes. @type {(suffixes: readonly string[]) => (outputFileName: string) => boolean} */
+const named = suffixes => outputFileName => suffixes.some(suffix => outputFileName.endsWith(suffix))
 
 /**
- * Whether an output name asks for the EDAG: `.edag.f.js` or `.edag.f.mjs`,
- * a DataJS document like the module output, so the extension alone cannot
- * tell them apart and the name says which graph it holds.
+ * Whether an output name asks for the EDAG: `.edag.data.js` or
+ * `.edag.data.mjs`, a DataJS document like the DataJS output, so the
+ * extension alone cannot tell them apart and the infix says which graph it
+ * holds. Tested before {@link isDataJs}, whose suffix it ends with.
+ *
+ * The EDAG artifact is data — a document *of* a graph, not a program — so it
+ * is named under the DataJS extension. It was `.edag.f.js` while `.f.js` was
+ * the DataJS output too; that spelling is retired, `.f.js` being the language
+ * itself now.
  *
  * @type {(outputFileName: string) => boolean}
  */
-const isEdag = outputFileName => outputFileName.endsWith('.edag.f.js') || outputFileName.endsWith('.edag.f.mjs')
+const isEdag = named(['.edag.data.js', '.edag.data.mjs'])
+
+/**
+ * Whether an output name asks for DataJS: the two extensions its
+ * specification recognizes
+ * ([spec/datajs](../../spec/datajs/README.md#files-and-media-type)). It once
+ * named `.d.js` and `.d.mjs` as well and no longer does — `.d.ts` is a
+ * TypeScript declaration, and a `.d.` infix reads as one — so those are
+ * refused with the rest of the unknown names rather than kept as a second
+ * spelling here.
+ *
+ * @type {(outputFileName: string) => boolean}
+ */
+const isDataJs = named(['.data.js', '.data.mjs'])
+
+/** Whether an output name asks for FunctionalScript. @type {(outputFileName: string) => boolean} */
+const isFjs = named(['.f.js', '.f.mjs'])
 
 /**
  * The program at `path` as the text of its EDAG: linked by `./edag` into
@@ -190,6 +218,19 @@ const edagText = path => mapStep(resolve(path), tryStringify)
 const rustText = path => mapStep(resolve(path), toRust)
 
 /**
+ * The program at `path` as the text of the FunctionalScript module it is:
+ * linked by `./edag` into one graph, the same as {@link edagText}, and
+ * written back as source by `./serializer` rather than as a document of the
+ * graph. This route does not evaluate the module — it rewrites the graph —
+ * so a module holding a function compiles, and one whose value the readers
+ * would refuse, a read of `null`, compiles too, the failure being the
+ * program's to make when it runs.
+ *
+ * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ */
+const fjsText = path => mapStep(resolve(path), fjsStringify)
+
+/**
  * The module at `path` as the text `write` makes of what it denotes.
  *
  * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
@@ -197,20 +238,35 @@ const rustText = path => mapStep(resolve(path), toRust)
 const denotedText = write => path => mapStep(transpile(path), write)
 
 /**
- * The text an output name asks for, from the input: JSON for `.json`, a
- * generated Rust module for `.rs`, the EDAG for `.edag.f.js` and
- * `.edag.f.mjs`, and otherwise the value as a DataJS module. A refusal of the
- * output — a value JSON cannot spell, a node shape the Rust printer has no
- * `nanvm-lib` spelling for — is the inner `Result`; a failure of the input is
- * the effect's.
+ * The text an output name asks for, from the input, or `null` when the name
+ * declares no language this compiler writes. An output is the language its
+ * extension names, as an input is, matched by the longest suffix first, so
+ * that `x.edag.data.js` is the EDAG route and never the DataJS one.
  *
- * @type {(outputFileName: string) => (inputFileName: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * A refusal of the output — a value JSON cannot spell, a graph the
+ * FunctionalScript writer has no spelling for, a node shape the Rust printer
+ * has no `nanvm-lib` spelling for — is the inner `Result`; a failure of the
+ * input is the effect's; and a name with no language here is neither, since
+ * there is nothing to read the input for.
+ *
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadFile, Result<string, string>, ParseError>) | null}
  */
 const outputText = outputFileName => {
+    if (isEdag(outputFileName)) { return edagText }
+    if (isDataJs(outputFileName)) { return denotedText(dataJsText) }
+    if (isFjs(outputFileName)) { return fjsText }
     if (outputFileName.endsWith('.json')) { return denotedText(jsonText) }
     if (outputFileName.endsWith('.rs')) { return rustText }
-    return isEdag(outputFileName) ? edagText : denotedText(moduleText)
+    return null
 }
+
+/**
+ * Why an output name is refused: it names no language, so there is no
+ * writing it — the alternative, falling through to one of the writers,
+ * would answer a name the compiler does not understand with a document in a
+ * language the name does not declare.
+ */
+const unknownOutput = 'no output language for this extension: expected .json, .rs, .data.js, .data.mjs, .f.js, .f.mjs, .edag.data.js or .edag.data.mjs'
 
 // ── the proofs' dump ──────────────────────────────────────────────────────────
 
@@ -252,25 +308,29 @@ export const _stringifyTree = value => concat(treeValue(value))
 // ── the command ───────────────────────────────────────────────────────────────
 
 /**
- * Compiles the FunctionalScript module `args[0]` into `args[1]`: JSON when
- * the output name ends with `.json`, a generated Rust module calling the
- * `nanvm-lib` API when it ends with `.rs`, the program's EDAG when it ends
- * with `.edag.f.js` or `.edag.f.mjs`, and otherwise a DataJS document in
- * normalized form — one line, shared nodes hoisted into `$0`, `$1`, … and
- * an object's members in the order the module gave them. The EDAG output is
- * a DataJS document too, of the graph the program compiles to, with its
- * shared nodes hoisted the same way; the `.rs` output prints that same graph
- * as `let` bindings and a `pub fn module<A: IVm>() -> Any<A>`.
+ * Compiles the FunctionalScript module `args[0]` into `args[1]`, in the
+ * language `args[1]`'s extension declares: JSON for `.json`, a generated
+ * Rust module calling the `nanvm-lib` API for `.rs`, the program's EDAG for
+ * `.edag.data.js` and `.edag.data.mjs`, a DataJS document for `.data.js`
+ * and `.data.mjs`, and a FunctionalScript module for `.f.js` and `.f.mjs`.
+ * Each of the three module outputs is in normalized form — one line, shared
+ * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
+ * module gave them. The DataJS and JSON outputs are the value the program
+ * denotes; the FunctionalScript output is the linked graph written back as
+ * source, so it holds a function, which no value does; the EDAG output is
+ * that graph as a DataJS document; and the `.rs` output prints it as `let`
+ * bindings and a `pub fn module<A: IVm>() -> Any<A>`.
  *
  * Returns the process exit code: `0` once the output file is written, `1` on
- * every failure — too few arguments, a missing input file, a parse error, a
- * `.json` output asked of a value JSON cannot spell, an EDAG asked of a
- * program whose export does not reach every import and `const`, or a `.rs`
- * output asked of a node shape it has no `nanvm-lib` spelling for — so a
- * caller can detect a failed compile from the exit status alone. A refused
- * output is reported against the output file, since the module itself is
- * sound; a refused program is reported against the input, as a parse error
- * is.
+ * every failure — too few arguments, an output extension naming no language,
+ * a missing input file, a parse error, a `.json` output asked of a value
+ * JSON cannot spell, a `.f.js` output asked of a graph the writer has no
+ * spelling for, an EDAG asked of a program whose export does not reach every
+ * import and `const`, or a `.rs` output asked of a node shape it has no
+ * `nanvm-lib` spelling for — so a caller can detect a failed compile from the
+ * exit status alone. A refused output is reported against the output file,
+ * since the module itself is sound; a refused program is reported against
+ * the input, as a parse error is.
  *
  * @type {(args: readonly string[]) => Effect<_CompileOp, 0, number>}
  */
@@ -280,8 +340,12 @@ export const compile = args => {
     }
     const inputFileName = args[0]
     const outputFileName = args[1]
+    const text = outputText(outputFileName)
+    if (text === null) {
+        return errorExit(`${outputFileName} - error: ${unknownOutput}`)
+    }
     return resultStep(
-        outputText(outputFileName)(inputFileName),
+        text(inputFileName),
         /** @type {(result: Result<Result<string, string>, ParseError>) => Effect<_CompileOp, 0, number>} */
         (result) => {
             if (result[0] === 'error') {

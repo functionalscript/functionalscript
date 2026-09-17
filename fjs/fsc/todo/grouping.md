@@ -20,8 +20,8 @@ with them cannot be spelled at all:
   expression to come, whose precedence parentheses override.
 
 The FunctionalScript writer
-([`functionalscript-output.md`](./functionalscript-output.md)) writes a
-function with an object body as a block until this lands.
+([`../serializer`](../serializer/module.f.mjs)) writes a function with an
+object body as a block until this lands.
 [`2350-grouping.md`](../../../spec/todo/2350-grouping.md)
 holds the feature with one example and no rules.
 
@@ -70,7 +70,7 @@ question.
 
 - [`2350-grouping.md`](../../../spec/todo/2350-grouping.md) — the feature's
   place on the language roadmap.
-- [`functionalscript-output.md`](./functionalscript-output.md) — the writer
-  that needs the parenthesized body.
+- [`../serializer`](../serializer/module.f.mjs) — the writer that needs the
+  parenthesized body.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — Stage 2's
   chain lowering names grouping where optional chaining enters.

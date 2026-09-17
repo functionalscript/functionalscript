@@ -137,10 +137,14 @@ input — names the file being compiled instead.
 |File type|Extension|Denotes|
 |---------|---------|-------|
 |JSON|`.json`|A tree of values.|
-|FunctionalScript|`.f.js`|A graph of values.|
+|DataJS|`.data.js`|A graph of values.|
+|FunctionalScript|`.f.js`|A graph of values and functions.|
 
-The extension is what separates the two languages, and it is the only thing
-that does: a text is read as whichever language its name declares.
+The extension is what separates the languages, and it is the only thing that
+does: a text is read as whichever language its name declares, and written in
+whichever its name declares ([output](#output)). DataJS is a subset of
+FunctionalScript, so every `.data.js` is a `.f.js` too; the extensions differ
+because the outputs do.
 
 This table is about the *language* — what `fjs compile` reads and writes. The
 repository's own authored FunctionalScript is spelled `.f.mjs` instead, and its
@@ -189,12 +193,16 @@ a reinterpretation.
 
 ### Output
 
-A `.json` output is a **tree**; any other extension makes the output a
-[DataJS](./datajs/README.md) document, which is a **graph**.
+An output is the language its extension declares, matched by the longest
+suffix first. A `.json` output is a **tree**; a `.data.js` output is a
+[DataJS](./datajs/README.md) document, which is a **graph** of values; a
+`.f.js` output is a FunctionalScript module, a graph of values *and
+functions*; and an extension declaring none of them is refused.
 
 ```sh
-fjs compile input.f.js output.f.js   # DataJS, a JavaScript module
-fjs compile input.f.js output.json   # JSON
+fjs compile input.f.js output.data.js   # DataJS, a JavaScript module
+fjs compile input.f.js output.f.js      # FunctionalScript
+fjs compile input.f.js output.json      # JSON
 ```
 
 - A DataJS document is written in
@@ -208,16 +216,19 @@ fjs compile input.f.js output.json   # JSON
   and `-Infinity`, which JSON has no word for. A `bigint` is refused even
   though its digits are JSON, since `1` reads back as the *number* `1`. The
   refusal names the output file and writes nothing.
+- A FunctionalScript document is written in the same normalized form, and
+  from the program's graph rather than from its value: the module is not
+  evaluated, so a function has a document too, which is what DataJS and JSON
+  have no spelling for. On a module denoting data the two module outputs are
+  the same text.
 - Object properties are emitted in the order the object carries them —
-  JavaScript's own-property order, array-index keys first — in both formats.
-- A `__proto__` key is emitted as `["__proto__"]:` in a DataJS document and
-  as `"__proto__":` in JSON ([below](#the-__proto__-key)).
+  JavaScript's own-property order, array-index keys first — in every format.
+- A `__proto__` key is emitted as `["__proto__"]:` in a DataJS or
+  FunctionalScript document and as `"__proto__":` in JSON
+  ([below](#the-__proto__-key)).
 - `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
-  to infinity — are emitted as those words in a DataJS document, and `-0` as
-  `-0` in both formats.
-
-The output is data in both formats: the module the compiler writes contains
-`const` statements and one `export default`, never a function.
+  to infinity — are emitted as those words in a DataJS or FunctionalScript
+  document, and `-0` as `-0` in every format.
 
 ## Comments
 
@@ -427,12 +438,12 @@ So `fjs compile` reads and writes the key differently in each language, and
 the extension of each file **named on the command line** picks the language:
 
 ```sh
-fjs compile input.f.js output.f.js   # {["__proto__"]:1}
-fjs compile input.f.js output.json   # {"__proto__":1}
-fjs compile input.json  output.f.js  # reads {"__proto__":1} as a property
+fjs compile input.f.js output.data.js   # {["__proto__"]:1}
+fjs compile input.f.js output.json      # {"__proto__":1}
+fjs compile input.json  output.data.js  # reads {"__proto__":1} as a property
 ```
 
-A JSON document therefore survives the loop `proto.json → a.f.js → out.json`
+A JSON document therefore survives the loop `proto.json → a.data.js → out.json`
 byte for byte, each hop spelling the key its own language's way. The
 disagreement is about a *text*, not a value, so nothing is unreachable.
 
