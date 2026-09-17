@@ -696,6 +696,13 @@ export const proof = {
             expect('export default 1();', 'call on a numeric literal', 17)
             expect('export default -1n();', 'call on a numeric literal', 19)
             expect('export default -Infinity();', 'call on a numeric literal', 25)
+            // the callee is answered for before an argument is read, so the
+            // `(` at 17 is reported and not the `zzz` at 18 — the first
+            // error in source order, as everywhere else
+            expect('export default 1(zzz);', 'call on a numeric literal', 17)
+            expect('export default -1(zzz);', 'call on a numeric literal', 18)
+            // which is the order a method call's property already had
+            expect('const a = {}; export default a.toString(zzz);', 'prohibited property name', 32)
             const [tag, value] = parseFromTokens(tokenizeString('const n = 1; export default n();'))
             assert(tag === 'ok', value)
             assertEq(stringifyDjsModule(value), '[[],[1,["()",["cref",0],[]]]]')

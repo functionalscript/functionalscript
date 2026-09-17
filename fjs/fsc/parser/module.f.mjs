@@ -713,9 +713,19 @@ const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1
  */
 const callRound = (stack, env, frame) => {
     const { call, index } = frame
+    // The callee is answered for before an argument is read, as a method
+    // call's property is: the `(` comes before what follows it, and the
+    // first error in source order is the one reported.
+    //
+    // `done` holds the callee alone at this point, so reading it is one
+    // step and not a walk of the arguments — the list is flattened once, at
+    // the close below.
+    if (index === 1) {
+        const callee = toArray(frame.done)[0]
+        if (typeof callee === 'number' || typeof callee === 'bigint') { return [stack, env, error(numericCallee(call[3]))] }
+    }
     if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, env, ['enter', callOperandAt(call, index)]] }
     const [callee, ...args] = toArray(frame.done)
-    if (typeof callee === 'number' || typeof callee === 'bigint') { return [stack, env, error(numericCallee(call[3]))] }
     /** @type {AstCall} */
     const closed = ['()', callee, args]
     return [stack, env, ok(closed)]
