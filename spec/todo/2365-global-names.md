@@ -105,10 +105,17 @@ nothing for a global name to refer to. What reserving it changes is the
 other half, `const Object = 1;`, and the answer the first half gives: not
 "you forgot to declare it" but "that name is spoken for".
 
-Keys are untouched. `{ Object: 1 }`, `a.Object`, `{ NaN: 1 }` and `a.NaN`
-are property names, which JavaScript spells with an `IdentifierName` and
-admits every reserved word to. A key is no value position, and `{ "NaN": 1 }`
-has always denoted the same object.
+Keys are untouched. `{ Object: 1 }` and `a.Object` are property names, which
+JavaScript spells with an `IdentifierName` and admits every reserved word
+to. A key is no value position, and `{ "NaN": 1 }` has always denoted the
+same object.
+
+Three of the names are not keys today — `NaN`, `Infinity` and `undefined`
+carry their own token symbols, so `{ NaN: 1 }` is refused where
+`{ Math: 1 }` is accepted — and that is the tokenizer's doing rather than a
+decision about keys. The change that admits those words where a name may
+stand lifts it, and lifts nothing this document decides: reserving a name
+never takes a key away.
 
 **A namespace head is resolved before the reservation is consulted.** This
 is the one ordering the implementation cannot get backwards. 2360 admits
