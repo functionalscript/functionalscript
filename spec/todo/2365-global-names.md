@@ -121,6 +121,13 @@ across four subclauses, and that is what the implementation transcribes:
 - [§19.4 Other Properties of the Global Object](https://tc39.es/ecma262/#sec-other-properties-of-the-global-object)
   — `Atomics`, `JSON`, `Math`, `Reflect`
 
+§19 is not quite the whole set. The reservation exists so that admitting a
+name cannot change what a module already means, so it covers **every name
+2360 may admit**, and 2360 reaches past the standard: `WebAssembly` is the
+embedder's, not ECMAScript's, and it has a section there. A name the
+language may one day denote is reserved whatever spells it, or the ordering
+this document is built on holds for some names and not others.
+
 The same names, grouped for reading rather than for specifying, are MDN's
 standard built-in objects — the page 2360 already works from:
 
@@ -154,6 +161,7 @@ same check.
 |control abstraction|`Iterator`, `AsyncIterator`, `Promise`, `GeneratorFunction`, `AsyncGeneratorFunction`, `Generator`, `AsyncGenerator`, `AsyncFunction`|
 |reflection|`Reflect`, `Proxy`|
 |internationalization|`Intl`|
+|the embedder's, and 2360's|`WebAssembly`|
 
 `escape` and `unescape` are Annex B and deliberately left out; a module that
 binds either is binding a name the language deprecates, and the list should
@@ -176,6 +184,13 @@ not carry it forward.
    host, and since it has no free names, `const console = …` means the same
    thing in every runtime. But a reader's confusion is the same, so the
    question deserves an answer rather than a silence.
+
+   `WebAssembly` shows where the line actually falls, and it is not
+   "ECMAScript's versus the host's": that name is the embedder's and is
+   reserved, because 2360 may admit it. What decides is whether the language
+   may one day denote the name, not who standardized it — so answering this
+   question means saying which host globals 2360 could ever reach, and
+   reserving exactly those.
 3. **Where the check lives.** These names stay `id` tokens — they are not
    keywords — so they need their own set and their own message rather than
    joining [`keywords`](../../fjs/js/keywords/module.f.mjs), whose meaning is
@@ -190,6 +205,11 @@ not carry it forward.
 - [ ] `globalNames` in `fjs/js/keywords/module.f.mjs`, beside `literalGlobals`,
       with the corrected list and a proof that the four names already refused
       are in it.
+- [ ] A proof that every name [`2360-built-in.md`](./2360-built-in.md)
+      lists is in the set, so that a namespace admitted there cannot be a
+      name a module was free to bind — `WebAssembly` is the one that is in
+      2360 and outside ECMA-262 §19 today, and the proof is what keeps the
+      next one from slipping through.
 - [ ] The check goes at the binding sites, which is `bind` and the `=>`
       parameter in `fjs/fsc/parser/module.f.mjs` — not in `identifierOf`,
       whose third caller is a *reference*, where refusing a global name
