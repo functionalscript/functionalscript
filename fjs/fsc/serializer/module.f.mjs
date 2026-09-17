@@ -31,9 +31,10 @@
  * **What it refuses**, each by name and with nothing written: a node kind it
  * has no spelling for, which is how a feature that adds one is made to add
  * its spelling here in the same change; a comma anywhere but the root, which
- * has no source form until the operator lands; a shared constructor or a
- * hoisted base inside a function body, until a body has a `const` to hoist
- * into ([`3130-body-const.md`](../../../spec/todo/3130-body-const.md)); and a
+ * has no source form until the operator lands — a body's has one now, which
+ * this writer does not write yet; a shared constructor or a hoisted base
+ * inside a function body, which the body `const` the language has would hold
+ * ([`3130-body-const.md`](../../../spec/todo/3130-body-const.md)); and a
  * key the parser would not read back — one no literal spells, and one naming
  * a property of a built-in prototype, which the grammar refuses in either
  * spelling.

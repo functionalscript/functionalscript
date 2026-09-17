@@ -9,7 +9,7 @@
  * export ::= 'export' t 'default' t value ';' t
  * value  ::= (primitive t | id t | array | object) access* | func
  * body   ::= (primitive t | id t | array) access* | func | block
- * block  ::= '{' t 'return' s value ';' t '}' t
+ * block  ::= '{' t const* 'return' s value ';' t '}' t
  * func   ::= '(' t '...' t id t ')' s '=>' t body
  * access ::= '.' t id t | '[' t (string | number) t ']' t
  * array  ::= '[' t [ items(value) ] ']' t
@@ -325,9 +325,27 @@ export const object = /** @type {const} */ ([sym('{'), trivia, option(members), 
 const end = /** @type {const} */ ([sym(';'), trivia])
 
 /**
- * A function's block body: `{ return value; }`, one `return` statement and
- * nothing else — a body `const` before it is
- * [3130](../../../../spec/todo/3130-body-const.md).
+ * A `const` statement: the name, `=`, the value, `;`. A module's statement
+ * and a function body's alike — {@link djsModule} takes a run of them after
+ * the imports, and {@link block} a run of them before the `return`.
+ *
+ * Declared here, above {@link block}, rather than with the other module
+ * statements below: `block` holds it directly, where the recursion back
+ * into `value` goes through a thunk.
+ */
+export const constStatement = /** @type {const} */ ([
+    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, ...end,
+])
+
+/**
+ * A function's block body: `{ const x = 1; return value; }` — any number of
+ * `const` statements and then the one `return`
+ * ([spec: functions](../../../../spec/README.md#functions)).
+ *
+ * The `const` is {@link constStatement}, the module's own rule: the body
+ * binds names the way a module does, and the fold is what says the two
+ * scopes are different — a body's name is the body's, and a reference out
+ * of it is a capture.
  *
  * The value is an ordinary {@link value}, the object included: `{` opens a
  * block only where a statement may start, and after `return` an expression
@@ -346,7 +364,7 @@ const end = /** @type {const} */ ([sym(';'), trivia])
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), trivia, sym('return'), sameLine, value, ...end, sym('}'), trivia,
+    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, value, ...end, sym('}'), trivia,
 ])
 
 /**
@@ -370,10 +388,6 @@ export const attribute = /** @type {const} */ ([
 
 export const importStatement = /** @type {const} */ ([
     sym('import'), trivia, identifierName, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
-])
-
-export const constStatement = /** @type {const} */ ([
-    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, ...end,
 ])
 
 export const exportStatement = /** @type {const} */ ([

@@ -637,20 +637,39 @@ alone:
   or an enclosing function's parameter is a **capture**, which is an error
   ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
   a module name, as in JavaScript.
-- The body is an expression or a block, and the two denote the same
-  function. As an expression it is any value except an object literal:
-  after `=>` JavaScript reads `{` as a block, never as an object, so the
-  spelling is refused rather than read another way. The block is
-  `{ return value; }` — one `return` statement, its `;` required as after
-  every statement, and an object literal an ordinary value again, since
-  after `return` JavaScript expects an expression. `return` and the value
-  share a line: a newline between them ends the statement in JavaScript,
-  which would return `undefined`, so it is refused here rather than read
-  another way, exactly as a newline before `=>` is. A second statement in
-  the block ([body-const](./todo/3130-body-const.md)), a parameter list
-  other than one rest parameter ([function](./todo/3110-function.md),
-  [parameters](./todo/3120-parameters.md)) and a call are not recognized
-  yet.
+- The body is an expression or a block, and `value` and `{ return value; }`
+  denote the same function. As an expression the body is any value except an
+  object literal: after `=>` JavaScript reads `{` as a block, never as an
+  object, so the spelling is refused rather than read another way. The block
+  is any number of `const` statements and then one `return`, each with its
+  `;` as after every statement, and an object literal is an ordinary value
+  again, since after `return` JavaScript expects an expression. `return` and
+  the value share a line: a newline between them ends the statement in
+  JavaScript, which would return `undefined`, so it is refused here rather
+  than read another way, exactly as a newline before `=>` is. A parameter
+  list other than one rest parameter
+  ([function](./todo/3110-function.md), [parameters](./todo/3120-parameters.md))
+  and a call are not recognized yet.
+- A body `const` is the body's, and binds as a module's does: it names a
+  value the `return` and the statements after it may use, it may not be
+  written twice, and it is not in its own initializer's scope. The parameter
+  is a name of the body too, so a `const` may not take it. What a body
+  `const` *may* take is a name the module binds — the body cannot reach the
+  module's scope at all, a reference out being a capture, so the module's
+  name is unreachable here rather than hidden
+  ([no-shadowing](./todo/3150-shadowing.md) has nothing to decide about this
+  case).
+
+  ```js
+  export default (...args) => {
+      const first = args[0];
+      const pair = [first, first];
+      return [pair, pair];
+  };
+  ```
+
+  `pair` is one array however many references reach it, as a module `const`
+  is one value — which is the whole reason a body has them.
 - A function is written by the FunctionalScript and EDAG outputs
   ([output](#output)); `fjs compile` refuses to write a module holding one as
   DataJS or as JSON, since a value has no function in it.

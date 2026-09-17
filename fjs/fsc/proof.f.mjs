@@ -484,6 +484,22 @@ export const proof = {
             assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: a function has no value')
             assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
         },
+        // A body `const` compiles: the shared node it names is one node in
+        // the graph, and an entry the returned value does not reach is
+        // anchored by a comma inside the body — the first comma the
+        // compiler emits anywhere but a module's root.
+        bodyConst: () => {
+            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["=>",null,["[]",[$0,$0]]];')
+            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["=>",null,[",",[["[]",[]],1]]];')
+            // the value outputs refuse the module for its function, as ever
+            assertEq(moduleRefused('export default (...a) => { const x = 1; return x; };'), 'input.f.js - error: a function has no value')
+            // the FunctionalScript output writes what it can spell and
+            // refuses the rest by name: a body `const` it needs is
+            // `spec/todo/3130-body-const.md`'s second half, in the writer
+            assertEq(compileSource('export default (...a) => { const x = 1; return x; };')('output.js'), 'export default (...$a)=>1;')
+            assertEq(fjsRefused({ 'input.f.js': [utf8('export default (...a) => { const x = [1]; return [x, x]; };')] }), 'output.f.js - error: a shared constructor inside a function body')
+            assertEq(fjsRefused({ 'input.f.js': [utf8('export default (...a) => { const x = []; return 1; };')] }), 'output.f.js - error: a comma outside the root')
+        },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written: a missing import
         refused: () => {

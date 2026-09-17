@@ -34,8 +34,12 @@ compiler already reads it, an import being `args[i]` of the module and
 linking being application. So there is one rule, for a module and a nested
 function alike: a binding must not reuse a name bound in an enclosing
 function. A parameter must not repeat an import, a constant, or an
-enclosing function's parameter, and a body constant
-([body-const](./3130-body-const.md)), once there is one, must not either.
+enclosing function's parameter, and neither must a body constant
+([body-const](./3130-body-const.md)), which the language now has and which
+may take a module's name today — one of the spellings this issue would
+refuse, and the one with the least to hide: a body cannot reach the module's
+scope at all, a reference out being a capture, so the name it takes was
+unreachable rather than visible.
 Two modules are two functions with nothing enclosing them both, so they may
 bind the same names.
 
@@ -75,6 +79,6 @@ error is the default to implement, since it needs nothing new.
 - [function-frame](./3111-function-frame.md) — captures, which make the
   binding a name reads a question of scope.
 - [body-const](./3130-body-const.md) — the second kind of binding a body
-  will have.
+  has.
 - [parameters](./3120-parameters.md) — named parameters, more names to
   shadow with.
