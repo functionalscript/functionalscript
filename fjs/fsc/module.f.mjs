@@ -184,11 +184,9 @@ const isEdag = named(['.edag.data.js', '.edag.data.mjs'])
 /**
  * Whether an output name asks for DataJS: the two extensions its
  * specification recognizes
- * ([spec/datajs](../../spec/datajs/README.md#files-and-media-type)). It once
- * named `.d.js` and `.d.mjs` as well and no longer does — `.d.ts` is a
- * TypeScript declaration, and a `.d.` infix reads as one — so `.d.js` is a
- * JavaScript module like any other here, and takes the writer
- * {@link isFjs} names.
+ * ([spec/datajs](../../spec/datajs/README.md#files-and-media-type)). `.d.js`
+ * was DJS's spelling and went with the name, so it is a JavaScript module
+ * like any other here and takes the writer {@link isFjs} names.
  *
  * Tested before {@link isFjs}, whose suffix it ends with: a DataJS document
  * is FunctionalScript too, so the narrower name is what picks the narrower

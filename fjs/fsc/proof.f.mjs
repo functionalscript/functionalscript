@@ -310,8 +310,8 @@ export const proof = {
         },
         // Any other JavaScript name is FunctionalScript: `.f.js` says which
         // subset a source is written in, and an output the compiler writes
-        // is in that subset whatever it is called. `.d.js`, an extension
-        // DataJS itself no longer names, is one of them.
+        // is in that subset whatever it is called. `.d.js` is one of them:
+        // it was DJS's spelling and went with the name.
         anyJavaScriptName: () => {
             assertEq(compileSource('export default (...a) => a;')('out.f.js'), 'export default (...$a)=>$a;')
             assertEq(compileSource('export default (...a) => a;')('out.f.mjs'), 'export default (...$a)=>$a;')
