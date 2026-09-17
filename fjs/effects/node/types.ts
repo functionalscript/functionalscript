@@ -207,8 +207,12 @@ export type _ChunkSource<O extends Operation> = (offset: number, size: number) =
  * the last one. A bounded fold does not end there: a short chunk stops being
  * the last chunk, and a fixed step would step over what the read did not
  * return — a hole in a response whose length is already declared. `readBytes`
- * promises nothing better, being one `FileHandle.read`. So this asks for
- * `min(chunkBytes, bound - offset)` and advances by the length it got.
+ * fills the window it is given, but a source is any function of that shape and
+ * need not. So this asks for `min(chunkBytes, bound - offset)` and advances by
+ * the length it got.
+ *
+ * A chunk that is not whole bytes is refused: the return type permits one, and
+ * rounding its bit length down would report a short chunk as end-of-stream.
  *
  * With a `bound`, an empty read *short of* it fails the cell rather than ending
  * the stream: a file that shrank mid-read is a truncated body under a declared

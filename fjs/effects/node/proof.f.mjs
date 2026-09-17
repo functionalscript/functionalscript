@@ -650,6 +650,16 @@ export const proof = {
             const result = drain(source, null)
             assertEq(result[0], 'error')
         },
+        aChunkThatIsNotWholeBytesIsRefused: () => {
+            // The return type permits one, and `>> 3n` would report a 1-bit
+            // chunk as nought — an end-of-stream the source never signalled,
+            // with the bits discarded.
+            /** @type {_ChunkSource<never>} */
+            const source = () => pureOk(vec(1n)(1n))
+            const result = drain(source, null)
+            assert(result[0] === 'error', result)
+            assertIoMessage(result[1], 'chunk at 0 is 1 bits, not whole bytes')
+        },
         aZeroBoundAsksForNothing: () => {
             /** @type {_ChunkSource<never>} */
             const source = () => { throw new Error('must not be asked') }

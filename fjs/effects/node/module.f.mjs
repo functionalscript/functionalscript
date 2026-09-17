@@ -406,25 +406,42 @@ const chunkBytes = Number(maxLengthBytes)
  * @type {_ReadChunks}
  */
 export const readChunks = (source, bound) => {
+    /**
+     * What one answered chunk becomes: a refusal, the end, or a cell whose
+     * tail continues from where this chunk actually reached.
+     * @type {(chunk: Vec, offset: number) => List<any, Vec, IoChannel>}
+     */
+    const cell = (chunk, offset) => {
+        const bits = length(chunk)
+        // A chunk that is not whole bytes is refused rather than rounded down.
+        // `_ChunkSource`'s type permits one, and `>> 3n` would report a 1-bit
+        // chunk as nought — an EOF the source never signalled, with the bits
+        // thrown away. That is DESIGN §10's plausible wrong value.
+        if (bits % 8n !== 0n) {
+            return pureError(ioError({ message: `chunk at ${offset} is ${bits} bits, not whole bytes` }))
+        }
+        const got = Number(bits >> 3n)
+        // An empty read ends an unbounded stream. Under a bound it is a file
+        // that shrank mid-read: a truncated body under a declared length, so
+        // it fails the cell instead of ending the stream short.
+        if (got === 0) {
+            return bound === null
+                ? elEmpty()
+                : pureError(ioError({ message: `read ended at ${offset} of ${bound} bytes` }))
+        }
+        return nonEmpty(chunk, loop(offset + got))
+    }
     /** @type {(offset: number) => List<any, Vec, IoChannel>} */
     const loop = offset => {
         const remaining = bound === null ? chunkBytes : bound - offset
         if (remaining <= 0) { return elEmpty() }
-        return ioStep(
-            source(offset, Math.min(chunkBytes, remaining)),
-            chunk => {
-                const got = Number(length(chunk) >> 3n)
-                // An empty read ends an unbounded stream. Under a bound it is a
-                // file that shrank mid-read: a truncated body under a declared
-                // length, which is the plausible wrong value DESIGN §10 refuses,
-                // so it fails the cell instead of ending the stream short.
-                if (got === 0) {
-                    return bound === null
-                        ? elEmpty()
-                        : pureError(ioError({ message: `read ended at ${offset} of ${bound} bytes` }))
-                }
-                return nonEmpty(chunk, loop(offset + got))
-            })
+        // A source that performs a command suspends here, so the list is built
+        // one cell per pull. A source that answers purely does not: `nonEmpty`
+        // takes its tail as an ordinary argument (`../list/module.f.mjs`), so
+        // the whole chain is constructed up front and a large bound overflows
+        // the stack. That is the list representation's property, not this
+        // loop's — every chunk source with a real host behind it is a command.
+        return ioStep(source(offset, Math.min(chunkBytes, remaining)), chunk => cell(chunk, offset))
     }
     return loop(0)
 }
