@@ -76,8 +76,10 @@ and every one of them stays a key.
 
 `globalThis` is not merely reserved: it is the global object itself, which
 is ambient authority, so it is a name FunctionalScript will never admit —
-the same class as `eval`, and worth saying once here rather than leaving it
-to be inferred from its absence from 2360's list.
+the same class as `eval`. [`2360-built-in.md`](./2360-built-in.md) lists it,
+and its entry there now says never rather than not yet and points back here
+for the reason: an unchecked box alone cannot tell "not decided" from
+"decided against".
 
 ### The list
 
