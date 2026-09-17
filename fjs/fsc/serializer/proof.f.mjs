@@ -149,6 +149,16 @@ export const proof = {
         // a negated function likewise
         writes(['-', ['=>', null, 1]], 'const $0=(...$a)=>1;export default -$0;')
         refuses(['-', 1, 2], 'a binary - node')
+        // A call has no spelling yet, and these are the two shapes that
+        // cannot take the obvious one when it lands: `-1()` is `-(1())`, so
+        // a negative callee has to say that the negation happens first. A
+        // group would say it, `(-1)()`, and until the grammar has one a
+        // `const` does — the answer an access base already takes, for a
+        // negative leaf and a `['-', …]` node alike. These two lines redden
+        // the moment a `()` is given a spelling, which is where that has to
+        // be decided.
+        refuses(['()', -1, ['[]', []]], 'a () node')
+        refuses(['()', ['-', 1], ['[]', []]], 'a () node')
     },
     /**
      * A negative number is a leaf — a JSON input gives one, and so does any

@@ -138,7 +138,12 @@ again, parentheses preserving the property reference. A call mints identity — 
 two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
 form yet and refuses both by name, so a module with a call in it compiles to
-the EDAG output alone.
+the EDAG output alone. When it gets one, a negative callee needs the care an
+access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
+written `-1()` — a group would say it, `(-1)()`, and until the grammar has
+one ([`todo/grouping.md`](todo/grouping.md)) a `const` does. The writer's
+proof refuses that shape by name, so the question comes up where the
+spelling is written.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
