@@ -310,7 +310,7 @@ const accessed = (base, round) => {
     const [tag, branch] = unmapped(round)
     if (tag !== 'call') { return ['.', base, accessKey(/** @type {_KeyBranch} */(branch))] }
     const call = unmapped(/** @type {_CallBranch} */(branch))
-    return ['()', base, toArray(valueItems(call[2])), tokenAt(call[0])]
+    return ['()', base, toArray(valueItems(call[2]))]
 }
 
 /**
@@ -572,24 +572,19 @@ export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== '
  * An access on a number or a bigint literal, at the key. JavaScript reads
  * `-1 .x` as `-(1 .x)`, the minus after the access, while the tokenizer
  * folds the minus into the number — and folds `-0n` to `0n`, so no sign
- * is left to tell the two apart by. With no negation in the language to
- * read the spelling JavaScript's way, an access on any numeric literal is
- * refused: `1 .x` is `undefined` in both and worth nothing, and a
- * reference to a number keeps `n.x`, which reads alike in both.
+ * is left to tell the two apart by. The two readings are worth different
+ * values: `-1 .x` is `undefined` here and `NaN` in JavaScript, so the text
+ * cannot be emitted for the graph it makes. With no negation in the
+ * language to read the spelling JavaScript's way, an access on any numeric
+ * literal is refused rather than the signed ones alone, and a reference to
+ * a number keeps `n.x`, which reads alike in both.
+ *
+ * A call on a numeric literal is taken, though the same fold reaches it:
+ * `-1()` calls `-1` here where JavaScript calls `1`, but a number is
+ * callable under neither reading, so the two agree on everything a program
+ * can observe and the call is the EDAG its operands make.
  */
 const numericBase = foldError('access on a numeric literal')
-
-/**
- * A call on a number or a bigint literal, at the `(`. The same ambiguity
- * {@link numericBase} refuses: JavaScript reads `-1()` as `-(1())`, the
- * minus outside the call, while the tokenizer folds it into the number —
- * so the callee here would be `-1` where JavaScript calls `1`. With no
- * negation in the language to read the spelling JavaScript's way, a call on
- * any numeric literal is refused rather than some, as an access on one is:
- * `1()` is a `TypeError` in both and worth nothing, and a reference to a
- * number keeps `n()`, which reads alike in both.
- */
-const numericCallee = foldError('call on a numeric literal')
 
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
@@ -713,17 +708,6 @@ const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1
  */
 const callRound = (stack, env, frame) => {
     const { call, index } = frame
-    // The callee is answered for before an argument is read, as a method
-    // call's property is: the `(` comes before what follows it, and the
-    // first error in source order is the one reported.
-    //
-    // `done` holds the callee alone at this point, so reading it is one
-    // step and not a walk of the arguments — the list is flattened once, at
-    // the close below.
-    if (index === 1) {
-        const callee = toArray(frame.done)[0]
-        if (typeof callee === 'number' || typeof callee === 'bigint') { return [stack, env, error(numericCallee(call[3]))] }
-    }
     if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, env, ['enter', callOperandAt(call, index)]] }
     const [callee, ...args] = toArray(frame.done)
     /** @type {AstCall} */

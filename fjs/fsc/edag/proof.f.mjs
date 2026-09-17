@@ -239,6 +239,16 @@ export const proof = {
         // the callee is one node however many calls reach it
         assert(twice[1][0] instanceof Array && twice[1][1] instanceof Array, twice)
         assert(twice[1][0][1] === twice[1][1][1], twice)
+        // A numeric callee is a call like any other. The graph is one the
+        // language already makes by the other spelling — `1()` and a `const`
+        // naming `1` are the same EDAG — so refusing the literal would have
+        // refused a source for the shape of its text and not of its graph.
+        // It throws under either reading, here and in JavaScript, which is
+        // what keeps the fold of the minus in `-1()` from dividing them.
+        expectEdag(compile('export default 1();').edag, ['()', 1, ['[]', []]])
+        expectEdag(compile('const n = 1; export default n();').edag, ['()', 1, ['[]', []]])
+        expectEdag(compile('export default -1();').edag, ['()', -1, ['[]', []]])
+        expectEdag(compile('export default 1n();').edag, ['()', 1n, ['[]', []]])
     },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many

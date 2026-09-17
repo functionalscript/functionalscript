@@ -676,36 +676,32 @@ export const proof = {
             // and a body still reaches nothing outside itself
             expect('const f = (...a) => 1; export default (...b) => f(b);', 'capture not supported', 49)
         },
-        // A call on a numeric literal is refused where an access on one is,
-        // and for the same reason: the tokenizer folds a minus into the
-        // number, so `-1()` here would call `-1` where JavaScript reads
-        // `-(1())` and calls `1`. Every numeric callee is refused rather
-        // than the signed ones alone, as every numeric base is — `1()` is a
-        // `TypeError` in both and worth nothing, and a reference to a number
-        // keeps `n()`, which reads alike in both.
+        // A call on a numeric literal is taken, though an access on one is
+        // refused. The tokenizer folds a minus into the number, so `-1()`
+        // here calls `-1` where JavaScript reads `-(1())` and calls `1` —
+        // but a number is callable under neither reading, so nothing a
+        // program can observe divides them, and the call is the EDAG its
+        // operands make. An access divides them by value, which is why that
+        // one is refused: `-1 .x` is `undefined` here and `NaN` there.
         numericCallee: () => {
-            /** @type {(source: string, message: string, column: number) => void} */
-            const expect = (source, message, column) => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
-                assert(tag === 'error', tag)
-                assertEq(value.message, message)
-                assertEq(value.metadata?.column, column)
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
             }
-            // at the `(`, which is where the call is
-            expect('export default -1();', 'call on a numeric literal', 18)
-            expect('export default 1();', 'call on a numeric literal', 17)
-            expect('export default -1n();', 'call on a numeric literal', 19)
-            expect('export default -Infinity();', 'call on a numeric literal', 25)
-            // the callee is answered for before an argument is read, so the
-            // `(` at 17 is reported and not the `zzz` at 18 — the first
-            // error in source order, as everywhere else
-            expect('export default 1(zzz);', 'call on a numeric literal', 17)
-            expect('export default -1(zzz);', 'call on a numeric literal', 18)
-            // which is the order a method call's property already had
-            expect('const a = {}; export default a.toString(zzz);', 'prohibited property name', 32)
-            const [tag, value] = parseFromTokens(tokenizeString('const n = 1; export default n();'))
-            assert(tag === 'ok', value)
-            assertEq(stringifyDjsModule(value), '[[],[1,["()",["cref",0],[]]]]')
+            expect('export default 1();', '[[],[["()",1,[]]]]')
+            expect('export default -1();', '[[],[["()",-1,[]]]]')
+            expect('export default 1n();', '[[],[["()",1n,[]]]]')
+            expect('export default -Infinity();', '[[],[["()",-Infinity,[]]]]')
+            // an argument of a numeric callee is read as any other is, so
+            // its own error is the one reported
+            const [tag, value] = parseFromTokens(tokenizeString('export default 1(zzz);'))
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'const not found')
+            assertEq(value.metadata?.column, 18)
+            // and a reference to a number reads alike in both, as before
+            expect('const n = 1; export default n();', '[[],[1,["()",["cref",0],[]]]]')
         },
         // A body `const` may take a name the module binds. The body cannot
         // reach the module's scope at all — a reference out is a capture —
