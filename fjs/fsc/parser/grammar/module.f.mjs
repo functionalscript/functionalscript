@@ -356,13 +356,13 @@ export const block = /** @type {const} */ ([
  * — the key has to be `type` and the value `json`, and the fold says which
  * is not.
  *
- * The key is {@link identifier} and not the bare `id` symbol, so that a
+ * The key is {@link identifierName} and not the bare `id` symbol, so that a
  * word with a symbol of its own stands here as any other word does:
  * JavaScript's key is an `IdentifierName`, which admits every reserved
  * word, and giving a word its own symbol narrows where it is *required*,
- * never where it is *allowed*. `with { return: "json" }` is an unknown
- * attribute, which is the fold's to say, not a token the grammar did not
- * expect.
+ * never where it is *allowed*. `with { return: "json" }` and
+ * `with { NaN: "json" }` are unknown attributes, which is the fold's to
+ * say, not a token the grammar did not expect.
  */
 export const attribute = /** @type {const} */ ([
     sym('with'), trivia, sym('{'), trivia, identifierName, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
