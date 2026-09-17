@@ -10,31 +10,21 @@ Some of the JS built-in objects and functions are "not allowed" in FS. It means,
 
 Global objects can't be assigned to a variable (`const r = Object`). They can only be used as namespaces (`Object.entries()`).
 
-The other half of that rule — that none of these names may be *bound* by a
-module either, so that admitting one later cannot change the meaning of a
-module that already bound it — is
+None of these names may be *bound* by a module either, or admitting one
+later would change what a module already means:
 [`2365-global-names.md`](./2365-global-names.md), which lands first.
 
 ### Value Properties
 
 - [x] `Infinity`
 - [x] `NaN`
-- [x] `undefined` — a literal global like the two above it: in the language,
-      and already refused as a binding name
-- [ ] `globalThis` — never admitted rather than not yet: it is the global
-      object itself, which is ambient authority
-      ([`2365-global-names.md`](./2365-global-names.md))
+- [x] `undefined` — a literal global like the two above it
+- [ ] `globalThis` — never, not not-yet: it is the global object itself
 
 ### Function Properties
 
-- [ ] `eval` — never admitted rather than not yet: it runs source at run
-      time, which a subset with no free names and no effects cannot hold.
-      Binding the word is refused already, and by JavaScript rather than by
-      us — an early error in strict code, so `const eval = 1;` is a
-      `SyntaxError` in any module
-      ([`2365-global-names.md`](./2365-global-names.md)). The `no` beside it
-      in [Others](#others) is a reading of its *effects*, not of whether the
-      language admits it
+- [ ] `eval` — never, not not-yet: it runs source at run time. Binding the
+      word is refused already, and by JavaScript rather than by us
 - [x] `isFinite()`
 - [x] `isNaN()`
 - [x] `parseFloat()`
@@ -97,16 +87,11 @@ module that already bound it — is
 
 - [ ] `Promise`
 
-The four that stood here — `Generator`, `GeneratorFunction`, `AsyncFunction`
-and `AsyncGeneratorFunction` — are gone, and cannot come back. They are no
-properties of the global object: each is an intrinsic reached through a
-prototype, and `'GeneratorFunction' in globalThis` is `false`. Admitting one
-as a namespace would mean inventing a global JavaScript does not have, and a
-FunctionalScript module must run the same as JavaScript. There is nothing
-here to admit, nothing to reserve, and a module may bind the word as it may
-in JavaScript ([`2365-global-names.md`](./2365-global-names.md)).
-`AsyncIterator` and `AsyncGenerator`, which MDN lists beside them, are the
-same case and were never in this list.
+`Generator`, `GeneratorFunction`, `AsyncFunction` and
+`AsyncGeneratorFunction` stood here and are gone: no global object has them
+— they are intrinsics reached through a prototype — so admitting one would
+mean inventing a global JavaScript does not have. `AsyncIterator` and
+`AsyncGenerator` are the same case.
 
 ### Reflection
 
