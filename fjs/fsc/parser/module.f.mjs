@@ -47,11 +47,11 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstConst, AstFunction, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstConst, AstFunction, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstOperation } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Body, Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _ContainerFrame, _Env, _Expr, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -295,28 +295,115 @@ const accessKey = round => tokenAt(unmapped(unmapped(unmapped(round)[1])[2])[1])
 const accessed = (base, round) => ['.', base, accessKey(round)]
 
 /**
- * The node a value's own part makes, before the accesses after it: a
+ * The node a primary's own part makes, before the accesses after it: a
  * primitive converted from its token, a reference by its token, and a
  * container of the items its list returned — `[ open t [ items ] close t
- * ]`, the list at the third position. A function and a block are not here:
- * neither takes an access, so each node is made whole.
+ * ]`, the list at the third position.
  *
- * @type {(node: Exclude<Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['func' | 'block', unknown]>) => Node}
+ * `tag`/`branch` are the primary variant's own `[tag, branch]` — the same
+ * shape `value`/`body`'s own top variant used to hold directly, one
+ * `unmapped` layer further in now that the operator ladder sits above it
+ * (`./grammar/module.f.mjs`'s `ladder`); `branch` stays as loosely typed as
+ * the ladder's own `Rule`-widened `expr`, `_Expr`, since nothing here reads
+ * past the one shape every primary shares — `README.md`'s "the fold sees
+ * text" holds the same way one level down: `primaryNode` below is where a
+ * `tag` known by grammar construction, not by this type, is trusted.
+ *
+ * @type {(tag: string, branch: _Expr) => Node}
  */
-const baseOf = ([tag, branch]) => {
+const baseOf = (tag, branch) => {
+    const [head] = unmapped(/** @type {readonly [_Expr, _Expr]} */ (branch))
     switch (tag) {
-        case 'primitive': { return ['primitive', primitiveOf(unmapped(unmapped(unmapped(branch)[0])[0]))] }
-        case 'ref': { return ['ref', tokenAt(unmapped(unmapped(unmapped(branch)[0])[0])[1])] }
-        case 'array': { return ['array', toArray(valueItems(unmapped(unmapped(branch)[0])[2]))] }
-        case 'object': { return ['object', toArray(memberItems(unmapped(unmapped(branch)[0])[2]))] }
+        case 'array': { return ['array', toArray(valueItems(/** @type {_OptionalList} */ (unmapped(/** @type {readonly [_Expr, _Expr, _Expr, _Expr, _Expr]} */ (head))[2])))] }
+        case 'object': { return ['object', toArray(memberItems(/** @type {_OptionalList} */ (unmapped(/** @type {readonly [_Expr, _Expr, _Expr, _Expr, _Expr]} */ (head))[2])))] }
+        case 'ref': { return ['ref', tokenAt(unmapped(/** @type {readonly [string, _Expr]} */ (unmapped(/** @type {readonly [_Expr, _Expr]} */ (head))[0]))[1])] }
+        default: {
+            const primitiveLeaf = /** @type {Children<typeof primitive, DjsTokenWithMetadata, Out>} */
+                (unmapped(/** @type {readonly [string, _Expr]} */ (unmapped(/** @type {readonly [_Expr, _Expr]} */ (head))[0])))
+            return ['primitive', primitiveOf(primitiveLeaf)]
+        }
     }
 }
 
 /**
- * A value is the node its branch made, with each access after it applied
- * in turn — the accesses at the second position of every branch, after
- * the value's own part — or a function, by the token naming its parameter,
- * at the fifth position of `( t ... t id t ) s => t body`, and its body at
+ * A primary's node, {@link baseOf}'s, with each access after it applied in
+ * turn — the accesses at the second position of every branch, after the
+ * primary's own part, which every branch shares regardless of what it is:
+ * `primitiveValue`, `reference`, `[array, accesses]` and `[object,
+ * accesses]` in `./grammar/module.f.mjs` are each a 2-tuple ending in
+ * `accesses`.
+ *
+ * @type {(node: _Expr) => Node}
+ */
+const primaryNode = node => {
+    const [tag, branch] = unmapped(/** @type {readonly [string, _Expr]} */ (node))
+    const [, accesses] = unmapped(/** @type {readonly [_Expr, _Expr]} */ (branch))
+    return unmapped(/** @type {readonly _AccessNode[]} */ (accesses)).reduce(accessed, baseOf(tag, branch))
+}
+
+/**
+ * `unary`'s node: `-`/`~` applied to another `unary`, or `exponent`'s own
+ * node where neither prefix stands — `./grammar/module.f.mjs`'s `ladder`
+ * lays out why `unary` wraps `exponent` rather than the reverse.
+ *
+ * @type {(node: _Expr) => Node}
+ */
+const unaryNode = node => {
+    const [tag, branch] = unmapped(/** @type {readonly [string, _Expr]} */ (node))
+    if (tag === 'root') { return exponentNode(branch) }
+    const [, , rest] = unmapped(/** @type {readonly [_Expr, _Expr, _Expr]} */ (branch))
+    return /** @type {Node} */ ([tag, [unaryNode(rest)]])
+}
+
+/**
+ * `exponent`'s node: a primary, then optionally `**` and a `unary` on the
+ * right — right-associative because that right operand may itself hold
+ * another `exponent`, through `unary`'s own fall-through branch.
+ *
+ * @type {(node: _Expr) => Node}
+ */
+const exponentNode = node => {
+    const [primary, option] = unmapped(/** @type {readonly [_Expr, _Expr]} */ (node))
+    const base = primaryNode(primary)
+    const rounds = unmapped(option)
+    if (rounds.length === 0) { return base }
+    const [, , rhs] = unmapped(/** @type {readonly [_Expr, _Expr, _Expr]} */ (rounds[0]))
+    return ['**', [base, unaryNode(rhs)]]
+}
+
+/**
+ * A left-associative binary layer's node, generic over the layer below it:
+ * `multiplicative` through `bitwiseOr` in `./grammar/module.f.mjs`'s
+ * `ladder` are each `[lower, repeatFrom0(branches)]`, one round per
+ * operator occurrence, folded left to right so `1 - 2 - 3` groups as
+ * `(1 - 2) - 3`.
+ *
+ * @type {(lowerNode: (node: _Expr) => Node) => (node: _Expr) => Node}
+ */
+const leftAssocNode = lowerNode => node => {
+    const [first, rounds] = unmapped(/** @type {readonly [_Expr, _Expr]} */ (node))
+    return unmapped(rounds).reduce((left, round) => {
+        const [tag, branch] = unmapped(/** @type {readonly [string, _Expr]} */ (round))
+        const [, , rhs] = unmapped(/** @type {readonly [_Expr, _Expr, _Expr]} */ (branch))
+        return /** @type {Node} */ ([tag, [left, lowerNode(rhs)]])
+    }, lowerNode(first))
+}
+
+const multiplicativeNode = leftAssocNode(unaryNode)
+const additiveNode = leftAssocNode(multiplicativeNode)
+const shiftNode = leftAssocNode(additiveNode)
+const relationalNode = leftAssocNode(shiftNode)
+const equalityNode = leftAssocNode(relationalNode)
+const bitwiseAndNode = leftAssocNode(equalityNode)
+const bitwiseXorNode = leftAssocNode(bitwiseAndNode)
+
+/** The top of Stage A's ladder: `bitwiseOr`'s node. @type {(node: _Expr) => Node} */
+const bitwiseOrNode = leftAssocNode(bitwiseXorNode)
+
+/**
+ * A value is `bitwiseOrNode` over its ladder, at the first position of
+ * `expr`'s branch — or a function, by the token naming its parameter, at
+ * the fifth position of `( t ... t id t ) s => t body`, and its body at
  * the eleventh. A body is a value less the object, and its node is made
  * the same way.
  *
@@ -334,8 +421,7 @@ const toNode = node => {
         return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
     }
     if (node[0] === 'block') { return symbol({ id: 'value', node: nodeAt(unmapped(node[1])[4]) }) }
-    const [, accesses] = unmapped(node[1])
-    return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, baseOf(node)) })
+    return symbol({ id: 'value', node: bitwiseOrNode(node[1]) })
 }
 
 /**
@@ -567,9 +653,15 @@ const accessClosed = (key, base) => {
     return ok(access)
 }
 
-/** @type {(container: Container, index: number) => Node} */
+/**
+ * The item at a container's index: an object's member value, or — array and
+ * Stage A operator alike, an operator's operand list being a plain `Node[]`
+ * the same shape `array` holds — the item itself.
+ *
+ * @type {(container: Container, index: number) => Node}
+ */
 const itemAt = ([kind, items], index) =>
-    kind === 'array' ? items[index] : items[index].value
+    kind === 'object' ? items[index].value : items[index]
 
 /**
  * The error a container's item earns before its value is read, or `null`:
@@ -584,7 +676,7 @@ const itemAt = ([kind, items], index) =>
  * @type {(container: Container, index: number) => ParseError | null}
  */
 const badKey = ([kind, items], index) => {
-    if (kind === 'array') { return null }
+    if (kind !== 'object') { return null }
     const { key, name, computed } = items[index]
     return name === protoKey && !computed ? protoKeyError(key) : null
 }
@@ -607,17 +699,37 @@ const memberEntry = done => ({ name }, index) => [name, done[index]]
  * JavaScript builds, and EDAG's object constructor takes the members as
  * written, which the syntax alone still has.
  *
+ * A Stage A operator closes to the EDAG's own flat `[tag, ...operands]`
+ * shape — `AstOperation` in `../ast/types.ts` — `done`'s length, one or two,
+ * deciding the arity exactly as it decides a chain step's in
+ * `fjs/edag/module.f.mjs`.
+ *
  * @type {(container: Container, done: readonly AstConst[]) => AstConst}
  */
 const close = ([kind, members], done) => {
-    if (kind === 'array') {
-        /** @type {AstArray} */
-        const array = ['array', done]
-        return array
+    switch (kind) {
+        case 'array': {
+            /** @type {AstArray} */
+            const array = ['array', done]
+            return array
+        }
+        case 'object': {
+            /** @type {AstObject} */
+            const object = ['object', members.map(memberEntry(done))]
+            return object
+        }
+        default: {
+            // `kind`'s arity and `done`'s length agree by grammar
+            // construction — `baseOf`/`ladder` never build an operand list
+            // the wrong length for the tag — which is not a correlation
+            // `Container`'s three-way tag/arity split states as one type.
+            const [a, b] = done
+            const operation = done.length === 1
+                ? /** @type {AstOperation} */ ([kind, a])
+                : /** @type {AstOperation} */ ([kind, a, b])
+            return operation
+        }
     }
-    /** @type {AstObject} */
-    const object = ['object', members.map(memberEntry(done))]
-    return object
 }
 
 /**

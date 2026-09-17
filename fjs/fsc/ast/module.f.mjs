@@ -97,6 +97,15 @@ const entryStep = (acc, ast) => okThen(foldOp(ast))(acc)
 const noFunctionValue = 'functions are compiled to the EDAG only'
 
 /**
+ * The refusal of a Stage A operator (`spec/todo/2340-operators.md`) where a
+ * value is wanted: evaluating one is the EDAG's job, `fjs/fsc/edag`'s
+ * `lower`, not this plain-data reader's — a second implementation of every
+ * operator's JS semantics here would only be a second place for it to drift
+ * from the one `nanvm-lib`/`amnesia` already pin.
+ */
+const noOperatorValue = 'operators are compiled to the EDAG only'
+
+/**
  * The value of one entry, or the failure. An object's members are written
  * into a plain object in the order the syntax holds them, so the result is
  * the object JavaScript builds from the same literal: a repeated key keeps
@@ -114,7 +123,8 @@ const toDjs = state => ast => {
         case 'object': { return mapOk(objectOf)(fold(collect)(noMembers)(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
         case 'args': { return error(noFunctionValue) }
-        default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
+        case '.': { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
+        default: { return error(noOperatorValue) }
     }
 }
 
@@ -182,6 +192,14 @@ const memberValuesWritten = members => members.map(([, value]) => value)
  * the key names and drops the rest, the written view keeps the whole
  * literal, since the EDAG constructs it before the read.
  *
+ * A Stage A operator's operands are read the same way an array's items are:
+ * every operand may hold a reference, and none is lazy — Stage A has no
+ * `&&`/`||`/`??`/`?:`/`,` yet, the operators
+ * [`2340-operators.md`](../../../spec/todo/2340-operators.md)'s comma rule
+ * treats as eager edges — so each one simply contributes what it reaches.
+ * `ast.length` decides the arity the same way it decides an `op12` node's in
+ * `fjs/edag/module.f.mjs`.
+ *
  * @type {(view: _View) => (ast: AstConst) => List<_Ref>}
  */
 const refsOf = view => ast => {
@@ -200,7 +218,13 @@ const refsOf = view => ast => {
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }
-        default: { return [{ ref: ast, keys: [] }] }
+        case 'cref':
+        case 'aref': { return [{ ref: ast, keys: [] }] }
+        default: {
+            return ast.length === 2
+                ? refsOf(view)(ast[1])
+                : flat([refsOf(view)(ast[1]), refsOf(view)(ast[2])])
+        }
     }
 }
 

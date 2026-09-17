@@ -108,6 +108,15 @@ export const proof = {
                 ["export default 1\n;", "[[],[1]]"],
                 ["const a = 1\n;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
                 ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"array\",[[\"cref\",0],[\"cref\",0]]]]]"],
+                // `-` still folds into an adjacent number/bigint/`Infinity`
+                // token exactly as it always did — `-NaN` has none of those
+                // to its right, so it is the Stage A operator now
+                // (`spec/todo/2340-operators.md`), `NaN` its operand, where
+                // DataJS itself has no rule that accepts it
+                // (`spec/datajs/vectors/reject/data.f.mjs`'s `value-sign-nan`
+                // — DJS is no longer DataJS's exact reader once it has
+                // operators DataJS does not).
+                ["export default -NaN;", "[[],[[\"-\",NaN]]]"],
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', [source, tag])
@@ -166,10 +175,6 @@ export const proof = {
                 ["const NaN = 1;\nexport default NaN;", "unexpected token", [1, 7]],
                 ["import Infinity from \"m\";\nexport default Infinity;", "unexpected token", [1, 8]],
                 ["export default {NaN: 1};", "unexpected token", [1, 17]],
-                // `-` folds into a number and into `Infinity`, and into
-                // nothing else: before `NaN` it is an error token, and the
-                // grammar refuses at the `NaN` after it, as DataJS refuses
-                ["export default -NaN;", "unexpected token", [1, 17]],
                 ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
                 // a `const` naming itself is a reference before its declaration,
@@ -196,6 +201,86 @@ export const proof = {
             }
         },
     ],
+    // Stage A (`spec/todo/2340-operators.md`): the values every operator
+    // resolves to, and — new here — the precedence and associativity the
+    // layered grammar gives, `./grammar/module.f.mjs`'s `ladder`.
+    operators: {
+        // each layer's own tag, one operand each side, both arithmetic and
+        // — new here — strict comparison and bitwise
+        values: () => {
+            for (const [source, expected] of [
+                ["export default ~1;", "[[],[[\"~\",1]]]"],
+                ["const x = 1; export default -x;", "[[],[1,[\"-\",[\"cref\",0]]]]"],
+                ["export default 1 + 2;", "[[],[[\"+\",1,2]]]"],
+                ["export default 1 - 2;", "[[],[[\"-\",1,2]]]"],
+                ["export default 1 * 2;", "[[],[[\"*\",1,2]]]"],
+                ["export default 1 / 2;", "[[],[[\"/\",1,2]]]"],
+                ["export default 1 % 2;", "[[],[[\"%\",1,2]]]"],
+                ["export default 1 ** 2;", "[[],[[\"**\",1,2]]]"],
+                ["export default 1 === 2;", "[[],[[\"===\",1,2]]]"],
+                ["export default 1 !== 2;", "[[],[[\"!==\",1,2]]]"],
+                ["export default 1 > 2;", "[[],[[\">\",1,2]]]"],
+                ["export default 1 >= 2;", "[[],[[\">=\",1,2]]]"],
+                ["export default 1 < 2;", "[[],[[\"<\",1,2]]]"],
+                ["export default 1 <= 2;", "[[],[[\"<=\",1,2]]]"],
+                ["export default 1 & 2;", "[[],[[\"&\",1,2]]]"],
+                ["export default 1 | 2;", "[[],[[\"|\",1,2]]]"],
+                ["export default 1 ^ 2;", "[[],[[\"^\",1,2]]]"],
+                ["export default 1 << 2;", "[[],[[\"<<\",1,2]]]"],
+                ["export default 1 >> 2;", "[[],[[\">>\",1,2]]]"],
+                ["export default 1 >>> 2;", "[[],[[\">>>\",1,2]]]"],
+            ]) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', [source, tag])
+                assertEq(stringifyDjsModule(value), expected, source)
+            }
+        },
+        // `1 + 2 * 3` groups as `+` over `2 * 3`: multiplicative binds
+        // tighter than additive, so `*` is the inner node
+        precedence: () => {
+            for (const [source, expected] of [
+                ["export default 1 + 2 * 3;", "[[],[[\"+\",1,[\"*\",2,3]]]]"],
+                ["export default 2 * 3 + 1;", "[[],[[\"+\",[\"*\",2,3],1]]]"],
+                ["export default 1 * 2 ** 3;", "[[],[[\"*\",1,[\"**\",2,3]]]]"],
+                ["export default 1 + 2 << 3;", "[[],[[\"<<\",[\"+\",1,2],3]]]"],
+                ["export default 1 << 2 > 3;", "[[],[[\">\",[\"<<\",1,2],3]]]"],
+                ["export default 1 > 2 === 3;", "[[],[[\"===\",[\">\",1,2],3]]]"],
+                ["export default 1 === 2 & 3;", "[[],[[\"&\",[\"===\",1,2],3]]]"],
+                ["export default 1 & 2 ^ 3;", "[[],[[\"^\",[\"&\",1,2],3]]]"],
+                ["export default 1 ^ 2 | 3;", "[[],[[\"|\",[\"^\",1,2],3]]]"],
+                // accesses bind tighter than any operator: `a.b` before `+`
+                ["const a = {b: 1}; export default a.b + 1;", "[[],[[\"object\",[[\"b\",1]]],[\"+\",[\".\",[\"cref\",0],\"b\"],1]]]"],
+            ]) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', [source, tag])
+                assertEq(stringifyDjsModule(value), expected, source)
+            }
+        },
+        // every binary layer folds left to right but `**`, which folds its
+        // right operand instead — `2 ** 3 ** 2` is `2 ** (3 ** 2)`, not
+        // `(2 ** 3) ** 2`
+        associativity: () => {
+            for (const [source, expected] of [
+                ["export default 1 - 2 - 3;", "[[],[[\"-\",[\"-\",1,2],3]]]"],
+                ["export default 1 / 2 / 3;", "[[],[[\"/\",[\"/\",1,2],3]]]"],
+                ["export default 2 ** 3 ** 2;", "[[],[[\"**\",2,[\"**\",3,2]]]]"],
+                // unary sits above `exponent` (`./grammar/module.f.mjs`'s
+                // `ladder` says why): `- 2 ** 2` is `-(2 ** 2)`, and `2 **
+                // -2` reaches `unary` on the right of `**` without it
+                ["export default - 2 ** 2;", "[[],[[\"-\",[\"**\",2,2]]]]"],
+                ["export default 2 ** -2;", "[[],[[\"**\",2,-2]]]"],
+                // adjacent to a number, `-` still folds into the literal —
+                // unchanged from before Stage A — so `-2 ** 2` is `(-2) **
+                // 2` instead, the literal `-2` never becoming an operator
+                ["export default -2 ** 2;", "[[],[[\"**\",-2,2]]]"],
+                ["export default -~1;", "[[],[[\"-\",[\"~\",1]]]]"],
+            ]) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', [source, tag])
+                assertEq(stringifyDjsModule(value), expected, source)
+            }
+        },
+    },
     // Wide and deep values. A list is right-recursive, so 5,000 siblings
     // are 5,000 levels of tree: the machine builds it on a heap stack, each
     // list node's mapping prepends one item to what its tail returned, and

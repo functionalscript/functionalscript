@@ -9,9 +9,9 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — functions, operators, property
-access, type annotations — and the design documents for the VM, I/O,
-serialization, and the rest of the roadmap live in
+Features the parser does not recognize yet — type annotations, and the lazy
+and comma [operators](./todo/2340-operators.md) among them — and the design
+documents for the VM, I/O, serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
 
 Those documents sort planned features into two layers, and use the names here.
@@ -298,10 +298,12 @@ export default [NaN, Infinity, -Infinity];
 `NaN` and `Infinity` are reserved words, like `undefined`: a module cannot
 bind, shadow or key them, and each denotes its value wherever it stands.
 
-The `-` is lexical: it joins the number to its left as part of one token, so
-`-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
-`Infinity` the same way — `-Infinity` is one token and `-NaN` is not a value.
-There is no negation operator ([operators](./todo/2340-operators.md)).
+The `-` immediately before a number, a bigint, or `Infinity` is lexical: it
+joins to form one token, so `-42.5` is a number literal and `-Infinity` is the
+word DataJS spells that value with. Elsewhere `-` is the negation
+[operator](#operators): `- 42.5`, with a space, is `42.5` negated rather than
+another spelling of the literal, and `-NaN` is `NaN` negated, a value here
+though DataJS has no rule that accepts it.
 
 ### Strings
 
@@ -449,9 +451,11 @@ A property access reads an **own property** of any value but a number or a
 bigint literal — a reference, an array, an object or a string written out, or
 an access — a member of an object, an element or the `length` of an array, a
 code unit or the `length` of a string. A number or a bigint literal takes no
-access: JavaScript reads `-1 .x` as `-(1 .x)`, and the language has no
-negation to read it that way, so `1 .x` is an error while `const n = 1;`
-followed by `n.x` is `undefined` in both languages. The key is a constant — an identifier
+access, whatever [operator](#operators) applies to it: JavaScript reads
+`-1 .x` as `-(1 .x)`, the access binding to the literal before the negation
+does, and this language refuses that access rather than read it JavaScript's
+way, so `1 .x` and `-1 .x` are both errors while `const n = 1;` followed by
+`n.x` is `undefined` in both languages. The key is a constant — an identifier
 after `.`, or a string or a number in brackets — and `0` and `"0"` name the
 same element, as in JavaScript. A property the value does not own is
 `undefined`, and reading one of `null` or `undefined` is an error, as
@@ -466,6 +470,54 @@ thing in both. `length` is the exception, since an array, a string and a
 function own it. The rules are
 [property-accessor](./todo/2330-property-accessor.md)'s; a key computed at
 run time, and a method call, are not recognized yet.
+
+## Operators
+
+```js
+export default [1 + 2 * 3, 2 ** 3 ** 2, -x, ~1, 1 === 2, a.b + 1];
+```
+
+Arithmetic, strict comparison, and bitwise — the first stage of
+[operators](./todo/2340-operators.md), which also has the lazy `&&`/`||`/`??`,
+the conditional `?:`, and the comma operator, none of them parsed yet.
+`==`/`!=` are never allowed, and `typeof`/unary `+`/`!` are not this stage's
+either — `typeof` reads as an ordinary reference and the reserved words that
+spell the others are not this language's.
+
+|Type|Operators|
+|---|---|
+|Arithmetic|`+` `-` `*` `/` `%` `**`, and unary `-`|
+|Comparison|`===` `!==` `>` `>=` `<` `<=`|
+|Bitwise|`&` `\|` `^` `~` `<<` `>>` `>>>`|
+
+Precedence and associativity are JavaScript's, layer by layer from lowest to
+highest: `\|`, then `^`, then `&`, then `===`/`!==`, then the relational four,
+then the shifts, then `+`/`-`, then `*`/`/`/`%`, then `**`, then unary `-`/`~`,
+then a value's own [accesses](#property-access), which bind tighter than any
+operator — `a.b + 1` reads `(a.b) + 1`. Every binary layer is left-associative,
+`1 - 2 - 3` reading `(1 - 2) - 3`, but `**`, whose right operand may hold
+another `**`, so `2 ** 3 ** 2` reads `2 ** (3 ** 2)`.
+
+Unary `-`/`~` sit **above** `**` rather than below it, the one deliberate
+departure from JavaScript's own table: JavaScript refuses `-2 ** 2` outright,
+since its grammar allows a unary prefix directly to the left of `**` only
+through parentheses this language does not parse yet
+([grouping](./todo/2350-grouping.md)). Placing unary above `**` resolves it
+instead of refusing it, the way mathematical notation and Python read it —
+`- 2 ** 2` is `-(2 ** 2)`, not `(-2) ** 2` — and `2 ** -2` is unaffected,
+reaching unary through `**`'s own right operand either way. This is
+independent of the lexical rule above: `-2 ** 2`, with no space, is the
+literal `-2` to the power `2`, `-` having already joined the number before the
+grammar sees an operator at all.
+
+Every value takes an operand's place except a function, which cannot: without
+grouping there is nothing to bound a lambda's body against an operator to its
+right, so `x => x + 1` is one function whose body is `x + 1` — never
+`(x => x) + 1`, matching JavaScript's own precedence. A bare object literal is
+refused as an operand of a function's expression body for the same reason
+`(...a) => {}` already was: `=> {` opens a block, so `(...a) => 1 + {}` needs
+the block form, `(...a) => { return 1 + {}; };`, or object elsewhere in the
+expression, `(...a) => [1 + {}]`.
 
 ## Importing Other Modules
 

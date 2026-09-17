@@ -7,6 +7,7 @@
  */
 
 import type { Primitive, Unknown } from '../../media/datajs/types.ts'
+import type { Op12Tag, Op1Tag, Op2Tag } from '../parser/types.ts'
 
 /**
  * An import as the module records it: the specifier as written, and
@@ -26,8 +27,20 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a Stage A operator, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstOperation|AstFunction|AstArgs
+
+/**
+ * A Stage A operator (`spec/todo/2340-operators.md`), resolved: the EDAG's
+ * own flat `op1`/`op12`/`op2` shape (`fjs/edag/types.ts`), which
+ * `fjs/fsc/edag/module.f.mjs`'s `lower` carries through unchanged but for
+ * lowering each operand.
+ */
+export type AstOperation =
+    | readonly [Op1Tag, AstConst]
+    | readonly [Op12Tag, AstConst]
+    | readonly [Op12Tag, AstConst, AstConst]
+    | readonly [Op2Tag, AstConst, AstConst]
 
 /**
  * A function of its arguments alone: `(...a) => body`, the body a value in

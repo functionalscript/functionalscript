@@ -40,6 +40,26 @@ export type ParseError = {
 }
 
 /**
+ * Stage A's unary-only tag (`spec/todo/2340-operators.md`): bitwise not.
+ * Unary `-` is {@link Op12Tag}, legal at both arities, as
+ * `fjs/edag/types.ts`'s `Op12Id` has it; unary `+`/`!`/`typeof` are not this
+ * grammar's yet.
+ */
+export type Op1Tag = '~'
+
+/** The one Stage A tag legal at both arities: unary negation, binary subtraction. */
+export type Op12Tag = '-'
+
+/**
+ * Stage A's remaining binary tags: arithmetic but `-`, strict comparison,
+ * bitwise but `~`. A subset of `fjs/edag/types.ts`'s `Op2Id` plus its
+ * `Op12Id`'s `+`, which the grammar only ever builds at binary arity, having
+ * no unary `+` syntax: the grammar has no `==`/`!=`, `instanceof`/`in`, or
+ * the lazy `&&`/`||`/`??`/`?:`/`,` of later stages.
+ */
+export type Op2Tag = '+' | '===' | '!==' | '>' | '>=' | '<' | '<=' | '*' | '/' | '%' | '**' | '&' | '|' | '^' | '<<' | '>>' | '>>>'
+
+/**
  * A value as the mappings build it, before names are resolved: a primitive
  * converted from its token, a reference by the identifier token that spells
  * it — its name, and the position an error is anchored at — a property
@@ -54,10 +74,23 @@ export type Node =
     | readonly ['=>', DjsTokenWithMetadata, Node]
     | Container
 
-/** An array of its items, or an object of its members, each in the order written. */
+/**
+ * An array of its items, an object of its members, or a Stage A operator
+ * over its operands, each in the order written. The three share one round-
+ * by-round resolution in `../module.f.mjs`'s `round`/`close`/`itemAt`: an
+ * operator's operand list closes to the EDAG's own flat `[tag, ...operands]`
+ * shape (`op1`/`op12`/`op2` in `fjs/edag/module.f.mjs`), the array wrapper
+ * here existing only so an operator node has an item list to walk like a
+ * container's, never appearing past resolution — {@link AstConst} in
+ * `../ast/types.ts` has the flat tags directly.
+ */
 export type Container =
     | readonly ['array', readonly Node[]]
     | readonly ['object', readonly Entry[]]
+    | readonly [Op1Tag, readonly [Node]]
+    | readonly [Op12Tag, readonly [Node]]
+    | readonly [Op12Tag, readonly [Node, Node]]
+    | readonly [Op2Tag, readonly [Node, Node]]
 
 /**
  * One member of an object: the token its key is read from, which anchors

@@ -75,7 +75,18 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, lower({ parameters: [], consts: [], args: ['args'] })(ast[1])] }
         case 'args': { return nodes.args }
         // the EDAG's own form already, its key a constant the parser admitted
-        default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
+        case '.': { return ['.', lower(nodes)(ast[1]), ast[2]] }
+        // a Stage A operator (`spec/todo/2340-operators.md`): the EDAG's
+        // own `op1`/`op12`/`op2` tag already, `ast.length` deciding the
+        // arity the same way it decides which `op12` arm applies —
+        // `fjs/edag/module.f.mjs`'s own `op12` reads a node's length the
+        // same way, so this is the parser's vocabulary meeting the EDAG's
+        // own, not a translation between two.
+        default: {
+            return ast.length === 2
+                ? [ast[0], lower(nodes)(ast[1])]
+                : [ast[0], lower(nodes)(ast[1]), lower(nodes)(ast[2])]
+        }
     }
 }
 

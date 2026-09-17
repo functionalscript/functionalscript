@@ -308,6 +308,12 @@ as a generic `Any` facility, post-MVP.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../spec/todo/2340-operators.md).
 - [ ] **Parser**, using [`fjs/ebnf/`](../../fjs/ebnf/README.md) (FJS).
+      Current status: Stage A operators landed —
+      [`fjs/fsc/parser/README.md`](../../fjs/fsc/parser/README.md#the-operator-ladder)
+      — arithmetic, strict comparison, bitwise, reachable from `fjs compile`
+      end to end (confirmed against the `.rs` branch above). Grouping,
+      calls, and the lazy/comma operator stages
+      ([2340-operators.md](../../spec/todo/2340-operators.md)) remain.
 - [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
       First complete the repository TypeScript-to-JavaScript Stage 1 and authored
       `.f.js` package support. Then, as compiler coverage grows, rename eligible

@@ -124,6 +124,42 @@ export const proof = {
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
     },
+    // Stage A (`spec/todo/2340-operators.md`): arithmetic, strict
+    // comparison, bitwise — every layer `ladder` builds, grammar-accepted;
+    // `.` (accesses) already proven above, so this is what the ladder adds.
+    operators: () => {
+        assertStructurallySame(read('export default 1 + 2 - 3 * 4 / 5 % 6 ** 7;'), ['ok'])
+        assertStructurallySame(read('export default 1 === 2 !== 3;'), ['ok'])
+        assertStructurallySame(read('export default 1 > 2 >= 3 < 4 <= 5;'), ['ok'])
+        assertStructurallySame(read('export default 1 & 2 | 3 ^ 4 << 5 >> 6 >>> 7;'), ['ok'])
+        assertStructurallySame(read('export default -1 - -a;'), ['ok'])
+        assertStructurallySame(read('export default ~ ~1;'), ['ok'])
+        assertStructurallySame(read('export default a.b + [1][0] * { c: 1 }.c;'), ['ok'])
+        // `==`/`!=` are not allowed and neither is `!`: none of the three is
+        // a token the tokenizer passes through, so each is an error at the
+        // operator itself; `typeof` demotes to a plain identifier, as every
+        // keyword but the seven framing ones does, so the value it names
+        // reads as a reference and the number stray after it is the error
+        assertStructurallySame(read('export default 1 == 2;'), ['error', 'error'])
+        assertStructurallySame(read('export default 1 != 2;'), ['error', 'error'])
+        assertStructurallySame(read('export default !1;'), ['error', 'error'])
+        assertStructurallySame(read('export default typeof 1;'), ['error', 'number'])
+        // an operator with no right operand, or none at all, is a stray
+        // token the next rule rejects — the same shape every other missing
+        // piece takes
+        assertStructurallySame(read('export default 1 + ;'), ['error', ';'])
+        assertStructurallySame(read('export default + 1;'), ['error', '+'])
+        // no grouping yet (`../../todo/grouping.md`): `(` still opens only
+        // a function, expecting `...` next, so a parenthesized operand is
+        // unreachable syntax
+        assertStructurallySame(read('export default (1 + 2);'), ['error', 'number'])
+        // a bare object cannot open a function's expression body, `=> {`
+        // always a block — the restriction reaches the whole ladder here,
+        // not only its leftmost primary, so `1 + {}` needs the block form
+        assertStructurallySame(read('export default (...a) => 1 + {};'), ['error', '{'])
+        assertStructurallySame(read('export default (...a) => { return 1 + {}; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => [1 + {}];'), ['ok'])
+    },
     // A function: `(`, `...`, one parameter, `)`, `=>`, and a body that is
     // a value less the object — `=> {` opens a block, which `block` below
     // covers — each token followed by its trivia; no other parameter form

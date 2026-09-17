@@ -147,10 +147,16 @@ accepts, so that compiling the output again yields the same EDAG:
   or function base inside a body is refused, as a shared constructor there
   is, until body constants give the body a `const`, which keeps the scope.
 - A node kind the writer has no spelling for is refused, naming the kind.
-  Calls and operators are not in the language yet; each feature that adds a
-  node kind adds its spelling to this writer in the same PR, which the
-  round-trip proof below enforces, so the writer never falls behind the
-  parser.
+  Calls are not in the language yet, and Stage A operators
+  ([`2340-operators.md`](../../../spec/todo/2340-operators.md)) landed after
+  this writer's own design and before its implementation — this doc's own
+  policy, that each feature adding a node kind adds its spelling to this
+  writer in the same PR, could not be honored for a writer that does not yet
+  exist to receive it. Whoever builds this writer owes it every `op1`/
+  `op12`/`op2` tag the parser now emits, verified the same way as every other
+  kind here: refused by name until spelled, then round-tripped. Once this
+  writer exists, the same-PR policy resumes for whatever operator stage lands
+  next.
 - Leaves are written as the DataJS serializer writes them: JSON's spellings,
   `undefined`, `NaN`, the infinities, `-0`, a bigint with its suffix, and
   `["__proto__"]:` for that key. An object key is written as a string; a

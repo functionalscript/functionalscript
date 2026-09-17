@@ -42,9 +42,11 @@ export const proof = {
             assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"-Infinity"}},{"metadata":{"column":10,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
-            // and into nothing else: `-NaN` is not a value, as in DataJS
+            // and into nothing else: `-NaN` is not one token — `-` stands as
+            // the Stage A operator (`spec/todo/2340-operators.md`), ahead of
+            // the literal it does not fold into
             const result = toArray(tokenize(stringToList('-NaN'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"NaN"}},{"metadata":{"column":5,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"NaN"}},{"metadata":{"column":5,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
             const result = toArray(tokenize(stringToList('-10'))(''))
@@ -67,19 +69,42 @@ export const proof = {
             assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
+            // `js/tokenizer` reads the three characters as `--` then `-`, so
+            // the first `-` is the decrement operator's (an error) and the
+            // second re-enters minus-state on its own, then meets `eof` —
+            // which falls through to a real `-` operator token, below.
             const result = toArray(tokenize(stringToList('---'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"-"}},{"metadata":{"column":4,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
-            // dangling '-' at eof
+            // a dangling '-' at eof is now a real operator token, same as
+            // any other position `-` cannot fold from: the grammar reports
+            // the missing operand as `unexpected end`, not a lexical error
             const result = toArray(tokenize(stringToList('-'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
         },
         () => {
-            // '-' followed by neither a number/bigint nor eof: one error for
-            // the dangling '-', then the following token maps through normally.
+            // '-' followed by neither a number/bigint nor `Infinity`: a real
+            // `-` operator token, then the following token maps through
+            // normally — `{` here, unary minus having no operand it could
+            // ever apply to an object literal, which the grammar refuses
             const result = toArray(tokenize(stringToList('-{'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"{"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
+            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"-"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"{"}},{"metadata":{"column":3,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
+            // the Stage A operators (`spec/todo/2340-operators.md`) pass
+            // through as tokens of their own, maximal munch telling `**`
+            // from `*`, `>>>` from `>>`/`>`, and `===`/`!==` from `=`
+            const result = toArray(tokenize(stringToList('a+b***c===d>=e<<f&g'))(''))
+            const kinds = result.map(t => t.token.kind)
+            assertEq(kinds.join(' '), 'id + id ** * id === id >= id << id & id eof')
+        },
+        () => {
+            // the rest of Stage A: `/`, `%`, `!==`, `<`, `<=`, `>`, `>>`,
+            // `>>>`, `|`, `^`, `~`
+            const result = toArray(tokenize(stringToList('a/b%c!==d<e<=f>g>>h>>>i|j^~k'))(''))
+            const kinds = result.map(t => t.token.kind)
+            assertEq(kinds.join(' '), 'id / id % id !== id < id <= id > id >> id >>> id | id ^ ~ id eof')
         },
         () => {
             const result = toArray(tokenize(stringToList('[-1234567890n]'))(''))

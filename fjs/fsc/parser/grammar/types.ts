@@ -9,7 +9,7 @@
  */
 
 import type { Assert } from '../../../asserts/types.ts'
-import type { Option, RepeatFrom, Rule } from '../../../ebnf/types.ts'
+import type { Option, Rule } from '../../../ebnf/types.ts'
 import type { Equal } from '../../../types/ts/types.ts'
 import type { DjsToken } from '../../tokenizer/types.ts'
 import type {
@@ -19,7 +19,6 @@ import type {
     access,
     identifier,
     key,
-    primitive,
     sameLine,
     trivia,
 } from './module.f.mjs'
@@ -90,23 +89,25 @@ export type Items<Item extends Rule> = () => readonly ['const', readonly [
     Option<readonly [number, typeof trivia, Option<Rule>]>,
 ]]
 
-/** An opening symbol, trivia, an optional list, the closing symbol, and the trivia after it. */
-export type Container<Item extends Rule> = readonly [number, typeof trivia, Option<Items<Item>>, number, typeof trivia]
-
 /** A key, trivia, `:`, trivia, and a value. */
 export type Member = readonly [typeof key, typeof trivia, number, typeof trivia, Value]
 
 /**
- * A value: a primitive token, a reference, an array of values, or an
- * object of members, each ending with its trivia and each followed by the
- * accesses after it — a `const` thunk whose payload names the thunk, which
- * is what lets a type alias name itself.
+ * A value: the Stage A operator ladder over a primary token, a reference, an
+ * array of values, or an object of members, each ending with its trivia and
+ * each followed by the accesses after it — or a function — a `const` thunk
+ * whose payload names the thunk, which is what lets a type alias name
+ * itself.
+ *
+ * `expr` is widened to `Rule` rather than spelled out layer by layer: the
+ * nine-layer ladder `./module.f.mjs`'s `ladder` builds is, like the whole
+ * module's own tree, too deep a type for `tsc` to unroll through a
+ * recursive alias here, and nothing outside `./module.f.mjs` reads its
+ * shape more precisely than that — the fold that does is `unmapped` calls
+ * matching the grammar step by step, in `../module.f.mjs`.
  */
 export type Value = () => readonly ['const', {
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
-    readonly object: readonly [Container<Member>, RepeatFrom<0, typeof access>]
+    readonly expr: Rule
     readonly func: Func
 }]
 
@@ -115,9 +116,7 @@ export type Value = () => readonly ['const', {
  * JavaScript — or that block, in which an object is a value again.
  */
 export type Body = () => readonly ['const', {
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
+    readonly expr: Rule
     readonly func: Func
     readonly block: Block
 }]

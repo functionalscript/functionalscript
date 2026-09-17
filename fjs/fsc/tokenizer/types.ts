@@ -31,6 +31,12 @@ import type {
 export type DjsToken = |
   {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity' | '-Infinity'} |
   {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' | ';' | '(' | ')' | '=>' | '...' } |
+  // Stage A operators (`spec/todo/2340-operators.md`): arithmetic, strict
+  // comparison, and bitwise. `-` is here too — the operator, not the fold:
+  // it reaches this alphabet only where `module.f.mjs`'s `_DjsScanState`
+  // decides the token before it is not a negative number, bigint or
+  // `-Infinity`, which stay one token each and never reach here as `-`.
+  {readonly kind: '+' | '-' | '*' | '/' | '%' | '**' | '===' | '!==' | '>' | '>=' | '<' | '<=' | '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>' } |
   StringToken |
   NumberToken |
   ErrorToken |

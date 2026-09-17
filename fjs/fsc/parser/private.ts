@@ -7,8 +7,9 @@
  * @module
  */
 
-import type { Meta, Unmapped } from '../../ebnf/ast/types.ts'
+import type { Ast, Meta, Unmapped } from '../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
+import type { Rule } from '../../ebnf/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
@@ -27,6 +28,22 @@ export type _TokenStream = {
 
 /** A position a reader inspects: a symbol of either alphabet, or a node the machine built. */
 export type _Leaf = Meta<DjsTokenWithMetadata | Out> | readonly unknown[]
+
+/**
+ * A position under `./grammar/module.f.mjs`'s `ladder` — `Value`/`Body`'s
+ * `expr`, widened there to `Rule` since the nine-layer ladder is too deep a
+ * type to spell out layer by layer. Unlike {@link _Leaf}, `unmapped` on an
+ * `_Expr` yields another `_Expr` at every position under it (`Ast<Rule,…>`
+ * resolves to itself recursively, the way `Ast<R,…>` does for any `R`), so a
+ * reader may call `unmapped` once per grammar level it destructures, exactly
+ * as it does against a precisely-typed node — see `README.md`'s "The tree is
+ * `Ast<R, I, O>`". What it does not carry, `Value`/`Body`'s own precise
+ * typing does past that boundary: a leaf's tag narrows only to `string`,
+ * never to the operator it names, which is why `../module.f.mjs`'s ladder
+ * readers close each with a targeted `Node`/`Op…Tag` cast once they have
+ * walked the shape the grammar is known, by construction, to hold there.
+ */
+export type _Expr = Ast<Rule, DjsTokenWithMetadata, Out>
 
 /**
  * A position holding an optional list, `[ items ]`: no round, or one

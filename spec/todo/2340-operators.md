@@ -1,36 +1,61 @@
 # Operators
 
-|Type       |Operator |Priority   |
-|-----------|---------|-----------|
-|Comparison |`==`     |not allowed|
-|           |`!=`     |not allowed|
-|           |`===`    |1          |
-|           |`!==`    |1          |
-|           |`>`      |1          |
-|           |`>=`     |1          |
-|           |`<`      |1          |
-|           |`<=`     |1          |
-|Arithmetics|`+`      |1          |
-|           |`-`      |1          |
-|           |`*`      |1          |
-|           |`/`      |1          |
-|           |`%`      |1          |
-|           |unary `-`|1          |
-|           |`**`     |1          |
-|Bitwise    |`&`      |1          |
-|           |`\|`     |1          |
-|           |`^`      |1          |
-|           |`~`      |1          |
-|           |`<<`     |1          |
-|           |`>>`     |1          |
-|           |`>>>`    |1          |
-|Logical    |`&&`     |1          |
-|           |`\|\|`   |1          |
-|           |`??`     |1          |
-|           |`!`      |1          |
-|Conditional|`?:`     |1          |
-|Comma      |`,`      |1          |
-|Type       |`typeof` |EDAG only  |
+The `Priority` column is an implementation-priority ranking, this repo's usual
+P1–P5 todo convention — not JavaScript operator precedence. The actual
+precedence and associativity table is
+[`spec/README.md#operators`](../README.md#operators)'s, proven against
+`fjs/fsc/parser/grammar`'s own layered rule graph; this doc does not restate
+it.
+
+The `Landed` column tracks parser + EDAG-lowering rollout, staged the way the
+`.`/`[]` member-access plan was: **Stage A**, non-lazy (arithmetic,
+comparison, bitwise — every operand always evaluated), landed first since it
+validates the grammar-layering approach with none of the later stages'
+semantic subtlety; **Stage B**, lazy (`&&`/`||`/`??`/`?:`, whose untaken
+operand must stay genuinely unestablished); **Stage C**, comma (the
+subtraction-based anchoring rule below, real `fjs/fsc/edag` surgery, done last
+once A and B have proven the general approach). Rows this doc's own text
+already marks `not allowed` or `EDAG only` land in neither stage; `typeof`'s
+"open" is a decision for a future chat, not a stage.
+
+|Type       |Operator |Priority   |Landed|
+|-----------|---------|-----------|------|
+|Comparison |`==`     |not allowed|—     |
+|           |`!=`     |not allowed|—     |
+|           |`===`    |1          |[x] Stage A|
+|           |`!==`    |1          |[x] Stage A|
+|           |`>`      |1          |[x] Stage A|
+|           |`>=`     |1          |[x] Stage A|
+|           |`<`      |1          |[x] Stage A|
+|           |`<=`     |1          |[x] Stage A|
+|Arithmetics|`+`      |1          |[x] Stage A|
+|           |`-`      |1          |[x] Stage A|
+|           |`*`      |1          |[x] Stage A|
+|           |`/`      |1          |[x] Stage A|
+|           |`%`      |1          |[x] Stage A|
+|           |unary `-`|1          |[x] Stage A|
+|           |`**`     |1          |[x] Stage A|
+|Bitwise    |`&`      |1          |[x] Stage A|
+|           |`\|`     |1          |[x] Stage A|
+|           |`^`      |1          |[x] Stage A|
+|           |`~`      |1          |[x] Stage A|
+|           |`<<`     |1          |[x] Stage A|
+|           |`>>`     |1          |[x] Stage A|
+|           |`>>>`    |1          |[x] Stage A|
+|Logical    |`&&`     |1          |[ ] Stage B|
+|           |`\|\|`   |1          |[ ] Stage B|
+|           |`??`     |1          |[ ] Stage B|
+|           |`!`      |1          |[ ] not this stage — see below|
+|Conditional|`?:`     |1          |[ ] Stage B|
+|Comma      |`,`      |1          |[ ] Stage C|
+|Type       |`typeof` |EDAG only  |—     |
+
+`!` sits with the Stage B rows in the table above but is not Stage B's:
+unlike `&&`/`||`/`??`, `!` is eager, but this repo's Stage A rollout scoped it
+out — [`spec/README.md#operators`](../README.md#operators) lists exactly what
+landed — leaving it, like unary `+` and `typeof`, an EDAG operation
+(`op1Id` in [`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)) FunctionalScript
+does not parse yet. Whether it joins Stage B or lands on its own is open.
 
 The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Comma_operator) is allowed. It was previously rejected on the grounds that it is useful only when we want to mutate — but that is not its only use. In a pure language the sole side effect a discarded operand can have is *throwing*, which makes `,` the assertion form:
 

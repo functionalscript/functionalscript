@@ -77,6 +77,16 @@ export const proof = {
         assertEq(anchorsOf([[a], [['=>', 0], ['cref', 0]]]), 'consts ; imports 0')
         assertEq(anchorsOf([[a], [['=>', ['array', [['args'], ['args']]]], ['cref', 0]]]), 'consts ; imports 0')
     },
+    // A Stage A operator (`spec/todo/2340-operators.md`) has no value here
+    // either: evaluating one is `fjs/fsc/edag`'s job, not this plain-data
+    // reader's — one operand refused at `op1`/`op12` arity, two at `op2`.
+    operator: () => {
+        assertStructurallySame(run([['~', 1]])([]), ['error', 'operators are compiled to the EDAG only'])
+        assertStructurallySame(run([['-', 1]])([]), ['error', 'operators are compiled to the EDAG only'])
+        assertStructurallySame(run([['-', 1, 2]])([]), ['error', 'operators are compiled to the EDAG only'])
+        assertStructurallySame(run([['+', 1, 2]])([]), ['error', 'operators are compiled to the EDAG only'])
+        assertStructurallySame(run([['===', 1, 2]])([]), ['error', 'operators are compiled to the EDAG only'])
+    },
     // what the sweep from the export leaves out, by index, less what the
     // left-out entries reach themselves
     anchors: {
@@ -100,6 +110,13 @@ export const proof = {
         access: () => {
             assertEq(anchorsOf([[], [['object', []], ['.', ['cref', 0], 'x']]]), 'consts ; imports ')
             assertEq(anchorsOf([[a], [['array', [['.', ['aref', 0], 0]]]]]), 'consts ; imports ')
+        },
+        // a Stage A operator reaches every operand: one at `op1`/`op12`
+        // arity, `ast.length === 2`, and both at `op2`/`op12` binary arity
+        operator: () => {
+            assertEq(anchorsOf([[], [1, ['-', ['cref', 0]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[], [1, 2, ['+', ['cref', 0], ['cref', 1]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[a], [['-', ['aref', 0]]]]), 'consts ; imports ')
         },
         imports: () => {
             assertEq(anchorsOf([[a], [1]]), 'consts ; imports 0')

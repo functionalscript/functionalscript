@@ -18,8 +18,8 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
-value  ::= (primitive t | id t | array | object) access* | func
-body   ::= (primitive t | id t | array) access* | func | block
+value  ::= ladder(primary     ::= (primitive t | id t | array | object) access*) | func
+body   ::= ladder(bodyPrimary ::= (primitive t | id t | array) access*) | func | block
 block  ::= '{' t 'return' s value ';' t '}' t
 func   ::= '(' t '...' t id t ')' s '=>' t body
 access ::= '.' t id t | '[' t (string | number) t ']' t
@@ -59,8 +59,31 @@ token the grammar cannot use. A reserved literal — `true`, `false`, `null`,
 refused as a name, a reference or a key by the rule that wanted an
 identifier, and read as the value it names where a value may stand.
 `-Infinity` is one token, the tokenizer folding the `-` into the word as it
-folds one into a number, so the grammar has no negation. `import`, `const` and `export` in the wrong order
+folds one into a number and a bigint. `import`, `const` and `export` in the wrong order
 report `unexpected token` at the offending keyword.
+
+## The operator ladder
+
+[Stage A of `spec/todo/2340-operators.md`](../../../spec/README.md#operators)
+— arithmetic, strict comparison, bitwise — sits inside `value`/`body` in
+place of the bare primary those two productions used to spell directly:
+`ladder`, in `./grammar/module.f.mjs`, is a nine-layer precedence chain built
+once per primary (`value`'s, with an object; `body`'s, without) and documented
+in full where it is built — the precedence and associativity table, why
+`unary` sits above `exponent` rather than below it as JavaScript's own
+grammar has it, and the LL(1) argument for each layer. A function is never a
+ladder operand: nothing bounds a lambda's body against an operator to its
+right without grouping ([`../../todo/grouping.md`](../../todo/grouping.md)),
+so `value`/`body` keep `func` a sibling of the whole ladder, exactly where it
+already stood beside the old bare primary.
+
+Landing this reopened the one negation question the grammar had settled
+differently before: unary `-` is real syntax now, `-` no longer folding into
+anything but an *immediately adjacent* number, bigint, or `Infinity` token —
+`-1` and `-Infinity` are still one token each, and `- 1`, with a space, is the
+Stage A operator applied to `1`. `fjs/fsc/tokenizer/module.f.mjs`'s
+`_DjsScanState` decides this at the token boundary, before the grammar ever
+sees a `-`, so the fold above never has to.
 
 ## The grammar sees symbols; the fold sees text
 

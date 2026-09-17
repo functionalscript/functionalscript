@@ -7,8 +7,8 @@
  * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t 'default' t value ';' t
- * value  ::= (primitive t | id t | array | object) access* | func
- * body   ::= (primitive t | id t | array) access* | func | block
+ * value  ::= ladder(primary  ::= (primitive t | id t | array | object) access*) | func
+ * body   ::= ladder(bodyPrimary ::= (primitive t | id t | array) access*) | func | block
  * block  ::= '{' t 'return' s value ';' t '}' t
  * func   ::= '(' t '...' t id t ')' s '=>' t body
  * access ::= '.' t id t | '[' t (string | number) t ']' t
@@ -20,6 +20,11 @@
  * t      ::= (ws | nl | comment)*
  * s      ::= (ws | comment)*
  * ```
+ *
+ * `ladder`, over either primary, is Stage A of
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md) —
+ * arithmetic, strict comparison, bitwise — laid out where it is built,
+ * {@link ladder} below.
  *
  * Three things are spelled for one symbol of lookahead, each a conflict
  * the classical grammar this replaced had, measured before the port and
@@ -75,6 +80,10 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 export const _tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity', '-Infinity',
     '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...',
+    // Stage A operators (`spec/todo/2340-operators.md`): arithmetic,
+    // strict comparison, bitwise — `./README.md`'s precedence ladder.
+    '+', '-', '*', '/', '%', '**', '===', '!==', '>', '>=', '<', '<=',
+    '&', '|', '^', '~', '<<', '>>', '>>>',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -224,11 +233,103 @@ const primitiveValue = /** @type {const} */ ([[primitive, trivia], accesses])
 const reference = /** @type {const} */ ([[identifier, trivia], accesses])
 
 /**
- * A function's body: a value, but not an object — after `=>` JavaScript
- * reads `{` as a block, never as an object, so the spelling is refused
- * rather than read another way — or that block, {@link block}, in which an
- * object is an ordinary value again. A function takes no access of its
- * own: after `=>` an access belongs to the body.
+ * The precedence ladder above a primary — Stage A of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
+ * arithmetic, strict comparison, and bitwise, layered as JavaScript layers
+ * them (`./README.md` proves each layer LL(1) and walks the precedence and
+ * associativity this shape gives). Lowest binding last:
+ *
+ * ```text
+ * ladder(primary) ::= bitwiseOr
+ * bitwiseOr        ::= bitwiseXor [ '|' t bitwiseXor ]*
+ * bitwiseXor       ::= bitwiseAnd [ '^' t bitwiseAnd ]*
+ * bitwiseAnd       ::= equality [ '&' t equality ]*
+ * equality         ::= relational [ ('===' | '!==') t relational ]*
+ * relational       ::= shift [ ('>' | '>=' | '<' | '<=') t shift ]*
+ * shift            ::= additive [ ('<<' | '>>' | '>>>') t additive ]*
+ * additive         ::= multiplicative [ ('+' | '-') t multiplicative ]*
+ * multiplicative   ::= unary [ ('*' | '/' | '%') t unary ]*
+ * unary            ::= ('-' | '~') t unary | exponent
+ * exponent         ::= primary [ '**' t unary ]
+ * ```
+ *
+ * Called once per primary — {@link value}'s, with an object, and
+ * {@link body}'s, without — so the two calls hold two independent rule
+ * graphs the backend proves independently; nothing above `exponent`
+ * differs between them; the leaves' object literals name each round by the
+ * operator's own spelling, which is the EDAG `op2Id`/`op12Id` the fold
+ * lowers straight to (`fjs/edag/module.f.mjs`).
+ *
+ * Every layer is right-recursive in shape — `next [ op t next ]*` — never
+ * `next*`, so a repetition round always consumes its operator before
+ * recursing and no rule reaches itself without consuming a symbol first;
+ * the fold reduces each round's list left to right, which is where the
+ * left associativity actually comes from. `exponent`'s option recurses into
+ * `unary`, not back into itself, which is what makes `2 ** 3 ** 2` right
+ * associative: the right operand of one `**` may itself hold another.
+ *
+ * `unary` sits **above** `exponent`, the reverse of JavaScript's own
+ * grammar, where a `-`/`~`-prefixed operand may never stand immediately to
+ * the left of `**` and needs parentheses FunctionalScript does not parse
+ * yet ([`../../todo/grouping.md`](../../todo/grouping.md)) to say which
+ * reading is meant. Placing unary above exponent instead resolves it without
+ * parentheses, the way mathematical notation and Python read `-x**2` —
+ * `-(x**2)` — rather than refusing it; `2 ** -3` still reaches `unary` on
+ * `exponent`'s own right side, so a negative exponent needs nothing extra.
+ *
+ * @type {(primary: Rule) => Rule}
+ */
+const ladder = primary => {
+    /** @type {Rule} */
+    const unary = () => ['const', {
+        '-': [sym('-'), trivia, unary],
+        '~': [sym('~'), trivia, unary],
+        root: exponent,
+    }]
+    /** @type {Rule} */
+    const exponent = /** @type {const} */ ([primary, option([sym('**'), trivia, unary])])
+    const multiplicative = /** @type {const} */ ([unary, repeatFrom0({
+        '*': [sym('*'), trivia, unary],
+        '/': [sym('/'), trivia, unary],
+        '%': [sym('%'), trivia, unary],
+    })])
+    const additive = /** @type {const} */ ([multiplicative, repeatFrom0({
+        '+': [sym('+'), trivia, multiplicative],
+        '-': [sym('-'), trivia, multiplicative],
+    })])
+    const shift = /** @type {const} */ ([additive, repeatFrom0({
+        '<<': [sym('<<'), trivia, additive],
+        '>>': [sym('>>'), trivia, additive],
+        '>>>': [sym('>>>'), trivia, additive],
+    })])
+    const relational = /** @type {const} */ ([shift, repeatFrom0({
+        '>': [sym('>'), trivia, shift],
+        '>=': [sym('>='), trivia, shift],
+        '<': [sym('<'), trivia, shift],
+        '<=': [sym('<='), trivia, shift],
+    })])
+    const equality = /** @type {const} */ ([relational, repeatFrom0({
+        '===': [sym('==='), trivia, relational],
+        '!==': [sym('!=='), trivia, relational],
+    })])
+    const bitwiseAnd = /** @type {const} */ ([equality, repeatFrom0({
+        '&': [sym('&'), trivia, equality],
+    })])
+    const bitwiseXor = /** @type {const} */ ([bitwiseAnd, repeatFrom0({
+        '^': [sym('^'), trivia, bitwiseAnd],
+    })])
+    const bitwiseOr = /** @type {const} */ ([bitwiseXor, repeatFrom0({
+        '|': [sym('|'), trivia, bitwiseXor],
+    })])
+    return bitwiseOr
+}
+
+/**
+ * A function's body: an operator expression over a primary, but not an
+ * object — after `=>` JavaScript reads `{` as a block, never as an object,
+ * so the spelling is refused rather than read another way — or that block,
+ * {@link block}, in which an object is an ordinary value again. A function
+ * takes no access of its own: after `=>` an access belongs to the body.
  *
  * `{` decides between the two in one symbol, since no other branch starts
  * with it.
@@ -236,9 +337,11 @@ const reference = /** @type {const} */ ([[identifier, trivia], accesses])
  * @type {Body}
  */
 export const body = () => ['const', {
-    primitive: primitiveValue,
-    ref: reference,
-    array: [array, accesses],
+    expr: ladder(/** @type {const} */ ({
+        primitive: primitiveValue,
+        ref: reference,
+        array: [array, accesses],
+    })),
     func,
     block,
 }]
@@ -255,24 +358,32 @@ export const body = () => ['const', {
 export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
 
 /**
- * A value ends with its own trivia, so that it may be followed by an
- * access, which the trivia after the value would otherwise have to lead —
- * and a rule trivia leads is a rule one symbol of lookahead cannot enter.
- * Every value's last token is followed by trivia exactly once, here, and
- * what follows a value adds none. Any value takes accesses, as any
- * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`.
- * `1 .x` parses here too, with a space since `1.x` is one number and a
- * stray word in JavaScript, and the fold refuses it with every access on
- * a numeric literal: JavaScript reads `-1 .x` as `-(1 .x)` and the
- * tokenizer folds the minus into the number.
+ * A value: an operator expression, {@link ladder}, over a primary that ends
+ * with its own trivia, so that it may be followed by an access, which the
+ * trivia after it would otherwise have to lead — and a rule trivia leads is
+ * a rule one symbol of lookahead cannot enter. Every primary's last token
+ * is followed by trivia exactly once, here, and what follows one adds none.
+ * Any primary takes accesses, as any expression does in JavaScript:
+ * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
+ * space since `1.x` is one number and a stray word in JavaScript, and the
+ * fold refuses it with every access on a numeric literal: JavaScript reads
+ * `-1 .x` as `-(1 .x)` and the tokenizer folds the minus into the number —
+ * accesses bind tighter than every Stage A operator, `a.b + 1` reading
+ * `(a.b) + 1`, since they sit on the primary itself, under the whole ladder.
+ * Or a function — never a ladder operand: without grouping
+ * ([`../../todo/grouping.md`](../../todo/grouping.md)) nothing could ever
+ * bound where its body ends, so `x => x + 1` is one function whose body is
+ * `x + 1`, never `(x => x) + 1`, matching JavaScript's own precedence.
  *
  * @type {Value}
  */
 export const value = () => ['const', {
-    primitive: primitiveValue,
-    ref: reference,
-    array: [array, accesses],
-    object: [object, accesses],
+    expr: ladder(/** @type {const} */ ({
+        primitive: primitiveValue,
+        ref: reference,
+        array: [array, accesses],
+        object: [object, accesses],
+    })),
     func,
 }]
 

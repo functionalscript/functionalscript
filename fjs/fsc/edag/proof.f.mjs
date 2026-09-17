@@ -112,6 +112,41 @@ export const proof = {
         const root = { 'a.f.js': file('import m from "./m.f.js"; export default m.x;'), 'm.f.js': file('export default { x: 1 };') }
         expectEdag(program(root)('a.f.js'), ['.', ['{}', [[':', 'x', 1]]], 'x'])
     },
+    // Stage A operators (`spec/todo/2340-operators.md`) lower to the EDAG's
+    // own `op1`/`op12`/`op2` tags unchanged — `./module.f.mjs`'s `lower`
+    // reads a node's length the same way `fjs/edag/module.f.mjs`'s `op12`
+    // does, so `-`/`+` at one operand is negation/unary plus and at two is
+    // subtraction/addition.
+    operators: () => {
+        expectEdag(compile('export default ~1;').edag, ['~', 1])
+        // `-1n` folds into one token, the bigint literal — not an operator
+        // node — same as `-1` always has; `- 1n`, with a space, is the
+        // Stage A operator applied to `1n`
+        expectEdag(compile('export default -1n;').edag, -1n)
+        expectEdag(compile('export default - 1n;').edag, ['-', 1n])
+        expectEdag(compile('export default - 1;').edag, ['-', 1])
+        expectEdag(compile('export default 1 - 2;').edag, ['-', 1, 2])
+        expectEdag(compile('export default 1 + 2;').edag, ['+', 1, 2])
+        expectEdag(compile('export default 1 * 2 / 3 % 4;').edag, ['%', ['/', ['*', 1, 2], 3], 4])
+        // right-associative: the right operand of one `**` may hold another
+        expectEdag(compile('export default 2 ** 3 ** 2;').edag, ['**', 2, ['**', 3, 2]])
+        expectEdag(compile('export default 1 === 2;').edag, ['===', 1, 2])
+        expectEdag(compile('export default 1 !== 2;').edag, ['!==', 1, 2])
+        expectEdag(compile('export default [1 > 2, 1 >= 2, 1 < 2, 1 <= 2];').edag,
+            ['[]', [['>', 1, 2], ['>=', 1, 2], ['<', 1, 2], ['<=', 1, 2]]])
+        expectEdag(compile('export default [1 & 2, 1 | 2, 1 ^ 2, 1 << 2, 1 >> 2, 1 >>> 2];').edag,
+            ['[]', [['&', 1, 2], ['|', 1, 2], ['^', 1, 2], ['<<', 1, 2], ['>>', 1, 2], ['>>>', 1, 2]]])
+        // precedence: `*` over `+`, and accesses bind tighter than either
+        expectEdag(compile('const a = [10]; export default a[0] + 2 * 3;').edag,
+            ['+', ['.', ['[]', [10]], 0], ['*', 2, 3]])
+        // a shared `const` reached through an operator is one node, as
+        // through any other operand position
+        const { edag } = compile('const a = [1]; export default [a, a + a];')
+        expectEdag(edag, ['[]', [['[]', [1]], ['+', ['[]', [1]], ['[]', [1]]]]])
+        assert(edag instanceof Array && edag[0] === '[]', edag)
+        const [a, sum] = edag[1]
+        assert(sum instanceof Array && sum[0] === '+' && sum[1] === a && sum[2] === a, edag)
+    },
     // imports take their positions from the source, and one import is one
     // parameter node however many references reach it
     parameters: () => {
