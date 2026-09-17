@@ -689,10 +689,17 @@ alone:
   read, a built-in prototype's among them
   ([property access](#property-access)), it may not call either.
 
-  What a call *returns* is not a value the compiler computes: a `.data.js` or
-  `.json` output of a module that reaches a call is refused, as one holding a
-  function is, since applying a function is the interpreter's work
-  ([`fjs/fsc/todo/interpret-edag.md`](../fjs/fsc/todo/interpret-edag.md)).
+  Only the EDAG output holds a call today, and the other three refuse one for
+  two different reasons. `.data.js` and `.json` are values, and what a call
+  *returns* is not a value the compiler computes — applying a function is the
+  interpreter's work
+  ([`fjs/fsc/todo/interpret-edag.md`](../fjs/fsc/todo/interpret-edag.md)) — so
+  a module reaching a call has no value output, as one holding a function has
+  none. The `.js` output is not a value and has no such excuse: the writer
+  simply has no spelling for either call form yet, and refuses by the name of
+  the node it meets, `a () node` and `a chain step`. Spelling them is the
+  writer's own step, and until it lands a module with a call in it compiles
+  to `.edag.data.js` alone.
 - A function is written by the FunctionalScript and EDAG outputs
   ([output](#output)); `fjs compile` refuses to write a module holding one as
   DataJS or as JSON, since a value has no function in it.

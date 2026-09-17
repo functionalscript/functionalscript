@@ -125,7 +125,9 @@ spreads. The plain form over an access is the *detached* receiver,
 source writes one — `(a.b)(c)` keeps the receiver and is the method call
 again, parentheses preserving the property reference. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
-keeps.
+keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
+form yet and refuses both by name, so a module with a call in it compiles to
+the EDAG output alone.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
