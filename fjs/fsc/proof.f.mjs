@@ -196,6 +196,8 @@ const fjsCorpus = [
     'const f = (...a) => 1; export default 2;',
     'const a = []; export default 1;',
     'const n = null; const check = n.x; export default 1;',
+    'export default {b:1,"0":2,a:3,b:4};',
+    'const x = []; export default {a: x, a: 1};',
 ]
 
 /** Whether the front end finds a shared node in the module at `path`. @type {(root: typeof emptyState.root) => (path: string) => boolean} */
@@ -306,7 +308,7 @@ export const proof = {
             assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
             assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$a)=>$a;')
             assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["=>",null,["args"]];')
-            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: functions are compiled to the EDAG only')
+            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
         },
         // Any other JavaScript name is FunctionalScript: `.f.js` says which
         // subset a source is written in, and an output the compiler writes
@@ -345,16 +347,35 @@ export const proof = {
     // rather than the value the program denotes. It is the one route that
     // does not evaluate the module, which is what lets it hold a function.
     fjsOutput: {
-        // the same three sources, side by side, in the two module outputs:
-        // an access is read by the value output and stays an access here, a
+        // the same sources, side by side, in the two module outputs: an
+        // access is read by the value output and stays an access here, a
         // function has no value and so no DataJS document, and an anchor is
         // a `const` in both
         graph: () => {
             assertEq(fjsRoundTrip('const a = { b: 1 }; export default a.b;'), 'export default {"b":1}.b;')
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.data.js'), 'export default 1;')
             assertEq(fjsRoundTrip('export default (...a) => a;'), 'export default (...$a)=>$a;')
-            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: functions are compiled to the EDAG only')
+            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const $0=(...$a)=>1;export default 2;')
+        },
+        // An object's members are the graph's here and the value's there, so
+        // the two outputs order them differently and hold a different number
+        // of them: the value output writes the object JavaScript builds from
+        // the literal — array-index keys first, a repeated key keeping its
+        // first position and its last value — and this one writes the
+        // literal's members as the node holds them.
+        //
+        // The last pair is the sharpest: a member a later duplicate shadows
+        // is in the graph and not in the value, so the `[]` is written here
+        // and nowhere else. Dropping it would make a different node, which
+        // is why the round trip holds over all three.
+        members: () => {
+            assertEq(fjsRoundTrip('export default {b:1,"0":2,a:3,b:4};'), 'export default {"b":1,"0":2,"a":3,"b":4};')
+            assertEq(compileSource('export default {b:1,"0":2,a:3,b:4};')('output.data.js'), 'export default {"0":2,"b":4,"a":3};')
+            assertEq(fjsRoundTrip('export default {"2":1,"1":2,a:3};'), 'export default {"2":1,"1":2,"a":3};')
+            assertEq(compileSource('export default {"2":1,"1":2,a:3};')('output.data.js'), 'export default {"1":2,"2":1,"a":3};')
+            assertEq(fjsRoundTrip('const x = []; export default {a: x, a: 1};'), 'export default {"a":[],"a":1};')
+            assertEq(compileSource('const x = []; export default {a: x, a: 1};')('output.data.js'), 'export default {"a":1};')
         },
         // the module is not evaluated, so a program whose value the readers
         // refuse — a read of `null`, which the DataJS output reports against
@@ -459,9 +480,9 @@ export const proof = {
             assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["args"];export default ["=>",null,["[]",[$0,$0]]];')
             assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["[]",[["=>",null,["args"]],["=>",null,["args"]]]];')
             assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",null,1],2]];')
-            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: functions are compiled to the EDAG only')
-            assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: functions are compiled to the EDAG only')
-            assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: functions are compiled to the EDAG only')
+            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
+            assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: a function has no value')
+            assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
         },
         // a program the linker refuses is reported against the input, as a
         // parse error is, and nothing is written: a missing import

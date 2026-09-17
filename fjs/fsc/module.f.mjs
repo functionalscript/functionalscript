@@ -122,7 +122,8 @@ const jsonMember = ([key, value]) => mapOk(
 
 /**
  * A value in JSON, or the refusal of a leaf. Members are written in the
- * order the object carries them, the order the module output keeps too.
+ * order the object carries them, the order the DataJS output keeps too — the
+ * other value output, and the one this walk shares its input with.
  * Sharing is not this walk's question: the front end answers it from the
  * module's syntax, so the walk carries no state.
  *
@@ -172,10 +173,17 @@ const named = suffixes => outputFileName => suffixes.some(suffix => outputFileNa
  * extension alone cannot tell them apart and the infix says which graph it
  * holds. Tested before {@link isDataJs}, whose suffix it ends with.
  *
- * The EDAG artifact is data — a document *of* a graph, not a program — so it
- * is named under the DataJS extension. It was `.edag.f.js` while every
- * JavaScript name was written as DataJS; that spelling is retired, and one
- * takes the FunctionalScript writer now like any other.
+ * Two names and no more, where {@link isFjs} takes every JavaScript name:
+ * the EDAG is a specialized intermediate artifact, so what reaches it is
+ * asked for exactly, never fallen into. And it is a DataJS document — a
+ * document *of* a graph, not a program — so `.data` is the infix it belongs
+ * under. It was `.edag.f.js` while every JavaScript name was written as
+ * DataJS, which was wrong on both counts: it spent the language's own
+ * extension on a data artifact, and it read as `.edag` modifying
+ * FunctionalScript rather than DataJS. That spelling is retired and is now a
+ * JavaScript name like any other, which the FunctionalScript writer takes —
+ * no rule of its own, since a rule of its own is what this route is built
+ * without.
  *
  * @type {(outputFileName: string) => boolean}
  */

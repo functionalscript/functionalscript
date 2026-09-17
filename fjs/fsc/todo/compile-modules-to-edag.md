@@ -63,7 +63,7 @@ never built — rather than by rewriting a finished `Unresolved`, which would
 need a memo keyed by node identity to keep sharing; a cache that stores
 `Unresolved` ([cache-compiled-modules](./cache-compiled-modules.md)) is what
 would need that rewrite. `fjs compile` writes the linked graph as a DataJS
-document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
+document when the output name ends with `.edag.data.js` or `.edag.data.mjs`, beside
 its value outputs, which are unchanged. The parser reads `a.b` and `a[key]`
 on any value but a number or a bigint literal, the key a string or a number, `__proto__` and `constructor`
 refused at the key, and the lowering carries the access as the EDAG's own
@@ -566,7 +566,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Add a distinct EDAG-producing compiler path/API alongside the current
       value-producing transpiler; do not redirect existing `transpile` / `fjs compile`
       callers until EDAG execution is available. Done: `resolve` beside `transpile`,
-      and in `fjs compile` an output name ending with `.edag.f.js` or `.edag.f.mjs`
+      and in `fjs compile` an output name ending with `.edag.data.js` or `.edag.data.mjs`
       selects it, as `.json` selects the JSON writer; the other outputs are as they
       were.
 

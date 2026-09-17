@@ -141,10 +141,14 @@ input — names the file being compiled instead.
 |FunctionalScript|`.f.js`|A graph of values and functions.|
 
 The extension is what separates the languages, and it is the only thing that
-does: a text is read as whichever language its name declares, and written in
-whichever its name declares ([output](#output)). DataJS is a subset of
-FunctionalScript, so every `.data.js` is FunctionalScript too; the extensions
-differ so that a document can say which subset it keeps to.
+does. On the way **out** a text is written in whichever language its name
+declares ([output](#output)). On the way **in** the compiler tells JSON from
+JavaScript and no more: a `.json` file is a document, and anything else is
+read by the module parser, `.data.js` included — so a `.data.js` input holding
+a function is accepted today, its name a claim the reader does not check.
+DataJS is a subset of FunctionalScript, so every `.data.js` is
+FunctionalScript too; the extensions differ so that a document can say which
+subset it keeps to.
 
 This table is about the *language* — what `fjs compile` reads and writes. The
 repository's own authored FunctionalScript is spelled `.f.mjs` instead, and its
@@ -223,10 +227,19 @@ writer — the one that refuses a function.
 - A FunctionalScript document is written in the same normalized form, and
   from the program's graph rather than from its value: the module is not
   evaluated, so a function has a document too, which is what DataJS and JSON
-  have no spelling for. On a module denoting data the two module outputs are
-  the same text.
-- Object properties are emitted in the order the object carries them —
-  JavaScript's own-property order, array-index keys first — in every format.
+  have no spelling for. Writing the graph is not writing the value, so the two
+  module outputs part wherever the program computes: `const a = { b: 1 };
+  export default a.b;` is `export default {"b":1}.b;` here and
+  `export default 1;` as DataJS. They agree on a normalized DataJS document,
+  which computes nothing — every one of them is a fixed point of both.
+- Object properties are emitted in the order the value carries them for the
+  value outputs — JavaScript's own-property order, array-index keys first,
+  a repeated key keeping its first position and its last value — and in the
+  order the *literal* carries them for a FunctionalScript document, whose
+  members are the graph's: `{b:1,"0":2,a:3,b:4}` stays as written there and is
+  `{"0":2,"b":4,"a":3}` as DataJS. A member a later duplicate shadows is in
+  the graph and not in the value, so `const x = []; export default {a: x, a: 1};`
+  writes that `[]` in a FunctionalScript document and nowhere else.
 - A `__proto__` key is emitted as `["__proto__"]:` in a DataJS or
   FunctionalScript document and as `"__proto__":` in JSON
   ([below](#the-__proto__-key)).
