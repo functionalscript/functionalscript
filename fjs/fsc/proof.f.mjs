@@ -806,6 +806,11 @@ pub fn module<A: IVm>() -> Any<A> {
             // a sign before it negates what the access read, as JavaScript
             // reads it: `-1 .x` is `-(1 .x)`, which is `NaN`
             assertEq(compileSource('export default [1 .x, -1 .x, 0n.x, -1["x"]];')('output.data.js'), 'export default [undefined,NaN,undefined,NaN];')
+            // a bigint's `n` ends the literal, so `1n.x` needs no space where
+            // `1.x` is one number and a stray word — JavaScript's own
+            // unevenness, which the tokenizer keeps rather than smooths. The
+            // sign composes with it: `-1n.x` is `-(1n.x)`, so `NaN`
+            assertEq(compileSource('export default [1n.x, -1n.x, -1n];')('output.data.js'), 'export default [undefined,NaN,-1n];')
             assertEq(moduleRefused('export default null.x;'), 'input.f.js - error: cannot read property "x" of null')
             assertEq(compileSource('const s = "ab"; export default [s[0], s["1"], s.length];')('output.json'), '["a","b",2]')
             assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.b.x];')('output.data.js'), 'export default [undefined,undefined];')
