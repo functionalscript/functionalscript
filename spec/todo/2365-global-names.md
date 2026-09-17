@@ -36,13 +36,21 @@ these as namespaces — "Global objects can't be assigned to a variable
 (`const r = Object`). They can only be used as namespaces
 (`Object.entries()`)" — which is the same rule seen from the other side, and
 the only half of it written down. The day `Object.entries()` is admitted,
-every module that bound `const Object = …` changes meaning. Reserving the
-name **before** it denotes anything makes that a non-event; reserving it
-after is a breaking change. That ordering is the reason this is its own
-document and not a section of 2360: it should land first.
+every module that bound `const Object = …` changes meaning.
 
-Nothing in this repository binds a global name — measured across every `.js`
-and `.mjs` file — so the reservation costs no existing module.
+The reservation is a breaking change of its own, whenever it lands:
+`const Object = 1;` is accepted source today, so reserving the name turns a
+module that compiles into one that does not, and the pull request that
+implements it owes the `**BREAKING CHANGES:**` declaration `AGENTS.md` asks
+for. What the ordering buys is not avoiding *that* break but avoiding a
+second and worse one — a name that quietly changes meaning under a module
+that already bound it, which no declaration can soften. So this is its own
+document and not a section of 2360: it should land first, and it should
+land loudly.
+
+At `010e1159`, no module in this repository bound a global name, across
+every `.js` and `.mjs` file, so the reservation costs this repository
+nothing; what it costs a module elsewhere is the break declared above.
 
 ## Proposal
 
@@ -59,11 +67,12 @@ Three of the names are not keys today, and that is a separate rule, not this
 one: `NaN`, `Infinity` and `undefined` carry their own token symbols, so
 `{ NaN: 1 }` and `a.NaN` are refused where `{ Math: 1 }` is accepted, and
 [`spec/README.md`](../README.md) says a module cannot "bind, shadow or key
-them". The key half of that is being removed in a document of its own — a
-key is no value position, and `{ "NaN": 1 }` already denotes the same
-object, so refusing the word costs a spelling and protects nothing. This
-document neither relies on that refusal nor extends it: every name it
-reserves is reserved at binding sites, and every one of them stays a key.
+them". That refusal is the tokenizer's doing — each of the three is a token
+kind of its own, so none reaches the identifier rule in any position — and
+not a decision about keys: a key is no value position, and `{ "NaN": 1 }`
+already denotes the same object. This document neither relies on that
+refusal nor extends it: every name it reserves is reserved at binding sites,
+and every one of them stays a key.
 
 `globalThis` is not merely reserved: it is the global object itself, which
 is ambient authority, so it is a name FunctionalScript will never admit —
@@ -171,6 +180,9 @@ not carry it forward.
       is already a literal global and already refused.
 - [ ] Answer the three open questions above in this document before the
       implementation, since each changes what the list is.
+- [ ] The implementing pull request declares the break: a `Changelog:`
+      section with a `**BREAKING CHANGES:**` item, naming what stops
+      compiling — a module binding one of these names.
 
 ## Related
 
