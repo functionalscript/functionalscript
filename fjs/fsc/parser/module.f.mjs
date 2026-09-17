@@ -687,8 +687,8 @@ const bodyRound = (stack, env, frame) => {
  * Enters a node: a primitive is its value, a reference the binding `env`
  * holds for its name, an access its base under a frame holding the key, a
  * container the first round of a new frame, and a function its body under
- * a frame holding `env` — the body resolved against its parameter alone,
- * so a reference to a name bound outside is a capture, refused where it is
+ * a frame holding `env` — the body resolved against its own names alone, so
+ * a reference to a name bound outside is a capture, refused where it is
  * written, and a name it does not find anywhere is `const not found` as
  * ever.
  *
