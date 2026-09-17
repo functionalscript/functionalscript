@@ -219,6 +219,36 @@ export const proof = {
         writes(['=>', null, ['[]', [1]]], 'export default (...$a)=>[1];')
         writes(['=>', null, ['.', 'x', 'length']], 'export default (...$a)=>"x".length;')
     },
+    // A body's own `const`s: a shared constructor, hoisted so that it is one
+    // value per call; a numeric or function access base, which the grammar
+    // takes no access on; and the anchors of a comma the body holds. Each is
+    // named by the body's parameter and its slot, `$a0` where the parameter
+    // is `$a`, so a scope's names collide with no other's and a body reads
+    // only its own.
+    //
+    // A body needing none keeps the expression form, which `functions`
+    // above pins: the `const`s are what make it a block.
+    bodyConsts: () => {
+        /** @type {Exp} */
+        const o = ['{}', []]
+        writes(['=>', null, ['[]', [o, o]]], 'export default (...$a)=>{const $a0={};return [$a0,$a0];};')
+        writes(['=>', null, ['.', 1, 'x']], 'export default (...$a)=>{const $a0=1;return $a0.x;};')
+        writes(['=>', null, ['.', identity, 'length']], 'export default (...$a)=>{const $a0=(...$b)=>$b;return $a0.length;};')
+        writes(['=>', null, [',', [['[]', []], 1]]], 'export default (...$a)=>{const $a0=[];return 1;};')
+        // the arguments are a body's to name, which no module `const` can
+        writes(['=>', null, ['[]', [['[]', [['args']]], ['[]', [['args']]]]]], 'export default (...$a)=>[[$a],[$a]];')
+        // one scope per body: the module's `$0`, the outer body's `$a0` and
+        // the inner one's `$b0` stand together, each numbering from zero
+        writes(
+            (() => {
+                /** @type {Exp} */
+                const m = ['[]', []]
+                /** @type {Exp} */
+                const inner = ['{}', []]
+                return [',', [['[]', [m, m]], ['=>', null, ['[]', [['=>', null, ['[]', [inner, inner]]]]]]]]
+            })(),
+            'const $0=[];const $1=[$0,$0];export default (...$a)=>[(...$b)=>{const $b0={};return [$b0,$b0];}];')
+    },
     // A comma at the root is the module it came from: an unused `const` per
     // anchor and then the export, each anchor taking a name it does not
     // spend so that one graph is one text. Any other root is the export
@@ -249,15 +279,11 @@ export const proof = {
         refuses(['=>', ['frame'], 1], 'a function with a frame')
         // A node kind with a spelling, in a position that has none.
         refuses(['args'], 'the arguments outside a function')
-        refuses(['[]', [[',', [1, 2]]]], 'a comma outside the root')
-        refuses(
-            (() => {
-                /** @type {Exp} */
-                const o = ['{}', []]
-                return ['=>', null, ['[]', [o, o]]]
-            })(),
-            'a shared constructor inside a function body')
-        refuses(['=>', null, ['.', 1, 'x']], 'a hoisted access base inside a function body')
+        // a comma is a scope's own form — a module's root and a function's
+        // body are where one is read — so one inside a container has no
+        // source spelling until the operator lands
+        refuses(['[]', [[',', [1, 2]]]], 'a comma outside a scope')
+        refuses(['=>', null, ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
         // A key no literal spells: a computed one, an object key that is not
         // a string, and the three numbers the tokenizer does not read back.
         refuses(['=>', null, ['.', ['args'], ['Number', ['args']]]], 'an access key that is no literal')
@@ -285,12 +311,14 @@ export const proof = {
             })(),
             'a spread')
         refuses([',', [['+', 1], 1]], 'a + node')
-        // A root comma with no anchor to write: with one operand it would
-        // read back as that operand alone, and with none it is no module.
-        // Linking emits neither — a comma is built only where an anchor or
-        // an unbound import is there to carry.
-        refuses([',', [1]], 'a root comma with fewer than two operands')
-        refuses([',', []], 'a root comma with fewer than two operands')
+        // A comma with no anchor to write: with one operand it would read
+        // back as that operand alone, and with none it is no scope. Linking
+        // emits neither, at a root or in a body — a comma is built only
+        // where an anchor or an unbound import is there to carry.
+        refuses([',', [1]], 'a comma with fewer than two operands')
+        refuses([',', []], 'a comma with fewer than two operands')
+        refuses(['=>', null, [',', [1]]], 'a comma with fewer than two operands')
+        refuses(['=>', null, [',', []]], 'a comma with fewer than two operands')
         // An anchor whose operand already has a name: its statement would be
         // the alias `const $1=$0;`, which the front end reads back as
         // nothing — an alias to a reached `const` is not an anchored
@@ -313,8 +341,11 @@ export const proof = {
     // which is what a writer whose contract is the round trip may not do,
     // and which four hand-picked accept sets in a row did not catch.
     //
-    // The graphs are every shape over every shape over the atoms — around
-    // nine hundred of them, of which some five hundred have a text.
+    // The graphs are every shape over every shape over the atoms: 2169 of
+    // them, of which 1157 have a text and the rest are refused by name.
+    // Before a body could hold a `const` the writer spelled 1110 — the 47
+    // this law newly round-trips rather than skipping are what a body's
+    // `const`s are worth to it.
     law: () => {
         generated.forEach(e => {
             const written = tryStringify(e)

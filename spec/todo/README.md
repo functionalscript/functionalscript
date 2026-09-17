@@ -67,7 +67,9 @@ see [serialization](./serialization.md).
    ([functions](../README.md#functions)); the empty parameter list `()` is
    not.
 2. [ ] [parameters](./3120-parameters.md)
-3. [ ] [body-const](./3130-body-const.md)
+3. [x] body-const — a function body takes `const` statements before its
+   `return`, and the writer spells them
+   ([functions](../README.md#functions))
 4. [ ] [forward-references](./3140-forward-references.md)
 
 ### 3.2. Priority 2
