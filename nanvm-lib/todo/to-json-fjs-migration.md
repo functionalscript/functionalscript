@@ -6,9 +6,9 @@
 ### Problem
 
 [`Any::to_json`](../src/vm/any/to_json.rs) (added by #2071) is a hand-written
-Rust `Any<A>` -> JSON serializer: numbers, strings, booleans, and `null`
-only, everything else a documented `JsonError`. It exists purely to prove
-the walking-skeleton pipeline
+Rust `Any<A>` -> JSON serializer: numbers, strings, booleans, `null`, and
+arrays/objects recursed into, everything else a documented `JsonError`. It
+exists purely to prove the walking-skeleton pipeline
 ([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md)) end-to-end
 before the Rust code generator exists.
 
