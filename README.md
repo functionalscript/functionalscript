@@ -56,7 +56,7 @@ The output file extension picks the language, longest suffix first:
 
 ```bash
 fjs compile input.f.js output.data.js        # DataJS, a JavaScript module
-fjs compile input.f.js output.f.js           # FunctionalScript
+fjs compile input.f.js output.js             # FunctionalScript
 fjs compile input.f.js output.json           # JSON
 fjs compile input.f.js output.edag.data.js   # the program's EDAG, as DataJS
 ```
@@ -69,10 +69,11 @@ stays shared and is hoisted into a `const`:
 const $0=["text"];export default [1,1,$0,{"x":$0}];
 ```
 
-`output.f.js` is a FunctionalScript module, written from the linked graph
-rather than from the value. For the module above, which denotes data, that is
-the same text. For a module holding a function it is the only output that
-holds one, a value having none — `export default (...a) => a;` compiles to:
+`output.js` — any JavaScript name the narrower ones above do not claim — is a
+FunctionalScript module, written from the linked graph rather than from the
+value. For the module above, which denotes data, that is the same text. For a
+module holding a function it is the only output that holds one, a value having
+none — `export default (...a) => a;` compiles to:
 
 ```js
 export default (...$a)=>$a;

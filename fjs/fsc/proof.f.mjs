@@ -276,9 +276,10 @@ export const proof = {
         assertEq(content, '42')
     },
     // An output is the language its extension declares, as an input is,
-    // matched by the longest suffix first — so a name ending `.edag.data.js`
-    // is the EDAG and never DataJS, the two being documents the extension
-    // alone cannot tell apart.
+    // matched by the longest suffix first. The JavaScript names are nested
+    // rather than disjoint — a DataJS document is a JavaScript module, and
+    // so is the EDAG's — so the order is what picks the narrowest writer the
+    // name asks for.
     outputRoute: {
         // one module, every route it has a spelling in
         languages: () => {
@@ -286,8 +287,8 @@ export const proof = {
             const dataJs = 'const $0=[1];export default [$0,$0];'
             assertEq(compileSource(source)('out.data.js'), dataJs)
             assertEq(compileSource(source)('out.data.mjs'), dataJs)
-            assertEq(compileSource(source)('out.f.js'), dataJs)
-            assertEq(compileSource(source)('out.f.mjs'), dataJs)
+            assertEq(compileSource(source)('out.js'), dataJs)
+            assertEq(compileSource(source)('out.mjs'), dataJs)
             const edag = 'const $0=["[]",[1]];export default ["[]",[$0,$0]];'
             assertEq(compileSource(source)('out.edag.data.js'), edag)
             assertEq(compileSource(source)('out.edag.data.mjs'), edag)
@@ -295,19 +296,34 @@ export const proof = {
             // has no spelling for: the same value with no sharing in it
             assertEq(compileSource('export default [[1], [1]];')('out.json'), '[[1],[1]]')
         },
-        // `.edag.data.js` ends with `.data.js`, so the order of the tests is
-        // the claim: the longer suffix wins, and the EDAG route is reachable
+        // The order of these is the claim: the longer suffix wins, so the
+        // EDAG route and the DataJS one are both reachable although every
+        // name here ends `.js`. A function tells the three apart, having a
+        // spelling in the widest writer alone.
         longestSuffix: () => {
             assertEq(compileSource('export default [1];')('x.edag.data.js'), 'export default ["[]",[1]];')
             assertEq(compileSource('export default [1];')('x.data.js'), 'export default [1];')
+            assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
+            assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$a)=>$a;')
+            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["=>",null,["args"]];')
+            assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: functions are compiled to the EDAG only')
+        },
+        // Any other JavaScript name is FunctionalScript: `.f.js` says which
+        // subset a source is written in, and an output the compiler writes
+        // is in that subset whatever it is called. `.d.js`, an extension
+        // DataJS itself no longer names, is one of them.
+        anyJavaScriptName: () => {
+            assertEq(compileSource('export default (...a) => a;')('out.f.js'), 'export default (...$a)=>$a;')
+            assertEq(compileSource('export default (...a) => a;')('out.f.mjs'), 'export default (...$a)=>$a;')
+            assertEq(compileSource('export default (...a) => a;')('out.d.js'), 'export default (...$a)=>$a;')
+            assertEq(compileSource('export default (...a) => a;')('a.js'), 'export default (...$a)=>$a;')
         },
         // A name declaring no language is refused, naming the eight — and
         // the input is not read at all, since there is nothing to read it
-        // for. `.js` alone is among them: it named DataJS by falling
-        // through, which is the fall-through this route replaces, and so is
-        // `.d.js`, an extension DataJS itself no longer names.
+        // for. This is where the old fall-through went: every name that was
+        // not `.json` used to be written as DataJS.
         unknown: () => {
-            const expected = 'no output language for this extension: expected .json, .rs, .data.js, .data.mjs, .f.js, .f.mjs, .edag.data.js or .edag.data.mjs'
+            const expected = 'no output language for this extension: expected .json, .rs, .js, .mjs, .data.js, .data.mjs, .edag.data.js or .edag.data.mjs'
             /** @type {(outputFileName: string) => string} */
             const refused = outputFileName => {
                 const root = { 'input.f.js': [utf8('export default 1;')] }
@@ -316,9 +332,8 @@ export const proof = {
                 assertEq(state.root[outputFileName], undefined)
                 return state.stderr.trim()
             }
-            assertEq(refused('out.js'), `out.js - error: ${expected}`)
-            assertEq(refused('out.d.js'), `out.d.js - error: ${expected}`)
             assertEq(refused('out.txt'), `out.txt - error: ${expected}`)
+            assertEq(refused('out.ts'), `out.ts - error: ${expected}`)
             assertEq(refused('out'), `out - error: ${expected}`)
             // the input is never read: a missing one is refused the same way
             const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'out.txt']))

@@ -89,8 +89,8 @@ attribute, or another file imported with it, is refused as JavaScript refuses
 it.
 `fjs compile` writes the linked graph when the output name ends with
 `.edag.data.js` or `.edag.data.mjs`, as a DataJS document with its shared
-nodes hoisted as the DataJS output's are, and writes it back as source when
-the name ends with `.f.js` or `.f.mjs`, through
+nodes hoisted as the DataJS output's are, and writes it back as source under
+any other `.js` or `.mjs` name, through
 [`serializer`](serializer/module.f.mjs) — the one output that holds a
 function, since a value has none. What
 the export does not reach is anchored by the comma operation rather than

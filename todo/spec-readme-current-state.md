@@ -24,7 +24,7 @@ property-access, function, prototype-name and literal-access work:
   property access, type annotations" — two of the four are recognized.
 
 File Types and Output were the third way, and are current: they name the five
-output languages and the graph the `.f.js` writer
+output languages and the graph the FunctionalScript writer
 ([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes, where
 they used to say the compiler writes a module with no function in it.
 

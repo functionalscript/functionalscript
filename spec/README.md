@@ -143,8 +143,8 @@ input — names the file being compiled instead.
 The extension is what separates the languages, and it is the only thing that
 does: a text is read as whichever language its name declares, and written in
 whichever its name declares ([output](#output)). DataJS is a subset of
-FunctionalScript, so every `.data.js` is a `.f.js` too; the extensions differ
-because the outputs do.
+FunctionalScript, so every `.data.js` is FunctionalScript too; the extensions
+differ so that a document can say which subset it keeps to.
 
 This table is about the *language* — what `fjs compile` reads and writes. The
 repository's own authored FunctionalScript is spelled `.f.mjs` instead, and its
@@ -195,15 +195,19 @@ a reinterpretation.
 
 An output is the language its extension declares, matched by the longest
 suffix first. A `.json` output is a **tree**; a `.data.js` output is a
-[DataJS](./datajs/README.md) document, which is a **graph** of values; a
-`.f.js` output is a FunctionalScript module, a graph of values *and
+[DataJS](./datajs/README.md) document, which is a **graph** of values; any
+other `.js` output is a FunctionalScript module, a graph of values *and
 functions*; and an extension declaring none of them is refused.
 
 ```sh
 fjs compile input.f.js output.data.js   # DataJS, a JavaScript module
-fjs compile input.f.js output.f.js      # FunctionalScript
+fjs compile input.f.js output.js        # FunctionalScript
 fjs compile input.f.js output.json      # JSON
 ```
+
+The JavaScript names are nested, not disjoint: a DataJS document is a
+FunctionalScript module, so the narrower name is what asks for the narrower
+writer — the one that refuses a function.
 
 - A DataJS document is written in
   [normalized form](./datajs/README.md#normalized-form): one line, and a
