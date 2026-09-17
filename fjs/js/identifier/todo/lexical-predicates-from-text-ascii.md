@@ -81,5 +81,5 @@ written out again.
 
 - [`fjs/text/ascii/module.f.mjs`](../../../text/ascii/module.f.mjs) — the
   owner of the classes, and of the hexadecimal codec that states the reason.
-- [`fjs/fsc/todo/functionalscript-output.md`](../../../fsc/todo/functionalscript-output.md)
-  — the writer whose Kelvin-sign hole raised this.
+- [`fjs/fsc/serializer`](../../../fsc/serializer/module.f.mjs) — the writer
+  whose Kelvin-sign hole raised this.

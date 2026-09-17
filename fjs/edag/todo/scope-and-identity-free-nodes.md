@@ -73,5 +73,5 @@ answer.
 - [`analysis.md`](./analysis.md) — the table the rule lives in.
 - [`../execution-models.md`](../execution-models.md) — where a scope is
   defined, and where the answer belongs.
-- [`fjs/fsc/todo/functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)
-  — the writer whose round trip met the crash.
+- [`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs) — the writer
+  whose round trip met the crash.

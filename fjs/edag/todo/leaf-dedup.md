@@ -97,7 +97,7 @@ Whether the format admits it is part of question 1.
 - [`spec/datajs/README.md`](../../../spec/datajs/README.md) — the normalized
   form's rule that primitives are written inline, and the `["__proto__"]`
   key that is the computed-key precedent.
-- [`../../fsc/todo/functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)
-  — the writer that would follow whichever rule is chosen.
+- [`../../fsc/serializer`](../../fsc/serializer/module.f.mjs) — the writer
+  that would follow whichever rule is chosen.
 - [`../../../spec/todo/content-addressable-vm.md`](../../../spec/todo/content-addressable-vm.md)
   — where a value is its content, deduplication is the storage, not a pass.

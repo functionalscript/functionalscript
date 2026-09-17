@@ -10,8 +10,7 @@
  * can hold what the language accepts: DataJS has no functions, so a module
  * holding one has no `.data.js` and no `.json`, and until this writer it had
  * no output but the EDAG document, which describes the function as data
- * rather than being one
- * ([`../todo/functionalscript-output.md`](../todo/functionalscript-output.md)).
+ * rather than being one.
  *
  * **It writes the graph, not the value.** Nothing is executed, so a module
  * holding a function is written, and so is one whose value a reader would
