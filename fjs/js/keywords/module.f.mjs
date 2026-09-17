@@ -48,6 +48,21 @@ export const restrictedNames = /** @type {const} */ (['arguments', 'eval'])
 export const literalGlobals = /** @type {const} */ (['Infinity', 'NaN', 'undefined'])
 
 /**
+ * The words that *denote* a value rather than name one: JavaScript's three
+ * literals, which the {@link reservedWords} hold, and the three
+ * {@link literalGlobals}.
+ *
+ * A tokenizer gives each of these a token kind of its own rather than `id`,
+ * and every other keyword an `id` carrying the word — which is what lets a
+ * rule that wants a name take `a.if` and `a.class` while `a.true` is no
+ * access at all. A writer choosing between `a.k` and `a["k"]` asks this
+ * list for the same reason.
+ */
+export const literalWords = /** @type {const} */ ([
+    'Infinity', 'NaN', 'false', 'null', 'true', 'undefined',
+])
+
+/**
  * Every name FunctionalScript treats as a keyword, sorted by code unit —
  * the capitalized globals first: the {@link reservedWords}, the
  * {@link strictModeReservedWords}, the {@link restrictedNames}, and the

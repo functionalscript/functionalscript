@@ -99,8 +99,16 @@ const undefinedSerialize = ['undefined']
  */
 export const _numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
 
-/** @type {(value: Primitive) => List<string>} */
-const leafSerialize = value => {
+/**
+ * A leaf as a document spells it — this format's counterpart to JSON's
+ * `stringSerialize` and `numberSerialize`, and public as those are: the
+ * FunctionalScript writer in `fjs/fsc` spells the leaves of its own
+ * documents this way, DataJS's leaves being FunctionalScript's, and the
+ * rule has one owner.
+ *
+ * @type {(value: Primitive) => List<string>}
+ */
+export const leafSerialize = value => {
     switch (typeof value) {
         case 'boolean': { return boolSerialize(value) }
         case 'number': { return _numberSerialize(value) }
@@ -122,9 +130,12 @@ const protoKey = '__proto__'
  * [157](../../../fsc/todo/157-json-djs-shared-value-machine.md) §2 counts,
  * and since the old `fjs/djs/serializer` was retired its only implementation.
  *
+ * Public beside {@link leafSerialize}, and for the same reason: the
+ * FunctionalScript writer spells an object's key this way too.
+ *
  * @type {(key: string) => List<string>}
  */
-const keySerialize = key => key === protoKey
+export const keySerialize = key => key === protoKey
     ? flat([['['], stringSerialize(key), [']']])
     : stringSerialize(key)
 
