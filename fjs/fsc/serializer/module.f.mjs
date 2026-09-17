@@ -65,7 +65,6 @@ import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedNames } from '../parser/module.f.mjs'
 import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { literalWords } from '../../js/keywords/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
 
@@ -137,15 +136,6 @@ const identifierKey = key => {
         && identifierStart(word[0])
         && word.every(c => identifierStart(c) || isDigit(c))
 }
-
-/**
- * The words that are no `id` token, and so no name after a `.`: a tokenizer
- * gives each a token kind of its own, and every other keyword an `id`, so
- * `a.class` is an access and `a.true` is not.
- *
- * @type {ReadonlySet<string>}
- */
-const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
 
 /**
  * The results of a list, or the first error in it. A list of values is
@@ -232,7 +222,7 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
 const key = k => {
     if (typeof k === 'string') {
         if (_prohibitedNames.has(k)) { return error('a prohibited property name') }
-        return identifierKey(k) && !literalWordSet.has(k) ? ok(['.', k]) : bracketed(k)
+        return identifierKey(k) ? ok(['.', k]) : bracketed(k)
     }
     if (typeof k !== 'number') { return error('an access key that is no literal') }
     return Number.isFinite(k) && !Object.is(k, -0)

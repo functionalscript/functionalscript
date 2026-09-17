@@ -108,6 +108,11 @@ export const proof = {
                 ["export default 1\n;", "[[],[1]]"],
                 ["const a = 1\n;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
                 ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"array\",[[\"cref\",0],[\"cref\",0]]]]]"],
+                // a word that denotes a value still names a property: it is
+                // an `IdentifierName` in JavaScript, which reads it as the
+                // string, and `{ "NaN": 1 }` has always denoted that object
+                ["export default {NaN: 1, undefined: 2, true: 3};", "[[],[[\"object\",[[\"NaN\",1],[\"undefined\",2],[\"true\",3]]]]]"],
+                ["const a = {NaN: 1};export default a.NaN;", "[[],[[\"object\",[[\"NaN\",1]]],[\".\",[\"cref\",0],\"NaN\"]]]"],
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', [source, tag])
@@ -159,18 +164,23 @@ export const proof = {
                 ["import x from \"m\";\nimport x from \"n\";\nexport default x;", "duplicate id", [2, 8]],
                 ["import x from \"m\";\nconst x = 1;\nexport default x;", "duplicate id", [2, 7]],
                 ["export default zzz;", "const not found", [1, 16]],
-                // `NaN` and `Infinity` are reserved, as `undefined` is: each
-                // carries its own token symbol, so it is never an identifier
-                // — not a name, not a key — and a value only where a value
-                // may stand
-                ["const NaN = 1;\nexport default NaN;", "unexpected token", [1, 7]],
-                ["import Infinity from \"m\";\nexport default Infinity;", "unexpected token", [1, 8]],
-                ["export default {NaN: 1};", "unexpected token", [1, 17]],
+                // `NaN` and `Infinity` are reserved, as `undefined` is, and
+                // reserved is about *binding*: each may name a property,
+                // where JavaScript has an `IdentifierName` and reads the
+                // word as a string, and none may take a name of its own, so
+                // the refusal is the fold's `reserved word` and not the
+                // grammar's `unexpected token` — the same answer `const if`
+                // gets. `{NaN: 1}` and `a.NaN` are accepted above.
+                ["const NaN = 1;\nexport default NaN;", "reserved word", [1, 7]],
+                ["import Infinity from \"m\";\nexport default Infinity;", "reserved word", [1, 8]],
+                ["export default (...undefined) => undefined;", "reserved word", [1, 20]],
+                // `-Infinity` is one token and no name in either language
+                ["export default {-Infinity: 1};", "unexpected token", [1, 18]],
                 // `-` folds into a number and into `Infinity`, and into
                 // nothing else: before `NaN` it is an error token, and the
                 // grammar refuses at the `NaN` after it, as DataJS refuses
                 ["export default -NaN;", "unexpected token", [1, 17]],
-                ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
+                ["const undefined = 1;\nexport default undefined;", "reserved word", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
                 // a `const` naming itself is a reference before its declaration,
                 // which JavaScript refuses too; it used to name the entry

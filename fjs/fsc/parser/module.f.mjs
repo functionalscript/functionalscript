@@ -58,7 +58,7 @@ import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
-import { keywords } from '../../js/keywords/module.f.mjs'
+import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
@@ -190,14 +190,16 @@ const moduleAt = node => {
 }
 
 /**
- * The word an identifier token spells. A framing keyword is an identifier
- * too, arriving as the same `id` token.
+ * The word a name token spells. A framing keyword is an identifier too,
+ * arriving as the same `id` token; each of the six words that denote a
+ * value is a token kind of its own, and *is* its own word.
  *
  * @type {(t: DjsTokenWithMetadata) => string}
  */
 const nameOf = ({ token }) => {
-    assert(token.kind === 'id')
-    return token.value
+    if (token.kind === 'id') { return token.value }
+    assert(literalWordSet.has(token.kind), token.kind)
+    return token.kind
 }
 
 /** @type {(t: DjsTokenWithMetadata) => string} */
@@ -468,6 +470,17 @@ const args = ['args']
 const keywordSet = new Set(keywords)
 
 /**
+ * The words that denote a value, which the tokenizer gives token kinds of
+ * their own. A name position takes them — a property is named by an
+ * ECMAScript `IdentifierName`, which admits every reserved word — and
+ * {@link identifierOf} then refuses them where a *binding* is wanted, as it
+ * refuses every other keyword.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
+
+/**
  * The word an identifier token spells where JavaScript wants an identifier
  * — a name bound or referenced — refusing every keyword: the tokenizer
  * demotes them all to `id`, so that a key or the name after `.` may be one,
@@ -540,15 +553,13 @@ export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== '
  */
 const numericBase = foldError('access on a numeric literal')
 
-/** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
-const keyNamed = ({ token }) => {
+/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
+const keyNamed = t => {
+    const { token } = t
     switch (token.kind) {
-        case 'id': { return token.value }
         case 'string': { return token.value }
-        default: {
-            assert(token.kind === 'number')
-            return parseFloat(token.value)
-        }
+        case 'number': { return parseFloat(token.value) }
+        default: { return nameOf(t) }
     }
 }
 

@@ -23,7 +23,7 @@ import { invert, unwrap } from '../../types/result/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { trySerialize, tryStringify } from './module.f.mjs'
-import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
+import { keywords } from '../../js/keywords/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -170,6 +170,8 @@ export const proof = {
         writes(['=>', null, ['.', ['args'], '']], 'export default (...$a)=>$a[""];')
         writes(['=>', null, ['.', ['args'], '0a']], 'export default (...$a)=>$a["0a"];')
         writes(['=>', null, ['.', ['args'], 'a-b']], 'export default (...$a)=>$a["a-b"];')
+        // a word that denotes a value names a property like any other
+        writes(['=>', null, ['.', ['args'], 'NaN']], 'export default (...$a)=>$a.NaN;')
         writes(['=>', null, ['.', ['args'], '_x']], 'export default (...$a)=>$a._x;')
         writes(['=>', null, ['.', ['args'], '$x']], 'export default (...$a)=>$a.$x;')
         // The Kelvin sign lowercases to `k` and is no letter the tokenizer
@@ -179,24 +181,21 @@ export const proof = {
         writes(['=>', null, ['.', ['args'], 0]], 'export default (...$a)=>$a[0];')
         writes(['=>', null, ['.', ['args'], 1.5]], 'export default (...$a)=>$a[1.5];')
     },
-    // A keyword is a name after `.` — the tokenizer gives it an `id` token
-    // carrying the word — but the six words that *denote* a value are token
-    // kinds of their own, and no name: `$a.class` is an access and
-    // `$a.true` is not. Every keyword is checked, so a word that changes
-    // sides is a failure here rather than a module the compiler cannot read
-    // back.
+    // Every keyword is a name after `.`, the six words that denote a value
+    // included: a property is named by an `IdentifierName` in JavaScript,
+    // and the grammar follows. So the writer has no rule about them — this
+    // is the case that would fail if one were needed again, over every
+    // keyword rather than over a list someone remembered to update.
     keywords: () => {
-        /** @type {ReadonlySet<string>} */
-        const literal = new Set(/** @type {readonly string[]} */(literalWords))
         keywords.forEach(k => {
             const written = tryStringify(['=>', null, ['.', ['args'], k]])
-            // `arguments` and `eval` are on the prototypes, and an access
-            // on either has no text at all.
+            // `arguments` and `with` are on the prototypes, and an access on
+            // either has no text at all.
             if (written[0] === 'error') {
                 assertEq(written[1], 'a prohibited property name', k)
                 return
             }
-            assertEq(reads(['=>', null, ['.', ['args'], k]]), `export default (...$a)=>$a${literal.has(k) ? `["${k}"]` : `.${k}`};`)
+            assertEq(reads(['=>', null, ['.', ['args'], k]]), `export default (...$a)=>$a.${k};`)
         })
     },
     // A function is written with its parameter and no other, since a body
