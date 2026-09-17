@@ -199,9 +199,9 @@ a reinterpretation.
 
 An output is the language its extension declares, matched by the longest
 suffix first. A `.json` output is a **tree**; a `.data.js` output is a
-[DataJS](./datajs/README.md) document, which is a **graph** of values; any
+[DataJS](./datajs/README.md) document, which is a **graph** of values; and any
 other `.js` output is a FunctionalScript module, a graph of values *and
-functions*; and an extension declaring none of them is refused.
+functions*.
 
 ```sh
 fjs compile input.f.js output.data.js   # DataJS, a JavaScript module
@@ -212,6 +212,13 @@ fjs compile input.f.js output.json      # JSON
 The JavaScript names are nested, not disjoint: a DataJS document is a
 FunctionalScript module, so the narrower name is what asks for the narrower
 writer — the one that refuses a function.
+
+`fjs compile` writes two more things, neither of them a document of this
+language: the program's EDAG under `.edag.data.js`, and a generated Rust
+module under `.rs`. They are compiler artifacts, and
+[`fjs/fsc`](../fjs/fsc/README.md)'s to describe. An extension declaring none
+of the five is refused, rather than written in a language the name does not
+declare.
 
 - A DataJS document is written in
   [normalized form](./datajs/README.md#normalized-form): one line, and a

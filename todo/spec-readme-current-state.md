@@ -22,10 +22,12 @@ property-access, function, prototype-name and literal-access work. The two
 lists of what it "does not recognize yet" are current — functions and property
 access are gone from them — and so is what the outputs do with a function.
 
-File Types and Output are current too: they name the five output languages and
-the graph the FunctionalScript writer
-([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes, where they
-used to say the compiler writes a module with no function in it.
+File Types and Output are current too: they name the language's three outputs
+and the graph the FunctionalScript writer
+([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes, and point
+at the two artifacts that are no document of the language — the EDAG and the
+generated Rust module — where they used to say the compiler writes a module
+with no function in it.
 
 What remains is the walk: the sentences corrected so far were corrected
 because something else brought them up, not because anyone read the document
