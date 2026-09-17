@@ -35,10 +35,12 @@ what we can" rather than an open-ended aspiration: it doesn't block on the
 full compiler, only on JSON serialization's own dependency closure being
 compiler-supported.
 
-Until then, `to_json` stays as the walking skeleton's stand-in, the same
-role its own module doc comment already describes for the synthetic
-`nanvm-harness` fixtures — hand-written because the real thing can't exist
-yet, not because it's the intended long-term design.
+Until then, `to_json` stays as the walking skeleton's one remaining
+hand-written stand-in — the same role `nanvm-harness`'s own fixtures used
+to play, before #2083 wired them to real `fjs compile` output. `to_json`
+is hand-written only because JSON serialization's own dependency closure
+isn't compiler-supported yet, not because it's the intended long-term
+design.
 
 ### Related
 

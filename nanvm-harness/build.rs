@@ -15,7 +15,7 @@
 
 use std::{
     path::{Path, PathBuf},
-    process::{Child, Command},
+    process::{Child, Command, Stdio},
 };
 
 const FIXTURES: [&str; 3] = ["number", "string", "boolean"];
@@ -26,6 +26,8 @@ fn spawn_compile(compiler: &Path, input: &Path, output: &Path) -> Child {
         .arg("compile")
         .arg(input)
         .arg(output)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap_or_else(|e| panic!("failed to run `node {}`: {e}", compiler.display()))
 }
@@ -59,14 +61,15 @@ fn main() {
         .collect();
 
     for (name, output, child) in children {
-        let status = child
+        let result = child
             .wait_with_output()
-            .unwrap_or_else(|e| panic!("failed to wait on `fjs compile` for {name}: {e}"))
-            .status;
+            .unwrap_or_else(|e| panic!("failed to wait on `fjs compile` for {name}: {e}"));
         assert!(
-            status.success(),
-            "`fjs compile` failed for fixture {name} (output: {})",
-            output.display()
+            result.status.success(),
+            "`fjs compile` failed for fixture {name} (output: {})\n--- stdout ---\n{}\n--- stderr ---\n{}",
+            output.display(),
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr),
         );
     }
 }
