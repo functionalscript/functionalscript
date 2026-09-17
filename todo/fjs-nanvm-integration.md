@@ -114,7 +114,7 @@ via the `Function` constructor — no rustc at the user's run time.
       *expressions* yet (see [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
       accepted subset), so there is nothing yet to print through the
       `op1`/`op2`/`op3` tables. `=>` is a different case — the compiler does
-      emit it, for a function literal compiled to `.edag.f.js` — but it
+      emit it, for a function literal compiled to `.edag.data.js` — but it
       stays out of the `.rs` subset too: this printer accepts only the one
       placeholder closure the operator-test corpus uses (`() => undefined`)
       and refuses every real one, since `nanvm-lib` has no closures yet

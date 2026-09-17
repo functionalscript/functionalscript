@@ -58,7 +58,7 @@ import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
-import { keywords } from '../../js/keywords/module.f.mjs'
+import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
@@ -190,14 +190,16 @@ const moduleAt = node => {
 }
 
 /**
- * The word an identifier token spells. A framing keyword is an identifier
- * too, arriving as the same `id` token.
+ * The word a name token spells. A framing keyword is an identifier too,
+ * arriving as the same `id` token; each of the six words that denote a
+ * value is a token kind of its own, and *is* its own word.
  *
  * @type {(t: DjsTokenWithMetadata) => string}
  */
 const nameOf = ({ token }) => {
-    assert(token.kind === 'id')
-    return token.value
+    if (token.kind === 'id') { return token.value }
+    assert(literalWordSet.has(token.kind), token.kind)
+    return token.kind
 }
 
 /** @type {(t: DjsTokenWithMetadata) => string} */
@@ -468,6 +470,17 @@ const args = ['args']
 const keywordSet = new Set(keywords)
 
 /**
+ * The words that denote a value, which the tokenizer gives token kinds of
+ * their own. A name position takes them — a property is named by an
+ * ECMAScript `IdentifierName`, which admits every reserved word — and
+ * {@link identifierOf} then refuses them where a *binding* is wanted, as it
+ * refuses every other keyword.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
+
+/**
  * The word an identifier token spells where JavaScript wants an identifier
  * — a name bound or referenced — refusing every keyword: the tokenizer
  * demotes them all to `id`, so that a key or the name after `.` may be one,
@@ -519,9 +532,15 @@ const prohibitedKey = foldError('prohibited property name')
  * a value, `fjs/js/prototype`, but `length` — an own property of an array,
  * a string and a function, which the two languages read alike.
  *
+ * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
+ * which refuses the same names rather than write an access the parser here
+ * would not read back: the rule is the language's, and it has one owner.
+ * The `_` says that export is linkage rather than API, as it does for
+ * `_tokenKindNames` in [`./grammar`](./grammar/module.f.mjs).
+ *
  * @type {ReadonlySet<string>}
  */
-const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
+export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
 /**
  * An access on a number or a bigint literal, at the key. JavaScript reads
@@ -534,15 +553,13 @@ const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length')
  */
 const numericBase = foldError('access on a numeric literal')
 
-/** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
-const keyNamed = ({ token }) => {
+/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
+const keyNamed = t => {
+    const { token } = t
     switch (token.kind) {
-        case 'id': { return token.value }
         case 'string': { return token.value }
-        default: {
-            assert(token.kind === 'number')
-            return parseFloat(token.value)
-        }
+        case 'number': { return parseFloat(token.value) }
+        default: { return nameOf(t) }
     }
 }
 
@@ -554,7 +571,7 @@ const keyNamed = ({ token }) => {
  */
 const accessClosed = (key, base) => {
     const named = keyNamed(key)
-    if (typeof named === 'string' && prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+    if (typeof named === 'string' && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
     if (typeof base === 'number' || typeof base === 'bigint') { return error(numericBase(key)) }
     /** @type {AstAccess} */
     const access = ['.', base, named]
@@ -720,19 +737,26 @@ const evaluate = env => root => {
 }
 
 /**
- * Binds a name to a reference, refusing a keyword and a name already bound.
- * `import` and `const` share the one map, so a name taken by either is
- * taken for both.
+ * The word a binding may take: an identifier, refusing a keyword, and one
+ * the environment does not hold — `import` and `const` share the one map,
+ * so a name taken by either is taken for both.
  *
- * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef | AstArgs) => Result<_Env, ParseError>}
+ * Separate from the binding itself because a `const` asks the two questions
+ * at different moments: its name is refused before its value is read, so
+ * that `const NaN = missing;` answers for the name and not for `missing`,
+ * while the binding lands after, keeping the name out of its own
+ * initializer's scope.
+ *
+ * @type {(env: _Env) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
-const bind = env => (name, ref) => {
+const bindable = env => name => {
     const [tag, word] = identifierOf(name)
     if (tag === 'error') { return error(word) }
-    return at(word)(env) !== null
-        ? error(duplicateId(name))
-        : ok(setReplace(word)(ref)(env))
+    return at(word)(env) !== null ? error(duplicateId(name)) : ok(word)
 }
+
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstArgs) => _Env} */
+const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /**
  * The statements of a module, in order: each `import` binds its name to
@@ -751,19 +775,21 @@ const foldModule = ({ imports, consts, exported }) => {
     /** @type {readonly AstConst[]} */
     let body = []
     for (const statement of imports) {
-        const [tag, bound] = bind(env)(statement.name, ['aref', modules.length])
-        if (tag === 'error') { return error(bound) }
+        const [tag, word] = bindable(env)(statement.name)
+        if (tag === 'error') { return error(word) }
         const [read, record] = imported(statement)
         if (read === 'error') { return error(record) }
-        env = bound
+        env = extended(env)(word, ['aref', modules.length])
         modules = [...modules, record]
     }
     for (const { name, value: node } of consts) {
+        // the name first: a statement wrong in both halves answers for the
+        // half a reader meets first
+        const [tag, word] = bindable(env)(name)
+        if (tag === 'error') { return error(word) }
         const [resolved, value] = evaluate(env)(node)
         if (resolved === 'error') { return error(value) }
-        const [tag, bound] = bind(env)(name, ['cref', body.length])
-        if (tag === 'error') { return error(bound) }
-        env = bound
+        env = extended(env)(word, ['cref', body.length])
         body = [...body, value]
     }
     const [resolved, last] = evaluate(env)(exported)

@@ -55,9 +55,11 @@ for that, each a conflict the backtracking grammar this replaced had
 Two rules that were once code are shape. Statement ordering — every `import`
 before every `const` — is `import* const* export`, and a late `import` is a
 token the grammar cannot use. A reserved literal — `true`, `false`, `null`,
-`undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, so it is
-refused as a name, a reference or a key by the rule that wanted an
-identifier, and read as the value it names where a value may stand.
+`undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, and the
+rules take it wherever a *name* may stand: `{ NaN: 1 }` and `a.NaN` are a
+key and an access, and `const NaN = 1;` reaches the fold and is refused
+there, as `const if = 1;` is. Where a *value* may stand it is the value it
+names, which is the one position the two rules keep apart.
 `-Infinity` is one token, the tokenizer folding the `-` into the word as it
 folds one into a number, so the grammar has no negation. `import`, `const` and `export` in the wrong order
 report `unexpected token` at the offending keyword.
@@ -150,16 +152,24 @@ They therefore get their own names in the alphabet, which a registered mapping
 allows because a symbol comes from a name's position in a list and a name has no
 length limit.
 
-**Splitting them off obliges the grammar to provide an identifier rule.**
-Wherever an identifier is accepted — binding names, references, object keys,
-import names, the name after `.` — the terminal is the *union* of `id` and the
-seven keyword symbols, and only the positions that frame something demand a
-specific keyword. Which of them a position may hold is the fold's question, as
-it is for every other keyword, since it is a property of the word: JavaScript
-reserves six of the seven and `from` alone is ordinary, so
-`{ from: 2, return: 3 }` and `a.with` parse and `const export = 1;` is refused,
-exactly as `const if = 1;` is. Giving a word its own symbol narrows where it is
-**required**, never where it is **allowed**.
+**Splitting them off obliges the grammar to provide identifier rules.**
+Wherever an identifier is accepted the terminal is a *union* of `id` and the
+keyword symbols, and only the positions that frame something demand a
+specific keyword. There are two such unions, drawn where JavaScript draws
+them:
+
+- `identifier`, `id` and the seven framing keywords, for a **reference** —
+  where a value may stand, and where a word that denotes a value is that
+  value rather than a name;
+- `identifierName`, those and the six words that denote a value, for a
+  **name** — an object key, the name after `.`, and a binding name, which is
+  JavaScript's `IdentifierName` and admits every reserved word.
+
+Which of them a position may hold is the fold's question, as it is for every
+other keyword, since it is a property of the word: `{ from: 2, return: 3 }`,
+`a.with`, `{ NaN: 1 }` and `a.NaN` parse, while `const export = 1;` and
+`const NaN = 1;` are refused where `const if = 1;` is. Giving a word its own
+symbol narrows where it is **required**, never where it is **allowed**.
 
 ## Why a registered alphabet is enough
 

@@ -91,10 +91,17 @@ const foldOp = ast => state => mapOk(evaluated(state))(toDjs(state)(ast))
 const entryStep = (acc, ast) => okThen(foldOp(ast))(acc)
 
 /**
- * The refusal of a function where a value is wanted: a data module's value
- * has no function in it, and what a function denotes is its EDAG.
+ * The refusal of a function where a value is wanted: this evaluator computes
+ * the value a module denotes, and no value here is a function.
+ *
+ * It named the EDAG as the place functions go while that was the only output
+ * holding one. It is not any more — `fjs compile` writes the module itself
+ * under a JavaScript name
+ * ([`../serializer`](../serializer/module.f.mjs)) — so the message says what
+ * is missing and leaves the choice of output to the compiler's own
+ * documentation.
  */
-const noFunctionValue = 'functions are compiled to the EDAG only'
+const noFunctionValue = 'a function has no value'
 
 /**
  * The value of one entry, or the failure. An object's members are written

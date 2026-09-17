@@ -170,6 +170,31 @@ export const identifier = /** @type {const} */ ({
     return: sym('return'),
 })
 
+/**
+ * Every word that may *name* something — a property, or a binding — which
+ * is {@link identifier} and the six words that denote a value.
+ *
+ * ECMAScript draws the same line and this follows it: a property is named
+ * by an `IdentifierName`, which admits every reserved word, so `{ NaN: 1 }`
+ * and `a.NaN` are JavaScript and mean the string `"NaN"`, while a reference
+ * is an `IdentifierReference`, which admits none of them. A binding is an
+ * ECMAScript `BindingIdentifier`, narrower still; it takes this wider rule
+ * here so that `const NaN = 1;` reaches the fold and is refused as a
+ * `reserved word`, rather than dying at the token with `unexpected token`.
+ *
+ * `-Infinity` is not among them: it is one token and no identifier in
+ * JavaScript either.
+ */
+export const identifierName = /** @type {const} */ ({
+    ...identifier,
+    null: sym('null'),
+    true: sym('true'),
+    false: sym('false'),
+    undefined: sym('undefined'),
+    NaN: sym('NaN'),
+    Infinity: sym('Infinity'),
+})
+
 /** A value that is one token. */
 export const primitive = /** @type {const} */ ({
     null: sym('null'),
@@ -210,7 +235,7 @@ export const index = /** @type {const} */ ({
  * not see. Each step ends with its trivia, as a value does.
  */
 export const access = /** @type {const} */ ({
-    property: [sym('.'), trivia, identifier, trivia],
+    property: [sym('.'), trivia, identifierName, trivia],
     index: [sym('['), trivia, index, trivia, sym(']'), trivia],
 })
 
@@ -252,7 +277,7 @@ export const body = () => ['const', {
  *
  * @type {Func}
  */
-export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
+export const func = [sym('('), trivia, sym('...'), trivia, identifierName, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
 
 /**
  * A value ends with its own trivia, so that it may be followed by an
@@ -278,7 +303,7 @@ export const value = () => ['const', {
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({
-    plain: identifier,
+    plain: identifierName,
     string: sym('string'),
     computed: [sym('['), trivia, sym('string'), trivia, sym(']')],
 })
@@ -331,24 +356,24 @@ export const block = /** @type {const} */ ([
  * — the key has to be `type` and the value `json`, and the fold says which
  * is not.
  *
- * The key is {@link identifier} and not the bare `id` symbol, so that a
+ * The key is {@link identifierName} and not the bare `id` symbol, so that a
  * word with a symbol of its own stands here as any other word does:
  * JavaScript's key is an `IdentifierName`, which admits every reserved
  * word, and giving a word its own symbol narrows where it is *required*,
- * never where it is *allowed*. `with { return: "json" }` is an unknown
- * attribute, which is the fold's to say, not a token the grammar did not
- * expect.
+ * never where it is *allowed*. `with { return: "json" }` and
+ * `with { NaN: "json" }` are unknown attributes, which is the fold's to
+ * say, not a token the grammar did not expect.
  */
 export const attribute = /** @type {const} */ ([
-    sym('with'), trivia, sym('{'), trivia, identifier, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
+    sym('with'), trivia, sym('{'), trivia, identifierName, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
 ])
 
 export const importStatement = /** @type {const} */ ([
-    sym('import'), trivia, identifier, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
+    sym('import'), trivia, identifierName, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
 ])
 
 export const constStatement = /** @type {const} */ ([
-    sym('const'), trivia, identifier, trivia, sym('='), trivia, value, ...end,
+    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, ...end,
 ])
 
 export const exportStatement = /** @type {const} */ ([

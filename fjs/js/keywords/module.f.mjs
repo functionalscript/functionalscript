@@ -48,6 +48,22 @@ export const restrictedNames = /** @type {const} */ (['arguments', 'eval'])
 export const literalGlobals = /** @type {const} */ (['Infinity', 'NaN', 'undefined'])
 
 /**
+ * The words that *denote* a value rather than name one: JavaScript's three
+ * literals, which the {@link reservedWords} hold, and the three
+ * {@link literalGlobals}.
+ *
+ * A tokenizer gives each of these a token kind of its own rather than `id`,
+ * and every other keyword an `id` carrying the word, which is why a grammar
+ * over that alphabet owes them a rule wherever a *name* may stand — a
+ * property's or a binding's — as `identifierName` in `fjs/fsc/parser/grammar`
+ * does. Where a **value** may stand they are the value, which is the line
+ * this list draws and the reason it exists.
+ */
+export const literalWords = /** @type {const} */ ([
+    'Infinity', 'NaN', 'false', 'null', 'true', 'undefined',
+])
+
+/**
  * Every name FunctionalScript treats as a keyword, sorted by code unit —
  * the capitalized globals first: the {@link reservedWords}, the
  * {@link strictModeReservedWords}, the {@link restrictedNames}, and the

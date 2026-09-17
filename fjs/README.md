@@ -43,12 +43,25 @@ Each command also accepts a short alias (`fjs t` for `fjs test`, and so on).
 fjs compile <input> <output>
 ```
 
-The output name picks the format: `.json` emits a tree, and refuses a value
-JSON cannot spell — a shared value among them — rather than expand it;
-`.edag.f.js` or `.edag.f.mjs` emits the program's [EDAG](edag/README.md),
-the graph of what it computes rather than its value; anything else emits a
-JavaScript module that preserves sharing by naming reused values as
-`const`s. Imports are resolved and inlined in every case. See
+The output is the language its extension declares, matched by the longest
+suffix first:
+
+|Output|What it holds|
+|-|-|
+|`.json`|a tree, refusing a value JSON cannot spell — a shared one among them — rather than expand it|
+|`.edag.data.js`, `.edag.data.mjs`|the program's [EDAG](edag/README.md), the graph of what it computes, as a DataJS document|
+|`.data.js`, `.data.mjs`|the value as a [DataJS](../spec/datajs/README.md) module, sharing preserved by naming reused values as `const`s|
+|any other `.js` or `.mjs`|the program as a FunctionalScript module, written from the graph rather than the value, so it holds a function too|
+|`.rs`|a generated Rust module calling the `nanvm-lib` API|
+
+The JavaScript names are nested rather than disjoint — a DataJS document is a
+JavaScript module, and so is the EDAG's — so the longest suffix is what picks
+the narrowest writer the name asks for, and `.f.js` needs no rule of its own:
+it is a JavaScript module, and every output the compiler writes is
+FunctionalScript. Any other extension is refused: it names no language, and
+writing one the name does not declare is the silent substitution this route
+exists to avoid.
+Imports are resolved and inlined in every case. See
 [fsc/README.md](fsc/README.md) for the accepted subset.
 
 ## `fjs ci` — generating the standard workflows

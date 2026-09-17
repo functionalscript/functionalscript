@@ -64,6 +64,26 @@ export const proof = {
             expectEdag(compile('export default undefined;').edag, ['undefined'])
             expectEdag(compile('export default { a: undefined };').edag, ['{}', [[':', 'a', ['undefined']]]])
         },
+        // one node per occurrence, never one node in two places: a node
+        // belongs to a scope, so a shared one inside a function and outside
+        // it is no EDAG, and the analysis refuses such a graph rather than
+        // answer for it. This is what the structural comparison above cannot
+        // see, and what a module as ordinary as
+        // `[undefined, (...a) => undefined]` produced while `undefined` was
+        // one constant — see
+        // `fjs/edag/todo/scope-and-identity-free-nodes.md`.
+        undefinedPerOccurrence: () => {
+            const edag = compile('export default [undefined, (...a) => undefined];').edag
+            expectEdag(edag, ['[]', [['undefined'], ['=>', null, ['undefined']]]])
+            const [, items] = /** @type {readonly ['[]', readonly Exp[]]} */ (edag)
+            const [outside, lambda] = items
+            assert(outside !== /** @type {readonly ['=>', null, Exp]} */(lambda)[2], 'one node in two scopes')
+            // and two in one scope are two nodes as well, which the analysis
+            // merges rather than the linker
+            const flat = compile('export default [undefined, undefined];').edag
+            const [, pair] = /** @type {readonly ['[]', readonly Exp[]]} */ (flat)
+            assert(pair[0] !== pair[1], 'one node twice in one scope')
+        },
     },
     // an object's members as written: a repeated key twice, an integer-like
     // key where it stands, which is what the constructor takes

@@ -9,8 +9,8 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — functions, operators, property
-access, type annotations — and the design documents for the VM, I/O,
+Features the parser does not recognize yet — operators, calls, type
+annotations — and the design documents for the VM, I/O,
 serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
 
@@ -137,10 +137,18 @@ input — names the file being compiled instead.
 |File type|Extension|Denotes|
 |---------|---------|-------|
 |JSON|`.json`|A tree of values.|
-|FunctionalScript|`.f.js`|A graph of values.|
+|DataJS|`.data.js`|A graph of values.|
+|FunctionalScript|`.f.js`|A graph of values and functions.|
 
-The extension is what separates the two languages, and it is the only thing
-that does: a text is read as whichever language its name declares.
+The extension is what separates the languages, and it is the only thing that
+does. On the way **out** a text is written in whichever language its name
+declares ([output](#output)). On the way **in** the compiler tells JSON from
+JavaScript and no more: a `.json` file is a document, and anything else is
+read by the module parser, `.data.js` included — so a `.data.js` input holding
+a function is accepted today, its name a claim the reader does not check.
+DataJS is a subset of FunctionalScript, so every `.data.js` is
+FunctionalScript too; the extensions differ so that a document can say which
+subset it keeps to.
 
 This table is about the *language* — what `fjs compile` reads and writes. The
 repository's own authored FunctionalScript is spelled `.f.mjs` instead, and its
@@ -189,13 +197,28 @@ a reinterpretation.
 
 ### Output
 
-A `.json` output is a **tree**; any other extension makes the output a
-[DataJS](./datajs/README.md) document, which is a **graph**.
+An output is the language its extension declares, matched by the longest
+suffix first. A `.json` output is a **tree**; a `.data.js` output is a
+[DataJS](./datajs/README.md) document, which is a **graph** of values; and any
+other `.js` output is a FunctionalScript module, a graph of values *and
+functions*.
 
 ```sh
-fjs compile input.f.js output.f.js   # DataJS, a JavaScript module
-fjs compile input.f.js output.json   # JSON
+fjs compile input.f.js output.data.js   # DataJS, a JavaScript module
+fjs compile input.f.js output.js        # FunctionalScript
+fjs compile input.f.js output.json      # JSON
 ```
+
+The JavaScript names are nested, not disjoint: a DataJS document is a
+FunctionalScript module, so the narrower name is what asks for the narrower
+writer — the one that refuses a function.
+
+`fjs compile` writes two more things, neither of them a document of this
+language: the program's EDAG under `.edag.data.js`, and a generated Rust
+module under `.rs`. They are compiler artifacts, and
+[`fjs/fsc`](../fjs/fsc/README.md)'s to describe. An extension declaring none
+of the five is refused, rather than written in a language the name does not
+declare.
 
 - A DataJS document is written in
   [normalized form](./datajs/README.md#normalized-form): one line, and a
@@ -208,16 +231,28 @@ fjs compile input.f.js output.json   # JSON
   and `-Infinity`, which JSON has no word for. A `bigint` is refused even
   though its digits are JSON, since `1` reads back as the *number* `1`. The
   refusal names the output file and writes nothing.
-- Object properties are emitted in the order the object carries them —
-  JavaScript's own-property order, array-index keys first — in both formats.
-- A `__proto__` key is emitted as `["__proto__"]:` in a DataJS document and
-  as `"__proto__":` in JSON ([below](#the-__proto__-key)).
+- A FunctionalScript document is written in the same normalized form, and
+  from the program's graph rather than from its value: the module is not
+  evaluated, so a function has a document too, which is what DataJS and JSON
+  have no spelling for. Writing the graph is not writing the value, so the two
+  module outputs part wherever the program computes: `const a = { b: 1 };
+  export default a.b;` is `export default {"b":1}.b;` here and
+  `export default 1;` as DataJS. They agree on a normalized DataJS document,
+  which computes nothing — every one of them is a fixed point of both.
+- Object properties are emitted in the order the value carries them for the
+  value outputs — JavaScript's own-property order, array-index keys first,
+  a repeated key keeping its first position and its last value — and in the
+  order the *literal* carries them for a FunctionalScript document, whose
+  members are the graph's: `{b:1,"0":2,a:3,b:4}` stays as written there and is
+  `{"0":2,"b":4,"a":3}` as DataJS. A member a later duplicate shadows is in
+  the graph and not in the value, so `const x = []; export default {a: x, a: 1};`
+  writes that `[]` in a FunctionalScript document and nowhere else.
+- A `__proto__` key is emitted as `["__proto__"]:` in a DataJS or
+  FunctionalScript document and as `"__proto__":` in JSON
+  ([below](#the-__proto__-key)).
 - `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
-  to infinity — are emitted as those words in a DataJS document, and `-0` as
-  `-0` in both formats.
-
-The output is data in both formats: the module the compiler writes contains
-`const` statements and one `export default`, never a function.
+  to infinity — are emitted as those words in a DataJS or FunctionalScript
+  document, and `-0` as `-0` in every format.
 
 ## Comments
 
@@ -251,8 +286,8 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression. Function definitions, operators, property
-access, and grouping are not recognized yet — see the
+An expression is a data expression, a property access or a function.
+Operators, calls and grouping are not recognized yet — see the
 [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
@@ -296,7 +331,14 @@ export default [NaN, Infinity, -Infinity];
 ```
 
 `NaN` and `Infinity` are reserved words, like `undefined`: a module cannot
-bind, shadow or key them, and each denotes its value wherever it stands.
+bind or shadow them, so each denotes its value wherever a value stands.
+
+They still name a property, as every reserved word does: `{ NaN: 1 }` and
+`a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
+JavaScript, where a property is named by an `IdentifierName` and a value by
+an `IdentifierReference`. `-Infinity` names nothing in either language: here
+it is one token, and in JavaScript it is two — the operator and the word —
+which no property name may be.
 
 The `-` is lexical: it joins the number to its left as part of one token, so
 `-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
@@ -420,12 +462,12 @@ So `fjs compile` reads and writes the key differently in each language, and
 the extension of each file **named on the command line** picks the language:
 
 ```sh
-fjs compile input.f.js output.f.js   # {["__proto__"]:1}
-fjs compile input.f.js output.json   # {"__proto__":1}
-fjs compile input.json  output.f.js  # reads {"__proto__":1} as a property
+fjs compile input.f.js output.data.js   # {["__proto__"]:1}
+fjs compile input.f.js output.json      # {"__proto__":1}
+fjs compile input.json  output.data.js  # reads {"__proto__":1} as a property
 ```
 
-A JSON document therefore survives the loop `proto.json → a.f.js → out.json`
+A JSON document therefore survives the loop `proto.json → a.data.js → out.json`
 byte for byte, each hop spelling the key its own language's way. The
 disagreement is about a *text*, not a value, so nothing is unreachable.
 
@@ -609,9 +651,9 @@ alone:
   other than one rest parameter ([function](./todo/3110-function.md),
   [parameters](./todo/3120-parameters.md)) and a call are not recognized
   yet.
-- A function is compiled to the EDAG output only: `fjs compile` refuses to
-  write a module holding one as a module or as JSON, since a value has no
-  function in it.
+- A function is written by the FunctionalScript and EDAG outputs
+  ([output](#output)); `fjs compile` refuses to write a module holding one as
+  DataJS or as JSON, since a value has no function in it.
 
 ## Module Structure
 

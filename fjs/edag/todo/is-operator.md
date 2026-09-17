@@ -41,7 +41,7 @@ spells as a call ([`entry.md`](./entry.md)).
   only where both executors can run it, and `is` joins the corpus with the
   Rust operation, as `===` did with `strict_eq`.
 - **Output.** The FunctionalScript writer
-  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md))
+  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs))
   writes `['is', a, b]` as `Object.is(a, b)`, so the round trip holds once the
   source spelling lands, and refuses it by name until then.
 
