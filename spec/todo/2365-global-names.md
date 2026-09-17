@@ -213,10 +213,17 @@ A name on MDN's page is not always a name the global object has, and only
 the latter can be bound or referred to. `Generator`, `GeneratorFunction`,
 `AsyncFunction`, `AsyncGeneratorFunction`, `AsyncGenerator` and
 `AsyncIterator` are intrinsics reached through a prototype, not global
-bindings — `typeof GeneratorFunction` is a `ReferenceError` — so they are
-nothing to reserve, and 2360 lists four of them. What belongs in the set is
-what `name in globalThis` answers for, which is also how the four `UInt*`
+bindings — `typeof GeneratorFunction` is a `ReferenceError` — so nothing can
+bind one and there is nothing to reserve. What belongs in the set is what
+`name in globalThis` answers for, which is also how the four `UInt*`
 misspellings in 2360 were found.
+
+2360 listed four of them as namespaces to admit, which would have left them
+bindable here and admitted there — the silent meaning change this document
+exists to prevent, by the one route it had left open. They are struck from
+that list rather than added to this one: admitting a name JavaScript's
+global object does not have would mean a FunctionalScript module that is not
+JavaScript, which no feature may cost.
 
 `escape` and `unescape` are Annex B and deliberately left out; a module that
 binds either is binding a name the language deprecates, and the list should

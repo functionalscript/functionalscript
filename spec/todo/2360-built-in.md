@@ -96,10 +96,17 @@ module that already bound it — is
 ### Control Abstraction Objects
 
 - [ ] `Promise`
-- [ ] `Generator`
-- [ ] `GeneratorFunction`
-- [ ] `AsyncFunction`
-- [ ] `AsyncGeneratorFunction`
+
+The four that stood here — `Generator`, `GeneratorFunction`, `AsyncFunction`
+and `AsyncGeneratorFunction` — are gone, and cannot come back. They are no
+properties of the global object: each is an intrinsic reached through a
+prototype, so `typeof GeneratorFunction` is a `ReferenceError`. Admitting
+one as a namespace would mean inventing a global JavaScript does not have,
+and a FunctionalScript module must run the same as JavaScript. There is
+nothing here to admit, and so nothing to reserve
+([`2365-global-names.md`](./2365-global-names.md)). `AsyncIterator` and
+`AsyncGenerator`, which MDN lists beside them, are the same case and were
+never in this list.
 
 ### Reflection
 
