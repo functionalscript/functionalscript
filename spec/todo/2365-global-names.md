@@ -52,8 +52,18 @@ rule, as `reserved word` does for a keyword, rather than reporting a token
 the grammar did not expect.
 
 It is a rule about binding sites only. The words stay ordinary property
-keys — `{ Math: 1 }` and `a.Object` are unaffected — and stay ordinary
-strings. What a module may not do is give one of them a second meaning.
+keys — `{ Math: 1 }`, `a.Object` — and stay ordinary strings. What a module
+may not do is give one of them a second meaning.
+
+Three of the names are not keys today, and that is a separate rule, not this
+one: `NaN`, `Infinity` and `undefined` carry their own token symbols, so
+`{ NaN: 1 }` and `a.NaN` are refused where `{ Math: 1 }` is accepted, and
+[`spec/README.md`](../README.md) says a module cannot "bind, shadow or key
+them". The key half of that is being removed in a document of its own — a
+key is no value position, and `{ "NaN": 1 }` already denotes the same
+object, so refusing the word costs a spelling and protects nothing. This
+document neither relies on that refusal nor extends it: every name it
+reserves is reserved at binding sites, and every one of them stays a key.
 
 `globalThis` is not merely reserved: it is the global object itself, which
 is ambient authority, so it is a name FunctionalScript will never admit —
@@ -144,12 +154,16 @@ not carry it forward.
 - [ ] `globalNames` in `fjs/js/keywords/module.f.mjs`, beside `literalGlobals`,
       with the corrected list and a proof that the four names already refused
       are in it.
-- [ ] `identifierOf` in `fjs/fsc/parser/module.f.mjs` refuses a binding name
-      the set holds, with a message of its own — `reserved word` is for a
-      keyword, and these are not keywords.
+- [ ] The check goes at the binding sites, which is `bind` and the `=>`
+      parameter in `fjs/fsc/parser/module.f.mjs` — not in `identifierOf`,
+      whose third caller is a *reference*, where refusing a global name
+      would take `Object.entries()` with it and defeat the feature this
+      document clears the way for. A message of its own: `reserved word` is
+      for a keyword, and these are not keywords.
 - [ ] Proofs: each binding position refused — `const`, an import's name, a
-      rest parameter — and a property key of the same name still accepted,
-      `{ Math: 1 }` and `a.Object`.
+      rest parameter — a reference still reaching `const not found` rather
+      than the new refusal, and a property key of the same name still
+      accepted, `{ Math: 1 }` and `a.Object`.
 - [ ] `spec/README.md`: one sentence beside the `NaN`/`Infinity`/`undefined`
       rule it already states, generalized to the list.
 - [ ] [`2360-built-in.md`](./2360-built-in.md): cross-reference this as the
