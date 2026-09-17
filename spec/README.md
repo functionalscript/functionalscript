@@ -678,11 +678,15 @@ alone:
   `o.m(1).n(2)` calls `n` on what `o.m(1)` returned. The arguments are the
   list an array holds, a trailing comma included.
 
-  `o.m(a)` and `(o.m)(a)` are different programs in JavaScript — the first
-  passes `o` as the receiver and the second passes none — and only the first
-  is spellable here, the parenthesized form waiting on grouping. A method
-  call's property is the access's, so the names an access may not read, a
-  built-in prototype's among them
+  Parentheses around the property do not drop the receiver: `(o.m)(a)`
+  passes `o` as surely as `o.m(a)` does, since the parentheses keep the
+  property reference — only detaching the value loses it, as `(0, o.m)(a)`
+  does with the comma operator. Neither spelling is in the language yet, so
+  `o.m(a)` is the one way to call a method and every call written on a
+  property is a call with a receiver.
+
+  A method call's property is the access's, so the names an access may not
+  read, a built-in prototype's among them
   ([property access](#property-access)), it may not call either.
 
   What a call *returns* is not a value the compiler computes: a `.data.js` or

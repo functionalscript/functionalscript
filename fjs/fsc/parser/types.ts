@@ -44,7 +44,7 @@ export type ParseError = {
  * converted from its token, a reference by the identifier token that spells
  * it — its name, and the position an error is anchored at — a property
  * access by the token its key is read from, a call by its arguments in the
- * order written, a function by the token naming its parameter and its body,
+ * order written and the `(` an error against the call is anchored at, a function by the token naming its parameter and its body,
  * a block body by its `const` statements and the value it returns, or a
  * container of its items in the order written.
  *
@@ -57,7 +57,7 @@ export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
     | readonly ['.', Node, DjsTokenWithMetadata]
-    | readonly ['()', Node, readonly Node[]]
+    | readonly ['()', Node, readonly Node[], DjsTokenWithMetadata]
     | readonly ['=>', DjsTokenWithMetadata, Node]
     | readonly ['block', readonly Const[], Node]
     | Container

@@ -308,9 +308,9 @@ const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
  */
 const accessed = (base, round) => {
     const [tag, branch] = unmapped(round)
-    return tag === 'call'
-        ? ['()', base, toArray(valueItems(unmapped(/** @type {_CallBranch} */(branch))[2]))]
-        : ['.', base, accessKey(/** @type {_KeyBranch} */(branch))]
+    if (tag !== 'call') { return ['.', base, accessKey(/** @type {_KeyBranch} */(branch))] }
+    const call = unmapped(/** @type {_CallBranch} */(branch))
+    return ['()', base, toArray(valueItems(call[2])), tokenAt(call[0])]
 }
 
 /**
@@ -579,6 +579,18 @@ export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== '
  */
 const numericBase = foldError('access on a numeric literal')
 
+/**
+ * A call on a number or a bigint literal, at the `(`. The same ambiguity
+ * {@link numericBase} refuses: JavaScript reads `-1()` as `-(1())`, the
+ * minus outside the call, while the tokenizer folds it into the number —
+ * so the callee here would be `-1` where JavaScript calls `1`. With no
+ * negation in the language to read the spelling JavaScript's way, a call on
+ * any numeric literal is refused rather than some, as an access on one is:
+ * `1()` is a `TypeError` in both and worth nothing, and a reference to a
+ * number keeps `n()`, which reads alike in both.
+ */
+const numericCallee = foldError('call on a numeric literal')
+
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
     const { token } = t
@@ -673,13 +685,25 @@ const round = (stack, env, frame) => {
 }
 
 /**
- * The operands of a call, in the order they are evaluated: the callee, then
- * each argument as written — JavaScript's own order, and the order an error
+ * How many operands a call has: its callee and its arguments.
+ *
+ * Counted and indexed rather than built into one list, which is what
+ * `[callee, ...args]` per round would be — a copy of every argument for
+ * each of them, and quadratic in a call's width where the parser is linear
+ * in an array's.
+ *
+ * @type {(call: _CallFrame['call']) => number}
+ */
+const callOperandCount = call => call[2].length + 1
+
+/**
+ * The operand a call evaluates at `index`: the callee first, then each
+ * argument as written — JavaScript's own order, and the order an error
  * among them is reported in.
  *
- * @type {(call: _CallFrame['call']) => readonly Node[]}
+ * @type {(call: _CallFrame['call'], index: number) => Node}
  */
-const callOperands = call => [call[1], ...call[2]]
+const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1]
 
 /**
  * The next operand of a call, or the call closed when none is left: the
@@ -688,9 +712,10 @@ const callOperands = call => [call[1], ...call[2]]
  * @type {(stack: _Stack, env: _Env, frame: _CallFrame) => _State}
  */
 const callRound = (stack, env, frame) => {
-    const all = callOperands(frame.call)
-    if (frame.index < all.length) { return [{ top: frame, rest: stack }, env, ['enter', all[frame.index]]] }
+    const { call, index } = frame
+    if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, env, ['enter', callOperandAt(call, index)]] }
     const [callee, ...args] = toArray(frame.done)
+    if (typeof callee === 'number' || typeof callee === 'bigint') { return [stack, env, error(numericCallee(call[3]))] }
     /** @type {AstCall} */
     const closed = ['()', callee, args]
     return [stack, env, ok(closed)]

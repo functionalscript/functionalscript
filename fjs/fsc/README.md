@@ -120,8 +120,10 @@ the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
 and the two are one node, `['.', a, 'b', ['|()', args]]`; any other callee is
 the plain `['()', callee, args]`, its arguments one array node the call
-spreads. `(a.b)(c)`, the plain call on an access, waits on grouping and is
-unspellable, so no source writes one. A call mints identity — two calls are
+spreads. The plain form over an access is the *detached* receiver,
+`(0, a.b)(c)`, which needs the comma operator and is unspellable, so no
+source writes one — `(a.b)(c)` keeps the receiver and is the method call
+again, parentheses preserving the property reference. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
 keeps.
 A member a later duplicate shadows is in the graph, since the constructor

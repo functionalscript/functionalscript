@@ -254,6 +254,11 @@ export const proof = {
         assertStructurallySame(read('const f = (...a) => 1; export default f(1;'), ['error', ';'])
         // a call is no statement of its own: it stands where a value does
         assertStructurallySame(read('const f = (...a) => 1; f(1); export default 1;'), ['error', 'f'])
+        // the grammar takes a call on a numeric literal, as it takes an
+        // access on one: which callees a call may have is the fold's, since
+        // the grammar sees a value and not what it is
+        assertStructurallySame(read('export default -1();'), ['ok'])
+        assertStructurallySame(read('export default 1();'), ['ok'])
     },
     // `;` ends every statement: a newline does not, and neither does the
     // end of input. A newline is trivia, read past, so the failure is at

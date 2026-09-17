@@ -58,11 +58,17 @@ const property = lower => ([key, value]) => [':', key, lower(value)]
  *
  * A callee that is a property access is a **method call**: `a.b(c)` passes
  * `a` as the receiver, so the access owns the call and the two are one node,
- * `['.', a, 'b', ['|()', args]]` — writing `['()', ['.', a, 'b'], args]`
- * instead would be `(a.b)(c)`, which calls with no receiver and is a
- * different program. That spelling waits on grouping
- * ([`../todo/grouping.md`](../todo/grouping.md)), so every access-callee
- * written today is a method call.
+ * `['.', a, 'b', ['|()', args]]`.
+ *
+ * Writing `['()', ['.', a, 'b'], args]` instead would be the *detached*
+ * receiver, `(0, a.b)(c)` — the plain call over a complete access produces
+ * an ordinary value and loses the base, which
+ * [`../../edag/README.md`](../../edag/README.md)'s Chains table spells and
+ * `chainsJs.receiver` in [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs)
+ * pins against JavaScript itself. Parentheses alone do not detach:
+ * `(a.b)(c)` keeps the receiver and is this same node, so grouping
+ * ([`../todo/grouping.md`](../todo/grouping.md)) adds a spelling for it
+ * rather than for the other one, which waits on the comma operator.
  *
  * Any other callee is the plain call, `['()', callee, args]`.
  *

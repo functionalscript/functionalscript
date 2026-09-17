@@ -55,10 +55,11 @@ export type _AccessNode = Unmapped<readonly [string, unknown]>
 export type _KeyBranch = Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>
 
 /**
- * The branch of a call, `( t [ items(value) ] ) t`: its arguments at the
- * third position, the same optional list an array holds.
+ * The branch of a call, `( t [ items(value) ] ) t`: the `(` an error against
+ * the call is anchored at, and its arguments at the third position, the same
+ * optional list an array holds.
  */
-export type _CallBranch = Unmapped<readonly [unknown, unknown, _OptionalList, ...unknown[]]>
+export type _CallBranch = Unmapped<readonly [_Leaf, unknown, _OptionalList, ...unknown[]]>
 
 /**
  * The node of an import's optional attribute: no round, or one holding
@@ -90,7 +91,7 @@ export type _ContainerFrame = {
  * the order written, which is the order they are evaluated in.
  */
 export type _CallFrame = {
-    readonly call: readonly ['()', Node, readonly Node[]]
+    readonly call: readonly ['()', Node, readonly Node[], DjsTokenWithMetadata]
     readonly index: number
     readonly done: List<AstConst>
 }

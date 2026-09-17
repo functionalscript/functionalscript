@@ -215,8 +215,10 @@ export const proof = {
     // — and any other callee is the plain call, whose second operand is the
     // arguments spread: `exp0(...exp1)`.
     //
-    // `(a.b)(c)`, the plain call on an access, is not spellable until
-    // grouping lands, so no source writes one and none is lowered.
+    // The plain call over an access is the *detached* receiver,
+    // `(0, a.b)(c)` — parentheses alone keep it, which
+    // `chainsJs.receiver` in `fjs/edag/proof.f.mjs` pins against JavaScript
+    // — so it needs the comma operator and no source writes one.
     call: () => {
         expectEdag(compile('const f = (...a) => 1; export default f();').edag, ['()', ['=>', null, 1], ['[]', []]])
         expectEdag(compile('const f = (...a) => 1; export default f(1, 2);').edag, ['()', ['=>', null, 1], ['[]', [1, 2]]])

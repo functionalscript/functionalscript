@@ -104,9 +104,10 @@ export type AstAccess = readonly ['.', AstConst, string | number]
  * The EDAG spells a call two ways and the lowering picks by the callee: a
  * callee that is an access is a *method* call, `a.b(c)`, whose receiver is
  * that access's base — the `.` node owns its call, `['.', a, 'b', ['|()',
- * args]]` — and any other callee is the plain `['()', callee, args]`. The
- * two are different programs in JavaScript, and `a.b(c)` is the only
- * spelling the language has for either, `(a.b)(c)` waiting on grouping.
+ * args]]` — and any other callee is the plain `['()', callee, args]`, which
+ * over an access is the detached receiver, `(0, a.b)(c)`. That one needs the
+ * comma operator and is unspellable, so every call written on a property
+ * today is a method call.
  */
 export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
 
