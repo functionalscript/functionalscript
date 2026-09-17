@@ -174,6 +174,14 @@ export const proof = {
                 ["const NaN = 1;\nexport default NaN;", "reserved word", [1, 7]],
                 ["import Infinity from \"m\";\nexport default Infinity;", "reserved word", [1, 8]],
                 ["export default (...undefined) => undefined;", "reserved word", [1, 20]],
+                // a statement wrong in both halves answers for the half a
+                // reader meets first: the name, not the initializer, which
+                // is why the binding name is checked before the value is
+                // read — `const if = missing;` answered `const not found`
+                // at `missing` until it was
+                ["const NaN = missing;\nexport default 1;", "reserved word", [1, 7]],
+                ["const if = missing;\nexport default 1;", "reserved word", [1, 7]],
+                ["const a = 1;\nconst a = missing;\nexport default 1;", "duplicate id", [2, 7]],
                 // `-Infinity` is one token and no name in either language
                 ["export default {-Infinity: 1};", "unexpected token", [1, 18]],
                 // `-` folds into a number and into `Infinity`, and into

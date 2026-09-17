@@ -737,19 +737,26 @@ const evaluate = env => root => {
 }
 
 /**
- * Binds a name to a reference, refusing a keyword and a name already bound.
- * `import` and `const` share the one map, so a name taken by either is
- * taken for both.
+ * The word a binding may take: an identifier, refusing a keyword, and one
+ * the environment does not hold — `import` and `const` share the one map,
+ * so a name taken by either is taken for both.
  *
- * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef | AstArgs) => Result<_Env, ParseError>}
+ * Separate from the binding itself because a `const` asks the two questions
+ * at different moments: its name is refused before its value is read, so
+ * that `const NaN = missing;` answers for the name and not for `missing`,
+ * while the binding lands after, keeping the name out of its own
+ * initializer's scope.
+ *
+ * @type {(env: _Env) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
-const bind = env => (name, ref) => {
+const bindable = env => name => {
     const [tag, word] = identifierOf(name)
     if (tag === 'error') { return error(word) }
-    return at(word)(env) !== null
-        ? error(duplicateId(name))
-        : ok(setReplace(word)(ref)(env))
+    return at(word)(env) !== null ? error(duplicateId(name)) : ok(word)
 }
+
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstArgs) => _Env} */
+const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /**
  * The statements of a module, in order: each `import` binds its name to
@@ -768,19 +775,21 @@ const foldModule = ({ imports, consts, exported }) => {
     /** @type {readonly AstConst[]} */
     let body = []
     for (const statement of imports) {
-        const [tag, bound] = bind(env)(statement.name, ['aref', modules.length])
-        if (tag === 'error') { return error(bound) }
+        const [tag, word] = bindable(env)(statement.name)
+        if (tag === 'error') { return error(word) }
         const [read, record] = imported(statement)
         if (read === 'error') { return error(record) }
-        env = bound
+        env = extended(env)(word, ['aref', modules.length])
         modules = [...modules, record]
     }
     for (const { name, value: node } of consts) {
+        // the name first: a statement wrong in both halves answers for the
+        // half a reader meets first
+        const [tag, word] = bindable(env)(name)
+        if (tag === 'error') { return error(word) }
         const [resolved, value] = evaluate(env)(node)
         if (resolved === 'error') { return error(value) }
-        const [tag, bound] = bind(env)(name, ['cref', body.length])
-        if (tag === 'error') { return error(bound) }
-        env = bound
+        env = extended(env)(word, ['cref', body.length])
         body = [...body, value]
     }
     const [resolved, last] = evaluate(env)(exported)

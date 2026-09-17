@@ -49,9 +49,9 @@ the module this `todo/` sits in: `fjs/js/identifier/module.f.mjs`, with
 which is where `emergent_testing`'s two exported predicates belong: they
 encode JavaScript's lexical rules, not test logic, and a test module should
 not be anyone's source of truth for them. The writer's `identifierKey` is
-then that function plus the one thing it adds — refusing the six
-[`literalWords`](../../keywords/module.f.mjs), which are token kinds of their
-own and no `id`.
+then that function and nothing else: a word that denotes a value names a
+property like any other — `a.NaN` is an access — so the writer has no rule
+of its own left to add.
 
 `fjs/ebnf/lib/js`'s `idStart`/`idChar` state the same rule a third time, as
 grammar data. Whether the predicate can be derived from the grammar rule, or
@@ -71,8 +71,9 @@ written out again.
 - [ ] `fjs/web`: `isDigits` over `isDigit`.
 - [ ] `fjs/media/nix`: its range sets over `text/ascii`'s classes, keeping
       Nix's own identifier rule.
-- [ ] `fjs/fsc/serializer`: `identifierKey` over `isIdentifier`, keeping the
-      literal-word rule it adds.
+- [ ] `fjs/fsc/serializer`: `identifierKey` becomes `isIdentifier`, with
+      nothing added. Its proof walks every keyword and expects `.k` for each,
+      so a rule creeping back in fails there.
 - [ ] Answer the `fjs/ebnf/lib/js` question above, here or in a todo of its own.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 

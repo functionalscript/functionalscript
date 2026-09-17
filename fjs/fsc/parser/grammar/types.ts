@@ -138,8 +138,16 @@ export type Block = readonly [number, typeof trivia, number, typeof sameLine, Va
  */
 export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifierName, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
 
-// Which of the two rules that is, pinned: `identifier` is assignable to
-// `identifierName`, so `tsc` accepts `Func` with either and the annotation
-// on the `const` in `./module.f.mjs` reports nothing. Only this says which
-// one the grammar produces, and so which one `Children<Func>` can hold.
+// Which of the two rules that is, pinned — one guard per direction, since
+// neither covers both:
+//
+// - narrow the *rule* in `./module.f.mjs` and the annotation catches it,
+//   `TS2740`, the literal being short the six properties `Func` demands;
+// - narrow *this alias* and nothing does. The rule stays assignable to the
+//   narrower type, having more properties than it asks for, so `tsc` is
+//   silent — measured by removing this line and seeing a clean build.
+//
+// So this assertion guards the second direction alone, which is the one
+// that would leave `Children<Func>` unable to hold a tree the grammar
+// produces while every file still compiles.
 type _FuncParameterIsAName = Assert<Equal<Func[4], typeof identifierName>>
