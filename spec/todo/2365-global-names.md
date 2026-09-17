@@ -139,11 +139,23 @@ the parser:
 |`export default { Object: 1 };`|accepted|
 |`const a = {}; export default a.Object;`|accepted|
 
-That is the whole behaviour, from the list alone: no tokenizer change, since
-a global name is an `id` token and stays one; no grammar change, since the
-rules are written over token symbols; and no new message, since
-`identifierOf` already refuses a keyword wherever a name is bound or
-referenced, and the key path never consults it.
+That is the whole behaviour, and it comes from one place: `identifierOf`,
+which already answers `reserved word` wherever a name is bound or
+referenced, and which the key path never consults. No grammar change — the
+rules are written over token symbols, and a global name is an `id` token. No
+new message.
+
+**The list stays its own, though.** The measurement above put the names into
+`keywords` because that is the set `identifierOf` reads, and going the last
+step — shipping them in `keywords` itself — would change something else:
+`toJsToken` in [`fjs/js/tokenizer`](../../fjs/js/tokenizer/module.f.mjs)
+gives every word in that list a token kind of its own, so `Object` would
+tokenize as `{ kind: 'Object' }` for every consumer of the JavaScript
+tokenizer, and `_KeywordKind` would widen with it. The FunctionalScript
+tokenizer demotes such a token back to `id`, which is why the answers above
+are what they are, but the shared tokenizer's own API is no place to carry
+this rule. So `globalNames` is a list beside `keywords`, and `identifierOf`
+consults both: same answers, and nothing above the fold moves.
 
 `globalThis` is not merely reserved: it is the global object itself, which
 is ambient authority, so it is a name FunctionalScript will never admit —
@@ -261,15 +273,15 @@ not carry it forward.
    may one day denote the name, not who standardized it — so answering this
    question means saying which host globals 2360 could ever reach, and
    reserving exactly those.
-3. **What `keywords` means.** The list these names join is documented as
-   "every name FunctionalScript treats as a keyword", which they now are —
-   but it is also the union of four ECMAScript-shaped groups, and a fifth
-   group of global names sits oddly beside `reservedWords`. Whether that
-   list grows a fifth group or the fold consults two lists is a naming
-   question rather than a behavioural one: the answers in the table above
-   are the same either way. Four of the names are in it already — `eval`,
-   `undefined`, `NaN` and `Infinity` — so the group has to be defined as a
-   union rather than a disjoint addition.
+3. **What `keywords` means.** It is documented as "every name
+   FunctionalScript treats as a keyword", and these names now are — but it
+   is also the list `toJsToken` gives token kinds to, and those two meanings
+   part company here: a global name is refused as a name and must still
+   tokenize as an `id`. Hence two lists. Whether the second is named
+   `globalNames` beside `keywords`, or `keywords` is split into "what the
+   tokenizer marks" and "what the fold refuses", is a naming question with
+   the same answers behind it — but the split is real and worth naming
+   rather than leaving to whoever writes the import.
 
 ## Tasks
 
@@ -278,54 +290,40 @@ not carry it forward.
       https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
       — it is a transcription from memory and nothing has checked it.
 - [ ] `globalNames` in `fjs/js/keywords/module.f.mjs`, the corrected list,
-      and `keywords` as the union that holds it — `eval`, `undefined`, `NaN`
-      and `Infinity` are in both, so it is a union and not an addition. The
-      refusal then needs no code: `identifierOf` already answers
-      `reserved word` wherever a name is bound or referenced.
-- [ ] A proof that every name [`2360-built-in.md`](./2360-built-in.md)
-      lists under Global Scope is in the set — **every** entry, with no
-      predicate filtering the list first, each read down to the name a
-      module could bind. Those 56 entries come in three shapes: a bare name
-      (`Infinity`), a call (`isFinite()`), and a path
-      (`WebAssembly.Module`), and only the head of a path is a global —
-      `WebAssembly.Module` is a property of one. So the proof takes each
-      entry's head, and takes every entry.
+      beside `keywords` rather than inside it — `keywords` is what the
+      JavaScript tokenizer gives token kinds to, and a global name must stay
+      an `id` token there. `identifierOf` consults both sets; that is the
+      whole refusal, and `eval`, `undefined`, `NaN` and `Infinity` being in
+      both lists costs nothing, a set membership being idempotent.
+- [ ] Cross-check 2360 against the set: every entry it lists under Global
+      Scope, with no predicate filtering the list first, each read down to
+      the name a module could bind. Those 56 entries come in three shapes —
+      a bare name (`Infinity`), a call (`isFinite()`), and a path
+      (`WebAssembly.Module`) — and only the head of a path is a global. One
+      such check catches all three things that have gone wrong here: a
+      namespace a module was free to bind (`WebAssembly`), a misspelling
+      (the `UInt*` entries), and a name that is no global at all (the
+      intrinsics), each failing the same way — in 2360 and not in the set.
+      A filter would undo it: "every name 2360 lists *that the global object
+      has*", which this task said until the review caught it, skips
+      `UInt8Array`, a misspelling being in no `globalThis` either. Global
+      Scope and no further: the sections below list a type's methods and the
+      prohibited property names, which are no globals and never were.
 
-      That one assertion catches all three things that have gone wrong here:
-      a namespace admitted there that a module was free to bind
-      (`WebAssembly`), a misspelling (2360's four `UInt*` entries, corrected
-      in this change), and a name that is no global at all (its four
-      intrinsics, struck in this change) — each of them fails the same way,
-      by being in 2360 and not in the set.
-
-      Global Scope and no further: the sections below it list a type's
-      methods and the prohibited property names, which are no globals and
-      never were.
-
-      A filter would undo it. "Every name 2360 lists *that the global object
-      has*" — which this task said until the review caught it — passes
-      happily on `UInt8Array`, since a misspelling is in no `globalThis`
-      either, so the check would skip exactly the entries it exists to
-      catch.
-- [ ] Do not make `name in globalThis` the proof. It is the tool that built
-      the list and found all three mistakes, and it belongs in the pull
-      request that revises the list — but as an audit a person runs, not an
-      assertion CI runs, because the runtimes disagree. At `783e60c3`,
-      `'Float16Array' in globalThis` is `false` on Node 22 and `true` on
-      Bun, so the same assertion would pass on one row of the matrix and
-      fail on the next. The list is the standard's, and the proof is
-      list against list.
-- [ ] Proofs: each of the four positions in the table above, and a
-      `const not found` still answering a name nothing binds, so that the
-      new refusal is seen to be about the list rather than about references
-      in general.
-- [ ] Rename the three `isFinite` bindings — `fjs/types/bigint`,
-      `fjs/media/json/extended`, `fjs/media/json/parser` — in the pull
-      request that lands the rule. They are authored FunctionalScript, which
-      is what `.f.mjs` means
-      ([`spec/README.md`](../README.md), File Types), so the rule lands on
-      them the day it lands, and a repository whose own source breaks its
-      own language rule is not a state to pass through.
+      **It is an audit, not a proof**, and prescribing otherwise would ask
+      for something nobody can write compliantly: 2360 is a Markdown
+      checklist, so a persistent assertion would pattern-match document
+      text, which `AGENTS.md` §6 rules out, and a copy of the entries in a
+      test would notice no future typo — the one thing it exists for. It
+      becomes a proof when the names become data: the pull request that
+      admits the built-ins exports the namespaces it admits, and the check
+      is then list against list, in code, with nothing to parse.
+- [ ] `name in globalThis` is that audit's tool, and no proof either. It
+      found all three mistakes, and the runtimes disagree on its answers: at
+      `783e60c3`, `'Float16Array' in globalThis` is `false` on Node 22 and
+      `true` on Bun, so the same assertion would pass on one row of this
+      repository's matrix and fail on the next. The list is the standard's;
+      what a runtime happens to carry is a fact about the runtime.
 - [ ] `spec/README.md`: one sentence beside the `NaN`/`Infinity`/`undefined`
       rule it already states, generalized to the list — the same rule, one
       list longer.
