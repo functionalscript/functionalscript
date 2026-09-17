@@ -22,7 +22,7 @@
  * ```
  *
  * `ladder`, over either primary, is Stage A of
- * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md) —
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md) —
  * arithmetic, strict comparison, bitwise — laid out where it is built,
  * {@link ladder} below.
  *

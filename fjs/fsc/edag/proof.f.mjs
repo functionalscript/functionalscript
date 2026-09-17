@@ -147,6 +147,25 @@ export const proof = {
         const [a, sum] = edag[1]
         assert(sum instanceof Array && sum[0] === '+' && sum[1] === a && sum[2] === a, edag)
     },
+    // Regression: a long chain of one operator nests as deep as it is long
+    // — `**`'s right operand, every other operator's left — and a first
+    // version of `lower` walked that with one JS call per link, overflowing
+    // the call stack at the same 20,000 bar
+    // `fjs/fsc/parser/proof.f.mjs`'s `operatorStackCost` meets on the parser
+    // side of the same fix.
+    operatorStackCost: () => {
+        // each assertion only pins the outermost tag — the operand nested
+        // 20,000 deep is not itself a value this proof writes out
+        const plus = Array.from({ length: 20000 }, () => '1').join('+')
+        const plusEdag = compile(`export default ${plus};`).edag
+        assert(plusEdag instanceof Array && plusEdag[0] === '+' && plusEdag[2] === 1, plusEdag)
+        const minus = Array.from({ length: 20000 }, () => '-').join(' ')
+        const minusEdag = compile(`export default ${minus} 1;`).edag
+        assert(minusEdag instanceof Array && minusEdag[0] === '-' && minusEdag.length === 2, minusEdag)
+        const exponent = Array.from({ length: 20000 }, () => '2').join('**')
+        const powEdag = compile(`export default ${exponent};`).edag
+        assert(powEdag instanceof Array && powEdag[0] === '**' && powEdag[1] === 2, powEdag)
+    },
     // imports take their positions from the source, and one import is one
     // parameter node however many references reach it
     parameters: () => {

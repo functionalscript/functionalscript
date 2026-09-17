@@ -118,6 +118,25 @@ export const proof = {
             assertEq(anchorsOf([[], [1, 2, ['+', ['cref', 0], ['cref', 1]]]]), 'consts ; imports ')
             assertEq(anchorsOf([[a], [['-', ['aref', 0]]]]), 'consts ; imports ')
         },
+        // Regression: a chain of one operator nests its growing operand —
+        // `**`'s right, every other operator's left — as deep as the chain
+        // is long, and a first version of `refsOf` walked that with one JS
+        // call per link, overflowing the call stack at 20,000; `unary`'s and
+        // a binary operator's growing side are the two shapes to cover.
+        operatorStackCost: () => {
+            /** @type {import('./types.ts').AstConst} */
+            let plus = ['cref', 0]
+            for (let i = 0; i < 20000; i += 1) { plus = ['+', plus, 1] }
+            assertEq(anchorsOf([[], [1, plus]]), 'consts ; imports ')
+            /** @type {import('./types.ts').AstConst} */
+            let neg = ['cref', 0]
+            for (let i = 0; i < 20000; i += 1) { neg = ['-', neg] }
+            assertEq(anchorsOf([[], [1, neg]]), 'consts ; imports ')
+            /** @type {import('./types.ts').AstConst} */
+            let pow = ['cref', 0]
+            for (let i = 0; i < 20000; i += 1) { pow = ['**', 2, pow] }
+            assertEq(anchorsOf([[], [1, pow]]), 'consts ; imports ')
+        },
         imports: () => {
             assertEq(anchorsOf([[a], [1]]), 'consts ; imports 0')
             assertEq(anchorsOf([[a, b], [['aref', 1]]]), 'consts ; imports 0')

@@ -342,33 +342,60 @@ const primaryNode = node => {
 }
 
 /**
- * `unary`'s node: `-`/`~` applied to another `unary`, or `exponent`'s own
- * node where neither prefix stands — `./grammar/module.f.mjs`'s `ladder`
- * lays out why `unary` wraps `exponent` rather than the reverse.
+ * `unary` and `exponent`'s node, together: `unary` is `('-' | '~') t unary |
+ * exponent`, and `exponent`'s own right side, when it has a `**`, is
+ * `unary` again (`./grammar/module.f.mjs`'s `ladder` lays out why `unary`
+ * wraps `exponent` rather than the reverse). A chain of prefixes or a chain
+ * of `**` is genuine mutual recursion in the grammar, unlike every
+ * repeat-based layer above this one, whose `repeatFrom0` rounds are a flat
+ * list folded by a single `.reduce` regardless of how many there are — a
+ * JS function mirroring the grammar's own recursion one call per prefix or
+ * `**` would grow the call stack with the input instead, and overflow it on
+ * a long enough chain — `./README.md`'s own bar for "nothing walks the
+ * tree" is twenty thousand siblings, twenty thousand levels, and
+ * `2 ** 2 ** 2 ** …` twenty thousand deep is exactly that shape.
+ *
+ * So this walks the chain in one loop instead: it collects what each step
+ * still owes — a prefix tag to wrap the eventual result in, or a `**` and
+ * the base already built to its left — on a heap-allocated list rather
+ * than the call stack, then applies them once the chain bottoms out at a
+ * primary with no more of either. Applying front-to-back is innermost
+ * first, which is correct because each step was prepended as the walk went
+ * deeper: the last prefix or `**` reached is the first one a value passes
+ * through.
  *
  * @type {(node: _Expr) => Node}
  */
 const unaryNode = node => {
-    const [tag, branch] = unmapped(/** @type {readonly [string, _Expr]} */ (node))
-    if (tag === 'root') { return exponentNode(branch) }
-    const [, , rest] = unmapped(/** @type {readonly [_Expr, _Expr, _Expr]} */ (branch))
-    return /** @type {Node} */ ([tag, [unaryNode(rest)]])
-}
-
-/**
- * `exponent`'s node: a primary, then optionally `**` and a `unary` on the
- * right — right-associative because that right operand may itself hold
- * another `exponent`, through `unary`'s own fall-through branch.
- *
- * @type {(node: _Expr) => Node}
- */
-const exponentNode = node => {
-    const [primary, option] = unmapped(/** @type {readonly [_Expr, _Expr]} */ (node))
-    const base = primaryNode(primary)
-    const rounds = unmapped(option)
-    if (rounds.length === 0) { return base }
-    const [, , rhs] = unmapped(/** @type {readonly [_Expr, _Expr, _Expr]} */ (rounds[0]))
-    return ['**', [base, unaryNode(rhs)]]
+    /** @typedef {readonly ['-' | '~', null] | readonly ['**', Node]} _Pending */
+    /** @typedef {{ readonly first: _Pending, readonly tail: _PendingList } | null} _PendingList */
+    /** @type {_PendingList} */
+    let pending = null
+    let current = node
+    while (true) {
+        const [tag, branch] = unmapped(/** @type {readonly [string, _Expr]} */ (current))
+        if (tag !== 'root') {
+            const [, , rest] = unmapped(/** @type {readonly [_Expr, _Expr, _Expr]} */ (branch))
+            pending = { first: [/** @type {'-' | '~'} */ (tag), null], tail: pending }
+            current = rest
+            continue
+        }
+        const [primary, option] = unmapped(/** @type {readonly [_Expr, _Expr]} */ (branch))
+        const base = primaryNode(primary)
+        const rounds = unmapped(option)
+        if (rounds.length !== 0) {
+            const [, , rhs] = unmapped(/** @type {readonly [_Expr, _Expr, _Expr]} */ (rounds[0]))
+            pending = { first: ['**', base], tail: pending }
+            current = rhs
+            continue
+        }
+        let result = base
+        for (let step = pending; step !== null; step = step.tail) {
+            const [stepTag, left] = step.first
+            result = stepTag === '**' ? ['**', [left, result]] : /** @type {Node} */ ([stepTag, [result]])
+        }
+        return result
+    }
 }
 
 /**

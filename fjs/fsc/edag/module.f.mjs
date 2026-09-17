@@ -6,7 +6,8 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { AstConst, AstImport, AstMember, AstModule, AstOperation } from '../ast/types.ts'
  * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -54,15 +55,18 @@ const parameter = (_, i) => ['.', args, i]
 const property = lower => ([key, value]) => [':', key, lower(value)]
 
 /**
- * One entry's EDAG. A reference is the node it names — a `const` is one
- * node however many references reach it, which is how the sharing a module
- * spells survives into the graph — and an object's members are written as
- * they stand, a repeated key twice, since the constructor applies them in
- * order and the later wins.
+ * The non-operator cases of {@link lower}: a reference is the node it names
+ * — a `const` is one node however many references reach it, which is how
+ * the sharing a module spells survives into the graph — and an object's
+ * members are written as they stand, a repeated key twice, since the
+ * constructor applies them in order and the later wins. `lower` peels every
+ * operator off the top of `ast` before calling this, so the parameter type
+ * excludes them, and the `.` case is what a switch over what remains
+ * defaults to.
  *
- * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstOperation>) => Exp}
  */
-const lower = nodes => ast => {
+const lowerBase = nodes => ast => {
     if (ast === undefined) { return undefinedNode() }
     if (ast === null || typeof ast !== 'object') { return ast }
     switch (ast[0]) {
@@ -75,19 +79,61 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, lower({ parameters: [], consts: [], args: ['args'] })(ast[1])] }
         case 'args': { return nodes.args }
         // the EDAG's own form already, its key a constant the parser admitted
-        case '.': { return ['.', lower(nodes)(ast[1]), ast[2]] }
-        // a Stage A operator (`spec/todo/2340-operators.md`): the EDAG's
-        // own `op1`/`op12`/`op2` tag already, `ast.length` deciding the
-        // arity the same way it decides which `op12` arm applies —
-        // `fjs/edag/module.f.mjs`'s own `op12` reads a node's length the
-        // same way, so this is the parser's vocabulary meeting the EDAG's
-        // own, not a translation between two.
-        default: {
-            return ast.length === 2
-                ? [ast[0], lower(nodes)(ast[1])]
-                : [ast[0], lower(nodes)(ast[1]), lower(nodes)(ast[2])]
-        }
+        default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
+}
+
+/**
+ * One entry's EDAG. A Stage A operator (`spec/todo/2340-operators.md`)
+ * lowers to the EDAG's own `op1`/`op12`/`op2` tag already, `ast.length`
+ * deciding the arity the same way it decides which `op12` arm applies —
+ * `fjs/edag/module.f.mjs`'s own `op12` reads a node's length the same way,
+ * so this is the parser's vocabulary meeting the EDAG's own, not a
+ * translation between two.
+ *
+ * A long chain of one operator lowers every other operand normally — bounded
+ * by what that operand actually is — but nests the *growing* operand as
+ * deep as the chain is long: `**`'s right
+ * (`fjs/fsc/parser/module.f.mjs`'s `unaryNode`, right-associative), every
+ * other operator's left (`leftAssocNode`, left-associative). A JS call per
+ * link of that chain would bound recursion by the input rather than the
+ * grammar, the same reason `unaryNode` itself is a loop — so this peels the
+ * growing operand off in a loop too, collecting what each link still owes
+ * on a heap-allocated list, and rebuilds the result once the chain bottoms
+ * out at {@link lowerBase}.
+ *
+ * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
+ */
+const lower = nodes => ast => {
+    /** @typedef {readonly [string, Exp | null, boolean]} _Pending */
+    /** @typedef {{ readonly first: _Pending, readonly tail: _PendingList } | null} _PendingList */
+    /** @type {_PendingList} */
+    let pending = null
+    /** @type {AstConst} */
+    let current = ast
+    while (current !== null && typeof current === 'object') {
+        const tag = current[0]
+        if (tag === 'aref' || tag === 'cref' || tag === 'array' || tag === 'object' || tag === '=>' || tag === 'args' || tag === '.') {
+            break
+        }
+        if (current.length === 2) {
+            pending = { first: [tag, null, false], tail: pending }
+            current = current[1]
+            continue
+        }
+        const isExponent = tag === '**'
+        const side = isExponent ? current[1] : current[2]
+        pending = { first: [tag, lower(nodes)(side), isExponent], tail: pending }
+        current = isExponent ? current[2] : current[1]
+    }
+    let result = lowerBase(nodes)(/** @type {Exclude<AstConst, AstOperation>} */ (current))
+    for (let step = pending; step !== null; step = step.tail) {
+        const [tag, side, isExponent] = step.first
+        result = side === null
+            ? /** @type {Exp} */ ([tag, result])
+            : isExponent ? /** @type {Exp} */ ([tag, side, result]) : /** @type {Exp} */ ([tag, result, side])
+    }
+    return result
 }
 
 /** @type {(parameters: readonly Exp[]) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]} */

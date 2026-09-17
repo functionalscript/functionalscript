@@ -64,7 +64,8 @@ report `unexpected token` at the offending keyword.
 
 ## The operator ladder
 
-[Stage A of `spec/todo/2340-operators.md`](../../../spec/README.md#operators)
+Stage A of [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)
+(landed: [`spec/README.md`'s Operators section](../../../spec/README.md#operators))
 — arithmetic, strict comparison, bitwise — sits inside `value`/`body` in
 place of the bare primary those two productions used to spell directly:
 `ladder`, in `./grammar/module.f.mjs`, is a nine-layer precedence chain built
@@ -73,7 +74,7 @@ in full where it is built — the precedence and associativity table, why
 `unary` sits above `exponent` rather than below it as JavaScript's own
 grammar has it, and the LL(1) argument for each layer. A function is never a
 ladder operand: nothing bounds a lambda's body against an operator to its
-right without grouping ([`../../todo/grouping.md`](../../todo/grouping.md)),
+right without grouping ([`../todo/grouping.md`](../todo/grouping.md)),
 so `value`/`body` keep `func` a sibling of the whole ladder, exactly where it
 already stood beside the old bare primary.
 

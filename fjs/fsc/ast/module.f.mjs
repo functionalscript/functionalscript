@@ -3,10 +3,10 @@
  *
  * @module
  *
- * @import { Array, Unknown } from '../../media/datajs/types.ts'
+ * @import { Array, Primitive, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
+ * @import { AstAccess, AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, AstOperation, Import, Sharing, Anchors } from './types.ts'
  * @import { _Node, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
@@ -200,10 +200,58 @@ const memberValuesWritten = members => members.map(([, value]) => value)
  * `ast.length` decides the arity the same way it decides an `op12` node's in
  * `fjs/edag/module.f.mjs`.
  *
+ * A binary operator's *other* operand is always one term, but the operand a
+ * long chain nests in grows with the chain: `**`'s right
+ * (`fjs/fsc/parser/module.f.mjs`'s `unaryNode`, right-associative), every
+ * other binary operator's left (`leftAssocNode`, left-associative). Walked
+ * with a loop for that reason — the operand that does *not* grow is still
+ * read by an ordinary recursive call, bounded by what it actually is — the
+ * same reason `unaryNode` itself is a loop rather than a chain of JS calls,
+ * one call per operator no longer bounding recursion by the grammar's own
+ * depth but by the input's.
+ *
+ * Access chains (`case '.'` below) are not walked this way and can still
+ * recurse as deep as the chain — a pre-existing limit this function had
+ * before Stage A, [tracked separately](./todo/refs-stack-safety.md) rather
+ * than folded into this fix.
+ *
  * @type {(view: _View) => (ast: AstConst) => List<_Ref>}
  */
 const refsOf = view => ast => {
-    if (ast === null || typeof ast !== 'object') { return empty }
+    /** @type {List<List<_Ref>>} */
+    let sides = null
+    let current = ast
+    while (current !== null && typeof current === 'object') {
+        switch (current[0]) {
+            case 'array': case 'object': case '.': case '=>': case 'args': case 'cref': case 'aref': {
+                return flat({ first: refsOfNode(view)(current), tail: sides })
+            }
+        }
+        if (current.length === 2) {
+            current = current[1]
+            continue
+        }
+        const isExponent = current[0] === '**'
+        const growing = isExponent ? current[2] : current[1]
+        const side = isExponent ? current[1] : current[2]
+        sides = { first: refsOf(view)(side), tail: sides }
+        current = growing
+    }
+    return flat({ first: empty, tail: sides })
+}
+
+/**
+ * {@link refsOf}'s cases that never grow with a chain — array, object,
+ * access, function, and the two leaf reference kinds — typed as never
+ * seeing an operator or a primitive (`refsOf`'s loop already peeled every
+ * operator off, and its own `while` already excludes every primitive
+ * before calling this) so a future call site that got either wrong is a
+ * type error here rather than a leaf ref silently wrapping an operator's
+ * own operand array.
+ *
+ * @type {(view: _View) => (ast: Exclude<AstConst, AstOperation | Primitive>) => List<_Ref>}
+ */
+const refsOfNode = view => ast => {
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf(view))) }
         case 'object': { return flat(view.members(ast[1]).map(refsOf(view))) }
@@ -218,13 +266,7 @@ const refsOf = view => ast => {
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }
-        case 'cref':
-        case 'aref': { return [{ ref: ast, keys: [] }] }
-        default: {
-            return ast.length === 2
-                ? refsOf(view)(ast[1])
-                : flat([refsOf(view)(ast[1]), refsOf(view)(ast[2])])
-        }
+        default: { return [{ ref: ast, keys: [] }] }
     }
 }
 

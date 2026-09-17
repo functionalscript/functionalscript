@@ -1447,5 +1447,31 @@ export const proof = {
                 `export default [${Array.from({ length: 20000 }, (_, i) => i).join(',')}];`))
             assert(tag === 'ok', tag)
         },
-    ]
+    ],
+    // Regression: `unary`/`exponent`'s grammar is genuinely self-recursive —
+    // a chain of `-`/`~` prefixes, or of `**`, is mutual recursion between
+    // the two, unlike every `repeatFrom0`-based layer above them — so a
+    // first version of `unaryNode` that mirrored the grammar's own
+    // recursion, one JS call per prefix or `**`, overflowed the call stack
+    // at this same 20,000 bar `containerStackCost` above already meets.
+    operatorStackCost: [
+        () => {
+            // spaced, so each `-` is the operator rather than folding into
+            // the next — `--`, adjacent, is the decrement token instead
+            const [tag] = parseFromTokens(tokenizeString(
+                `export default ${Array.from({ length: 20000 }, () => '-').join(' ')} 1;`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(
+                `export default ${Array.from({ length: 20000 }, () => '~').join(' ')} 1;`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag, value] = parseFromTokens(tokenizeString(
+                `export default ${Array.from({ length: 20000 }, () => '2').join('**')};`))
+            assert(tag === 'ok', tag)
+            assertEq(value[1].length, 1)
+        },
+    ],
 }
