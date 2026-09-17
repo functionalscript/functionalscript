@@ -31,9 +31,18 @@ no keyword among them.
   ([`literalGlobals`](../../fjs/js/keywords/module.f.mjs)). That is stricter
   than JavaScript, where `const undefined = 1;` in a module is legal.
 
-The repository's `keywords` list holds all five, which is why each answers
+The repository's `keywords` list holds all four, which is why each answers
 `reserved word` today — that list is "every name FunctionalScript treats as
-a keyword", broader than ECMAScript's reserved words on purpose.
+a keyword", broader than ECMAScript's reserved words on purpose. This
+document adds the rest of the globals to it.
+
+`arguments` and `this` are refused as names too, and are not on this list:
+neither is a property of the global object — `arguments` is a function's own
+binding and `this` an expression — so neither is a global name, however
+alike the refusals look. They are already refused as bindings *and* as
+references, which is where they differ from the names here: `Object` must
+stay referenceable in the head of an access, or `Object.entries()` can never
+land.
 
 Two things make the rest worth the same treatment.
 
@@ -74,41 +83,60 @@ a name meaning one thing locally and another everywhere else — the confusion
 the reservation exists to prevent, arrived at by an idiom nobody would call
 careless. Three renames is what it costs here.
 
-None of the three is FunctionalScript today — destructuring is not in the
-language ([`2450-destructuring.md`](./2450-destructuring.md)) — so that cost
-lands when the rule reaches this repository's own source, not when the rule
-lands. What it costs a module already written in the language is the break
-declared above.
+All three are FunctionalScript: `.f.mjs` is what this repository's own
+authored FunctionalScript is spelled, and `.f.js` is the separate marker for
+what the parser of the same revision accepts — "neither spelling changes
+what the language is" ([`spec/README.md`](../README.md), File Types). The
+parser reads none of them today, destructuring not being in the language
+yet ([`2450-destructuring.md`](./2450-destructuring.md)), but the rule is
+the language's and not the parser's, so the three renames belong in the
+pull request that lands it rather than in a later one.
 
 ## Proposal
 
-A module may not **bind** a name ECMAScript defines globally: not as a
-`const`, not as an import's name, not as a parameter. The refusal names the
-rule, as `reserved word` does for a keyword, rather than reporting a token
-the grammar did not expect.
+A global name is a **reserved word**: never a name a module binds, never a
+value a module names, and an ordinary property key like every other reserved
+word. It is the rule `NaN` already follows, and this document's whole
+content is that the rest of the list follows it too.
 
-That promise reaches a name only where the grammar lets it reach the fold,
-and three of them do not today: `NaN`, `Infinity` and `undefined` carry
-their own token symbols, so `const NaN = 1;` dies at the token with
-`unexpected token` before any binding-site check could run. It is the same
-rule that keeps them out of key position, and admitting them where a name
-may stand lifts both at once — until then, the implementation owes either
-that grammar work or an honest note that the three answer differently.
+Half of it holds today by accident rather than by rule. A module has no free
+names, so `export default Object;` is already `const not found` — there is
+nothing for a global name to refer to. What reserving it changes is the
+other half, `const Object = 1;`, and the answer the first half gives: not
+"you forgot to declare it" but "that name is spoken for".
 
-It is a rule about binding sites only. The words stay ordinary property
-keys — `{ Math: 1 }`, `a.Object` — and stay ordinary strings. What a module
-may not do is give one of them a second meaning.
+Keys are untouched. `{ Object: 1 }`, `a.Object`, `{ NaN: 1 }` and `a.NaN`
+are property names, which JavaScript spells with an `IdentifierName` and
+admits every reserved word to. A key is no value position, and `{ "NaN": 1 }`
+has always denoted the same object.
 
-Three of the names are not keys today, and that is a separate rule, not this
-one: `NaN`, `Infinity` and `undefined` carry their own token symbols, so
-`{ NaN: 1 }` and `a.NaN` are refused where `{ Math: 1 }` is accepted, and
-[`spec/README.md`](../README.md) says a module cannot "bind, shadow or key
-them". That refusal is the tokenizer's doing — each of the three is a token
-kind of its own, so none reaches the identifier rule in any position — and
-not a decision about keys: a key is no value position, and `{ "NaN": 1 }`
-already denotes the same object. This document neither relies on that
-refusal nor extends it: every name it reserves is reserved at binding sites,
-and every one of them keeps whatever key status it has today.
+**A namespace head is resolved before the reservation is consulted.** This
+is the one ordering the implementation cannot get backwards. 2360 admits
+`Object.entries()`, where `Object` stands in the head of an access and
+denotes a namespace rather than a value; if the reserved-word check runs
+first, that feature can never land. The reservation says a global name is
+not a *name*, which leaves the language free to give it meaning in a
+position of its own — exactly as it does for `NaN` where a value may stand.
+
+### What it takes
+
+Measured, by putting `Object` and `Math` into
+[`keywords`](../../fjs/js/keywords/module.f.mjs) and reading the answers off
+the parser:
+
+|input|answer|
+|-|-|
+|`const Object = 1;`|`reserved word`|
+|`export default Object;`|`reserved word`|
+|`import Object from "./a.f.js";`|`reserved word`|
+|`export default { Object: 1 };`|accepted|
+|`const a = {}; export default a.Object;`|accepted|
+
+That is the whole behaviour, from the list alone: no tokenizer change, since
+a global name is an `id` token and stays one; no grammar change, since the
+rules are written over token symbols; and no new message, since
+`identifierOf` already refuses a keyword wherever a name is bound or
+referenced, and the key path never consults it.
 
 `globalThis` is not merely reserved: it is the global object itself, which
 is ambient authority, so it is a name FunctionalScript will never admit —
@@ -169,10 +197,19 @@ same check.
 |keyed collections|`Map`, `Set`, `WeakMap`, `WeakSet`|
 |structured data|`ArrayBuffer`, `SharedArrayBuffer`, `DataView`, `Atomics`, `JSON`|
 |memory|`WeakRef`, `FinalizationRegistry`|
-|control abstraction|`Iterator`, `AsyncIterator`, `Promise`, `GeneratorFunction`, `AsyncGeneratorFunction`, `Generator`, `AsyncGenerator`, `AsyncFunction`|
+|control abstraction|`Iterator`, `Promise` — and see the note below|
 |reflection|`Reflect`, `Proxy`|
 |internationalization|`Intl`|
 |the embedder's, and 2360's|`WebAssembly`|
+
+A name on MDN's page is not always a name the global object has, and only
+the latter can be bound or referred to. `Generator`, `GeneratorFunction`,
+`AsyncFunction`, `AsyncGeneratorFunction`, `AsyncGenerator` and
+`AsyncIterator` are intrinsics reached through a prototype, not global
+bindings — `typeof GeneratorFunction` is a `ReferenceError` — so they are
+nothing to reserve, and 2360 lists four of them. What belongs in the set is
+what `name in globalThis` answers for, which is also how the four `UInt*`
+misspellings in 2360 were found.
 
 `escape` and `unescape` are Annex B and deliberately left out; a module that
 binds either is binding a name the language deprecates, and the list should
@@ -202,17 +239,15 @@ not carry it forward.
    may one day denote the name, not who standardized it — so answering this
    question means saying which host globals 2360 could ever reach, and
    reserving exactly those.
-3. **Where the check lives.** Most of these names stay `id` tokens and are
-   no keyword in any sense, so they need a set of their own rather than
-   joining [`keywords`](../../fjs/js/keywords/module.f.mjs) — that list is
-   what the tokenizer and the fold already treat as keywords, and widening
-   it to `Object` and `Math` would refuse them as *references* too, which
-   is the one thing this document must not do.
-
-   The two sets overlap in five names — `eval`, `arguments`, `undefined`,
-   `NaN`, `Infinity` — and the answer there is to leave them alone: they are
-   refused already, for their own reasons, and `reserved word` is what they
-   say.
+3. **What `keywords` means.** The list these names join is documented as
+   "every name FunctionalScript treats as a keyword", which they now are —
+   but it is also the union of four ECMAScript-shaped groups, and a fifth
+   group of global names sits oddly beside `reservedWords`. Whether that
+   list grows a fifth group or the fold consults two lists is a naming
+   question rather than a behavioural one: the answers in the table above
+   are the same either way. Four of the names are in it already — `eval`,
+   `undefined`, `NaN` and `Infinity` — so the group has to be defined as a
+   union rather than a disjoint addition.
 
 ## Tasks
 
@@ -220,40 +255,35 @@ not carry it forward.
       [ECMA-262 §19](https://tc39.es/ecma262/#sec-global-object) and
       https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
       — it is a transcription from memory and nothing has checked it.
-- [ ] `globalNames` in `fjs/js/keywords/module.f.mjs`, beside `literalGlobals`,
-      with the corrected list and a proof that the four names already refused
-      are in it.
+- [ ] `globalNames` in `fjs/js/keywords/module.f.mjs`, the corrected list,
+      and `keywords` as the union that holds it — `eval`, `undefined`, `NaN`
+      and `Infinity` are in both, so it is a union and not an addition. The
+      refusal then needs no code: `identifierOf` already answers
+      `reserved word` wherever a name is bound or referenced.
 - [ ] A proof that every name [`2360-built-in.md`](./2360-built-in.md)
       lists is in the set, so that a namespace admitted there cannot be a
       name a module was free to bind — `WebAssembly` is the one that is in
       2360 and outside ECMA-262 §19 today, and the proof is what keeps the
-      next one from slipping through.
-- [ ] The check goes at the binding sites, which is `bind` and the `=>`
-      parameter in `fjs/fsc/parser/module.f.mjs` — not in `identifierOf`,
-      whose third caller is a *reference*, where refusing a global name
-      would take `Object.entries()` with it and defeat the feature this
-      document clears the way for.
-- [ ] A message of its own for the names this document *adds*. The four
-      already refused keep the answer they already give: `bind` reaches
-      `identifierOf` first, and for `eval`, `arguments` and — once the
-      grammar admits them where a name may stand — `undefined`, `NaN` and
-      `Infinity`, `reserved word` is the answer and stays it. Ordering the
-      new check ahead of `identifierOf` to claim those five would say
-      `eval` is refused by this rule, when JavaScript refuses it first.
-- [ ] Proofs: each binding position refused — `const`, an import's name, a
-      rest parameter — a reference still reaching `const not found` rather
-      than the new refusal, and a property key of the same name still
-      accepted, `{ Math: 1 }` and `a.Object`.
-- [ ] Every binding *form*, not the ones a reader thinks of first: the three
-      `const { isFinite } = Number` above are destructuring, which the first
-      scan written for this document missed entirely, and destructuring
-      arrives in the language with
-      [`2450-destructuring.md`](./2450-destructuring.md). A renamed one,
-      `const { eval: evalVdf } = sloth` in `fjs/crypto/vdf`, binds `evalVdf`
-      and is no such binding — the case that tells a careful implementation
-      from a hasty one.
+      next one from slipping through. 2360's four `UInt*` entries are
+      misspelled — `Uint8Array` and its three siblings are the names that
+      exist — and the proof cannot pass until they are corrected, which
+      this change does. Four more of its entries are no global binding at
+      all, being intrinsics reached through a prototype, so the proof reads
+      "every name 2360 lists that the global object has".
+- [ ] Proofs: each of the four positions in the table above, and a
+      `const not found` still answering a name nothing binds, so that the
+      new refusal is seen to be about the list rather than about references
+      in general.
+- [ ] Rename the three `isFinite` bindings — `fjs/types/bigint`,
+      `fjs/media/json/extended`, `fjs/media/json/parser` — in the pull
+      request that lands the rule. They are authored FunctionalScript, which
+      is what `.f.mjs` means
+      ([`spec/README.md`](../README.md), File Types), so the rule lands on
+      them the day it lands, and a repository whose own source breaks its
+      own language rule is not a state to pass through.
 - [ ] `spec/README.md`: one sentence beside the `NaN`/`Infinity`/`undefined`
-      rule it already states, generalized to the list.
+      rule it already states, generalized to the list — the same rule, one
+      list longer.
 - [x] [`2360-built-in.md`](./2360-built-in.md) cross-references this as the
       half that lands first, its stale `undefined` box is ticked — that name
       is a literal global like the two above it — and its `globalThis` box

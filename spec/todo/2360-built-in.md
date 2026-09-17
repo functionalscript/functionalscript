@@ -67,12 +67,12 @@ module that already bound it — is
 
 - [x] `Array`
 - [ ] `Int8Array`
-- [ ] `UInt8Array`
-- [ ] `UInt8ClampedArray`
+- [ ] `Uint8Array`
+- [ ] `Uint8ClampedArray`
 - [ ] `Int16Array`
-- [ ] `UInt16Array`
+- [ ] `Uint16Array`
 - [ ] `Int32Array`
-- [ ] `UInt32Array`
+- [ ] `Uint32Array`
 - [ ] `Float32Array`
 - [ ] `Float64Array`
 - [ ] `BigInt64Array`
