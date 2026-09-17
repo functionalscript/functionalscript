@@ -124,15 +124,20 @@ via the `Function` constructor — no rustc at the user's run time.
       [`fjs/edag/rust`](../fjs/edag/rust/module.f.mjs), not duplicated. Not
       yet covered: multi-module output layout (see the open question below)
       and wiring the harness (next task) to the generated output.
-- [ ] Create the harness: a crate (or generated tests in `nanvm-lib`) with a
-      thin `main` that evaluates a generated module's `export default` and
-      prints the result as JSON; wire it into CI via `cargo test`.
+- [x] Create the harness: the `nanvm-harness` crate has a thin `main` that
+      evaluates a generated module's `export default` and prints the result
+      as JSON; wired into CI via `cargo test` — `build.rs` invokes
+      `fjs compile` itself at build time (no committed generated `.rs`,
+      unlike the compiler's own eventual self-hosted output), so a
+      regression anywhere in the pipeline shows up as a build/test failure,
+      not a silently-stale artifact.
 - [ ] Define the convention for generated module imports (`use` paths,
       file/directory layout — see the open question in
       [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)).
-- [ ] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
-      subset: a constant default export compiled by `fjs` to `.rs`, built and
-      run by cargo, with the result printed to stdout as JSON.
+- [x] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
+      subset: three constant default exports (number, string, boolean),
+      compiled by `fjs` to `.rs`, built and run by cargo via
+      `nanvm-harness`, with each result printed to stdout as JSON.
 - [ ] Complete
       [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md),
       including direct type-checking, declaration emission, packing, and

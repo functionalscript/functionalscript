@@ -1,7 +1,8 @@
 /**
- * Documentation only: not read by any build step. Shows the
- * FunctionalScript source `../src/synthetic/string.rs` stands in for,
- * until `fjs compile <module> <output>.rs` exists to compile this file
- * for real. See `../src/synthetic/mod.rs`.
+ * Compiled for real by `../build.rs` (`node fjs/module.mjs compile
+ * <this file> <output>.rs`), whose output `../src/generated.rs` includes
+ * as `generated::string::module`. Edits here take effect on the next
+ * `cargo build`/`cargo test`, and invalid FunctionalScript here breaks
+ * that build.
  */
 export default "hello";

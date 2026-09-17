@@ -13,9 +13,22 @@
 //! the same assumption this repository's own `npm run gen` already makes —
 //! costs nothing a published crate would need to avoid.
 
-use std::{path::Path, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::{Child, Command},
+};
 
 const FIXTURES: [&str; 3] = ["number", "string", "boolean"];
+
+fn spawn_compile(compiler: &Path, input: &Path, output: &Path) -> Child {
+    Command::new("node")
+        .arg(compiler)
+        .arg("compile")
+        .arg(input)
+        .arg(output)
+        .spawn()
+        .unwrap_or_else(|e| panic!("failed to run `node {}`: {e}", compiler.display()))
+}
 
 fn main() {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("set by cargo");
@@ -25,24 +38,34 @@ fn main() {
     let compiler = repo_root.join("fjs").join("module.mjs");
     let out_dir = std::env::var("OUT_DIR").expect("set by cargo");
 
-    for name in FIXTURES {
-        let input = Path::new(&manifest_dir)
-            .join("fixtures")
-            .join(format!("{name}.mjs"));
-        let output = Path::new(&out_dir).join(format!("{name}.rs"));
-        println!("cargo:rerun-if-changed={}", input.display());
+    // The fixtures are this crate's own files, individually watched below;
+    // `fjs/` is the compiler itself (and everything it imports), watched as
+    // a whole directory (cargo rebuilds on any file changing under a
+    // watched directory, recursively) so a change anywhere in the compiler
+    // — not just to a fixture — invalidates the generated output too.
+    println!("cargo:rerun-if-changed={}", repo_root.join("fjs").display());
 
-        let status = Command::new("node")
-            .arg(&compiler)
-            .arg("compile")
-            .arg(&input)
-            .arg(&output)
-            .status()
-            .unwrap_or_else(|e| panic!("failed to run `node {}`: {e}", compiler.display()));
+    let children: Vec<(&str, PathBuf, Child)> = FIXTURES
+        .iter()
+        .map(|&name| {
+            let input = Path::new(&manifest_dir)
+                .join("fixtures")
+                .join(format!("{name}.mjs"));
+            let output = Path::new(&out_dir).join(format!("{name}.rs"));
+            println!("cargo:rerun-if-changed={}", input.display());
+            let child = spawn_compile(&compiler, &input, &output);
+            (name, output, child)
+        })
+        .collect();
+
+    for (name, output, child) in children {
+        let status = child
+            .wait_with_output()
+            .unwrap_or_else(|e| panic!("failed to wait on `fjs compile` for {name}: {e}"))
+            .status;
         assert!(
             status.success(),
-            "`fjs compile {} {}` failed",
-            input.display(),
+            "`fjs compile` failed for fixture {name} (output: {})",
             output.display()
         );
     }

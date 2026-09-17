@@ -285,15 +285,14 @@ as a generic `Any` facility, post-MVP.
       samples), but not yet continuously verified by the repository's own
       harness and CI — that is still the next task, and the MVP is not
       reached until it exists and runs this generator's output end-to-end.
-- [ ] **Harness + walking skeleton** — a harness crate (or generated tests
-      in `nanvm-lib`) whose `main` evaluates a generated module's
-      `export default` and prints the result as JSON; wire the pipeline
-      end-to-end early with a minimal synthetic FunctionalScript JavaScript
-      fixture (e.g. a constant default export), driven by `cargo test` in CI,
-      so every later feature lands into a working pipeline. This synthetic
-      fixture may use `.f.mjs`; it does not define the repository extension
-      contract. See
-      [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
+- [x] **Harness + walking skeleton** — the `nanvm-harness` crate's `main`
+      evaluates a generated module's `export default` and prints the result
+      as JSON; the pipeline runs end-to-end with three minimal constant
+      fixtures (number, string, boolean default exports), driven by
+      `cargo test` in CI (`nanvm-harness/build.rs` invokes `fjs compile`
+      itself at build time, so every later feature lands into a working,
+      continuously-verified pipeline rather than a hand-written stand-in).
+      See [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 - [x] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests, so
       every new operator is tested once, not twice. Doubly important now: the
