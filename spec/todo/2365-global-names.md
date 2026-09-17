@@ -283,13 +283,24 @@ not carry it forward.
       refusal then needs no code: `identifierOf` already answers
       `reserved word` wherever a name is bound or referenced.
 - [ ] A proof that every name [`2360-built-in.md`](./2360-built-in.md)
-      lists is in the set — **every** name it lists, with no predicate
-      filtering the list first. That one assertion catches all three things
-      that have gone wrong here: a namespace admitted there that a module was
-      free to bind (`WebAssembly`), a misspelling (2360's four `UInt*`
-      entries, corrected in this change), and a name that is no global at
-      all (its four intrinsics, struck in this change) — each of them fails
-      the same way, by being in 2360 and not in the set.
+      lists under Global Scope is in the set — **every** entry, with no
+      predicate filtering the list first, each read down to the name a
+      module could bind. Those 56 entries come in three shapes: a bare name
+      (`Infinity`), a call (`isFinite()`), and a path
+      (`WebAssembly.Module`), and only the head of a path is a global —
+      `WebAssembly.Module` is a property of one. So the proof takes each
+      entry's head, and takes every entry.
+
+      That one assertion catches all three things that have gone wrong here:
+      a namespace admitted there that a module was free to bind
+      (`WebAssembly`), a misspelling (2360's four `UInt*` entries, corrected
+      in this change), and a name that is no global at all (its four
+      intrinsics, struck in this change) — each of them fails the same way,
+      by being in 2360 and not in the set.
+
+      Global Scope and no further: the sections below it list a type's
+      methods and the prohibited property names, which are no globals and
+      never were.
 
       A filter would undo it. "Every name 2360 lists *that the global object
       has*" — which this task said until the review caught it — passes
