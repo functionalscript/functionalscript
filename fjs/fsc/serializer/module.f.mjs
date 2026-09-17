@@ -92,15 +92,25 @@ const minting = node => {
 }
 
 /**
- * Whether a base needs a `const` of its own: the grammar takes no access on
- * a number, a bigint or a function, though linking puts all three there —
- * `n.x` with `n` exporting `1` is `['.', 1, 'x']`, which `1.x` cannot spell.
+ * Whether a base needs a `const` of its own — three bases this writer has
+ * no text for, though linking puts all of them there:
+ *
+ * - a number or a bigint, since `1.x` is one number and a stray word, and
+ *   the space `1 .x` needs is not a spelling this writer keeps;
+ * - a function, which takes no access in the grammar;
+ * - a **negation**, because `-` binds looser than a step: `-1 .x` is
+ *   `-(1 .x)` and `-1[0]` is `-(1[0])`, so the text for `['.', ['-', 1],
+ *   0]` would be a different graph rather than an unreadable one. A name
+ *   is what says the negation happens first, until a group can
+ *   ([`../todo/grouping.md`](../todo/grouping.md)).
  *
  * @type {(a: Analysis, base: Operand) => boolean}
  */
-const basedHoisted = (a, base) => base instanceof Array
-    ? a.nodes[base[1]][0] === '=>'
-    : typeof base === 'number' || typeof base === 'bigint'
+const basedHoisted = (a, base) => {
+    if (!(base instanceof Array)) { return typeof base === 'number' || typeof base === 'bigint' }
+    const kind = a.nodes[base[1]][0]
+    return kind === '=>' || kind === '-'
+}
 
 /**
  * Whether a negation's operand needs a `const` of its own: a function, and

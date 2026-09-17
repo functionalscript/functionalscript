@@ -101,8 +101,14 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', null, copy(x)]]])),
 ]
 
-/** Every leaf, the arguments, both empty containers, and `undefined`. @type {readonly Exp[]} */
-const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined']]
+/**
+ * Every leaf, the arguments, both empty containers, `undefined`, and a
+ * negation — the one operator, whose operand binds tighter than it does, so
+ * every shape below has to say where the negation happens.
+ *
+ * @type {readonly Exp[]}
+ */
+const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined'], ['-', 1]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
@@ -124,6 +130,25 @@ export const proof = {
             ['[]', [null, true, false, 1, 1.5, 1n, 'a"b', '\u{1f600}']],
             'export default [null,true,false,1,1.5,1n,"a\\"b","\u{1f600}"];')
         writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
+    },
+    // The one operator. `-` binds looser than a step, so a negation under an
+    // access is a base the text cannot say without a name — `-1[0]` is
+    // `-(1[0])` — and a negated function is no `UnaryExpression`, so it
+    // takes a name too. `op12` of two operands is the binary minus, which
+    // the language has no spelling for yet.
+    neg: () => {
+        writes(['-', 1], 'export default -1;')
+        writes(['-', ['[]', [1]]], 'export default -[1];')
+        // `- -1` and not `--1`, which is the decrement token
+        writes(['-', ['-', 1]], 'export default - -1;')
+        // the negation is inside the access, which is where the text puts it
+        writes(['-', ['.', ['[]', [1]], 0]], 'export default -[1][0];')
+        // and outside it only through a name
+        writes(['.', ['-', 1], 0], 'const $0=-1;export default $0[0];')
+        writes(['.', ['-', 1], 'a'], 'const $0=-1;export default $0.a;')
+        // a negated function likewise
+        writes(['-', ['=>', null, 1]], 'const $0=(...$a)=>1;export default -$0;')
+        refuses(['-', 1, 2], 'a binary - node')
     },
     /**
      * A negative number is a leaf — a JSON input gives one, and so does any
