@@ -119,10 +119,10 @@ accepts, so that compiling the output again yields the same EDAG:
   `base.key` for a key the tokenizer reads as one `id` token and
   `base[key]` otherwise — the characters classified by code point through
   [`fjs/text/ascii`](../../text/ascii/module.f.mjs), never by a case fold,
-  which would make `\u212a` a letter, and the six words that denote a value
-  ([`literalWords`](../../js/keywords/module.f.mjs)) bracketed, being token
-  kinds of their own where every other keyword is an `id` — and a number key
-  as a number. Three numbers are refused instead, since no
+  which would make `\u212a` a letter. A keyword needs no rule of its own,
+  the six words that denote a value included: each is an `IdentifierName`
+  where a name may stand, so `base.NaN` is an access and the writer spells
+  it like any other. And a number key as a number. Three numbers are refused instead, since no
   literal reads back as the same key: `NaN` and the two infinities have no
   literal at all — `Infinity` is a word and not a key token, and `1e999`,
   which this issue first proposed for it, is read back as the key `null`

@@ -90,13 +90,21 @@ export const proof = {
         assertEq(id.symbol, sym('id'))
         assertEq(id.meta.token.kind, 'id')
     },
-    // A reserved literal has its own symbol, so where a rule wants an
-    // identifier it is the token the grammar names in the error, not a word;
-    // where a value may stand, it is one.
+    // A word that denotes a value has its own symbol, and where a *name*
+    // may stand — a property's, a binding's — it is one of those symbols
+    // the identifier rule admits, exactly as a framing keyword is. So the
+    // grammar takes `{ Infinity: 1 }` and `const NaN = 1;` alike, and which
+    // of them may be *bound* is the fold's to say, as for every other
+    // keyword. Where a value may stand, the word is the value.
+    //
+    // `-Infinity` is one token and no name, so it is where the grammar
+    // still answers.
     reserved: () => {
-        assertStructurallySame(read('const NaN = 1;\nexport default NaN;'), ['error', 'NaN'])
-        assertStructurallySame(read('export default { Infinity: 1 };'), ['error', 'Infinity'])
+        assertStructurallySame(read('const NaN = 1;\nexport default NaN;'), ['ok'])
+        assertStructurallySame(read('export default { Infinity: 1 };'), ['ok'])
+        assertStructurallySame(read('const a = { NaN: 1 };export default a.NaN;'), ['ok'])
         assertStructurallySame(read('export default [NaN, Infinity, -Infinity];'), ['ok'])
+        assertStructurallySame(read('export default { -Infinity: 1 };'), ['error', '-Infinity'])
     },
     accepted: () => {
         assertStructurallySame(read('export default 1;'), ['ok'])
@@ -112,10 +120,11 @@ export const proof = {
         // the import attribute: `with`, a key, a string, the braces
         assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])
-        // the key is an identifier, so a word with a symbol of its own
-        // stands here as any other word does and the fold names it unknown
+        // the key is a name, so a word with a symbol of its own stands here
+        // as any other word does and the fold names it unknown
         assertStructurallySame(read('import x from "m" with { return: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with { export: "json" };export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with { NaN: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with { "type": "json" };export default x;'), ['error', 'string'])
         assertStructurallySame(read('import x from "m" with { type: json };export default x;'), ['error', 'json'])
         assertStructurallySame(read('import x from "m" with { type: "json", };export default x;'), ['error', ','])
