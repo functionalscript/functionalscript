@@ -18,6 +18,7 @@ import type {
     _tokenKindNames,
     access,
     identifier,
+    identifierName,
     key,
     primitive,
     sameLine,
@@ -125,5 +126,20 @@ export type Body = () => readonly ['const', {
 /** `{`, trivia, `return`, same-line trivia, the value, `;`, trivia, `}`, and the trivia after it. */
 export type Block = readonly [number, typeof trivia, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
 
-/** `(`, trivia, `...`, trivia, the parameter, trivia, `)`, same-line trivia, `=>`, trivia, and the body. */
-export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifier, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
+/**
+ * `(`, trivia, `...`, trivia, the parameter, trivia, `)`, same-line trivia,
+ * `=>`, trivia, and the body.
+ *
+ * The parameter is an {@link identifierName} and not an `identifier`: a
+ * binding takes every word a name may be, and the fold refuses the reserved
+ * ones by name. The narrower rule would still typecheck — it is assignable
+ * to the wider one — while leaving `Children<Func>` unable to hold a tree
+ * the grammar produces.
+ */
+export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifierName, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
+
+// Which of the two rules that is, pinned: `identifier` is assignable to
+// `identifierName`, so `tsc` accepts `Func` with either and the annotation
+// on the `const` in `./module.f.mjs` reports nothing. Only this says which
+// one the grammar produces, and so which one `Children<Func>` can hold.
+type _FuncParameterIsAName = Assert<Equal<Func[4], typeof identifierName>>

@@ -53,10 +53,11 @@ export const literalGlobals = /** @type {const} */ (['Infinity', 'NaN', 'undefin
  * {@link literalGlobals}.
  *
  * A tokenizer gives each of these a token kind of its own rather than `id`,
- * and every other keyword an `id` carrying the word — which is what lets a
- * rule that wants a name take `a.if` and `a.class` while `a.true` is no
- * access at all. A writer choosing between `a.k` and `a["k"]` asks this
- * list for the same reason.
+ * and every other keyword an `id` carrying the word, which is why a grammar
+ * over that alphabet owes them a rule wherever a *name* may stand — a
+ * property's or a binding's — as `identifierName` in `fjs/fsc/parser/grammar`
+ * does. Where a **value** may stand they are the value, which is the line
+ * this list draws and the reason it exists.
  */
 export const literalWords = /** @type {const} */ ([
     'Infinity', 'NaN', 'false', 'null', 'true', 'undefined',

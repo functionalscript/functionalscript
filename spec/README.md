@@ -301,8 +301,9 @@ bind or shadow them, so each denotes its value wherever a value stands.
 They still name a property, as every reserved word does: `{ NaN: 1 }` and
 `a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
 JavaScript, where a property is named by an `IdentifierName` and a value by
-an `IdentifierReference`. `-Infinity` is one token and no name in either
-language.
+an `IdentifierReference`. `-Infinity` names nothing in either language: here
+it is one token, and in JavaScript it is two — the operator and the word —
+which no property name may be.
 
 The `-` is lexical: it joins the number to its left as part of one token, so
 `-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
