@@ -48,9 +48,26 @@ that already bound it, which no declaration can soften. So this is its own
 document and not a section of 2360: it should land first, and it should
 land loudly.
 
-At `010e1159`, no module in this repository bound a global name, across
-every `.js` and `.mjs` file, so the reservation costs this repository
-nothing; what it costs a module elsewhere is the break declared above.
+At `ce2698cf`, three of this repository's 382 `.js` and `.mjs` files bind a
+global name, and all three bind the same one — `fjs/types/bigint`,
+`fjs/media/json/extended` and `fjs/media/json/parser`, each with
+
+```js
+const { isFinite } = Number
+```
+
+They are the argument for the rule rather than a counterexample to it. That
+binding is not the global `isFinite`: it is `Number.isFinite`, which does
+not coerce its argument where the global does, so each of those modules has
+a name meaning one thing locally and another everywhere else — the confusion
+the reservation exists to prevent, arrived at by an idiom nobody would call
+careless. Three renames is what it costs here.
+
+None of the three is FunctionalScript today — destructuring is not in the
+language ([`2450-destructuring.md`](./2450-destructuring.md)) — so that cost
+lands when the rule reaches this repository's own source, not when the rule
+lands. What it costs a module already written in the language is the break
+declared above.
 
 ## Proposal
 
@@ -72,7 +89,7 @@ kind of its own, so none reaches the identifier rule in any position — and
 not a decision about keys: a key is no value position, and `{ "NaN": 1 }`
 already denotes the same object. This document neither relies on that
 refusal nor extends it: every name it reserves is reserved at binding sites,
-and every one of them stays a key.
+and every one of them keeps whatever key status it has today.
 
 `globalThis` is not merely reserved: it is the global object itself, which
 is ambient authority, so it is a name FunctionalScript will never admit —
@@ -175,6 +192,14 @@ not carry it forward.
       rest parameter — a reference still reaching `const not found` rather
       than the new refusal, and a property key of the same name still
       accepted, `{ Math: 1 }` and `a.Object`.
+- [ ] Every binding *form*, not the ones a reader thinks of first: the three
+      `const { isFinite } = Number` above are destructuring, which the first
+      scan written for this document missed entirely, and destructuring
+      arrives in the language with
+      [`2450-destructuring.md`](./2450-destructuring.md). A renamed one,
+      `const { eval: evalVdf } = sloth` in `fjs/crypto/vdf`, binds `evalVdf`
+      and is no such binding — the case that tells a careful implementation
+      from a hasty one.
 - [ ] `spec/README.md`: one sentence beside the `NaN`/`Infinity`/`undefined`
       rule it already states, generalized to the list.
 - [x] [`2360-built-in.md`](./2360-built-in.md) cross-references this as the
