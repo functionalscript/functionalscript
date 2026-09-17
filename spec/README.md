@@ -9,8 +9,8 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — functions, operators, property
-access, type annotations — and the design documents for the VM, I/O,
+Features the parser does not recognize yet — operators, calls, type
+annotations — and the design documents for the VM, I/O,
 serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
 
@@ -279,8 +279,8 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression. Function definitions, operators, property
-access, and grouping are not recognized yet — see the
+An expression is a data expression, a property access or a function.
+Operators, calls and grouping are not recognized yet — see the
 [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
@@ -644,9 +644,9 @@ alone:
   other than one rest parameter ([function](./todo/3110-function.md),
   [parameters](./todo/3120-parameters.md)) and a call are not recognized
   yet.
-- A function is compiled to the EDAG output only: `fjs compile` refuses to
-  write a module holding one as a module or as JSON, since a value has no
-  function in it.
+- A function is written by the FunctionalScript and EDAG outputs
+  ([output](#output)); `fjs compile` refuses to write a module holding one as
+  DataJS or as JSON, since a value has no function in it.
 
 ## Module Structure
 

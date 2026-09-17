@@ -105,11 +105,13 @@ shared — all the outputs are trees, and `output.json` is:
 [1,1,"text",{"x":"text"}]
 ```
 
-The compiler currently accepts `import` statements, `const` declarations, and
-data expressions (objects, arrays, strings, numbers, `bigint`, booleans, `null`,
-`undefined`), and property access on a name — `a.b`, `a[0]`, an own property
-and never the prototype chain. Functions and other computed expressions are
-not supported yet. See
+The compiler currently accepts `import` statements, `const` declarations,
+data expressions (objects, arrays, strings, numbers, `bigint`, booleans,
+`null`, `undefined`), property access on a name — `a.b`, `a[0]`, an own
+property and never the prototype chain — and functions: one rest parameter,
+`(...a) => …`, whose body reaches nothing outside itself, so a reference to a
+`const`, an import or an enclosing function's parameter is refused as a
+capture. Calls and operators are not supported yet. See
 [fjs/fsc/README.md](fjs/fsc/README.md) for the compiler, the data language it
 accepts today, and its roadmap.
 

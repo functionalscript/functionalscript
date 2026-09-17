@@ -7,11 +7,12 @@ The front end: a grammar-based tokenizer over
 from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
 and `fjs/djs` emptied; the value model is DataJS's,
-[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes through
-[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs):
-its module output is a DataJS document in normalized form, and
-its `.json` output refuses what JSON cannot spell rather than approximating
-it — see [`module.f.mjs`](./module.f.mjs).
+[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes
+the language its output name declares: a `.data.js` document through
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs) in
+normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs)
+from the linked graph, and a `.json` output that refuses what JSON cannot
+spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
 
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
@@ -26,9 +27,9 @@ finds a function, `length` excepted, since a value owns it
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function, `(...a) => body`, is accepted for the EDAG output
-alone — see below — and refused by the value outputs, since a value has no
-function in it. Across modules the sweep is coarser: a module whose own value
+node it is. A function, `(...a) => body`, is written by the EDAG and
+FunctionalScript outputs — see below — and refused by the value outputs,
+since a value has no function in it. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and

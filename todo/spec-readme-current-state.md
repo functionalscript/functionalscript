@@ -17,16 +17,19 @@ language is FunctionalScript, and the data subset it contains is DataJS, which
 has its own specification. A paragraph exists only to say that DJS is not
 DataJS. Nothing in the rest of the document depends on the layer.
 
-Several statements are stale against the parser as it stands after the
-property-access, function, prototype-name and literal-access work:
+Several statements were stale against the parser as it stands after the
+property-access, function, prototype-name and literal-access work. The two
+lists of what it "does not recognize yet" are current — functions and property
+access are gone from them — and so is what the outputs do with a function.
 
-- "Features the parser does not recognize yet — functions, operators,
-  property access, type annotations" — two of the four are recognized.
+File Types and Output are current too: they name the five output languages and
+the graph the FunctionalScript writer
+([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes, where they
+used to say the compiler writes a module with no function in it.
 
-File Types and Output were the third way, and are current: they name the five
-output languages and the graph the FunctionalScript writer
-([`fjs/fsc/serializer`](../fjs/fsc/serializer/module.f.mjs)) writes, where
-they used to say the compiler writes a module with no function in it.
+What remains is the walk: the sentences corrected so far were corrected
+because something else brought them up, not because anyone read the document
+against the compiler section by section.
 
 ### Proposal
 
@@ -61,8 +64,8 @@ they used to say the compiler writes a module with no function in it.
 ### Tasks
 
 - [ ] Rewrite the introduction; remove every `DJS` from `spec/README.md`.
-- [ ] Correct the "not recognized yet" list and every other stale sentence,
-      each against the compiler's behavior, not from memory.
+- [ ] Walk every remaining sentence against the compiler's behavior, not from
+      memory; the two "not recognized yet" lists are done.
 - [ ] Module Structure states that a module is a function, and the scope
       sentences elsewhere point at it.
 - [ ] Rename the DJS sections of `spec/todo/README.md` and the DJS names in
