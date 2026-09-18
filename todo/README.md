@@ -151,10 +151,21 @@ re-based is what put 105 broken links in this tree.
 Issues that cannot progress until an external event occurs (a TC39 proposal lands, a
 runtime ships a feature, a dependency releases a fix) live in `todo/blocked/`.
 
-Each file in `todo/blocked/` **must** include a **Trigger** section that states the
-precise external condition that unblocks it — a proposal reaching Stage 4, a specific
-crate version shipping, etc. Without a clear trigger the issue is just a wish; write the
-trigger first or file it as a regular issue instead.
+Except for the research exception below, each file in `todo/blocked/` **must**
+include a **Trigger** section that states the precise external condition that
+unblocks it — a proposal reaching Stage 4, a specific crate version shipping,
+etc. Without a clear trigger the issue is just a wish; write the trigger first
+or file it as a regular issue instead.
+
+### Research exception
+
+[Undefined-property research](./blocked/undefined-removes-property.md) stays in
+`todo/blocked/` at the
+[task owner's request](https://github.com/functionalscript/functionalscript/pull/2103#discussion_r4049800467).
+Its blocker is semantics and compatibility research, not an external event.
+Its **Trigger** is a concrete proposal and owner approval to move it out. While
+it remains here, it neither directs nor blocks current development. This is a
+named exception, not a change to where other internally blocked tasks belong.
 
 ## Issue format
 
