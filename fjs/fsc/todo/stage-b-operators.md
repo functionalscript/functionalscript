@@ -1,7 +1,8 @@
 ## Stage B operators: `&&`, `||`, `??`, `?:`
 
 **Priority:** P1
-**Status:** open
+**Status:** blocked
+**Blocked by:** [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090), [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092), and Stage A's precedence ladder landing on top of them (see "Not yet")
 
 ### Problem
 
@@ -263,12 +264,26 @@ above, not just new-syntax acceptance.
 - Stage C (comma): explicitly sequenced after Stage B; the anchoring
   subtraction rule this task implements one instance of is Stage C's to
   generalize, not to pull forward.
-- The Rust side (`nanvm-lib`'s "Complete all basic FunctionalScript
-  operators... including the short-circuit operators" P1 task): a separate,
-  already-tracked line of work against `fjs/nanvm/module.f.mjs`'s shared
-  operator-test data, independent of this front-end task and not blocked by
-  it or blocking it — the EDAG schema both sides target is already shared
-  and already stable.
+- `nanvm-lib`'s own "Complete all basic FunctionalScript operators... including
+  the short-circuit operators" P1 task — *implementing* `&&`/`||`/`??`/`?:`
+  lazily in Rust — stays out of scope: a separate, already-tracked line of
+  work against `fjs/nanvm/module.f.mjs`'s shared operator-test data. But the
+  **existing** `fjs/edag/rust` printer is not out of scope the way the doc's
+  first draft claimed — see the Rust-codegen task below, which this task does
+  own: not implementing laziness in Rust, but making sure this task doesn't
+  let the existing eager printer silently miscompile it.
+- The FunctionalScript writer (`fjs/fsc/serializer`): stays silent on Stage B
+  the same way it already is on Stage A. `entry`'s ``default: { return
+  error(`a ${node[0]} node`) }`` already refuses every Stage A operator node,
+  undocumented as a Stage A task and left for later; Stage B's new node kinds
+  fall into that same `default` case with no changes needed to keep refusing
+  them. That refusal is the safe outcome DESIGN.md §10 asks for ("an
+  unsupported input is refused, never answered with a plausible wrong
+  value"), not a gap this task must close — the writer producing FJS text
+  that doesn't preserve `&&`/`??`/`?:`'s precedence (there is no grouping to
+  disambiguate with) is real future work, but it is exactly as deferrable
+  here as it was for Stage A's operators, which still have no writer support
+  either.
 
 ### Tasks
 
@@ -286,6 +301,30 @@ above, not just new-syntax acceptance.
 - [ ] `fjs/fsc/ast`/`fjs/fsc/edag`: extend `AstOperation`/`lower`/`lowerBase`
       for the new tags and the new arity-3 (`?:`) case; keep the plain-data
       evaluator's refusal.
+- [ ] `fjs/edag/rust`: `op2Rust`'s `&&`/`||`/`??` entries and `op3Rust`'s `?:`
+      entry print `Any::logical_and(${a}, ${b})` /
+      `Any::conditional(${a}, ${b}, ${c})` today, where `a`/`b`/`c` are
+      already-printed Rust value expressions — and `nanvm-lib`'s
+      `Any::logical_and`/`logical_or`/`nullish_coalescing`/`conditional`
+      (`nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs`) take
+      `Self` by value, not a closure, so Rust evaluates every operand before
+      the call — confirmed by reading those signatures, not assumed. Today
+      that's inert: nothing in the source language reaches these node kinds,
+      so the printer never emits them for a real program. Stage B makes them
+      reachable from `fjs compile <input> <output>.rs`, and at that point the
+      existing entries stop being inert and start silently miscompiling any
+      program whose correctness depends on the laziness this whole task is
+      about — `false && (1n + 1)` must not evaluate `1n + 1`, but the
+      generated Rust would. This task must not leave that: either gate
+      `op2Rust`/`op3Rust`'s four entries to refuse (the same `Result`-based
+      "not yet implemented in `nanvm-lib`" refusal this file already uses for
+      operators the corpus marks with a `rust` reason, so the `.rs` route
+      declines the same way the plain-data evaluator already does) until
+      `nanvm-lib`'s own lazy-operator task lands, or land in lockstep with
+      whatever Rust shape that task produces. Silently emitting the current
+      eager calls once these nodes are reachable is exactly the outcome
+      DESIGN.md §10 rules out — a plausible wrong value where a refusal
+      belongs.
 - [ ] `refsOf`: add the eager-restricted variant and switch **both** `reach`
       and `anchors`' own `within` computation to it, leaving `sharing`'s use
       of the unrestricted one unchanged; proofs for the sharing behavior,
@@ -318,7 +357,14 @@ above, not just new-syntax acceptance.
   the staging plan and the anchoring-subtraction rule this task implements
   one instance of.
 - [`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md) —
-  Parser task (this) and the separate Rust short-circuit-operators task.
+  Parser task (this) and the separate Rust short-circuit-operators task that
+  the `fjs/edag/rust` refusal/gate above waits on.
+- [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — `op2Rust`/
+  `op3Rust`, whose `&&`/`||`/`??`/`?:` entries this task must gate; see the
+  Tasks entry above.
+- `nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
+  `Any` methods those entries call, confirming they take already-evaluated
+  operands, not closures.
 - [`fjs/edag/module.f.mjs`](../../edag/module.f.mjs) — the already-landed,
   already-proved EDAG schema and laziness semantics this task compiles down
   to (`op2Id`, `op3Id`).
