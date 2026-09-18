@@ -118,12 +118,12 @@ one place a comma stands outside a module's root. With no statement the block
 lowers to the value it returns, the two spellings being one function.
 A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
 — and the language's only operator. It is no part of the literal after it, so
-`-1` is the negation of `1` and stays one node: nothing between the source and
-the graph computes, and folding `['-', 1]` back to the leaf is an optimization
-over the graph rather than a step of the lowering. What that costs is the
-`.rs` output of any negation, which [`rust`](rust/module.f.mjs) refuses rather
-than write a module that does not build, `Neg for Any<A>` answering a `Result`
-a module cannot hold. It binds looser than a
+`-1` is the negation of `1` in the parser's tree, and the lowering folds that
+one case back into the leaf: negating a numeric literal is exact arithmetic,
+so the graph holds the number and [`rust`](rust/module.f.mjs) prints it. A
+negation of anything else stays a node — folding one would mean saying what a
+container converts to — and that route refuses one, `Neg for Any<A>` answering
+a `Result` a module cannot hold. It binds looser than a
 step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
 — which is what retired the two refusals the old fold needed, an access and a
 call on a numeric literal alike. What it takes is JavaScript's

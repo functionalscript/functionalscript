@@ -434,8 +434,8 @@ rediscovered:
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
 separates them. `NaN` and `Infinity` are reserved words with their own
 token kinds, read as primitives by the grammar; `-Infinity` is the prefix
-operator applied to one of them, so the graph holds `['-', Infinity]` and
-the value outputs compute the number.
+operator applied to one of them, which the lowering folds back into the
+leaf, so the graph holds the number either way.
 
 ### Existing compile API boundary
 

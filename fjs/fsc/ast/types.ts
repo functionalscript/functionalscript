@@ -118,11 +118,11 @@ export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
  *
  * `-` binds looser than a step, so `-1 .x` is `['-', ['.', 1, 'x']]` and
  * `-1()` is `['-', ['()', 1, []]]`, which is how JavaScript reads them. A
- * negative literal is no longer a literal: `-1` is `['-', 1]` here and
- * stays one node through the lowering, since nothing between the source and
- * the graph computes. What the value is, `run` works out for the document
- * outputs; folding `['-', 1]` back to the leaf is an optimization over the
- * graph and waits on the language working without one.
+ * negative literal is no longer a literal *here*: `-1` is `['-', 1]` in
+ * this tree, since the parser computes nothing. The lowering folds that one
+ * case — negating a numeric literal is exact — so the graph holds the leaf,
+ * and everything else reaches it as a node whose value `run` works out for
+ * the document outputs, or refuses where the conversion is `ToPrimitive`'s.
  */
 export type AstNeg = readonly ['-', AstConst]
 
