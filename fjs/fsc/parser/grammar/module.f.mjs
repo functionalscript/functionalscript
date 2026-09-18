@@ -464,8 +464,10 @@ export const constStatement = /** @type {const} */ ([
  *
  * The value is an ordinary {@link value}, the object included: `{` opens a
  * block only where a statement may start, and after `return` an expression
- * is expected, so `=> { return { a: 1 }; }` is how a function returns an
- * object literal — the spelling the expression body has none of.
+ * is expected, so `=> { return { a: 1 }; }` returns an object literal. It is
+ * the spelling a *bare* one needs: `=> {` opens a block, so the expression
+ * body reaches the same object through a group, `=> ({ a: 1 })`, and the two
+ * are one function.
  *
  * `s` and not `t` before it, where JavaScript has
  * `return [no LineTerminator here] Expression`: a newline there ends the

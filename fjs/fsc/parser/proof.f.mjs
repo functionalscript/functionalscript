@@ -637,7 +637,9 @@ export const proof = {
             }
             expect('export default (...a) => { return a; };', '[[],[["=>",[["args"]]]]]')
             expect('export default (...a) => { return a[0]; };', '[[],[["=>",[[".",["args"],0]]]]]')
-            // the object literal an expression body has no spelling for
+            // the object literal an expression body cannot spell bare,
+            // `=> {` opening a block — the group spells it, and `group`
+            // pins that the two are one tree
             expect('export default (...a) => { return { x: 1 }; };', '[[],[["=>",[["object",[["x",1]]]]]]]')
             expect('export default (...a) => { return (...b) => { return b; }; };', '[[],[["=>",[["=>",[["args"]]]]]]]')
             // the parameter is still the arguments array, and a name bound

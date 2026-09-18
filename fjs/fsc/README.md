@@ -143,7 +143,13 @@ spreads. The plain form over an access is the *detached* receiver,
 source writes one — `(a.b)(c)` keeps the receiver and is the method call
 again, parentheses preserving the property reference. A call mints identity — two calls are
 two nodes and a `const` naming one is one — which is what a body's `const`
-keeps.
+keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
+form yet and refuses both by name, so a module with a call in it compiles to
+the EDAG output alone. When it gets one, a negative callee needs the care an
+access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
+written `-1()` — the grammar spells it, `(-1)()`, and until the writer reads
+a group a `const` does. The writer's proof refuses that shape by name, so
+the question comes up where the spelling is written.
 A group, `(x)`, is the value it holds: no node in the AST or the graph, and
 nothing downstream can tell one was written — the steps after the `)` read
 the value inside, which is why `(a.b)(c)` is the node `a.b(c)` is, and the
@@ -151,13 +157,9 @@ sharing a module spells survives the parentheses. What it adds is spelling:
 a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
 on a value written in place, `([1]).length`, and the two the prefix cannot
 say without it — the access on a negation, `(-1).x` against `-1 .x`, and a
-negated function, `-((...a) => 1)`. [`serializer`](serializer/module.f.mjs) has no spelling for either
-form yet and refuses both by name, so a module with a call in it compiles to
-the EDAG output alone. When it gets one, a negative callee needs the care an
-access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
-written `-1()` — the grammar spells it, `(-1)()`, and until the writer reads
-a group a `const` does. The writer's proof refuses that shape by name, so
-the question comes up where the spelling is written.
+negated function, `-((...a) => 1)`. The writer spells both today, through a
+`const` rather than a group: `negHoisted` hoists a negated function, and
+`basedHoisted` the negation an access reads.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.

@@ -206,8 +206,9 @@ export const proof = {
         // linked beside an import: the body's arguments are not rewritten
         expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default [y, (...x) => x];'), 'y.f.js': file('export default 1;') })('a.f.js'), ['[]', [1, ['=>', null, ['args']]]])
         // a block body is the same function as the expression body it
-        // returns, so the two spell one graph — and the object literal the
-        // expression body cannot spell reaches the lowering through it
+        // returns, so the two spell one graph — and an object literal, which
+        // the expression body cannot spell bare, reaches the lowering
+        // through either it or a group
         expectEdag(compile('export default (...a) => { return a; };').edag, ['=>', null, ['args']])
         expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
