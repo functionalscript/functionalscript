@@ -6,11 +6,11 @@
 ### Problem
 
 [`Any::to_json`](../src/vm/any/to_json.rs) (added by #2071) is a hand-written
-Rust `Any<A>` -> JSON serializer: numbers, strings, booleans, and `null`
-only, everything else a documented `JsonError`. It exists purely to prove
-the walking-skeleton pipeline
+Rust `Any<A>` -> JSON serializer: numbers, strings, booleans, `null`, and
+arrays/objects recursed into, everything else a documented `JsonError`. It
+exists purely to prove the walking-skeleton pipeline
 ([fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md)) end-to-end
-before the Rust code generator exists.
+while no compiled Rust JSON serializer exists yet.
 
 This repository's strategy is FJS-first: business logic is written in
 FunctionalScript and compiled, not hand-written in Rust, wherever the
@@ -21,7 +21,14 @@ this repository already has one, in FJS:
 (`stringSerialize`/`treeSerialize`, with full proof coverage). `to_json`
 duplicates its escaping rules (short escapes, `\uXXXX` for control
 characters and lone surrogates, `Number::toString`'s notation rule) by
-hand in Rust, by necessity, because nothing yet compiles FJS to Rust.
+hand in Rust. The Rust code generator (P1 in [mvp-roadmap](./mvp-roadmap.md))
+exists now and reaches literals, arrays, objects, `const` sharing, and
+string-keyed property access, but not yet this serializer's own dependency
+closure — recursion, loops, and string concatenation, none of which the
+compiler accepts as expressions yet (see
+[`fjs/fsc/README.md`](../../fjs/fsc/README.md)'s accepted subset) — so
+`to_json` stays hand-written until that closure is compiler-supported, not
+because nothing compiles FJS to Rust at all.
 
 ### Proposal
 

@@ -130,13 +130,17 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Define the convention for generated module imports (`use` paths,
       file/directory layout — see the open question in
       [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)). The
-      harness's own three flat fixtures settle only their own layout
+      harness's own flat fixtures settle only their own layout
       (`nanvm-harness/fixtures/<name>.rs` beside `<name>.mjs`, pulled into
       `src/lib.rs` via `#[path]`), not the general multi-module question.
 - [x] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
       subset: a constant default export compiled by `fjs` to `.rs`, built and
       run by cargo, with the result printed to stdout as JSON —
-      `nanvm-harness/fixtures/{number,boolean,string}.mjs`.
+      `nanvm-harness/fixtures/{number,boolean,string}.mjs` — then extended to
+      arrays, objects, `const`-sharing, and string-keyed property access —
+      `nanvm-harness/fixtures/{array,object,sharing,property}.mjs`, matched
+      by [`Any::to_json`](../nanvm-lib/src/vm/any/to_json.rs) recursing into
+      arrays/objects instead of refusing them.
 - [ ] Complete
       [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md),
       including direct type-checking, declaration emission, packing, and
