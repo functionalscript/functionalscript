@@ -36,7 +36,7 @@ only on previous commands.
 
 |format|any     |    |Notes                          |
 |------|--------|----|-------------------------------|
-|FJS   |function|Func|[function](./3110-function.md) |
+|FJS   |function|Func|[functions](../README.md#functions)|
 
 ## NPN (Normal Polish Notation)
 

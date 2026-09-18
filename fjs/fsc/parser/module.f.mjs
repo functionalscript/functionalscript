@@ -42,16 +42,16 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { Children, Meta } from '../../ebnf/ast/types.ts'
+ * @import { Ast, Children, Meta } from '../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
- * @import { Body, Items, Member, Unary, Value } from './grammar/types.ts'
+ * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -294,6 +294,20 @@ const symbol = out => ({ symbol: 0, meta: out })
 const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
 
 /**
+ * The token naming a function's parameter, when the list holds one: the
+ * identifier at the third position of `... t id t`, under the alternative
+ * its word matched, as a `const`'s name is. An empty list has no token,
+ * which is what `null` says — and the fold has no word to bind, so a body
+ * under it names nothing.
+ *
+ * @type {(node: _ParameterNode) => DjsTokenWithMetadata | null}
+ */
+const parameterOf = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? null : tokenAt(unmapped(unmapped(rounds[0])[2])[1])
+}
+
+/**
  * One step applied to the node before it: a property access by the token
  * its key is read from, or a call by its arguments — the optional list at
  * the third position of `( t [ items(value) ] ) t`, read as an array's
@@ -301,7 +315,9 @@ const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
  *
  * What a step applies to is everything written before it, which is what
  * folding them in order says: `a.b(1)[0]` is the index of the call of the
- * access, and `f(1)(2)` is the call of the call.
+ * access, and `f(1)(2)` is the call of the call. A group is no boundary
+ * here — the step reads the value inside it, so `(a.b)(c)` is the node
+ * `a.b(c)` is.
  *
  * @type {(base: Node, round: _AccessNode) => Node}
  */
@@ -313,13 +329,23 @@ const accessed = (base, round) => {
 }
 
 /**
+ * A value's own part and the steps written after it, each applied to
+ * everything before it: the node the last of them leaves.
+ *
+ * @type {(base: Node, accesses: readonly _AccessNode[]) => Node}
+ */
+const steps = (base, accesses) => accesses.reduce(accessed, base)
+
+/**
  * The node a value's own part makes, before the accesses after it: a
  * primitive converted from its token, a reference by its token, and a
  * container of the items its list returned — `[ open t [ items ] close t
- * ]`, the list at the third position. A function, a block and a negation
- * are not here: none takes an access, so each node is made whole.
+ * ]`, the list at the third position. What a `(` opens, a block and a
+ * negation are not here: a function, a block and a negation take no access,
+ * so each node is made whole, and a group's value is reached through
+ * {@link parenNode}.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['func' | 'block' | 'neg', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -331,12 +357,44 @@ const baseOf = ([tag, branch]) => {
 }
 
 /**
+ * What a `(` opened, at the third position of `( t (func | group)`: a
+ * function, by its parameter list at the first position of
+ * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group,
+ * the value at the first position of `value ) t access*` and the steps
+ * after the `)` at the fourth.
+ *
+ * A group is no node of its own: `(x)` is whatever `x` is, and the steps
+ * after the `)` apply to that same node, so nothing downstream can tell a
+ * group was written. That is what JavaScript means by parentheses — they
+ * keep even a property reference, so `(a.b)(c)` passes `a` as `a.b(c)`
+ * does — and it leaves a group no canonical form to choose.
+ *
+ * @type {(node: Children<Parenthesized, DjsTokenWithMetadata, Out>) => Node}
+ */
+const parenNode = ([tag, branch]) => {
+    if (tag === 'func') {
+        const [p, , , , , b] = unmapped(branch)
+        return ['=>', parameterOf(p), nodeAt(b)]
+    }
+    return groupNode(branch)
+}
+
+/**
+ * A group's node, from `value ) t access*`: the value at the first position
+ * with the steps after the `)`, at the fourth, applied to it.
+ *
+ * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
+ */
+const groupNode = node => {
+    const [v, , , accesses] = unmapped(node)
+    return steps(nodeAt(v), unmapped(accesses))
+}
+
+/**
  * A value is the node its branch made, with each access after it applied
  * in turn — the accesses at the second position of every branch, after
- * the value's own part — or a function, by the token naming its parameter,
- * at the fifth position of `( t ... t id t ) s => t body`, and its body at
- * the eleventh. A body is a value less the object, and its node is made
- * the same way.
+ * the value's own part — or what a `(` opened, {@link parenNode}. A body is
+ * a value less the object, and its node is made the same way.
  *
  * A block body is its `const` statements and the value it returns, at the
  * third and sixth positions of `{ t const* return s value ; t } t`. With no
@@ -348,9 +406,11 @@ const baseOf = ([tag, branch]) => {
  * @type {(node: Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = node => {
-    if (node[0] === 'func') {
-        const [, , , , name, , , , , , b] = unmapped(node[1])
-        return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
+    if (node[0] === 'paren') {
+        return symbol({ id: 'value', node: parenNode(unmapped(unmapped(node[1])[2])) })
+    }
+    if (node[0] === 'group') {
+        return symbol({ id: 'value', node: groupNode(unmapped(node[1])[2]) })
     }
     if (node[0] === 'neg') {
         const [, , v] = unmapped(node[1])
@@ -363,7 +423,7 @@ const toNode = node => {
         return symbol({ id: 'value', node: statements.length === 0 ? returns : ['block', statements, returns] })
     }
     const [, accesses] = unmapped(node[1])
-    return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, baseOf(node)) })
+    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
 }
 
 /**
@@ -717,6 +777,26 @@ const bound = (stack, word) => {
 }
 
 /**
+ * The names a function's body begins with: its parameter bound to the
+ * arguments array, and nothing else — the body is resolved against its own
+ * names alone, so a reference to a name bound outside is a capture.
+ *
+ * An empty parameter list binds nothing, so a body under it starts from no
+ * names at all: the arguments are unreachable, having no name, and every
+ * other word is `const not found` or a capture exactly as it is under a
+ * parameter that does not spell it. That is the whole of what an empty
+ * list costs: the function the fold returns carries no parameter either
+ * way, so nothing downstream can tell the two lists apart.
+ *
+ * @type {(name: DjsTokenWithMetadata | null) => Result<_Env, ParseError>}
+ */
+const functionScope = name => {
+    if (name === null) { return ok(empty) }
+    const [tag, word] = identifierOf(name)
+    return tag === 'error' ? error(word) : ok(setReplace(word)(args)(empty))
+}
+
+/**
  * The next step of a function's block body: the `const` at `index`, its name
  * checked before its value is entered — as a module's `const` is, so that a
  * statement wrong in both halves answers for the half a reader meets first
@@ -744,7 +824,8 @@ const bodyRound = (stack, env, frame) => {
  *
  * A block body is entered the same way, under a frame that also holds its
  * statements: the parameter is the only name bound when the first of them
- * is resolved, and each binds its own as the module's `const`s do.
+ * is resolved — none is, where the list is empty — and each binds its own
+ * as the module's `const`s do.
  *
  * @type {(stack: _Stack, env: _Env, node: Node) => _State}
  */
@@ -762,9 +843,8 @@ const enter = (stack, env, node) => {
         case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
         case '-': { return [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]] }
         case '=>': {
-            const [tag, word] = identifierOf(node[1])
-            if (tag === 'error') { return [stack, env, error(word)] }
-            const inner = setReplace(word)(args)(empty)
+            const [tag, inner] = functionScope(node[1])
+            if (tag === 'error') { return [stack, env, error(inner)] }
             const body = node[2]
             return body[0] === 'block'
                 ? bodyRound(stack, inner, { outer: env, statements: body[1], index: 0, word: '', done: null, result: body[2] })

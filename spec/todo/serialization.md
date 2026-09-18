@@ -4,7 +4,7 @@ Formerly §9 of the main [spec README](../README.md).
 
 **Decision:** the stable, canonical representation of functions is the **EDAG**, expressed as an
 FJS value (`Any`). Code is data: the `Function` constructor accepts an `Any` that describes the
-code, and the VM knows how to execute it (see [function](./3110-function.md); the exact shape
+code, and the VM knows how to execute it (see [functions](../README.md#functions); the exact shape
 is specified by the [edag-spec](../../todo/edag-spec.md)). The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future

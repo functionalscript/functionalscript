@@ -500,16 +500,20 @@ export const proof = {
             expect('export default --1;', 16)
             // an arrow function is no `UnaryExpression`: `-(...a) => 1` is a
             // syntax error in JavaScript, so the operand rule takes every
-            // value but a function
-            expect('export default -(...a) => 1;', 17)
+            // value but a function. The `(` is not what fails — a group
+            // is an operand, `-((...a) => 1)` — so the refusal is at what
+            // the `(` opens: the `...`, exactly where JavaScript's is, or
+            // the `)` of an empty list, which is no value to group either
+            expect('export default -(...a) => 1;', 18)
+            expect('export default -() => 1;', 18)
             // and it is the *operand rule* that refuses it, not the one
             // branch: the rule names itself, so a `-` one deeper reaches it
             // again, and a body's `-` takes the same rule rather than the
             // body's own. Each of the three references is load-bearing —
             // point any of them at `value` and the function is admitted
-            expect('export default - -(...a) => 1;', 19)
-            expect('export default (...b) => -(...a) => 1;', 27)
-            expect('export default (...b) => - -(...a) => 1;', 29)
+            expect('export default - -(...a) => 1;', 20)
+            expect('export default (...b) => -(...a) => 1;', 28)
+            expect('export default (...b) => - -(...a) => 1;', 30)
         },
     },
     memberOrder: () => {
@@ -588,7 +592,8 @@ export const proof = {
     // — a `const`, an import, or an enclosing function's parameter — is a
     // capture, refused where it is written, since a function has no frame
     // yet. A parameter may shadow a module name, as in JavaScript, and is
-    // an identifier, so a keyword is refused as one.
+    // an identifier, so a keyword is refused as one. The list may also be
+    // empty, `() => body`, which binds no name at all.
     func: {
         parsed: () => {
             /** @type {(source: string, expected: string) => void} */
@@ -605,6 +610,47 @@ export const proof = {
             // a body takes accesses as a value does, and a function none of its own
             expect('export default (...a) => [a][0];', '[[],[["=>",[[".",["array",[["args"]]],0]]]]]')
             expect('export default (...a) => "s"[0];', '[[],[["=>",[[".","s",0]]]]]')
+        },
+        // An empty parameter list binds nothing, and the AST carries no
+        // parameter either way: `() => 1` and `(...a) => 1` are the one
+        // node, as they are the one function in JavaScript for every
+        // program that can be written here — the arguments a name does not
+        // spell are unreachable, and `f.name` and `f.length` are refused at
+        // the key of `.`.
+        noParameter: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default () => 1;', '[[],[["=>",[1]]]]')
+            expect('export default ( /* c */ ) => 1;', '[[],[["=>",[1]]]]')
+            expect('export default () => { return 1; };', '[[],[["=>",[1]]]]')
+            // a body of its own, with its own entries, as a parameter's is
+            expect('export default () => { const x = 1; return x; };', '[[],[["=>",[1,["cref",0]]]]]')
+            // the name a parameter would have taken is the body's to bind
+            expect('export default () => { const a = 1; return a; };', '[[],[["=>",[1,["cref",0]]]]]')
+            // either list nests in the other, and a call needs no parameter
+            expect('export default () => (...a) => a;', '[[],[["=>",[["=>",[["args"]]]]]]]')
+            expect('export default (...a) => [a, () => 1];', '[[],[["=>",[["array",[["args"],["=>",[1]]]]]]]]')
+            expect('const f = () => 1; export default f();', '[[],[["=>",[1]],["()",["cref",0],[]]]]')
+        },
+        // What a body with no parameter may not name: the arguments it has
+        // no word for are not a name, so they answer as any other unbound
+        // word does, and a name bound outside is a capture as ever.
+        noParameterRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default () => a;', 'const not found', 22)
+            expect('const c = 1; export default () => c;', 'capture not supported', 35)
+            expect('export default (...a) => () => a;', 'capture not supported', 32)
+            expect('export default () => { const x = a; return x; };', 'const not found', 34)
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -635,7 +681,9 @@ export const proof = {
             }
             expect('export default (...a) => { return a; };', '[[],[["=>",[["args"]]]]]')
             expect('export default (...a) => { return a[0]; };', '[[],[["=>",[[".",["args"],0]]]]]')
-            // the object literal an expression body has no spelling for
+            // the object literal an expression body cannot spell bare,
+            // `=> {` opening a block — the group spells it, and `group`
+            // pins that the two are one tree
             expect('export default (...a) => { return { x: 1 }; };', '[[],[["=>",[["object",[["x",1]]]]]]]')
             expect('export default (...a) => { return (...b) => { return b; }; };', '[[],[["=>",[["=>",[["args"]]]]]]]')
             // the parameter is still the arguments array, and a name bound
@@ -713,6 +761,71 @@ export const proof = {
             expect('export default (...a) => a[0](1);', '[[],[["=>",[["()",[".",["args"],0],[1]]]]]]')
             // a trailing comma is the list's, as an array's is
             expect('const f = (...a) => 1; export default f(1,);', '[[],[["=>",[1]],["()",["cref",0],[1]]]]')
+        },
+        // A group is no node: `(x)` is whatever `x` is, so the AST is the
+        // one the parentheses are not in — the sharing a module spells
+        // survives them, and a step after the `)` reads the value inside.
+        group: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (1);', '[[],[1]]')
+            expect('export default ((1));', '[[],[1]]')
+            expect('export default ( /* c */ [1] /* c */ );', '[[],[["array",[1]]]]')
+            // the object body, which `=> {` cannot spell
+            expect('export default (...a) => ({ x: 1 });', '[[],[["=>",[["object",[["x",1]]]]]]]')
+            // a group takes steps, and they apply to the value it holds
+            expect('export default ([1, 2]).length;', '[[],[[".",["array",[1,2]],"length"]]]')
+            expect('const a = { b: 1 }; export default (a).b;', '[[],[["object",[["b",1]]],[".",["cref",0],"b"]]]')
+            // a group of a reference is that reference, so two routes into
+            // one `const` are the one node they were
+            expect('const a = [1]; export default [(a), a];', '[[],[["array",[1]],["array",[["cref",0],["cref",0]]]]]')
+            // and parentheses keep a property reference, as JavaScript's do
+            // — `(a.at)(0) === 42` there, pinned by `chainsJs.receiver` in
+            // `fjs/edag/proof.f.mjs` — so a call on a grouped access is the
+            // method call, the very node `o.b(1)` is and not a detached one
+            const grouped = '[[],[["object",[["b",1]]],["()",[".",["cref",0],"b"],[1]]]]'
+            expect('const o = { b: 1 }; export default (o.b)(1);', grouped)
+            expect('const o = { b: 1 }; export default ((o.b))(1);', grouped)
+            expect('const o = { b: 1 }; export default o.b(1);', grouped)
+            // a step reads the value in the group and nothing else, so
+            // parentheses around one add no tree: a numeric literal takes
+            // its access and its call as it does without them
+            expect('export default (1).x;', '[[],[[".",1,"x"]]]')
+            expect('export default 1 .x;', '[[],[[".",1,"x"]]]')
+            expect('export default (1)(2);', '[[],[["()",1,[2]]]]')
+            expect('export default 1(2);', '[[],[["()",1,[2]]]]')
+            // what a group does change is how far a prefix reaches, since
+            // `-` binds looser than a step: `(-1).x` is the access on the
+            // negation, which nothing else spells, and `-1 .x` the negation
+            // of the access, as JavaScript reads each
+            expect('export default (-1).x;', '[[],[[".",["-",1],"x"]]]')
+            expect('export default -1 .x;', '[[],[["-",[".",1,"x"]]]]')
+            // and the group is the `-`'s operand, the one way a function or
+            // an access on a value written in place reaches a prefix
+            expect('export default -(1);', '[[],[["-",1]]]')
+            expect('export default -(1).x;', '[[],[["-",[".",1,"x"]]]]')
+            expect('export default -((...a) => 1);', '[[],[["-",["=>",[1]]]]]')
+        },
+        // A group denotes its value, so it launders nothing: every rule the
+        // value earns it earns inside the parentheses, at the same token.
+        groupRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            // a built-in prototype's name is refused whether the access is
+            // called in place or grouped and called after
+            expect('const o = {}; export default (o.toString)(1);', 'prohibited property name', 33)
+            expect('const o = {}; export default o.toString(1);', 'prohibited property name', 32)
+            // and a name nothing binds is not found where it stands
+            expect('export default (zzz);', 'const not found', 17)
         },
         // What a call's operands earn, each where it is written: the callee
         // is resolved before the arguments, and an argument before the ones

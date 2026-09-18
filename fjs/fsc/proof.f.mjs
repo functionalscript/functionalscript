@@ -193,6 +193,8 @@ const fjsCorpus = [
     'export default (...a) => (...b) => b;',
     'export default [(...a) => a, (...a) => a];',
     'export default (...a) => { return { x: a }; };',
+    'export default () => 1;',
+    'export default () => (...a) => a;',
     'const f = (...a) => 1; export default 2;',
     'const a = []; export default 1;',
     'const n = null; const check = n.x; export default 1;',
@@ -357,6 +359,11 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (...a) => a;'), 'export default (...$a)=>$a;')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const $0=(...$a)=>1;export default 2;')
+            // an empty parameter list reaches here as the node a rest
+            // parameter's function does, the AST carrying no parameter, so
+            // the writer gives it the one spelling it has — which denotes
+            // the same function, a name and an arity being unobservable
+            assertEq(fjsRoundTrip('export default () => 1;'), 'export default (...$a)=>1;')
         },
         // An object's members are the graph's here and the value's there, so
         // the two outputs order them differently and hold a different number
