@@ -95,8 +95,9 @@ shape, not an alternative to it:
   non-capturing function next to the general (capturing) one. The
   "static function" case below is exactly that distinction, made concrete.
 
-The central design point across everything that follows: an AOT-compiled
-function has a **host compiler** behind it. Unlike a bytecode interpreter,
+A first, central constraint runs across everything that follows: an
+AOT-compiled function has a **host compiler** behind it. Unlike a bytecode
+interpreter,
 which must invent slots because it has no stack frames of its own, generated
 Rust code gets locals for free from rustc. So the runtime representation
 only needs to cover the parts of a function's state that **cross a
@@ -113,6 +114,23 @@ slice), but a `fn` pointer's parameter types must be concrete for *any*
 `A: IVm`, not just today's one implementation, so nothing below assumes a
 raw `&[Any<A>]` — every cross-boundary value is the existing `Array<A>`
 wrapper, accessed the way every other array-valued `Any<A>` already is.
+
+A third constraint: nothing here may run without a way to fail. Every
+existing operation that can throw already threads that through a plain
+`Result`, not a panic — `Any::add`, `Any::member_access`
+([`vm/any/add.rs`](../src/vm/any/add.rs),
+[`vm/any/member_access.rs`](../src/vm/any/member_access.rs)), and every
+`TryFrom<Any<A>> for _` conversion
+([`vm/impls/try_from.rs`](../src/vm/impls/try_from.rs)) return
+`Result<Any<A>, Any<A>>`, with `Err` an `Any<A>` value (`"Type Error"`,
+today). That is the existing, single realization of A3 (throws are
+preserved — edag-stage1-discussion), and a generated function body must join
+it from its very first stage, not add it later: even a non-recursive,
+non-capturing Stage 1 function can contain a `"."` property access or an
+arithmetic operator that fails. So `Code<A>` returns
+`Result<Any<A>, Any<A>>` throughout every sketch below, and a generated body
+threads `?` through each sub-operation exactly as hand-written Rust using
+these same operators already would.
 
 #### Arguments — `["args"]`
 
@@ -132,10 +150,10 @@ return `Nullish::Undefined` instead), while
 requires a missing argument to read as `undefined`, never panic:
 
 ```rust
-fn f<A: IVm>(args: &Array<A>) -> Any<A> {
+fn f<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
     let a = if 0 < args.length() { args[0].clone() } else { Nullish::Undefined.into() };
     let b = if 1 < args.length() { args[1].clone() } else { Nullish::Undefined.into() };
-    // body …
+    Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
 }
 ```
 
@@ -191,12 +209,12 @@ compiled as part of writing this document:
 
    ```rust
    // vm/function/header.rs
-   pub type Code<A> = fn(captured: &Array<A>, args: &Array<A>) -> Any<A>;
+   pub type Code<A> = fn(captured: &Array<A>, args: &Array<A>) -> Result<Any<A>, Any<A>>;
    pub type FunctionHeader<A> = (String<A>, u32, Code<A>, Array<A>);
 
    // vm/function/mod.rs
    impl<A: IVm> Function<A> {
-       pub fn call(&self, args: &Array<A>) -> Any<A> {
+       pub fn call(&self, args: &Array<A>) -> Result<Any<A>, Any<A>> {
            let header = self.0.header();
            (header.2)(&header.3, args)
        }
@@ -234,44 +252,83 @@ signature depends on the choice — switching to option 2 later, if it works
 out, is an internal representation change behind `call`, not something a
 caller observes.
 
-`toString`/hashing/equality implications of comparing function values by
-code-pointer identity are a pre-existing question
-([object-identity](../../spec/todo/object-identity.md)) and not new to this
-plan; `PartialEq for Function<A>` already uses `ptr_eq` on the container, not
-header equality, and that is unaffected by either option above.
+`toString`/hashing implications of a natively compiled function are a
+pre-existing, separately tracked question
+([object-identity](../../spec/todo/object-identity.md), Stage 7 below).
+Equality is not separately tracked, and option 1 changes it in a way worth
+being explicit about: `PartialEq for Function<A>` today delegates entirely
+to `IContainer::ptr_eq`, which is an **items**-allocation check
+(`naive::Container::ptr_eq` compares `Rc::ptr_eq(&self.items, &other.items)`
+alongside header equality). Under option 1, `items` is always empty and
+carries no real state — the captured array moved into the header — so two
+`Function<A>` values are equal only if they additionally happen to share the
+same (vestigial, always-empty) items allocation, which two independently
+constructed values have no reason to. Two closures built from unrelated
+creation events *should* compare unequal (JS gives two closures from two
+calls to the same closure-returning function distinct identity even with
+identical code and content — matching `Array<A>`'s own identity-based
+`PartialEq`, `vm/array/partial_eq.rs`), so that default is correct for
+ordinary closures (Stage 3). It is wrong for exactly one case: **the same
+function's own `self`**, which must compare equal to itself across every
+place it is read — see [Self-reference](#self-reference), which resolves
+this by never reconstructing `self` in the first place, sidestepping the
+`items`-allocation question entirely rather than depending on it.
 
 #### Self-reference
 
-`["self"]` splits into two cases, and they resolve differently, which is
-worth stating precisely because it looks harder than it is:
+`["self"]` denotes *the function itself as a value* — not only when it
+appears as a callee. That distinction is exactly where an earlier draft of
+this document went wrong, so it is worth stating the corrected design
+precisely.
 
-1. **Direct recursion within the function's own body.** `["self"]` erases to
-   nothing: the generated Rust function calls itself by name, exactly as
-   hand-written recursive Rust does. No `Function<A>` value is constructed
-   at all for this case — recursion needs no closure, just recursion.
-2. **`self` handed into a nested closure's frame** (the mutual-helper
-   pattern in [function-frame](../../spec/todo/3111-function-frame.md)'s
-   worked example, and subject 10's `a`/`b` example). Here a `Function<A>`
-   value for the *enclosing* function must exist so it can be copied into
-   the nested closure's captured array. The key observation: this never
-   needs lazy or cyclic construction. At any point during a call to
-   function `f`, the generated code already has, in hand, both `f`'s static
-   identity (name, length, code pointer — known at compile time, one value
-   per function, not built per call) and `f`'s own `captured: &Array<A>`
-   (received as this activation's argument, per the `call` signature
-   above). Rebuilding "myself" is therefore just constructing a
-   `Function<A>` from that same static identity plus `captured.clone()` (an
-   `Rc`-cheap clone, per [Grounding](#grounding-what-is-already-decided)) —
-   the same identity every call, the frame this call was already given. No
-   `Rc::new_cyclic`, no placeholder-then-patch step, no interior mutability.
-   This resolves what could otherwise look like a bootstrapping problem.
+1. **`self` used only as a callee, `["()", ["self"], args]`.** This
+   erases to nothing: the generated Rust function calls itself by name,
+   exactly as hand-written recursive Rust does. No `Function<A>` value is
+   constructed for this case at all — a call needs a code path and
+   arguments, not an identity.
+2. **`self` used as a value** — returned, stored, compared, or captured
+   into a nested closure's frame (the mutual-helper pattern in
+   [function-frame](../../spec/todo/3111-function-frame.md)'s worked
+   example, and subject 10's `a`/`b` example). Here a real `Function<A>`
+   value for the *enclosing* function is observable, and it must be **the
+   same value, by identity, every time** — in JS, a given function is one
+   object with one stable identity for its entire lifetime, not a new one
+   per activation. Constructing a fresh `Function<A>` from `f`'s static
+   identity plus `captured.clone()` on every read — this document's
+   original proposal — does not give that: it is a new container each
+   time, so `Function<A>`'s `ptr_eq`-based equality (see
+   [the code-pointer section](#the-functiona-value-and-its-code-pointer))
+   has no reason to consider two such reconstructions the same function,
+   and a program that compares `self` to itself, or relies on it as a
+   stable map key, would observe a difference JS does not have.
+
+   The fix is to never reconstruct it: build `f`'s canonical `Function<A>`
+   **once** — at the point its enclosing scope already builds one for any
+   other reason (closure creation, `export default`, being stored in a
+   value) — and thread a *handle* to that one value, `self: &Function<A>`,
+   into every activation that reads `["self"]` in value position, alongside
+   `captured` and `args`. Reading `["self"]` is then `self.clone()`: an
+   `Rc`-cheap clone of the *same* underlying container, so identity is
+   trivially preserved with no dependence on how `Function<A>`'s equality
+   happens to be implemented. This needs no cyclic or lazy construction
+   either, for the same reason as before: by the time any activation of `f`
+   runs, `f`'s own canonical value already exists to be passed in — nothing
+   about it depends on that activation's own result.
+
+   Only functions whose body actually reads `["self"]` in value position
+   need this extra parameter — one that only ever calls itself (case 1)
+   does not, so `Code<A>` is not one universal signature but a family
+   (matching how [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
+   already gives variadic and non-variadic functions different calling
+   conventions); working that out to a concrete type-level shape is
+   Stage 5's task, not settled here.
 
 Mutual recursion between two independently-hashed functions (`a` calls `b`
 calls `a`) stays out of scope, exactly as the language spec currently scopes
 it out ([3140-forward-references](../../spec/todo/3140-forward-references.md),
-edag-stage1-discussion subjects 9–10): neither `["self"]` nor this
-construction reaches it, and it needs the group/hashing mechanism those
-documents already flag as open.
+edag-stage1-discussion subjects 9–10): neither `["self"]` nor this design
+reaches it, and it needs the group/hashing mechanism those documents already
+flag as open.
 
 #### Staged plan
 
@@ -314,21 +371,33 @@ edag-stage1-discussion (`a => b => a + b`).
 **Stage 4 — dynamic calls and higher-order functions.**
 Add the call-site form for when the callee is *not* known at compile time —
 [call-like-instructions §3](../../spec/todo/9100-call-like-instructions.md#3-dynamic-calls-into-user-defined-functions)'s
-"dynamic call" — compiling to `Function::call`. Both call forms (Stage 1's
-static form and this one) must be observably identical, per the core
-invariant that source behavior is call-site-representation-independent; nail
-this down with paired fixtures (same function, called once statically and
-once through a value) rather than trusting it by inspection.
+"dynamic call". The callee here is an `Any<A>` (a property read, an array
+element, a parameter — anything the EDAG's `exp` can produce), not already a
+`Function<A>`, and calling a non-function must fail the way JS's own
+`TypeError` does rather than panic or go unspecified. That conversion
+already exists — `TryFrom<Any<A>> for Function<A>`
+([`vm/impls/try_from.rs`](../src/vm/impls/try_from.rs)) returns
+`Result<Function<A>, Any<A>>`, `Err` exactly the not-a-function case — so a
+dynamic call compiles to `Function::try_from(callee)?.call(&args)?`, no new
+conversion to design, only to wire up. Both call forms (Stage 1's static
+form and this one) must be observably identical, per the core invariant
+that source behavior is call-site-representation-independent; nail this
+down with paired fixtures (same function, called once statically and once
+through a value) rather than trusting it by inspection.
 
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:
-direct recursive calls need no new runtime support (Stage 1 already gives
-Rust-level recursion); `self`-into-nested-frame needs the generator to emit
-the "rebuild myself from my own static identity and this call's `captured`"
-pattern described there. Proof surface: the mutually-referencing-helper
-fixture from [function-frame](../../spec/todo/3111-function-frame.md)
-(`a`/`b` calling each other where one captures `["self"]` of the other's
-enclosing function).
+`self`-as-callee needs no new runtime support (Stage 1 already gives
+Rust-level recursion); `self`-as-a-value needs the generator to recognize
+which functions read `["self"]` outside call position, build each such
+function's canonical `Function<A>` once wherever its enclosing scope already
+builds one, and thread a handle to it into that function's calling
+convention. This is where the calling-convention family from
+[Self-reference](#self-reference) gets a concrete Rust shape. Proof surface:
+the mutually-referencing-helper fixture from
+[function-frame](../../spec/todo/3111-function-frame.md) (`a`/`b` calling
+each other where one captures `["self"]` of the other's enclosing function),
+plus a fixture asserting `self === self` across two separate reads.
 
 **Stage 6 — arity and variadic edge cases.**
 Confirm generated code matches
@@ -405,10 +474,13 @@ generated-Rust test from one source of cases.
       captured `Array<A>` field); `Function::call`; resolve open question 1.
 - [ ] Stage 3: capturing closures — `["=>", frame, body]` lowering, frame
       built as the captured `Array<A>`.
-- [ ] Stage 4: dynamic call sites through `Function::call`; paired
-      static/dynamic fixtures proving observable equivalence.
-- [ ] Stage 5: self-reference — direct recursion, and self-into-nested-frame
-      construction.
+- [ ] Stage 4: dynamic call sites through `TryFrom<Any<A>> for Function<A>` +
+      `Function::call`; paired static/dynamic fixtures proving observable
+      equivalence.
+- [ ] Stage 5: self-reference — `self`-as-callee needs nothing new;
+      `self`-as-a-value needs a canonical, once-built `Function<A>` threaded
+      into that function's calling convention, plus a `self === self`
+      fixture.
 - [ ] Stage 6: arity/variadic edge-case audit against
       call-like-instructions §6.
 - [ ] Stage 7: EDAG embedding on natively compiled functions, once
@@ -440,8 +512,9 @@ generated-Rust test from one source of cases.
   — flags nested-closure EDAG association as unsolved; Stage 7 is where this
   plan closes that for the AOT backend specifically.
 - [`spec/todo/object-identity.md`](../../spec/todo/object-identity.md) —
-  identity/equality questions for function values, pre-existing and
-  unaffected by this plan.
+  the general identity/equality question for values; the code-pointer
+  section above works out the one place this plan's own choices bear on it
+  for functions specifically (the `self` case).
 - [optimal-nanvm](./optimal-nanvm.md) — the NaN-boxed `function` /
   `static function` pointer-kind split the code-pointer sketch concretizes.
 - [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared-test-corpus
