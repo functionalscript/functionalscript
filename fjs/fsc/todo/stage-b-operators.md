@@ -5,15 +5,29 @@
 
 ### Problem
 
-[`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md) stages
-the operator rollout in three parts and Stage A — arithmetic, strict
-comparison, bitwise, all eager — is the only one that has landed
-([`parser/README.md#the-operator-ladder`](../parser/README.md#the-operator-ladder)).
+**This doc is written against [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s tree, not against `main` as it stands.** `#2089` is what stages the operator rollout into Stage A/B/C, adds `2340-operators.md`'s `Landed` column, and lands the ladder this task stacks on
+([`the-operator-ladder`](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/parser/README.md#the-operator-ladder),
+at its head commit) — none of it is on `main` yet, and `#2089` itself is
+paused pending coordination with `#2090`/`#2092` (see "Not yet" below), so
+every reference below to something Stage A already has (`Op2Tag`,
+`leftAssocNode`, `unaryNode`, `bitwiseOr`, `AstOperation`, `lowerBase`, the
+ladder README section) names what lands with `#2089`, not what exists at
+this file's own base commit today. Once Stage A actually merges — in
+whatever form the sequencing below leaves it — those references become
+ordinary same-tree links; until then, treat every relative link into
+`fjs/fsc/parser/`, `fjs/fsc/ast/`, or `fjs/fsc/edag/` below as a forward
+reference, and the pinned-commit links as the ones that resolve today.
+
+Once Stage A lands, [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)
+stages the operator rollout in three parts, and Stage A — arithmetic, strict
+comparison, bitwise, all eager — is the only one landed. Stage B — `&&`,
+`||`, `??`, `?:` — is the next stage `2340-operators.md` itself names; Stage
+C (comma) is explicitly deferred until Stage B "has proven the general
+approach" for lazy positions, so it is not this task's. (`main`'s current
+`2340-operators.md` and
 [`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)'s
-Parser task names what is left after grouping and calls: "the lazy/comma
-operator stages remain." Stage B — `&&`, `||`, `??`, `?:` — is that next
-stage; Stage C (comma) is explicitly deferred until Stage B "has proven the
-general approach" for lazy positions, so it is not this task's.
+Parser task are both bare stubs without this staging language yet — `#2089`
+is what adds it.)
 
 Unlike Stage A, Stage B is not a matter of widening the grammar and reusing
 the existing eager lowering. Its operators are **lazy**: `a && b`'s `b` is
@@ -279,8 +293,8 @@ above, not just new-syntax acceptance.
       the transitive case — an unreached entry's own lazy operand naming a
       second unreached entry, which must still get its own anchor — matching
       `2340-operators.md`'s worked examples and the `d`/`c` case above.
-- [ ] Stack-safety: `logicalAnd`/`logicalOr`/`nullish`/`circuitTail`'s chains
-      reuse or match `leftAssocNode`'s iterative shape, already proven safe
+- [ ] Stack-safety: `logicalAnd`/`andTail`/`orTail`/`nullishTail`/`circuitTail`'s
+      chains reuse or match `leftAssocNode`'s iterative shape, already proven safe
       from Stage A's own stack-overflow fix, but a chain-length stress proof
       at the same 20,000-deep bar Stage A used is still worth adding rather
       than assumed. `conditional`'s arms recurse into `value`, so a source
@@ -293,10 +307,10 @@ above, not just new-syntax acceptance.
       it; do not repeat it here — add the same stress proof across all three
       layers rather than exempt `conditional` on the same reasoning.
 - [ ] `spec/README.md`'s Operators section, `2340-operators.md`'s `Landed`
-      column, and [`fjs/fsc/parser/README.md`](../parser/README.md#the-operator-ladder)
-      — which documents `value`/`body` ending at today's ladder top and
-      would otherwise go stale the moment `conditional` replaces it — all
-      checked off/updated for Stage B once done.
+      column, and `fjs/fsc/parser/README.md`'s operator-ladder section —
+      which documents `value`/`body` ending at whatever Stage A's ladder top
+      turns out to be and would otherwise go stale the moment `conditional`
+      replaces it — all checked off/updated for Stage B once done.
 
 ### Related
 
@@ -310,11 +324,13 @@ above, not just new-syntax acceptance.
   to (`op2Id`, `op3Id`).
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   subject 3 — where that EDAG-level laziness design was settled.
-- [`fjs/fsc/parser/README.md`](../parser/README.md#the-operator-ladder) —
-  Stage A's ladder this stacks on top of.
+- `fjs/fsc/parser/README.md`, once `#2089` (or whatever supersedes its
+  grammar half) lands — Stage A's ladder this stacks on top of; not yet a
+  resolvable link, see the Problem section's note above.
 - [`fjs/fsc/ast/module.f.mjs`](../ast/module.f.mjs) — `refsOf`, `reach`,
   `anchors`: the eager/lazy split.
-- [`fjs/fsc/ast/todo/refs-stack-safety.md`](../ast/todo/refs-stack-safety.md) —
+- `fjs/fsc/ast/todo/refs-stack-safety.md`
+  ([as of `#2089`'s head](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/ast/todo/refs-stack-safety.md)) —
   the pre-existing, unrelated `.`-chain recursion limit in the same file;
   not this task's to fix, noted so it is not conflated with the new
   eager-only variant's own stack safety.
