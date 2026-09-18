@@ -286,9 +286,9 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression, a property access, a function or a call.
-Operators and grouping are not recognized yet — see the
-[roadmap](./todo/README.md).
+An expression is a data expression, a property access, a function, a call or
+a negation. Unary `-` is the one operator; grouping is not recognized yet —
+see the [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|

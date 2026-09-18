@@ -264,8 +264,9 @@ const refsOf = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
-        // a negation reaches its operand, which stands where it is written
-        case '-': { return refsOf(view)(ast[1]) }
+        // what a negation's operand leaves is the view's: the graph holds it
+        // and the value does not, a negation being a primitive
+        case '-': { return flat(view.negated(ast[1]).map(refsOf(view))) }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }
@@ -439,11 +440,26 @@ const selected = ast => {
 /** A node as the value's view reads it: an access {@link selected}, anything else itself. @type {(ast: AstConst) => AstConst} */
 const selectedOf = ast => ast !== null && typeof ast === 'object' && ast[0] === '.' ? selected(ast) : ast
 
-/** The syntax as the EDAG evaluates it: every member written, and a literal whole before it is read. @type {_View} */
-const written = { members: memberValuesWritten, through: ast => ast }
+/**
+ * The syntax as the EDAG evaluates it: every member written, a literal
+ * whole before it is read, and a negation's operand followed — the graph
+ * holds it as a node of its own, so a `const` nothing but a negation
+ * reaches is reached all the same.
+ *
+ * @type {_View}
+ */
+const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand] }
 
-/** The syntax as the value has it: the last member per key, and of a literal read only what the key selects. @type {_View} */
-const value = { members: memberValues, through: selected }
+/**
+ * The syntax as the value has it: the last member per key, of a literal
+ * only what the key selects, and of a negation nothing — `-x` is a number
+ * or a bigint whatever `x` was, so the operand is consumed and no part of
+ * it is in the value. `const a = []; export default [-a, -a];` is
+ * `[-0, -0]`, two primitives and no node shared between them.
+ *
+ * @type {_View}
+ */
+const value = { members: memberValues, through: selected, negated: () => [] }
 
 /** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })

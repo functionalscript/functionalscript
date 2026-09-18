@@ -7,8 +7,9 @@
  * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t 'default' t value ';' t
- * value  ::= '-' t value | (primitive t | id t | array | object) access* | func
- * body   ::= '-' t value | (primitive t | id t | array) access* | func | block
+ * value  ::= '-' t unary | (primitive t | id t | array | object) access* | func
+ * body   ::= '-' t unary | (primitive t | id t | array) access* | func | block
+ * unary  ::= '-' t unary | (primitive t | id t | array | object) access*
  * block  ::= '{' t const* 'return' s value ';' t '}' t
  * func   ::= '(' t '...' t id t ')' s '=>' t body
  * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t

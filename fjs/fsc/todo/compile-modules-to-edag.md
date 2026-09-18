@@ -68,7 +68,7 @@ and left the other outputs alone. Their names have moved since, and the route
 is [`../module.f.mjs`](../module.f.mjs)'s to state: the value outputs are
 `.data.js` and `.json`, and every other JavaScript name is the FunctionalScript
 writer's. The parser reads `a.b` and `a[key]`
-on any value but a number or a bigint literal, the key a string or a number, `__proto__` and `constructor`
+on any value, a numeric literal included, the key a string or a number, `__proto__` and `constructor`
 refused at the key, and the lowering carries the access as the EDAG's own
 `['.', base, key]`. On the value path an access reads an own property, never
 the prototype chain; `undefined` where there is none; and a `null` or

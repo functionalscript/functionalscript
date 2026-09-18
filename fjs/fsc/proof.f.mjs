@@ -1040,6 +1040,25 @@ pub fn module<A: IVm>() -> Any<A> {
             assertEq(compileSource('export default -[{a:{toString:1}}];')('output.data.js'), 'export default NaN;')
         },
     },
+    // A negation is a primitive, so its operand is consumed: the value holds
+    // no part of it, and two negations of one `const` share nothing. The
+    // graph is the other way about — it holds the operand as a node of its
+    // own — which is why the two views read a negation differently.
+    negationConsumesItsOperand: () => {
+        assertEq(compileSource('const a=[]; export default [-a,-a];')('output.json'), '[-0,-0]')
+        assertEq(compileSource('const a=[]; export default [-a,a];')('output.json'), '[-0,[]]')
+        // the sharing that is real is still seen
+        assertEq(jsonRefused('const a=[]; export default [a,a];'), 'output.json - error: no JSON spelling for a shared node')
+        // the graph keeps what the value dropped: the operand is a node, and
+        // the sharing inside it survives as a `const`
+        assertEq(
+            compileSource('const a=[1]; const b=[a,a]; export default -b;')('output.edag.data.js'),
+            'const $0=["[]",[1]];export default ["-",["[]",[$0,$0]]];')
+        // and a `const` nothing but a negation reaches is reached all the
+        // same, so nothing is anchored — a comma here would say the graph
+        // did not hold it
+        assertEq(compileSource('const a=[]; export default -a;')('output.edag.data.js'), 'export default ["-",["[]",[]]];')
+    },
     negativeZero: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default -0;')] }
