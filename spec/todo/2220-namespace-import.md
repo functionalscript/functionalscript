@@ -27,7 +27,7 @@ for all constructs, not just imports.
 Use JSDoc for type references in JavaScript. This module has no runtime import:
 
 ```js
-/** @type {import("./types.js").Value} */
+/** @type {import("./types.ts").Value} */
 const value = [5];
 export default value;
 ```
@@ -39,9 +39,12 @@ checker; it is not FunctionalScript source and is not a runtime dependency:
 export type Value = readonly [number];
 ```
 
-The checker resolves the `.js` type reference to the companion under the
-repository's TypeScript module-resolution configuration. FJS treats the JSDoc
-as a comment; it neither loads that companion nor gains a TypeScript grammar.
+Both JavaScript's JSDoc references and TypeScript's `import type` declarations
+name the same real `types.ts` source file, following the
+[shared module policy](../../fjs/fsc/README.md). Do not introduce a `types.js`
+runtime module or rely on extension substitution for these source references.
+FJS treats the JSDoc as a comment; it neither loads that companion nor gains a
+TypeScript grammar.
 Do not erase a real JavaScript import because its binding is mentioned only in
 an annotation: the import still has JavaScript dependency semantics.
 
@@ -54,6 +57,9 @@ an annotation: the import still has JavaScript dependency semantics.
 - [ ] Extend the source-compatibility corpus with TypeScript-only syntax
       refusals and JSDoc/type-companion examples. Check original module source
       without a type stripper; keep type-tooling checks separate from FJS tests.
+      Verify both JSDoc and TypeScript type references against the actual
+      `types.ts` companion without a `types.js` file; incorrect values must
+      fail checking, while the JavaScript runs without the companion.
 
 ## Related
 
