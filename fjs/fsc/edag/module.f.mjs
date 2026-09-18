@@ -66,9 +66,8 @@ const property = lower => ([key, value]) => [':', key, lower(value)]
  * [`../../edag/README.md`](../../edag/README.md)'s Chains table spells and
  * `chainsJs.receiver` in [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs)
  * pins against JavaScript itself. Parentheses alone do not detach:
- * `(a.b)(c)` keeps the receiver and is this same node, so grouping
- * ([`../todo/grouping.md`](../todo/grouping.md)) adds a spelling for it
- * rather than for the other one, which waits on the comma operator.
+ * `(a.b)(c)` keeps the receiver and is this same node, so grouping spells
+ * this one and not the other, which waits on the comma operator.
  *
  * Any other callee is the plain call, `['()', callee, args]`.
  *
