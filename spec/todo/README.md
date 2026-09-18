@@ -10,6 +10,16 @@ When the parser recognizes a feature, its document is folded into the single
 the compiler accepts today — and this file's entry is removed. The numbering
 below is this directory's own; the specification has no section numbers.
 
+## Compatibility invariants — P1
+
+[Preserve JavaScript compatibility](../../todo/fjs-javascript-compatibility.md)
+blocks current and proposed violations of source inclusion and successful-result
+agreement. These invariants apply at every stage, regardless of a feature's
+priority below. All execution failures, including throws and memory/time
+exhaustion, are indistinguishable; optimizing successful EDAG computations and
+reordering failures to fail earlier do not require preserving failure details.
+The linked issue records root-cause corrections and their regression gates.
+
 ## 1. JSON
 
 1. [ ] [undefined-property](./1010-undefined-property.md).
