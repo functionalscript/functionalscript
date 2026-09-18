@@ -999,6 +999,47 @@ pub fn module<A: IVm>() -> Any<A> {
     // `parseFloat` keeps the sign, and the serializer writes it back as
     // `-0` — where `String(-0)` is `"0"`, which is why only `Object.is` can
     // state this and why the round trip is pinned rather than assumed.
+    // The one operator, where a value is wanted. Every primitive converts, so
+    // `-` computes; the one refusal is the conversion JavaScript itself
+    // throws on, `TypeError: Cannot convert object to primitive value`,
+    // which a module reaches because a prototype name is an ordinary key —
+    // only reading one is refused — so `{ toString: 1 }` is data.
+    negation: {
+        computes: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => assertEq(compileSource(source)('output.data.js'), expected)
+            expect('export default [-"2", -true, -false, -null, -1n];', 'export default [-2,-1,-0,-0,-1n];')
+            // `-undefined` is `NaN`, as every conversion that finds no number is
+            expect('export default [-undefined, -"abc", -""];', 'export default [NaN,NaN,-0];')
+            // a container converts through its text, which is JavaScript's
+            // own answer and not one this evaluator invents
+            expect('export default [-[], -[1], -[1,2], -{}, -[{}]];', 'export default [-0,-1,NaN,NaN,NaN];')
+            // an own `valueOf` that is no function leaves `toString` to answer
+            expect('export default -{valueOf:1};', 'export default NaN;')
+            // and the operand is a value, not a spelling: a reference reads
+            // the same as the literal it names
+            expect('const a = []; export default -a;', 'export default -0;')
+            expect('const a = [1]; export default [-a, a];', 'export default [-1,[1]];')
+        },
+        // `toString` shadowed by data is what leaves `ToPrimitive` nothing to
+        // call — the inherited `valueOf` answers with the object itself, and
+        // no member is ever a function. An array is the one shape that
+        // recurses, `Array.prototype.toString` joining the text of every
+        // element, so one reached at any depth is the same refusal.
+        refusesWhatJsThrowsOn: () => {
+            /** @type {(source: string) => void} */
+            const expect = source => assertEq(moduleRefused(source), 'input.f.js - error: an object has no primitive value')
+            expect('export default -{toString:1};')
+            expect('export default -{toString:null};')
+            expect('export default -{valueOf:1,toString:2};')
+            expect('export default -[{toString:1}];')
+            expect('export default -[[{toString:1}]];')
+            expect('const a = {toString:1}; export default -a;')
+            // an object's members are not read to answer, so one nested under
+            // a key is no refusal — `Object.prototype.toString` never looks
+            assertEq(compileSource('export default -[{a:{toString:1}}];')('output.data.js'), 'export default NaN;')
+        },
+    },
     negativeZero: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default -0;')] }

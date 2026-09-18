@@ -112,15 +112,50 @@ const noFunctionValue = 'a function has no value'
 const noCallValue = 'a call has no value'
 
 /**
+ * The refusal of a value JavaScript cannot convert to a primitive, which is
+ * what `-{ toString: 1 }` throws a `TypeError` for. Such a module has no
+ * value in either language, so it is refused here rather than thrown out of
+ * the compiler.
+ */
+const noPrimitiveValue = 'an object has no primitive value'
+
+/**
+ * Whether converting a value to a primitive would throw, as JavaScript's
+ * `ToPrimitive` does when it is left nothing callable to call.
+ *
+ * A prototype name is an ordinary key here — only *reading* one is refused
+ * — so `{ toString: 1 }` is data a module may build, and shadowing
+ * `toString` with it is what leaves `ToPrimitive` nothing: no member of a
+ * value is ever a function, a function having no value at all, so the
+ * inherited `valueOf` answers with the object itself and the conversion
+ * always falls through to `toString`.
+ *
+ * Which is why an object's *members* do not matter: `Object.prototype
+ * .toString` answers `"[object Object]"` without reading one, so
+ * `[{ a: { toString: 1 } }]` is `NaN` and not a throw. An array is the one
+ * shape that recurses, `Array.prototype.toString` joining the text of every
+ * element.
+ *
+ * @type {(value: Unknown) => boolean}
+ */
+const noPrimitive = value => {
+    if (value === null || typeof value !== 'object') { return false }
+    if (value instanceof Array) { return value.some(noPrimitive) }
+    return typeof value.toString !== 'function'
+}
+
+/**
  * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
  * bigint, and anything else becomes a number first — `-null` is `-0`,
- * `-"2"` is `-2`, `-true` is `-1` and `-{}` is `NaN`. The operator is
- * total, so there is no refusal here; a source that negates a function
- * never reaches this, the function having no value to begin with.
+ * `-"2"` is `-2`, `-true` is `-1`, `-[1]` is `-1` and `-{}` is `NaN`. Every
+ * primitive converts, so the refusal is {@link noPrimitive}'s alone, and it
+ * names exactly what JavaScript throws on.
  *
- * @type {(value: Unknown) => Unknown}
+ * @type {(value: Unknown) => Result<Unknown, string>}
  */
-const negated = value => typeof value === 'bigint' ? -value : -Number(value)
+const negated = value => typeof value === 'bigint'
+    ? ok(-value)
+    : noPrimitive(value) ? error(noPrimitiveValue) : ok(-Number(value))
 
 /**
  * The value of one entry, or the failure. An object's members are written
@@ -141,7 +176,7 @@ const toDjs = state => ast => {
         case '=>':
         case 'args': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
-        case '-': { return mapOk(negated)(toDjs(state)(ast[1])) }
+        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
