@@ -18,8 +18,9 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
-value  ::= (primitive t | id t | array | object) access* | func
-body   ::= (primitive t | id t | array) access* | func | block
+value  ::= '-' t unary | (primitive t | id t | array | object) access* | func
+body   ::= '-' t unary | (primitive t | id t | array) access* | func | block
+unary  ::= '-' t unary | (primitive t | id t | array | object) access*
 block  ::= '{' t const* 'return' s value ';' t '}' t
 func   ::= '(' t '...' t id t ')' s '=>' t body
 access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
@@ -60,8 +61,10 @@ rules take it wherever a *name* may stand: `{ NaN: 1 }` and `a.NaN` are a
 key and an access, and `const NaN = 1;` reaches the fold and is refused
 there, as `const if = 1;` is. Where a *value* may stand it is the value it
 names, which is the one position the two rules keep apart.
-`-Infinity` is one token, the tokenizer folding the `-` into the word as it
-folds one into a number, so the grammar has no negation. `import`, `const` and `export` in the wrong order
+`-Infinity` is two tokens, the `-` being the unary minus the grammar reads
+rather than a sign folded into the word, so `-Infinity` is a negation where a
+value may stand and a `-` the grammar answers at where a name may.
+`import`, `const` and `export` in the wrong order
 report `unexpected token` at the offending keyword.
 
 ## The grammar sees symbols; the fold sees text
@@ -81,10 +84,6 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
-- an access on a number or a bigint literal, `1 .x` or `-1n[0]`: JavaScript
-  reads `-1 .x` as `-(1 .x)`, the tokenizer folds the minus into the number
-  and `-0n` to `0n`, and the language has no negation to read it JavaScript's
-  way, so every access on a numeric literal is refused rather than some;
 - a reference in a function's body to a name bound outside it — a `const`, an
   import, or an enclosing function's parameter — which is a capture, and a
   function has no frame to capture with yet. The body is resolved against its

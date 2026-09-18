@@ -16,8 +16,9 @@ spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
 
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
-and `[1].length`, on any value but a number or a bigint literal, which is
-refused since JavaScript reads `-1 .x` as `-(1 .x)`: an own property of the
+and `[1].length`, on any value, a numeric literal included, since `-` is an
+operator the grammar reads and `-1 .x` is the negation of the access as
+JavaScript has it: an own property of the
 base, never the prototype chain, as
 [spec: property accessor](../../spec/todo/2330-property-accessor.md) has
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
@@ -115,6 +116,20 @@ module — one node however many references reach it, and what the returned
 value does not reach anchored by the comma rather than dropped, which is the
 one place a comma stands outside a module's root. With no statement the block
 lowers to the value it returns, the two spellings being one function.
+A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
+— and the language's only operator. It is no part of the literal after it, so
+`-1` is the negation of `1` in the parser's tree, and the lowering folds that
+one case back into the leaf: negating a numeric literal is exact arithmetic,
+so the graph holds the number and [`rust`](rust/module.f.mjs) prints it. A
+negation of anything else stays a node — folding one would mean saying what a
+container converts to — and that route refuses one, `Neg for Any<A>` answering
+a `Result` a module cannot hold. It binds looser than a
+step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
+— which is what retired the two refusals the old fold needed, an access and a
+call on a numeric literal alike. What it takes is JavaScript's
+`UnaryExpression`, so not a function: `-(...a) => 1` is a syntax error in
+both, and the writer gives a negated function a `const` of its own, as it does
+an access base.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
@@ -127,7 +142,12 @@ again, parentheses preserving the property reference. A call mints identity — 
 two nodes and a `const` naming one is one — which is what a body's `const`
 keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
 form yet and refuses both by name, so a module with a call in it compiles to
-the EDAG output alone.
+the EDAG output alone. When it gets one, a negative callee needs the care an
+access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
+written `-1()` — a group would say it, `(-1)()`, and until the grammar has
+one ([`todo/grouping.md`](todo/grouping.md)) a `const` does. The writer's
+proof refuses that shape by name, so the question comes up where the
+spelling is written.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
@@ -470,7 +490,8 @@ JavaScript lexical surface, because everything that reads a `.f.mjs` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a
 token that is recognised is not thereby accepted: the compiler's fold and
 grammar refuse what the language does not admit, at the token, as they refuse
-`-NaN`. The rules the grammar shares with JSON flow the other way — it imports
+`--` — the decrement operator, one token the fold turns into an error because
+the language has no rule for it. The rules the grammar shares with JSON flow the other way — it imports
 JSON's digit and string rules from `fjs/ebnf/lib/json`, and no codec reads
 this grammar — so widening it regresses no codec. The parser stays the
 FunctionalScript grammar, LL(1) over those tokens, and grows one production

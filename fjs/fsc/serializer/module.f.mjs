@@ -65,7 +65,7 @@
  *
  * @module
  *
- * @import { Analysis, Node, Operand } from '../../edag/analysis/types.ts'
+ * @import { Analysis, Node, Operand, Ref } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -92,15 +92,36 @@ const minting = node => {
 }
 
 /**
- * Whether a base needs a `const` of its own: the grammar takes no access on
- * a number, a bigint or a function, though linking puts all three there —
- * `n.x` with `n` exporting `1` is `['.', 1, 'x']`, which `1.x` cannot spell.
+ * Whether a base needs a `const` of its own — three bases this writer has
+ * no text for, though linking puts all of them there:
+ *
+ * - a number or a bigint, since `1.x` is one number and a stray word, and
+ *   the space `1 .x` needs is not a spelling this writer keeps;
+ * - a function, which takes no access in the grammar;
+ * - a **negation**, because `-` binds looser than a step: `-1 .x` is
+ *   `-(1 .x)` and `-1[0]` is `-(1[0])`, so the text for `['.', ['-', 1],
+ *   0]` would be a different graph rather than an unreadable one. A name
+ *   is what says the negation happens first, until a group can
+ *   ([`../todo/grouping.md`](../todo/grouping.md)).
  *
  * @type {(a: Analysis, base: Operand) => boolean}
  */
-const basedHoisted = (a, base) => base instanceof Array
-    ? a.nodes[base[1]][0] === '=>'
-    : typeof base === 'number' || typeof base === 'bigint'
+const basedHoisted = (a, base) => {
+    if (!(base instanceof Array)) { return typeof base === 'number' || typeof base === 'bigint' }
+    const kind = a.nodes[base[1]][0]
+    return kind === '=>' || kind === '-'
+}
+
+/**
+ * Whether a negation's operand needs a `const` of its own: a function, and
+ * nothing else. JavaScript's unary operand is a `UnaryExpression`, which an
+ * arrow function is not — `-(...a) => 1` is a syntax error — so the
+ * function takes a name and the negation is written on that. A number needs
+ * none here, `-1` being what the operator is most often written on.
+ *
+ * @type {(a: Analysis, v: Operand) => boolean}
+ */
+const negHoisted = (a, v) => v instanceof Array && a.nodes[v[1]][0] === '=>'
 
 /** Two hoisted values are one when they name the same entry, or the same primitive by `Object.is`. @type {(x: _Hoisted, y: _Hoisted) => boolean} */
 const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
@@ -340,6 +361,21 @@ const entry = (s, depth) => i => {
                     (text => flat([[`(...${parameter(depth + 1)})=>`], text])),
                 )(lambdaBody(s.a, depth + 1)(body))
         }
+        case '-': {
+            // `op12` of two operands is the binary minus, which the language
+            // has no spelling for yet; of one, it is the prefix.
+            if (node.length !== 2) { return error('a binary - node') }
+            return mapOk(
+                /** @type {(text: List<string>) => List<string>} */
+                // `- -1` and not `--1`: two adjacent minus characters are the
+                // one decrement token, which the parser has no rule for, so a
+                // minus before a minus takes a space. A negation whose operand
+                // is a function was given a `const` by the hoisting walk, so
+                // what stands here is a name and never `(...$a)=>…`, which
+                // JavaScript refuses after a `-`.
+                (text => flat([[firstChunk(text).startsWith('-') ? '- ' : '-'], text])),
+            )(operand(s, depth)(node[1]))
+        }
         // a comma is a scope's own form, read by `scopeOperands` where a
         // module's root or a function's body begins; anywhere else it has no
         // source spelling until the operator lands
@@ -372,6 +408,9 @@ const hoists = s => {
         const node = s.a.nodes[i]
         const inner = operands(node).reduce(found, names)
         const self = minting(node) && s.a.shared.includes(i) ? add(inner, ['entry', i]) : inner
+        if (node[0] === '-' && node.length === 2 && negHoisted(s.a, node[1])) {
+            return add(self, ['entry', /** @type {Ref} */(node[1])[1]])
+        }
         return node[0] === '.' && basedHoisted(s.a, node[1])
             ? add(self, node[1] instanceof Array ? ['entry', node[1][1]] : ['leaf', /** @type {number | bigint} */(node[1])])
             : self
@@ -381,8 +420,9 @@ const hoists = s => {
 
 /**
  * The operands a node holds, for the hoisting walk: a container's items and
- * a property's halves, an access's base and key, and a comma's operands. A
- * function's body is not among them, since the walk stops at a body.
+ * a property's halves, an access's base and key, a negation's operand, and
+ * a comma's operands. A function's body is not among them, since the walk
+ * stops at a body.
  *
  * @type {(node: Node) => readonly Operand[]}
  */
@@ -391,6 +431,7 @@ const operands = node => {
         case '[]': { return node[1].flatMap(x => x instanceof Array && x[0] === '...' ? [x[1]] : [/** @type {Operand} */(x)]) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
         case '.': { return [node[1], node[2]] }
+        case '-': { return node.length === 2 ? [node[1]] : [] }
         case ',': { return node[1] }
         default: { return [] }
     }

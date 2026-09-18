@@ -119,10 +119,11 @@ the shape `treeSerialize` walks.
 > before acting on this section.
 
 The JSON tokenizer and the old DJS tokenizer both wrapped the shared JS
-tokenizer and folded a leading `-` into the following numeric token. The JSON
-tokenizer is retired — `fjs/media/json` reads its grammar and never had a
-consumer of the token stream — so the fold now exists once, in
-`fjs/fsc/tokenizer`, and there is nothing left to share. What this section
+tokenizer and folded a leading `-` into the following numeric token. Both
+folds are gone: the JSON tokenizer is retired — `fjs/media/json` reads its
+grammar and never had a consumer of the token stream — and `fjs/fsc/tokenizer`
+stopped folding when `-` became an operator the grammar reads, so that layer
+holds no state at all. There is nothing left to share, and what this section
 asked for is done by deletion.
 
 ### Tasks
@@ -144,8 +145,9 @@ asked for is done by deletion.
 - [x] Whether the walker is extracted or not, give the `__proto__` key
       spelling one home — done by retiring the old serializer:
       `keySerialize` in `fjs/media/datajs/serializer` is the one.
-- [ ] Re-measure the current tokenizer minus-folding duplication before extracting
-      it; do not implement the stale line-number design blindly.
+- [x] Re-measure the current tokenizer minus-folding duplication before extracting
+      it. Done: there is none. Neither tokenizer folds a `-` any longer, so
+      there is no duplication to extract.
 - [ ] Preserve current behavior/proof coverage for JSON, DataJS and the dump.
 - [ ] `tsc`, `fjs t`.
 

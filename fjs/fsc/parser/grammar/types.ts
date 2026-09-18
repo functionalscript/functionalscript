@@ -112,12 +112,25 @@ export type Access = {
 }
 
 /**
+ * What a `-` takes: a value less the function, JavaScript's unary operand
+ * being a `UnaryExpression`, which an arrow function is not.
+ */
+export type Unary = () => readonly ['const', {
+    readonly neg: readonly [number, typeof trivia, Unary]
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
+    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+}]
+
+/**
  * A value: a primitive token, a reference, an array of values, or an
  * object of members, each ending with its trivia and each followed by the
  * accesses after it — a `const` thunk whose payload names the thunk, which
  * is what lets a type alias name itself.
  */
 export type Value = () => readonly ['const', {
+    readonly neg: readonly [number, typeof trivia, Unary]
     readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
     readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
     readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
@@ -130,6 +143,7 @@ export type Value = () => readonly ['const', {
  * JavaScript — or that block, in which an object is a value again.
  */
 export type Body = () => readonly ['const', {
+    readonly neg: readonly [number, typeof trivia, Unary]
     readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
     readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
     readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]

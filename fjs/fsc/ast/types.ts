@@ -26,8 +26,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstFunction|AstArgs
 
 /**
  * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
@@ -92,8 +92,8 @@ export type AstObject = readonly ['object', readonly AstMember[]]
  * a string, or a number from `[0]`. The EDAG's own form, `['.', object,
  * index]`, so the lowering carries it as it is. A key naming a property of
  * a built-in prototype — every name `fjs/js/prototype` lists but `length`
- * — is refused by the parser, so `run` never reads one, and so is an
- * access on a number or a bigint literal.
+ * — is refused by the parser, so `run` never reads one. A numeric literal
+ * is an ordinary base: `1 .x` is `['.', 1, 'x']`.
  */
 export type AstAccess = readonly ['.', AstConst, string | number]
 
@@ -110,6 +110,21 @@ export type AstAccess = readonly ['.', AstConst, string | number]
  * today is a method call.
  */
 export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
+
+/**
+ * A negation, `-v`: the language's one prefix operator, and the EDAG's
+ * `['-', exp]` — `op12Id` being `'+'` and `'-'`, each of one operand or
+ * two.
+ *
+ * `-` binds looser than a step, so `-1 .x` is `['-', ['.', 1, 'x']]` and
+ * `-1()` is `['-', ['()', 1, []]]`, which is how JavaScript reads them. A
+ * negative literal is no longer a literal *here*: `-1` is `['-', 1]` in
+ * this tree, since the parser computes nothing. The lowering folds that one
+ * case — negating a numeric literal is exact — so the graph holds the leaf,
+ * and everything else reaches it as a node whose value `run` works out for
+ * the document outputs, or refuses where the conversion is `ToPrimitive`'s.
+ */
+export type AstNeg = readonly ['-', AstConst]
 
 /**
  * The constants of a body, in declaration order. The **last** entry is the

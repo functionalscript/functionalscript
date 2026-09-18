@@ -109,9 +109,12 @@ via the `Function` constructor — no rustc at the user's run time.
       identity-based sharing), and property access (`.`, via
       `Any::own_property`, string keys only — a numeric index has no
       `nanvm-lib` spelling until [`entry`](../fjs/edag/todo/entry.md) lands,
-      and is refused rather than approximated). Arithmetic/logical operators
-      are not wired in: the current parser/compiler do not accept operator
-      *expressions* yet (see [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
+      and is refused rather than approximated). Unary `-` is the one operator
+      the parser accepts; the lowering folds one over a numeric literal, so
+      `-1` prints as the number, and a negation that survives the fold is
+      refused — `Neg for Any<A>` answers a `Result` a generated module
+      cannot hold. No other operator *expression* is accepted (see
+      [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
       accepted subset), so there is nothing yet to print through the
       `op1`/`op2`/`op3` tables. `=>` is a different case — the compiler does
       emit it, for a function literal compiled to `.edag.data.js` — but it

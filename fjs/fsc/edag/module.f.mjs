@@ -108,6 +108,20 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
         case '()': { return call(nodes)(ast[1], ast[2]) }
+        // `op12` of one operand, the EDAG's unary minus, folded away over a
+        // numeric literal: negating one is exact arithmetic — total, and
+        // answered without knowing anything else about the program — so the
+        // graph holds the number and every reader sees the leaf it saw
+        // before there was an operator.
+        //
+        // A `-` over anything else stays a node. Folding one would mean
+        // saying what a string or a container converts to, which is
+        // `ToPrimitive`'s and depends on what the value holds; the readers
+        // that want a number work it out where a number is wanted.
+        case '-': {
+            const operand = lower(nodes)(ast[1])
+            return typeof operand === 'number' || typeof operand === 'bigint' ? -operand : ['-', operand]
+        }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }

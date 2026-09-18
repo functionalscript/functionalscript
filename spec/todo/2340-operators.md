@@ -15,7 +15,7 @@
 |           |`*`      |1          |
 |           |`/`      |1          |
 |           |`%`      |1          |
-|           |unary `-`|1          |
+|           |unary `-`|**done**   |
 |           |`**`     |1          |
 |Bitwise    |`&`      |1          |
 |           |`\|`     |1          |
@@ -31,6 +31,34 @@
 |Conditional|`?:`     |1          |
 |Comma      |`,`      |1          |
 |Type       |`typeof` |EDAG only  |
+
+**Unary `-` is in the language.** It is the first operator, and the one the
+front end needed first: the tokenizer used to fold a `-` into the number,
+bigint or `Infinity` after it, which made `-1 .x` an access on `-1` where
+JavaScript reads `-(1 .x)`, and `-1()` a call on `-1` where JavaScript calls
+`1`. Both were refused rather than answered wrongly; reading the `-` as the
+prefix it is retired both refusals and the fold with them.
+
+The shape the rest can follow, and the line it draws. The grammar reads the
+operator and computes nothing, so `-1` is `['-', 1]` in the parser's tree.
+The **lowering** folds that one case: negating a numeric literal is exact
+arithmetic — total, and answered without knowing anything else about the
+program — so the graph holds the number. A `-` over anything else stays a
+node, because folding one would mean saying what a string or a container
+converts to, which is `ToPrimitive`'s and depends on what the value holds.
+Every fold this table adds should be held to that line: fold what is exact,
+leave what needs an assumption to the readers that want a value.
+
+Two consequences. `export default -1;` compiles to `.rs` because the
+printer meets the leaf, where a negation of anything else is refused —
+`Neg for Any<A>` answers `Result<Any<A>, Any<A>>` and a generated module's
+`Any<A>` has nowhere to put the `Err`, so what that side wants is a shape
+for a throwing operation. And the `.json` and DataJS outputs compute a
+value for the negations that survive: the five primitive types convert, and
+a container is refused rather than guessed at.
+
+An index is not an expression: it is a constant key, a string or a number,
+so a negative key is written as the string it names, `a["-1"]`.
 
 The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Comma_operator) is allowed. It was previously rejected on the grounds that it is useful only when we want to mutate — but that is not its only use. In a pure language the sole side effect a discarded operand can have is *throwing*, which makes `,` the assertion form:
 
