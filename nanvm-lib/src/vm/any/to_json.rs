@@ -11,16 +11,10 @@ use crate::{
 /// An `Any<A>` shape [`Any::to_json`] does not (yet) know how to render.
 ///
 /// Scoped deliberately: arrays and objects recurse (see [`Any::to_json`]),
-/// so most remaining gaps bottom out at a scalar with no direct JSON
+/// so every remaining gap here bottoms out at a scalar with no direct JSON
 /// counterpart — `mvp-roadmap.md`'s open question 3 ("does the MVP print DJS
 /// for those, or report an error?") is left for later, so this reports an
-/// error rather than guessing at a representation. The one gap that is not a
-/// nested scalar is [`JsonError::IntegerLikeObjectKey`]: an object can itself
-/// be the reason serialization fails, because `nanvm-lib` has no correct
-/// enumeration order for it yet (see the `object` dispatch arm's doc
-/// comment) and silently picking the wrong one is not an option
-/// (`AGENTS.md`'s "Merge the knowledge": "an unsupported input is refused,
-/// never answered with a plausible wrong value").
+/// error rather than guessing at a representation.
 ///
 /// `to_json` itself is hand-written Rust standing in for FJS-compiled
 /// logic — see `nanvm-lib/todo/to-json-fjs-migration.md` for the plan to
@@ -32,7 +26,6 @@ pub enum JsonError {
     NonFiniteNumber(f64),
     BigInt,
     Function,
-    IntegerLikeObjectKey,
 }
 
 impl Display for JsonError {
@@ -42,41 +35,36 @@ impl Display for JsonError {
             JsonError::NonFiniteNumber(v) => write!(f, "{v} has no JSON representation"),
             JsonError::BigInt => write!(f, "a BigInt has no JSON representation"),
             JsonError::Function => write!(f, "a function has no JSON representation"),
-            JsonError::IntegerLikeObjectKey => write!(
-                f,
-                "an object with an array-index-like key has no correct JSON \
-                 representation yet: nanvm-lib does not implement ECMAScript's \
-                 integer-keys-first property enumeration order"
-            ),
         }
     }
 }
 
-/// `true` for a key ECMAScript's own-property enumeration treats as an
-/// "array index" — the keys `JSON.stringify` (via `[[OwnPropertyKeys]]`)
-/// lists first, ascending, ahead of every other key in insertion order:
-/// `ToString(ToUint32(key)) == key` and `ToUint32(key) != 2^32 - 1`. ASCII
-/// digits only, no leading zero unless the key is exactly `"0"`, and in
-/// range — `"01"` and `"4294967295"` are both excluded, the first because
-/// its canonical form is `"1"`, not itself, the second because it's the
-/// one `ToUint32` value the spec carves out.
+/// The `u32` value of `k` if ECMAScript's own-property enumeration treats it
+/// as an "array index" — the keys `JSON.stringify` (via
+/// `[[OwnPropertyKeys]]`) lists first, ascending, ahead of every other key
+/// in insertion order: `ToString(ToUint32(key)) == key` and
+/// `ToUint32(key) != 2^32 - 1`. ASCII digits only, no leading zero unless the
+/// key is exactly `"0"`, and in range — `"01"` and `"4294967295"` are both
+/// excluded, the first because its canonical form is `"1"`, not itself, the
+/// second because it's the one `ToUint32` value the spec carves out.
 ///
-/// Only checked, never acted on: [`ToJson::object`] has no way to print keys
-/// in this order today.
-fn is_array_index_key<A: IVm>(k: &String<A>) -> bool {
+/// [`ToJson::object`] uses this to sort an object's array-index keys ahead
+/// of the rest, by this value rather than by the key's own text — `"10"`
+/// sorts after `"2"` numerically, the opposite of their lexicographic order.
+fn array_index_value<A: IVm>(k: &String<A>) -> Option<u32> {
     let units: std::vec::Vec<u16> = k.clone().into_iter().collect();
     let zero = b'0' as u16;
     if units == [zero] {
-        return true;
+        return Some(0);
     }
     if units.is_empty()
         || units[0] == zero
         || !units.iter().all(|&u| (zero..=b'9' as u16).contains(&u))
     {
-        return false;
+        return None;
     }
     let digits: std::string::String = units.iter().map(|&u| (u as u8) as char).collect();
-    digits.parse::<u32>().is_ok_and(|n| n != u32::MAX)
+    digits.parse::<u32>().ok().filter(|&n| n != u32::MAX)
 }
 
 /// Renders `v` as a JSON string literal, quotes and escapes included.
@@ -163,27 +151,33 @@ impl<A: IVm> Dispatch<A> for ToJson {
         // (last-write-wins by construction — see that method's doc
         // comment).
         //
-        // Not implemented here: ECMAScript's own-property enumeration order
-        // puts integer-like string keys first, ascending, before non-integer
-        // keys in insertion order (`fjs/fsc/README.md`'s object-literal
-        // section calls this out at the AST level; see `is_array_index_key`
-        // for the exact rule). Nothing in `nanvm-lib` implements that
-        // reordering today, so rather than silently emitting first-insertion
-        // order for such a key — a plausible-looking JSON string that
-        // disagrees with `JSON.stringify` on member order — any object
-        // holding one is refused outright.
+        // ECMAScript's own-property enumeration order (`[[OwnPropertyKeys]]`,
+        // which `JSON.stringify` inherits) is not plain insertion order: an
+        // array-index-like key (`array_index_value`) is listed first,
+        // ascending by its numeric value, ahead of every other key, which
+        // keeps its insertion order (`fjs/fsc/README.md`'s object-literal
+        // section calls this out at the AST level). So the deduped keys are
+        // partitioned into the two groups, the array-index group sorted, and
+        // printed index keys first.
         let mut keys: Vec<String<A>> = Vec::new();
         for i in 0..v.length() {
             let (k, _) = &v[i];
-            if is_array_index_key(k) {
-                return Err(JsonError::IntegerLikeObjectKey);
-            }
             if !keys.iter().any(|seen| seen == k) {
                 keys.push(k.clone());
             }
         }
+        let mut index_keys: Vec<(u32, String<A>)> = Vec::new();
+        let mut other_keys: Vec<String<A>> = Vec::new();
+        for k in keys {
+            match array_index_value(&k) {
+                Some(n) => index_keys.push((n, k)),
+                None => other_keys.push(k),
+            }
+        }
+        index_keys.sort_by_key(|(n, _)| *n);
+        let ordered = index_keys.into_iter().map(|(_, k)| k).chain(other_keys);
         let mut out = std::string::String::from("{");
-        for (i, k) in keys.into_iter().enumerate() {
+        for (i, k) in ordered.enumerate() {
             if i > 0 {
                 out.push(',');
             }
@@ -373,24 +367,52 @@ mod tests {
     }
 
     #[test]
-    fn integer_like_object_key_is_refused() {
-        // `{ 1: 'a' }` would need integer-keys-first enumeration order to
-        // match `JSON.stringify`, which `nanvm-lib` doesn't implement —
-        // refused rather than silently printed in insertion order.
-        let o: crate::vm::Object<A> = [("1".into(), s("a"))].to_object();
+    fn integer_like_keys_sort_ascending_ahead_of_other_keys() {
+        // `JSON.stringify({ a: 0, 2: 2, 1: 1 })` is `'{"1":1,"2":2,"a":0}'`:
+        // array-index keys first, ascending, regardless of where they were
+        // written; `a` keeps its insertion position among the rest.
+        let o: crate::vm::Object<A> = [
+            ("a".into(), 0.0.to_any()),
+            ("2".into(), 2.0.to_any()),
+            ("1".into(), 1.0.to_any()),
+        ]
+        .to_object();
         assert_eq!(
             o.to_any::<A>().to_json(),
-            Err(super::JsonError::IntegerLikeObjectKey)
+            Ok(r#"{"1":1,"2":2,"a":0}"#.into())
         );
     }
 
     #[test]
-    fn zero_key_is_an_integer_like_key() {
-        let o: crate::vm::Object<A> = [("0".into(), s("a"))].to_object();
+    fn integer_like_keys_sort_numerically_not_lexicographically() {
+        // `"10"` sorts after `"2"` by value, the opposite of string order.
+        let o: crate::vm::Object<A> = [("10".into(), s("b")), ("2".into(), s("a"))].to_object();
         assert_eq!(
             o.to_any::<A>().to_json(),
-            Err(super::JsonError::IntegerLikeObjectKey)
+            Ok(r#"{"2":"a","10":"b"}"#.into())
         );
+    }
+
+    #[test]
+    fn zero_key_sorts_first() {
+        let o: crate::vm::Object<A> =
+            [("b".into(), 1.0.to_any()), ("0".into(), 2.0.to_any())].to_object();
+        assert_eq!(o.to_any::<A>().to_json(), Ok(r#"{"0":2,"b":1}"#.into()));
+    }
+
+    #[test]
+    fn duplicate_integer_like_key_keeps_last_value_sorted_by_number() {
+        // Dedup (last-write-wins) happens before the array-index sort, so a
+        // repeated key's *value* is the last one written, but its *position*
+        // among the other array-index keys is by number, not by either
+        // occurrence's insertion order.
+        let o: crate::vm::Object<A> = [
+            ("1".into(), s("a")),
+            ("0".into(), s("x")),
+            ("1".into(), s("b")),
+        ]
+        .to_object();
+        assert_eq!(o.to_any::<A>().to_json(), Ok(r#"{"0":"x","1":"b"}"#.into()));
     }
 
     #[test]
@@ -423,13 +445,10 @@ mod tests {
     }
 
     #[test]
-    fn integer_like_key_nested_in_an_array_is_refused() {
+    fn integer_like_key_nested_in_an_array_serializes() {
         let o: crate::vm::Object<A> = [("0".into(), 1.0.to_any())].to_object();
         let a: crate::vm::Array<A> = [o.to_any()].to_array();
-        assert_eq!(
-            a.to_any::<A>().to_json(),
-            Err(super::JsonError::IntegerLikeObjectKey)
-        );
+        assert_eq!(a.to_any::<A>().to_json(), Ok(r#"[{"0":1}]"#.into()));
     }
 
     #[test]

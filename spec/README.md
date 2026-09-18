@@ -286,9 +286,9 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression, a property access, a function, a call or
-a negation. Unary `-` is the one operator; grouping is not recognized yet —
-see the [roadmap](./todo/README.md).
+An expression is a data expression, a property access, a function, a call, a
+negation, or any of those in parentheses ([grouping](#grouping)). Unary `-` is
+the one operator — see the [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -495,6 +495,38 @@ it is the only spelling whose evaluation reproduces the property. In JSON
 output the plain key stays: `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the bracketed form is not JSON at all.
 
+## Grouping
+
+```js
+export default ([80, 443]).length;
+```
+
+A value may be written in parentheses, and it denotes that value: `(x)` is
+`x`, so the parentheses leave nothing behind — no node of their own and no
+change to which values a module shares — exactly as in JavaScript. A group
+is a value like any other and takes a property access or a call after its
+`)`, and it holds one value: a bare comma inside it waits on the comma
+operator ([operators](./todo/2340-operators.md)).
+
+Parentheses are not a boundary that anything downstream can see. They keep
+a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
+([functions](#functions)), and they keep sharing, so a `const` reached
+through a group is the one value it is reached without one. They launder
+nothing either: `(1).x` is the access `1 .x` is, `(1)(2)` the call `1(2)`
+is, and `(o.toString)(1)` is refused at the key where `o.toString` is.
+
+What a group does change is how far a prefix reaches, since `-` binds looser
+than a step ([unary minus](#supported-value-types)): `(-1).x` is the access
+on the negation and `-1 .x` the negation of the access, as JavaScript reads
+each. A group is an operand of `-` as well, and the one way a function
+reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
+is a syntax error, there and here.
+
+A parenthesized parameter list, `(a, b) => …`, is not a group and is not
+recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
+tells one from the other only past the `)`, so `(a) => 1` is read as a group
+and refused at the `=>`.
+
 ## Property Access
 
 ```js
@@ -645,28 +677,52 @@ The same function, written with a block body:
 export default (...args) => { return [args, args[0]]; };
 ```
 
-A function is written as an arrow function of one rest parameter, and its
-body is an expression or a block. It denotes a function of its arguments
-alone:
+A function that takes no arguments, its parameter list empty:
+
+```js
+export default () => 6;
+```
+
+A function is written as an arrow function of one rest parameter or of none,
+and its body is an expression or a block. It denotes a function of its
+arguments alone:
 
 - The parameter is the arguments array, `args[0]` the first argument, and
   the body may name it and nothing declared outside — a `const`, an import,
   or an enclosing function's parameter is a **capture**, which is an error
   ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
   a module name, as in JavaScript.
+- An **empty parameter list** binds no name at all, so a body written under
+  one cannot reach its arguments: the arguments array is named by the
+  parameter and by nothing else, and a word the list does not spell is
+  unbound here exactly as any other unbound word is. Nothing else
+  distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
+  function, and a body `const` may take the name a parameter would have
+  taken, there being no parameter to collide with. A list of **named**
+  parameters, `(a, b) => body`
+  ([parameters](./todo/3120-parameters.md)), is not recognized yet.
 - The body is an expression or a block, and `value` and `{ return value; }`
-  denote the same function. As an expression the body is any value except an
-  object literal: after `=>` JavaScript reads `{` as a block, never as an
-  object, so the spelling is refused rather than read another way. The block
+  denote the same function. As an expression the body is any value except a
+  bare object literal: after `=>` JavaScript reads `{` as a block, never as
+  an object, so the spelling is refused rather than read another way, and the
+  object is written in parentheses instead ([grouping](#grouping)) —
+  `(...args) => ({ a: 1 })`, as in JavaScript. The block
   is any number of `const` statements and then one `return`, each with its
   `;` as after every statement, and an object literal is an ordinary value
   again, since after `return` JavaScript expects an expression. `return` and
   the value share a line: a newline between them ends the statement in
   JavaScript, which would return `undefined`, so it is refused here rather
-  than read another way, exactly as a newline before `=>` is. A parameter
-  list other than one rest parameter
-  ([function](./todo/3110-function.md), [parameters](./todo/3120-parameters.md))
-  is not recognized yet.
+  than read another way, exactly as a newline before `=>` is.
+- A function **carries no name**. Its EDAG is `['=>', frame, body]`,
+  name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
+  `export default () => 0` compile to the same node whatever JavaScript
+  would name them, and no program observes the difference: `f.name` is
+  refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
+  `name` is not an enumerable own property
+  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). Nor is the arity
+  observable, which is what leaves the two parameter lists nothing to be
+  told apart by: `f.length` is `0` for a rest parameter as it is for none,
+  a rest parameter not counting towards it in JavaScript.
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
   written twice, and it is not in its own initializer's scope. The parameter
@@ -697,9 +753,10 @@ alone:
   Parentheses around the property do not drop the receiver: `(o.m)(a)`
   passes `o` as surely as `o.m(a)` does, since the parentheses keep the
   property reference — only detaching the value loses it, as `(0, o.m)(a)`
-  does with the comma operator. Neither spelling is in the language yet, so
-  `o.m(a)` is the one way to call a method and every call written on a
-  property is a call with a receiver.
+  does with the comma operator. `(o.m)(a)` is in the language
+  ([grouping](#grouping)) and is the same program as `o.m(a)`, down to the
+  graph it compiles to; the detached spelling waits on the comma operator,
+  so every call written on a property today is a call with a receiver.
 
   A method call's property is the access's, so the names an access may not
   read, a built-in prototype's among them

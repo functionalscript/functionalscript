@@ -28,9 +28,14 @@ finds a function, `length` excepted, since a value owns it
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function, `(...a) => body`, is written by the EDAG and
-FunctionalScript outputs — see below — and refused by the value outputs,
-since a value has no function in it. Across modules the sweep is coarser: a module whose own value
+node it is. A function, `(...a) => body` or `() => body`, is written by the
+EDAG and FunctionalScript outputs — see below — and refused by the value
+outputs, since a value has no function in it. The AST carries no parameter,
+so the two spellings reach the outputs as the one node and the writer gives
+both the rest parameter. Nothing observes the difference: `f.name` is
+refused at the key, and `f.length` is `0` for a rest parameter as it is for
+none, a rest parameter not counting towards a function's arity in
+JavaScript. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
@@ -128,8 +133,11 @@ step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
 — which is what retired the two refusals the old fold needed, an access and a
 call on a numeric literal alike. What it takes is JavaScript's
 `UnaryExpression`, so not a function: `-(...a) => 1` is a syntax error in
-both, and the writer gives a negated function a `const` of its own, as it does
-an access base.
+both. A group is that expression, though, so the prefix reaches a function
+through one, `-((...a) => 1)`, and the refusal falls on the `...` where
+JavaScript's does rather than on the `(`. The writer still gives a negated
+function a `const` of its own, as it does an access base, until it spells a
+group.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
@@ -144,10 +152,19 @@ keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
 form yet and refuses both by name, so a module with a call in it compiles to
 the EDAG output alone. When it gets one, a negative callee needs the care an
 access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
-written `-1()` — a group would say it, `(-1)()`, and until the grammar has
-one ([`todo/grouping.md`](todo/grouping.md)) a `const` does. The writer's
-proof refuses that shape by name, so the question comes up where the
-spelling is written.
+written `-1()` — the grammar spells it, `(-1)()`, and until the writer reads
+a group a `const` does. The writer's proof refuses that shape by name, so
+the question comes up where the spelling is written.
+A group, `(x)`, is the value it holds: no node in the AST or the graph, and
+nothing downstream can tell one was written — the steps after the `)` read
+the value inside, which is why `(a.b)(c)` is the node `a.b(c)` is, and the
+sharing a module spells survives the parentheses. What it adds is spelling:
+a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
+on a value written in place, `([1]).length`, and the two the prefix cannot
+say without it — the access on a negation, `(-1).x` against `-1 .x`, and a
+negated function, `-((...a) => 1)`. The writer spells both today, through a
+`const` rather than a group: `negHoisted` hoists a negated function, and
+`basedHoisted` the negation an access reads.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
