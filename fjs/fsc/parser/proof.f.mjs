@@ -502,6 +502,14 @@ export const proof = {
             // syntax error in JavaScript, so the operand rule takes every
             // value but a function
             expect('export default -(...a) => 1;', 17)
+            // and it is the *operand rule* that refuses it, not the one
+            // branch: the rule names itself, so a `-` one deeper reaches it
+            // again, and a body's `-` takes the same rule rather than the
+            // body's own. Each of the three references is load-bearing —
+            // point any of them at `value` and the function is admitted
+            expect('export default - -(...a) => 1;', 19)
+            expect('export default (...b) => -(...a) => 1;', 27)
+            expect('export default (...b) => - -(...a) => 1;', 29)
         },
     },
     memberOrder: () => {
