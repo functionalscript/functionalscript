@@ -44,9 +44,15 @@ export type ParseError = {
  * converted from its token, a reference by the identifier token that spells
  * it — its name, and the position an error is anchored at — a property
  * access by the token its key is read from, a call by its arguments in the
- * order written and the `(` an error against the call is anchored at, a function by the token naming its parameter and its body,
+ * order written, a negation by its operand, a function by the token naming
+ * its parameter and its body,
  * a block body by its `const` statements and the value it returns, or a
  * container of its items in the order written.
+ *
+ * A call carries no token of its own. It held the `(` while an error was
+ * anchored there — a call on a numeric literal, which the fold refused —
+ * and that refusal is gone, `-1()` being the negation of `1()` as
+ * JavaScript reads it.
  *
  * A `block` stands only as a function's body, and only when it has a
  * statement: `{ return v; }` and `v` are one function in JavaScript, so the
