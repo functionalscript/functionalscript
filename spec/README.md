@@ -352,9 +352,13 @@ is `-(1 .x)` and `-1()` is `-(1())`. What it takes is JavaScript's
 syntax error in both. Two adjacent `-` characters are the decrement operator,
 which the language has no rule for: a negation of a negation is `- -1`.
 
-A negative number is therefore an expression rather than a literal. What it is
-worth is computed where a value is wanted — a `.json` or DataJS output is the
-value, `-1` — and left as the expression where the graph is.
+A negative number is therefore an expression rather than a literal *in the
+syntax*. The graph is another matter: lowering folds a negation of a numeric
+literal into the number, since negating one is exact arithmetic, so the EDAG
+of `-1` is the leaf `-1` and not an operation. A negation of anything else
+stays an operation there — folding one would mean saying what a string or a
+container converts to — and what such a value is worth is computed where a
+value is wanted, a `.json` or DataJS output being the value.
 
 ### Strings
 
