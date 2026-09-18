@@ -9,7 +9,7 @@ Two consumers of an EDAG have to know which nodes are shared without
 running it, and neither can ask the graph directly.
 
 - The FunctionalScript writer
-  ([`fjs/fsc/todo/functionalscript-output.md`](../../fsc/todo/functionalscript-output.md))
+  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs))
   hoists a shared node into a `const $n`.
 - A JavaScript-compatible executor
   ([`../execution-models.md`](../execution-models.md) §2) evaluates a shared
@@ -120,7 +120,7 @@ type Analysis = {
   answers as one that computes it twice does. It is what lets the
   EDAG-backed outputs retire the AST's route sweep, and it is the equality
   the writer's round trip is stated over
-  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)):
+  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs)):
   two graphs are the same to the analysis when they differ only where the
   merge says they are one.
 - **Sharing decides how many times, never when.** A shared node has a cache
@@ -145,7 +145,7 @@ type Analysis = {
   writes the JavaScript meaning, so an EDAG the CAVM has optimized is not
   necessarily expressible in `.f.js` and is not promised to survive the
   round trip; that promise is made for the JavaScript-compatible model
-  ([`functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)).
+  ([`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs)).
 - **Numbered, not keyed.** The table is built as the DataJS serializer builds
   its graph, a finished list numbered once, and the one `Map` by object
   lives inside that build; no consumer holds one, since each reads indices:
@@ -212,7 +212,7 @@ value outputs keep the sweep until they run the EDAG.
   executors share, and why amnesia itself stays an oracle.
 - [`fjs/fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md) — the
   interpreter plan, whose per-invocation memoization this table serves.
-- [`fjs/fsc/todo/functionalscript-output.md`](../../fsc/todo/functionalscript-output.md)
-  — the writer that hoists `shared`.
+- [`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs) — the writer
+  that hoists `shared`.
 - [`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs) —
   the numbering technique, a finished list and one `Map`, reused here.

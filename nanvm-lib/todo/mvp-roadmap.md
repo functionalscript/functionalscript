@@ -280,19 +280,16 @@ as a generic `Any` facility, post-MVP.
       constant-default-export walking-skeleton subset (literals, arrays,
       objects, `const` sharing, property access); see
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) for what
-      it does and does not cover yet. Verified manually against the real
-      `nanvm-lib` crate (`cargo run` / `cargo fmt --check` on generated
-      samples), but not yet continuously verified by the repository's own
-      harness and CI — that is still the next task, and the MVP is not
-      reached until it exists and runs this generator's output end-to-end.
-- [ ] **Harness + walking skeleton** — a harness crate (or generated tests
-      in `nanvm-lib`) whose `main` evaluates a generated module's
-      `export default` and prints the result as JSON; wire the pipeline
-      end-to-end early with a minimal synthetic FunctionalScript JavaScript
-      fixture (e.g. a constant default export), driven by `cargo test` in CI,
-      so every later feature lands into a working pipeline. This synthetic
-      fixture may use `.f.mjs`; it does not define the repository extension
-      contract. See
+      it does and does not cover yet. Continuously verified now by the
+      `nanvm-harness` crate below: `npm run gen` compiles the harness's
+      fixtures with this generator, and `cargo test` runs the result.
+- [x] **Harness + walking skeleton** — a harness crate (`nanvm-harness`)
+      whose `main` evaluates a generated module's `export default` and
+      prints the result as JSON; the pipeline is wired end-to-end with
+      fixtures covering the walking-skeleton subset
+      (`nanvm-harness/fixtures/{number,boolean,string,array,object,sharing,property}.mjs`),
+      compiled by `fjs compile` into sibling `.rs` files committed and
+      drift-checked via `npm run gen`, and proven by `cargo test` in CI. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 - [x] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests, so
@@ -300,7 +297,7 @@ as a generic `Any` facility, post-MVP.
       shared operator layer is what keeps the interpreter and the generated
       code in agreement. See
       [`nanvm-lib/tests/README.md`](../tests/README.md).
-- [ ] **Complete all basic FunctionalScript operators** (Rust), including the
+- [x] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
       Each operator arrives as cases in
       [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), which is what

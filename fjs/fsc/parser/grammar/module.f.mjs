@@ -7,11 +7,14 @@
  * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t 'default' t value ';' t
- * value  ::= (primitive t | id t | array | object) access* | func
- * body   ::= (primitive t | id t | array) access* | func | block
- * block  ::= '{' t 'return' s value ';' t '}' t
- * func   ::= '(' t '...' t id t ')' s '=>' t body
- * access ::= '.' t id t | '[' t (string | number) t ']' t
+ * value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
+ * body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
+ * unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
+ * block  ::= '{' t const* 'return' s value ';' t '}' t
+ * paren  ::= '(' t (func | group)
+ * func   ::= '...' t id t ')' s '=>' t body
+ * group  ::= value ')' t access*
+ * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
  * array  ::= '[' t [ items(value) ] ']' t
  * object ::= '{' t [ items(member) ] '}' t
  * member ::= key t ':' t value
@@ -21,9 +24,16 @@
  * s      ::= (ws | comment)*
  * ```
  *
- * Three things are spelled for one symbol of lookahead, each a conflict
- * the classical grammar this replaced had, measured before the port and
- * recorded in `fjs/fsc/README.md` ("Both grammars are LL(1)"):
+ * A `(` opens two things, so it is read before either: {@link paren} takes
+ * the `(` and {@link func} and {@link group} part at the next symbol, `...`
+ * against a value's first, which is how a function and a group live in one
+ * grammar without lookahead past the `)` — where JavaScript itself needs
+ * it, and where parenthesized parameters will
+ * ([`spec/todo/3120-parameters.md`](../../../../spec/todo/3120-parameters.md)).
+ *
+ * Three more things are spelled for one symbol of lookahead, each a
+ * conflict the classical grammar this replaced had, measured before the
+ * port and recorded in `fjs/fsc/README.md` ("Both grammars are LL(1)"):
  *
  * - **Trivia follows a token, never leads a rule.** Every token is
  *   followed by `t`, so no rule begins with trivia and no two branches
@@ -50,7 +60,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Block, Body, Func, Items, Member, Value } from './types.ts'
+ * @import { Access, Block, Body, Func, Group, Items, Member, Paren, ParenGroup, Parenthesized, Unary, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -73,8 +83,8 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
  * Exported with a leading `_` for that linkage — the export is not API.
  */
 export const _tokenKindNames = /** @type {const} */ ([
-    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity', '-Infinity',
-    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...',
+    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
+    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -170,6 +180,29 @@ export const identifier = /** @type {const} */ ({
     return: sym('return'),
 })
 
+/**
+ * Every word that may *name* something — a property, or a binding — which
+ * is {@link identifier} and the six words that denote a value.
+ *
+ * ECMAScript draws the same line and this follows it: a property is named
+ * by an `IdentifierName`, which admits every reserved word, so `{ NaN: 1 }`
+ * and `a.NaN` are JavaScript and mean the string `"NaN"`, while a reference
+ * is an `IdentifierReference`, which admits none of them. A binding is an
+ * ECMAScript `BindingIdentifier`, narrower still; it takes this wider rule
+ * here so that `const NaN = 1;` reaches the fold and is refused as a
+ * `reserved word`, rather than dying at the token with `unexpected token`.
+ *
+ */
+export const identifierName = /** @type {const} */ ({
+    ...identifier,
+    null: sym('null'),
+    true: sym('true'),
+    false: sym('false'),
+    undefined: sym('undefined'),
+    NaN: sym('NaN'),
+    Infinity: sym('Infinity'),
+})
+
 /** A value that is one token. */
 export const primitive = /** @type {const} */ ({
     null: sym('null'),
@@ -178,7 +211,6 @@ export const primitive = /** @type {const} */ ({
     undefined: sym('undefined'),
     NaN: sym('NaN'),
     Infinity: sym('Infinity'),
-    '-Infinity': sym('-Infinity'),
     number: sym('number'),
     string: sym('string'),
     bigint: sym('bigint'),
@@ -204,14 +236,36 @@ export const index = /** @type {const} */ ({
 })
 
 /**
- * One step of a property access after a value: `.name`, the name any
- * identifier, or `[key]`, the key a constant. What the two spellings may
- * name is the fold's to check, since the name is a word the grammar does
- * not see. Each step ends with its trivia, as a value does.
+ * A call's arguments: the items an array holds, {@link values}, reached
+ * through a thunk.
+ *
+ * This is where the grammar's cycle is broken a second time — a value takes
+ * steps, a step may be a call, and a call holds values, so `access` would
+ * have to name `values` before it is declared. A rule of its own rather than
+ * a thunk over the value rule, because what a list embeds has to be the
+ * `value` rule itself: the rewrite set is keyed by rule, so a wrapper in the
+ * item's place would leave each argument unmapped.
+ *
+ * @type {() => ReturnType<Items<Value>>}
  */
-export const access = /** @type {const} */ ({
-    property: [sym('.'), trivia, identifier, trivia],
+export const callArguments = () => values()
+
+/**
+ * One step after a value: a property access, `.name` with the name any
+ * identifier or `[key]` with the key a constant, or a call, `(a, b)` with
+ * its arguments any values. What a property's two spellings may name is the
+ * fold's to check, since the name is a word the grammar does not see. Each
+ * step ends with its trivia, as a value does.
+ *
+ * Three symbols decide between them — `.`, `[` and `(` — and none of them
+ * follows a value any other way, so the step a value takes is read in one.
+ * `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what a
+ * step applies to is everything written before it.
+ */
+export const access = /** @type {Access} */ ({
+    property: [sym('.'), trivia, identifierName, trivia],
     index: [sym('['), trivia, index, trivia, sym(']'), trivia],
+    call: [sym('('), trivia, option(callArguments), sym(')'), trivia],
 })
 
 /** The accesses after a value, `a.b[0]`, none or more. */
@@ -227,32 +281,66 @@ const reference = /** @type {const} */ ([[identifier, trivia], accesses])
  * A function's body: a value, but not an object — after `=>` JavaScript
  * reads `{` as a block, never as an object, so the spelling is refused
  * rather than read another way — or that block, {@link block}, in which an
- * object is an ordinary value again. A function takes no access of its
- * own: after `=>` an access belongs to the body.
+ * object is an ordinary value again. A group is a body as it is a value,
+ * and it is the other spelling of a function returning an object,
+ * `(...a) => ({ x: 1 })`. A function takes no access of its own: after
+ * `=>` an access belongs to the body.
  *
- * `{` decides between the two in one symbol, since no other branch starts
- * with it.
+ * `{` decides the block in one symbol, since no other branch starts with
+ * it — and after a `-` it opens an object again, the prefix putting what
+ * follows it in expression position, which is why that branch is
+ * {@link unary} rather than this rule. `(` decides the group, since the
+ * function under it is {@link paren}'s own branch.
  *
  * @type {Body}
  */
 export const body = () => ['const', {
+    neg: [sym('-'), trivia, unary],
     primitive: primitiveValue,
     ref: reference,
     array: [array, accesses],
-    func,
+    paren,
     block,
 }]
 
 /**
- * A function: one rest parameter, `(...a)`, then `=>` on the same line
- * as the `)`, as JavaScript requires, and the body, which ends with its
- * own trivia as every value does. The parameter is the arguments array,
- * and the body names it and nothing outside — which names it may use is
- * the fold's to say, since a name is a word the grammar does not see.
+ * A function after its `(`: one rest parameter, `...a`, the `)`, then `=>`
+ * on the same line as that `)`, as JavaScript requires, and the body, which
+ * ends with its own trivia as every value does. The parameter is the
+ * arguments array, and the body names it and nothing outside — which names
+ * it may use is the fold's to say, since a name is a word the grammar does
+ * not see.
+ *
+ * The `(` is {@link paren}'s, since a group opens with the same symbol.
  *
  * @type {Func}
  */
-export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
+export const func = [sym('...'), trivia, identifierName, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
+
+/**
+ * What a `-` takes: every value but a function. JavaScript's unary operand
+ * is a `UnaryExpression`, which an arrow function is not — `-(...a) => 1`
+ * is a syntax error there, so it is one here — and the branch is
+ * right-recursive, so `- -1` is a negation of a negation. `--1` is not:
+ * the two characters are the one decrement token, which the language has
+ * no rule for.
+ *
+ * A group is an operand, {@link parenGroup}, and it is how a function
+ * reaches a `-` at all: `-((...a) => 1)` negates one where `-(...a) => 1`
+ * cannot be written. So the branch is that rule and not {@link paren},
+ * which a function shares — taking the `(` alternative whole would admit
+ * the spelling JavaScript refuses.
+ *
+ * @type {Unary}
+ */
+export const unary = () => ['const', {
+    neg: [sym('-'), trivia, unary],
+    primitive: primitiveValue,
+    ref: reference,
+    array: [array, accesses],
+    object: [object, accesses],
+    group: parenGroup,
+}]
 
 /**
  * A value ends with its own trivia, so that it may be followed by an
@@ -262,23 +350,75 @@ export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, s
  * what follows a value adds none. Any value takes accesses, as any
  * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`.
  * `1 .x` parses here too, with a space since `1.x` is one number and a
- * stray word in JavaScript, and the fold refuses it with every access on
- * a numeric literal: JavaScript reads `-1 .x` as `-(1 .x)` and the
- * tokenizer folds the minus into the number.
+ * stray word in JavaScript.
+ *
+ * `-` is the language's one prefix operator and binds looser than a step,
+ * which is what {@link unary} says: it takes a whole value, accesses and
+ * all, so `-1 .x` is the negation of the access and `-1()` of the call, as
+ * JavaScript reads them.
  *
  * @type {Value}
  */
 export const value = () => ['const', {
+    neg: [sym('-'), trivia, unary],
     primitive: primitiveValue,
     ref: reference,
     array: [array, accesses],
     object: [object, accesses],
-    func,
+    paren,
 }]
+
+/**
+ * A group after its `(`: any value, the `)`, and the steps after it. A
+ * group denotes the value it holds and nothing more — `(x)` is `x`, the
+ * graph and its sharing as if the parentheses were not written, which is
+ * what JavaScript means by them — so it makes no node of its own and there
+ * is no canonical form to choose.
+ *
+ * A group takes steps as any value does, `([1]).length`, and a step reads
+ * the value inside: parentheses are not a boundary the fold or the lowering
+ * can see, so `(a.b)(c)` is the method call `a.b(c)` is — JavaScript keeps
+ * the property reference through them, and only the comma operator detaches
+ * a receiver.
+ *
+ * The value inside is the whole value rule, `{` included: a group is not
+ * the place a block may start, so `({ x: 1 })` is the object it looks
+ * like.
+ *
+ * @type {Group}
+ */
+export const group = [value, sym(')'), trivia, accesses]
+
+/**
+ * What a `(` opens: the rest of a function, or a group. `...` decides it in
+ * one symbol — no value begins with one — so the two share the `(` and the
+ * grammar never looks past the `)`.
+ *
+ * @type {Parenthesized}
+ */
+export const parenthesized = { func, group }
+
+/**
+ * A `(` and what it opens: the `(`-alternative of {@link value} and of
+ * {@link body} both, since a function and a group stand wherever a value
+ * does.
+ *
+ * @type {Paren}
+ */
+export const paren = [sym('('), trivia, parenthesized]
+
+/**
+ * A `(` and the group it opens, with no function among the alternatives:
+ * {@link unary}'s `(` branch. A group after a `-` takes its own steps, so
+ * `-(1).x` is the negation of the access, as JavaScript reads it.
+ *
+ * @type {ParenGroup}
+ */
+export const parenGroup = [sym('('), trivia, group]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({
-    plain: identifier,
+    plain: identifierName,
     string: sym('string'),
     computed: [sym('['), trivia, sym('string'), trivia, sym(']')],
 })
@@ -286,11 +426,11 @@ export const key = /** @type {const} */ ({
 /** @type {Member} */
 export const member = [key, trivia, sym(':'), trivia, value]
 
-/** The items of an array. A rule of its own, so that a reader may map it. */
-export const values = items(value)
-
 /** The members of an object, likewise. */
 export const members = items(member)
+
+/** The items of an array. A rule of its own, so that a reader may map it. */
+export const values = items(value)
 
 export const array = /** @type {const} */ ([sym('['), trivia, option(values), sym(']'), trivia])
 
@@ -300,14 +440,34 @@ export const object = /** @type {const} */ ([sym('{'), trivia, option(members), 
 const end = /** @type {const} */ ([sym(';'), trivia])
 
 /**
- * A function's block body: `{ return value; }`, one `return` statement and
- * nothing else — a body `const` before it is
- * [3130](../../../../spec/todo/3130-body-const.md).
+ * A `const` statement: the name, `=`, the value, `;`. A module's statement
+ * and a function body's alike — {@link djsModule} takes a run of them after
+ * the imports, and {@link block} a run of them before the `return`.
+ *
+ * Declared here, above {@link block}, rather than with the other module
+ * statements below: `block` holds it directly, where the recursion back
+ * into `value` goes through a thunk.
+ */
+export const constStatement = /** @type {const} */ ([
+    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, ...end,
+])
+
+/**
+ * A function's block body: `{ const x = 1; return value; }` — any number of
+ * `const` statements and then the one `return`
+ * ([spec: functions](../../../../spec/README.md#functions)).
+ *
+ * The `const` is {@link constStatement}, the module's own rule: the body
+ * binds names the way a module does, and the fold is what says the two
+ * scopes are different — a body's name is the body's, and a reference out
+ * of it is a capture.
  *
  * The value is an ordinary {@link value}, the object included: `{` opens a
  * block only where a statement may start, and after `return` an expression
- * is expected, so `=> { return { a: 1 }; }` is how a function returns an
- * object literal — the spelling the expression body has none of.
+ * is expected, so `=> { return { a: 1 }; }` returns an object literal. It is
+ * the spelling a *bare* one needs: `=> {` opens a block, so the expression
+ * body reaches the same object through a group, `=> ({ a: 1 })`, and the two
+ * are one function.
  *
  * `s` and not `t` before it, where JavaScript has
  * `return [no LineTerminator here] Expression`: a newline there ends the
@@ -321,7 +481,7 @@ const end = /** @type {const} */ ([sym(';'), trivia])
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), trivia, sym('return'), sameLine, value, ...end, sym('}'), trivia,
+    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, value, ...end, sym('}'), trivia,
 ])
 
 /**
@@ -331,24 +491,20 @@ export const block = /** @type {const} */ ([
  * — the key has to be `type` and the value `json`, and the fold says which
  * is not.
  *
- * The key is {@link identifier} and not the bare `id` symbol, so that a
+ * The key is {@link identifierName} and not the bare `id` symbol, so that a
  * word with a symbol of its own stands here as any other word does:
  * JavaScript's key is an `IdentifierName`, which admits every reserved
  * word, and giving a word its own symbol narrows where it is *required*,
- * never where it is *allowed*. `with { return: "json" }` is an unknown
- * attribute, which is the fold's to say, not a token the grammar did not
- * expect.
+ * never where it is *allowed*. `with { return: "json" }` and
+ * `with { NaN: "json" }` are unknown attributes, which is the fold's to
+ * say, not a token the grammar did not expect.
  */
 export const attribute = /** @type {const} */ ([
-    sym('with'), trivia, sym('{'), trivia, identifier, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
+    sym('with'), trivia, sym('{'), trivia, identifierName, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
 ])
 
 export const importStatement = /** @type {const} */ ([
-    sym('import'), trivia, identifier, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
-])
-
-export const constStatement = /** @type {const} */ ([
-    sym('const'), trivia, identifier, trivia, sym('='), trivia, value, ...end,
+    sym('import'), trivia, identifierName, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
 ])
 
 export const exportStatement = /** @type {const} */ ([

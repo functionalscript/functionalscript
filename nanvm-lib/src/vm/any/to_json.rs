@@ -1,22 +1,29 @@
 use core::fmt::{self, Display, Formatter, Write};
 
-use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
-    string_coercion::number_to_string,
+use crate::{
+    common::sized_index::SizedIndex,
+    vm::{
+        Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
+        string_coercion::number_to_string,
+    },
 };
 
 /// An `Any<A>` shape [`Any::to_json`] does not (yet) know how to render.
 ///
-/// Scoped deliberately: the walking-skeleton harness
-/// (`todo/fjs-nanvm-integration.md`) only needs numbers, strings, booleans,
-/// and `null`. Everything else here is a real ECMAScript value with no
-/// direct JSON counterpart; `mvp-roadmap.md`'s open question 3 ("does the
-/// MVP print DJS for those, or report an error?") is left for later — this
-/// reports an error rather than guessing at a representation.
+/// Scoped deliberately: arrays and objects recurse (see [`Any::to_json`]),
+/// so most remaining gaps bottom out at a scalar with no direct JSON
+/// counterpart — `mvp-roadmap.md`'s open question 3 ("does the MVP print DJS
+/// for those, or report an error?") is left for later, so this reports an
+/// error rather than guessing at a representation. The one gap that is not a
+/// nested scalar is [`JsonError::IntegerLikeObjectKey`]: an object can itself
+/// be the reason serialization fails, because `nanvm-lib` has no correct
+/// enumeration order for it yet (see the `object` dispatch arm's doc
+/// comment) and silently picking the wrong one is not an option
+/// (`AGENTS.md`'s "Merge the knowledge": "an unsupported input is refused,
+/// never answered with a plausible wrong value").
 ///
-/// `to_json` itself is hand-written Rust standing in for FJS-compiled logic,
-/// same as the harness's own synthetic fixtures stand in for real codegen
-/// output — see `nanvm-lib/todo/to-json-fjs-migration.md` for the plan to
+/// `to_json` itself is hand-written Rust standing in for FJS-compiled
+/// logic — see `nanvm-lib/todo/to-json-fjs-migration.md` for the plan to
 /// retire it once `fjs compile` can reach
 /// `fjs/media/json/serializer/module.f.mjs`.
 #[derive(Debug, PartialEq)]
@@ -24,9 +31,8 @@ pub enum JsonError {
     Undefined,
     NonFiniteNumber(f64),
     BigInt,
-    Object,
-    Array,
     Function,
+    IntegerLikeObjectKey,
 }
 
 impl Display for JsonError {
@@ -35,11 +41,77 @@ impl Display for JsonError {
             JsonError::Undefined => write!(f, "`undefined` has no JSON representation"),
             JsonError::NonFiniteNumber(v) => write!(f, "{v} has no JSON representation"),
             JsonError::BigInt => write!(f, "a BigInt has no JSON representation"),
-            JsonError::Object => write!(f, "object-to-JSON serialization is not implemented yet"),
-            JsonError::Array => write!(f, "array-to-JSON serialization is not implemented yet"),
             JsonError::Function => write!(f, "a function has no JSON representation"),
+            JsonError::IntegerLikeObjectKey => write!(
+                f,
+                "an object with an array-index-like key has no correct JSON \
+                 representation yet: nanvm-lib does not implement ECMAScript's \
+                 integer-keys-first property enumeration order"
+            ),
         }
     }
+}
+
+/// `true` for a key ECMAScript's own-property enumeration treats as an
+/// "array index" — the keys `JSON.stringify` (via `[[OwnPropertyKeys]]`)
+/// lists first, ascending, ahead of every other key in insertion order:
+/// `ToString(ToUint32(key)) == key` and `ToUint32(key) != 2^32 - 1`. ASCII
+/// digits only, no leading zero unless the key is exactly `"0"`, and in
+/// range — `"01"` and `"4294967295"` are both excluded, the first because
+/// its canonical form is `"1"`, not itself, the second because it's the
+/// one `ToUint32` value the spec carves out.
+///
+/// Only checked, never acted on: [`ToJson::object`] has no way to print keys
+/// in this order today.
+fn is_array_index_key<A: IVm>(k: &String<A>) -> bool {
+    let units: std::vec::Vec<u16> = k.clone().into_iter().collect();
+    let zero = b'0' as u16;
+    if units == [zero] {
+        return true;
+    }
+    if units.is_empty()
+        || units[0] == zero
+        || !units.iter().all(|&u| (zero..=b'9' as u16).contains(&u))
+    {
+        return false;
+    }
+    let digits: std::string::String = units.iter().map(|&u| (u as u8) as char).collect();
+    digits.parse::<u32>().is_ok_and(|n| n != u32::MAX)
+}
+
+/// Renders `v` as a JSON string literal, quotes and escapes included.
+///
+/// Shared by [`ToJson::string`] and object-key serialization
+/// ([`ToJson::object`]): a key is itself a `String<A>` and needs exactly the
+/// same escaping a string *value* does.
+fn json_string<A: IVm>(v: String<A>) -> std::string::String {
+    let mut out = std::string::String::from("\"");
+    for r in char::decode_utf16(v) {
+        match r {
+            Ok('"') => out.push_str("\\\""),
+            Ok('\\') => out.push_str("\\\\"),
+            Ok('\u{8}') => out.push_str("\\b"),
+            Ok('\u{c}') => out.push_str("\\f"),
+            Ok('\n') => out.push_str("\\n"),
+            Ok('\r') => out.push_str("\\r"),
+            Ok('\t') => out.push_str("\\t"),
+            Ok(c) if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            Ok(c) => out.push(c),
+            // A lone UTF-16 surrogate has no Unicode text representation,
+            // but well-formed JSON stringification (ES2019) still emits
+            // it as its own `\uXXXX` escape rather than refusing the
+            // whole string — the same convention this repository's own
+            // JSON serializer follows
+            // (`fjs/media/json/serializer/module.f.mjs`).
+            Err(e) => {
+                let _ = write!(out, "\\u{:04x}", e.unpaired_surrogate());
+            }
+        }
+    }
+    out.push('"');
+    out
 }
 
 struct ToJson;
@@ -73,45 +145,69 @@ impl<A: IVm> Dispatch<A> for ToJson {
     }
 
     fn string(self, v: String<A>) -> Self::Result {
-        let mut out = std::string::String::from("\"");
-        for r in char::decode_utf16(v) {
-            match r {
-                Ok('"') => out.push_str("\\\""),
-                Ok('\\') => out.push_str("\\\\"),
-                Ok('\u{8}') => out.push_str("\\b"),
-                Ok('\u{c}') => out.push_str("\\f"),
-                Ok('\n') => out.push_str("\\n"),
-                Ok('\r') => out.push_str("\\r"),
-                Ok('\t') => out.push_str("\\t"),
-                Ok(c) if (c as u32) < 0x20 => {
-                    let _ = write!(out, "\\u{:04x}", c as u32);
-                }
-                Ok(c) => out.push(c),
-                // A lone UTF-16 surrogate has no Unicode text representation,
-                // but well-formed JSON stringification (ES2019) still emits
-                // it as its own `\uXXXX` escape rather than refusing the
-                // whole string — the same convention this repository's own
-                // JSON serializer follows
-                // (`fjs/media/json/serializer/module.f.mjs`).
-                Err(e) => {
-                    let _ = write!(out, "\\u{:04x}", e.unpaired_surrogate());
-                }
-            }
-        }
-        out.push('"');
-        Ok(out)
+        Ok(json_string(v))
     }
 
     fn bigint(self, _: BigInt<A>) -> Self::Result {
         Err(JsonError::BigInt)
     }
 
-    fn object(self, _: Object<A>) -> Self::Result {
-        Err(JsonError::Object)
+    fn object(self, v: Object<A>) -> Self::Result {
+        // An object's property list is never deduplicated on construction
+        // (`own_property.rs`'s own doc comment), so a correct rendering has
+        // to do what `JSON.stringify` does on the equivalent JS object:
+        // each key's *last* value, kept at its *first* position. A bare
+        // per-member loop would either repeat a key or pick the wrong
+        // value, so the distinct keys are collected first, in first-seen
+        // order, and each one's value is then a fresh `own_property` scan
+        // (last-write-wins by construction — see that method's doc
+        // comment).
+        //
+        // Not implemented here: ECMAScript's own-property enumeration order
+        // puts integer-like string keys first, ascending, before non-integer
+        // keys in insertion order (`fjs/fsc/README.md`'s object-literal
+        // section calls this out at the AST level; see `is_array_index_key`
+        // for the exact rule). Nothing in `nanvm-lib` implements that
+        // reordering today, so rather than silently emitting first-insertion
+        // order for such a key — a plausible-looking JSON string that
+        // disagrees with `JSON.stringify` on member order — any object
+        // holding one is refused outright.
+        let mut keys: Vec<String<A>> = Vec::new();
+        for i in 0..v.length() {
+            let (k, _) = &v[i];
+            if is_array_index_key(k) {
+                return Err(JsonError::IntegerLikeObjectKey);
+            }
+            if !keys.iter().any(|seen| seen == k) {
+                keys.push(k.clone());
+            }
+        }
+        let mut out = std::string::String::from("{");
+        for (i, k) in keys.into_iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(&json_string(k.clone()));
+            out.push(':');
+            let value = v
+                .own_property(&k)
+                .expect("key was just read from this object's own properties");
+            out.push_str(&value.to_json()?);
+        }
+        out.push('}');
+        Ok(out)
     }
 
-    fn array(self, _: Array<A>) -> Self::Result {
-        Err(JsonError::Array)
+    fn array(self, v: Array<A>) -> Self::Result {
+        let mut out = std::string::String::from("[");
+        for (i, item) in v.index_iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push_str(&item.to_json()?);
+        }
+        out.push(']');
+        Ok(out)
     }
 
     fn function(self, _: Function<A>) -> Self::Result {
@@ -120,9 +216,9 @@ impl<A: IVm> Dispatch<A> for ToJson {
 }
 
 impl<A: IVm> Any<A> {
-    /// A minimal `Any<A>` -> JSON serializer, covering exactly what the
-    /// walking-skeleton harness needs: numbers, strings, booleans, and
-    /// `null`. See [`JsonError`] for what's deliberately unhandled.
+    /// An `Any<A>` -> JSON serializer covering everything with a direct JSON
+    /// counterpart: numbers, strings, booleans, `null`, and arrays/objects
+    /// recursed into. See [`JsonError`] for what's deliberately unhandled.
     pub fn to_json(self) -> Result<std::string::String, JsonError> {
         self.dispatch(ToJson)
     }
@@ -207,15 +303,133 @@ mod tests {
     }
 
     #[test]
-    fn object_errors() {
-        let o = [].to_object::<A>();
-        assert_eq!(o.to_any::<A>().to_json(), Err(super::JsonError::Object));
+    fn empty_array() {
+        let a = [].to_array::<A>();
+        assert_eq!(a.to_any::<A>().to_json(), Ok("[]".into()));
     }
 
     #[test]
-    fn array_errors() {
-        let a = [].to_array::<A>();
-        assert_eq!(a.to_any::<A>().to_json(), Err(super::JsonError::Array));
+    fn array_of_scalars() {
+        let a: crate::vm::Array<A> = [1.0.to_any(), true.to_any(), s("x")].to_array();
+        assert_eq!(a.to_any::<A>().to_json(), Ok(r#"[1,true,"x"]"#.into()));
+    }
+
+    #[test]
+    fn nested_arrays() {
+        let inner: crate::vm::Array<A> = [1.0.to_any()].to_array();
+        let outer: crate::vm::Array<A> = [inner.to_any(), 2.0.to_any()].to_array();
+        assert_eq!(outer.to_any::<A>().to_json(), Ok("[[1],2]".into()));
+    }
+
+    #[test]
+    fn array_element_error_propagates_as_the_scalar_it_is() {
+        // The element that can't serialize is what's reported, never a
+        // generic "array" refusal — arrays themselves can no longer be the
+        // *reason* a serialization fails now that they recurse.
+        use crate::vm::Nullish;
+        let a: crate::vm::Array<A> = [1.0.to_any(), Nullish::Undefined.to_any()].to_array();
+        assert_eq!(a.to_any::<A>().to_json(), Err(super::JsonError::Undefined));
+    }
+
+    #[test]
+    fn empty_object() {
+        let o = [].to_object::<A>();
+        assert_eq!(o.to_any::<A>().to_json(), Ok("{}".into()));
+    }
+
+    #[test]
+    fn object_of_scalars() {
+        let o: crate::vm::Object<A> =
+            [("a".into(), 1.0.to_any()), ("b".into(), s("two"))].to_object();
+        assert_eq!(o.to_any::<A>().to_json(), Ok(r#"{"a":1,"b":"two"}"#.into()));
+    }
+
+    #[test]
+    fn nested_objects() {
+        let inner: crate::vm::Object<A> = [("x".into(), 1.0.to_any())].to_object();
+        let outer: crate::vm::Object<A> = [("a".into(), inner.to_any())].to_object();
+        assert_eq!(outer.to_any::<A>().to_json(), Ok(r#"{"a":{"x":1}}"#.into()));
+    }
+
+    #[test]
+    fn duplicate_key_keeps_last_value_at_first_position() {
+        // `JSON.stringify({ a: 1, b: 2, a: 3 })` is `'{"a":3,"b":2}'`: the
+        // later `a` wins the value, but the member list still shows `a`
+        // first, since that's where it was first declared.
+        let o: crate::vm::Object<A> = [
+            ("a".into(), 1.0.to_any()),
+            ("b".into(), 2.0.to_any()),
+            ("a".into(), 3.0.to_any()),
+        ]
+        .to_object();
+        assert_eq!(o.to_any::<A>().to_json(), Ok(r#"{"a":3,"b":2}"#.into()));
+    }
+
+    #[test]
+    fn object_member_error_propagates_as_the_scalar_it_is() {
+        use crate::vm::Nullish;
+        let o: crate::vm::Object<A> = [("a".into(), Nullish::Undefined.to_any())].to_object();
+        assert_eq!(o.to_any::<A>().to_json(), Err(super::JsonError::Undefined));
+    }
+
+    #[test]
+    fn integer_like_object_key_is_refused() {
+        // `{ 1: 'a' }` would need integer-keys-first enumeration order to
+        // match `JSON.stringify`, which `nanvm-lib` doesn't implement —
+        // refused rather than silently printed in insertion order.
+        let o: crate::vm::Object<A> = [("1".into(), s("a"))].to_object();
+        assert_eq!(
+            o.to_any::<A>().to_json(),
+            Err(super::JsonError::IntegerLikeObjectKey)
+        );
+    }
+
+    #[test]
+    fn zero_key_is_an_integer_like_key() {
+        let o: crate::vm::Object<A> = [("0".into(), s("a"))].to_object();
+        assert_eq!(
+            o.to_any::<A>().to_json(),
+            Err(super::JsonError::IntegerLikeObjectKey)
+        );
+    }
+
+    #[test]
+    fn leading_zero_key_is_not_integer_like() {
+        // `"01"`'s canonical form is `"1"`, not itself — `ToUint32("01")` is
+        // `1`, but `ToString(1)` is `"1"` ≠ `"01"`, so `JSON.stringify`
+        // treats it as an ordinary insertion-order key, not an array index.
+        let o: crate::vm::Object<A> = [("01".into(), s("a"))].to_object();
+        assert_eq!(o.to_any::<A>().to_json(), Ok(r#"{"01":"a"}"#.into()));
+    }
+
+    #[test]
+    fn max_uint32_key_is_not_integer_like() {
+        // `2^32 - 1` (`4294967295`) is the one `ToUint32` value ECMAScript's
+        // own array-index definition excludes.
+        let o: crate::vm::Object<A> = [("4294967295".into(), s("a"))].to_object();
+        assert_eq!(
+            o.to_any::<A>().to_json(),
+            Ok(r#"{"4294967295":"a"}"#.into())
+        );
+    }
+
+    #[test]
+    fn overflowing_digit_string_key_is_not_integer_like() {
+        let o: crate::vm::Object<A> = [("99999999999".into(), s("a"))].to_object();
+        assert_eq!(
+            o.to_any::<A>().to_json(),
+            Ok(r#"{"99999999999":"a"}"#.into())
+        );
+    }
+
+    #[test]
+    fn integer_like_key_nested_in_an_array_is_refused() {
+        let o: crate::vm::Object<A> = [("0".into(), 1.0.to_any())].to_object();
+        let a: crate::vm::Array<A> = [o.to_any()].to_array();
+        assert_eq!(
+            a.to_any::<A>().to_json(),
+            Err(super::JsonError::IntegerLikeObjectKey)
+        );
     }
 
     #[test]

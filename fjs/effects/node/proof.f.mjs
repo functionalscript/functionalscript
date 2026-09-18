@@ -1,18 +1,18 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoChannel, IoError, IoResult, ReadBytes, ReadFile, Stat } from "./types.ts"
+ * @import { IoChannel, IoError, IoResult, NodeOp, ReadBytes, ReadFile, Stat, _ChunkSource } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { List as List_ } from "../../types/list/types.ts"
- * @import { OperationMap } from "../types.ts"
+ * @import { Effect, OperationMap } from "../types.ts"
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { empty, isVec, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { empty, isVec, length, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
-import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes } from "./module.f.mjs"
+import { mapStep, pureOk, step as ioStep } from "../module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -51,6 +51,43 @@ const assertOk = (r, expected) => {
     assert(r[0] === 'ok', r)
     assertEq(r[1], expected)
 }
+
+/** `n` zero bytes as a `Vec`.
+ * @type {(n: number) => Vec} */
+const bytes = n => u8ListToVec(msb)(Array.from({ length: n }, () => 0))
+
+/** Runs an effect against the empty virtual file system.
+ * @type {<T>(e: Effect<NodeOp, T, IoChannel>) => readonly [unknown, Result<T, IoChannel>]} */
+const run = e => virtual(emptyState)(e)
+
+/**
+ * Pulls a whole stream, answering the byte length of every cell in order — or
+ * the channel error that ended it.
+ *
+ * **Pulling is the point.** A `List` cell is an effect, so a stream that fails
+ * on its SECOND cell answers `ok` when only the first is taken: the failure
+ * lives in a tail nobody pulled. A leaf that stopped at the first cell would
+ * pass whether or not the loop refused, which is how the short-read leaf below
+ * first passed against an implementation that was in fact correct.
+ *
+ * @type {(source: _ChunkSource<NodeOp>, bound: number | null) => Result<readonly number[], IoChannel>}
+ */
+const drain = (source, bound) => {
+    /** @type {(l: any, acc: readonly number[]) => any} */
+    const loop = (l, acc) => ioStep(l, cell => cell === undefined
+        ? pureOk(acc)
+        : loop(cell.tail, [...acc, Number(length(cell.first) >> 3n)]))
+    return run(loop(readChunks(source, bound), []))[1]
+}
+
+/** The cell lengths of a stream that must not fail.
+ * @type {(source: _ChunkSource<NodeOp>, bound: number | null) => readonly number[]} */
+const lengths = (source, bound) => {
+    const r = drain(source, bound)
+    assert(r[0] === 'ok', r)
+    return r[1]
+}
+
 
 export const proof = {
     isNotFound: {
@@ -551,6 +588,82 @@ export const proof = {
             assertOk(r2, 1)
             const [_, r3] = virtual(state2)(randomInt())
             assertOk(r3, 2)
+        },
+    },
+    readChunks: {
+        // Drains a stream into the byte counts of its cells. Every leaf below
+        // asks the same question of a different source, so it is asked once.
+        //
+        // A `List` is an effect answering `{first, tail}` or `undefined`, so
+        // draining it is an ordinary `ioStep` recursion — the same shape a
+        // consumer writes.
+        //
+        // The counts are what these leaves assert, not merely the cell count:
+        // the defect this loop exists to prevent is a chunk of the wrong SIZE,
+        // and a leaf that counted cells would pass through it.
+        unboundedEndsAtTheFirstEmptyRead: () => {
+            const whole = Number(maxLengthBytes)
+            /** @type {_ChunkSource<never>} */
+            const source = offset => pureOk(offset >= 3 * whole ? empty : bytes(whole))
+            assertStructurallySame(lengths(source, null), [whole, whole, whole])
+        },
+        boundedStopsAtTheBoundWithoutAnEmptyRead: () => {
+            // A source that would answer forever still ends, because the bound
+            // ends it. The unbounded loop had no way to express this: it ended
+            // only on an empty read.
+            const whole = Number(maxLengthBytes)
+            /** @type {_ChunkSource<never>} */
+            const source = (_, size) => pureOk(bytes(size))
+            assertStructurallySame(lengths(source, whole + 7), [whole, 7])
+        },
+        boundedAdvancesByWhatItGotNotByChunkBytes: () => {
+            // THE LEAF NEITHER OLD LOOP COULD HAVE HAD. Both stepped
+            // `offset + chunkBytes` whatever the read returned. This source
+            // answers SHORT of what was asked, so a fixed step would skip the
+            // bytes it did not return — a hole in a body whose length the
+            // client has already been told.
+            /** @type {_ChunkSource<never>} */
+            const source = (_, size) => pureOk(bytes(Math.min(size, 100)))
+            assertStructurallySame(lengths(source, 250), [100, 100, 50])
+        },
+        aBoundedStreamThatEndsShortFailsTheCell: () => {
+            // A file that shrank mid-read is a truncated body under a declared
+            // length — the plausible wrong value DESIGN §10 refuses. It fails
+            // rather than ending, which is the whole difference from the
+            // unbounded case above.
+            const whole = Number(maxLengthBytes)
+            /** @type {_ChunkSource<never>} */
+            const source = offset => pureOk(offset === 0 ? bytes(whole) : empty)
+            // Drained, not taken: the refusal is in the SECOND cell, so a leaf
+            // that read only the first would answer `ok` and pass against an
+            // implementation that refuses correctly. This one did, until it was
+            // watched.
+            const result = drain(source, whole * 2)
+            assert(result[0] === 'error', result)
+            assertIoMessage(result[1], `read ended at ${whole} of ${whole * 2} bytes`)
+        },
+        aFailedReadFailsTheStream: () => {
+            // A cell's own failure is never mistaken for the `undefined` that
+            // ends one.
+            /** @type {_ChunkSource<ReadBytes>} */
+            const source = () => readBytes('nope', 0, 8)
+            const result = drain(source, null)
+            assertEq(result[0], 'error')
+        },
+        aChunkThatIsNotWholeBytesIsRefused: () => {
+            // The return type permits one, and `>> 3n` would report a 1-bit
+            // chunk as nought — an end-of-stream the source never signalled,
+            // with the bits discarded.
+            /** @type {_ChunkSource<never>} */
+            const source = () => pureOk(vec(1n)(1n))
+            const result = drain(source, null)
+            assert(result[0] === 'error', result)
+            assertIoMessage(result[1], 'chunk at 0 is 1 bits, not whole bytes')
+        },
+        aZeroBoundAsksForNothing: () => {
+            /** @type {_ChunkSource<never>} */
+            const source = () => { throw new Error('must not be asked') }
+            assertStructurallySame(lengths(source, 0), [])
         },
     },
     writeFromStream: {

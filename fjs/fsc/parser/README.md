@@ -18,11 +18,14 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
-value  ::= (primitive t | id t | array | object) access* | func
-body   ::= (primitive t | id t | array) access* | func | block
-block  ::= '{' t 'return' s value ';' t '}' t
-func   ::= '(' t '...' t id t ')' s '=>' t body
-access ::= '.' t id t | '[' t (string | number) t ']' t
+value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
+body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
+unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
+block  ::= '{' t const* 'return' s value ';' t '}' t
+paren  ::= '(' t (func | group)
+func   ::= '...' t id t ')' s '=>' t body
+group  ::= value ')' t access*
+access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
 member ::= key t ':' t value
@@ -33,8 +36,24 @@ s      ::= (ws | comment)*
 ```
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
-refuses a grammar where it would not, before any input. Three things are spelled
-for that, each a conflict the backtracking grammar this replaced had
+refuses a grammar where it would not, before any input.
+
+A `(` opens two things, so `paren` takes the `(` and `func` and `group` part
+at the symbol after it: `...` against a value's first set, which no `...`
+is in. That is how a function and a group live in one grammar without
+looking past the `)` — where JavaScript itself has to look, and where
+parenthesized parameters will
+([`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)).
+It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
+is a group, and nothing may follow a value there.
+
+A `-` takes the group under its `(` and not `paren`, the two differing by
+the function: `-(...a) => 1` is a syntax error in JavaScript and
+`-((...a) => 1)` is not, so the operand is the group alone and the `...` is
+refused where JavaScript refuses it rather than at the `(`.
+
+Three more things are spelled for one symbol of lookahead, each a conflict
+the backtracking grammar this replaced had
 ([the record](../README.md#both-grammars-are-ll1) of all eight):
 
 - **Trivia follows a token, never leads a rule.** Every token is followed by
@@ -55,11 +74,15 @@ for that, each a conflict the backtracking grammar this replaced had
 Two rules that were once code are shape. Statement ordering — every `import`
 before every `const` — is `import* const* export`, and a late `import` is a
 token the grammar cannot use. A reserved literal — `true`, `false`, `null`,
-`undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, so it is
-refused as a name, a reference or a key by the rule that wanted an
-identifier, and read as the value it names where a value may stand.
-`-Infinity` is one token, the tokenizer folding the `-` into the word as it
-folds one into a number, so the grammar has no negation. `import`, `const` and `export` in the wrong order
+`undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, and the
+rules take it wherever a *name* may stand: `{ NaN: 1 }` and `a.NaN` are a
+key and an access, and `const NaN = 1;` reaches the fold and is refused
+there, as `const if = 1;` is. Where a *value* may stand it is the value it
+names, which is the one position the two rules keep apart.
+`-Infinity` is two tokens, the `-` being the unary minus the grammar reads
+rather than a sign folded into the word, so `-Infinity` is a negation where a
+value may stand and a `-` the grammar answers at where a name may.
+`import`, `const` and `export` in the wrong order
 report `unexpected token` at the offending keyword.
 
 ## The grammar sees symbols; the fold sees text
@@ -79,14 +102,15 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
-- an access on a number or a bigint literal, `1 .x` or `-1n[0]`: JavaScript
-  reads `-1 .x` as `-(1 .x)`, the tokenizer folds the minus into the number
-  and `-0n` to `0n`, and the language has no negation to read it JavaScript's
-  way, so every access on a numeric literal is refused rather than some;
 - a reference in a function's body to a name bound outside it — a `const`, an
   import, or an enclosing function's parameter — which is a capture, and a
   function has no frame to capture with yet. The body is resolved against its
-  parameter alone, so the check is which map the name is found in;
+  own names alone — its parameter, and the `const`s it declares before the
+  `return` — so the check is which map the name is found in;
+- a body `const` that takes a name the body already binds, its parameter
+  included, which is a duplicate as a module's is. A name the *module* binds
+  is not: the body cannot reach the module's scope at all, so that name was
+  unreachable rather than hidden;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
@@ -150,16 +174,24 @@ They therefore get their own names in the alphabet, which a registered mapping
 allows because a symbol comes from a name's position in a list and a name has no
 length limit.
 
-**Splitting them off obliges the grammar to provide an identifier rule.**
-Wherever an identifier is accepted — binding names, references, object keys,
-import names, the name after `.` — the terminal is the *union* of `id` and the
-seven keyword symbols, and only the positions that frame something demand a
-specific keyword. Which of them a position may hold is the fold's question, as
-it is for every other keyword, since it is a property of the word: JavaScript
-reserves six of the seven and `from` alone is ordinary, so
-`{ from: 2, return: 3 }` and `a.with` parse and `const export = 1;` is refused,
-exactly as `const if = 1;` is. Giving a word its own symbol narrows where it is
-**required**, never where it is **allowed**.
+**Splitting them off obliges the grammar to provide identifier rules.**
+Wherever an identifier is accepted the terminal is a *union* of `id` and the
+keyword symbols, and only the positions that frame something demand a
+specific keyword. There are two such unions, drawn where JavaScript draws
+them:
+
+- `identifier`, `id` and the seven framing keywords, for a **reference** —
+  where a value may stand, and where a word that denotes a value is that
+  value rather than a name;
+- `identifierName`, those and the six words that denote a value, for a
+  **name** — an object key, the name after `.`, and a binding name, which is
+  JavaScript's `IdentifierName` and admits every reserved word.
+
+Which of them a position may hold is the fold's question, as it is for every
+other keyword, since it is a property of the word: `{ from: 2, return: 3 }`,
+`a.with`, `{ NaN: 1 }` and `a.NaN` parse, while `const export = 1;` and
+`const NaN = 1;` are refused where `const if = 1;` is. Giving a word its own
+symbol narrows where it is **required**, never where it is **allowed**.
 
 ## Why a registered alphabet is enough
 

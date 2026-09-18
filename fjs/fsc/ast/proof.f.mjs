@@ -66,16 +66,35 @@ export const proof = {
     // a function has no value: what it denotes is its EDAG, and a data
     // module's value has no function in it — its arguments likewise
     func: () => {
-        assertStructurallySame(run([['=>', ['args']]])([]), ['error', 'functions are compiled to the EDAG only'])
-        assertStructurallySame(values([['=>', 1], 2])([]), ['error', 'functions are compiled to the EDAG only'])
-        assertStructurallySame(run([['args']])([]), ['error', 'functions are compiled to the EDAG only'])
+        assertStructurallySame(run([['=>', [['args']]]])([]), ['error', 'a function has no value'])
+        assertStructurallySame(values([['=>', [1]], 2])([]), ['error', 'a function has no value'])
+        assertStructurallySame(run([['args']])([]), ['error', 'a function has no value'])
         // a function names nothing outside itself, so it is a leaf to the
         // sweep — a leaf, not a reference: read as one, its body would pass
         // for an import's index, and `0` would mark the import reached
-        assertEq(anchorsOf([[a], [['=>', ['args']], 1]]), 'consts 0; imports 0')
-        assertEq(anchorsOf([[a], [['=>', 0], 1]]), 'consts 0; imports 0')
-        assertEq(anchorsOf([[a], [['=>', 0], ['cref', 0]]]), 'consts ; imports 0')
-        assertEq(anchorsOf([[a], [['=>', ['array', [['args'], ['args']]]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', [['args']]], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', [0]], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', [0]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', [['array', [['args'], ['args']]]]], ['cref', 0]]]), 'consts ; imports 0')
+        // a body `const` is an entry of the function's own body, so a `cref`
+        // in it names that entry and not the module's
+        assertEq(anchorsOf([[a], [['=>', [['array', []], ['cref', 0]]], ['cref', 0]]]), 'consts ; imports 0')
+    },
+    // A call has no value: this evaluator has no function to apply, so what
+    // a call returns is not a value it can reach. To the sweep it is not a
+    // leaf, though — its callee and its arguments are written where they
+    // stand, so what they name is reached.
+    call: () => {
+        assertStructurallySame(run([['()', ['args'], []]])([]), ['error', 'a call has no value'])
+        assertStructurallySame(run([['()', 1, [2]]])([]), ['error', 'a call has no value'])
+        assertStructurallySame(values([['()', 1, []], 2])([]), ['error', 'a call has no value'])
+        // the callee is reached
+        assertEq(anchorsOf([[a], [['array', []], ['()', ['cref', 0], []]]]), 'consts ; imports 0')
+        // and each argument
+        assertEq(anchorsOf([[a], [['array', []], ['()', 1, [['cref', 0]]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['()', 1, [2, ['cref', 0]]]]]), 'consts ; imports 0')
+        // what it does not reach is anchored as ever
+        assertEq(anchorsOf([[a], [['array', []], ['()', 1, [2]]]]), 'consts 0; imports 0')
     },
     // what the sweep from the export leaves out, by index, less what the
     // left-out entries reach themselves

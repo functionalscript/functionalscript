@@ -10,8 +10,7 @@
  * can hold what the language accepts: DataJS has no functions, so a module
  * holding one has no `.data.js` and no `.json`, and until this writer it had
  * no output but the EDAG document, which describes the function as data
- * rather than being one
- * ([`../todo/functionalscript-output.md`](../todo/functionalscript-output.md)).
+ * rather than being one.
  *
  * **It writes the graph, not the value.** Nothing is executed, so a module
  * holding a function is written, and so is one whose value a reader would
@@ -23,18 +22,34 @@
  * is written in place at every occurrence instead, since the occurrences
  * merge again when the output is read: hoisting one would evaluate it where
  * the source did not. Every `const` is named by its position among the
- * statements, `$0` then `$1`, anchors and hoists in one sequence, so that one
+ * statements of its scope, anchors and hoists in one sequence, so that one
  * graph is one text.
+ *
+ * **A scope writes its own `const`s.** A module and a function body are the
+ * same thing here — statements, then a value, introduced by `export default`
+ * or by `return` — so a body hoists what it needs into a block of its own
+ * ([spec: functions](../../../spec/README.md#functions)):
+ *
+ * ```js
+ * export default (...$a)=>{const $a0=[1];return [$a0,$a0];};
+ * ```
+ *
+ * The names say which scope: digits after the `$` for a module, the body's
+ * own parameter and then digits one level in, `$a0` where the parameter is
+ * `$a`. No two scopes share a spelling, so the writer emits no `const` that
+ * shadows one — see {@link hoistName} for why that is the choice.
+ *
+ * A body needing no `const` keeps the expression form, `=> v`, which is the
+ * same function and the shorter text.
  *
  * **One line, normalized**, as the DataJS output is, and its leaves are the
  * DataJS serializer's, which owns their spelling.
  *
  * **What it refuses**, each by name and with nothing written: a node kind it
  * has no spelling for, which is how a feature that adds one is made to add
- * its spelling here in the same change; a comma anywhere but the root, which
- * has no source form until the operator lands; a shared constructor or a
- * hoisted base inside a function body, until a body has a `const` to hoist
- * into ([`3130-body-const.md`](../../../spec/todo/3130-body-const.md)); and a
+ * its spelling here in the same change; a comma anywhere but where a scope
+ * begins — a module's root and a function's body are read as one, and
+ * anywhere else a comma has no source form until the operator lands; and a
  * key the parser would not read back — one no literal spells, and one naming
  * a property of a built-in prototype, which the grammar refuses in either
  * spelling.
@@ -50,7 +65,7 @@
  *
  * @module
  *
- * @import { Analysis, Node, Operand } from '../../edag/analysis/types.ts'
+ * @import { Analysis, Node, Operand, Ref } from '../../edag/analysis/types.ts'
  * @import { Exp } from '../../edag/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -65,7 +80,6 @@ import { first, flat, toArray } from '../../types/list/module.f.mjs'
 import { _prohibitedNames } from '../parser/module.f.mjs'
 import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { literalWords } from '../../js/keywords/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
 
@@ -78,28 +92,51 @@ const minting = node => {
 }
 
 /**
- * Whether a base needs a `const` of its own: the grammar takes no access on
- * a number, a bigint or a function, though linking puts all three there —
- * `n.x` with `n` exporting `1` is `['.', 1, 'x']`, which `1.x` cannot spell.
+ * Whether a base needs a `const` of its own — three bases this writer has
+ * no text for, though linking puts all of them there:
+ *
+ * - a number or a bigint, since `1.x` is one number and a stray word, and
+ *   the space `1 .x` needs is not a spelling this writer keeps;
+ * - a function, which takes no access in the grammar;
+ * - a **negation**, because `-` binds looser than a step: `-1 .x` is
+ *   `-(1 .x)` and `-1[0]` is `-(1[0])`, so the text for `['.', ['-', 1],
+ *   0]` would be a different graph rather than an unreadable one. A name
+ *   is what says the negation happens first, until this writer spells the
+ *   group the grammar reads — `(-1)[0]`
+ *   ([`./todo/parenthesized-object-body.md`](./todo/parenthesized-object-body.md)
+ *   asks the same of a body).
  *
  * @type {(a: Analysis, base: Operand) => boolean}
  */
-const basedHoisted = (a, base) => base instanceof Array
-    ? a.nodes[base[1]][0] === '=>'
-    : typeof base === 'number' || typeof base === 'bigint'
+const basedHoisted = (a, base) => {
+    if (!(base instanceof Array)) { return typeof base === 'number' || typeof base === 'bigint' }
+    const kind = a.nodes[base[1]][0]
+    return kind === '=>' || kind === '-'
+}
+
+/**
+ * Whether a negation's operand needs a `const` of its own: a function, and
+ * nothing else. JavaScript's unary operand is a `UnaryExpression`, which an
+ * arrow function is not — `-(...a) => 1` is a syntax error — so the
+ * function takes a name and the negation is written on that. A number needs
+ * none here, `-1` being what the operator is most often written on.
+ *
+ * @type {(a: Analysis, v: Operand) => boolean}
+ */
+const negHoisted = (a, v) => v instanceof Array && a.nodes[v[1]][0] === '=>'
 
 /** Two hoisted values are one when they name the same entry, or the same primitive by `Object.is`. @type {(x: _Hoisted, y: _Hoisted) => boolean} */
 const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
 
 /**
- * The name a hoisted value took, or `null` where it has none yet. A slot an
- * anchor's `const` took holds no value and matches nothing.
+ * The slot a hoisted value took in its scope, or `null` where it has none
+ * yet. A slot an anchor's `const` took holds no value and matches nothing.
  *
- * @type {(names: _Names, h: _Hoisted) => string | null}
+ * @type {(names: _Names, h: _Hoisted) => number | null}
  */
-const nameOf = (names, h) => {
+const slotOf = (names, h) => {
     const i = names.findIndex(n => n !== null && sameHoisted(n, h))
-    return i === -1 ? null : `$${i}`
+    return i === -1 ? null : i
 }
 
 /** How many letters a column digit has. */
@@ -113,6 +150,35 @@ const column = n => {
 
 /** The parameter of the body at `depth`, `1` being the outermost. @type {(depth: number) => string} */
 const parameter = depth => `$${column(depth)}`
+
+/**
+ * The name a scope at `depth` gives the `const` in slot `i`: `$0` at the
+ * module level, and the body's own parameter with the slot after it one
+ * level in — `$a0` in the body whose parameter is `$a`.
+ *
+ * Every scope numbers from zero and no two scopes share a spelling: a
+ * module's names are digits after the `$`, a body's are its parameter's
+ * letters and then digits, and a parameter is letters alone.
+ *
+ * Reading the output back does not need that. A body's `const` binds a name
+ * of its own, so one spelled `$0` inside a module's `$0` shadows it and the
+ * text still reads back to the same graph — the parser refuses a reference
+ * *out* of a body, not a binding that repeats an outer name. What the
+ * distinct spellings buy is that the writer never emits a shadowing
+ * `const` at all, which is the spelling
+ * [no-shadowing](../../../spec/todo/3150-shadowing.md) would refuse: were
+ * that rule an error, one namespace for every scope would leave this
+ * writer emitting modules the parser no longer reads.
+ *
+ * @type {(depth: number, i: number) => string}
+ */
+const hoistName = (depth, i) => depth === 0 ? `$${i}` : `${parameter(depth)}${i}`
+
+/** The name a hoisted value took in the scope at `depth`, or `null` where it has none yet. @type {(names: _Names, depth: number, h: _Hoisted) => string | null} */
+const nameOf = (names, depth, h) => {
+    const i = slotOf(names, h)
+    return i === null ? null : hoistName(depth, i)
+}
 
 /** What may open an identifier: a Latin letter, `_` or `$`. @type {(codePoint: number) => boolean} */
 const identifierStart = codePoint =>
@@ -139,15 +205,6 @@ const identifierKey = key => {
 }
 
 /**
- * The words that are no `id` token, and so no name after a `.`: a tokenizer
- * gives each a token kind of its own, and every other keyword an `id`, so
- * `a.class` is an access and `a.true` is not.
- *
- * @type {ReadonlySet<string>}
- */
-const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
-
-/**
  * The results of a list, or the first error in it. A list of values is
  * written only when every element is, and the refusal reported is the one
  * a reader meets first.
@@ -172,25 +229,24 @@ const every = xs => {
  */
 const operand = (s, depth) => v => {
     if (!(v instanceof Array)) { return ok(leafSerialize(v)) }
-    const name = nameOf(s.names, ['entry', v[1]])
+    const name = nameOf(s.names, depth, ['entry', v[1]])
     return name === null ? entry(s, depth)(v[1]) : ok([name])
 }
 
 /**
  * An access's base: a hoisted one by its name, anything else as an operand.
- * Inside a body a hoisted base is refused, since its `const` would move a
- * function's constructor to the module's scope and a number would be read
- * back as a capture.
+ * The `const` it names is its own scope's, a body's as readily as the
+ * module's, so a numeric or function base inside a body is written there
+ * rather than refused.
  *
  * @type {(s: _Scope, depth: number) => (v: Operand) => Document}
  */
 const base = (s, depth) => v => {
     if (!basedHoisted(s.a, v)) { return operand(s, depth)(v) }
-    if (depth !== 0) { return error('a hoisted access base inside a function body') }
     const h = /** @type {_Hoisted} */ (v instanceof Array ? ['entry', v[1]] : ['leaf', v])
-    // Every such base at the module level was collected before the statement
-    // that needs it, so a missing name is this module's own mistake.
-    return ok([assertNotNullish(nameOf(s.names, h), ['an access base that was not hoisted', v])])
+    // Every such base was collected before the statement that needs it, so a
+    // missing name is this writer's own mistake.
+    return ok([assertNotNullish(nameOf(s.names, depth, h), ['an access base that was not hoisted', v])])
 }
 
 /** An array's item: a spread has no source spelling. @type {(s: _Scope, depth: number) => (v: Operand | readonly ['...', Operand]) => Document} */
@@ -232,7 +288,7 @@ const bracketed = k => ok(flat([['['], leafSerialize(k), [']']]))
 const key = k => {
     if (typeof k === 'string') {
         if (_prohibitedNames.has(k)) { return error('a prohibited property name') }
-        return identifierKey(k) && !literalWordSet.has(k) ? ok(['.', k]) : bracketed(k)
+        return identifierKey(k) ? ok(['.', k]) : bracketed(k)
     }
     if (typeof k !== 'number') { return error('an access key that is no literal') }
     return Number.isFinite(k) && !Object.is(k, -0)
@@ -244,33 +300,48 @@ const key = k => {
 const firstChunk = first('')
 
 /**
- * A function's body: a block where its text opens with `{`, since `=> {`
- * opens a block and not an object.
+ * A function's body at `depth`, in a scope of its own: the `const`s it needs
+ * and then the value it returns.
  *
- * The question is the text's and not the node's: an object literal is not
- * the only body that begins with one — `['.', ['{}', …], 'a']` writes
- * `{"a":1}.a` — and a body that begins with `{` any other way would need
- * the same block. `s` is the scope the body's text is written in.
+ * A body needing no `const` is the expression form, `=> v`, which is the
+ * same function and the shorter text — unless its text opens with `{`, since
+ * `=> {` opens a block and not an object. That question is the text's and
+ * not the node's: an object literal is not the only body that begins with
+ * one — `['.', ['{}', …], 'a']` writes `{"a":1}.a` — and a body that begins
+ * with `{` any other way would need the same block. Grouping has since given
+ * the language `=> ({"a":1})`, which is the same function in four fewer
+ * characters; writing that instead is
+ * [`./todo/parenthesized-object-body.md`](./todo/parenthesized-object-body.md).
  *
- * @type {(s: _Scope, depth: number) => (b: Operand) => Document}
+ * A body needing one is a block, `=> {const $a0=…;return v;}`, which is
+ * where a shared constructor inside a body, a numeric or function access
+ * base, and a body's anchors are all written
+ * ([spec: functions](../../../spec/README.md#functions)).
+ *
+ * @type {(a: Analysis, depth: number) => (b: Operand) => Document}
  */
-const lambdaBody = (s, depth) => b => mapOk(
-    /** @type {(text: List<string>) => List<string>} */
-    (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
-)(operand(s, depth)(b))
+const lambdaBody = (a, depth) => b => okThen(
+    /** @type {(all: _Root) => Document} */
+    (all => all.length === 1 && hoists({ a, names: [] })(all[0]).length === 0
+        ? mapOk(
+            /** @type {(text: List<string>) => List<string>} */
+            (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
+        )(operand({ a, names: [] }, depth)(all[0]))
+        : mapOk(
+            /** @type {(st: _Statement) => List<string>} */
+            (st => flat([['{'], st.text, ['}']])),
+        )(scope(a, depth)(all))),
+)(scopeOperands(a, b))
 
 /**
- * One entry of the table, written in place. A shared constructor inside a
- * body has no `const` to keep it one value per call, so it is refused where
- * it stands.
+ * One entry of the table, written in place — every entry that is not a
+ * hoisted value of the scope it stands in, which {@link operand} named
+ * before reaching here.
  *
  * @type {(s: _Scope, depth: number) => (i: number) => Document}
  */
 const entry = (s, depth) => i => {
     const node = s.a.nodes[i]
-    if (depth !== 0 && minting(node) && s.a.shared.includes(i)) {
-        return error('a shared constructor inside a function body')
-    }
     switch (node[0]) {
         case 'undefined': { return ok(['undefined']) }
         case 'args': {
@@ -293,9 +364,27 @@ const entry = (s, depth) => i => {
                 : mapOk(
                     /** @type {(text: List<string>) => List<string>} */
                     (text => flat([[`(...${parameter(depth + 1)})=>`], text])),
-                )(lambdaBody(s, depth + 1)(body))
+                )(lambdaBody(s.a, depth + 1)(body))
         }
-        case ',': { return error('a comma outside the root') }
+        case '-': {
+            // `op12` of two operands is the binary minus, which the language
+            // has no spelling for yet; of one, it is the prefix.
+            if (node.length !== 2) { return error('a binary - node') }
+            return mapOk(
+                /** @type {(text: List<string>) => List<string>} */
+                // `- -1` and not `--1`: two adjacent minus characters are the
+                // one decrement token, which the parser has no rule for, so a
+                // minus before a minus takes a space. A negation whose operand
+                // is a function was given a `const` by the hoisting walk, so
+                // what stands here is a name and never `(...$a)=>…`, which
+                // JavaScript refuses after a `-`.
+                (text => flat([[firstChunk(text).startsWith('-') ? '- ' : '-'], text])),
+            )(operand(s, depth)(node[1]))
+        }
+        // a comma is a scope's own form, read by `scopeOperands` where a
+        // module's root or a function's body begins; anywhere else it has no
+        // source spelling until the operator lands
+        case ',': { return error('a comma outside a scope') }
         default: { return error(`a ${node[0]} node`) }
     }
 }
@@ -317,13 +406,16 @@ const hoists = s => {
     const found = (names, v) => {
         /** @type {(ns: readonly _Hoisted[], h: _Hoisted) => readonly _Hoisted[]} */
         const add = (ns, h) =>
-            nameOf(s.names, h) === null && nameOf(ns, h) === null ? [...ns, h] : ns
+            slotOf(s.names, h) === null && slotOf(ns, h) === null ? [...ns, h] : ns
         if (!(v instanceof Array)) { return names }
         const i = v[1]
-        if (nameOf(s.names, ['entry', i]) !== null) { return names }
+        if (slotOf(s.names, ['entry', i]) !== null) { return names }
         const node = s.a.nodes[i]
         const inner = operands(node).reduce(found, names)
         const self = minting(node) && s.a.shared.includes(i) ? add(inner, ['entry', i]) : inner
+        if (node[0] === '-' && node.length === 2 && negHoisted(s.a, node[1])) {
+            return add(self, ['entry', /** @type {Ref} */(node[1])[1]])
+        }
         return node[0] === '.' && basedHoisted(s.a, node[1])
             ? add(self, node[1] instanceof Array ? ['entry', node[1][1]] : ['leaf', /** @type {number | bigint} */(node[1])])
             : self
@@ -333,8 +425,9 @@ const hoists = s => {
 
 /**
  * The operands a node holds, for the hoisting walk: a container's items and
- * a property's halves, an access's base and key, and a comma's operands. A
- * function's body is not among them, since the walk stops at a body.
+ * a property's halves, an access's base and key, a negation's operand, and
+ * a comma's operands. A function's body is not among them, since the walk
+ * stops at a body.
  *
  * @type {(node: Node) => readonly Operand[]}
  */
@@ -343,15 +436,16 @@ const operands = node => {
         case '[]': { return node[1].flatMap(x => x instanceof Array && x[0] === '...' ? [x[1]] : [/** @type {Operand} */(x)]) }
         case '{}': { return node[1].flatMap(p => p[0] === '...' ? [p[1]] : [p[1], p[2]]) }
         case '.': { return [node[1], node[2]] }
+        case '-': { return node.length === 2 ? [node[1]] : [] }
         case ',': { return node[1] }
         default: { return [] }
     }
 }
 
-/** The text a hoisted value's `const` holds. @type {(s: _Scope) => (h: _Hoisted) => Document} */
-const hoistedText = s => h => h[0] === 'leaf'
+/** The text a hoisted value's `const` holds, in the scope at `depth`. @type {(s: _Scope, depth: number) => (h: _Hoisted) => Document} */
+const hoistedText = (s, depth) => h => h[0] === 'leaf'
     ? ok(leafSerialize(h[1]))
-    : entry(s, 0)(h[1])
+    : entry(s, depth)(h[1])
 
 /**
  * One statement and every `const` it needed first: the hoists, in order,
@@ -364,9 +458,9 @@ const hoistedText = s => h => h[0] === 'leaf'
  * computation — and the comma would be lost with it. Linking emits no such
  * graph, dropping the alias where the source writes one.
  *
- * @type {(a: Analysis, last: boolean) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * @type {(a: Analysis, depth: number, last: boolean) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const statement = (a, last) => ({ text, names }, v) => {
+const statement = (a, depth, last) => ({ text, names }, v) => {
     /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
     const emit = (acc, h) => {
         if (acc[0] === 'error') { return acc }
@@ -375,15 +469,15 @@ const statement = (a, last) => ({ text, names }, v) => {
         return mapOk(
             /** @type {(value: List<string>) => _Statement} */
             (value => ({
-                text: flat([before.text, [`const $${before.names.length}=`], value, [';']]),
+                text: flat([before.text, [`const ${hoistName(depth, before.names.length)}=`], value, [';']]),
                 names: [...before.names, h],
             })),
-        )(hoistedText(s)(h))
+        )(hoistedText(s, depth)(h))
     }
     const hoisted = hoists({ a, names })(v).reduce(emit, ok({ text, names }))
     if (hoisted[0] === 'error') { return hoisted }
     const before = hoisted[1]
-    if (!last && v instanceof Array && nameOf(before.names, ['entry', v[1]]) !== null) {
+    if (!last && v instanceof Array && slotOf(before.names, ['entry', v[1]]) !== null) {
         return error('an anchor that repeats a hoisted value')
     }
     const s = { a, names: before.names }
@@ -392,34 +486,53 @@ const statement = (a, last) => ({ text, names }, v) => {
         (value => ({
             text: flat([
                 before.text,
-                last ? ['export default '] : [`const $${before.names.length}=`],
+                last ? [depth === 0 ? 'export default ' : 'return '] : [`const ${hoistName(depth, before.names.length)}=`],
                 value,
                 [';'],
             ]),
             names: last ? before.names : [...before.names, null],
         })),
-    )(operand(s, 0)(v))
+    )(operand(s, depth)(v))
 }
 
 /**
- * The operands the module's statements are written from: a comma at the
- * root is the source form it came from, an unused `const` per anchor and
- * then the export, and any other root is the export alone.
+ * The statements of one scope: each operand preceded by the `const`s it
+ * needs, an anchor as a `const` of its own, and the last operand introduced
+ * by what the scope returns with — `export default ` for a module, `return `
+ * for a function body.
  *
- * A root comma holding fewer than two operands is refused: an anchor is an
- * unreached `const`, so a comma with one operand has no anchor to write and
- * would be read back as its operand alone, and one with none is not a
- * module at all. Linking emits neither — a comma is built only where an
- * anchor or an unbound import is there to carry.
+ * The names start empty, a scope's `const`s being its own: a body cannot
+ * read a name the module bound, a reference out of it being a capture.
  *
- * @type {(a: Analysis) => Result<_Root, string>}
+ * @type {(a: Analysis, depth: number) => (all: _Root) => Result<_Statement, string>}
  */
-const roots = a => {
-    if (!(a.root instanceof Array)) { return ok([a.root]) }
-    const node = a.nodes[a.root[1]]
-    if (node[0] !== ',') { return ok([a.root]) }
+const scope = (a, depth) => all => {
+    /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
+    const step = (acc, v, i) => acc[0] === 'error'
+        ? acc
+        : statement(a, depth, i === all.length - 1)(acc[1], v)
+    return all.reduce(step, ok({ text: null, names: [] }))
+}
+
+/**
+ * The operands a scope's statements are written from: a comma is the source
+ * form it came from, an unused `const` per anchor and then the value, and
+ * any other operand is that value alone.
+ *
+ * A comma holding fewer than two operands is refused: an anchor is an
+ * unreached `const`, so a comma with one operand has no anchor to write and
+ * would be read back as its operand alone, and one with none is no scope at
+ * all. Linking emits neither, at a module's root or in a body — a comma is
+ * built only where an anchor or an unbound import is there to carry.
+ *
+ * @type {(a: Analysis, v: Operand) => Result<_Root, string>}
+ */
+const scopeOperands = (a, v) => {
+    if (!(v instanceof Array)) { return ok([v]) }
+    const node = a.nodes[v[1]]
+    if (node[0] !== ',') { return ok([v]) }
     return node[1].length < 2
-        ? error('a root comma with fewer than two operands')
+        ? error('a comma with fewer than two operands')
         : ok(node[1])
 }
 
@@ -431,18 +544,13 @@ const roots = a => {
  */
 export const trySerialize = e => {
     const a = analysis(e)
-    /** @type {(all: _Root) => Document} */
-    const written = all => {
-        /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
-        const step = (acc, v, i) => acc[0] === 'error'
-            ? acc
-            : statement(a, i === all.length - 1)(acc[1], v)
-        return mapOk(
+    return okThen(
+        /** @type {(all: _Root) => Document} */
+        (all => mapOk(
             /** @type {(s: _Statement) => List<string>} */
             (s => s.text),
-        )(all.reduce(step, ok({ text: null, names: [] })))
-    }
-    return okThen(written)(roots(a))
+        )(scope(a, 0)(all))),
+    )(scopeOperands(a, a.root))
 }
 
 /** The same as one string. @type {(e: Exp) => Result<string, string>} */

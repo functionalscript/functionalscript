@@ -4,9 +4,10 @@
 ([spec: property access](../README.md#property-access)): an own-property
 read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs),
-and an access on a number or a bigint literal refused, since JavaScript reads
-`-1 .x` as `-(1 .x)` and the language has no negation to read it so. The
-computed key, `a[Number(b)]`, and the method call below are not.
+and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
+`-(1 .x)`, the unary minus binding looser than the access. The computed key,
+`a[Number(b)]`, and the method call below are not; an index is a constant key,
+a string or a number, and a negative one is written as the string it names.
 
 Syntax examples:
 
