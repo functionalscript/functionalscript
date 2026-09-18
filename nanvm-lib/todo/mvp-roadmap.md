@@ -285,11 +285,11 @@ as a generic `Any` facility, post-MVP.
       fixtures with this generator, and `cargo test` runs the result.
 - [x] **Harness + walking skeleton** — a harness crate (`nanvm-harness`)
       whose `main` evaluates a generated module's `export default` and
-      prints the result as JSON; the pipeline is wired end-to-end with three
-      minimal fixtures (`nanvm-harness/fixtures/{number,boolean,string}.mjs`,
-      each a constant default export), compiled by `fjs compile` into
-      sibling `.rs` files committed and drift-checked via `npm run gen`, and
-      proven by `cargo test` in CI. See
+      prints the result as JSON; the pipeline is wired end-to-end with
+      fixtures covering the walking-skeleton subset
+      (`nanvm-harness/fixtures/{number,boolean,string,array,object,sharing,property}.mjs`),
+      compiled by `fjs compile` into sibling `.rs` files committed and
+      drift-checked via `npm run gen`, and proven by `cargo test` in CI. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 - [x] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests, so
