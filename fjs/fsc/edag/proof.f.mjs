@@ -276,6 +276,31 @@ export const proof = {
         expectEdag(compile('export default (-1).x;').edag, ['.', -1, 'x'])
         expectEdag(compile('export default -1 .x;').edag, ['-', ['.', 1, 'x']])
     },
+    // Stage A of `spec/todo/2340-operators.md`: arithmetic, strict
+    // comparison, and bitwise, each the EDAG's own `op2`/`op12`/`op1` shape
+    // with both operands lowered and nothing folded — the binary `-`
+    // included, told from the unary one the `group` block already covers
+    // by arity, never by this tag alone. Folding one would need to say
+    // what every operator computes over every value it might see, which is
+    // the EDAG's question and not the front end's.
+    operators: () => {
+        expectEdag(compile('export default 1 + 2 * 3;').edag, ['+', 1, ['*', 2, 3]])
+        expectEdag(compile('export default 5 - 2;').edag, ['-', 5, 2])
+        expectEdag(compile('export default 2 ** 3 ** 2;').edag, ['**', 2, ['**', 3, 2]])
+        expectEdag(compile('export default 1 < 2 << 3;').edag, ['<', 1, ['<<', 2, 3]])
+        expectEdag(compile('export default 1 === 2;').edag, ['===', 1, 2])
+        expectEdag(compile('export default 1 & 2 | 3 ^ 4;').edag, ['|', ['&', 1, 2], ['^', 3, 4]])
+        expectEdag(compile('export default ~1;').edag, ['~', 1])
+        // unary `-` still folds over a numeric literal, even nested inside
+        // a binary operator the lowering does not fold
+        expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])
+        // a `const` reached through two operands is one node, as through
+        // any other operator
+        const shared = compile('const a = [1]; export default a + a;').edag
+        expectEdag(shared, ['+', ['[]', [1]], ['[]', [1]]])
+        assert(shared instanceof Array && shared[0] === '+', shared)
+        assert(shared[1] === shared[2], shared)
+    },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many
     // references reach it, an alias is the node it names, and what the

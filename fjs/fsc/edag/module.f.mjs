@@ -118,8 +118,19 @@ const lower = nodes => ast => {
         // `ToPrimitive`'s and depends on what the value holds; the readers
         // that want a number work it out where a number is wanted.
         case '-': {
+            if (ast.length === 3) { return ['-', lower(nodes)(ast[1]), lower(nodes)(ast[2])] }
             const operand = lower(nodes)(ast[1])
             return typeof operand === 'number' || typeof operand === 'bigint' ? -operand : ['-', operand]
+        }
+        // every other binary operator and the bitwise not: the EDAG's own
+        // `op1`/`op2` shapes already, both operands lowered and nothing
+        // folded — `-`'s own comment has why unary negation alone does
+        case '~': { return ['~', lower(nodes)(ast[1])] }
+        case '*': case '/': case '%': case '**':
+        case '+':
+        case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+            return [ast[0], lower(nodes)(ast[1]), lower(nodes)(ast[2])]
         }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }

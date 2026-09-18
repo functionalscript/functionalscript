@@ -112,44 +112,97 @@ export type Access = {
 }
 
 /**
- * What a `-` takes: a value less the function, JavaScript's unary operand
- * being a `UnaryExpression`, which an arrow function is not — and a group,
- * {@link ParenGroup}, which is one.
+ * `**`'s right operand, when a primary, a group, or a `-`/`~` is raised to
+ * a power: optional, and {@link Unary} again when present — right-recursive,
+ * so `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
+ */
+export type PowTail = Option<readonly [number, typeof trivia, Unary]>
+
+/**
+ * What a `-` or a `~` takes: a value less the function, JavaScript's unary
+ * operand being a `UnaryExpression`, which an arrow function is not — and a
+ * group, {@link ParenGroup}, which is one. Every alternative but the two
+ * prefixes may be raised to a power, {@link PowTail}.
  */
 export type Unary = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, Unary]
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
-    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+    readonly bitnot: readonly [number, typeof trivia, Unary]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail]
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
 }]
 
 /**
+ * One layer of the binary-operator precedence ladder above {@link Unary}:
+ * zero or more `(op, Unary, ...Prev)` rounds, the op itself left untyped —
+ * nothing downstream reads its shape at the type level, only at the value
+ * level once a round is matched — and `Prev` the layers below this one,
+ * threaded through so a repeated operand reaches back down to them, `1 + 2
+ * * 3` nesting as `1 + (2 * 3)`.
+ *
+ * The operand is always {@link Unary}, never {@link Value}/{@link Body}
+ * themselves: a function's body is unbounded, reading everything to the
+ * right of `=>` as its own, so wrapping a shared primary as a unit — as a
+ * single generic `Below` this alias once took — would leak the ladder's
+ * own follow set down into the function's body and manufacture an LL(1)
+ * conflict `fjs/ebnf/ll1` has no way to resolve. See `unary`'s own comment
+ * in `./module.f.mjs`.
+ */
+type _OpTail<Prev extends readonly Rule[]> = RepeatFrom<0, readonly [Rule, typeof trivia, Unary, ...Prev]>
+
+type _MultiplicativeTail = _OpTail<readonly []>
+type _AdditiveTail = _OpTail<readonly [_MultiplicativeTail]>
+type _ShiftTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail]>
+type _RelationalTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail]>
+type _EqualityTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail]>
+type _BitwiseAndTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail]>
+type _BitwiseXorTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail, _BitwiseAndTail]>
+type _BitwiseOrTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail, _BitwiseAndTail, _BitwiseXorTail]>
+
+/**
+ * The whole binary-operator suffix, `multiplicative` through `bitwiseOr`,
+ * each layer built on the ones below it, `bitwiseOr` this type's own top —
+ * spread onto every branch of {@link Value}/{@link Body} that may carry
+ * one, every branch but {@link Func} and {@link Block}.
+ */
+export type Tail = readonly [
+    _MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail,
+    _EqualityTail, _BitwiseAndTail, _BitwiseXorTail, _BitwiseOrTail,
+]
+
+/**
  * A value: a primitive token, a reference, an array of values, or an
  * object of members, each ending with its trivia and each followed by the
- * accesses after it — a `const` thunk whose payload names the thunk, which
- * is what lets a type alias name itself.
+ * accesses after it and optionally raised to a power — or a `-`/`~`
+ * prefix — each carrying {@link Tail}, the binary-operator suffix, above
+ * it — or `(`, the choice between a function and a group, {@link Paren},
+ * a function alone excepted, nothing following one unparenthesized. A
+ * `const` thunk whose payload names the thunk, which is what lets a type
+ * alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary]
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
-    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+    readonly neg: readonly [number, typeof trivia, Unary, ...Tail]
+    readonly bitnot: readonly [number, typeof trivia, Unary, ...Tail]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
 }]
 
 /**
- * A function's body: a value less the object, since `=> {` opens a block in
- * JavaScript — or that block, in which an object is a value again, or a
- * group, which is the other spelling of a body that is an object.
+ * A function's body: a value less the object, since `=> {` opens a block
+ * in JavaScript — or that block, in which an object is a value again, or
+ * a group, which is the other spelling of a body that is an object.
  */
 export type Body = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary]
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
+    readonly neg: readonly [number, typeof trivia, Unary, ...Tail]
+    readonly bitnot: readonly [number, typeof trivia, Unary, ...Tail]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
     readonly block: Block
 }]
@@ -163,15 +216,17 @@ export type Paren = readonly [number, typeof trivia, Parenthesized]
  */
 export type Parenthesized = {
     readonly func: Func
-    readonly group: Group
+    readonly group: readonly [Group, ...Tail]
 }
 
 /**
- * A group after its `(`: the value, `)`, the trivia after it, and the steps
+ * A group after its `(`: the value, `)`, the trivia after it, the steps
  * the group takes — which are the group's and not the value's, the one
- * thing the parentheses change.
+ * thing the parentheses change — and the power it may be raised to,
+ * {@link PowTail}, the one place a group needs its own since both
+ * {@link Unary}'s restricted `(` and a value's full one stand on this rule.
  */
-export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>]
+export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>, PowTail]
 
 /**
  * `(`, trivia and a group: what a `-` may take in parentheses. It is not

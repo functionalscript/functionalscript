@@ -516,6 +516,78 @@ export const proof = {
             expect('export default (...b) => - -(...a) => 1;', 30)
         },
     },
+    // Stage A of `spec/todo/2340-operators.md`: arithmetic, strict
+    // comparison, and bitwise, each read as `[tag, left, right]` — the
+    // binary `-` told from `neg`'s own unary one by length, `**`
+    // right-associative, and every operator above `unary` — never a value
+    // or a body themselves, the same reason `neg`'s operand rule refuses a
+    // function above.
+    operators: {
+        forms: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            // arithmetic, left-associative, and its own precedence within
+            expect('export default 1 + 2 * 3;', '[[],[["+",1,["*",2,3]]]]')
+            expect('export default 1 * 2 + 3;', '[[],[["+",["*",1,2],3]]]')
+            expect('export default 5 - 2 - 1;', '[[],[["-",["-",5,2],1]]]')
+            // `**` right-associative, and above it in precedence
+            expect('export default 2 ** 3 ** 2;', '[[],[["**",2,["**",3,2]]]]')
+            // `-`/`~` sit above `**` by design, `- 2 ** 2` reading `-(2 ** 2)`
+            expect('export default -2 ** 2;', '[[],[["-",["**",2,2]]]]')
+            expect('export default ~1 & 2;', '[[],[["&",["~",1],2]]]')
+            // strict comparison and bitwise, in JavaScript's own precedence
+            expect('export default 1 + 2 < 3 * 4;', '[[],[["<",["+",1,2],["*",3,4]]]]')
+            expect('export default 1 < 2 === 3 < 4;', '[[],[["===",["<",1,2],["<",3,4]]]]')
+            expect('export default 1 << 2 + 3;', '[[],[["<<",1,["+",2,3]]]]')
+            expect('export default 1 & 2 | 3 ^ 4;', '[[],[["|",["&",1,2],["^",3,4]]]]')
+            // a group as an operand, and steps/power bound tighter than a layer
+            expect('export default (1 + 2) * 3;', '[[],[["*",["+",1,2],3]]]')
+            expect('const a = [1]; export default a[0] * 2;', '[[],[["array",[1]],["*",[".",["cref",0],0],2]]]')
+            expect('export default 2 ** 2 * 3;', '[[],[["*",["**",2,2],3]]]')
+            // a function's body is its own operand, the whole expression
+            // its greedy operand rather than the outer layer's own
+            expect('export default (...a) => 1 + 2 * 3;', '[[],[["=>",[["+",1,["*",2,3]]]]]]')
+            // a group around a function is an ordinary operand once more
+            expect('export default 1 * ((...a) => 2);', '[[],[["*",1,["=>",[2]]]]]')
+        },
+        refused: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'unexpected token')
+                assertEq(value.metadata?.column, column)
+            }
+            // a function is no operand of a binary operator, unparenthesized:
+            // an operand's own `(` is `unary`'s restricted one, a group
+            // alone, so `...` is refused right there, one token earlier
+            // than `neg`'s own — its operand rule takes `paren`, the
+            // choice a function shares, and refuses at what its own body
+            // cannot spell instead
+            expect('export default 1 * (...a) => 2;', 21)
+            // an empty group is no value either, refused at the `)`
+            expect('export default 1 + () => 2;', 21)
+        },
+        scope: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            // both operands are resolved, in order
+            expect('export default 1 + zzz;', 'const not found', 20)
+            expect('export default zzz + 1;', 'const not found', 16)
+            // a name bound outside a function's body is a capture through
+            // an operator exactly as it is bare
+            expect('const c = 1; export default (...a) => c + a[0];', 'capture not supported', 39)
+        },
+    },
     memberOrder: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
@@ -1259,12 +1331,6 @@ export const proof = {
         },
         () => {
             const tokenList = tokenizeString('export default {[}]')
-            const obj = parseFromTokens(tokenList)
-            assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected token')
-        },
-        () => {
-            const tokenList = tokenizeString('export default 10-5')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')

@@ -12,7 +12,7 @@ import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstArgs, AstConst, AstModuleRef } from '../ast/types.ts'
+import type { AstArgs, AstConst, AstModuleRef, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { Const, Container, Node, Out, ParseError } from './types.ts'
 
@@ -27,6 +27,30 @@ export type _TokenStream = {
 
 /** A position a reader inspects: a symbol of either alphabet, or a node the machine built. */
 export type _Leaf = Meta<DjsTokenWithMetadata | Out> | readonly unknown[]
+
+/**
+ * The `[thing, accesses]` pair every base branch — primitive, reference,
+ * array, object — opens with: `unary`'s own shape, and `value`/`body`'s
+ * before their trailing tail lists. `accesses` is a position of its own,
+ * unmapped where it is read.
+ */
+export type _BaseNode = Unmapped<readonly [unknown, _Leaf]>
+
+/**
+ * `**`'s own optional round, `'**' t unary`: no round, or one holding the
+ * operand at the third position — the symbol itself, not a variant, since
+ * `**` is the one spelling.
+ */
+export type _PowTailNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _Leaf]>]>
+
+/**
+ * One round of a binary layer's repeat, `op t unary tail*`: the matched
+ * operator's own variant at the first position, the operand at the third,
+ * and every layer below this one's own tail list trailing it — as many
+ * positions as the layer is deep, `multiplicative`'s own round carrying
+ * none, each unmapped where {@link applyTail} reads it.
+ */
+export type _TailRound = Unmapped<readonly [Unmapped<readonly [string, _Leaf]>, unknown, _Leaf, ..._Leaf[]]>
 
 /**
  * A position holding an optional list, `[ items ]`: no round, or one
@@ -144,7 +168,28 @@ export type _BodyFrame = {
  */
 export type _NegFrame = { readonly neg: true }
 
-export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _NegFrame | _FunctionFrame | _BodyFrame
+/**
+ * A bitwise not whose operand is being evaluated. It carries nothing, for
+ * the same reason {@link _NegFrame} does not.
+ */
+export type _BitnotFrame = { readonly bitnot: true }
+
+/** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
+export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
+
+/** A binary operator whose right operand is being evaluated: the tag, and the left operand already resolved. */
+export type _BinaryRightFrame = { readonly tag: BinaryTag, readonly left: AstConst }
+
+export type _Frame =
+    | _ContainerFrame
+    | _CallFrame
+    | _AccessFrame
+    | _NegFrame
+    | _BitnotFrame
+    | _BinaryLeftFrame
+    | _BinaryRightFrame
+    | _FunctionFrame
+    | _BodyFrame
 
 /** The containers, accesses, negations and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null

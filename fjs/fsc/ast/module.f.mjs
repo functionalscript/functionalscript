@@ -112,6 +112,17 @@ const noFunctionValue = 'a function has no value'
 const noCallValue = 'a call has no value'
 
 /**
+ * The refusal of a binary operator or a bitwise not where a value is
+ * wanted: `+` alone needs `ToPrimitive` to decide number or string, and
+ * folding every other operator while leaving `+` a node would draw an
+ * inconsistent line, so this evaluator answers none of them — see
+ * {@link AstBinary}'s own comment in `./types.ts`. `run` reaches this
+ * exactly where it reaches {@link noFunctionValue}/{@link noCallValue}: a
+ * node whose value is the EDAG's to give, not this reader's.
+ */
+const noOperatorValue = 'an operator has no value'
+
+/**
  * The refusal of a value this evaluator has no number for: a container.
  *
  * Converting one is `ToPrimitive`, JavaScript's own machinery — `valueOf`,
@@ -163,7 +174,12 @@ const toDjs = state => ast => {
         case '=>':
         case 'args': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
-        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
+        case '-': { return ast.length === 2 ? okThen(negated)(toDjs(state)(ast[1])) : error(noOperatorValue) }
+        case '~':
+        case '*': case '/': case '%': case '**':
+        case '+':
+        case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>': { return error(noOperatorValue) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -252,8 +268,23 @@ const refsOf = view => ast => {
                 : refsOf(view)(read)
         }
         // what a negation's operand leaves is the view's: the graph holds it
-        // and the value does not, a negation being a primitive
-        case '-': { return flat(view.negated(ast[1]).map(refsOf(view))) }
+        // and the value does not, a negation being a primitive. The binary
+        // `-` past it is `noOperatorValue`'s, never folded, so both its
+        // operands are reached exactly as a call's are
+        case '-': {
+            return ast.length === 2
+                ? flat(view.negated(ast[1]).map(refsOf(view)))
+                : flat([ast[1], ast[2]].map(refsOf(view)))
+        }
+        // a bitwise not or a binary operator folds nothing — noOperatorValue's
+        // own comment has why — so both operands are always reached
+        case '~': { return refsOf(view)(ast[1]) }
+        case '*': case '/': case '%': case '**':
+        case '+':
+        case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+            return flat([ast[1], ast[2]].map(refsOf(view)))
+        }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }

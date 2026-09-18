@@ -96,6 +96,27 @@ export const proof = {
         // what it does not reach is anchored as ever
         assertEq(anchorsOf([[a], [['array', []], ['()', 1, [2]]]]), 'consts 0; imports 0')
     },
+    // A binary operator and a bitwise not have no value here — `+` alone
+    // needs `ToPrimitive`, and folding the rest while leaving it a node
+    // would draw an inconsistent line — so `noOperatorValue` refuses every
+    // one of them, `run` reaching it exactly where it reaches
+    // `noFunctionValue`/`noCallValue`. Unary `-` alone still folds, told
+    // from the binary one by length. Neither is a leaf to the sweep: both
+    // operands are written where they stand, so what they name is reached.
+    operator: () => {
+        assertStructurallySame(run([['+', 1, 2]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(run([['-', 1, 2]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(run([['~', 1]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(values([['===', 1, 2], 3])([]), ['error', 'an operator has no value'])
+        // the unary `-` this refusal does not reach
+        assertStructurallySame(run([['-', 1]])([]), ['ok', -1])
+        // both operands of a binary operator are reached
+        assertEq(anchorsOf([[a], [['array', []], ['+', ['cref', 0], 1]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['+', 1, ['cref', 0]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['~', ['cref', 0]]]]), 'consts ; imports 0')
+        // what it does not reach is anchored as ever
+        assertEq(anchorsOf([[a], [['array', []], ['+', 1, 2]]]), 'consts 0; imports 0')
+    },
     // what the sweep from the export leaves out, by index, less what the
     // left-out entries reach themselves
     anchors: {
@@ -203,6 +224,20 @@ export const proof = {
         whole: () => {
             assert(sharedOf([['array', []], ['array', [['cref', 0], ['cref', 0]]]]))
             assert(!sharedOf([1, ['array', [['cref', 0], ['cref', 0]]]]))
+        },
+        // a binary operator's operands are reached exactly as a call's
+        // arguments are, and a bitwise not's the same way a call's callee
+        // is — `sharing` alone, an operator's own value being none `values`
+        // could compute. Every entry but the export is `['array', []]`
+        // here, so its own value, `[]`, stands in for what `values` would
+        // have computed — a leaf entry would need its real one instead,
+        // `containerNode` reading only a referenced entry's containerness
+        operator: () => {
+            /** @type {(body: readonly import('./types.ts').AstConst[]) => boolean} */
+            const shared = body => sharing(body)([])(body.map((_, i) => i < body.length - 1 ? [] : null)).shared
+            assert(shared([['array', []], ['+', ['cref', 0], ['cref', 0]]]))
+            assert(!shared([['array', []], ['array', []], ['+', ['cref', 0], ['cref', 1]]]))
+            assert(shared([['array', []], ['array', [['cref', 0], ['~', ['cref', 0]]]]]))
         },
         access: () => {
             /** @type {readonly import('./types.ts').AstConst[]} */
