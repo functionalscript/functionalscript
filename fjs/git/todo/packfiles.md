@@ -93,5 +93,6 @@ the index's offsets for the next one up — see `after` in
 
 - [`fjs/git/README.md`](../README.md) — the readers a pack feeds, and the
   framing table that puts a pack on the decoder side.
-- [object-store.md](./object-store.md) — the walk that chooses between
-  loose and packed.
+- [`fjs/git/store`](../store/module.f.mjs) — the read that chooses between
+  loose and packed, and the whole-store read a base would have resolved
+  through.
