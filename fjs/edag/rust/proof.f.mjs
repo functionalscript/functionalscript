@@ -246,10 +246,23 @@ export const proof = {
          * from the middle step's own direct check when it is printed, the
          * same one `dotOnArrayLiteral` pins — proving the fold neither
          * crashed nor wrongly treated the array as an object two hops up.
+         *
+         * The array is empty rather than `[1]`: with a non-empty item list,
+         * dropping just `resolvedBase`'s `base[0] !== '{}'` clause (leaving
+         * the rest of that guard and the spread check below it intact)
+         * still refuses at this same node, because the spread check's
+         * `p[0] !== ':'` happens to hold for a bare scalar item too and
+         * returns unresolved anyway — a mutation this test would then miss.
+         * An empty item list has nothing for `.some(...)` to fail on, so it
+         * cannot be coincidentally rescued that way: reading past the
+         * weakened guard, `props.some(...)` is vacuously `false`, `findLast`
+         * finds nothing, and the fold would incorrectly continue to
+         * `['undefined']` — a different, wrong reason — if that clause were
+         * the only thing standing in the way.
          */
         dotOnNonObjectMiddleStep: () => {
             /** @type {Exp} */
-            const middle = ['.', ['[]', [1]], 'length']
+            const middle = ['.', ['[]', []], 'length']
             assertStructurallySame(
                 refusalReason(['.', middle, 'toString']),
                 ['no nanvm-lib own-property read for this receiver type yet', middle])
