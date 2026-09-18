@@ -357,12 +357,12 @@ const baseOf = ([tag, branch]) => {
  *
  * @type {(node: Children<Parenthesized, DjsTokenWithMetadata, Out>) => Node}
  */
-const parenNode = node => {
-    if (node[0] === 'func') {
-        const [, , name, , , , , , b] = unmapped(node[1])
+const parenNode = ([tag, branch]) => {
+    if (tag === 'func') {
+        const [, , name, , , , , , b] = unmapped(branch)
         return ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)]
     }
-    return groupNode(node[1])
+    return groupNode(branch)
 }
 
 /**
