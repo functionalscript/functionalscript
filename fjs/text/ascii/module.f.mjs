@@ -236,9 +236,40 @@ export const rightCurlyBracket = one('}')
 /** 0x7E */
 export const tilde = one('~')
 
-// hexadecimal digits
+// character classes
 
-const isDigit = contains(...digitRange)
+/**
+ * The classes a lexical rule is written from, so that no consumer rederives
+ * a range from literals of its own — the same reason the hexadecimal codec
+ * below lives here.
+ *
+ * They classify a code point; the rule built on them is the consumer's, and
+ * differs between languages over the very same letters: JavaScript's
+ * identifier takes a letter, `_` and `$`, and Nix's takes a letter, `_`,
+ * `'` and `-`.
+ *
+ * @type {(codePoint: number) => boolean}
+ */
+export const isDigit = contains(...digitRange)
+
+/** `a` to `z`. @type {(codePoint: number) => boolean} */
+export const isLatinSmallLetter = contains(...latinSmallLetterRange)
+
+/** `A` to `Z`. @type {(codePoint: number) => boolean} */
+export const isLatinCapitalLetter = contains(...latinCapitalLetterRange)
+
+/**
+ * A Latin letter of either case. Written over the two ranges rather than
+ * over a case fold: `'\u212a'`, the Kelvin sign, lowercases to `k` and is
+ * no Latin letter, which is a hole every predicate that asks
+ * `toLowerCase()` has.
+ *
+ * @type {(codePoint: number) => boolean}
+ */
+export const isLatinLetter = codePoint =>
+    isLatinSmallLetter(codePoint) || isLatinCapitalLetter(codePoint)
+
+// hexadecimal digits
 
 const isLatinSmallLetterAF = contains(...latinSmallLetterAFRange)
 

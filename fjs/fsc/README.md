@@ -7,11 +7,12 @@ The front end: a grammar-based tokenizer over
 from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
 and `fjs/djs` emptied; the value model is DataJS's,
-[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes through
-[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs):
-its module output is a DataJS document in normalized form, and
-its `.json` output refuses what JSON cannot spell rather than approximating
-it — see [`module.f.mjs`](./module.f.mjs).
+[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes
+the language its output name declares: a `.data.js` document through
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs) in
+normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs)
+from the linked graph, and a `.json` output that refuses what JSON cannot
+spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
 
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
@@ -26,9 +27,9 @@ finds a function, `length` excepted, since a value owns it
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function, `(...a) => body`, is accepted for the EDAG output
-alone — see below — and refused by the value outputs, since a value has no
-function in it. Across modules the sweep is coarser: a module whose own value
+node it is. A function, `(...a) => body`, is written by the EDAG and
+FunctionalScript outputs — see below — and refused by the value outputs,
+since a value has no function in it. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
@@ -88,8 +89,11 @@ denotes, as `transpile` reads it; a `.json` file imported without the
 attribute, or another file imported with it, is refused as JavaScript refuses
 it.
 `fjs compile` writes the linked graph when the output name ends with
-`.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
-hoisted as the module output's are. What
+`.edag.data.js` or `.edag.data.mjs`, as a DataJS document with its shared
+nodes hoisted as the DataJS output's are, and writes it back as source under
+any other `.js` or `.mjs` name, through
+[`serializer`](serializer/module.f.mjs) — the one output that holds a
+function, since a value has none. What
 the export does not reach is anchored by the comma operation rather than
 dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
 `run` evaluates every `const`, so a failure behind an unused one fails the
@@ -104,10 +108,26 @@ references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
 nothing outside stands: a reference to a `const`, an import or an enclosing
 function's parameter is a capture, refused where it is written, so no module
 node is ever shared into a body. The body is any value except an object, since
-`=> {` opens a block in JavaScript — or that block, `{ return value; }`, one
-`return` statement in which an object is a value again and which lowers to the
-value it returns, since the two spellings are one function. There is no call
-yet.
+`=> {` opens a block in JavaScript — or that block, in which an object is a
+value again: any number of `const` statements and then one `return`. A body
+`const` is an entry of the function's own body, as a module `const` is of the
+module — one node however many references reach it, and what the returned
+value does not reach anchored by the comma rather than dropped, which is the
+one place a comma stands outside a module's root. With no statement the block
+lowers to the value it returns, the two spellings being one function.
+A call is a step after a value, as an access is, and the callee picks which of
+the EDAG's two forms it lowers to: an access as the callee is a method call,
+`a.b(c)`, whose receiver is that access's base, so the access owns the call
+and the two are one node, `['.', a, 'b', ['|()', args]]`; any other callee is
+the plain `['()', callee, args]`, its arguments one array node the call
+spreads. The plain form over an access is the *detached* receiver,
+`(0, a.b)(c)`, which needs the comma operator and is unspellable, so no
+source writes one — `(a.b)(c)` keeps the receiver and is the method call
+again, parentheses preserving the property reference. A call mints identity — two calls are
+two nodes and a `const` naming one is one — which is what a body's `const`
+keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
+form yet and refuses both by name, so a module with a call in it compiles to
+the EDAG output alone.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.

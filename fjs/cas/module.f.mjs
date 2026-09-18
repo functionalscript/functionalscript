@@ -13,7 +13,7 @@
  */
 
 import { join, normalize, parse } from '../path/module.f.mjs'
-import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { empty, length, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
     catchStep,
@@ -41,12 +41,12 @@ import {
     rename,
     rm,
     stat,
+    readChunks,
     writeBytes,
 } from '../effects/node/module.f.mjs'
 import { toOption } from '../types/nullable/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { splitAt } from '../types/string/module.f.mjs'
-import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
 
 const split2 = splitAt(2)
 
@@ -89,8 +89,6 @@ export const collectRead = stream => {
     return loop(empty)(stream)
 }
 
-/** Maximum chunk size for streaming reads: the largest `Vec` the runtime allows. */
-const chunkBytes = Number(maxLengthBytes)
 
 /** Staging directory under the store root; GC and every uploader share it. */
 const stageRel = '_stage'
@@ -265,19 +263,16 @@ export const fileCas = sha2 => path => {
     return {
         read: hash => {
             const p = join(path, toPath(hash))
-            /** @type {(offset: number) => List<FileCasOperation, Vec, IoChannel>} */
-            const loop = offset =>
-                // A missing shard or read error fails the stream, and `step`
-                // propagates it — the cell's own failure can never be mistaken
-                // for the `undefined` that ends one.
-                ioStep(
-                    readBytes(p, offset, chunkBytes),
-                    // End the stream only on an empty read; every non-empty read — including a
-                    // final short (`< CHUNK_BYTES`) chunk — is emitted as a cell.
-                    chunk => length(chunk) === 0n
-                        ? elEmpty()
-                        : nonEmpty(chunk, loop(offset + chunkBytes)))
-            return loop(0)
+            // Unbounded: an empty read ends the stream, and every non-empty
+            // read — including a final short one — is a cell. A missing shard
+            // or a read error fails the stream rather than ending it, so a
+            // cell's failure is never mistaken for the end.
+            //
+            // Reading by NAME is safe here and would not be in a served tree:
+            // a name in this store is its content's hash, published by `rename`
+            // and only ever republishable with the same bytes, so whichever
+            // inode a per-chunk open lands on holds what the last one held.
+            return readChunks((offset, size) => readBytes(p, offset, size), null)
         },
         write: payload => writeImpl(sha2, path, stageDir, payload),
         list: () =>
@@ -323,16 +318,7 @@ const random256 =
  *
  * @type {(filePath: string) => List<ReadBytes, Vec, IoChannel>}
  */
-const streamFile = filePath => {
-    /** @type {(offset: number) => List<ReadBytes, Vec, IoChannel>} */
-    const loop = offset =>
-        ioStep(
-            readBytes(filePath, offset, chunkBytes),
-            chunk => length(chunk) === 0n
-                ? elEmpty()
-                : nonEmpty(chunk, loop(offset + chunkBytes)))
-    return loop(0)
-}
+const streamFile = filePath => readChunks((offset, size) => readBytes(filePath, offset, size), null)
 
 /**
  * Streams the file at `path` through `cas.write`, returning the content hash.

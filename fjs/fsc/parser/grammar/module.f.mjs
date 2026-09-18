@@ -9,9 +9,9 @@
  * export ::= 'export' t 'default' t value ';' t
  * value  ::= (primitive t | id t | array | object) access* | func
  * body   ::= (primitive t | id t | array) access* | func | block
- * block  ::= '{' t 'return' s value ';' t '}' t
+ * block  ::= '{' t const* 'return' s value ';' t '}' t
  * func   ::= '(' t '...' t id t ')' s '=>' t body
- * access ::= '.' t id t | '[' t (string | number) t ']' t
+ * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
  * array  ::= '[' t [ items(value) ] ']' t
  * object ::= '{' t [ items(member) ] '}' t
  * member ::= key t ':' t value
@@ -50,7 +50,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Block, Body, Func, Items, Member, Value } from './types.ts'
+ * @import { Access, Block, Body, Func, Items, Member, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -170,6 +170,31 @@ export const identifier = /** @type {const} */ ({
     return: sym('return'),
 })
 
+/**
+ * Every word that may *name* something — a property, or a binding — which
+ * is {@link identifier} and the six words that denote a value.
+ *
+ * ECMAScript draws the same line and this follows it: a property is named
+ * by an `IdentifierName`, which admits every reserved word, so `{ NaN: 1 }`
+ * and `a.NaN` are JavaScript and mean the string `"NaN"`, while a reference
+ * is an `IdentifierReference`, which admits none of them. A binding is an
+ * ECMAScript `BindingIdentifier`, narrower still; it takes this wider rule
+ * here so that `const NaN = 1;` reaches the fold and is refused as a
+ * `reserved word`, rather than dying at the token with `unexpected token`.
+ *
+ * `-Infinity` is not among them: it is one token and no identifier in
+ * JavaScript either.
+ */
+export const identifierName = /** @type {const} */ ({
+    ...identifier,
+    null: sym('null'),
+    true: sym('true'),
+    false: sym('false'),
+    undefined: sym('undefined'),
+    NaN: sym('NaN'),
+    Infinity: sym('Infinity'),
+})
+
 /** A value that is one token. */
 export const primitive = /** @type {const} */ ({
     null: sym('null'),
@@ -204,14 +229,36 @@ export const index = /** @type {const} */ ({
 })
 
 /**
- * One step of a property access after a value: `.name`, the name any
- * identifier, or `[key]`, the key a constant. What the two spellings may
- * name is the fold's to check, since the name is a word the grammar does
- * not see. Each step ends with its trivia, as a value does.
+ * A call's arguments: the items an array holds, {@link values}, reached
+ * through a thunk.
+ *
+ * This is where the grammar's cycle is broken a second time — a value takes
+ * steps, a step may be a call, and a call holds values, so `access` would
+ * have to name `values` before it is declared. A rule of its own rather than
+ * a thunk over the value rule, because what a list embeds has to be the
+ * `value` rule itself: the rewrite set is keyed by rule, so a wrapper in the
+ * item's place would leave each argument unmapped.
+ *
+ * @type {() => ReturnType<Items<Value>>}
  */
-export const access = /** @type {const} */ ({
-    property: [sym('.'), trivia, identifier, trivia],
+export const callArguments = () => values()
+
+/**
+ * One step after a value: a property access, `.name` with the name any
+ * identifier or `[key]` with the key a constant, or a call, `(a, b)` with
+ * its arguments any values. What a property's two spellings may name is the
+ * fold's to check, since the name is a word the grammar does not see. Each
+ * step ends with its trivia, as a value does.
+ *
+ * Three symbols decide between them — `.`, `[` and `(` — and none of them
+ * follows a value any other way, so the step a value takes is read in one.
+ * `f(1)(2)` and `a.b(1)[0]` are steps upon steps, as `a.b[0]` is: what a
+ * step applies to is everything written before it.
+ */
+export const access = /** @type {Access} */ ({
+    property: [sym('.'), trivia, identifierName, trivia],
     index: [sym('['), trivia, index, trivia, sym(']'), trivia],
+    call: [sym('('), trivia, option(callArguments), sym(')'), trivia],
 })
 
 /** The accesses after a value, `a.b[0]`, none or more. */
@@ -252,7 +299,7 @@ export const body = () => ['const', {
  *
  * @type {Func}
  */
-export const func = [sym('('), trivia, sym('...'), trivia, identifier, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
+export const func = [sym('('), trivia, sym('...'), trivia, identifierName, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
 
 /**
  * A value ends with its own trivia, so that it may be followed by an
@@ -278,7 +325,7 @@ export const value = () => ['const', {
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({
-    plain: identifier,
+    plain: identifierName,
     string: sym('string'),
     computed: [sym('['), trivia, sym('string'), trivia, sym(']')],
 })
@@ -286,11 +333,11 @@ export const key = /** @type {const} */ ({
 /** @type {Member} */
 export const member = [key, trivia, sym(':'), trivia, value]
 
-/** The items of an array. A rule of its own, so that a reader may map it. */
-export const values = items(value)
-
 /** The members of an object, likewise. */
 export const members = items(member)
+
+/** The items of an array. A rule of its own, so that a reader may map it. */
+export const values = items(value)
 
 export const array = /** @type {const} */ ([sym('['), trivia, option(values), sym(']'), trivia])
 
@@ -300,9 +347,27 @@ export const object = /** @type {const} */ ([sym('{'), trivia, option(members), 
 const end = /** @type {const} */ ([sym(';'), trivia])
 
 /**
- * A function's block body: `{ return value; }`, one `return` statement and
- * nothing else — a body `const` before it is
- * [3130](../../../../spec/todo/3130-body-const.md).
+ * A `const` statement: the name, `=`, the value, `;`. A module's statement
+ * and a function body's alike — {@link djsModule} takes a run of them after
+ * the imports, and {@link block} a run of them before the `return`.
+ *
+ * Declared here, above {@link block}, rather than with the other module
+ * statements below: `block` holds it directly, where the recursion back
+ * into `value` goes through a thunk.
+ */
+export const constStatement = /** @type {const} */ ([
+    sym('const'), trivia, identifierName, trivia, sym('='), trivia, value, ...end,
+])
+
+/**
+ * A function's block body: `{ const x = 1; return value; }` — any number of
+ * `const` statements and then the one `return`
+ * ([spec: functions](../../../../spec/README.md#functions)).
+ *
+ * The `const` is {@link constStatement}, the module's own rule: the body
+ * binds names the way a module does, and the fold is what says the two
+ * scopes are different — a body's name is the body's, and a reference out
+ * of it is a capture.
  *
  * The value is an ordinary {@link value}, the object included: `{` opens a
  * block only where a statement may start, and after `return` an expression
@@ -321,7 +386,7 @@ const end = /** @type {const} */ ([sym(';'), trivia])
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), trivia, sym('return'), sameLine, value, ...end, sym('}'), trivia,
+    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, value, ...end, sym('}'), trivia,
 ])
 
 /**
@@ -331,24 +396,20 @@ export const block = /** @type {const} */ ([
  * — the key has to be `type` and the value `json`, and the fold says which
  * is not.
  *
- * The key is {@link identifier} and not the bare `id` symbol, so that a
+ * The key is {@link identifierName} and not the bare `id` symbol, so that a
  * word with a symbol of its own stands here as any other word does:
  * JavaScript's key is an `IdentifierName`, which admits every reserved
  * word, and giving a word its own symbol narrows where it is *required*,
- * never where it is *allowed*. `with { return: "json" }` is an unknown
- * attribute, which is the fold's to say, not a token the grammar did not
- * expect.
+ * never where it is *allowed*. `with { return: "json" }` and
+ * `with { NaN: "json" }` are unknown attributes, which is the fold's to
+ * say, not a token the grammar did not expect.
  */
 export const attribute = /** @type {const} */ ([
-    sym('with'), trivia, sym('{'), trivia, identifier, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
+    sym('with'), trivia, sym('{'), trivia, identifierName, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
 ])
 
 export const importStatement = /** @type {const} */ ([
-    sym('import'), trivia, identifier, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
-])
-
-export const constStatement = /** @type {const} */ ([
-    sym('const'), trivia, identifier, trivia, sym('='), trivia, value, ...end,
+    sym('import'), trivia, identifierName, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
 ])
 
 export const exportStatement = /** @type {const} */ ([
