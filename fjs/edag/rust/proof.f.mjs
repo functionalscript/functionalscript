@@ -102,29 +102,37 @@ export const proof = {
             'Any::member_access(Object::default().to_any(), (0f64).to_any()).unwrap()')
     },
     /**
-     * A `.` base folds through a literal object chain before the shape
-     * checks run, so a receiver two or more property reads away is checked
-     * exactly as a direct one is.
+     * A `.` base folds through a literal object chain before `nullishBase`
+     * runs, so a nullish result reachable only several property reads away
+     * is caught exactly as a direct one is — {@link dotOnNestedMissingKey} in
+     * `throw` below pins the refusal this buys. Every case here is the other
+     * side of that: the fold resolving to something other than a nullish
+     * shape, printed rather than refused, however far down the chain that
+     * shape turns up.
      */
     resolvedBase: () => {
         // Resolves to an object two hops away: printed, not refused.
         assertEq(
             printed(['.', ['.', ['{}', [[':', 'a', ['{}', [[':', 'c', 5]]]]]], 'a'], 'c']),
             'Any::member_access(Any::member_access([(string_key("a"), [(string_key("c"), (5f64).to_any())].to_object().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("c")).unwrap()')
-        // The same fold reaches a non-object receiver two hops away exactly
-        // as a direct one: `{ a: [1] }.a.length` is checked like `[1].length`
-        // is, rather than missing the case just because it sits one hop
-        // further away.
+        // The fold can just as well resolve to a non-object literal (an
+        // array, here) two hops away. `nullishBase` treats that the same as
+        // if the fold had left it opaque — neither is a literal `null` nor
+        // the tagged `['undefined']` node — so this prints either way; the
+        // assertion is that resolving this far changes nothing and breaks
+        // nothing, not that some refusal is being dodged.
         assertEq(
             printed(['.', ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], 'length']),
             'Any::member_access(Any::member_access([(string_key("a"), [(1f64).to_any()].to_array().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("length")).unwrap()')
         // `resolvedBase` folds through a `.` node only as far as an actual
         // literal object — a chain whose middle step resolves to something
         // else (an array, here) stops there, unresolved, rather than
-        // assuming an object further down. Printed correctly all the same:
-        // the middle step's own base is checked directly when it is printed,
-        // proving the fold neither crashed nor wrongly treated the array as
-        // an object two hops up.
+        // assuming an object further down: its own tag check (`base[0] !==
+        // '{}'`) guards against reading an array's items as if they were
+        // `[':', key, value]` properties. Printed correctly all the same —
+        // the middle step's own base is checked directly when it is printed
+        // — proving the fold neither crashed nor misread the array's shape
+        // two hops up.
         assertEq(
             printed(['.', ['.', ['[]', [1]], 'length'], 'toString']),
             'Any::member_access(Any::member_access([(1f64).to_any()].to_array().to_any(), string_any("length")).unwrap(), string_any("toString")).unwrap()')

@@ -189,8 +189,8 @@ const keyExpr = k => typeof k === 'string' ? ok(`string_key(${stringLiteral(k)})
 
 /**
  * A `.` node's index, as the `Any<A>` key `Any::member_access` takes: a
- * literal `number` or `string`, `Index`'s two variants `member_access`'s own
- * key type (`number | string`) already covers directly.
+ * literal `number` or `string`, the two `Index` variants `member_access`'s
+ * own key type (`number | string`) already covers directly.
  *
  * `NumberCast` — `Index`'s third variant — names a sub-expression to
  * evaluate and coerce at run time (`a[Number(k)]`), not a literal key this
@@ -224,10 +224,13 @@ const nullishBase = base => base === null || (base instanceof Array && base[0] =
 /**
  * The `Exp` a `.` node's base denotes when every step folding it is
  * statically visible: a literal object base and a literal string key fold
- * to the property's own value, the same way `{ a: [1] }.a` is `[1]` at run
- * time — so `{ a: [1] }.a.length` is checked exactly as `[1].length` is,
- * rather than missing the nullish-base gap {@link nullishBase} exists to
- * catch just because it sits one hop further away. `fjs/fsc/ast/module.f.mjs`'s
+ * to the property's own value, the same way `{ a: 1 }.a` is `1` at run time
+ * — so a base that is nullish only after such a fold is still caught by
+ * {@link nullishBase} rather than missed just because the nullish value sits
+ * one or more hops further away than the node it is checked on: `{}.missing`
+ * folds to the tagged `['undefined']` node the same way a key absent at run
+ * time reads as `undefined`, and `{ a: null }.a.x` folds its base to a
+ * literal `null` before `nullishBase` ever sees it. `fjs/fsc/ast/module.f.mjs`'s
  * `selected` does the same fold for the same reason, over the AST rather
  * than the EDAG, for the sharing sweep.
  *
@@ -235,9 +238,11 @@ const nullishBase = base => base === null || (base instanceof Array && base[0] =
  * `const`, an import, another operation, an array, or an object holding a
  * spread — this is a fold over literal *object* chains only, not a general
  * evaluator, so a shape it cannot prove is left opaque rather than guessed
- * at. A key absent from a fully literal object folds to `['undefined']`,
- * which {@link nullishBase} then catches — reading no such property *is*
- * reading `undefined`.
+ * at. Folding all the way through to a non-nullish literal — an array, a
+ * string, another object — costs nothing and is harmless, but changes
+ * nothing {@link nullishBase} decides either: it treats every such shape,
+ * resolved or left opaque, alike as "not provably nullish." Only the two
+ * nullish outcomes above are what the fold exists for.
  *
  * @type {(e: Exp) => Exp}
  */
