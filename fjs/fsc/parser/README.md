@@ -23,7 +23,7 @@ body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
 unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
 block  ::= '{' t const* 'return' s value ';' t '}' t
 paren  ::= '(' t (func | group)
-func   ::= '...' t id t ')' s '=>' t body
+func   ::= [ '...' t id t ] ')' s '=>' t body
 group  ::= value ')' t access*
 access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t

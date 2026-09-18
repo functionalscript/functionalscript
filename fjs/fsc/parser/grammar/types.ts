@@ -192,8 +192,8 @@ export type ParenGroup = readonly [number, typeof trivia, Group]
 export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
 
 /**
- * A function after its `(`, which is {@link Paren}'s: `...`, trivia, the
- * parameter, trivia, `)`, same-line trivia, `=>`, trivia, and the body.
+ * The one rest parameter, when a function has one: `...`, trivia, the
+ * parameter, and its trivia.
  *
  * The parameter is an {@link identifierName} and not an `identifier`: a
  * binding takes every word a name may be, and the fold refuses the reserved
@@ -201,13 +201,23 @@ export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constS
  * to the wider one — while leaving `Children<Func>` unable to hold a tree
  * the grammar produces.
  */
-export type Func = readonly [number, typeof trivia, typeof identifierName, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
+export type Parameter = readonly [number, typeof trivia, typeof identifierName, typeof trivia]
 
-// Which of the two rules that is, pinned — one guard per direction, since
-// neither covers both:
+/** A function's parameter list: the one rest parameter, or nothing. */
+export type Parameters = Option<Parameter>
+
+/**
+ * A function after its `(`, which is {@link Paren}'s: the parameter list,
+ * `)`, same-line trivia, `=>`, trivia, and the body.
+ */
+export type Func = readonly [Parameters, number, typeof sameLine, number, typeof trivia, Body]
+
+// Which of the two rules the parameter is, pinned — one guard per
+// direction, since neither covers both:
 //
 // - narrow the *rule* in `./module.f.mjs` and the annotation catches it,
-//   `TS2740`, the literal being short the six properties `Func` demands;
+//   `TS2740`, the literal being short the six properties `identifierName`
+//   demands;
 // - narrow *this alias* and nothing does. The rule stays assignable to the
 //   narrower type, having more properties than it asks for, so `tsc` is
 //   silent — measured by removing this line and seeing a clean build.
@@ -215,4 +225,4 @@ export type Func = readonly [number, typeof trivia, typeof identifierName, typeo
 // So this assertion guards the second direction alone, which is the one
 // that would leave `Children<Func>` unable to hold a tree the grammar
 // produces while every file still compiles.
-type _FuncParameterIsAName = Assert<Equal<Func[2], typeof identifierName>>
+type _FuncParameterIsAName = Assert<Equal<Parameter[2], typeof identifierName>>

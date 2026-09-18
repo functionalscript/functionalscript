@@ -9,6 +9,6 @@ export default {
 }
 ```
 
-Depends on [function](./3110-function.md); grouping is implemented
-([grouping](../README.md#grouping)), which is what gives the object body of
-`"c"` its spelling.
+Depends on functions and on grouping, both implemented
+([functions](../README.md#functions), [grouping](../README.md#grouping)) — the
+grouping is what gives the object body of `"c"` its spelling.

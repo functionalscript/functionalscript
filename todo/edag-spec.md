@@ -137,8 +137,8 @@ standard JSON numeric policy remains separate in
   — existing owner of standard JSON numeric edge-case policy.
 - [`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md)
   — property/method-access safety rules used by `.` and the property chain steps.
-- [`spec/todo/3110-function.md`](../spec/todo/3110-function.md) — source-level
-  function support.
+- [`spec/README.md`](../spec/README.md#functions) — source-level
+  function support, which is in the language.
 - [`spec/todo/3111-function-frame.md`](../spec/todo/3111-function-frame.md) —
   captured-frame and VM-internal function-object design; frame support is later
   than the initial non-capturing EDAG stage.

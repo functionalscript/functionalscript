@@ -12,7 +12,7 @@
  * unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
  * block  ::= '{' t const* 'return' s value ';' t '}' t
  * paren  ::= '(' t (func | group)
- * func   ::= '...' t id t ')' s '=>' t body
+ * func   ::= [ '...' t id t ] ')' s '=>' t body
  * group  ::= value ')' t access*
  * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
  * array  ::= '[' t [ items(value) ] ']' t
@@ -60,7 +60,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, Block, Body, Func, Group, Items, Member, Paren, ParenGroup, Parenthesized, Unary, Value } from './types.ts'
+ * @import { Access, Block, Body, Func, Group, Items, Member, Parameters, Paren, ParenGroup, Parenthesized, Unary, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -304,18 +304,39 @@ export const body = () => ['const', {
 }]
 
 /**
- * A function after its `(`: one rest parameter, `...a`, the `)`, then `=>`
- * on the same line as that `)`, as JavaScript requires, and the body, which
- * ends with its own trivia as every value does. The parameter is the
- * arguments array, and the body names it and nothing outside — which names
- * it may use is the fold's to say, since a name is a word the grammar does
- * not see.
+ * A function's parameter list: the one rest parameter, `(...a)`, or
+ * nothing, `()`. One symbol decides between them — `...` opens the
+ * parameter and `)` closes an empty list, and a list is written nowhere
+ * else, so neither reaches here any other way.
+ *
+ * It is what tells a function from a group past {@link paren}'s `(` as
+ * well: a `...` or a `)` is this rule, and everything a group may start
+ * with is a value's, the two sets sharing nothing.
+ *
+ * A list of named parameters is the rule this one grows into
+ * ([parameters](../../../../spec/todo/3120-parameters.md)), which is why
+ * the option is a rule of its own rather than spelled inside
+ * {@link func}: what the list holds is this rule's to say, and a reader
+ * takes the parameter from its mapping either way.
+ *
+ * @type {Parameters}
+ */
+export const parameters = option([sym('...'), trivia, identifierName, trivia])
+
+/**
+ * A function after its `(`: its parameter list, the `)`, then `=>` on the
+ * same line as that `)`, as JavaScript requires, and the body, which ends
+ * with its own trivia as every value does. The parameter is the arguments
+ * array, and the body names it and nothing outside — which names it may
+ * use is the fold's to say, since a name is a word the grammar does not
+ * see. A function with no parameter names nothing at all, its arguments
+ * included.
  *
  * The `(` is {@link paren}'s, since a group opens with the same symbol.
  *
  * @type {Func}
  */
-export const func = [sym('...'), trivia, identifierName, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
+export const func = [parameters, sym(')'), sameLine, sym('=>'), trivia, body]
 
 /**
  * What a `-` takes: every value but a function. JavaScript's unary operand
