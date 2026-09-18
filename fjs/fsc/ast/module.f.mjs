@@ -112,50 +112,37 @@ const noFunctionValue = 'a function has no value'
 const noCallValue = 'a call has no value'
 
 /**
- * The refusal of a value JavaScript cannot convert to a primitive, which is
- * what `-{ toString: 1 }` throws a `TypeError` for. Such a module has no
- * value in either language, so it is refused here rather than thrown out of
- * the compiler.
+ * The refusal of a value this evaluator has no number for: a container.
+ *
+ * Converting one is `ToPrimitive`, JavaScript's own machinery — `valueOf`,
+ * then `toString`, and a `TypeError` where neither answers with a
+ * primitive. Which of those a value reaches depends on what it holds, so
+ * saying in advance that a container converts means assuming what may be
+ * in it. This refuses instead. The numbers JavaScript would give — `-[1]`
+ * is `-1`, `-{}` is `NaN` — wait on that machinery being written rather
+ * than reasoned about.
  */
-const noPrimitiveValue = 'an object has no primitive value'
-
-/**
- * Whether converting a value to a primitive would throw, as JavaScript's
- * `ToPrimitive` does when it is left nothing callable to call.
- *
- * A prototype name is an ordinary key here — only *reading* one is refused
- * — so `{ toString: 1 }` is data a module may build, and shadowing
- * `toString` with it is what leaves `ToPrimitive` nothing: no member of a
- * value is ever a function, a function having no value at all, so the
- * inherited `valueOf` answers with the object itself and the conversion
- * always falls through to `toString`.
- *
- * Which is why an object's *members* do not matter: `Object.prototype
- * .toString` answers `"[object Object]"` without reading one, so
- * `[{ a: { toString: 1 } }]` is `NaN` and not a throw. An array is the one
- * shape that recurses, `Array.prototype.toString` joining the text of every
- * element.
- *
- * @type {(value: Unknown) => boolean}
- */
-const noPrimitive = value => {
-    if (value === null || typeof value !== 'object') { return false }
-    if (value instanceof Array) { return value.some(noPrimitive) }
-    return typeof value.toString !== 'function'
-}
+const noNumber = 'no number for this value'
 
 /**
  * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
- * bigint, and anything else becomes a number first — `-null` is `-0`,
- * `-"2"` is `-2`, `-true` is `-1`, `-[1]` is `-1` and `-{}` is `NaN`. Every
- * primitive converts, so the refusal is {@link noPrimitive}'s alone, and it
- * names exactly what JavaScript throws on.
+ * bigint, and every other primitive converts — `-null` is `-0`, `-"2"` is
+ * `-2`, `-true` is `-1`, `-undefined` is `NaN`. `Number` is total over
+ * those five and cannot throw, which is what makes this total without
+ * knowing anything about the value beyond its type.
+ *
+ * Anything else is {@link noNumber}'s.
  *
  * @type {(value: Unknown) => Result<Unknown, string>}
  */
-const negated = value => typeof value === 'bigint'
-    ? ok(-value)
-    : noPrimitive(value) ? error(noPrimitiveValue) : ok(-Number(value))
+const negated = value => {
+    if (typeof value === 'bigint') { return ok(-value) }
+    if (value === null) { return ok(-0) }
+    switch (typeof value) {
+        case 'number': case 'string': case 'boolean': case 'undefined': { return ok(-Number(value)) }
+        default: { return error(noNumber) }
+    }
+}
 
 /**
  * The value of one entry, or the failure. An object's members are written

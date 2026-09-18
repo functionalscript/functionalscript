@@ -106,13 +106,9 @@ const shapes = p => [
  * negation — the one operator, whose operand binds tighter than it does, so
  * every shape below has to say where the negation happens.
  *
- * The negation is of a container and not of `1`: the lowering folds a
- * negation of a numeric literal into the leaf, so `['-', 1]` is a graph no
- * source makes and one that reads back as `-1` — see {@link proof.neg}.
- *
  * @type {readonly Exp[]}
  */
-const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
+const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined'], ['-', 1]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
@@ -141,12 +137,15 @@ export const proof = {
     // takes a name too. `op12` of two operands is the binary minus, which
     // the language has no spelling for yet.
     neg: () => {
+        writes(['-', 1], 'export default -1;')
         writes(['-', ['[]', [1]]], 'export default -[1];')
+        // `- -1` and not `--1`, which is the decrement token
+        writes(['-', ['-', 1]], 'export default - -1;')
         // the negation is inside the access, which is where the text puts it
         writes(['-', ['.', ['[]', [1]], 0]], 'export default -[1][0];')
         // and outside it only through a name
-        writes(['.', ['-', ['[]', []]], 0], 'const $0=-[];export default $0[0];')
-        writes(['.', ['-', ['[]', []]], 'a'], 'const $0=-[];export default $0.a;')
+        writes(['.', ['-', 1], 0], 'const $0=-1;export default $0[0];')
+        writes(['.', ['-', 1], 'a'], 'const $0=-1;export default $0.a;')
         // a negated function likewise
         writes(['-', ['=>', null, 1]], 'const $0=(...$a)=>1;export default -$0;')
         refuses(['-', 1, 2], 'a binary - node')
@@ -162,36 +161,27 @@ export const proof = {
         refuses(['()', ['-', 1], ['[]', []]], 'a () node')
     },
     /**
-     * A negative number is a leaf — a JSON input gives one — and the
-     * language's only spelling for it is the prefix. The lowering folds
-     * that prefix back into the leaf, so the text reads back as the graph
-     * it was written from and this is an ordinary {@link writes} line.
+     * A negative number is a leaf — a JSON input gives one, and so does any
+     * graph built by hand — and the language's only spelling for it is the
+     * prefix. So the text is right and denotes the same value, but reading
+     * it back gives the negation of the literal where the graph held the
+     * literal itself: one node more, in each of the three numeric leaves.
      *
-     * It was not, before the fold: the round trip gave `['-', 0]` where the
-     * graph held `-0`, one node more. What the fold leaves is the opposite
-     * gap over `['-', <numeric literal>]`, a graph the compiler never makes
-     * — {@link proof.neg} says where.
+     * {@link writes} cannot say that, comparing graphs. Closing it is the
+     * fold of `['-', literal]` over the EDAG, which is an optimization of
+     * the graph and waits until the language works without one — and when
+     * it lands, this entry reddens and becomes an ordinary {@link writes}
+     * line.
+     *
+     * A negation of a negative leaf is the same thing one deeper: `-1`
+     * written for the leaf and `- -1` for the node over it.
      */
     negativeLeaves: () => {
-        writes(['[]', [-0, -1.5, -1n]], 'export default [-0,-1.5,-1n];')
-    },
-
-    /**
-     * `['-', <numeric literal>]` is a graph no source makes, the lowering
-     * folding it into the leaf, so the writer's text for one reads back as
-     * that leaf and not as the node. The spelling is still the writer's to
-     * get right for a graph built by hand, and the one rule with no other
-     * witness is the space: `- -1` and never `--1`, two adjacent minus
-     * characters being the decrement token, which the parser has no rule
-     * for.
-     */
-    negConstant: () => {
-        assertEq(unwrap(tryStringify(['-', 1])), 'export default -1;')
-        assertEq(unwrap(tryStringify(['-', ['-', 1]])), 'export default - -1;')
+        const text = unwrap(tryStringify(['[]', [-0, -1.5, -1n]]))
+        assertEq(text, 'export default [-0,-1.5,-1n];')
+        const { edag } = unresolved(unwrap(parse(path)(text)))
+        assertStructurallySame(edag, ['[]', [['-', 0], ['-', 1.5], ['-', 1n]]])
         assertEq(unwrap(tryStringify(['-', -1])), 'export default - -1;')
-        // and read back as the leaf the lowering folds them to
-        const { edag } = unresolved(unwrap(parse(path)('export default - -1;')))
-        assertStructurallySame(edag, 1)
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared

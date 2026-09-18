@@ -578,18 +578,25 @@ pub fn module<A: IVm>() -> Any<A> {
         // `fjs/edag/rust` prints for one would not compile here — though it
         // is right where that printer's other caller puts it, a generated
         // operator test handing the `Result` to a checker.
+        //
+        // Every negation reaches this, a negated literal included: nothing
+        // folds `['-', 1]` into the leaf that would print, and that fold is
+        // an optimization the language waits on. So `export default -1;`
+        // has no `.rs` output, which is the cost of the operator until the
+        // Rust side has a shape for a throwing operation.
         negation: () => {
+            /** @type {(source: string, detail: string) => void} */
+            const expect = (source, detail) => assertEq(
+                rustRefused(source),
+                `output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: ${detail}`)
+            expect('export default -1;', '-,1')
+            expect('export default -1n;', '-,1')
+            expect('export default -[1];', '-,[],1')
+            expect('const a = [1]; export default -a;', '-,[],1')
+            // a module with no negation in it is untouched
             assertEq(
-                rustRefused('export default -[1];'),
-                'output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: -,[],1')
-            assertEq(
-                rustRefused('const a = [1]; export default -a;'),
-                'output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: -,[],1')
-            // and a negation the lowering folded away is no negation at all:
-            // `-1` is the leaf it always was, and prints as one
-            assertEq(
-                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
-                '    [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any()')
+                compileSource('export default [1, 2];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
+                '    [(1f64).to_any(), (2f64).to_any()].to_array().to_any()')
         },
     },
     // An error with no token to point at names the file being compiled, not
@@ -1017,11 +1024,11 @@ pub fn module<A: IVm>() -> Any<A> {
     // `parseFloat` keeps the sign, and the serializer writes it back as
     // `-0` — where `String(-0)` is `"0"`, which is why only `Object.is` can
     // state this and why the round trip is pinned rather than assumed.
-    // The one operator, where a value is wanted. Every primitive converts, so
-    // `-` computes; the one refusal is the conversion JavaScript itself
-    // throws on, `TypeError: Cannot convert object to primitive value`,
-    // which a module reaches because a prototype name is an ordinary key —
-    // only reading one is refused — so `{ toString: 1 }` is data.
+    // The one operator, where a value is wanted. Every primitive has a
+    // number and converts; a container is refused, since converting one is
+    // `ToPrimitive` — `valueOf`, then `toString`, and a `TypeError` where
+    // neither answers — and which of those a value reaches depends on what
+    // it holds. Refusing says so rather than assuming.
     negation: {
         computes: () => {
             /** @type {(source: string, expected: string) => void} */
@@ -1029,53 +1036,27 @@ pub fn module<A: IVm>() -> Any<A> {
             expect('export default [-"2", -true, -false, -null, -1n];', 'export default [-2,-1,-0,-0,-1n];')
             // `-undefined` is `NaN`, as every conversion that finds no number is
             expect('export default [-undefined, -"abc", -""];', 'export default [NaN,NaN,-0];')
-            // a container converts through its text, which is JavaScript's
-            // own answer and not one this evaluator invents
-            expect('export default [-[], -[1], -[1,2], -{}, -[{}]];', 'export default [-0,-1,NaN,NaN,NaN];')
-            // an own `valueOf` that is no function leaves `toString` to answer
-            expect('export default -{valueOf:1};', 'export default NaN;')
-            // and the operand is a value, not a spelling: a reference reads
-            // the same as the literal it names
-            expect('const a = []; export default -a;', 'export default -0;')
-            expect('const a = [1]; export default [-a, a];', 'export default [-1,[1]];')
+            // the operand is a value and not a spelling: a reference reads
+            // as the literal it names
+            expect('const n = 2; export default -n;', 'export default -2;')
+            // and a negation of a negation is one value, not two nodes
+            expect('export default - -1;', 'export default 1;')
         },
-        // `toString` shadowed by data is what leaves `ToPrimitive` nothing to
-        // call — the inherited `valueOf` answers with the object itself, and
-        // no member is ever a function. An array is the one shape that
-        // recurses, `Array.prototype.toString` joining the text of every
-        // element, so one reached at any depth is the same refusal.
-        refusesWhatJsThrowsOn: () => {
+        // `Number` is total over the five primitive types, so nothing above
+        // can throw whatever the module holds. A container is where it
+        // could — `-{toString:1}` is a `TypeError` in JavaScript — and this
+        // does not sort the ones that would from the ones that would not.
+        refusesAContainer: () => {
             /** @type {(source: string) => void} */
-            const expect = source => assertEq(moduleRefused(source), 'input.f.js - error: an object has no primitive value')
+            const expect = source => assertEq(moduleRefused(source), 'input.f.js - error: no number for this value')
+            expect('export default -[];')
+            expect('export default -[1];')
+            expect('export default -{};')
             expect('export default -{toString:1};')
-            expect('export default -{toString:null};')
-            expect('export default -{valueOf:1,toString:2};')
-            expect('export default -[{toString:1}];')
-            expect('export default -[[{toString:1}]];')
-            expect('const a = {toString:1}; export default -a;')
-            // an object's members are not read to answer, so one nested under
-            // a key is no refusal — `Object.prototype.toString` never looks
-            assertEq(compileSource('export default -[{a:{toString:1}}];')('output.data.js'), 'export default NaN;')
+            expect('const a = []; export default -a;')
+            // the graph keeps it either way: only a value wants a number
+            assertEq(compileSource('export default -[1];')('output.edag.data.js'), 'export default ["-",["[]",[1]]];')
         },
-    },
-    // A negation is a primitive, so its operand is consumed: the value holds
-    // no part of it, and two negations of one `const` share nothing. The
-    // graph is the other way about — it holds the operand as a node of its
-    // own — which is why the two views read a negation differently.
-    negationConsumesItsOperand: () => {
-        assertEq(compileSource('const a=[]; export default [-a,-a];')('output.json'), '[-0,-0]')
-        assertEq(compileSource('const a=[]; export default [-a,a];')('output.json'), '[-0,[]]')
-        // the sharing that is real is still seen
-        assertEq(jsonRefused('const a=[]; export default [a,a];'), 'output.json - error: no JSON spelling for a shared node')
-        // the graph keeps what the value dropped: the operand is a node, and
-        // the sharing inside it survives as a `const`
-        assertEq(
-            compileSource('const a=[1]; const b=[a,a]; export default -b;')('output.edag.data.js'),
-            'const $0=["[]",[1]];export default ["-",["[]",[$0,$0]]];')
-        // and a `const` nothing but a negation reaches is reached all the
-        // same, so nothing is anchored — a comma here would say the graph
-        // did not hold it
-        assertEq(compileSource('const a=[]; export default -a;')('output.edag.data.js'), 'export default ["-",["[]",[]]];')
     },
     negativeZero: {
         value: () => {
