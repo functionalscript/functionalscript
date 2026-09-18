@@ -1,42 +1,72 @@
 # Undefined-Valued Properties
 
-In FunctionalScript, a property whose value is `undefined` is semantically
-equivalent to the property not existing:
+**Priority:** P1
+**Status:** open
 
-```ts
-{ x: undefined }  ≡  {}
+## Compatibility correction
+
+The former unconditional rule `{ x: undefined } ≡ {}` is withdrawn. It was
+based on direct reads and filtered serialization, which do not establish
+substitutability in all admitted contexts. An ordinary JavaScript literal
+still has an enumerable entry even when its value is `undefined`:
+
+```js
+Object.getOwnPropertyDescriptor({ x: undefined }, "x")?.enumerable; // true
+Object.getOwnPropertyDescriptor({}, "x")?.enumerable; // undefined
 ```
 
-This is consistent with JSON (which has no concept of `undefined`) and with
-`JSON.stringify`, which omits `undefined`-valued properties. It also aligns with
-TypeScript's optional-field model, where `field?: T` makes absent and `undefined`
-interchangeable.
+The proposed [enumerable-presence pattern](./2345-has-own-property.md) exposes
+that distinction. Prohibiting `Object.hasOwn` or `in` does not remove it, and
+an internal VM definition cannot change the successful answer to the pattern.
 
-## Consequence: `Object.entries` and `Object.values` require a filter
+## Explicit filtering
 
-`Object.entries` and `Object.values` are not allowed in isolation. They are only
-permitted as part of the whitelisted patterns that immediately filter out `undefined`:
+The existing proposed filtering patterns remain useful projections:
 
-```ts
+```js
 Object.entries(a).filter(([, v]) => v !== undefined)
 Object.values(a).filter(v => v !== undefined)
 ```
 
-Bare `Object.entries(a)` or `Object.values(a)` without the filter is a compile-time error.
+This TODO does not expand admission to bare enumeration. The important
+correction is that equal filtered outputs do not make the inputs universally
+equivalent. `JSON.stringify`'s omission of a property is likewise an output
+choice, not permission to erase it before arbitrary computation.
 
-The `in` operator is also prohibited, because `'x' in { x: undefined }` returns `true`
-in JavaScript despite the property being non-existent under the FS model.
+## Construction and composition
 
-## Motivation
+```js
+export default { x: 1, x: undefined }.x; // undefined, not 1
+```
 
-In JavaScript, `{ x: undefined }` and `{}` behave differently under `Object.entries`
-and `Object.values`, even though the two objects are logically identical under the FS
-object model. This discrepancy is a source of subtle bugs in serializers, equality
-checks, and merge functions. Making undefined properties non-existent by rule eliminates
-the entire class at the language level.
+```js
+const a = { x: undefined };
+export default { x: 1, ...a }.x; // undefined; replacing a with {} gives 1
+```
+
+Even the filtered enumeration can distinguish insertion order:
+
+```js
+const a = { x: undefined };
+export default Object.values({ ...a, y: 1, x: 2 })
+    .filter(value => value !== undefined); // [2, 1], not [1, 2]
+```
+
+These are constraints on proposed features, not claims of current spread
+support or a current stripping bug. Preserve overwrites and observable order;
+normalize only where equivalence holds for every admitted observation.
+
+## Tasks
+
+- [x] Remove the unconditional equivalence and reconcile enumerable presence.
+- [ ] Define and test any permitted normalization at its actual observation
+      boundary, together with construction, composition and enumeration.
+- [ ] Recheck that equivalence when adding a new operation or execution path.
 
 ## Related
 
-- [undefined](../README.md#supported-value-types) — the `undefined` value in DJS
-- [built-in](./2360-built-in.md) — `Object.entries` / `Object.values` side-effect table
-- `fjs/types/object/module.f.mjs` — `definedEntries` and `definedValues` helpers
+- [VM-layer question](./1015-undefined-property-vm-layer.md).
+- [Compatibility epic](../../todo/fjs-javascript-compatibility.md).
+- [Blocked research](../../todo/blocked/undefined-removes-property.md) — ignored
+  as an implementation direction while it remains blocked; not a prerequisite.
+- `fjs/types/object/module.f.mjs` — `definedEntries` and `definedValues`.

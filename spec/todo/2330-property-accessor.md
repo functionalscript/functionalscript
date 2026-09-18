@@ -6,10 +6,19 @@ read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs),
 and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
 `-(1 .x)`, the unary minus binding looser than the access. The computed key,
-`a[Number(b)]`, and the method call below are not; an index is a constant key,
-a string or a number, and a negative one is written as the string it names.
+`a[Number(b)]`, is not; an index is a constant key, a string or a number,
+and a negative one is written as the string it names. Constant-key method
+calls follow the [current function specification](../README.md#functions).
 
-Syntax examples:
+The runtime-key plan is now [`entry`](../../fjs/edag/todo/entry.md), an
+explicit enumerable-entry helper. It supersedes the old descriptor-value-only
+source pattern and the `Object.hasOwn`-based alternative. `Object.hasOwn`
+and `obj.hasOwnProperty(...)` are prohibited source operations, not operations
+to reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
+separate `hasEntity` pattern. All such instructions follow
+[statement-aware AST recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
+
+Syntax examples (planned computed/runtime-key forms included):
 
 ```js
 const a = { b: 45, c: [3] }
@@ -19,8 +28,8 @@ const c0 = a.b
 const c1 = a["c"]
 // at(c1, Number(0))
 const c2 = c1[Number(0)] // Number(...) is required when index type is unknown at compile time
-// own_property(a, c2)
-const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
+// runtime enumerable-entry read, with entry defined by the pattern below
+const c3 = entry(a, c2)
 ```
 
 In this note we consider whether or not to support JS's property accessors, maybe also
@@ -32,16 +41,15 @@ error. In other cases we might decide to provide a limited property access.
 Finally, some JS standard properties / methods are 100% FS-legit and so will be implemented
 in full.
 
-It's important to be able to access instance's own property regardless object properties
-available in JS via object's prototype chain. In FS we plan to not have prototype chains
-at runtime. Here go snippets showing how to access own properties in JS - that code might
-be useful to support in FS as well. Note that this is more verbose than obj.field syntax
-discussed below in "Instance Property" section, but protects against unwanted access to
-the prototype chain.
+A runtime data-entry read bypasses prototypes through an explicitly written
+JavaScript pattern, rather than changing ordinary bracket access or standard
+reflection semantics. This permits dynamic data names without exposing every
+own property or a descriptor value.
 
-In case a property has no side effects (see 'no' in 'side effects' columns in tables below)
-FS should implement that property 100%. If a property mentioned at several places has
-at least one side effect, we should prohibit it consistently across the board.
+Absence of side effects is necessary, not sufficient for admission. An admitted
+operation must preserve its source's successful JavaScript behavior. The
+[built-in plan](./2360-built-in.md) also prohibits reflection operations for
+which the language intentionally offers a narrower, explicitly spelled pattern.
 
 One important detail regarding run-time access to instance properties, methods is
 `obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
@@ -50,20 +58,22 @@ syntax for array indexing, legit in FS. Our current approach is to force FS user
 wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
 compile time.
 
+The proposed runtime-key helper is:
+
 ```js
-const own_property = object => property => Object.getOwnPropertyDescriptor(obj, property)?.value
-// Or
-const own_property = object => property => Object.hasOwn(obj, property) ? obj[property] : undefined
+const entry = (object, property) => {
+    const descriptor = Object.getOwnPropertyDescriptor(object, property);
+    return descriptor?.enumerable ? descriptor.value : undefined;
+};
 ```
 
-It's translated into the VM command `own_property`:
-
-```rust
-struct OwnProperty {
-    obj: Expression
-    property: Expression
-}
-```
+Its complete parsed function body is recognized after statements, expressions
+and binding relationships are known. The matcher does not read newlines or
+repair statement boundaries. Descriptor use is permitted only inside a whole
+approved pattern; extracting or returning a descriptor is still refused.
+The EDAG call/function and internal `own` operation are specified in `entry.md`;
+the older `own_property` name below is conceptual terminology for the internal
+lookup, not an additional admitted descriptor or `Object.hasOwn` source form.
 
 ## Instance Property
 
@@ -89,7 +99,7 @@ consider that case separately from more general `own_property`, since "built-in"
 deserve special (performance-optimized) treatment in bytecode interpreter (consider a command / data access
 within a command that is similar to array indexing).
 
-If a property name is one of the prohibited property names or one of the method names, then it's a compilation error.
+If the property name is one of the prohibited property names or one of the method names, then it's a compilation error.
 
 All other property names generate `own_property` commands.
 
@@ -191,6 +201,10 @@ struct InstanceMethodCall {
 
 [Object Instance Methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_methods)
 
+This inventories side effects, not permission to call each method. In
+particular, `hasOwnProperty` remains prohibited; the explicit enumerable
+patterns are the source API instead.
+
 |name                  |side-effect     |
 |----------------------|----------------|
 |`__defineGetter__`    |mutate          |
@@ -209,7 +223,7 @@ As stated above, all rows that have other than 'no' in side-effect column should
 
 TODO: file a separate .md regarding custom `toString`, `valueOf` implementations, and maybe other methods listed here as well.
 
-[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_methods)
+[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
 
 Regarding `iterator` in notes column: why do we want to prohibit 'naked' iterator access (as opposite to iterable objects
 like arrays that can produce iterators via `a[Symbol.iterator]`)? Iterators could be mutated not only via `next`,
@@ -248,7 +262,7 @@ f(i) // returns 0 thanks to side effects!
 |`indexOf`             |no         |        |
 |`join`                |no         |        |
 |`keys`                |yes        |iterator|
-|`lastIndexOf`         |no         |        |
+|`lastIndexOf`          |no         |        |
 |`map`                 |no         |        |
 |`pop`                 |yes        |mutate  |
 |`push`                |yes        |mutate  |
@@ -342,7 +356,7 @@ type Iterable<T> = {
 
 For example, JS Array implements the `Iterable` protocol.
 
-If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) in the FS,
+If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*) in the FS,
 the generator function has to be wrapped into `Iterable` interface. For example,
 
 ```js

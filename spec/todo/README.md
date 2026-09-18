@@ -12,20 +12,24 @@ below is this directory's own; the specification has no section numbers.
 
 ## Compatibility invariants — P1
 
+The [language principles](../README.md#principles) define source inclusion,
+successful-result agreement, purity and indistinguishable execution failures.
 [Preserve JavaScript compatibility](../../todo/fjs-javascript-compatibility.md)
-blocks current and proposed violations of source inclusion and successful-result
-agreement. These invariants apply at every stage, regardless of a feature's
-priority below. All execution failures, including throws and memory/time
-exhaustion, are indistinguishable; optimizing successful EDAG computations and
-reordering failures to fail earlier do not require preserving failure details.
-The linked issue records root-cause corrections and their regression gates.
+tracks the current and proposed P1 violations and their root-cause corrections.
+These rules apply at every stage, regardless of a feature's priority below.
+
+[Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+requires every instruction pattern to match already-recognized statements and
+expressions, never raw token sequences. It also plans JavaScript-compatible
+statement termination and optional semicolons as a separate syntax expansion;
+canonical output and DataJS's required-semicolon format need not change.
 
 ## 1. JSON
 
-1. [ ] [undefined-property](./1010-undefined-property.md).
+1. [ ] [undefined-property](./1010-undefined-property.md) — P1 observation and
+   composition constraints, not universal undefined-as-absence equivalence.
 2. [ ] [undefined-property-vm-layer](./1015-undefined-property-vm-layer.md)
-   — open question; whether `undefined-property`'s equivalence is a
-   language-surface restriction or reaches the VM's own representation.
+   — representation choices must preserve those observations.
 
 ## 2. DJS
 
@@ -39,9 +43,8 @@ We need it to use JSDoc and TypeScript.
 
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [operators](./2340-operators.md),
-3. [ ] [has-own-property](./2345-has-own-property.md) — open; argues
-   against adding `in` and for a pattern-recognized `hasOwn` alongside
-   `own_property` instead,
+3. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
+   `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
 4. [ ] [built-in](./2360-built-in.md),
 5. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; lands before `built-in`, since

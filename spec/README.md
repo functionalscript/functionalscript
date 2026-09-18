@@ -36,18 +36,27 @@ subset as a DataJS document, through DataJS's own writer.
 ## Principles
 
 **Compatibility with JavaScript.** FunctionalScript is a subset of JavaScript,
-not a language that resembles it. Every FunctionalScript module is an ES
-module, and it denotes in FunctionalScript the value that a JavaScript engine
-gives it. Nothing has to be stripped, preprocessed, or interpreted specially
-for `node`, `deno`, `bun`, or a browser to load a `.f.js` file: the file is
-already JavaScript.
+not a language that resembles it. Every accepted FunctionalScript module must
+be valid JavaScript ES module source, including lexical restrictions and early
+errors. Check the original text, not text repaired or stripped by a transpiler.
+Nothing has to be preprocessed for `node`, `deno`, `bun`, or a browser to parse
+a `.f.js` file: the file is already JavaScript.
 
-Two rules follow, and they outrank everything else:
+Source inclusion and the following requirements hold at every development
+stage and outrank everything else:
 
-1. if FS code passes validation/compilation, then it doesn't have
-   side-effects;
-2. the code that passed validation/compilation should behave on the
-   FunctionalScript VM the same way as on any other modern JavaScript engine.
+1. code that passes FunctionalScript validation/compilation has no externally
+   observable side effects;
+2. for the same admitted inputs and dependency environment, successful
+   FunctionalScript and JavaScript executions have the same observable result,
+   except for explicitly specified semantic exceptions. This includes later
+   observations through exported functions, not just the initial module value.
+
+The execution profile declares its ECMAScript and host-resolution environment.
+An exception names its profile, affected operations and observable consequences;
+an identity exception is not an excuse for arbitrary differences in another
+profile. Missing support may be refused, but accepted source must not silently
+receive a different successful meaning.
 
 Compatibility runs one way only. Every FunctionalScript module is JavaScript;
 most JavaScript is not FunctionalScript. So the language is a **whitelist**,
@@ -57,13 +66,44 @@ component of a recognized pattern that lowers to a FunctionalScript primitive
 — the bracketed `__proto__` key ([below](#the-__proto__-key)) is the current
 example.
 
+**Every pattern instruction must be recognized after statement and expression
+structure is known.** The parser owns JavaScript's syntax, line-terminator
+restrictions and statement boundaries. Pattern recognition operates on that
+parsed structure with validated binding relationships; it never reinterprets
+source tokens, joins statements or repairs syntax. Syntactic recognition does
+not by itself admit a construct into FunctionalScript: the complete pattern
+must pass the whitelist, and protected operations cannot escape it.
+
 Rule 2 also decides what to do when JavaScript gives one text a meaning
 FunctionalScript cannot reproduce: the text is a compilation error. Giving it
 a second, more convenient meaning would make a module mean one thing here and
 another thing in a browser.
 
+### Failure is one outcome
+
+All execution failures are one indistinguishable semantic outcome:
+
+```text
+throw A ≡ throw B ≡ memory failure ≡ time failure
+```
+
+Error types, messages, stacks, source positions, the first failing operation
+and the work performed before failure are not language-level observations.
+Operational diagnostics may report a cause, but cannot become program values
+that distinguish failures. Syntax rejection remains a compiler property:
+accepting invalid JavaScript is not excused by failure equivalence.
+
+This deliberately allows reordering failing EDAG computations to fail earlier.
+Do not impose source-order barriers, identical evaluation counts or identical
+resource thresholds merely to preserve failure behavior. Preserve successful
+paths: failure equivalence does not authorize executing an otherwise skipped
+failure on such a path or inventing a successful value by deleting a required
+failure. Different executors may exhaust different memory or time limits; a
+more efficient one may finish where another stops. A stopped run is a failure,
+not a guessed result.
+
 When we implement features of FunctionalScript, the first priority is a
-simplification of the VM.
+simplification of the VM, subject to these requirements.
 
 ## Exporting a Value
 
@@ -256,7 +296,10 @@ declare.
 
 ## Comments
 
-Comments are trivia. They may appear between any two tokens and are ignored.
+Comments are trivia. Their text does not become an AST value, but the parser
+preserves line-terminator information needed by JavaScript's grammar. A line
+break inside a block comment counts at a restricted boundary too, such as
+after `return` or before `=>` ([functions](#functions)).
 
 ```js
 // a line comment runs to the end of the line
@@ -274,9 +317,10 @@ Block comments carry JSDoc/TypeScript type declarations, which is why the
 language has them: a `.f.js` file is type-checked as JavaScript, and JSDoc is
 how it says what its types are.
 
-A comment is trivia, as whitespace is: it neither ends a statement nor keeps
-one open, so the `;` that ends a statement may follow a comment, on the same
-line or a later one ([module structure](#module-structure)).
+A comment can separate tokens where whitespace can. At unrestricted boundaries,
+the `;` that ends a statement may follow a comment on the same line or a later
+one ([module structure](#module-structure)). This does not make newlines
+interchangeable with spaces at restricted boundaries.
 
 Comments belong to the module language. A `.json` input containing one is an
 error, because JSON has no comments.
@@ -809,6 +853,11 @@ comment separates as a space does: `const/**/a=1;` and
 import's string, nothing is needed. DataJS requires a space after `const`,
 `export` and `default` and admits no comment, more than this language asks,
 so every DataJS document parses here.
+
+The planned [statement-aware parser and intrinsic recognition](../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+adds JavaScript's statement-boundary rules and optional semicolons where ASI
+allows them. That is not implemented by this specification update, and does
+not change DataJS's separate required-semicolon format or canonical output.
 
 |Statement|Form|
 |---------|----|
