@@ -384,7 +384,7 @@ All operators are post-stage-1: stage 1 has no operators at all.
 copied into a frame when the function object is created — the scheme
 [function-frame](../spec/todo/3111-function-frame.md) chooses — and
 `["frame"]` is that array. It needs no accessor of its own: a slot is
-ordinary indexing, `[".", ["frame"], 0]`, exactly as an argument is
+ordinary indexing, `[".", ["frame"], i]`, exactly as an argument is
 `[".", ["args"], 0]` (subject 2).
 
 Frame construction mirrors a call: `["=>", frame, body]`, where
@@ -954,18 +954,22 @@ the FJS compiler would never emit. To validate:
 
 #### 6. Command vocabulary vs. the existing spec names
 
-**Status:** decided
+**Status:** decided (source/EDAG/bytecode mapping reconciled)
 
-[property-accessor](../spec/todo/2330-property-accessor.md) historically named
-five commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
-`own_property`. The EDAG keeps the general layer only — `"."` = its
-`at`, a `"()"` over a property step = its `at_call`, `["own", …]` = its
-internal `own_property` — while
-`instance_property` and `instance_method_call` stay compile-time
-specializations for the bytecode, where performance distinctions belong
-([serialization](../spec/todo/serialization.md)). This mapping of internal
-names does not revive the retired direct descriptor source pattern;
-[`entry`](../fjs/edag/todo/entry.md) owns the runtime source API.
+The [source-to-EDAG mapping](../spec/todo/2330-property-accessor.md#source-to-edag-mapping)
+distinguishes source admission, semantic graph nodes and optional backend
+specializations. The historical names `at`, `at_call`, `instance_property`,
+`instance_method_call` and `own_property` described bytecode sketches, not a
+one-to-one mapping to EDAG tags. In particular, the old `own_property` name
+was used both for a static fallback and for an explicit runtime lookup; it
+must not direct an ordinary static read to internal `own`.
+
+Every admitted constant-key read is `.`. A method call is a property step
+owning a call continuation, not a detached `()` over a completed read.
+Backends may specialize these operations or share lookup helpers where their
+semantics agree. Such reuse changes neither the source operation nor its
+EDAG representation. [`entry`](../fjs/edag/todo/entry.md) separately owns the
+runtime helper API and internal-opcode migration, not static-name fallback.
 
 An earlier draft added: "consequence — the EDAG interpreter carries the
 safety burden 2330 assigns to compile-time checks; prohibited names must
@@ -1007,23 +1011,24 @@ record and the worked examples are in
 the lambda schemas in
 [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
 
-**Decided: the EDAG keeps three access operations, not one and not
-2330's five.** An earlier draft of this subject said `"."` was a single
-operation covering every access, with 2330's distinctions left to the
-bytecode. That was wrong — the distinction is a *safety* boundary, not
-an optimization:
+**Decided: semantic access classes are not bytecode specializations.**
+Static/numeric access and the runtime enumerable-entry helper have different
+source meanings. Both must preserve their own admitted observations; sharing
+a backend lookup routine does not make the operations interchangeable.
 
-|EDAG|2330|key|
-|---|----|---|
-|`[".", o, p]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
-|`[".", o, p, ["\|()", args]]`|`instance_method_call` + `at_call`|same|
-|`["own", o, k]`|internal `own_property`, not a source pattern|receiver/key semantics follow the [entry migration](../fjs/edag/todo/entry.md)|
+|EDAG|Semantic role|Source boundary|
+|---|---|---|
+|`[".", o, p]`|permitted constant-key or numeric read|includes non-enumerable `length`; not an entry filter|
+|`[".", o, p, ["\|()", args]]`|the same access with a receiver-preserving call|subject to the same key admission|
+|`['entry']` (proposed), used through ordinary `()`|enumerable-entry helper function|only the complete approved AST pattern, per [entry](../fjs/edag/todo/entry.md)|
+|`["own", o, k]`|internal operation|no standalone source spelling or static-read fallback; semantic migration belongs to `entry.md`|
 
-`"."` merges 2330's static-name and numeric-index commands because the
-operand restriction ([Operations](#operations)) covers both safely; the
-static/numeric split that remains is a bytecode specialization. The runtime
-entry operation remains separate because it bypasses prototypes through the
-explicit helper's semantics, not by reinterpreting ordinary property access.
+Every permitted static name stays on the `.` path, whether or not a built-in
+table lists it. A backend can specialize a known read without changing the
+EDAG, but cannot replace ordinary access with an enumerable-only lookup.
+Existing host helpers and opcode implementations are unchanged by this
+mapping correction. The source writer's refusal of bare internal `own`
+does not apply to static reads represented by `.`.
 
 **Decided: the array constructor is `"[]"`.** Choosing `"."` for access
 freed the tag, and `[a, b]` is precisely how JS spells an array literal.
