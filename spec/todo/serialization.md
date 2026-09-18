@@ -9,8 +9,10 @@ is specified by the [edag-spec](../../todo/edag-spec.md)). The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future
    content-addressable VM ([CAVM](./content-addressable-vm.md)) — to compute a hash.
-2. The EDAG can be transformed back to source code; this transformation will be used in
-   `toString(f)`.
+2. The EDAG can be transformed back to source code. The adopted
+   [function-source exception](../README.md#function-source-representation-exception)
+   uses EDAG-derived text for default function string conversion; whether
+   that operation is also the FSC function serializer is open below.
 3. Because code is an FJS value, serializing functions requires no separate format: once the VM
    serializes `Any` values, it serializes code too. The binary encoding of `Any` values is
    **CBOR** ([RFC 8949](https://www.rfc-editor.org/rfc/rfc8949)), chosen because it represents
@@ -44,6 +46,96 @@ optimization opportunities for calling well-known host (built-in) functions that
 without excessive copying / slot allocations.
 
 1. [ ] [Call-like instructions](./9100-call-like-instructions.md) — VM-internal bytecode design.
+
+## Function text and serialization
+
+**Decision:** adopt EDAG-derived default function text as an explicit exception
+to JavaScript result compatibility, as defined in the
+[language principles](../README.md#function-source-representation-exception).
+This is a shared conversion rule, not a special case for `String(entry)`.
+Explicit `String(f)`, array/string conversion and property-key conversion use
+it whenever their normal conversion path reaches the default representation
+of an FJS function. The surrounding conversion rules do not change.
+
+The exception includes the consequences of the resulting text, such as a
+changed lookup key or branch, and source-text reflection through exports.
+It does not justify unrelated value differences, change function allocation
+identity or arity, or require the original source spelling to be retained.
+A JavaScript host still uses its own representation when executing source
+outside the FJS VM; this decision does not patch its built-ins.
+
+### Open questions
+
+These questions are deliberately open, not implementation instructions with
+an implicit answer. The examples illustrate future capabilities; they do not
+claim current compiler support for captures or `self`.
+
+1. **Should the FSC function serializer and `String(f)` be the same function?**
+   Should they have one output contract and implementation, or distinct
+   contracts that may share rendering machinery? In particular, does `String(f)`
+   promise self-contained source that reconstructs the callable value,
+   or only a source representation of its code? Sharing EDAG as input does not
+   by itself decide this. Here “function serializer” means source serialization
+   of a callable value, not EDAG-as-data encoding such as DataJS or the planned CBOR format.
+
+2. **Should `String(f)` instantiate the captured frame?**
+
+   ```js
+   const x = 3;
+   const f = () => x;
+   ```
+
+   Should it produce `() => x` or `() => 3` (illustrative spellings)? The
+   **owner's preference is `() => 3`**. If question 1 chooses the same
+   self-contained function serializer for both operations, captured values
+   must be represented rather than left as unresolved external bindings;
+   that gives `3` in this example. Until question 1 is answered, the choice
+   for `String(f)` remains open. A code-only representation cannot promise
+   recovery of the original variable name from a name-erased EDAG.
+
+   Frame instantiation is not unrestricted textual substitution. For example,
+   with `const x = []; const f = () => x;`, writing `() => []` would allocate
+   a new array on each call instead of returning the captured array. A callable
+   serializer must preserve the sharing and identity required by its profile;
+   choosing how to carry the frame is part of this question.
+
+3. **How should the function serializer and `String(f)` handle `self`?**
+   How is the current function referenced in finite source, both for recursive
+   calls and when `self` is returned as a value? Does each operation use a
+   generated binding, a wrapper, a named-function form, or another admitted
+   representation? No spelling is selected here, and a named-function candidate
+   does not add that syntax to FJS automatically.
+
+   ```js
+   const f = () => f;
+   ```
+
+   A callable round trip for this example must retain self-reference:
+   `restored() === restored`. Expanding the function again at each `self`
+   would not provide a finite representation. Nested functions and captured
+   references to an enclosing function must keep the correct binding too.
+
+Earlier sketches that identify `toString(f)` with a closed callable serializer,
+materialize every frame or choose a named function for `self` — including
+[EDAG stage 1, source printing](../../todo/edag-stage1-discussion.md) — are
+candidates, not answers to these reopened questions. The questions change no
+EDAG `frame`/`self` semantics and no current serializer implementation.
+
+### Implementation follow-through
+
+- [ ] Resolve each question before implementing the cases whose observable
+  output depends on it; do not make unrelated work wait on all three.
+- [ ] Specify deterministic rendering for the chosen inputs and share the
+  default function-representation operation across FJS executors and coercion
+  paths. Render associated semantic EDAG, not mutable optimization/cache state.
+- [ ] Test direct and indirect conversion, helper functions and exports against
+  that contract. Test callable round trips with captured sharing and `self`
+  where promised; do not assume that `String(f)` promises the same round trip
+  before question 1 is answered.
+
+Failure to follow the adopted contract is P1. Merely differing from authored
+JavaScript function text is the approved exception, not an unresolved defect
+or a reason to ban function exports. Unsupported capabilities remain explicit.
 
 ## Byte Code Structures
 

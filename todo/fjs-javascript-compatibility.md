@@ -140,29 +140,29 @@ owns this boundary and the planned JavaScript statement/ASI work. Optional
 semicolons are a syntax expansion, not a substitute for AST matching. Requiring
 semicolons today is not itself a compatibility defect.
 
-#### Function reflection — proposed divergence, rule 2
+#### Function text — adopted exception, rendering questions open
 
-`entry.md` already acknowledges that [serialization](../spec/todo/serialization.md)
-uses canonical function text while JavaScript sees authored text. The
-compatibility problem is that normalization can change successful observations:
+The owner adopted the [function-source representation exception](../spec/README.md#function-source-representation-exception).
+FJS VMs reconstruct default function text from associated EDAG instead of
+retaining authored spelling. Direct and indirect conversions, including
+function-derived keys and source-text observations through exports, are covered.
+A changed key or branch caused by that text is a consequence of this exception;
+unrelated differences remain bugs. No `entry`-specific export prohibition or
+attempt to catch every conversion spelling is required.
 
-```js
-const f = (...a) => a;
-const object = { "(...a) => a": 7 };
-export default entry(object, f); // 7 with the proposed ordinary JS helper
-```
+**Root-cause implementation:** one default function-representation operation
+used wherever normal conversion reaches it. Do not confuse that operation with
+the surrounding conversion rules, and do not derive it from mutable execution
+or optimization state. Function allocation identity and arity are unchanged.
+Ordinary JavaScript execution retains the host's representation.
 
-Renaming/reformatting `f` as `(...$a)=>$a` changes the key and yields
-`undefined`. Arrays containing a function and user-defined coercion can expose
-it indirectly. Normalized output agreeing with itself is not a proof about
-the original source.
-
-**Root-cause correction:** define permitted function observations once, and
-preserve them across parsing, lowering, coercion, serialization and execution.
-Either retain observable source information or remove the observation through
-compatible restrictions or explicitly written checked patterns. A canonical-text
-exception requires a separate explicit decision; none is approved here. This
-gate also applies to the new enumerable-presence pattern's key coercion.
+[Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
+owns the three open questions: whether the FSC function serializer and `String`
+are the same function, whether `String` instantiates a frame (the owner's
+preference is substituting captured values), and how each handles `self`.
+No exact spelling or closure/self strategy is selected by this exception.
+Earlier no-exception/refusal directions for authored-text differences are
+superseded; implementing the chosen rendering contract remains work.
 
 #### Property reflection — incompatible alternatives withdrawn
 
@@ -264,7 +264,10 @@ requirements; compatibility alone would allow randomness and external mutation.
 - [ ] **P1:** implement statement-aware pattern recognition before shipping
       intrinsics; its linked TODO separates the mandatory boundary from ASI
       syntax expansion and preserves refusal until syntax is understood.
-- [ ] **P1:** settle function observability across source, EDAG and execution.
+- [x] Record the adopted function-source exception and the three open
+      serializer/`String`, frame and `self` questions in the owning documents.
+- [ ] **P1:** implement and test the chosen function-rendering contract across
+      source, EDAG, coercion and execution; preserve other function observations.
 - [ ] **P1:** preserve the property-observation and composition contract in
       each affected implementation. Missing support is refused, not guessed.
 - [ ] **P1:** extend the existing host harness with a shared compatibility

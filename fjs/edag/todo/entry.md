@@ -57,7 +57,8 @@ Primitive boxing and property-key conversion follow the source helper. Objects
 and arrays can invoke user-defined conversion; numeric keys require
 ECMAScript's number-to-string conversion, not a host-specific approximation.
 An unsupported receiver or conversion must be refused, not silently answered
-with a plausible value.
+with a plausible value. Default function text follows the explicitly adopted
+exception described below, including when reached through key conversion.
 
 #### Recognition after statements
 
@@ -95,24 +96,22 @@ Two definitions remain distinct in the JS-compatible profile. The function
 may be exported, passed as an argument, or shared in `[entry, entry]`; the
 writer must hoist shared definitions as needed and preserve arity `2`.
 
-The previous draft already identified a function-text difference: native
-canonical graph rendering and JavaScript's authored function text need not
-agree. It is an unresolved **P1 compatibility gate**, not permission to
-normalize the source first and call it compatible. `entry(o, f)`, `entry(o,
-[f])`, and user-defined conversion can expose the difference as a property
-lookup; the `entry` function itself can also be converted to text.
+The [function-source representation exception](../../../spec/README.md#function-source-representation-exception)
+is now adopted: FJS VMs reconstruct default function text from associated EDAG,
+not authored source. It covers `String(entry)`, `entry(o, f)`, `entry(o, [f])`
+and other conversions that reach that representation, including resulting
+lookup/branch differences. Ordinary source execution on a JavaScript host
+retains its host representation; source-text reflection through exports is
+covered by the same exception. Do not ban exporting `entry` merely to hide it.
 
-The exact canonical spelling of `entry` is deliberately unspecified until
-that function-text contract is settled. This does not permit different
-successful reflection or coercion results: operations exposing an incompatible
-spelling must remain unadmitted. The displayed helper defines the computation,
-not a new guarantee that `String(entry)` returns canonical text.
-
-[Function serialization](../../../spec/todo/serialization.md) and the
-[compatibility epic](../../../todo/fjs-javascript-compatibility.md) own that
-contract. Preserve any admitted observation, or restrict it through compatible
-source patterns; no canonical-function-text exception is approved here. Do
-not ship incompatible coercions while waiting for that decision.
+[Function text and serialization](../../../spec/todo/serialization.md#function-text-and-serialization)
+owns the remaining open questions: whether `String(f)` and the FSC function
+serializer are the same function, frame instantiation, and `self`. The displayed
+helper defines the computation, not its exact serialized spelling. Earlier
+requirements to refuse every authored-text difference are superseded; the
+implementation must instead follow the adopted conversion contract. This
+neither merges function identities nor changes arity or ordinary property
+semantics, and it does not claim the helper is implemented today.
 
 #### Enumerable presence, not `Object.hasOwn`
 
@@ -187,8 +186,8 @@ need tests in addition to direct internal-operation tests.
       corpus, generated vectors and documentation. Refuse unsupported calls
       or key conversions rather than invent results.
 - [ ] Add a writer spelling from every supported value position, preserving
-      sharing, identity and arity. Resolve the function-text observation gate
-      before admitting conversions that expose incompatible text.
+      sharing, identity and arity. Use the adopted EDAG-derived function-text
+      contract; resolve the linked open questions for each implemented case.
 - [ ] Test objects, arrays, strings, primitives, functions, missing entries,
       undefined-valued entries, non-enumerable properties, nullish failures,
       coercion, binding shadowing, statement boundaries and equivalent layouts.

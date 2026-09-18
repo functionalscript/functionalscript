@@ -75,11 +75,14 @@ the intended intrinsic, not a shadowing binding. Parsed descriptor operations
 outside an approved pattern remain refused by FJS admission.
 
 Share receiver/key-conversion semantics with the descriptor read used by
-[`entry`](../../fjs/edag/todo/entry.md). Preserve the exact successful result
-of the selected source pattern, including primitive boxing and property-key
-conversion. A receiver or key not yet supported is refused, not answered with
-an invented `false` or `undefined`. The function-text/coercion compatibility
-gate applies here too; a new presence operation cannot bypass it.
+[`entry`](../../fjs/edag/todo/entry.md). Preserve the selected source pattern's
+semantics, including primitive boxing and property-key conversion, subject to
+the adopted [function-source exception](../README.md#function-source-representation-exception).
+A function-derived key may differ from the host's key; ordinary string-key
+presence and the raw-flag/boolean distinction do not change. A receiver or
+conversion not yet supported is refused, not answered with an invented value.
+The [rendering questions](./serialization.md#function-text-and-serialization)
+also apply to this helper; it cannot silently choose a different conversion.
 
 ## Tasks
 

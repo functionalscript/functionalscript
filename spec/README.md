@@ -73,10 +73,33 @@ source tokens, joins statements or repairs syntax. Syntactic recognition does
 not by itself admit a construct into FunctionalScript: the complete pattern
 must pass the whitelist, and protected operations cannot escape it.
 
-Rule 2 also decides what to do when JavaScript gives one text a meaning
-FunctionalScript cannot reproduce: the text is a compilation error. Giving it
-a second, more convenient meaning would make a module mean one thing here and
-another thing in a browser.
+Outside the explicitly specified exceptions, rule 2 also decides what to do
+when JavaScript gives one text a meaning FunctionalScript cannot reproduce:
+the text is a compilation error, not an invitation to give it a second,
+more convenient meaning.
+
+### Function-source representation exception
+
+**Adopted:** in FJS VM execution, the default string representation of an FJS
+function is source reconstructed from its associated EDAG, not the original
+source text. Original comments, formatting and identifier spellings need not
+survive. This applies to `String(f)` and every admitted indirect conversion
+that reaches the same default function representation, including conversions
+inside complete instruction patterns. It applies to exported functions too.
+
+Running source directly on a JavaScript engine retains that host's function
+representation. Its text can differ from the FJS VM's, including when a
+JavaScript consumer reflects on an exported function. Differences caused by
+using that text as a key, comparing it or branching on it are consequences of
+this exception, not a blanket waiver for unrelated results. Non-function
+conversion, other admitted function observations and source syntax retain
+their existing contracts. The exception alone admits no new syntax or API.
+
+[Function text and serialization](./todo/serialization.md#function-text-and-serialization)
+owns the remaining questions: whether the FSC function serializer and
+`String(f)` are the same operation, whether `String(f)` instantiates captured
+frames, and how each handles `self`. Adopting EDAG-derived text does not settle
+those questions or claim that the conversion is implemented today.
 
 ### Failure is one outcome
 
