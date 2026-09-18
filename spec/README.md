@@ -45,8 +45,7 @@ a `.f.js` file: the file is already JavaScript.
 Source inclusion and the following requirements hold at every development
 stage and outrank everything else:
 
-1. code that passes FunctionalScript validation/compilation has no externally
-   observable side effects;
+1. code that passes FunctionalScript validation/compilation has no side effects;
 2. for the same admitted inputs and dependency environment, successful
    FunctionalScript and JavaScript executions have the same observable result,
    except for explicitly specified semantic exceptions. This includes later
@@ -853,11 +852,6 @@ comment separates as a space does: `const/**/a=1;` and
 import's string, nothing is needed. DataJS requires a space after `const`,
 `export` and `default` and admits no comment, more than this language asks,
 so every DataJS document parses here.
-
-The planned [statement-aware parser and intrinsic recognition](../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
-adds JavaScript's statement-boundary rules and optional semicolons where ASI
-allows them. That is not implemented by this specification update, and does
-not change DataJS's separate required-semicolon format or canonical output.
 
 |Statement|Form|
 |---------|----|

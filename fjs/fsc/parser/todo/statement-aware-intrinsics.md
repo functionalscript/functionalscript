@@ -20,32 +20,60 @@ At `0944e91bcec22d1f41b372bbe4b20219a096ab04`,
 preserves `nl`, including CR/LF within a block comment, and
 [`grammar/proof.f.mjs`](../grammar/proof.f.mjs) covers those refusals. Unicode
 line/paragraph separators are rejected outside strings in the current subset.
-General ASI and the `entry` matcher are not implemented.
+General Automatic Semicolon Insertion (ASI) and the `entry` matcher are not
+implemented.
 
 ### Proposal
 
 ```text
 source and line-terminator information
-    → JavaScript statement/expression AST
-    → binding resolution and early-error validation
-    → complete AST-pattern recognition and FJS admission
-    → EDAG lowering
+    → JavaScript-subset AST
+    → try to compile into EDAG
+        resolve bindings and check const visibility
+        validate JavaScript early errors
+        recognize complete instruction patterns
+        enforce FunctionalScript restrictions and lower computations
+    → EDAG or compilation error
 ```
 
-The phases may share a traversal; their contracts may not be bypassed.
-Factor the current fold where name resolution and FJS-specific admission are
-combined. A protected namespace such as `Object` may be resolved for matching
-without exposing it as an ordinary value. Validate whole recognized subtrees
-before rejecting their otherwise-prohibited components; every unmatched use
-remains refused. This does not require implementing or admitting all JavaScript.
-It does require syntactically understanding every construct inside a pattern.
+**The AST describes the JavaScript syntax we understand, not a program already
+admitted as FunctionalScript.** Preserve ordered statement lists, declarations,
+identifier references, parameter lists, block bodies and explicit returns
+(with or without an expression). A block is not assumed to be constants plus
+one final result. Keep source metadata separate; preserving source order in
+this tree does not impose source-order execution barriers on the EDAG.
+
+Evolve the earlier representation in [`parser/types.ts`](../types.ts) rather
+than add another redundant source tree. The indexed `cref`/`aref` references,
+`args` and implicit final-result bodies in [`ast/types.ts`](../../ast/types.ts)
+already embody lowering decisions. They may be compiler-internal artifacts;
+they must not determine which JavaScript syntax the source AST can represent.
+No separately exposed, fully validated FJS AST is required between the source
+AST and EDAG.
+
+AST-to-EDAG compilation owns FJS admission, including const visibility,
+supported captures and protected-operation patterns. It may use several
+internal passes. Resolve each pattern's binding relationships before relying
+on them, and discharge every JavaScript early error before reporting successful
+compilation, including in syntax that lowering would otherwise discard.
+Factor the current fold where resolution and FJS-specific admission are mixed.
+A protected namespace such as `Object` may be resolved for matching without
+exposing it as an ordinary value. Match complete subtrees before refusing their
+otherwise-prohibited components; every unmatched protected use remains refused.
+
+This does not require parsing all JavaScript immediately. It requires parsing
+every construct inside a proposed pattern with JavaScript's interpretation.
+For example, [named parameters](../../../../spec/todo/3120-parameters.md) must
+be represented before recognizing the `entry` helper. General EDAG lowering
+for every function using named parameters is not a prerequisite for that one
+approved pattern. Parsing a descriptor call, mutation or unsupported capture
+likewise does not grant permission to execute it.
 
 **The matcher does not see whitespace, perform ASI or decide statement
-boundaries.** It sees a parsed expression/function body with binding
-relationships and control flow intact. Match the complete subtree, not just
-the last expression in a body. Metadata stays separate. Binding placeholders
-are not raw text substitution: repeated references must resolve to the same
-binding, and a shadowed `Object` is not the intrinsic namespace.
+boundaries.** It consumes the parsed subtree with binding relationships and
+control flow intact, not merely the last expression in a body. Binding
+placeholders are not text substitution: repeated references must resolve to
+the same binding, and a shadowed `Object` is not the intrinsic namespace.
 
 These bodies are not the same AST:
 
@@ -56,8 +84,9 @@ a[0]; };
 ```
 
 JavaScript gives the second body a return without an expression followed by
-an unreachable expression statement. If the subset does not admit that body,
-reject it. Never attach the later expression to the return or recognize an
+an unreachable expression statement. Once that syntax is represented, the
+AST-to-EDAG compiler either implements its actual meaning or refuses it as
+unsupported. Never attach the later expression to the return or recognize an
 intrinsic by ignoring the different statement structure. Syntax-invalid text
 such as a newline before `=>` cannot reach matching at all.
 
@@ -97,13 +126,17 @@ statement/expression recognition, before or after that expansion.
 ### Tasks
 
 - [x] Replace the token-bypass proposal with the statement-aware AST boundary.
-- [ ] **P1:** implement shared binding-aware AST recognition and FJS admission;
-      require syntactic support for each pattern body before admitting it.
+- [x] Clarify that the source AST is a JavaScript syntax subset; admission,
+      visibility checks and pattern matching belong to AST-to-EDAG compilation.
+- [ ] **P1:** implement this boundary before shipping pattern instructions.
+      Preserve statements and binding syntax until their meaning is checked;
+      do not require a second, fully validated FJS source AST.
 - [ ] **P1:** test source → tokens → AST → EDAG, not only token matches.
       Compare valid layouts with native JavaScript and verify rejected invalid
       layouts; distinguish different statements even when ordinary tokens agree.
+      Also test syntax that parses but is refused during EDAG compilation.
 - [ ] **P2:** implement JavaScript-compatible statement termination/ASI for
-      admitted statement forms. Preserve refusal for unsupported constructs;
+      supported syntax. Preserve refusal for unsupported constructs;
       update the current-language specification when the implementation lands.
 - [ ] Cover LF, CR, CRLF, line/block comments, newline before `=>`, newline
       after `return`, return with a parenthesized multiline expression,
@@ -122,4 +155,5 @@ statement/expression recognition, before or after that expansion.
 - [Compatibility epic](../../../../todo/fjs-javascript-compatibility.md).
 - [Entry function](../../../edag/todo/entry.md).
 - [Enumerable presence](../../../../spec/todo/2345-has-own-property.md).
+- [Named parameters](../../../../spec/todo/3120-parameters.md).
 - [ECMAScript ASI](https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-automatic-semicolon-insertion).

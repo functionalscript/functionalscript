@@ -19,6 +19,13 @@ captured frames are tracked by
 lowering belongs to
 [call-like-instructions](../spec/todo/9100-call-like-instructions.md).
 
+**P1 source/writer reconciliation:** the direct descriptor-value source plan
+is superseded by [`entry`](../fjs/edag/todo/entry.md). That document owns the
+active runtime-entry API and its writer boundary: `own` is internal, not an
+alternate source spelling. The affected sections below follow that decision;
+the remaining subjects retain their individual discussion status. Parsing
+JavaScript syntax does not itself admit it into FunctionalScript.
+
 ### Baseline: an expression DAG with anchored evaluation
 
 *This baseline supersedes the original index-based sequence proposal; the
@@ -141,9 +148,13 @@ edges play the role of our `","` operands; *sea of nodes* is the same
 family but carries control edges and a scheduling phase this design
 does not have.
 
-*AST* is now reserved for **grammar parser output** ([fjs/ebnf](../fjs/ebnf/README.md),
-[fjs/fsc](../fjs/fsc/README.md)); the function representation is the EDAG
-everywhere else.
+*AST* is reserved for **grammar parser output** ([fjs/ebnf](../fjs/ebnf/README.md),
+[fjs/fsc](../fjs/fsc/README.md)). The source AST represents a subset of
+JavaScript syntax, including statements, not an already-valid FJS program.
+[AST-to-EDAG compilation](../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+resolves bindings and const visibility, checks early errors, matches complete
+instruction patterns and enforces FJS restrictions before producing EDAG.
+The function representation is the EDAG, not that source tree.
 
 "Behaves the same" means, precisely, under the assumptions:
 
@@ -166,11 +177,13 @@ Two consequences worth stating plainly:
   syntactic ([Operations](#operations)) rather than a convention:
   anything a hostile graph could express, validation must have already
   ruled out.
-- **The printed source is the semantic reference.** Every validated
-  EDAG has a source form (subject 12), a JS engine runs that source,
-  and the two must agree — so `toString(f)` is not merely a feature but
-  the statement of what the graph *means*. It also makes the invariant
-  testable: print, run on a JS engine, run on the VM, compare.
+- **Printed source must preserve the semantics.** Within the source writer's
+  supported domain (subject 12), a JS engine running the printed source and
+  the VM must agree under the declared compatibility profile. Schema validity
+  alone does not promise a source spelling for every internal operation:
+  internal-only `own` is refused by the writer under the `entry` plan.
+  For compiled source, compare the original source as well as the output;
+  print-run agreement alone does not prove the original lowering correct.
 
 Agreed points (not under discussion):
 
@@ -227,7 +240,7 @@ schema is free to change independently of both.
 |`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
 |`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
 |`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
-|`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
+|`["own", object, key]`|— internal only|later|no standalone source spelling; runtime-entry API and semantic migration belong to [entry](../fjs/edag/todo/entry.md)|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
@@ -292,20 +305,22 @@ which EDAG operations the language admits as syntax is
 EDAG admits an operation when it is pure — its result a function of its
 operands and nothing else — and unary `+` is.
 
-Accessing a property by a **computed string** is a different, later operation,
-`["own", object, key]` — own properties only, no prototype chain, so a
-computed name is harmless. Its JS spelling is a pattern rather than
-syntax:
+**Superseded source plan:** the former direct lowering of
+`Object.getOwnPropertyDescriptor(object, key)?.value` to `["own", object, key]`
+is not an admitted standalone FJS instruction. It would expose non-enumerable
+properties as well as data entries. The JavaScript-subset AST may represent
+that expression; the AST-to-EDAG compiler, not a parser-specific ban, rejects
+its standalone use or a descriptor escaping an approved pattern.
 
-```js
-Object.getOwnPropertyDescriptor(object, key)?.value
-```
-
-FunctionalScript recognizes that construction and lowers it to the
-single operation — the same whitelisted-pattern mechanism that gives
-`assert(…), result` its `","` node
-([spec/README.md](../spec/README.md)). Note `?.` is not an FS operator
-in its own right; it exists only inside this recognized pattern.
+The active proposal is [`entry`](../fjs/edag/todo/entry.md): recognize the
+complete parsed enumerable-entry helper, lower its function definition to
+`['entry']`, and use ordinary calls. `own` remains the internal operation;
+the source writer refuses a bare `own` node rather than printing the retired
+descriptor-value expression. The entry proposal owns receiver/key conversion,
+function observations and the coordinated migration of internal semantics.
+This discussion does not silently change the existing opcode implementation.
+All instruction patterns follow the
+[JavaScript AST → checked EDAG compilation boundary](../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
 
 `"=>"` is the function constructor because FS has only **arrow
 functions** — there is exactly one spelling to reuse, so the tag is
@@ -323,7 +338,7 @@ Word tags remain only where no unambiguous JS spelling exists:
   mode);
 - `"throw"` — a JS keyword, but a *statement*, so there is no
   expression spelling to reuse;
-- `"own"` — its JS form is a recognized *pattern*, not syntax.
+- `"own"` — internal operation, without an independent FJS source spelling.
 
 `"Number"` is not an exception: it is spelled exactly as the JS built-in
 it denotes.
@@ -941,14 +956,16 @@ the FJS compiler would never emit. To validate:
 
 **Status:** decided
 
-[property-accessor](../spec/todo/2330-property-accessor.md) names five
-commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
+[property-accessor](../spec/todo/2330-property-accessor.md) historically named
+five commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
 `own_property`. The EDAG keeps the general layer only — `"."` = its
 `at`, a `"()"` over a property step = its `at_call`, `["own", …]` = its
-`own_property` — while
+internal `own_property` — while
 `instance_property` and `instance_method_call` stay compile-time
 specializations for the bytecode, where performance distinctions belong
-([serialization](../spec/todo/serialization.md)).
+([serialization](../spec/todo/serialization.md)). This mapping of internal
+names does not revive the retired direct descriptor source pattern;
+[`entry`](../fjs/edag/todo/entry.md) owns the runtime source API.
 
 An earlier draft added: "consequence — the EDAG interpreter carries the
 safety burden 2330 assigns to compile-time checks; prohibited names must
@@ -1000,13 +1017,13 @@ an optimization:
 |---|----|---|
 |`[".", o, p]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
 |`[".", o, p, ["\|()", args]]`|`instance_method_call` + `at_call`|same|
-|`["own", o, k]`|`own_property`|any computed string; own properties only|
+|`["own", o, k]`|internal `own_property`, not a source pattern|receiver/key semantics follow the [entry migration](../fjs/edag/todo/entry.md)|
 
 `"."` merges 2330's static-name and numeric-index commands because the
 operand restriction ([Operations](#operations)) covers both safely; the
-static/numeric split that remains is a bytecode specialization. But
-`own_property` cannot be folded in: it is what makes computed-string access
-*possible at all*, precisely by skipping the prototype chain.
+static/numeric split that remains is a bytecode specialization. The runtime
+entry operation remains separate because it bypasses prototypes through the
+explicit helper's semantics, not by reinterpreting ordinary property access.
 
 **Decided: the array constructor is `"[]"`.** Choosing `"."` for access
 freed the tag, and `[a, b]` is precisely how JS spells an array literal.
@@ -1339,9 +1356,11 @@ require the EDAG to model mutable *objects*, only threaded state.
 
 **Status:** open (requirement agreed; details to settle)
 
-`toString(f)` returns **real FunctionalScript source** — a JS engine can
-`eval` it and get an equivalent function. Not a debug rendering: the
-printed text is the function.
+For functions in the supported source-writer domain, `toString(f)` returns
+**real FunctionalScript source** — a JS engine can `eval` it and get an
+equivalent function. Not a debug rendering: the printed text must preserve
+the function's permitted observations. Internal or unsupported nodes are
+refused; schema validity alone is not a promise of a source representation.
 
 (`eval` itself remains *not allowed inside FS*
 ([built-in](../spec/todo/2360-built-in.md)). This is a capability of the
@@ -1349,21 +1368,24 @@ host holding the source, not of FS code.)
 
 What that requires of the printer:
 
-- **Every operation needs an expression form.** The operations with no
-  JS expression spelling need runnable workarounds, not approximations:
-  `["throw", v]` prints as `(() => { throw v })()`; a function using
-  `["self"]` prints as a *named function expression*,
-  `function self(…) { … self(…) … }`; and `["own", o, k]` prints as its
-  recognized pattern, `Object.getOwnPropertyDescriptor(o, k)?.value`.
-  All `eval` correctly.
+- **Every supported source-level operation needs a faithful expression form.**
+  The older sketch proposed `(() => { throw v })()` for `["throw", v]` and
+  `function self(…) { … self(…) … }` for a function using `["self"]`.
+  Those remain candidates subject to admission and round-trip support, not
+  permission to emit unsupported FunctionalScript.
 
-  `["own", …]` has a consequence for the closed-scope claim below: its
-  printed form names the built-in `Object`, so the printed text is not
-  closed over constants and the three leaves alone — it also depends on
-  the ambient built-ins `eval` provides. That is sound (built-ins are
-  the same in every JS engine) but it is a fourth thing the printer
-  renders, and it is why built-in namespaces are still open in
-  subject 10.
+  The direct `Object.getOwnPropertyDescriptor(o, k)?.value` spelling for
+  `["own", o, k]` is retired. Follow [`entry`](../fjs/edag/todo/entry.md):
+  print the approved helper function and its ordinary calls, preserving
+  sharing, and refuse bare internal `own`. Do not add a second source API
+  to make every internal opcode printable. The helper's exact canonical
+  text remains subject to its unresolved function-text compatibility gate.
+
+  A printed `entry` helper names the intrinsic `Object` namespace. Thus the
+  printed source also depends on the declared standard-built-in environment,
+  not solely on captured constants. AST-to-EDAG compilation validates that
+  binding; it does not admit `Object` as an ordinary FJS value. This replaces
+  the old ambient-built-in rationale based on printing `own` directly.
 - **Sharing must be preserved.** A node referenced twice must print as
   one `const` used twice, never as two copies: `["[]", x, x]` and
   `["[]", ["{}"], ["{}"]]` are different functions (subject 1). This is
@@ -1405,11 +1427,13 @@ What that requires of the printer:
   value — the sharpest case of printing having to be correct rather
   than merely plausible.
 
-The property worth aiming at: **parse(toString(f)) reproduces the same
-EDAG**, and therefore the same hash (subject 9). That is what makes
-`toString` trustworthy rather than merely informative — and it is a
-sharper test of the whole design than any single operation, since it
-fails the moment an operation has no faithful source form.
+For the supported source-writer domain, the property worth aiming at is:
+**compiling the parsed `toString(f)` reproduces the same EDAG**, and therefore
+the same hash (subject 9). Parsing produces the JavaScript-subset AST;
+checked AST-to-EDAG compilation reconstructs the graph. An internal-only node
+is outside this source round trip, not an excuse to restore a retired pattern.
+Compare original-source behavior too; a graph round trip alone cannot prove
+that the original source was compiled compatibly.
 
 Open: whether the printed form is *canonical* (one function, one text)
 or merely correct. Canonical printing would make `toString` a

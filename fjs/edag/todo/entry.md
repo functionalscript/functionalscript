@@ -67,19 +67,22 @@ former proposal to recognize `entry` as a fixed token shape before its body
 syntax was supported.
 
 Follow [statement-aware AST recognition](../../fsc/parser/todo/statement-aware-intrinsics.md).
-The shared parser determines JavaScript statement boundaries, expression
-structure and restricted productions. Binding/early-error validation precedes
-complete AST-pattern recognition and FJS admission, followed by EDAG lowering.
-The matcher does not inspect newlines, perform semicolon insertion or repair
-syntax. A newline after `return` cannot be ignored to recover this pattern.
+The parser constructs a JavaScript-subset AST with statement and expression
+structure intact, not an already-admitted FJS AST. AST-to-EDAG compilation
+resolves bindings and const visibility, checks early errors, recognizes this
+complete pattern and enforces FJS restrictions. The matcher does not inspect
+newlines, perform semicolon insertion or repair syntax. A newline after
+`return` cannot be ignored to recover this pattern.
 
-The parser must understand the named parameters, local declaration, return,
-optional access and conditional expression inside the helper before recognizing
-it. This does not admit those operations independently: a descriptor returned
-from the function, another descriptor field read, or an unmatched descriptor
-use is refused by the FJS whitelist. Resolve `Object` as the intrinsic namespace,
-not a shadowing binding; identifier placeholders preserve binding relationships,
-not merely repeated spelling. Do not implement a second parser in the matcher.
+The parser must understand the [named parameters](../../../spec/todo/3120-parameters.md),
+local declaration, return, optional access and conditional expression inside
+the helper before it can be matched. Syntactic support is the dependency;
+general EDAG lowering for every use of those constructs is not. A descriptor
+returned from the function, another descriptor field read, or an unmatched
+descriptor use may be represented in the AST but is refused by FJS admission.
+Resolve `Object` as the intrinsic namespace, not a shadowing binding; identifier
+placeholders preserve binding relationships, not merely repeated spelling.
+Do not implement a second parser in the matcher.
 
 A later JavaScript-compatible ASI extension may accept equivalent source with
 omitted semicolons. Canonical output may still emit them. Whether semicolons
@@ -98,6 +101,12 @@ agree. It is an unresolved **P1 compatibility gate**, not permission to
 normalize the source first and call it compatible. `entry(o, f)`, `entry(o,
 [f])`, and user-defined conversion can expose the difference as a property
 lookup; the `entry` function itself can also be converted to text.
+
+The exact canonical spelling of `entry` is deliberately unspecified until
+that function-text contract is settled. This does not permit different
+successful reflection or coercion results: operations exposing an incompatible
+spelling must remain unadmitted. The displayed helper defines the computation,
+not a new guarantee that `String(entry)` returns canonical text.
 
 [Function serialization](../../../spec/todo/serialization.md) and the
 [compatibility epic](../../../todo/fjs-javascript-compatibility.md) own that
@@ -169,9 +178,11 @@ need tests in addition to direct internal-operation tests.
 - [x] Retire `own-access.md` and `function-name.md`; history holds their designs.
 - [ ] Add `['entry']` to the schema and document the function/internal-operation
       distinction, subject to the P1 compatibility gates above.
-- [ ] Implement recognition only after the shared syntax/binding pipeline can
-      represent and validate the complete helper body; keep protected uses
-      outside matched patterns refused.
+- [ ] Implement recognition in AST-to-EDAG compilation once the complete helper
+      syntax, including [named parameters](../../../spec/todo/3120-parameters.md),
+      is representable. Validate its bindings and keep protected uses outside
+      matched patterns refused; general lowering of functions with named
+      parameters may follow.
 - [ ] Implement the JavaScript and native operation changes together with the
       corpus, generated vectors and documentation. Refuse unsupported calls
       or key conversions rather than invent results.
