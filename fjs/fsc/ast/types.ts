@@ -92,8 +92,8 @@ export type AstObject = readonly ['object', readonly AstMember[]]
  * a string, or a number from `[0]`. The EDAG's own form, `['.', object,
  * index]`, so the lowering carries it as it is. A key naming a property of
  * a built-in prototype — every name `fjs/js/prototype` lists but `length`
- * — is refused by the parser, so `run` never reads one, and so is an
- * access on a number or a bigint literal.
+ * — is refused by the parser, so `run` never reads one. A numeric literal
+ * is an ordinary base: `1 .x` is `['.', 1, 'x']`.
  */
 export type AstAccess = readonly ['.', AstConst, string | number]
 

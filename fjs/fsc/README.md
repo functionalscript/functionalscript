@@ -490,7 +490,8 @@ JavaScript lexical surface, because everything that reads a `.f.mjs` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a
 token that is recognised is not thereby accepted: the compiler's fold and
 grammar refuse what the language does not admit, at the token, as they refuse
-`-NaN`. The rules the grammar shares with JSON flow the other way — it imports
+`--` — the decrement operator, one token the fold turns into an error because
+the language has no rule for it. The rules the grammar shares with JSON flow the other way — it imports
 JSON's digit and string rules from `fjs/ebnf/lib/json`, and no codec reads
 this grammar — so widening it regresses no codec. The parser stays the
 FunctionalScript grammar, LL(1) over those tokens, and grows one production
