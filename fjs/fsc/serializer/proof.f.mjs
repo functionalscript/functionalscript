@@ -108,7 +108,7 @@ const shapes = p => [
  *
  * @type {readonly Exp[]}
  */
-const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined'], ['-', 1]]
+const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
@@ -137,15 +137,16 @@ export const proof = {
     // takes a name too. `op12` of two operands is the binary minus, which
     // the language has no spelling for yet.
     neg: () => {
-        writes(['-', 1], 'export default -1;')
         writes(['-', ['[]', [1]]], 'export default -[1];')
-        // `- -1` and not `--1`, which is the decrement token
-        writes(['-', ['-', 1]], 'export default - -1;')
+        writes(['-', 'a'], 'export default -"a";')
+        // `- -1` and not `--1`, which is the decrement token. The operand
+        // here is a container, since a negated *literal* has no text
+        writes(['-', ['-', ['[]', []]]], 'export default - -[];')
         // the negation is inside the access, which is where the text puts it
         writes(['-', ['.', ['[]', [1]], 0]], 'export default -[1][0];')
         // and outside it only through a name
-        writes(['.', ['-', 1], 0], 'const $0=-1;export default $0[0];')
-        writes(['.', ['-', 1], 'a'], 'const $0=-1;export default $0.a;')
+        writes(['.', ['-', ['[]', []]], 0], 'const $0=-[];export default $0[0];')
+        writes(['.', ['-', ['[]', []]], 'a'], 'const $0=-[];export default $0.a;')
         // a negated function likewise
         writes(['-', ['=>', null, 1]], 'const $0=(...$a)=>1;export default -$0;')
         refuses(['-', 1, 2], 'a binary - node')
@@ -161,27 +162,42 @@ export const proof = {
         refuses(['()', ['-', 1], ['[]', []]], 'a () node')
     },
     /**
-     * A negative number is a leaf — a JSON input gives one, and so does any
-     * graph built by hand — and the language's only spelling for it is the
-     * prefix. So the text is right and denotes the same value, but reading
-     * it back gives the negation of the literal where the graph held the
-     * literal itself: one node more, in each of the three numeric leaves.
-     *
-     * {@link writes} cannot say that, comparing graphs. Closing it is the
-     * fold of `['-', literal]` over the EDAG, which is an optimization of
-     * the graph and waits until the language works without one — and when
-     * it lands, this entry reddens and becomes an ordinary {@link writes}
-     * line.
-     *
-     * A negation of a negative leaf is the same thing one deeper: `-1`
-     * written for the leaf and `- -1` for the node over it.
+     * A negative number is a leaf — a JSON input gives one — and the
+     * language's only spelling for it is the prefix, which the lowering
+     * folds back into the leaf. So the text reads back as the graph it was
+     * written from.
      */
     negativeLeaves: () => {
-        const text = unwrap(tryStringify(['[]', [-0, -1.5, -1n]]))
-        assertEq(text, 'export default [-0,-1.5,-1n];')
-        const { edag } = unresolved(unwrap(parse(path)(text)))
-        assertStructurallySame(edag, ['[]', [['-', 0], ['-', 1.5], ['-', 1n]]])
-        assertEq(unwrap(tryStringify(['-', -1])), 'export default - -1;')
+        writes(['[]', [-0, -1.5, -1n]], 'export default [-0,-1.5,-1n];')
+    },
+
+    /**
+     * What {@link writes} means by "reads back as the same graph": the same
+     * graph *as the lowering makes of it*. Reading a text is parsing and
+     * lowering, and the lowering folds — a negated numeric literal is the
+     * number — so a text read back is always in the form the lowering
+     * produces.
+     *
+     * For every graph the compiler emits that is the graph itself, since
+     * the compiler's graphs come out of that same lowering. A graph built
+     * by hand need not be: `['-', 1]` is a fine EDAG, worth `-1`, and its
+     * text reads back as the leaf `-1` — the same value, and the form the
+     * fold gives it.
+     *
+     * Refusing it was considered and is wrong. The writer has a faithful
+     * text for the *value*, and the node count differs only because the
+     * reading normalizes. Tying a refusal to what the folder happens to do
+     * would also grow one per fold: `['+', 1, 2]` would want the same
+     * treatment the moment that fold lands, and so would every constant
+     * expression after it.
+     */
+    readsBackNormalized: () => {
+        assertEq(unwrap(tryStringify(['-', 1])), 'export default -1;')
+        const { edag } = unresolved(unwrap(parse(path)('export default -1;')))
+        assertStructurallySame(edag, -1)
+        // and one deeper, where the fold runs twice
+        assertEq(unwrap(tryStringify(['-', ['-', 1]])), 'export default - -1;')
+        assertStructurallySame(unresolved(unwrap(parse(path)('export default - -1;'))).edag, 1)
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared

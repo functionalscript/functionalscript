@@ -579,24 +579,21 @@ pub fn module<A: IVm>() -> Any<A> {
         // is right where that printer's other caller puts it, a generated
         // operator test handing the `Result` to a checker.
         //
-        // Every negation reaches this, a negated literal included: nothing
-        // folds `['-', 1]` into the leaf that would print, and that fold is
-        // an optimization the language waits on. So `export default -1;`
-        // has no `.rs` output, which is the cost of the operator until the
-        // Rust side has a shape for a throwing operation.
+        // A negated *literal* never reaches it: the lowering folds one into
+        // the number, which prints as it always did. What is left is a
+        // negation of something else, and that is what has no text.
         negation: () => {
             /** @type {(source: string, detail: string) => void} */
             const expect = (source, detail) => assertEq(
                 rustRefused(source),
                 `output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: ${detail}`)
-            expect('export default -1;', '-,1')
-            expect('export default -1n;', '-,1')
             expect('export default -[1];', '-,[],1')
             expect('const a = [1]; export default -a;', '-,[],1')
-            // a module with no negation in it is untouched
+            expect('export default -"a";', '-,a')
+            // and the folded ones print, `-1` as the leaf it lowers to
             assertEq(
-                compileSource('export default [1, 2];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
-                '    [(1f64).to_any(), (2f64).to_any()].to_array().to_any()')
+                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
+                '    [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any()')
         },
     },
     // An error with no token to point at names the file being compiled, not

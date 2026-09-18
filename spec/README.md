@@ -9,8 +9,8 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — operators, type
-annotations — and the design documents for the VM, I/O,
+Features the parser does not recognize yet — every operator but unary `-`,
+type annotations — and the design documents for the VM, I/O,
 serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
 
@@ -313,8 +313,10 @@ also what a `.json` output cannot carry ([output](#output)).
 
 ### Numbers
 
-A number is written with JSON number syntax: an optional `-`, an integer part,
-an optional fraction, an optional exponent.
+A number is written with JSON number syntax less its sign: an integer part, an
+optional fraction, an optional exponent. A leading `-` is not part of the
+literal but the [unary minus](#supported-value-types) applied to it, which is
+why `- 42.5` is the same value written with a space.
 
 ```js
 export default [0, -42.5, 3e2, 1E-7];

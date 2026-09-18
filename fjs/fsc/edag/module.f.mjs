@@ -108,16 +108,20 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
         case '()': { return call(nodes)(ast[1], ast[2]) }
-        // `op12` of one operand, the EDAG's unary minus. Nothing is computed
-        // here, `-1` staying `['-', 1]`: the graph is what this builds, and
-        // folding a negated literal back to the leaf is an optimization over
-        // it — worth having, and not until the language works without one.
+        // `op12` of one operand, the EDAG's unary minus, folded away over a
+        // numeric literal: negating one is exact arithmetic — total, and
+        // answered without knowing anything else about the program — so the
+        // graph holds the number and every reader sees the leaf it saw
+        // before there was an operator.
         //
-        // What that costs today is the `.rs` output of a negation, which
-        // `../rust` refuses rather than write a module that does not build:
-        // `Neg for Any<A>` answers a `Result` and a module's `Any<A>` has
-        // nowhere to put the `Err`.
-        case '-': { return ['-', lower(nodes)(ast[1])] }
+        // A `-` over anything else stays a node. Folding one would mean
+        // saying what a string or a container converts to, which is
+        // `ToPrimitive`'s and depends on what the value holds; the readers
+        // that want a number work it out where a number is wanted.
+        case '-': {
+            const operand = lower(nodes)(ast[1])
+            return typeof operand === 'number' || typeof operand === 'bigint' ? -operand : ['-', operand]
+        }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }

@@ -56,11 +56,11 @@ export const proof = {
         primitives: () => {
             const { imports, edag } = compile('export default [1, -0, 2n, "s", true, null, NaN, -Infinity];')
             assertStructurallySame(imports, [])
-            // a written sign is the prefix operator, so it lowers to `op12`
-            // of one operand and stays one: nothing between the source and
-            // the graph computes, and folding `['-', 0]` back to the leaf is
-            // an optimization over the graph rather than a step of this
-            expectEdag(edag, ['[]', [1, ['-', 0], 2n, 's', true, null, NaN, ['-', Infinity]]])
+            // a written sign is the prefix operator, and the lowering folds
+            // it over a numeric literal: negating one is exact arithmetic,
+            // so the graph holds the number and every reader sees the leaf
+            // it saw before there was an operator
+            expectEdag(edag, ['[]', [1, -0, 2n, 's', true, null, NaN, -Infinity]])
         },
         // a bare `undefined` is a missing tuple position in an EDAG, so it is
         // the tagged node, at the root and inside a container alike
