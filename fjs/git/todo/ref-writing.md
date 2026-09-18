@@ -67,5 +67,5 @@ else in the name has moved DISOT semantics into Git's namespace.
   `.lock` skip a writer's lock file explains.
 - [`fjs/git/ref`](../ref/module.f.mjs) — the file grammars a writer must
   produce, measured against Git.
-- [object-store.md](./object-store.md) — from an id to the object a ref
+- [`fjs/git/store`](../store/module.f.mjs) — from an id to the object a ref
   keeps.
