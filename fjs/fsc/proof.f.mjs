@@ -573,6 +573,24 @@ pub fn module<A: IVm>() -> Any<A> {
                 rustRefused('const a = [1]; export default a[0];'),
                 'output.rs - error: no Rust spelling for this module: no nanvm-lib own-property read for this receiver type yet: .,[],1,0')
         },
+        // A negation is the other: `Neg for Any<A>` answers a `Result`,
+        // which a module's `Any<A>` has nowhere to put, so the text
+        // `fjs/edag/rust` prints for one would not compile here — though it
+        // is right where that printer's other caller puts it, a generated
+        // operator test handing the `Result` to a checker.
+        negation: () => {
+            assertEq(
+                rustRefused('export default -[1];'),
+                'output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: -,[],1')
+            assertEq(
+                rustRefused('const a = [1]; export default -a;'),
+                'output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: -,[],1')
+            // and a negation the lowering folded away is no negation at all:
+            // `-1` is the leaf it always was, and prints as one
+            assertEq(
+                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
+                '    [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any()')
+        },
     },
     // An error with no token to point at names the file being compiled, not
     // `undefined:undefined:undefined`. Each language reports its own missing

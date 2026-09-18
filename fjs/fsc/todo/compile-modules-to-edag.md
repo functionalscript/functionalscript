@@ -432,9 +432,10 @@ rediscovered:
 **All four are done**, with the front end's move, and pinned end to end in
 `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
-separates them. The other three are reserved words with their own token
-kinds, read as primitives by the grammar, the tokenizer folding `-` into
-`Infinity` as it folds one into a number.
+separates them. `NaN` and `Infinity` are reserved words with their own
+token kinds, read as primitives by the grammar; `-Infinity` is the prefix
+operator applied to one of them, which the lowering folds back into the
+leaf, so the graph holds the number either way.
 
 ### Existing compile API boundary
 

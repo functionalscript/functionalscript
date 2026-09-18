@@ -108,10 +108,20 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
         case '()': { return call(nodes)(ast[1], ast[2]) }
-        // `op12` of one operand, the EDAG's unary minus. Nothing is computed
-        // here, `-1` staying `['-', 1]`: folding it back to the literal is an
-        // optimization over the graph, and the graph is what this builds.
-        case '-': { return ['-', lower(nodes)(ast[1])] }
+        // `op12` of one operand, the EDAG's unary minus — folded away where
+        // the operand is a numeric literal, since `-1` is the number `-1`
+        // and every reader of the graph then sees the leaf it saw before
+        // there was an operator. That fold is not an optimization but the
+        // difference between an output and none: `Neg for Any<A>` answers
+        // with a `Result`, so the Rust printer has no text for a negation
+        // and refuses one, where it prints the leaf.
+        //
+        // A `-` over anything else stays a node: a string or a container
+        // converts by rules the graph is not the place to apply.
+        case '-': {
+            const operand = lower(nodes)(ast[1])
+            return typeof operand === 'number' || typeof operand === 'bigint' ? -operand : ['-', operand]
+        }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
