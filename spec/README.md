@@ -645,15 +645,30 @@ The same function, written with a block body:
 export default (...args) => { return [args, args[0]]; };
 ```
 
-A function is written as an arrow function of one rest parameter, and its
-body is an expression or a block. It denotes a function of its arguments
-alone:
+A function that takes no arguments, its parameter list empty:
+
+```js
+export default () => 6;
+```
+
+A function is written as an arrow function of one rest parameter or of none,
+and its body is an expression or a block. It denotes a function of its
+arguments alone:
 
 - The parameter is the arguments array, `args[0]` the first argument, and
   the body may name it and nothing declared outside — a `const`, an import,
   or an enclosing function's parameter is a **capture**, which is an error
   ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
   a module name, as in JavaScript.
+- An **empty parameter list** binds no name at all, so a body written under
+  one cannot reach its arguments: the arguments array is named by the
+  parameter and by nothing else, and a word the list does not spell is
+  unbound here exactly as any other unbound word is. Nothing else
+  distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
+  function, and a body `const` may take the name a parameter would have
+  taken, there being no parameter to collide with. A list of **named**
+  parameters, `(a, b) => body`
+  ([parameters](./todo/3120-parameters.md)), is not recognized yet.
 - The body is an expression or a block, and `value` and `{ return value; }`
   denote the same function. As an expression the body is any value except an
   object literal: after `=>` JavaScript reads `{` as a block, never as an
@@ -663,10 +678,17 @@ alone:
   again, since after `return` JavaScript expects an expression. `return` and
   the value share a line: a newline between them ends the statement in
   JavaScript, which would return `undefined`, so it is refused here rather
-  than read another way, exactly as a newline before `=>` is. A parameter
-  list other than one rest parameter
-  ([function](./todo/3110-function.md), [parameters](./todo/3120-parameters.md))
-  is not recognized yet.
+  than read another way, exactly as a newline before `=>` is.
+- A function **carries no name**. Its EDAG is `['=>', frame, body]`,
+  name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
+  `export default () => 0` compile to the same node whatever JavaScript
+  would name them, and no program observes the difference: `f.name` is
+  refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
+  `name` is not an enumerable own property
+  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). Nor is the arity
+  observable, which is what leaves the two parameter lists nothing to be
+  told apart by: `f.length` is `0` for a rest parameter as it is for none,
+  a rest parameter not counting towards it in JavaScript.
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
   written twice, and it is not in its own initializer's scope. The parameter

@@ -15,8 +15,8 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, constStatement, djsModule,
-    exportStatement, func, identifier, importStatement, index, items, key, member, object, primitive, sym, symbolOf, trivia,
-    value,
+    exportStatement, func, identifier, importStatement, index, items, key, member, object, parameters, primitive, sym,
+    symbolOf, trivia, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -66,6 +66,7 @@ export const proof = {
         parser(/** @type {Rule} */ (value))
         parser(/** @type {Rule} */ (array))
         parser(/** @type {Rule} */ (object))
+        parser(parameters)
         parser(/** @type {Rule} */ (func))
         parser(/** @type {Rule} */ (body))
         parser(/** @type {Rule} */ (block))
@@ -134,18 +135,29 @@ export const proof = {
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
     },
-    // A function: `(`, `...`, one parameter, `)`, `=>`, and a body that is
+    // A function: `(`, the parameter list, `)`, `=>`, and a body that is
     // a value less the object — `=> {` opens a block, which `block` below
-    // covers — each token followed by its trivia; no other parameter form
-    // yet
+    // covers — each token followed by its trivia. The list is the one rest
+    // parameter or nothing; no named form yet
     func: () => {
         assertStructurallySame(read('export default (...a) => a;'), ['ok'])
         assertStructurallySame(read('export default ( ... a ) => /* c */ [ a , (...b) => 1 , ] ;'), ['ok'])
         assertStructurallySame(read('const f = (...a) => a.b[0]; export default { f: f };'), ['ok'])
-        assertStructurallySame(read('export default () => 1;'), ['error', ')'])
+        // the empty list, and the trivia inside it: `)` decides it at the
+        // one symbol after the `(`, `...` opening the parameter
+        assertStructurallySame(read('export default () => 1;'), ['ok'])
+        assertStructurallySame(read('export default ( /* c */ ) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (\n) => 1;'), ['ok'])
+        assertStructurallySame(read('export default () => () => 1;'), ['ok'])
+        assertStructurallySame(read('export default () => { return 1; };'), ['ok'])
+        assertStructurallySame(read('const f = () => 1; export default f();'), ['ok'])
         assertStructurallySame(read('export default (a) => 1;'), ['error', 'a'])
         assertStructurallySame(read('export default (...1) => 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a, ...b) => 1;'), ['error', ','])
+        assertStructurallySame(read('export default (,) => 1;'), ['error', ','])
+        assertStructurallySame(read('export default () 1;'), ['error', 'number'])
+        assertStructurallySame(read('export default () => ;'), ['error', ';'])
+        assertStructurallySame(read('export default ()\n=> 1;'), ['error', 'nl'])
         assertStructurallySame(read('export default (...a) 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a) => ;'), ['error', ';'])
         // no line terminator before `=>`, as JavaScript has it: a newline,

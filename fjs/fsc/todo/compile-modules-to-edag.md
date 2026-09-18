@@ -42,8 +42,8 @@ rules are developed in
 [`edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md), property and
 method-access safety is owned by
 [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md), source
-function support and later captures are tracked by
-[`3110-function.md`](../../../spec/todo/3110-function.md) and
+functions are in the language
+([functions](../../../spec/README.md#functions)) and later captures are tracked by
 [`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md), and VM-internal
 call lowering belongs to
 [`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
@@ -712,8 +712,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   schema.
 - [`spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
   — property/method-access safety rules reused by `.` and the property chain steps.
-- [`spec/todo/3110-function.md`](../../../spec/todo/3110-function.md) — source-level
-  function support.
+- [`spec/README.md`](../../../spec/README.md#functions) — source-level
+  function support, which is in the language.
 - [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md) —
   later captured-frame design; Stage 2 here remains non-capturing.
 - [`spec/todo/9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md)

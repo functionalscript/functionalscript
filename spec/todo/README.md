@@ -57,16 +57,15 @@ see [serialization](./serialization.md).
 
 |format|any     |    |Notes                          |
 |------|--------|----|-------------------------------|
-|FJS   |function|Func|[function](./3110-function.md) |
+|FJS   |function|Func|[functions](../README.md#functions)|
 
 ### 3.1. Required
 
-1. [ ] [function](./3110-function.md) — the non-capturing rest-parameter
-   form is in the language with either body,
-   `(...a) => expression` and `(...a) => { return expression; }`
-   ([functions](../README.md#functions)); the empty parameter list `()` is
-   not.
-2. [ ] [parameters](./3120-parameters.md)
+1. [x] function — the non-capturing form is in the language with either
+   body and with either parameter list, `(...a) => expression`,
+   `(...a) => { return expression; }` and `() => expression`
+   ([functions](../README.md#functions))
+2. [ ] [parameters](./3120-parameters.md) — the named list is what is left
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))

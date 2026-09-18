@@ -45,7 +45,8 @@ export type ParseError = {
  * it — its name, and the position an error is anchored at — a property
  * access by the token its key is read from, a call by its arguments in the
  * order written, a negation by its operand, a function by the token naming
- * its parameter and its body,
+ * its parameter — `null` where the list is empty, there being no token —
+ * and its body,
  * a block body by its `const` statements and the value it returns, or a
  * container of its items in the order written.
  *
@@ -65,7 +66,7 @@ export type Node =
     | readonly ['.', Node, DjsTokenWithMetadata]
     | readonly ['()', Node, readonly Node[]]
     | readonly ['-', Node]
-    | readonly ['=>', DjsTokenWithMetadata, Node]
+    | readonly ['=>', DjsTokenWithMetadata | null, Node]
     | readonly ['block', readonly Const[], Node]
     | Container
 
