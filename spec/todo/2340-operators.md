@@ -40,13 +40,18 @@ JavaScript reads `-(1 .x)`, and `-1()` a call on `-1` where JavaScript calls
 prefix it is retired both refusals and the fold with them.
 
 The shape the rest can follow: the grammar reads the operator and computes
-nothing, so `-1` is `['-', 1]` from the parser through the lowering. What a
-value is worth is computed where a value is wanted — the `.json` and DataJS
-outputs evaluate the module — and folding `['-', 1]` back to the leaf is an
-optimization over the EDAG, which is where the arithmetic belongs and where
-it is still to be done. Until it lands, a graph holding a *negative leaf* —
-one a JSON input gives — writes as `-1` and reads back as `['-', 1]`: the
-same value, one node more.
+nothing, so `-1` is `['-', 1]` in the parser's tree. The **lowering** folds
+that one case away — a negation of a numeric literal is the number — and
+everything else stays a node, a string or a container converting by rules
+the graph is not the place to apply. What such a value is worth is computed
+where a value is wanted: the `.json` and DataJS outputs evaluate the module.
+
+That fold is not an optimization but the difference between an output and
+none. `Neg for Any<A>` answers `Result<Any<A>, Any<A>>`, and a generated
+module's `Any<A>` has nowhere to put the `Err`, so the Rust route has no
+text for a negation and refuses one — where it prints the folded leaf as it
+always did. Arithmetic over the graph beyond that constant is still to be
+done, and is where the rest of this table's operators will need it.
 
 An index is not an expression: it is a constant key, a string or a number,
 so a negative key is written as the string it names, `a["-1"]`.
