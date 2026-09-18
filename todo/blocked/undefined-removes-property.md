@@ -17,11 +17,11 @@ alone do not establish equivalence. These JavaScript examples distinguish the
 same objects after composition:
 
 ```js
-({ a: undefined }).a // undefined
-({}).a // undefined
+({ a: undefined }).a; // undefined
+({}).a; // undefined
 
-({ a: 1, ...{ a: undefined } }).a // undefined
-({ a: 1, ...{} }).a // 1
+({ a: 1, ...{ a: undefined } }).a; // undefined
+({ a: 1, ...{} }).a; // 1
 ```
 
 The spread example is a research counterexample, not a claim that
