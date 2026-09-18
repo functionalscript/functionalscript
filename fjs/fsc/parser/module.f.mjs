@@ -51,7 +51,7 @@
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -294,6 +294,20 @@ const symbol = out => ({ symbol: 0, meta: out })
 const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
 
 /**
+ * The token naming a function's parameter, when the list holds one: the
+ * identifier at the third position of `... t id t`, under the alternative
+ * its word matched, as a `const`'s name is. An empty list has no token,
+ * which is what `null` says — and the fold has no word to bind, so a body
+ * under it names nothing.
+ *
+ * @type {(node: _ParameterNode) => DjsTokenWithMetadata | null}
+ */
+const parameterOf = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? null : tokenAt(unmapped(unmapped(rounds[0])[2])[1])
+}
+
+/**
  * One step applied to the node before it: a property access by the token
  * its key is read from, or a call by its arguments — the optional list at
  * the third position of `( t [ items(value) ] ) t`, read as an array's
@@ -344,10 +358,10 @@ const baseOf = ([tag, branch]) => {
 
 /**
  * What a `(` opened, at the third position of `( t (func | group)`: a
- * function, by the token naming its parameter at the third position of
- * `... t id t ) s => t body` and its body at the ninth — or a group, the
- * value at the first position of `value ) t access*` and the steps after
- * the `)` at the fourth.
+ * function, by its parameter list at the first position of
+ * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group,
+ * the value at the first position of `value ) t access*` and the steps
+ * after the `)` at the fourth.
  *
  * A group is no node of its own: `(x)` is whatever `x` is, and the steps
  * after the `)` apply to that same node, so nothing downstream can tell a
@@ -359,8 +373,8 @@ const baseOf = ([tag, branch]) => {
  */
 const parenNode = ([tag, branch]) => {
     if (tag === 'func') {
-        const [, , name, , , , , , b] = unmapped(branch)
-        return ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)]
+        const [p, , , , , b] = unmapped(branch)
+        return ['=>', parameterOf(p), nodeAt(b)]
     }
     return groupNode(branch)
 }
@@ -763,6 +777,26 @@ const bound = (stack, word) => {
 }
 
 /**
+ * The names a function's body begins with: its parameter bound to the
+ * arguments array, and nothing else — the body is resolved against its own
+ * names alone, so a reference to a name bound outside is a capture.
+ *
+ * An empty parameter list binds nothing, so a body under it starts from no
+ * names at all: the arguments are unreachable, having no name, and every
+ * other word is `const not found` or a capture exactly as it is under a
+ * parameter that does not spell it. That is the whole of what an empty
+ * list costs: the function the fold returns carries no parameter either
+ * way, so nothing downstream can tell the two lists apart.
+ *
+ * @type {(name: DjsTokenWithMetadata | null) => Result<_Env, ParseError>}
+ */
+const functionScope = name => {
+    if (name === null) { return ok(empty) }
+    const [tag, word] = identifierOf(name)
+    return tag === 'error' ? error(word) : ok(setReplace(word)(args)(empty))
+}
+
+/**
  * The next step of a function's block body: the `const` at `index`, its name
  * checked before its value is entered — as a module's `const` is, so that a
  * statement wrong in both halves answers for the half a reader meets first
@@ -790,7 +824,8 @@ const bodyRound = (stack, env, frame) => {
  *
  * A block body is entered the same way, under a frame that also holds its
  * statements: the parameter is the only name bound when the first of them
- * is resolved, and each binds its own as the module's `const`s do.
+ * is resolved — none is, where the list is empty — and each binds its own
+ * as the module's `const`s do.
  *
  * @type {(stack: _Stack, env: _Env, node: Node) => _State}
  */
@@ -808,9 +843,8 @@ const enter = (stack, env, node) => {
         case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
         case '-': { return [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]] }
         case '=>': {
-            const [tag, word] = identifierOf(node[1])
-            if (tag === 'error') { return [stack, env, error(word)] }
-            const inner = setReplace(word)(args)(empty)
+            const [tag, inner] = functionScope(node[1])
+            if (tag === 'error') { return [stack, env, error(inner)] }
             const body = node[2]
             return body[0] === 'block'
                 ? bodyRound(stack, inner, { outer: env, statements: body[1], index: 0, word: '', done: null, result: body[2] })

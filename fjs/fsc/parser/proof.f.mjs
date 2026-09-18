@@ -500,10 +500,12 @@ export const proof = {
             expect('export default --1;', 16)
             // an arrow function is no `UnaryExpression`: `-(...a) => 1` is a
             // syntax error in JavaScript, so the operand rule takes every
-            // value but a function. The `(` is not what fails — a group is
-            // an operand, `-((...a) => 1)` — so the refusal is at the
-            // `...`, exactly where JavaScript's is
+            // value but a function. The `(` is not what fails — a group
+            // is an operand, `-((...a) => 1)` — so the refusal is at what
+            // the `(` opens: the `...`, exactly where JavaScript's is, or
+            // the `)` of an empty list, which is no value to group either
             expect('export default -(...a) => 1;', 18)
+            expect('export default -() => 1;', 18)
             // and it is the *operand rule* that refuses it, not the one
             // branch: the rule names itself, so a `-` one deeper reaches it
             // again, and a body's `-` takes the same rule rather than the
@@ -590,7 +592,8 @@ export const proof = {
     // — a `const`, an import, or an enclosing function's parameter — is a
     // capture, refused where it is written, since a function has no frame
     // yet. A parameter may shadow a module name, as in JavaScript, and is
-    // an identifier, so a keyword is refused as one.
+    // an identifier, so a keyword is refused as one. The list may also be
+    // empty, `() => body`, which binds no name at all.
     func: {
         parsed: () => {
             /** @type {(source: string, expected: string) => void} */
@@ -607,6 +610,47 @@ export const proof = {
             // a body takes accesses as a value does, and a function none of its own
             expect('export default (...a) => [a][0];', '[[],[["=>",[[".",["array",[["args"]]],0]]]]]')
             expect('export default (...a) => "s"[0];', '[[],[["=>",[[".","s",0]]]]]')
+        },
+        // An empty parameter list binds nothing, and the AST carries no
+        // parameter either way: `() => 1` and `(...a) => 1` are the one
+        // node, as they are the one function in JavaScript for every
+        // program that can be written here — the arguments a name does not
+        // spell are unreachable, and `f.name` and `f.length` are refused at
+        // the key of `.`.
+        noParameter: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default () => 1;', '[[],[["=>",[1]]]]')
+            expect('export default ( /* c */ ) => 1;', '[[],[["=>",[1]]]]')
+            expect('export default () => { return 1; };', '[[],[["=>",[1]]]]')
+            // a body of its own, with its own entries, as a parameter's is
+            expect('export default () => { const x = 1; return x; };', '[[],[["=>",[1,["cref",0]]]]]')
+            // the name a parameter would have taken is the body's to bind
+            expect('export default () => { const a = 1; return a; };', '[[],[["=>",[1,["cref",0]]]]]')
+            // either list nests in the other, and a call needs no parameter
+            expect('export default () => (...a) => a;', '[[],[["=>",[["=>",[["args"]]]]]]]')
+            expect('export default (...a) => [a, () => 1];', '[[],[["=>",[["array",[["args"],["=>",[1]]]]]]]]')
+            expect('const f = () => 1; export default f();', '[[],[["=>",[1]],["()",["cref",0],[]]]]')
+        },
+        // What a body with no parameter may not name: the arguments it has
+        // no word for are not a name, so they answer as any other unbound
+        // word does, and a name bound outside is a capture as ever.
+        noParameterRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default () => a;', 'const not found', 22)
+            expect('const c = 1; export default () => c;', 'capture not supported', 35)
+            expect('export default (...a) => () => a;', 'capture not supported', 32)
+            expect('export default () => { const x = a; return x; };', 'const not found', 34)
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */

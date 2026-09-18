@@ -28,9 +28,14 @@ finds a function, `length` excepted, since a value owns it
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function, `(...a) => body`, is written by the EDAG and
-FunctionalScript outputs — see below — and refused by the value outputs,
-since a value has no function in it. Across modules the sweep is coarser: a module whose own value
+node it is. A function, `(...a) => body` or `() => body`, is written by the
+EDAG and FunctionalScript outputs — see below — and refused by the value
+outputs, since a value has no function in it. The AST carries no parameter,
+so the two spellings reach the outputs as the one node and the writer gives
+both the rest parameter. Nothing observes the difference: `f.name` is
+refused at the key, and `f.length` is `0` for a rest parameter as it is for
+none, a rest parameter not counting towards a function's arity in
+JavaScript. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
