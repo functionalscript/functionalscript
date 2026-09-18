@@ -35,10 +35,12 @@ what we can" rather than an open-ended aspiration: it doesn't block on the
 full compiler, only on JSON serialization's own dependency closure being
 compiler-supported.
 
-Until then, `to_json` stays as the walking skeleton's stand-in, the same
-role its own module doc comment already describes for the synthetic
-`nanvm-harness` fixtures — hand-written because the real thing can't exist
-yet, not because it's the intended long-term design.
+Until then, `to_json` stays as the walking skeleton's stand-in — hand-written
+because the real thing (FJS-compiled-to-Rust JSON serialization) can't exist
+yet, not because it's the intended long-term design. `nanvm-harness`'s own
+fixtures were an analogous stand-in until #2073's Rust code generator
+shipped; they're now `fjs compile` output like any other, wired up in
+[fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 
 ### Related
 

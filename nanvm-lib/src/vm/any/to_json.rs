@@ -14,9 +14,8 @@ use crate::vm::{
 /// MVP print DJS for those, or report an error?") is left for later — this
 /// reports an error rather than guessing at a representation.
 ///
-/// `to_json` itself is hand-written Rust standing in for FJS-compiled logic,
-/// same as the harness's own synthetic fixtures stand in for real codegen
-/// output — see `nanvm-lib/todo/to-json-fjs-migration.md` for the plan to
+/// `to_json` itself is hand-written Rust standing in for FJS-compiled
+/// logic — see `nanvm-lib/todo/to-json-fjs-migration.md` for the plan to
 /// retire it once `fjs compile` can reach
 /// `fjs/media/json/serializer/module.f.mjs`.
 #[derive(Debug, PartialEq)]
