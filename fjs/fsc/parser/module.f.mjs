@@ -42,14 +42,14 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { Children, Meta } from '../../ebnf/ast/types.ts'
+ * @import { Ast, Children, Meta } from '../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
- * @import { Body, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
+ * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
@@ -331,7 +331,7 @@ const steps = (base, accesses) => accesses.reduce(accessed, base)
  * so each node is made whole, and a group's value is reached through
  * {@link parenNode}.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'block' | 'neg', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -362,7 +362,17 @@ const parenNode = node => {
         const [, , name, , , , , , b] = unmapped(node[1])
         return ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)]
     }
-    const [v, , , accesses] = unmapped(node[1])
+    return groupNode(node[1])
+}
+
+/**
+ * A group's node, from `value ) t access*`: the value at the first position
+ * with the steps after the `)`, at the fourth, applied to it.
+ *
+ * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
+ */
+const groupNode = node => {
+    const [v, , , accesses] = unmapped(node)
     return steps(nodeAt(v), unmapped(accesses))
 }
 
@@ -384,6 +394,9 @@ const parenNode = node => {
 const toNode = node => {
     if (node[0] === 'paren') {
         return symbol({ id: 'value', node: parenNode(unmapped(unmapped(node[1])[2])) })
+    }
+    if (node[0] === 'group') {
+        return symbol({ id: 'value', node: groupNode(unmapped(node[1])[2]) })
     }
     if (node[0] === 'neg') {
         const [, , v] = unmapped(node[1])

@@ -263,9 +263,15 @@ export const proof = {
         expectEdag(shared, ['[]', [['[]', [1]], ['[]', [1]]]])
         assert(shared instanceof Array && shared[0] === '[]', shared)
         assert(shared[1][0] === shared[1][1], shared)
-        // how far a prefix reaches is the one thing the parentheses change:
-        // the access on the negation, against the negation of the access,
-        // which is what `-1 .x` is
+        // a group is a `-`'s operand, so a prefix reaches a function and an
+        // access on one, which nothing else spells: `-((...a) => 1)` is
+        // JavaScript's `NaN` and `-(...a) => 1` its syntax error
+        expectEdag(compile('export default -(1);').edag, -1)
+        expectEdag(compile('export default -((...a) => 1);').edag, ['-', ['=>', null, 1]])
+        expectEdag(compile('export default -([1, 2]).length;').edag, ['-', ['.', ['[]', [1, 2]], 'length']])
+        // and how far the prefix reaches is the one thing the parentheses
+        // change: the access on the negation, against the negation of the
+        // access, which is what `-1 .x` is
         expectEdag(compile('export default (-1).x;').edag, ['.', -1, 'x'])
         expectEdag(compile('export default -1 .x;').edag, ['-', ['.', 1, 'x']])
     },

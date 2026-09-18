@@ -20,7 +20,7 @@ const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t 'default' t value ';' t
 value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
 body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
-unary  ::= '-' t unary | (primitive t | id t | array | object) access*
+unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
 block  ::= '{' t const* 'return' s value ';' t '}' t
 paren  ::= '(' t (func | group)
 func   ::= '...' t id t ')' s '=>' t body
@@ -46,6 +46,11 @@ parenthesized parameters will
 ([`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)).
 It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
 is a group, and nothing may follow a value there.
+
+A `-` takes the group under its `(` and not `paren`, the two differing by
+the function: `-(...a) => 1` is a syntax error in JavaScript and
+`-((...a) => 1)` is not, so the operand is the group alone and the `...` is
+refused where JavaScript refuses it rather than at the `(`.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had

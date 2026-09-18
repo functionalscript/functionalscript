@@ -9,7 +9,7 @@
  * export ::= 'export' t 'default' t value ';' t
  * value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
  * body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
- * unary  ::= '-' t unary | (primitive t | id t | array | object) access*
+ * unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
  * block  ::= '{' t const* 'return' s value ';' t '}' t
  * paren  ::= '(' t (func | group)
  * func   ::= '...' t id t ')' s '=>' t body
@@ -60,7 +60,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, Block, Body, Func, Group, Items, Member, Paren, Parenthesized, Unary, Value } from './types.ts'
+ * @import { Access, Block, Body, Func, Group, Items, Member, Paren, ParenGroup, Parenthesized, Unary, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -325,6 +325,12 @@ export const func = [sym('...'), trivia, identifierName, trivia, sym(')'), sameL
  * the two characters are the one decrement token, which the language has
  * no rule for.
  *
+ * A group is an operand, {@link parenGroup}, and it is how a function
+ * reaches a `-` at all: `-((...a) => 1)` negates one where `-(...a) => 1`
+ * cannot be written. So the branch is that rule and not {@link paren},
+ * which a function shares — taking the `(` alternative whole would admit
+ * the spelling JavaScript refuses.
+ *
  * @type {Unary}
  */
 export const unary = () => ['const', {
@@ -333,6 +339,7 @@ export const unary = () => ['const', {
     ref: reference,
     array: [array, accesses],
     object: [object, accesses],
+    group: parenGroup,
 }]
 
 /**
@@ -399,6 +406,15 @@ export const parenthesized = { func, group }
  * @type {Paren}
  */
 export const paren = [sym('('), trivia, parenthesized]
+
+/**
+ * A `(` and the group it opens, with no function among the alternatives:
+ * {@link unary}'s `(` branch. A group after a `-` takes its own steps, so
+ * `-(1).x` is the negation of the access, as JavaScript reads it.
+ *
+ * @type {ParenGroup}
+ */
+export const parenGroup = [sym('('), trivia, group]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({

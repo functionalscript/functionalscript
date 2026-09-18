@@ -518,7 +518,9 @@ is, and `(o.toString)(1)` is refused at the key where `o.toString` is.
 What a group does change is how far a prefix reaches, since `-` binds looser
 than a step ([unary minus](#supported-value-types)): `(-1).x` is the access
 on the negation and `-1 .x` the negation of the access, as JavaScript reads
-each.
+each. A group is an operand of `-` as well, and the one way a function
+reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
+is a syntax error, there and here.
 
 A parenthesized parameter list, `(a, b) => …`, is not a group and is not
 recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself

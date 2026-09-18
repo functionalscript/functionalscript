@@ -500,16 +500,18 @@ export const proof = {
             expect('export default --1;', 16)
             // an arrow function is no `UnaryExpression`: `-(...a) => 1` is a
             // syntax error in JavaScript, so the operand rule takes every
-            // value but a function
-            expect('export default -(...a) => 1;', 17)
+            // value but a function. The `(` is not what fails — a group is
+            // an operand, `-((...a) => 1)` — so the refusal is at the
+            // `...`, exactly where JavaScript's is
+            expect('export default -(...a) => 1;', 18)
             // and it is the *operand rule* that refuses it, not the one
             // branch: the rule names itself, so a `-` one deeper reaches it
             // again, and a body's `-` takes the same rule rather than the
             // body's own. Each of the three references is load-bearing —
             // point any of them at `value` and the function is admitted
-            expect('export default - -(...a) => 1;', 19)
-            expect('export default (...b) => -(...a) => 1;', 27)
-            expect('export default (...b) => - -(...a) => 1;', 29)
+            expect('export default - -(...a) => 1;', 20)
+            expect('export default (...b) => -(...a) => 1;', 28)
+            expect('export default (...b) => - -(...a) => 1;', 30)
         },
     },
     memberOrder: () => {
@@ -756,6 +758,11 @@ export const proof = {
             // of the access, as JavaScript reads each
             expect('export default (-1).x;', '[[],[[".",["-",1],"x"]]]')
             expect('export default -1 .x;', '[[],[["-",[".",1,"x"]]]]')
+            // and the group is the `-`'s operand, the one way a function or
+            // an access on a value written in place reaches a prefix
+            expect('export default -(1);', '[[],[["-",1]]]')
+            expect('export default -(1).x;', '[[],[["-",[".",1,"x"]]]]')
+            expect('export default -((...a) => 1);', '[[],[["-",["=>",[1]]]]]')
         },
         // A group denotes its value, so it launders nothing: every rule the
         // value earns it earns inside the parentheses, at the same token.

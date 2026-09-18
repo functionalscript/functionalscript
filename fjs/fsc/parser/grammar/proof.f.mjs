@@ -15,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, constStatement, djsModule,
-    exportStatement, func, group, identifier, importStatement, index, items, key, member, object, paren, parenthesized,
+    exportStatement, func, group, identifier, importStatement, index, items, key, member, object, paren, parenGroup, parenthesized,
     primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
@@ -70,6 +70,7 @@ export const proof = {
         parser(/** @type {Rule} */ (group))
         parser(/** @type {Rule} */ (parenthesized))
         parser(/** @type {Rule} */ (paren))
+        parser(/** @type {Rule} */ (parenGroup))
         parser(/** @type {Rule} */ (body))
         parser(/** @type {Rule} */ (block))
         parser(attribute)
@@ -269,6 +270,16 @@ export const proof = {
         assertStructurallySame(read('export default (1, 2);'), ['error', ','])
         assertStructurallySame(read('export default (1;'), ['error', ';'])
         assertStructurallySame(read('export default (1));'), ['error', ')'])
+        // a group is a `-`'s operand, and the only way a function reaches
+        // one: `-((...a) => 1)` is a `UnaryExpression` in JavaScript where
+        // `-(...a) => 1` is a syntax error, so the operand rule is the
+        // group alone and the `...` is refused where JavaScript refuses it
+        assertStructurallySame(read('export default -(1);'), ['ok'])
+        assertStructurallySame(read('export default -(1).x;'), ['ok'])
+        assertStructurallySame(read('export default - -(1);'), ['ok'])
+        assertStructurallySame(read('export default -((...a) => 1);'), ['ok'])
+        assertStructurallySame(read('export default -(...a) => 1;'), ['error', '...'])
+        assertStructurallySame(read('export default -();'), ['error', ')'])
     },
     // A call is a step after a value, as an access is: `(` decides it, and
     // what it applies to is everything written before it. Its arguments are

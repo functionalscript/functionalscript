@@ -113,7 +113,8 @@ export type Access = {
 
 /**
  * What a `-` takes: a value less the function, JavaScript's unary operand
- * being a `UnaryExpression`, which an arrow function is not.
+ * being a `UnaryExpression`, which an arrow function is not — and a group,
+ * {@link ParenGroup}, which is one.
  */
 export type Unary = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, Unary]
@@ -121,6 +122,7 @@ export type Unary = () => readonly ['const', {
     readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
     readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
     readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+    readonly group: ParenGroup
 }]
 
 /**
@@ -170,6 +172,14 @@ export type Parenthesized = {
  * thing the parentheses change.
  */
 export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>]
+
+/**
+ * `(`, trivia and a group: what a `-` may take in parentheses. It is not
+ * {@link Paren}, which a function shares — `-(...a) => 1` is a syntax error
+ * in JavaScript, and `-((...a) => 1)` is not, the group being the
+ * `UnaryExpression` the function is not.
+ */
+export type ParenGroup = readonly [number, typeof trivia, Group]
 
 /**
  * `{`, trivia, the body's `const` statements, `return`, same-line trivia,
