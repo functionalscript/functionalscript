@@ -113,7 +113,8 @@ export type Access = {
 
 /**
  * What a `-` takes: a value less the function, JavaScript's unary operand
- * being a `UnaryExpression`, which an arrow function is not.
+ * being a `UnaryExpression`, which an arrow function is not — and a group,
+ * {@link ParenGroup}, which is one.
  */
 export type Unary = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, Unary]
@@ -121,6 +122,7 @@ export type Unary = () => readonly ['const', {
     readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
     readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
     readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+    readonly group: ParenGroup
 }]
 
 /**
@@ -135,21 +137,49 @@ export type Value = () => readonly ['const', {
     readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
     readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
     readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
-    readonly func: Func
+    readonly paren: Paren
 }]
 
 /**
  * A function's body: a value less the object, since `=> {` opens a block in
- * JavaScript — or that block, in which an object is a value again.
+ * JavaScript — or that block, in which an object is a value again, or a
+ * group, which is the other spelling of a body that is an object.
  */
 export type Body = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, Unary]
     readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
     readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
     readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
-    readonly func: Func
+    readonly paren: Paren
     readonly block: Block
 }]
+
+/** `(`, trivia, and what it opens: the one alternative a `(` starts. */
+export type Paren = readonly [number, typeof trivia, Parenthesized]
+
+/**
+ * What a `(` opens: the rest of a function, or a group. Spelled here, as
+ * {@link Value} is: the two reach the value rule, which names itself.
+ */
+export type Parenthesized = {
+    readonly func: Func
+    readonly group: Group
+}
+
+/**
+ * A group after its `(`: the value, `)`, the trivia after it, and the steps
+ * the group takes — which are the group's and not the value's, the one
+ * thing the parentheses change.
+ */
+export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>]
+
+/**
+ * `(`, trivia and a group: what a `-` may take in parentheses. It is not
+ * {@link Paren}, which a function shares — `-(...a) => 1` is a syntax error
+ * in JavaScript, and `-((...a) => 1)` is not, the group being the
+ * `UnaryExpression` the function is not.
+ */
+export type ParenGroup = readonly [number, typeof trivia, Group]
 
 /**
  * `{`, trivia, the body's `const` statements, `return`, same-line trivia,
@@ -177,10 +207,10 @@ export type Parameter = readonly [number, typeof trivia, typeof identifierName, 
 export type Parameters = Option<Parameter>
 
 /**
- * `(`, trivia, the parameter list, `)`, same-line trivia, `=>`, trivia, and
- * the body.
+ * A function after its `(`, which is {@link Paren}'s: the parameter list,
+ * `)`, same-line trivia, `=>`, trivia, and the body.
  */
-export type Func = readonly [number, typeof trivia, Parameters, number, typeof sameLine, number, typeof trivia, Body]
+export type Func = readonly [Parameters, number, typeof sameLine, number, typeof trivia, Body]
 
 // Which of the two rules the parameter is, pinned — one guard per
 // direction, since neither covers both:

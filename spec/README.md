@@ -286,9 +286,9 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression, a property access, a function, a call or
-a negation. Unary `-` is the one operator; grouping is not recognized yet —
-see the [roadmap](./todo/README.md).
+An expression is a data expression, a property access, a function, a call, a
+negation, or any of those in parentheses ([grouping](#grouping)). Unary `-` is
+the one operator — see the [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -495,6 +495,38 @@ it is the only spelling whose evaluation reproduces the property. In JSON
 output the plain key stays: `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the bracketed form is not JSON at all.
 
+## Grouping
+
+```js
+export default ([80, 443]).length;
+```
+
+A value may be written in parentheses, and it denotes that value: `(x)` is
+`x`, so the parentheses leave nothing behind — no node of their own and no
+change to which values a module shares — exactly as in JavaScript. A group
+is a value like any other and takes a property access or a call after its
+`)`, and it holds one value: a bare comma inside it waits on the comma
+operator ([operators](./todo/2340-operators.md)).
+
+Parentheses are not a boundary that anything downstream can see. They keep
+a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
+([functions](#functions)), and they keep sharing, so a `const` reached
+through a group is the one value it is reached without one. They launder
+nothing either: `(1).x` is the access `1 .x` is, `(1)(2)` the call `1(2)`
+is, and `(o.toString)(1)` is refused at the key where `o.toString` is.
+
+What a group does change is how far a prefix reaches, since `-` binds looser
+than a step ([unary minus](#supported-value-types)): `(-1).x` is the access
+on the negation and `-1 .x` the negation of the access, as JavaScript reads
+each. A group is an operand of `-` as well, and the one way a function
+reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
+is a syntax error, there and here.
+
+A parenthesized parameter list, `(a, b) => …`, is not a group and is not
+recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
+tells one from the other only past the `)`, so `(a) => 1` is read as a group
+and refused at the `=>`.
+
 ## Property Access
 
 ```js
@@ -670,9 +702,11 @@ arguments alone:
   parameters, `(a, b) => body`
   ([parameters](./todo/3120-parameters.md)), is not recognized yet.
 - The body is an expression or a block, and `value` and `{ return value; }`
-  denote the same function. As an expression the body is any value except an
-  object literal: after `=>` JavaScript reads `{` as a block, never as an
-  object, so the spelling is refused rather than read another way. The block
+  denote the same function. As an expression the body is any value except a
+  bare object literal: after `=>` JavaScript reads `{` as a block, never as
+  an object, so the spelling is refused rather than read another way, and the
+  object is written in parentheses instead ([grouping](#grouping)) —
+  `(...args) => ({ a: 1 })`, as in JavaScript. The block
   is any number of `const` statements and then one `return`, each with its
   `;` as after every statement, and an object literal is an ordinary value
   again, since after `return` JavaScript expects an expression. `return` and
@@ -719,9 +753,10 @@ arguments alone:
   Parentheses around the property do not drop the receiver: `(o.m)(a)`
   passes `o` as surely as `o.m(a)` does, since the parentheses keep the
   property reference — only detaching the value loses it, as `(0, o.m)(a)`
-  does with the comma operator. Neither spelling is in the language yet, so
-  `o.m(a)` is the one way to call a method and every call written on a
-  property is a call with a receiver.
+  does with the comma operator. `(o.m)(a)` is in the language
+  ([grouping](#grouping)) and is the same program as `o.m(a)`, down to the
+  graph it compiles to; the detached spelling waits on the comma operator,
+  so every call written on a property today is a call with a receiver.
 
   A method call's property is the access's, so the names an access may not
   read, a built-in prototype's among them

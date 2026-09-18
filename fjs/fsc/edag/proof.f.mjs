@@ -206,8 +206,9 @@ export const proof = {
         // linked beside an import: the body's arguments are not rewritten
         expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default [y, (...x) => x];'), 'y.f.js': file('export default 1;') })('a.f.js'), ['[]', [1, ['=>', null, ['args']]]])
         // a block body is the same function as the expression body it
-        // returns, so the two spell one graph — and the object literal the
-        // expression body cannot spell reaches the lowering through it
+        // returns, so the two spell one graph — and an object literal, which
+        // the expression body cannot spell bare, reaches the lowering
+        // through either it or a group
         expectEdag(compile('export default (...a) => { return a; };').edag, ['=>', null, ['args']])
         expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
@@ -243,6 +244,37 @@ export const proof = {
         // the callee is one node however many calls reach it
         assert(twice[1][0] instanceof Array && twice[1][1] instanceof Array, twice)
         assert(twice[1][0][1] === twice[1][1][1], twice)
+        // grouping the access changes nothing: parentheses keep the
+        // property reference, so this is the method call above, node for
+        // node, and not the detached `(0, o.b)(3)` the comma operator will
+        // spell
+        expectEdag(compile('const o = { b: 1 }; export default (o.b)(3);').edag, ['.', ['{}', [[':', 'b', 1]]], 'b', ['|()', ['[]', [3]]]])
+    },
+    // A group lowers to the node of the value it holds and adds none of its
+    // own: `(x)` *is* `x`, so the graph and its sharing are the ones the
+    // parentheses are not in.
+    group: () => {
+        expectEdag(compile('export default (1);').edag, 1)
+        expectEdag(compile('export default (([1]));').edag, ['[]', [1]])
+        expectEdag(compile('export default ([1, 2]).length;').edag, ['.', ['[]', [1, 2]], 'length'])
+        expectEdag(compile('export default (...a) => ({ x: a });').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
+        // a `const` reached through a group is the node it is reached
+        // without one: one node, two references
+        const shared = compile('const a = [1]; export default [(a), a];').edag
+        expectEdag(shared, ['[]', [['[]', [1]], ['[]', [1]]]])
+        assert(shared instanceof Array && shared[0] === '[]', shared)
+        assert(shared[1][0] === shared[1][1], shared)
+        // a group is a `-`'s operand, so a prefix reaches a function and an
+        // access on one, which nothing else spells: `-((...a) => 1)` is
+        // JavaScript's `NaN` and `-(...a) => 1` its syntax error
+        expectEdag(compile('export default -(1);').edag, -1)
+        expectEdag(compile('export default -((...a) => 1);').edag, ['-', ['=>', null, 1]])
+        expectEdag(compile('export default -([1, 2]).length;').edag, ['-', ['.', ['[]', [1, 2]], 'length']])
+        // and how far the prefix reaches is the one thing the parentheses
+        // change: the access on the negation, against the negation of the
+        // access, which is what `-1 .x` is
+        expectEdag(compile('export default (-1).x;').edag, ['.', -1, 'x'])
+        expectEdag(compile('export default -1 .x;').edag, ['-', ['.', 1, 'x']])
     },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many
