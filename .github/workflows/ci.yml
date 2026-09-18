@@ -165,7 +165,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.49.0"
+          "run": "npm install -g functionalscript@0.50.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -215,7 +215,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.49.0"
+          "run": "npm install -g functionalscript@0.50.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
