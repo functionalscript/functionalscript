@@ -93,6 +93,21 @@ claim current compiler support for captures or `self`.
    for `String(f)` remains open. A code-only representation cannot promise
    recovery of the original variable name from a name-erased EDAG.
 
+   The distinction is code versus a bound callable:
+
+   ```js
+   const make = a => () => a;
+   const x0 = make(0);
+   const x1 = make(1);
+   ```
+
+   In ordinary JavaScript these closures have the same function text but
+   different captured values: `x0()` is `0`, `x1()` is `1`. A callable
+   serializer must represent that difference; `() => 0` and `() => 1` are
+   illustrative outputs, not chosen canonical spellings. Equal rendered text
+   does not by itself establish function identity: separate allocations with
+   the same code and captures may still be distinct in the selected profile.
+
    Frame instantiation is not unrestricted textual substitution. For example,
    with `const x = []; const f = () => x;`, writing `() => []` would allocate
    a new array on each call instead of returning the captured array. A callable
@@ -121,6 +136,43 @@ materialize every frame or choose a named function for `self` — including
 candidates, not answers to these reopened questions. The questions change no
 EDAG `frame`/`self` semantics and no current serializer implementation.
 
+### Conditional requirement: lazy frame rendering
+
+**If `String(f)` instantiates the frame, its FJS VM implementation must support
+lazy source production.** A small function can capture other functions and,
+through their frames, a large dependency graph. Do not precompute or retain the
+complete reconstructed source as part of every function value.
+
+Keep the semantic EDAG and captured frame as the source of the representation.
+Creating or calling a function does not by itself render its text. Merely
+postponing all work until `String(f)` is called is not enough: producing that string value
+must not require eagerly materializing the entire source either. The VM can
+represent it internally as deferred text, generating code units or chunks as
+consumers demand them. It remains an ordinary string to FJS code, not a new
+promise, iterator or user-visible lazy object. Ropes, chunking and caching are
+implementation choices, not a selected representation here.
+
+Preserve shared dependencies rather than recursively expanding a DAG into a
+duplicated tree. Laziness avoids unnecessary materialization; preserving
+sharing avoids unnecessary output growth. The renderer must also preserve the
+profile's captured-value identity and finite `self` representation, according
+to the answers above. Laziness does not choose those answers.
+
+The string's contents depend on stable semantic inputs and the specified
+rendering contract, never on consumption order, optimization progress or cache
+state. Caching is optional, not a requirement to keep the whole source alive.
+Operations such as length, comparison or hashing may still require substantial
+traversal; emitting all text necessarily produces all of it. No constant-time
+or universal memory bound is implied. Resource interruption follows the
+existing failure contract.
+
+A streaming function serializer and `String(f)` may share an incremental
+renderer without sharing an interface or a reconstruction guarantee. This
+constraint does not decide whether the two have identical contents (question 1)
+or whether `String(f)` includes the frame at all (question 2). It specifies the
+implementation requirement if frame inclusion is chosen; it does not claim
+lazy strings or frame serialization are implemented today.
+
 ### Implementation follow-through
 
 - [ ] Resolve each question before implementing the cases whose observable
@@ -128,6 +180,11 @@ EDAG `frame`/`self` semantics and no current serializer implementation.
 - [ ] Specify deterministic rendering for the chosen inputs and share the
   default function-representation operation across FJS executors and coercion
   paths. Render associated semantic EDAG, not mutable optimization/cache state.
+- [ ] If frame-instantiating `String(f)` is selected, implement deferred text
+  production and incremental consumption without storing complete source on
+  function values. Cover large shared dependency graphs, prefix-only use and
+  full consumption; compare produced code units and admitted string operations
+  with a fully materialized reference, independently of caches and chunking.
 - [ ] Test direct and indirect conversion, helper functions and exports against
   that contract. Test callable round trips with captured sharing and `self`
   where promised; do not assume that `String(f)` promises the same round trip
