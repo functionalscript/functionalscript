@@ -717,8 +717,9 @@ appearing is a failure rather than a quiet fall in what the law covers.
 ## Files and media type
 
 Recognized extensions: `.data.js`, `.data.mjs`. The shorter `.d.js` and
-`.d.mjs` are not recognized: `.d.ts` is a TypeScript declaration file, and a
-`.d.` infix would read as one to people and tools alike.
+`.d.mjs` were DJS's, and were retired with the name ([Status](#status)); they
+are not coming back under this one, since `.d.ts` is a TypeScript declaration
+file and a `.d.` infix would read as one to people and tools alike.
 
 Tools emit **`.data.js`**. Use `.data.mjs` where a file must resolve as an ES
 module regardless of the enclosing package's `"type"` field.

@@ -20,8 +20,8 @@ with them cannot be spelled at all:
   expression to come, whose precedence parentheses override.
 
 The FunctionalScript writer
-([`functionalscript-output.md`](./functionalscript-output.md)) writes a
-function with an object body as a block until this lands.
+([`../serializer`](../serializer/module.f.mjs)) writes a function with an
+object body as a block until this lands.
 [`2350-grouping.md`](../../../spec/todo/2350-grouping.md)
 holds the feature with one example and no rules.
 
@@ -43,9 +43,11 @@ question.
 - **Mapping.** The group's node is its value's node with the accesses
   after the `)` applied; nothing is recorded.
 - **What it admits.** `(...a) => ({ x: a })`; `(5)`, `((5))`, `(a).b`,
-  `([1, 2]).length`. A group does not launder a numeric literal, since the
-  group is its value: `(-1).x` and `(1).x` are refused at the key as `1 .x`
-  is. `()` and `(,)` are refused by the grammar.
+  `([1, 2]).length`. `()` and `(,)` are refused by the grammar. A group is
+  where `(-1).x` becomes spellable — the access on the negation, which the
+  prefix alone cannot say, since `-1 .x` is `-(1 .x)`; and a group is what
+  lets `-` take a function, `-((...a) => 1)` being a `UnaryExpression`
+  where `-(...a) => 1` is a syntax error.
 - **Not in scope.** Parenthesized parameters `(a, b) => …`, which JavaScript
   tells from a group only past the `)`, wait on named parameters
   ([`3120-parameters.md`](../../../spec/todo/3120-parameters.md)); the
@@ -58,9 +60,11 @@ question.
       updated.
 - [ ] Mapping: the group's node is its value's, accesses applied.
 - [ ] Proofs: the object-literal body, nested groups, a group with accesses,
-      a group of a reference sharing as the reference does, a numeric
-      literal in a group refused, `()` refused; the EDAG of `(x)` is `x`'s
-      node.
+      a group of a reference sharing as the reference does, `()` refused;
+      the EDAG of `(x)` is `x`'s node. And what the group is *for* here:
+      `(-1).x` is the access on the negation, where `-1 .x` is the negation
+      of the access, and `-((...a) => 1)` negates a function where
+      `-(...a) => 1` is a syntax error.
 - [ ] `spec/README.md`: parentheses in the Functions section for the object
       body, and a Grouping sentence where values are described;
       `2350-grouping.md` folded in and its roadmap entry removed.
@@ -70,7 +74,7 @@ question.
 
 - [`2350-grouping.md`](../../../spec/todo/2350-grouping.md) — the feature's
   place on the language roadmap.
-- [`functionalscript-output.md`](./functionalscript-output.md) — the writer
-  that needs the parenthesized body.
+- [`../serializer`](../serializer/module.f.mjs) — the writer that needs the
+  parenthesized body.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — Stage 2's
   chain lowering names grouping where optional chaining enters.

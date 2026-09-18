@@ -1,7 +1,6 @@
 /**
- * Documentation only: not read by any build step. Shows the
- * FunctionalScript source `../src/synthetic/number.rs` stands in for,
- * until `fjs compile <module> <output>.rs` exists to compile this file
- * for real. See `../src/synthetic/mod.rs`.
+ * Compiled by `fjs compile` into the sibling `number.rs`, committed and
+ * drift-checked by `npm run gen` (see `../../fjs/ci/README.md`). Consumed by
+ * `../src/lib.rs`.
  */
 export default 42;

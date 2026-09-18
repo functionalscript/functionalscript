@@ -90,13 +90,22 @@ export const proof = {
         assertEq(id.symbol, sym('id'))
         assertEq(id.meta.token.kind, 'id')
     },
-    // A reserved literal has its own symbol, so where a rule wants an
-    // identifier it is the token the grammar names in the error, not a word;
-    // where a value may stand, it is one.
+    // A word that denotes a value has its own symbol, and where a *name*
+    // may stand — a property's, a binding's — it is one of those symbols
+    // the identifier rule admits, exactly as a framing keyword is. So the
+    // grammar takes `{ Infinity: 1 }` and `const NaN = 1;` alike, and which
+    // of them may be *bound* is the fold's to say, as for every other
+    // keyword. Where a value may stand, the word is the value.
+    //
+    // `-Infinity` is no longer a word: it is the prefix and `Infinity`, so
+    // where a value may stand it is a negation, and where a key may stand
+    // the `-` is what the grammar answers at.
     reserved: () => {
-        assertStructurallySame(read('const NaN = 1;\nexport default NaN;'), ['error', 'NaN'])
-        assertStructurallySame(read('export default { Infinity: 1 };'), ['error', 'Infinity'])
+        assertStructurallySame(read('const NaN = 1;\nexport default NaN;'), ['ok'])
+        assertStructurallySame(read('export default { Infinity: 1 };'), ['ok'])
+        assertStructurallySame(read('const a = { NaN: 1 };export default a.NaN;'), ['ok'])
         assertStructurallySame(read('export default [NaN, Infinity, -Infinity];'), ['ok'])
+        assertStructurallySame(read('export default { -Infinity: 1 };'), ['error', '-'])
     },
     accepted: () => {
         assertStructurallySame(read('export default 1;'), ['ok'])
@@ -112,10 +121,11 @@ export const proof = {
         // the import attribute: `with`, a key, a string, the braces
         assertStructurallySame(read('import x from "m" with { type: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with{type:"json"};export default x;'), ['ok'])
-        // the key is an identifier, so a word with a symbol of its own
-        // stands here as any other word does and the fold names it unknown
+        // the key is a name, so a word with a symbol of its own stands here
+        // as any other word does and the fold names it unknown
         assertStructurallySame(read('import x from "m" with { return: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with { export: "json" };export default x;'), ['ok'])
+        assertStructurallySame(read('import x from "m" with { NaN: "json" };export default x;'), ['ok'])
         assertStructurallySame(read('import x from "m" with { "type": "json" };export default x;'), ['error', 'string'])
         assertStructurallySame(read('import x from "m" with { type: json };export default x;'), ['error', 'json'])
         assertStructurallySame(read('import x from "m" with { type: "json", };export default x;'), ['error', ','])
@@ -154,10 +164,10 @@ export const proof = {
         assertStructurallySame(read('export default (...a)\u2028=> 1;'), ['error', 'error'])
         assertStructurallySame(read('export default (...a)\u2029=> 1;'), ['error', 'error'])
     },
-    // A block body: `{ return value; }`, one `return` statement and nothing
-    // else. The value is an ordinary value, the object included, since `{`
-    // opens a block only where a statement may start and after `return` an
-    // expression is expected.
+    // A block body: `{ const* return value; }` — any number of `const`
+    // statements and then the one `return`. The value is an ordinary value,
+    // the object included, since `{` opens a block only where a statement
+    // may start and after `return` an expression is expected.
     block: () => {
         assertStructurallySame(read('export default (...a) => { return a; };'), ['ok'])
         assertStructurallySame(read('export default (...a)=>{return a;};'), ['ok'])
@@ -165,8 +175,22 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => { return { x: 1 }; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return (...b) => { return b; }; };'), ['ok'])
         assertStructurallySame(read('export default (...a) => { return a.b[0]; };'), ['ok'])
-        // `;` is required, as after every statement, and `return` is the one
-        // statement a body holds until body constants land
+        // the body's `const` statements, the module's own rule: any number
+        // of them, each ended by its `;`, and all of them before the one
+        // `return` — which is where a body's names come from, the grammar
+        // saying nothing about which scope binds one
+        assertStructurallySame(read('export default (...a) => { const x = 1; return x; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { const x = 1; const y = 2; return [x, y]; };'), ['ok'])
+        assertStructurallySame(read('export default (...a) => {const x=1;return x;};'), ['ok'])
+        assertStructurallySame(read('export default (...a) => {\n    const x = 1;\n    return x;\n};'), ['ok'])
+        assertStructurallySame(read('export default (...a) => { const x = (...b) => { const y = 1; return y; }; return x; };'), ['ok'])
+        // a `const` after the `return`, or with no `return` after it, is no
+        // body: the statements come first and the `return` is the last
+        assertStructurallySame(read('export default (...a) => { return 1; const x = 1; };'), ['error', 'const'])
+        assertStructurallySame(read('export default (...a) => { const x = 1; };'), ['error', '}'])
+        assertStructurallySame(read('export default (...a) => { const x = 1 return x; };'), ['error', 'return'])
+        // `;` is required, as after every statement, and `return` is the
+        // only other statement a body holds
         assertStructurallySame(read('export default (...a) => { return a };'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => {};'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { a; };'), ['error', 'a'])
@@ -203,6 +227,39 @@ export const proof = {
         assertStructurallySame(read('const a = {}; export default a.1;'), ['error', 'number'])
         assertStructurallySame(read('const a = {}; export default a.;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a."b";'), ['error', 'string'])
+    },
+    // A call is a step after a value, as an access is: `(` decides it, and
+    // what it applies to is everything written before it. Its arguments are
+    // the list an array holds — none, one, several, a trailing comma — so
+    // `f(1,)` is `[1,]`'s rule, and `f(,)` is refused where `[,]` is.
+    call: () => {
+        assertStructurallySame(read('const f = (...a) => 1; export default f();'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1);'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1, "a", [2], { b: 3 });'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1,);'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f ( 1 , 2 ) ;'), ['ok'])
+        // steps upon steps, in the order written
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1)(2);'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o.b(1).c[0](2);'), ['ok'])
+        assertStructurallySame(read('const o = {}; export default o["b"](1);'), ['ok'])
+        // a call takes a value where a value stands: in a body, an array,
+        // an object, a `const`, and an argument of its own
+        assertStructurallySame(read('const f = (...a) => 1; export default (...b) => f(b);'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default [f(1), { x: f(2) }];'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; const x = f(1); export default x;'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(f(1));'), ['ok'])
+        assertStructurallySame(read('const f = (...a) => 1; export default (...b) => { const x = f(b); return x; };'), ['ok'])
+        // an argument is a value, and a hole is not one
+        assertStructurallySame(read('const f = (...a) => 1; export default f(,);'), ['error', ','])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1 2);'), ['error', 'number'])
+        assertStructurallySame(read('const f = (...a) => 1; export default f(1;'), ['error', ';'])
+        // a call is no statement of its own: it stands where a value does
+        assertStructurallySame(read('const f = (...a) => 1; f(1); export default 1;'), ['error', 'f'])
+        // the grammar takes a call on a numeric literal, as it takes an
+        // access on one: which callees a call may have is the fold's, since
+        // the grammar sees a value and not what it is
+        assertStructurallySame(read('export default -1();'), ['ok'])
+        assertStructurallySame(read('export default 1();'), ['ok'])
     },
     // `;` ends every statement: a newline does not, and neither does the
     // end of input. A newline is trivia, read past, so the failure is at

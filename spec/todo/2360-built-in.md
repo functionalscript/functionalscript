@@ -10,16 +10,21 @@ Some of the JS built-in objects and functions are "not allowed" in FS. It means,
 
 Global objects can't be assigned to a variable (`const r = Object`). They can only be used as namespaces (`Object.entries()`).
 
+None of these names may be *bound* by a module either, or admitting one
+later would change what a module already means:
+[`2365-global-names.md`](./2365-global-names.md), which lands first.
+
 ### Value Properties
 
 - [x] `Infinity`
 - [x] `NaN`
-- [ ] `undefined`
-- [ ] `globalThis`
+- [x] `undefined` — a literal global like the two above it
+- [ ] `globalThis` — never, not not-yet: it is the global object itself
 
 ### Function Properties
 
-- [ ] `eval`
+- [ ] `eval` — never, not not-yet: it runs source at run time. Binding the
+      word is refused already, and by JavaScript rather than by us
 - [x] `isFinite()`
 - [x] `isNaN()`
 - [x] `parseFloat()`
@@ -52,12 +57,12 @@ Global objects can't be assigned to a variable (`const r = Object`). They can on
 
 - [x] `Array`
 - [ ] `Int8Array`
-- [ ] `UInt8Array`
-- [ ] `UInt8ClampedArray`
+- [ ] `Uint8Array`
+- [ ] `Uint8ClampedArray`
 - [ ] `Int16Array`
-- [ ] `UInt16Array`
+- [ ] `Uint16Array`
 - [ ] `Int32Array`
-- [ ] `UInt32Array`
+- [ ] `Uint32Array`
 - [ ] `Float32Array`
 - [ ] `Float64Array`
 - [ ] `BigInt64Array`
@@ -81,10 +86,12 @@ Global objects can't be assigned to a variable (`const r = Object`). They can on
 ### Control Abstraction Objects
 
 - [ ] `Promise`
-- [ ] `Generator`
-- [ ] `GeneratorFunction`
-- [ ] `AsyncFunction`
-- [ ] `AsyncGeneratorFunction`
+
+`Generator`, `GeneratorFunction`, `AsyncFunction` and
+`AsyncGeneratorFunction` stood here and are gone: no global object has them
+— they are intrinsics reached through a prototype — so admitting one would
+mean inventing a global JavaScript does not have. `AsyncIterator` and
+`AsyncGenerator` are the same case.
 
 ### Reflection
 

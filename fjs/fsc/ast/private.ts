@@ -23,12 +23,14 @@ export type _RunState = {
  */
 /**
  * A way of reading the syntax for references: which of an object's members
- * count, and what an access denotes — the value's view selects inside a
- * literal, the written view reads the access as it stands.
+ * count, what an access denotes — the value's view selects inside a
+ * literal, the written view reads the access as it stands — and what a
+ * negation's operand leaves behind.
  */
 export type _View = {
     readonly members: (members: readonly AstMember[]) => readonly AstConst[]
     readonly through: (ast: AstAccess) => AstConst
+    readonly negated: (operand: AstConst) => readonly AstConst[]
 }
 
 export type _Ref = {

@@ -51,10 +51,10 @@ inner `loop` (`fjs/cas/module.f.mjs:201-234`) are the same skeleton with an
 *effectful* per-chunk step (`writeBytes` and `writeBytes` + hash + lease
 renewal respectively).
 
-The EOF/error/chunk control flow is an invariant of the stream protocol
-(see [66o-read-streamfile-dedup](../../cas/todo/66o-read-streamfile-dedup.md)
-for the producer side), yet it is maintained in four places that must stay
-in sync.
+The EOF/error/chunk control flow is an invariant of the stream protocol, yet it
+is maintained in four places that must stay in sync. The producer side is no
+longer one of them: `readChunks` (`fjs/effects/node/module.f.mjs`) is the single
+loop both `fjs/cas` readers go through.
 
 ### Proposal
 
@@ -117,8 +117,6 @@ consumers first; the writers follow only if the shape stays clean.
 
 - [effect-list-fold](./effect-list-fold.md) — moves `foldStep`/`forEachStep` into
   `fjs/effects/list` over the streaming list; largely subsumes this issue.
-- [66o-read-streamfile-dedup](../../cas/todo/66o-read-streamfile-dedup.md) —
-  producer-side dedup of the same stream protocol.
 - [abstract-write](../../cas/todo/abstract-write.md) — writer-pair
   abstraction; `foldStream` is the consumer-side generalization.
 - [allreduce-combinator](./allreduce-combinator.md) — sibling combinator for

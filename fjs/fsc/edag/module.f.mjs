@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
+ * @import { AstBody, AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
  * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -54,6 +54,39 @@ const parameter = (_, i) => ['.', args, i]
 const property = lower => ([key, value]) => [':', key, lower(value)]
 
 /**
+ * A call's EDAG, by what it calls.
+ *
+ * A callee that is a property access is a **method call**: `a.b(c)` passes
+ * `a` as the receiver, so the access owns the call and the two are one node,
+ * `['.', a, 'b', ['|()', args]]`.
+ *
+ * Writing `['()', ['.', a, 'b'], args]` instead would be the *detached*
+ * receiver, `(0, a.b)(c)` — the plain call over a complete access produces
+ * an ordinary value and loses the base, which
+ * [`../../edag/README.md`](../../edag/README.md)'s Chains table spells and
+ * `chainsJs.receiver` in [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs)
+ * pins against JavaScript itself. Parentheses alone do not detach:
+ * `(a.b)(c)` keeps the receiver and is this same node, so grouping
+ * ([`../todo/grouping.md`](../todo/grouping.md)) adds a spelling for it
+ * rather than for the other one, which waits on the comma operator.
+ *
+ * Any other callee is the plain call, `['()', callee, args]`.
+ *
+ * The arguments are one array node in both, which is what the EDAG's call
+ * takes: `exp0(...exp1)`, its second operand spread. A fresh node per call
+ * site, since each call writes its own list.
+ *
+ * @type {(nodes: _Nodes) => (callee: AstConst, args: readonly AstConst[]) => Exp}
+ */
+const call = nodes => (callee, args) => {
+    /** @type {Exp} */
+    const spread = ['[]', args.map(lower(nodes))]
+    return callee !== null && typeof callee === 'object' && callee[0] === '.'
+        ? ['.', lower(nodes)(callee[1]), callee[2], ['|()', spread]]
+        : ['()', lower(nodes)(callee), spread]
+}
+
+/**
  * One entry's EDAG. A reference is the node it names — a `const` is one
  * node however many references reach it, which is how the sharing a module
  * spells survives into the graph — and an object's members are written as
@@ -72,15 +105,56 @@ const lower = nodes => ast => {
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return ['=>', null, lower({ parameters: [], consts: [], args: ['args'] })(ast[1])] }
+        case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
+        case '()': { return call(nodes)(ast[1], ast[2]) }
+        // `op12` of one operand, the EDAG's unary minus, folded away over a
+        // numeric literal: negating one is exact arithmetic — total, and
+        // answered without knowing anything else about the program — so the
+        // graph holds the number and every reader sees the leaf it saw
+        // before there was an operator.
+        //
+        // A `-` over anything else stays a node. Folding one would mean
+        // saying what a string or a container converts to, which is
+        // `ToPrimitive`'s and depends on what the value holds; the readers
+        // that want a number work it out where a number is wanted.
+        case '-': {
+            const operand = lower(nodes)(ast[1])
+            return typeof operand === 'number' || typeof operand === 'bigint' ? -operand : ['-', operand]
+        }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
 }
 
-/** @type {(parameters: readonly Exp[]) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]} */
-const entry = parameters => (consts, ast) => [...consts, lower({ parameters, consts, args })(ast)]
+/**
+ * One entry of a body, folded over the entries before it, under the
+ * arguments node that body names: a fresh one per function, since a node
+ * belongs to one scope and two bodies naming one `['args']` is no EDAG.
+ *
+ * @type {(parameters: readonly Exp[], args: Exp) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]}
+ */
+const entry = (parameters, args) => (consts, ast) => [...consts, lower({ parameters, consts, args })(ast)]
+
+/**
+ * A body as one node: its entries lowered in order, each `cref` taking the
+ * node of the entry it names, and the last entry's node the value — with
+ * what that value does not reach anchored by the comma, as a module's
+ * unreached entries are.
+ *
+ * A module and a function body are the same shape and the same rule, and
+ * `anchors` reads a body out of a module, so the body is handed over as one
+ * that imports nothing: a function names no import, a reference out of it
+ * being a capture the parser refused.
+ *
+ * @type {(body: AstBody) => Exp}
+ */
+const scope = body => {
+    const nodes = body.reduce(entry([], ['args']), [])
+    const value = nodes[nodes.length - 1]
+    const { consts } = anchors([[], body])([])
+    return consts.length === 0 ? value : [',', [...consts.map(i => nodes[i]), value]]
+}
 
 /**
  * The module as an EDAG over the nodes given for its imports. The body is
@@ -103,7 +177,7 @@ const entry = parameters => (consts, ast) => [...consts, lower({ parameters, con
  * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
  */
 const lowered = imports => module => {
-    const nodes = module[1].reduce(entry(imports), [])
+    const nodes = module[1].reduce(entry(imports, args), [])
     const exported = nodes[nodes.length - 1]
     const { consts, imports: unbound } = anchors(module)(imports)
     return unbound.length === 0 && consts.length === 0

@@ -23,7 +23,7 @@ import { invert, unwrap } from '../../types/result/module.f.mjs'
 import { unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { trySerialize, tryStringify } from './module.f.mjs'
-import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
+import { keywords } from '../../js/keywords/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
 const path = '/proof.f.js'
@@ -101,8 +101,14 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', null, copy(x)]]])),
 ]
 
-/** Every leaf, the arguments, both empty containers, and `undefined`. @type {readonly Exp[]} */
-const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined']]
+/**
+ * Every leaf, the arguments, both empty containers, `undefined`, and a
+ * negation — the one operator, whose operand binds tighter than it does, so
+ * every shape below has to say where the negation happens.
+ *
+ * @type {readonly Exp[]}
+ */
+const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
@@ -121,9 +127,77 @@ export const proof = {
         writes(['[]', []], 'export default [];')
         writes(['{}', []], 'export default {};')
         writes(
-            ['[]', [null, true, false, 1, -0, 1.5, 1n, 'a"b', '\u{1f600}']],
-            'export default [null,true,false,1,-0,1.5,1n,"a\\"b","\u{1f600}"];')
+            ['[]', [null, true, false, 1, 1.5, 1n, 'a"b', '\u{1f600}']],
+            'export default [null,true,false,1,1.5,1n,"a\\"b","\u{1f600}"];')
         writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
+    },
+    // The one operator. `-` binds looser than a step, so a negation under an
+    // access is a base the text cannot say without a name — `-1[0]` is
+    // `-(1[0])` — and a negated function is no `UnaryExpression`, so it
+    // takes a name too. `op12` of two operands is the binary minus, which
+    // the language has no spelling for yet.
+    neg: () => {
+        writes(['-', ['[]', [1]]], 'export default -[1];')
+        writes(['-', 'a'], 'export default -"a";')
+        // `- -1` and not `--1`, which is the decrement token. The operand
+        // here is a container, since a negated *literal* has no text
+        writes(['-', ['-', ['[]', []]]], 'export default - -[];')
+        // the negation is inside the access, which is where the text puts it
+        writes(['-', ['.', ['[]', [1]], 0]], 'export default -[1][0];')
+        // and outside it only through a name
+        writes(['.', ['-', ['[]', []]], 0], 'const $0=-[];export default $0[0];')
+        writes(['.', ['-', ['[]', []]], 'a'], 'const $0=-[];export default $0.a;')
+        // a negated function likewise
+        writes(['-', ['=>', null, 1]], 'const $0=(...$a)=>1;export default -$0;')
+        refuses(['-', 1, 2], 'a binary - node')
+        // A call has no spelling yet, and these are the two shapes that
+        // cannot take the obvious one when it lands: `-1()` is `-(1())`, so
+        // a negative callee has to say that the negation happens first. A
+        // group would say it, `(-1)()`, and until the grammar has one a
+        // `const` does — the answer an access base already takes, for a
+        // negative leaf and a `['-', …]` node alike. These two lines redden
+        // the moment a `()` is given a spelling, which is where that has to
+        // be decided.
+        refuses(['()', -1, ['[]', []]], 'a () node')
+        refuses(['()', ['-', 1], ['[]', []]], 'a () node')
+    },
+    /**
+     * A negative number is a leaf — a JSON input gives one — and the
+     * language's only spelling for it is the prefix, which the lowering
+     * folds back into the leaf. So the text reads back as the graph it was
+     * written from.
+     */
+    negativeLeaves: () => {
+        writes(['[]', [-0, -1.5, -1n]], 'export default [-0,-1.5,-1n];')
+    },
+
+    /**
+     * What {@link writes} means by "reads back as the same graph": the same
+     * graph *as the lowering makes of it*. Reading a text is parsing and
+     * lowering, and the lowering folds — a negated numeric literal is the
+     * number — so a text read back is always in the form the lowering
+     * produces.
+     *
+     * For every graph the compiler emits that is the graph itself, since
+     * the compiler's graphs come out of that same lowering. A graph built
+     * by hand need not be: `['-', 1]` is a fine EDAG, worth `-1`, and its
+     * text reads back as the leaf `-1` — the same value, and the form the
+     * fold gives it.
+     *
+     * Refusing it was considered and is wrong. The writer has a faithful
+     * text for the *value*, and the node count differs only because the
+     * reading normalizes. Tying a refusal to what the folder happens to do
+     * would also grow one per fold: `['+', 1, 2]` would want the same
+     * treatment the moment that fold lands, and so would every constant
+     * expression after it.
+     */
+    readsBackNormalized: () => {
+        assertEq(unwrap(tryStringify(['-', 1])), 'export default -1;')
+        const { edag } = unresolved(unwrap(parse(path)('export default -1;')))
+        assertStructurallySame(edag, -1)
+        // and one deeper, where the fold runs twice
+        assertEq(unwrap(tryStringify(['-', ['-', 1]])), 'export default - -1;')
+        assertStructurallySame(unresolved(unwrap(parse(path)('export default - -1;'))).edag, 1)
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared
@@ -170,6 +244,8 @@ export const proof = {
         writes(['=>', null, ['.', ['args'], '']], 'export default (...$a)=>$a[""];')
         writes(['=>', null, ['.', ['args'], '0a']], 'export default (...$a)=>$a["0a"];')
         writes(['=>', null, ['.', ['args'], 'a-b']], 'export default (...$a)=>$a["a-b"];')
+        // a word that denotes a value names a property like any other
+        writes(['=>', null, ['.', ['args'], 'NaN']], 'export default (...$a)=>$a.NaN;')
         writes(['=>', null, ['.', ['args'], '_x']], 'export default (...$a)=>$a._x;')
         writes(['=>', null, ['.', ['args'], '$x']], 'export default (...$a)=>$a.$x;')
         // The Kelvin sign lowercases to `k` and is no letter the tokenizer
@@ -179,24 +255,21 @@ export const proof = {
         writes(['=>', null, ['.', ['args'], 0]], 'export default (...$a)=>$a[0];')
         writes(['=>', null, ['.', ['args'], 1.5]], 'export default (...$a)=>$a[1.5];')
     },
-    // A keyword is a name after `.` — the tokenizer gives it an `id` token
-    // carrying the word — but the six words that *denote* a value are token
-    // kinds of their own, and no name: `$a.class` is an access and
-    // `$a.true` is not. Every keyword is checked, so a word that changes
-    // sides is a failure here rather than a module the compiler cannot read
-    // back.
+    // Every keyword is a name after `.`, the six words that denote a value
+    // included: a property is named by an `IdentifierName` in JavaScript,
+    // and the grammar follows. So the writer has no rule about them — this
+    // is the case that would fail if one were needed again, over every
+    // keyword rather than over a list someone remembered to update.
     keywords: () => {
-        /** @type {ReadonlySet<string>} */
-        const literal = new Set(/** @type {readonly string[]} */(literalWords))
         keywords.forEach(k => {
             const written = tryStringify(['=>', null, ['.', ['args'], k]])
-            // `arguments` and `eval` are on the prototypes, and an access
-            // on either has no text at all.
+            // `arguments` and `with` are on the prototypes, and an access on
+            // either has no text at all.
             if (written[0] === 'error') {
                 assertEq(written[1], 'a prohibited property name', k)
                 return
             }
-            assertEq(reads(['=>', null, ['.', ['args'], k]]), `export default (...$a)=>$a${literal.has(k) ? `["${k}"]` : `.${k}`};`)
+            assertEq(reads(['=>', null, ['.', ['args'], k]]), `export default (...$a)=>$a.${k};`)
         })
     },
     // A function is written with its parameter and no other, since a body
@@ -219,6 +292,36 @@ export const proof = {
         writes(['=>', null, ['.', ['{}', [[':', 'a', 1]]], 'a']], 'export default (...$a)=>{return {"a":1}.a;};')
         writes(['=>', null, ['[]', [1]]], 'export default (...$a)=>[1];')
         writes(['=>', null, ['.', 'x', 'length']], 'export default (...$a)=>"x".length;')
+    },
+    // A body's own `const`s: a shared constructor, hoisted so that it is one
+    // value per call; a numeric or function access base, which the grammar
+    // takes no access on; and the anchors of a comma the body holds. Each is
+    // named by the body's parameter and its slot, `$a0` where the parameter
+    // is `$a`, so a scope's names collide with no other's and a body reads
+    // only its own.
+    //
+    // A body needing none keeps the expression form, which `functions`
+    // above pins: the `const`s are what make it a block.
+    bodyConsts: () => {
+        /** @type {Exp} */
+        const o = ['{}', []]
+        writes(['=>', null, ['[]', [o, o]]], 'export default (...$a)=>{const $a0={};return [$a0,$a0];};')
+        writes(['=>', null, ['.', 1, 'x']], 'export default (...$a)=>{const $a0=1;return $a0.x;};')
+        writes(['=>', null, ['.', identity, 'length']], 'export default (...$a)=>{const $a0=(...$b)=>$b;return $a0.length;};')
+        writes(['=>', null, [',', [['[]', []], 1]]], 'export default (...$a)=>{const $a0=[];return 1;};')
+        // the arguments are a body's to name, which no module `const` can
+        writes(['=>', null, ['[]', [['[]', [['args']]], ['[]', [['args']]]]]], 'export default (...$a)=>[[$a],[$a]];')
+        // one scope per body: the module's `$0`, the outer body's `$a0` and
+        // the inner one's `$b0` stand together, each numbering from zero
+        writes(
+            (() => {
+                /** @type {Exp} */
+                const m = ['[]', []]
+                /** @type {Exp} */
+                const inner = ['{}', []]
+                return [',', [['[]', [m, m]], ['=>', null, ['[]', [['=>', null, ['[]', [inner, inner]]]]]]]]
+            })(),
+            'const $0=[];const $1=[$0,$0];export default (...$a)=>[(...$b)=>{const $b0={};return [$b0,$b0];}];')
     },
     // A comma at the root is the module it came from: an unused `const` per
     // anchor and then the export, each anchor taking a name it does not
@@ -250,15 +353,11 @@ export const proof = {
         refuses(['=>', ['frame'], 1], 'a function with a frame')
         // A node kind with a spelling, in a position that has none.
         refuses(['args'], 'the arguments outside a function')
-        refuses(['[]', [[',', [1, 2]]]], 'a comma outside the root')
-        refuses(
-            (() => {
-                /** @type {Exp} */
-                const o = ['{}', []]
-                return ['=>', null, ['[]', [o, o]]]
-            })(),
-            'a shared constructor inside a function body')
-        refuses(['=>', null, ['.', 1, 'x']], 'a hoisted access base inside a function body')
+        // a comma is a scope's own form — a module's root and a function's
+        // body are where one is read — so one inside a container has no
+        // source spelling until the operator lands
+        refuses(['[]', [[',', [1, 2]]]], 'a comma outside a scope')
+        refuses(['=>', null, ['[]', [[',', [1, 2]]]]], 'a comma outside a scope')
         // A key no literal spells: a computed one, an object key that is not
         // a string, and the three numbers the tokenizer does not read back.
         refuses(['=>', null, ['.', ['args'], ['Number', ['args']]]], 'an access key that is no literal')
@@ -286,12 +385,14 @@ export const proof = {
             })(),
             'a spread')
         refuses([',', [['+', 1], 1]], 'a + node')
-        // A root comma with no anchor to write: with one operand it would
-        // read back as that operand alone, and with none it is no module.
-        // Linking emits neither — a comma is built only where an anchor or
-        // an unbound import is there to carry.
-        refuses([',', [1]], 'a root comma with fewer than two operands')
-        refuses([',', []], 'a root comma with fewer than two operands')
+        // A comma with no anchor to write: with one operand it would read
+        // back as that operand alone, and with none it is no scope. Linking
+        // emits neither, at a root or in a body — a comma is built only
+        // where an anchor or an unbound import is there to carry.
+        refuses([',', [1]], 'a comma with fewer than two operands')
+        refuses([',', []], 'a comma with fewer than two operands')
+        refuses(['=>', null, [',', [1]]], 'a comma with fewer than two operands')
+        refuses(['=>', null, [',', []]], 'a comma with fewer than two operands')
         // An anchor whose operand already has a name: its statement would be
         // the alias `const $1=$0;`, which the front end reads back as
         // nothing — an alias to a reached `const` is not an anchored
@@ -314,8 +415,11 @@ export const proof = {
     // which is what a writer whose contract is the round trip may not do,
     // and which four hand-picked accept sets in a row did not catch.
     //
-    // The graphs are every shape over every shape over the atoms — around
-    // nine hundred of them, of which some five hundred have a text.
+    // The graphs are every shape over every shape over the atoms: 2169 of
+    // them, of which 1157 have a text and the rest are refused by name.
+    // Before a body could hold a `const` the writer spelled 1110 — the 47
+    // this law newly round-trips rather than skipping are what a body's
+    // `const`s are worth to it.
     law: () => {
         generated.forEach(e => {
             const written = tryStringify(e)

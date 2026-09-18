@@ -16,8 +16,10 @@ import type {
     _framingKeywords,
     _ordinaryTokenNames,
     _tokenKindNames,
-    access,
+    constStatement,
     identifier,
+    identifierName,
+    index,
     key,
     primitive,
     sameLine,
@@ -97,16 +99,42 @@ export type Container<Item extends Rule> = readonly [number, typeof trivia, Opti
 export type Member = readonly [typeof key, typeof trivia, number, typeof trivia, Value]
 
 /**
+ * One step after a value: `.name`, `[key]`, or a call and its arguments.
+ *
+ * Spelled here rather than inferred, as {@link Value} is and for the same
+ * reason: a call holds values, a value takes steps, so the two name each
+ * other and neither can be read off its own initializer.
+ */
+export type Access = {
+    readonly property: readonly [number, typeof trivia, typeof identifierName, typeof trivia]
+    readonly index: readonly [number, typeof trivia, typeof index, typeof trivia, number, typeof trivia]
+    readonly call: readonly [number, typeof trivia, Option<Items<Value>>, number, typeof trivia]
+}
+
+/**
+ * What a `-` takes: a value less the function, JavaScript's unary operand
+ * being a `UnaryExpression`, which an arrow function is not.
+ */
+export type Unary = () => readonly ['const', {
+    readonly neg: readonly [number, typeof trivia, Unary]
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
+    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+}]
+
+/**
  * A value: a primitive token, a reference, an array of values, or an
  * object of members, each ending with its trivia and each followed by the
  * accesses after it — a `const` thunk whose payload names the thunk, which
  * is what lets a type alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
-    readonly object: readonly [Container<Member>, RepeatFrom<0, typeof access>]
+    readonly neg: readonly [number, typeof trivia, Unary]
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
+    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
     readonly func: Func
 }]
 
@@ -115,15 +143,46 @@ export type Value = () => readonly ['const', {
  * JavaScript — or that block, in which an object is a value again.
  */
 export type Body = () => readonly ['const', {
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, typeof access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, typeof access>]
+    readonly neg: readonly [number, typeof trivia, Unary]
+    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
+    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
+    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
     readonly func: Func
     readonly block: Block
 }]
 
-/** `{`, trivia, `return`, same-line trivia, the value, `;`, trivia, `}`, and the trivia after it. */
-export type Block = readonly [number, typeof trivia, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
+/**
+ * `{`, trivia, the body's `const` statements, `return`, same-line trivia,
+ * the value, `;`, trivia, `}`, and the trivia after it.
+ *
+ * The statements are {@link constStatement}, the module's own rule: a body
+ * binds names the way a module does, and which scope a name lands in is the
+ * fold's answer, not the grammar's.
+ */
+export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
 
-/** `(`, trivia, `...`, trivia, the parameter, trivia, `)`, same-line trivia, `=>`, trivia, and the body. */
-export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifier, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
+/**
+ * `(`, trivia, `...`, trivia, the parameter, trivia, `)`, same-line trivia,
+ * `=>`, trivia, and the body.
+ *
+ * The parameter is an {@link identifierName} and not an `identifier`: a
+ * binding takes every word a name may be, and the fold refuses the reserved
+ * ones by name. The narrower rule would still typecheck — it is assignable
+ * to the wider one — while leaving `Children<Func>` unable to hold a tree
+ * the grammar produces.
+ */
+export type Func = readonly [number, typeof trivia, number, typeof trivia, typeof identifierName, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
+
+// Which of the two rules that is, pinned — one guard per direction, since
+// neither covers both:
+//
+// - narrow the *rule* in `./module.f.mjs` and the annotation catches it,
+//   `TS2740`, the literal being short the six properties `Func` demands;
+// - narrow *this alias* and nothing does. The rule stays assignable to the
+//   narrower type, having more properties than it asks for, so `tsc` is
+//   silent — measured by removing this line and seeing a clean build.
+//
+// So this assertion guards the second direction alone, which is the one
+// that would leave `Children<Func>` unable to hold a tree the grammar
+// produces while every file still compiles.
+type _FuncParameterIsAName = Assert<Equal<Func[4], typeof identifierName>>

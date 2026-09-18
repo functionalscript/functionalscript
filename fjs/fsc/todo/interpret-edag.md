@@ -106,10 +106,12 @@ This integration must preserve the public contract. `transpile` still returns th
 module's `Denotation` on success — the evaluated exported value and whether its
 graph is shared (`fjs/fsc/ast/types.ts`) — and `fjs compile <input> <output>` still
 serializes that value rather than serializing the EDAG as if it were the module result.
-That holds for the value outputs, `.data.js` and `.json`; the `.f.js` output is
-a rewrite of the linked EDAG that does not evaluate the module, per
-[`functionalscript-output.md`](./functionalscript-output.md), which supersedes this
-contract for that extension.
+That holds for the value outputs, `.data.js` and `.json`; the FunctionalScript
+output is a rewrite of the linked EDAG that does not evaluate the module, per
+[`../serializer`](../serializer/module.f.mjs), which supersedes this
+contract for those names. The contract's error half is
+[`value-refusal-names-the-output.md`](./value-refusal-names-the-output.md),
+which widens the channel this paragraph holds fixed.
 The separately serializable final EDAG remains a compiler artifact/API from the P2 task.
 
 This TODO does not define resource budgets, deterministic stopped outcomes, iterative
@@ -139,8 +141,8 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Return the interpreted value for a valid final EDAG.
 - [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
       `transpile` / `fjs compile` path without changing its success result/output
-      for the value outputs, `.data.js` and `.json`; the `.f.js` output is the
-      writer's, per `functionalscript-output.md`.
+      for the value outputs, `.data.js` and `.json`; the FunctionalScript
+      output is the writer's, per [`../serializer`](../serializer/module.f.mjs).
 - [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [ ] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
