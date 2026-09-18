@@ -16,15 +16,25 @@ to its entries, an entry to a blob — over whatever reads objects, and
 [`fjs/git/repo`](../repo/module.f.mjs) finds the directory to read at from a
 worktree of any kind.
 
-One thing is left, and it is about where a store may look rather than what it
-can read:
+One thing looked as though it were left, and measuring it turned the gap into a
+choice:
 
 - a `refDelta` whose base is not in the pack that names it, which `packstore`
-  refuses rather than guess at — the base may be loose, in another pack, or
-  nowhere, and only a reader of the whole store can say. Now that a store is
-  several object directories rather than one, that reader exists: `readIn` is
-  the whole-store read such a base would be resolved through. See
-  [packfiles.md](./packfiles.md).
+  refuses rather than guess at. `readIn` is the whole-store read such a base
+  *could* be resolved through, now that a store is several object directories —
+  but **Git refuses such a pack too, with the base in reach.** Measured on 2.43.0
+  over two hand-built packs alike but for where the base sits, the one with the
+  base as its own first entry read the object at exit 0 and the one with the base
+  loose *and* in a second pack beside it exited 128 with `fatal: Not a valid
+  object name`; `git fsck` calls it `failed to validate delta base reference`.
+  The first is the control that makes the second mean anything.
+
+  So the refusal matches Git and nothing is missing. Resolving the base anyway
+  would read a pack every Git calls broken, and would make this module and
+  `packstore` mutually recursive where the dependency runs one way today. It
+  could not answer wrongly, since the id is checked against whatever the delta
+  produces, so it is a question of being deliberately more capable — kept as a
+  decision in [packfiles.md](./packfiles.md), not as work here.
 
 ### Proposal
 
