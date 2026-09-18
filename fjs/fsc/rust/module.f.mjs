@@ -20,11 +20,13 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Node } from '../../edag/analysis/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { error, mapOk, ok, okThen, unwrap } from '../../types/result/module.f.mjs'
 import { expExpr, sharedNodesOf } from '../../edag/rust/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.mjs'
 
 const indent = '    '
 
@@ -112,12 +114,37 @@ const letLines = bindings => i => {
 }
 
 /**
+ * Whether a node is `op12` of one operand — unary minus, the one operation
+ * a FunctionalScript source can reach today.
+ *
+ * `Neg for Any<A>` answers `Result<Any<A>, Any<A>>`, unary minus throwing
+ * where `ToNumeric` does, and every place this module writes a value wants
+ * an `Any<A>`: the `let` bindings and the body alike. So the text `-(a)`
+ * that [`../../edag/rust`](../../edag/rust/module.f.mjs) prints does not
+ * compile *here*, though it is right where that printer's other caller puts
+ * it — a generated operator test hands the `Result` to a checker.
+ *
+ * The lowering folds a negated numeric literal into the leaf, so `-1`
+ * reaches this as a number and prints as it always did; what is left is a
+ * negation of something else, which this refuses rather than write a module
+ * that does not build. The shape that would serve it is a throwing
+ * operation the printer can spell. `'+'`, `typeof`, `String` and the binary
+ * operations
+ * answer with a `Result` too; giving them a module is a shape for a
+ * throwing operation, not a spelling.
+ *
+ * @type {(node: Node) => boolean}
+ */
+const negation = node => node instanceof Array && node[0] === '-' && node.length === 2
+
+/**
  * The module's value as a Rust expression of type `Any<A>`, and the `let`
  * bindings its implicitly shared nodes need first — or the refusal.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
 const bodyLines = root => {
+    if (analysis(root).nodes.some(negation)) { return error(['no Rust for a negation in a module', root]) }
     const shared = sharedNodesOf(root)
     /** @type {readonly (readonly [Exp, string])[]} */
     const bindings = shared.map((node, i) => [node, `c${i}.clone()`])

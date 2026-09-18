@@ -36,7 +36,10 @@ or run the CLI without installing it, with `npx functionalscript <command>`.
 
 A FunctionalScript module is already a valid JavaScript module, so nothing has to
 be compiled in order to *run* it. The compiler serves the other direction: it
-evaluates a module and emits the data it exports, with every `import` resolved.
+reads a module with every `import` resolved and writes it out in the language
+the output name declares. Two of those outputs evaluate the module and emit the
+data it exports; the rest write the graph it compiles to, which is how a module
+holding a function has an output at all.
 
 `m.f.js`:
 
@@ -52,20 +55,35 @@ const a = 1;
 export default [a, a, c, { x: c }];
 ```
 
-The output file extension picks the format:
+The output file extension picks the language, longest suffix first:
 
 ```bash
-fjs compile input.f.js output.f.js        # DataJS, a JavaScript module
-fjs compile input.f.js output.json        # JSON
-fjs compile input.f.js output.edag.f.js   # the program's EDAG, as DataJS
+fjs compile input.f.js output.data.js        # DataJS, a JavaScript module
+fjs compile input.f.js output.js             # FunctionalScript
+fjs compile input.f.js output.json           # JSON
+fjs compile input.f.js output.edag.data.js   # the program's EDAG, as DataJS
+fjs compile input.f.js output.rs             # a generated nanvm-lib module
 ```
 
-`output.f.js` is a [DataJS](spec/datajs/README.md) document in normalized
+`output.data.js` and `output.json` are the value the module denotes; the other
+three are the graph it compiles to, each written a different way.
+
+`output.data.js` is a [DataJS](spec/datajs/README.md) document in normalized
 form. It preserves the object graph: `c` is one array referenced twice, so it
 stays shared and is hoisted into a `const`:
 
 ```js
 const $0=["text"];export default [1,1,$0,{"x":$0}];
+```
+
+`output.js` — any JavaScript name the narrower ones above do not claim — is a
+FunctionalScript module, written from the linked graph rather than from the
+value. For the module above, which denotes data, that is the same text. For a
+module holding a function it is the only output that holds one, a value having
+none — `export default (...a) => a;` compiles to:
+
+```js
+export default (...$a)=>$a;
 ```
 
 `output.json` is a tree, so the compiler refuses a value JSON cannot spell —
@@ -76,7 +94,7 @@ a file that reads back as something else. For the module above it refuses:
 output.json - error: no JSON spelling for a shared node
 ```
 
-`output.edag.f.js` is the program compiled to an [EDAG](fjs/edag/README.md),
+`output.edag.data.js` is the program compiled to an [EDAG](fjs/edag/README.md),
 the graph of what it computes rather than its value, written as a DataJS
 document with the same sharing kept:
 
@@ -84,18 +102,30 @@ document with the same sharing kept:
 const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];
 ```
 
+`output.rs` is that graph printed against the `nanvm-lib` API instead — a
+generated Rust module, [fjs/fsc/rust](fjs/fsc/rust/module.f.mjs).
+
+An extension naming none of these languages is refused, rather than written
+in one the name does not declare.
+
 With `m.f.js` exporting the string `"text"` instead — a leaf, which is never
-shared — all three outputs are trees, and `output.json` is:
+shared — no output has a `const` to hoist, and `output.json` is:
 
 ```json
 [1,1,"text",{"x":"text"}]
 ```
 
-The compiler currently accepts `import` statements, `const` declarations, and
-data expressions (objects, arrays, strings, numbers, `bigint`, booleans, `null`,
-`undefined`), and property access on a name — `a.b`, `a[0]`, an own property
-and never the prototype chain. Functions and other computed expressions are
-not supported yet. See
+The compiler currently accepts `import` statements, `const` declarations,
+data expressions (objects, arrays, strings, numbers, `bigint`, booleans,
+`null`, `undefined`), property access on a name — `a.b`, `a[0]`, an own
+property and never the prototype chain — and functions: one rest parameter,
+`(...a) => …`, whose body reaches nothing outside itself, so a reference to a
+`const`, an import or an enclosing function's parameter is refused as a
+capture; and calls, `f(a)` and `o.m(a)`, whose arguments are the list an
+array holds — a module with a call in it compiles to `output.edag.data.js`,
+the other outputs having no spelling for one yet; and unary `-`, the one
+operator, which binds looser than a step, so `-1 .x` is `-(1 .x)` as
+JavaScript reads it. See
 [fjs/fsc/README.md](fjs/fsc/README.md) for the compiler, the data language it
 accepts today, and its roadmap.
 

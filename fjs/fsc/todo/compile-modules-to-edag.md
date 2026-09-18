@@ -63,9 +63,12 @@ never built — rather than by rewriting a finished `Unresolved`, which would
 need a memo keyed by node identity to keep sharing; a cache that stores
 `Unresolved` ([cache-compiled-modules](./cache-compiled-modules.md)) is what
 would need that rewrite. `fjs compile` writes the linked graph as a DataJS
-document when the output name ends with `.edag.f.js` or `.edag.f.mjs`, beside
-its value outputs, which are unchanged. The parser reads `a.b` and `a[key]`
-on any value but a number or a bigint literal, the key a string or a number, `__proto__` and `constructor`
+document when the output name ends with `.edag.data.js` or `.edag.data.mjs`,
+and left the other outputs alone. Their names have moved since, and the route
+is [`../module.f.mjs`](../module.f.mjs)'s to state: the value outputs are
+`.data.js` and `.json`, and every other JavaScript name is the FunctionalScript
+writer's. The parser reads `a.b` and `a[key]`
+on any value, a numeric literal included, the key a string or a number, `__proto__` and `constructor`
 refused at the key, and the lowering carries the access as the EDAG's own
 `['.', base, key]`. On the value path an access reads an own property, never
 the prototype chain; `undefined` where there is none; and a `null` or
@@ -424,14 +427,15 @@ rediscovered:
 | `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` |
 | `NaN` | `NaN` | `NaN` |
 | `Infinity` | `Infinity` | `Infinity` |
-| `-Infinity` | `-Infinity`, one token | `-Infinity` |
+| `-Infinity` | the prefix and `Infinity`, `['-', Infinity]` | `-Infinity` |
 
 **All four are done**, with the front end's move, and pinned end to end in
 `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
-separates them. The other three are reserved words with their own token
-kinds, read as primitives by the grammar, the tokenizer folding `-` into
-`Infinity` as it folds one into a number.
+separates them. `NaN` and `Infinity` are reserved words with their own
+token kinds, read as primitives by the grammar; `-Infinity` is the prefix
+operator applied to one of them, which the lowering folds back into the
+leaf, so the graph holds the number either way.
 
 ### Existing compile API boundary
 
@@ -501,8 +505,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions. Done:
       the grammar admits an access after any value, its key an identifier,
-      a string or a number, so a runtime key is refused at the token, and the
-      fold refuses one on a number or a bigint literal; the fold
+      a string or a number, so a runtime key is refused at the token, and an
+      access on a numeric literal is read as JavaScript reads it, `-1 .x`
+      being `-(1 .x)`; the fold
       refuses `__proto__` and `constructor` in either spelling; the AST and the
       lowering carry `['.', base, key]`.
 - [x] Give a property access its value on the value path — `run`, and so
@@ -566,9 +571,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] Add a distinct EDAG-producing compiler path/API alongside the current
       value-producing transpiler; do not redirect existing `transpile` / `fjs compile`
       callers until EDAG execution is available. Done: `resolve` beside `transpile`,
-      and in `fjs compile` an output name ending with `.edag.f.js` or `.edag.f.mjs`
-      selects it, as `.json` selects the JSON writer; the other outputs are as they
-      were.
+      and in `fjs compile` an output name ending with `.edag.data.js` or `.edag.data.mjs`
+      selects it, as `.json` selects the JSON writer; the other outputs were as they
+      were. (The FunctionalScript output has taken the plain `.js` names since.)
 
 #### Stage 2
 
@@ -591,13 +596,22 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] `['()', callee, args]` and the `['|()', args]` step a `.` node carries for
       a method call are in the EDAG validation/type schema (`fjs/edag/`), shape only —
       the property-operand restriction below is this stage's own work.
-- [ ] Convert the corresponding parser call expressions to the EDAG call forms — `()`
+- [x] Convert the corresponding parser call expressions to the EDAG call forms — `()`
       for an ordinary call, a `.` node with a `['|()', args]` continuation for a
       method call; reject prohibited or runtime-computed string properties in that
-      node rather than bypassing the property-access safety rule.
-- [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
+      node rather than bypassing the property-access safety rule. Done: the grammar
+      takes a call as a step after a value, the callee picks the form in
+      [`../edag/module.f.mjs`](../edag/module.f.mjs)'s `call`, and a method call's
+      property is the access's, so the rule that refuses a built-in prototype's name
+      refuses `a.toString()` where it refuses `a.toString`. `(a.b)(c)`, the plain
+      call on an access, is unspellable until grouping, so no source writes one.
+- [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
-      properties and rejection of prohibited/runtime-computed string properties.
+      properties and rejection of prohibited/runtime-computed string properties. Done:
+      `call` in [`../parser/grammar/proof.f.mjs`](../parser/grammar/proof.f.mjs),
+      `func.call` and `func.callRefused` in [`../parser/proof.f.mjs`](../parser/proof.f.mjs),
+      `call` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs) and in
+      [`../proof.f.mjs`](../proof.f.mjs).
 - [ ] Whenever optional chaining enters the source subset, lower grouping and chain
       boundaries per "Chains" in [`../../edag/README.md`](../../edag/README.md), with
       proofs over the spellings the `chains` section of
@@ -622,14 +636,17 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       policy as a side effect of this task.
 - [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)
       instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
-- [x] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
-      allow JSON output only when it preserves the EDAG completely. Done for the
-      DataJS form, through `fjs/media/datajs/serializer`, which hoists a shared node
-      as the module output does; no JSON form of the EDAG is offered, since JSON
-      cannot hold a shared node and an EDAG's sharing is its meaning.
+- [x] Serialize the final EDAG to a JavaScript module through the EDAG-producing
+      artifact path; allow JSON output only when it preserves the EDAG completely.
+      Done for the DataJS form, through `fjs/media/datajs/serializer`, which hoists a
+      shared node as the DataJS output does; no JSON form of the EDAG is offered,
+      since JSON cannot hold a shared node and an EDAG's sharing is its meaning. The
+      name is `.edag.data.js` since the output route landed.
 - [x] Preserve the existing value-producing `transpile` / `fjs compile` success output
       — `transpile`'s `Denotation` and `fjs compile`'s bytes — until
-      `interpret-edag.md` integrates EDAG execution behind that API. Done: pinned
+      `interpret-edag.md` integrates EDAG execution behind that API. (It holds for
+      the value outputs; a plain `.js` is the FunctionalScript writer's now, written
+      from the graph and not from the value.) Done: pinned
       side by side with the EDAG output in `fjs/fsc/proof.f.mjs` (`edagOutput`).
 - [x] Preserve current missing-file, parse-error, and circular-dependency behavior.
       Done: the linker reads through the transpiler's reader and reports the same

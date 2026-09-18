@@ -56,8 +56,9 @@ view never evaluates anything. That is the division
 [`fjs/fsc/README.md`](../../../../fsc/README.md#the-token-layer-is-javascripts-the-parser-is-the-subset)
 states: the token layer is JavaScript's, and what the language accepts is
 decided above it, at
-the token — the way the compiler's fold already refuses `-NaN` and a number
-followed by a word, both of which the grammar reads without complaint.
+the token — the way the compiler's fold already refuses `--` and the JS
+tokenizer's refuses a number followed by a word, both of which a grammar
+reads without complaint.
 
 The scope that follows from that is **the whole of 2460's lexical surface, plus
 templates**: single quotes, `\v`, `\0`, `\xHH`, `\u{...}`, literal control
@@ -74,7 +75,7 @@ The grammar has three readers, and the widening reaches each differently.
   string opened by a single quote, a template of any kind, and an escape
   outside JSON's table plus `\u` are errors *there*, at the token, until
   2460 and 3440 accept them. That keeps the accepted language exactly where
-  it is, and it is the same place the fold already refuses `-NaN`. The
+  it is, and it is the same place the fold already refuses `--`. The
   compiler's proofs pin it. **It can refuse only if the spelling survives
   the layer below it**, and today it does not: the fold there cooks a
   string, so `"A"`, `'A'` and `"\x41"` would all arrive as one
