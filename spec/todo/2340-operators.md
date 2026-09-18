@@ -40,18 +40,19 @@ JavaScript reads `-(1 .x)`, and `-1()` a call on `-1` where JavaScript calls
 prefix it is retired both refusals and the fold with them.
 
 The shape the rest can follow: the grammar reads the operator and computes
-nothing, so `-1` is `['-', 1]` in the parser's tree. The **lowering** folds
-that one case away — a negation of a numeric literal is the number — and
-everything else stays a node, a string or a container converting by rules
-the graph is not the place to apply. What such a value is worth is computed
-where a value is wanted: the `.json` and DataJS outputs evaluate the module.
+nothing, so `-1` is `['-', 1]` from the parser through the lowering. What a
+value is worth is computed where a value is wanted — the `.json` and DataJS
+outputs evaluate the module, and the value of a negation is a number there.
+Folding `['-', 1]` back to the leaf is an optimization over the EDAG, which
+is where arithmetic over the graph belongs and where it is still to be done.
 
-That fold is not an optimization but the difference between an output and
-none. `Neg for Any<A>` answers `Result<Any<A>, Any<A>>`, and a generated
-module's `Any<A>` has nowhere to put the `Err`, so the Rust route has no
-text for a negation and refuses one — where it prints the folded leaf as it
-always did. Arithmetic over the graph beyond that constant is still to be
-done, and is where the rest of this table's operators will need it.
+Two things wait on it, and neither is a reason to do it early. A module
+holding a negation has no `.rs` output: `Neg for Any<A>` answers
+`Result<Any<A>, Any<A>>`, a generated module's `Any<A>` has nowhere to put
+the `Err`, and what the Rust side wants is a shape for a throwing operation
+rather than a constant folded out of its way. And a graph holding a
+*negative leaf* — one a JSON input gives — writes as `-1` and reads back as
+`['-', 1]`: the same value, one node more.
 
 An index is not an expression: it is a constant key, a string or a number,
 so a negative key is written as the string it names, `a["-1"]`.

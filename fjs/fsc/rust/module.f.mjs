@@ -124,10 +124,11 @@ const letLines = bindings => i => {
  * compile *here*, though it is right where that printer's other caller puts
  * it — a generated operator test hands the `Result` to a checker.
  *
- * The lowering folds a negation of a numeric literal away, so `-1` reaches
- * this as the leaf it always was and prints as before; what is left is a
- * negation of something else, which this refuses rather than write a module
- * that does not build. `'+'`, `typeof`, `String` and the binary operations
+ * Nothing folds a negated literal into the leaf that would print, so every
+ * negation reaches this and `export default -1;` has no `.rs` output. That
+ * fold is an optimization over the graph and waits; the shape this wants is
+ * a throwing operation the printer can spell, which would serve the rest
+ * too. `'+'`, `typeof`, `String` and the binary operations
  * answer with a `Result` too; giving them a module is a shape for a
  * throwing operation, not a spelling.
  *

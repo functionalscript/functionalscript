@@ -60,9 +60,11 @@ question.
       updated.
 - [ ] Mapping: the group's node is its value's, accesses applied.
 - [ ] Proofs: the object-literal body, nested groups, a group with accesses,
-      a group of a reference sharing as the reference does, a numeric
-      literal in a group refused, `()` refused; the EDAG of `(x)` is `x`'s
-      node.
+      a group of a reference sharing as the reference does, `()` refused;
+      the EDAG of `(x)` is `x`'s node. And what the group is *for* here:
+      `(-1).x` is the access on the negation, where `-1 .x` is the negation
+      of the access, and `-((...a) => 1)` negates a function where
+      `-(...a) => 1` is a syntax error.
 - [ ] `spec/README.md`: parentheses in the Functions section for the object
       body, and a Grouping sentence where values are described;
       `2350-grouping.md` folded in and its roadmap entry removed.

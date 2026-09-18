@@ -434,8 +434,8 @@ rediscovered:
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
 separates them. `NaN` and `Infinity` are reserved words with their own
 token kinds, read as primitives by the grammar; `-Infinity` is the prefix
-operator applied to one of them, which the lowering folds back into the
-leaf, so the graph holds the number either way.
+operator applied to one of them, so the graph holds `['-', Infinity]` and
+the value outputs compute the number.
 
 ### Existing compile API boundary
 
@@ -505,8 +505,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions. Done:
       the grammar admits an access after any value, its key an identifier,
-      a string or a number, so a runtime key is refused at the token, and the
-      fold refuses one on a number or a bigint literal; the fold
+      a string or a number, so a runtime key is refused at the token, and an
+      access on a numeric literal is read as JavaScript reads it, `-1 .x`
+      being `-(1 .x)`; the fold
       refuses `__proto__` and `constructor` in either spelling; the AST and the
       lowering carry `['.', base, key]`.
 - [x] Give a property access its value on the value path — `run`, and so
