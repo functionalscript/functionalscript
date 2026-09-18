@@ -105,5 +105,5 @@ someone to change behaviour that is right.
   would put a stopping rule under.
 - [`fjs/git/tag`](../tag/module.f.mjs) — the other positional reader, and
   the one whose three headers Git stops after.
-- [object-store.md](./object-store.md) — the walk that peels a commit, and
+- [`fjs/git/walk`](../walk/module.f.mjs) — the walk that peels a commit, and
   the reason it parses one at all.

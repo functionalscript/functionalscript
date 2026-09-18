@@ -112,6 +112,5 @@ name for it.
   which appends to a reflog, and where the wrong reading of expiry came from.
 - [`fjs/git/ident`](../../ident/module.f.mjs) — the `who` and `when` of an
   entry, already read for a commit and a tag.
-- [`fjs/git/todo/object-store.md`](../../todo/object-store.md) — where the
-  store's own reading is listed; the index sits beside it as a file `fjs/git`
-  does not read.
+- [`fjs/git/README.md`](../../README.md) — where the store's own reading is
+  listed; the index sits beside it as a file `fjs/git` does not read.
