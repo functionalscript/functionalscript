@@ -123,10 +123,10 @@ property and never the prototype chain — and functions: one rest parameter,
 `const`, an import or an enclosing function's parameter is refused as a
 capture; calls, `f(a)` and `o.m(a)`, whose arguments are the list an
 array holds — a module with a call in it compiles to `output.edag.data.js`,
-the other outputs having no spelling for one yet; and a group, `( … )`,
-which denotes the value in it, so `(...a) => ({ x: 1 })` is how a function
-returns an object. Operators are not supported
-yet. See
+the other outputs having no spelling for one yet; unary `-`, the one
+operator, which binds looser than a step, so `-1 .x` is `-(1 .x)` as
+JavaScript reads it; and a group, `( … )`, which denotes the value in it, so
+`(...a) => ({ x: 1 })` is how a function returns an object. See
 [fjs/fsc/README.md](fjs/fsc/README.md) for the compiler, the data language it
 accepts today, and its roadmap.
 

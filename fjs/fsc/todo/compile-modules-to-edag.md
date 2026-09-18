@@ -68,7 +68,7 @@ and left the other outputs alone. Their names have moved since, and the route
 is [`../module.f.mjs`](../module.f.mjs)'s to state: the value outputs are
 `.data.js` and `.json`, and every other JavaScript name is the FunctionalScript
 writer's. The parser reads `a.b` and `a[key]`
-on any value but a number or a bigint literal, the key a string or a number, `__proto__` and `constructor`
+on any value, a numeric literal included, the key a string or a number, `__proto__` and `constructor`
 refused at the key, and the lowering carries the access as the EDAG's own
 `['.', base, key]`. On the value path an access reads an own property, never
 the prototype chain; `undefined` where there is none; and a `null` or
@@ -427,14 +427,15 @@ rediscovered:
 | `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` |
 | `NaN` | `NaN` | `NaN` |
 | `Infinity` | `Infinity` | `Infinity` |
-| `-Infinity` | `-Infinity`, one token | `-Infinity` |
+| `-Infinity` | the prefix and `Infinity`, `['-', Infinity]` | `-Infinity` |
 
 **All four are done**, with the front end's move, and pinned end to end in
 `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
 which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
-separates them. The other three are reserved words with their own token
-kinds, read as primitives by the grammar, the tokenizer folding `-` into
-`Infinity` as it folds one into a number.
+separates them. `NaN` and `Infinity` are reserved words with their own
+token kinds, read as primitives by the grammar; `-Infinity` is the prefix
+operator applied to one of them, which the lowering folds back into the
+leaf, so the graph holds the number either way.
 
 ### Existing compile API boundary
 
@@ -504,8 +505,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions. Done:
       the grammar admits an access after any value, its key an identifier,
-      a string or a number, so a runtime key is refused at the token, and the
-      fold refuses one on a number or a bigint literal; the fold
+      a string or a number, so a runtime key is refused at the token, and an
+      access on a numeric literal is read as JavaScript reads it, `-1 .x`
+      being `-(1 .x)`; the fold
       refuses `__proto__` and `constructor` in either spelling; the AST and the
       lowering carry `['.', base, key]`.
 - [x] Give a property access its value on the value path — `run`, and so

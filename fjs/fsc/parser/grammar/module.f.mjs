@@ -7,8 +7,9 @@
  * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t 'default' t value ';' t
- * value  ::= (primitive t | id t | array | object) access* | paren
- * body   ::= (primitive t | id t | array) access* | paren | block
+ * value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
+ * body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
+ * unary  ::= '-' t unary | (primitive t | id t | array | object) access*
  * block  ::= '{' t const* 'return' s value ';' t '}' t
  * paren  ::= '(' t (func | group)
  * func   ::= '...' t id t ')' s '=>' t body
@@ -59,7 +60,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, Block, Body, Func, Group, Items, Member, Paren, Parenthesized, Value } from './types.ts'
+ * @import { Access, Block, Body, Func, Group, Items, Member, Paren, Parenthesized, Unary, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -82,8 +83,8 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
  * Exported with a leading `_` for that linkage — the export is not API.
  */
 export const _tokenKindNames = /** @type {const} */ ([
-    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity', '-Infinity',
-    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...',
+    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
+    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -191,8 +192,6 @@ export const identifier = /** @type {const} */ ({
  * here so that `const NaN = 1;` reaches the fold and is refused as a
  * `reserved word`, rather than dying at the token with `unexpected token`.
  *
- * `-Infinity` is not among them: it is one token and no identifier in
- * JavaScript either.
  */
 export const identifierName = /** @type {const} */ ({
     ...identifier,
@@ -212,7 +211,6 @@ export const primitive = /** @type {const} */ ({
     undefined: sym('undefined'),
     NaN: sym('NaN'),
     Infinity: sym('Infinity'),
-    '-Infinity': sym('-Infinity'),
     number: sym('number'),
     string: sym('string'),
     bigint: sym('bigint'),
@@ -289,12 +287,15 @@ const reference = /** @type {const} */ ([[identifier, trivia], accesses])
  * `=>` an access belongs to the body.
  *
  * `{` decides the block in one symbol, since no other branch starts with
- * it, and `(` the group, since the function under it is {@link paren}'s
- * own branch.
+ * it — and after a `-` it opens an object again, the prefix putting what
+ * follows it in expression position, which is why that branch is
+ * {@link unary} rather than this rule. `(` decides the group, since the
+ * function under it is {@link paren}'s own branch.
  *
  * @type {Body}
  */
 export const body = () => ['const', {
+    neg: [sym('-'), trivia, unary],
     primitive: primitiveValue,
     ref: reference,
     array: [array, accesses],
@@ -317,6 +318,24 @@ export const body = () => ['const', {
 export const func = [sym('...'), trivia, identifierName, trivia, sym(')'), sameLine, sym('=>'), trivia, body]
 
 /**
+ * What a `-` takes: every value but a function. JavaScript's unary operand
+ * is a `UnaryExpression`, which an arrow function is not — `-(...a) => 1`
+ * is a syntax error there, so it is one here — and the branch is
+ * right-recursive, so `- -1` is a negation of a negation. `--1` is not:
+ * the two characters are the one decrement token, which the language has
+ * no rule for.
+ *
+ * @type {Unary}
+ */
+export const unary = () => ['const', {
+    neg: [sym('-'), trivia, unary],
+    primitive: primitiveValue,
+    ref: reference,
+    array: [array, accesses],
+    object: [object, accesses],
+}]
+
+/**
  * A value ends with its own trivia, so that it may be followed by an
  * access, which the trivia after the value would otherwise have to lead —
  * and a rule trivia leads is a rule one symbol of lookahead cannot enter.
@@ -324,13 +343,17 @@ export const func = [sym('...'), trivia, identifierName, trivia, sym(')'), sameL
  * what follows a value adds none. Any value takes accesses, as any
  * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`.
  * `1 .x` parses here too, with a space since `1.x` is one number and a
- * stray word in JavaScript, and the fold refuses it with every access on
- * a numeric literal: JavaScript reads `-1 .x` as `-(1 .x)` and the
- * tokenizer folds the minus into the number.
+ * stray word in JavaScript.
+ *
+ * `-` is the language's one prefix operator and binds looser than a step,
+ * which is what {@link unary} says: it takes a whole value, accesses and
+ * all, so `-1 .x` is the negation of the access and `-1()` of the call, as
+ * JavaScript reads them.
  *
  * @type {Value}
  */
 export const value = () => ['const', {
+    neg: [sym('-'), trivia, unary],
     primitive: primitiveValue,
     ref: reference,
     array: [array, accesses],

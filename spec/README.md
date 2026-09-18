@@ -9,8 +9,8 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — operators, type
-annotations — and the design documents for the VM, I/O,
+Features the parser does not recognize yet — every operator but unary `-`,
+type annotations — and the design documents for the VM, I/O,
 serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
 
@@ -286,9 +286,9 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression, a property access, a function, a call, or
-any of those in parentheses ([grouping](#grouping)). Operators are not
-recognized yet — see the [roadmap](./todo/README.md).
+An expression is a data expression, a property access, a function, a call, a
+negation, or any of those in parentheses ([grouping](#grouping)). Unary `-` is
+the one operator — see the [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -313,8 +313,10 @@ also what a `.json` output cannot carry ([output](#output)).
 
 ### Numbers
 
-A number is written with JSON number syntax: an optional `-`, an integer part,
-an optional fraction, an optional exponent.
+A number is written with JSON number syntax less its sign: an integer part, an
+optional fraction, an optional exponent. A leading `-` is not part of the
+literal but the [unary minus](#supported-value-types) applied to it, which is
+why `- 42.5` is the same value written with a space.
 
 ```js
 export default [0, -42.5, 3e2, 1E-7];
@@ -336,14 +338,27 @@ bind or shadow them, so each denotes its value wherever a value stands.
 They still name a property, as every reserved word does: `{ NaN: 1 }` and
 `a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
 JavaScript, where a property is named by an `IdentifierName` and a value by
-an `IdentifierReference`. `-Infinity` names nothing in either language: here
-it is one token, and in JavaScript it is two — the operator and the word —
-which no property name may be.
+an `IdentifierReference`. `-Infinity` names nothing in either language: it is
+two tokens in both — the operator and the word — which no property name may
+be.
 
-The `-` is lexical: it joins the number to its left as part of one token, so
-`-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
-`Infinity` the same way — `-Infinity` is one token and `-NaN` is not a value.
-There is no negation operator ([operators](./todo/2340-operators.md)).
+The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
+and the only operator the language has. It is not part of the literal after
+it: `-42.5` is the negation of `42.5`, `- 42.5` is the same value written with
+a space, and `-NaN` and `-Infinity` are values as JavaScript has them. It binds
+looser than a property access or a call, as it does in JavaScript, so `-1 .x`
+is `-(1 .x)` and `-1()` is `-(1())`. What it takes is JavaScript's
+`UnaryExpression`, which an arrow function is not, so `-(...a) => 1` is a
+syntax error in both. Two adjacent `-` characters are the decrement operator,
+which the language has no rule for: a negation of a negation is `- -1`.
+
+A negative number is therefore an expression rather than a literal *in the
+syntax*. The graph is another matter: lowering folds a negation of a numeric
+literal into the number, since negating one is exact arithmetic, so the EDAG
+of `-1` is the leaf `-1` and not an operation. A negation of anything else
+stays an operation there — folding one would mean saying what a string or a
+container converts to — and what such a value is worth is computed where a
+value is wanted, a `.json` or DataJS output being the value.
 
 ### Strings
 
@@ -497,8 +512,13 @@ Parentheses are not a boundary that anything downstream can see. They keep
 a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
 ([functions](#functions)), and they keep sharing, so a `const` reached
 through a group is the one value it is reached without one. They launder
-nothing either: `(1).x` is the error `1 .x` is, `(1)(2)` the error `1()` is,
-and `(o.toString)(1)` is refused at the key where `o.toString` is.
+nothing either: `(1).x` is the access `1 .x` is, `(1)(2)` the call `1(2)`
+is, and `(o.toString)(1)` is refused at the key where `o.toString` is.
+
+What a group does change is how far a prefix reaches, since `-` binds looser
+than a step ([unary minus](#supported-value-types)): `(-1).x` is the access
+on the negation and `-1 .x` the negation of the access, as JavaScript reads
+each.
 
 A parenthesized parameter list, `(a, b) => …`, is not a group and is not
 recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
@@ -512,12 +532,13 @@ const cfg = { ports: [80, 443] };
 export default [cfg.ports[0], cfg["ports"].length];
 ```
 
-A property access reads an **own property** of any value but a number or a
-bigint literal — a reference, an array, an object or a string written out, or
-an access — a member of an object, an element or the `length` of an array, a
-code unit or the `length` of a string. A number or a bigint literal takes no
-access: JavaScript reads `-1 .x` as `-(1 .x)`, and the language has no
-negation to read it that way, so `1 .x` is an error while `const n = 1;`
+A property access reads an **own property** of any value — a reference, an
+array, an object, a number or a string written out, or an access — a member of
+an object, an element or the `length` of an array, a code unit or the `length`
+of a string. A numeric literal takes an access like anything else: `1 .x` is
+`undefined`, written with a space since `1.x` is one number and a stray word.
+The sign binds looser, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and
+`const n = 1;`
 followed by `n.x` is `undefined` in both languages. The key is a constant — an identifier
 after `.`, or a string or a number in brackets — and `0` and `"0"` name the
 same element, as in JavaScript. A property the value does not own is

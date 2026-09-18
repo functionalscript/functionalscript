@@ -62,8 +62,12 @@ export const proof = {
                 ["export default undefined;", "[[],[undefined]]"],
                 ["export default 0.1;", "[[],[0.1]]"],
                 ["export default 1.1e+2;", "[[],[110]]"],
-                // the three numbers JSON cannot spell, as words
-                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"array\",[NaN,Infinity,-Infinity]]]]"],
+                // the three numbers JSON cannot spell, as words — and the
+                // third of them as the negation it is written as, the `-`
+                // being a prefix the grammar reads rather than part of the
+                // word. The one line of this corpus the language moved
+                // under; every other value still says what it recorded.
+                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"array\",[NaN,Infinity,[\"-\",Infinity]]]]]"],
                 ["export default \"abc\";", "[[],[\"abc\"]]"],
                 ["export default 1234567890n;", "[[],[1234567890n]]"],
                 ["export default [];", "[[],[[\"array\",[]]]]"],
@@ -182,12 +186,9 @@ export const proof = {
                 ["const NaN = missing;\nexport default 1;", "reserved word", [1, 7]],
                 ["const if = missing;\nexport default 1;", "reserved word", [1, 7]],
                 ["const a = 1;\nconst a = missing;\nexport default 1;", "duplicate id", [2, 7]],
-                // `-Infinity` is one token and no name in either language
-                ["export default {-Infinity: 1};", "unexpected token", [1, 18]],
-                // `-` folds into a number and into `Infinity`, and into
-                // nothing else: before `NaN` it is an error token, and the
-                // grammar refuses at the `NaN` after it, as DataJS refuses
-                ["export default -NaN;", "unexpected token", [1, 17]],
+                // `-Infinity` is no name in either language, and it is two
+                // tokens here, so the `-` is what a key position answers at
+                ["export default {-Infinity: 1};", "unexpected token", [1, 17]],
                 ["const undefined = 1;\nexport default undefined;", "reserved word", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
                 // a `const` naming itself is a reference before its declaration,
@@ -382,7 +383,11 @@ export const proof = {
             expect('const a = {}; export default a.b;', '[[],[["object",[]],[".",["cref",0],"b"]]]')
             expect('const a = {}; export default a["b c"];', '[[],[["object",[]],[".",["cref",0],"b c"]]]')
             expect('const a = []; export default a[0];', '[[],[["array",[]],[".",["cref",0],0]]]')
-            expect('const a = []; export default a[-1.5];', '[[],[["array",[]],[".",["cref",0],-1.5]]]')
+            // an index is a constant key, a string or a number token, and
+            // the sign was only ever one because the fold made `-1.5` a
+            // number. It is two tokens now, so a negative key is written as
+            // the string it names — which is the key either spelling gives
+            expect('const a = []; export default a["-1.5"];', '[[],[["array",[]],[".",["cref",0],"-1.5"]]]')
             expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],[".",[".",[".",["cref",0],"b"],1],"default"]]]')
             // any value takes accesses, a literal as a reference does
             expect('export default [1].length;', '[[],[[".",["array",[1]],"length"]]]')
@@ -390,34 +395,35 @@ export const proof = {
             expect('export default { a: [1] }.a[0];', '[[],[[".",[".",["object",[["a",["array",[1]]]]],"a"],0]]]')
             expect('export default null.x;', '[[],[[".",null,"x"]]]')
             expect('export default true.x;', '[[],[[".",true,"x"]]]')
-            expect('const n = -1; export default n.x;', '[[],[-1,[".",["cref",0],"x"]]]')
+            expect('const n = -1; export default n.x;', '[[],[["-",1],[".",["cref",0],"x"]]]')
             expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]')
             // a prototype name is a key like any other: only reading it is refused
             expect('export default { push: 1, toString: 2 };', '[[],[["object",[["push",1],["toString",2]]]]]')
             expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]')
         },
-        // `-1 .x` is `-(1 .x)` in JavaScript, and the tokenizer folds the
-        // minus into the number — and `-0n` to `0n`, leaving no sign to
-        // tell by — so an access on any numeric literal is refused at the
-        // key; a reference to a number takes one
+        // `-1 .x` is `-(1 .x)` in JavaScript, and it is that here: the `-`
+        // is a prefix the grammar reads, so the negation stands outside the
+        // access rather than inside the literal. An access on a numeric
+        // literal is an access like any other, and `-0n` needs no sign to
+        // tell it by, there being no fold left to lose one.
         numeric: () => {
-            /** @type {(source: string, column: number) => void} */
-            const expect = (source, column) => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
-                assert(tag === 'error', tag)
-                assertEq(value.message, 'access on a numeric literal')
-                assertEq(value.metadata?.column, column)
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
             }
-            expect('export default -1 .x;', 20)
-            expect('export default -0 .x;', 20)
-            expect('export default -1n .x;', 21)
-            expect('export default -0n .x;', 21)
-            expect('export default -Infinity.x;', 26)
-            expect('export default -1["x"];', 19)
-            expect('export default 1 .x;', 19)
-            expect('export default 0n.x;', 19)
-            expect('export default NaN.x;', 20)
-            expect('export default Infinity["x"];', 25)
+            expect('export default -1 .x;', '[[],[["-",[".",1,"x"]]]]')
+            expect('export default -0 .x;', '[[],[["-",[".",0,"x"]]]]')
+            expect('export default -1n .x;', '[[],[["-",[".",1n,"x"]]]]')
+            expect('export default -0n .x;', '[[],[["-",[".",0n,"x"]]]]')
+            expect('export default -Infinity.x;', '[[],[["-",[".",Infinity,"x"]]]]')
+            expect('export default -1["x"];', '[[],[["-",[".",1,"x"]]]]')
+            // and without a sign the access is all there is
+            expect('export default 1 .x;', '[[],[[".",1,"x"]]]')
+            expect('export default 0n.x;', '[[],[[".",0n,"x"]]]')
+            expect('export default NaN.x;', '[[],[[".",NaN,"x"]]]')
+            expect('export default Infinity["x"];', '[[],[[".",Infinity,"x"]]]')
         },
         prohibited: () => {
             /** @type {(source: string, column: number) => void} */
@@ -450,6 +456,60 @@ export const proof = {
             const [tag2, value2] = parseFromTokens(tokenizeString('const b = {}; export default [b.__proto__, a];'))
             assert(tag2 === 'error', tag2)
             assertEq(`${value2.message} at ${value2.metadata?.column}`, 'prohibited property name at 33')
+        },
+    },
+    // The one prefix operator. `-` is a token the grammar reads, so what it
+    // takes is a whole value with its steps — JavaScript's reading — and
+    // what it may take is JavaScript's `UnaryExpression`: not an arrow
+    // function, which is why `-(...a) => 1` is a syntax error in both.
+    neg: {
+        forms: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('export default -1;', '[[],[["-",1]]]')
+            expect('export default -1n;', '[[],[["-",1n]]]')
+            expect('export default -0;', '[[],[["-",0]]]')
+            expect('export default -Infinity;', '[[],[["-",Infinity]]]')
+            // `-NaN` is a value in JavaScript and is one here, where the
+            // fold made it an error token
+            expect('export default -NaN;', '[[],[["-",NaN]]]')
+            expect('export default -"2";', '[[],[["-","2"]]]')
+            expect('export default -[1];', '[[],[["-",["array",[1]]]]]')
+            expect('export default -{a:1};', '[[],[["-",["object",[["a",1]]]]]]')
+            // right-recursive, so a negation takes a negation
+            expect('export default - -1;', '[[],[["-",["-",1]]]]')
+            expect('export default - - -1;', '[[],[["-",["-",["-",1]]]]]')
+            // and inside a body, where the prefix is the body's own value
+            expect('export default (...a) => -a[0];', '[[],[["=>",[["-",[".",["args"],0]]]]]]')
+        },
+        refused: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'unexpected token')
+                assertEq(value.metadata?.column, column)
+            }
+            // `--` is the one decrement token, which the language has no
+            // rule for, so it is refused where it is written and never read
+            // as a negation of a negation — `- -1` is how that is spelled
+            expect('export default --1;', 16)
+            // an arrow function is no `UnaryExpression`: `-(...a) => 1` is a
+            // syntax error in JavaScript, so the operand rule takes every
+            // value but a function
+            expect('export default -(...a) => 1;', 17)
+            // and it is the *operand rule* that refuses it, not the one
+            // branch: the rule names itself, so a `-` one deeper reaches it
+            // again, and a body's `-` takes the same rule rather than the
+            // body's own. Each of the three references is load-bearing —
+            // point any of them at `value` and the function is admitted
+            expect('export default - -(...a) => 1;', 19)
+            expect('export default (...b) => -(...a) => 1;', 27)
+            expect('export default (...b) => - -(...a) => 1;', 29)
         },
     },
     memberOrder: () => {
@@ -683,6 +743,19 @@ export const proof = {
             expect('const o = { b: 1 }; export default (o.b)(1);', grouped)
             expect('const o = { b: 1 }; export default ((o.b))(1);', grouped)
             expect('const o = { b: 1 }; export default o.b(1);', grouped)
+            // a step reads the value in the group and nothing else, so
+            // parentheses around one add no tree: a numeric literal takes
+            // its access and its call as it does without them
+            expect('export default (1).x;', '[[],[[".",1,"x"]]]')
+            expect('export default 1 .x;', '[[],[[".",1,"x"]]]')
+            expect('export default (1)(2);', '[[],[["()",1,[2]]]]')
+            expect('export default 1(2);', '[[],[["()",1,[2]]]]')
+            // what a group does change is how far a prefix reaches, since
+            // `-` binds looser than a step: `(-1).x` is the access on the
+            // negation, which nothing else spells, and `-1 .x` the negation
+            // of the access, as JavaScript reads each
+            expect('export default (-1).x;', '[[],[[".",["-",1],"x"]]]')
+            expect('export default -1 .x;', '[[],[["-",[".",1,"x"]]]]')
         },
         // A group denotes its value, so it launders nothing: every rule the
         // value earns it earns inside the parentheses, at the same token.
@@ -694,11 +767,6 @@ export const proof = {
                 assertEq(value.message, message)
                 assertEq(value.metadata?.column, column)
             }
-            // a numeric literal in a group is a numeric literal, whether the
-            // step after it is an access or a call
-            expect('export default (1).x;', 'access on a numeric literal', 20)
-            expect('export default (-1).x;', 'access on a numeric literal', 21)
-            expect('export default (1)(2);', 'call on a numeric literal', 19)
             // a built-in prototype's name is refused whether the access is
             // called in place or grouped and called after
             expect('const o = {}; export default (o.toString)(1);', 'prohibited property name', 33)
@@ -728,36 +796,29 @@ export const proof = {
             // and a body still reaches nothing outside itself
             expect('const f = (...a) => 1; export default (...b) => f(b);', 'capture not supported', 49)
         },
-        // A call on a numeric literal is refused where an access on one is,
-        // and for the same reason: the tokenizer folds a minus into the
-        // number, so `-1()` here would call `-1` where JavaScript reads
-        // `-(1())` and calls `1`. Every numeric callee is refused rather
-        // than the signed ones alone, as every numeric base is — `1()` is a
-        // `TypeError` in both and worth nothing, and a reference to a number
-        // keeps `n()`, which reads alike in both.
+        // A call on a numeric literal is a call like any other, and the sign
+        // is outside it: JavaScript reads `-1()` as `-(1())` and calls `1`,
+        // which is what the prefix gives. There is nothing left to refuse —
+        // the fold that made the callee `-1` is gone.
         numericCallee: () => {
-            /** @type {(source: string, message: string, column: number) => void} */
-            const expect = (source, message, column) => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
-                assert(tag === 'error', tag)
-                assertEq(value.message, message)
-                assertEq(value.metadata?.column, column)
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
             }
-            // at the `(`, which is where the call is
-            expect('export default -1();', 'call on a numeric literal', 18)
-            expect('export default 1();', 'call on a numeric literal', 17)
-            expect('export default -1n();', 'call on a numeric literal', 19)
-            expect('export default -Infinity();', 'call on a numeric literal', 25)
-            // the callee is answered for before an argument is read, so the
-            // `(` at 17 is reported and not the `zzz` at 18 — the first
-            // error in source order, as everywhere else
-            expect('export default 1(zzz);', 'call on a numeric literal', 17)
-            expect('export default -1(zzz);', 'call on a numeric literal', 18)
-            // which is the order a method call's property already had
-            expect('const a = {}; export default a.toString(zzz);', 'prohibited property name', 32)
-            const [tag, value] = parseFromTokens(tokenizeString('const n = 1; export default n();'))
-            assert(tag === 'ok', value)
-            assertEq(stringifyDjsModule(value), '[[],[1,["()",["cref",0],[]]]]')
+            expect('export default 1();', '[[],[["()",1,[]]]]')
+            expect('export default -1();', '[[],[["-",["()",1,[]]]]]')
+            expect('export default -1n();', '[[],[["-",["()",1n,[]]]]]')
+            expect('export default -Infinity();', '[[],[["-",["()",Infinity,[]]]]]')
+            // an argument is read as any other is, so its own error is the
+            // one reported — there is no earlier one to come first
+            const [tag, value] = parseFromTokens(tokenizeString('export default 1(zzz);'))
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'const not found')
+            assertEq(value.metadata?.column, 18)
+            // and a reference to a number still reads alike in both
+            expect('const n = 1; export default n();', '[[],[1,["()",["cref",0],[]]]]')
         },
         // A body `const` may take a name the module binds. The body cannot
         // reach the module's scope at all — a reference out is a capture —
