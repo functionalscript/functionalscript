@@ -325,7 +325,7 @@ as a generic `Any` facility, post-MVP.
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
 - [ ] **Basic control operator `?:`** (Rust).
 - [ ] **Nested functions** (function frame) (Rust).
-      See [function](../../spec/todo/3110-function.md),
+      See [functions](../../spec/README.md#functions),
       [function-frame](../../spec/todo/3111-function-frame.md).
 - [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
       the generated stub trait against the OS; sync subset (fs, console)
