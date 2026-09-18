@@ -8,7 +8,9 @@
 The former unconditional rule `{ x: undefined } ≡ {}` is withdrawn. It was
 based on direct reads and filtered serialization, which do not establish
 substitutability in all admitted contexts. An ordinary JavaScript literal
-still has an enumerable entry even when its value is `undefined`:
+still has an enumerable entry even when its value is `undefined`.
+The following is a **JavaScript-only oracle**, not standalone admitted FJS
+syntax; descriptor use in FJS requires a complete approved helper pattern:
 
 ```js
 Object.getOwnPropertyDescriptor({ x: undefined }, "x")?.enumerable; // true

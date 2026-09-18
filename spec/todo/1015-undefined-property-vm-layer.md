@@ -18,17 +18,38 @@ within that constraint, not a competing source semantics.
 
 ## Constraints
 
+The duplicate-key constraint does not depend on a presence instruction:
+
 ```js
 const a = { x: 1, x: undefined };
-export default [a.x, Object.getOwnPropertyDescriptor(a, "x")?.enumerable];
+export default a.x; // undefined
+```
+
+Dropping the final pair before applying it would leave `x` equal to `1`.
+That is not compatible with the original property read.
+
+The additional presence constraint uses the **complete proposed raw-flag
+helper pattern** from [enumerable presence](./2345-has-own-property.md):
+
+```js
+const hasEntity = (a, b) =>
+    Object.getOwnPropertyDescriptor(a, b)?.enumerable;
+
+const a = { x: 1, x: undefined };
+export default [a.x, hasEntity(a, "x")];
 // JavaScript: [undefined, true]
 ```
 
-Dropping the final pair before construction changes the value to `1`.
-Treating the final undefined value as absence during a presence read changes
-the enumerability observation. Neither is a compatible implementation of the
-original source. Removing `Object.hasOwn` does not make either change sound:
-its proposed replacement still observes enumerable presence.
+This is a proposed pattern, not a claim that the feature is implemented today.
+Once admitted, its successful observations must be preserved. The helper's
+final name and raw-flag-versus-boolean API remain the presence TODO's decision;
+this example illustrates the raw-flag candidate without selecting it.
+
+A standalone descriptor expression may be represented in the JavaScript-subset
+AST but is refused by FJS admission outside a complete approved pattern.
+Removing `Object.hasOwn` does not erase the proposed helper's observation:
+answering `undefined` instead of `true` because the VM calls the entry absent
+would change a successful result.
 
 [Undefined properties](./1010-undefined-property.md) carries the spread and
 insertion-order counterexamples. Only a normalization proven equivalent for
@@ -53,6 +74,8 @@ sole authority.
       EDAG/NaNVM/writer paths when implementing the enumerable-presence pattern.
 - [ ] Add the duplicate-key regression and composition regressions to the
       shared conformance corpus, retaining unsupported-input refusals.
+- [ ] Once supported, test the complete helper through AST-to-EDAG admission
+      and execution; refuse unmatched descriptor uses even when they parse.
 - [ ] Specify a normalization only with its observation domain and proof;
       leave physical representation open otherwise.
 

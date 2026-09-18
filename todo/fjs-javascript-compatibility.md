@@ -252,8 +252,11 @@ requirements; compatibility alone would allow randomness and external mutation.
       language principles; retain purity and link the specification roadmap.
 - [x] Replace the token-bypass design with mandatory statement-aware AST
       recognition and retire the proposed `Object.hasOwn` source pattern.
-- [ ] **P1:** reconcile EDAG execution/optimization documentation with the
-      specification; no exact failure-detail or computation-count guarantees.
+- [x] **P1:** apply the settled failure contract to the
+      [operator plan](../spec/todo/2340-operators.md) and align the
+      [representation examples](../spec/todo/1015-undefined-property-vm-layer.md)
+      with complete proposed patterns or explicitly labeled JavaScript-only
+      oracles. Execution/optimization and regression work remains below.
 - [ ] **P1:** implement the linked module-resolution correction and its real
       FJS/native-ESM escaped-filename regression.
 - [ ] **P1:** correct the operator grammar and run native-JS syntax/early-error
