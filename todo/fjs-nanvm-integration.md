@@ -107,10 +107,12 @@ via the `Function` constructor — no rustc at the user's run time.
       arrays, objects, `const` sharing (generalized from the operator-test
       printer's explicit named `shared` to a linked EDAG's implicit,
       identity-based sharing), and property access (`.`, via
-      `Any::own_property`, string keys only — a numeric index has no
-      `nanvm-lib` spelling until [`entry`](../fjs/edag/todo/entry.md) lands,
-      and is refused rather than approximated). Arithmetic/logical operators
-      are not wired in: the current parser/compiler do not accept operator
+      `Any::member_access`, a literal `number` or `string` key over an
+      array, string, object, boolean, number, or bigint receiver — a
+      `Number(...)` cast index, `a[Number(k)]`, is the one form still
+      refused, having no `nanvm-lib` cast primitive to route it through).
+      Arithmetic/logical operators are not wired in: the current
+      parser/compiler do not accept operator
       *expressions* yet (see [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
       accepted subset), so there is nothing yet to print through the
       `op1`/`op2`/`op3` tables. `=>` is a different case — the compiler does
