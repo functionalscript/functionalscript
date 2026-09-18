@@ -24,6 +24,30 @@ expressions, never raw token sequences. It also plans JavaScript-compatible
 statement termination and optional semicolons as a separate syntax expansion;
 canonical output and DataJS's required-semicolon format need not change.
 
+### TypeScript boundary
+
+**TypeScript is not a FunctionalScript source dialect.** Drop the active plan
+to accept TypeScript-only syntax and erase it before execution. This covers
+`import type`, `export type`, inline type annotations, type assertions and
+other TypeScript-only declarations, not merely one import spelling. The shared
+front end parses JavaScript; neither a filename nor a host's TypeScript loader
+may enable a stripping/transpilation path around the original-source rule.
+Accepting such syntax remains a **P1 compatibility violation**.
+
+TypeScript remains an external checker for JavaScript with JSDoc and separate
+`types.ts`/`.d.ts` companions; these are tooling, not an additional FJS source
+language. Existing type-check commands, declarations and implementation type
+files remain in place. [RTTI comment annotations](./3360-type-annotations.md)
+are a separate design written inside JavaScript comments, not TypeScript syntax;
+this decision neither implements nor retires that design.
+
+Reconsider inline erasable syntax only after it is part of ECMAScript and
+supported by the declared execution environment. The
+[blocked standard-annotations task](../../todo/blocked/js-extension-type-annotations.md)
+records that trigger; it does not direct or block current development. A future
+proposal must use the actual standardized syntax, not assume that all of
+TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript.
+
 ## 1. JSON
 
 1. [ ] [undefined-property](./1010-undefined-property.md) — P1 observation and
@@ -35,9 +59,8 @@ canonical output and DataJS's required-semicolon format need not change.
 
 ### 2.1. Priority 1
 
-We need it to use JSDoc and TypeScript.
-
-1. [ ] [namespace-import](./2220-namespace-import.md).
+1. [ ] [namespace-import](./2220-namespace-import.md) — runtime JavaScript
+   namespaces, not type-only imports. JSDoc type references need no runtime import.
 
 ### 2.2. Priority 2
 
@@ -96,7 +119,8 @@ see [serialization](./serialization.md).
 ### 3.3. Priority 3
 
 1. [ ] Regular Expressions.
-2. [ ] [type-annotations](./3360-type-annotations.md)
+2. [ ] [RTTI comment annotations](./3360-type-annotations.md) — JavaScript
+   comments naming schemas, not inline TypeScript syntax.
 3. [ ] [type inference](./3370-type-inference.md)
 4. [ ] [promise](./3380-promise.md). Needed for JavaScript interop only —
    I/O is done with effects and requires no promises
@@ -119,11 +143,9 @@ see [serialization](./serialization.md).
 
 ## 4. ECMAScript Proposals
 
-1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations), Stage 1:
-   - [Node.js](https://nodejs.org/en/learn/typescript/run-natively),
-   - `Deno` supports TypeScript,
-   - `Bun` supports TypeScript,
-   - most browsers don't support the feature.
+1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations)
+   — [blocked on ECMAScript standardization and runtime support](../../todo/blocked/js-extension-type-annotations.md).
+   A host's TypeScript loader or stripping option is not ECMAScript support.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), **withdrawn**
    (the repository was archived in April 2025):

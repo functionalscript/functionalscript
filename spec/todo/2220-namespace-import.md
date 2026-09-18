@@ -1,31 +1,63 @@
 # Namespace Import
 
-We need it to import types from other modules. FunctionalScript uses `import type` for this purpose — it is purely a type-level construct and is stripped at runtime.
+**Priority:** P1
+**Status:** open
 
-```ts
-import type * as A from './a.f.js'
-/** @type {A.Type} */
-export default [5]
+## Runtime namespaces
+
+Implement JavaScript namespace imports for runtime exports:
+
+```js
+import * as A from "./a.f.js";
+export default A.default;
 ```
 
-Where `./a.f.js` may look like this:
+This is planned syntax, not a claim that the current compiler supports it.
+Preserve JavaScript's module-namespace and dependency semantics; a namespace
+is not a substitute for a type-only import or an arbitrary plain object.
 
-```ts
-// this type can be used in other modules
-export type Type = readonly [number]
+## Types are tooling, not runtime imports
 
-// export nothing at runtime
-export default null
+The former plan to accept and erase `import type` and `export type` is
+withdrawn. It violates the [original-source compatibility rule](../README.md#principles).
+FunctionalScript has no TypeScript source dialect or type-stripping mode;
+the [language roadmap](./README.md#typescript-boundary) records this boundary
+for all constructs, not just imports.
+
+Use JSDoc for type references in JavaScript. This module has no runtime import:
+
+```js
+/** @type {import("./types.js").Value} */
+const value = [5];
+export default value;
 ```
 
-FJS ignores `import type` at runtime (VM does not analyse types). TypeScript and other linters use it for type checking. This is part of type stripping.
+A separate `types.ts` companion can define `Value` for the external TypeScript
+checker; it is not FunctionalScript source and is not a runtime dependency:
 
-Type stripping blockers:
+```ts
+export type Value = readonly [number];
+```
 
-- Node.js (even 24) can't use `.ts` files from `./node_modules/`.
-- Node, Deno, and TypeScript don't allow type annotations in `.js` files. See the [Type Annotations proposal](https://github.com/tc39/proposal-type-annotations).
-- Browsers don't support type annotations or `.ts` files.
+The checker resolves the `.js` type reference to the companion under the
+repository's TypeScript module-resolution configuration. FJS treats the JSDoc
+as a comment; it neither loads that companion nor gains a TypeScript grammar.
+Do not erase a real JavaScript import because its binding is mentioned only in
+an annotation: the import still has JavaScript dependency semantics.
 
-Depends on [import](../README.md#importing-other-modules).
+## Tasks
 
-See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#namespace_import
+- [x] **P1:** withdraw TypeScript-only import/export syntax and the erasure path;
+      keep ordinary namespace imports separate from comment-only type references.
+- [ ] Implement runtime namespace imports through the JavaScript-subset AST and
+      checked EDAG compilation, preserving admitted module observations.
+- [ ] Extend the source-compatibility corpus with TypeScript-only syntax
+      refusals and JSDoc/type-companion examples. Check original module source
+      without a type stripper; keep type-tooling checks separate from FJS tests.
+
+## Related
+
+- [Import](../README.md#importing-other-modules).
+- [Standard type annotations](../../todo/blocked/js-extension-type-annotations.md)
+  — blocked until ECMAScript standardizes the syntax and declared runtimes support it.
+- [ECMAScript namespace imports](https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-NameSpaceImport).
