@@ -31,25 +31,46 @@ it in a printer with a quadratic memo.
 
 ### Proposal
 
-An identity-only answer exported from `fjs/edag/analysis`, built from the
-`walk`/`visited` map the table already constructs:
+The identity answer becomes part of the one table `analysis` already
+returns, so a consumer that needs both makes one call:
 
 ```ts
-/** The nodes reached by more than one edge, by identity, in walk order. */
-export const identityShared: (e: Exp) => readonly Exp[]
+export type Analysis = {
+    readonly root: Operand
+    readonly nodes: readonly Node[]
+    /** One source expression per entry, in walk order: the object `nodes[i]` was built from. */
+    readonly exps: readonly ExpOp[]
+    readonly scope: readonly number[]
+    /** Entries written at more than one place once identity-free twins are merged — what a FunctionalScript writer hoists. */
+    readonly shared: readonly number[]
+    /** Entries reached by more than one edge, every edge counted once — what a printer that binds by object identity hoists. */
+    readonly identityShared: readonly number[]
+}
 ```
 
-`fjs/edag/rust` imports it and drops `visit`; `fsc/rust`'s `bodyLines` makes
-one `analysis` call and reads both answers off it; `nanvm/rust`'s
-`usedShared` filters against the analysis rather than re-walking with
-`reaches`.
+No second traversal: `identityShared` is the same `places` fold as `shared`
+with every edge weighted `1` instead of `mergeable`-weighted, and `exps` is
+the walk's `visited` map read back in entry order, which the walk already
+keeps as its one identity-keyed structure. `fjs/edag/rust`'s
+`sharedNodesOf(root)` is then `identityShared.map(i => exps[i])` and `visit`
+goes; `fsc/rust`'s `bodyLines` reads the negation check and the binding
+list off one `analysis(root)`; `nanvm/rust`'s `usedShared` filters
+`identityShared` by the group's reach instead of re-walking with `reaches`.
+
+One difference to pin in the proof rather than paper over: `visited` maps
+a merged node to the entry it merged into, so two structurally equal
+identity-free objects are one entry and get one `let`, where `visit`
+counted them apart. That is a correct binding — the two objects denote one
+value — and it changes generated Rust only for a program that writes such
+twins; the task below says which fixtures, if any, move.
 
 ### Tasks
 
-- [ ] `identityShared` in `fjs/edag/analysis` with a proof against the
-      cases `fjs/edag/rust/proof.f.mjs` pins for `sharedNodesOf`.
-- [ ] The three consumers rewritten; `npm run gen`; generated Rust
-      unchanged; `tsc`, `fjs test`.
+- [ ] `exps` and `identityShared` on `Analysis`, with a proof against the
+      cases `fjs/edag/rust/proof.f.mjs` pins for `sharedNodesOf`, the
+      merged-twins case pinned separately.
+- [ ] The three consumers rewritten; `npm run gen`; any change in generated
+      Rust is a merged-twins case and is named in the PR; `tsc`, `fjs test`.
 
 ### Related
 

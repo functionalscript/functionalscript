@@ -26,16 +26,38 @@ pre-headers branch, or the `26`, which is right and unchecked.
 ### Proposal
 
 `plainTextResponse: (status: number) => (message: string) => ServerResponse`
-exported from `fjs/effects/node/module.f.mjs` beside the type; `fjs/web`'s
-`plainText` becomes it plus its own extra header; the runner's
-`respondWith` becomes the `writeHead(…).end(…)` line `answerRequest`
-already has, applied to the value; `connectRefusal` renders its status
-line and headers from the same value, so the length is computed.
+exported from `fjs/effects/node/module.f.mjs` beside the type: the status,
+`content-type`, a computed `content-length`, and the body. `fjs/web`'s
+`plainText` becomes it plus its own extra header.
+
+**`connection: close` is not part of the value.** It is the runner's socket
+policy, and `respondWith`'s doc says why it must be there — both refusals
+answer without reading the body to its end, and without it a keep-alive
+socket waits forever for the rest. It must equally *not* be on an ordinary
+`fjs/web` response, which keeps its connection. So the runner keeps one
+private step that adds it:
+
+```js
+// fjs/effects/node/module.mjs
+const closing = r => ({ ...r, headers: { ...r.headers, connection: 'close' } })
+const respondWith = res => status => message =>
+    writeResponse(res)(closing(plainTextResponse(status)(message)))
+```
+
+where `writeResponse` is the `writeHead(…).end(…)` line `answerRequest`
+already has, now the runner's one way to put a frame on a socket.
+`failSafe`'s pre-headers branch goes through `respondWith` as today, and
+`connectRefusal` renders its status line and headers from
+`closing(plainTextResponse(501)(…))`, so the `26` is computed and the
+`close` is the same one the other two refusals carry. The doc paragraph on
+why the connection closes moves to `closing`.
 
 ### Tasks
 
-- [ ] `plainTextResponse` with a proof; `fjs/web` and the runner over it;
-      the runner keeps one way to put a frame on a socket.
+- [ ] `plainTextResponse` with a proof; `fjs/web` over it.
+- [ ] `writeResponse` and `closing` in the runner; `respondWith`,
+      `failSafe` and `connectRefusal` over them; the three refusals still
+      carry `connection: close` and ordinary responses still do not.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
