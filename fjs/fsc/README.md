@@ -14,6 +14,15 @@ normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs
 from the linked graph, and a `.json` output that refuses what JSON cannot
 spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
 
+File-module resolution uses the host's module identity and loading path. In the
+Node profile, resolved files are read and diagnosed by their absolute canonical
+filesystem path, with symlinks resolved. For example, a syntax error in an input
+spelled `main.f.js` is reported as `/project/main.f.js:line:column`; imported
+modules likewise use the path of the file actually loaded. Tools consuming CLI
+diagnostics must accept absolute paths and symlink targets instead of expecting
+the original input spelling. If the entry cannot resolve, its diagnostic keeps
+that spelling; failure to resolve an import names the canonical importer.
+
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
 and `[1].length`, on any value, a numeric literal included, since `-` is an

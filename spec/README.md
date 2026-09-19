@@ -650,13 +650,15 @@ constants, a fragment that several outputs include.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
 
-**Current implementation limitation — P1:** the existing filesystem-based
-resolver and path-keyed module memoization do not yet satisfy this contract
-for all accepted specifiers. This is a compatibility defect, not an alternate
-permitted interpretation. The existing
+**Current supported host profile:** the Node runner resolves admitted file imports
+against the importing file URL, canonicalizes symlinks, and reuses modules by the
+resulting file URL identity. Imports use portable URL-path spellings beginning
+with `./`, `../`, or `/`. Absolute `file:` imports and query/fragment components
+are outside the supported grammar, as are bare packages and other URL schemes.
+Encoded filename characters such as `%23` still work. This is the default Node
+file-module profile; preserve-symlinks modes are not supported profiles. The existing
 [module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
-owns the shared resolver correction and its regression tests; the rules above
-do not claim that URL/package resolution is already implemented.
+records the host boundary, tests, and remaining support work.
 
 A JSON document is imported with the attribute JavaScript requires of it, and
 denotes the value `JSON.parse` gives it:

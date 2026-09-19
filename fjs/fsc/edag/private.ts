@@ -17,9 +17,9 @@ export type _Nodes = {
 
 /**
  * One link operation in progress: the modules resolved so far, each under
- * its path and boxed, since an EDAG may be `null` and `at` says `null` for a
- * path it has not seen; and the chain of imports being followed, in which a
- * path met twice is a cycle.
+ * its identity and boxed, since an EDAG may be `null` and `at` says `null` for
+ * an identity it has not seen; and the chain of module identities being
+ * followed, in which an identity met twice is a cycle.
  */
 export type _Link = {
     readonly complete: OrderedMap<readonly [Exp]>
