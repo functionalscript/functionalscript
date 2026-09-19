@@ -117,6 +117,13 @@ and its dependencies. `parent: null` means a literal filesystem entry path;
 otherwise `name` is the original admitted specifier and `parent` is the resolved
 importer identity. The result is `{ id, path }`; the compiler adds the existing
 JSON attribute and uses `id` for reuse and cycles, `path` for reads/diagnostics.
+Resolved diagnostics therefore use the Node host's absolute canonical path,
+including parse positions, imported modules and cycles. This is an intentional
+CLI compatibility change from caller-relative spellings; diagnostic consumers
+must accept absolute paths and symlink targets. A root resolution failure still
+names the original input, and an import resolution failure names its resolved
+importer. The compiler's synchronous `hostDiagnosticPaths` proof checks these
+cases through both compiler APIs and CLI output.
 
 The Node runner implements the **default Node file-module profile**: entry
 `pathToFileURL`, relative WHATWG URL resolution, `fileURLToPath`, `realpath`, then
@@ -125,11 +132,13 @@ identity. Symlink targets determine identity and the base for subsequent imports
 This profile always canonicalizes symlinks;
 Node's optional preserve-symlinks flags are not a second supported profile.
 Bare imports, other schemes and the existing portable segment restrictions
-remain refused. Filesystem proofs exercise that profile in
-both compiler paths on Node, Deno and Bun. Only Node's native ESM loader is a
-comparison oracle: Deno and Bun have different native resolution/cache semantics.
-The common graph traversal also has proofs where identity differs from loading
-location.
+remain refused. Filesystem proofs beside the Node adapter
+exercise its resolution operation on Node, Deno and Bun. Only Node's native ESM
+loader is a comparison oracle: Deno and Bun have different native
+resolution/cache semantics. Those host proofs compare resolver identities with
+native `import.meta.url` and module sharing; they do not execute the compiler.
+Both compiler paths have synchronous FunctionalScript proofs for diamond sharing,
+cycles and failures, including hosts where identity differs from loading location.
 
 Each filesystem proof creates its fixtures in a unique temporary directory and
 removes that tree in `finally`, including after failures. Literal spaces, `#`
@@ -175,8 +184,9 @@ falls back to interpreting an unsupported host's specifiers as paths.
       paths, preserving encoded filename characters. Replace the initial refusal
       with native sharing, empty-component and symlink regressions; cover JSON,
       cycles, misleading files, CLI output and missing-dependency diagnostics.
-- [x] Add native ESM comparisons for escaped filenames, equivalent
-      spellings and diamond sharing in both compiler paths.
+- [x] Compare Node adapter identities with native ESM for escaped filenames,
+      equivalent spellings and diamond sharing. Prove both compiler paths'
+      identity handling separately through synchronous effect hosts.
 - [ ] Extend differential coverage as new specifier classes are supported.
 - [ ] Cover equivalent URL spellings, escaped filenames, query/fragment
       identities, relative paths, bare specifiers and module types/import

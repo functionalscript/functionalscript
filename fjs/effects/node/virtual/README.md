@@ -23,7 +23,7 @@ native host's responsibility.
 The fixture filesystem has no working directory or symlinks. This preserves the
 virtual host's path model; it does not simulate Node's file URL/realpath rules.
 Compiler traversal is tested here, and native ESM comparisons test those Node
-rules under Node in `fjs/fsc/transpiler/proof.mjs`.
+rules in the [Node adapter's sibling proof](../proof.mjs).
 
 ## Race condition detection
 

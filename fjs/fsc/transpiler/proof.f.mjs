@@ -4,15 +4,16 @@
  * @import { Denotation } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  */
+
 import { _importSources, parse, transpile } from './module.f.mjs'
 import { resolve, unresolved } from '../edag/module.f.mjs'
-import { compile } from '../module.f.mjs'
-import { nodeCommands, exitCode } from '../../effects/node/module.f.mjs'
+import { _errorLocation, compile } from '../module.f.mjs'
+import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
-import { ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
@@ -96,6 +97,62 @@ export const proof = {
             metadata: null, path: 'entry',
         }])
         assertStructurallySame(runner(resolve('entry'))[1], value)
+    },
+    // Once resolved, a diagnostic names the host's loading path, including
+    // syntax positions and cycles. A root that cannot resolve still names the
+    // caller's input; an unresolved dependency names its resolved importer.
+    hostDiagnosticPaths: () => {
+        const imports = 'import value from "./dep.f.js"; export default value;'
+        const root = { id: 'file:///real/main.f.js', path: '/real/main.f.js' }
+        /** @type {readonly (readonly [string | null, string | null, string, string])[]} */
+        const cases = [
+            [null, null, 'main.f.js', 'module resolution failed: missing module'],
+            [imports, null, '/real/main.f.js', 'module resolution failed: missing module'],
+            ['export default [;', null, '/real/main.f.js:1:17', 'unexpected token'],
+            [imports, 'export default [;', '/real/dep.f.js:1:17', 'unexpected token'],
+            ['import value from "./%6dain.f.js"; export default value;', null, '/real/main.f.js', 'circular dependency'],
+        ]
+        for (const [main, dependency, location, message] of cases) {
+            /** @type {import('../../effects/mock/types.ts').PartialMemOperationMap<import('../types.ts')._CompileOp, string>} */
+            const host = {
+                resolveFileModule: (name, parent) => state => {
+                    if (parent === null) {
+                        assertEq(name, 'main.f.js')
+                        return [state, main === null ? error(ioError({ message: 'missing module' })) : ok(root)]
+                    }
+                    assertEq(parent, root.id)
+                    if (name === './%6dain.f.js') { return [state, ok(root)] }
+                    assertEq(name, './dep.f.js')
+                    return [state, dependency === null ? error(ioError({ message: 'missing module' }))
+                        : ok({ id: 'file:///real/dep.f.js', path: '/real/dep.f.js' })]
+                },
+                readFile: path => state => {
+                    assert([root.path, '/real/dep.f.js'].includes(path))
+                    const source = path === root.path ? main : dependency
+                    assert(source !== null)
+                    return [state, ok(utf8(source))]
+                },
+                write: (stream, data) => state => {
+                    assertEq(stream, 'stderr')
+                    return [state + utf8ToString(data), ok(undefined)]
+                },
+                writeFile: () => state => {
+                    assert(false, 'a failed compilation must not write output')
+                    return [state, ok(undefined)]
+                },
+            }
+            const runner = partialRun(nodeCommands)(host)('')
+            for (const result of [runner(transpile('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
+                assert(result[0] === 'error')
+                assertEq(_errorLocation('main.f.js')(result[1]), location)
+                assertEq(result[1].message, message)
+            }
+            for (const output of ['out.data.js', 'out.edag.data.js']) {
+                const [stderr, result] = runner(compile(['main.f.js', output]))
+                assertEq(exitCode(result), 1)
+                assertEq(stderr.trim(), `${location} - error: ${message}`)
+            }
+        }
     },
     // The literal local targets exist: these must be refusals, not fallback
     // loads or accidental file-not-found errors. Prefixing ./ is the control.
@@ -191,23 +248,37 @@ export const proof = {
     // Suffixes affect identity, never the loading filename. Repeated spellings
     // and empty components share; distinct suffixes allocate independently.
     importComponents: () => {
+        const suffixes = ['', '?v=1', '?v=1', '?v=2', '#a', '#b', '?', '#', '?#', '?v=1#', '?v=1#a', '?v=1#a', '?bad%/a:b#%2F']
+        const groups = [0, 1, 1, 2, 3, 4, 0, 0, 0, 1, 5, 5, 6]
+        const expected = groups.map(a => groups.map(b => a === b))
         for (const json of [false, true]) {
             const ext = json ? 'json' : 'f.js'
             const attr = json ? ' with { type: "json" }' : ''
+            const imports = suffixes.map((suffix, i) => `import v${i} from "./${i === 2 ? '%64' : 'd'}ep.${ext}${suffix}"${attr};`).join('\n')
+            const source = imports + `\nexport default [${suffixes.map((_, i) => `v${i}`).join(',')}];`
             const root = {
-                'main.f.js': [utf8(`import a from "./dep.${ext}?v=1"${attr}; import b from "./%64ep.${ext}?v=1"${attr}; import c from "./dep.${ext}?v=2"${attr}; import d from "./dep.${ext}#copy"${attr}; import e from "./dep.${ext}?"${attr}; import f from "./dep.${ext}#"${attr}; import g from "./dep.${ext}"${attr}; export default [a,b,c,d,e,f,g];`)],
-                [`dep.${ext}`]: [utf8(json ? '[7]' : 'export default [7];')],
+                'main.f.js': [utf8(source)],
+                'common.f.js': [utf8('export default [7];')],
+                [`dep.${ext}`]: [utf8(json ? '[[7]]' : 'import common from "./common.f.js"; export default [common];')],
                 [`dep.${ext}?v=1`]: [utf8(json ? '[99]' : 'export default [99];')],
             }
             const value = unwrap(run(root)('main.f.js')).value
             assert(value instanceof Array)
-            assertStructurallySame(value, [[7], [7], [7], [7], [7], [7], [7]])
-            const [a, b, c, d, e, f, g] = value
-            assert(a === b && a !== c && c !== d && d !== e && e === f && f === g)
+            assertStructurallySame(value, suffixes.map(() => [[7]]))
+            assertStructurallySame(value.map(a => value.map(b => a === b)), expected)
             const graph = unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1])
             assert(graph instanceof Array && graph[0] === '[]')
-            const [ea, eb, ec, ed, ee, ef, eg] = graph[1]
-            assert(ea === eb && ea !== ec && ec !== ed && ed !== ee && ee === ef && ef === eg)
+            const nodes = graph[1]
+            assertStructurallySame(nodes.map(a => nodes.map(b => a === b)), expected)
+            if (!json) {
+                // Distinct suffixed wrappers still share an ordinary dependency.
+                const first = value[0]
+                assert(first instanceof Array)
+                assert(value.every(item => item instanceof Array && item[0] === first[0]))
+                const node = nodes[0]
+                assert(node instanceof Array && node[0] === '[]')
+                assert(nodes.every(item => item instanceof Array && item[0] === '[]' && item[1][0] === node[1][0]))
+            }
         }
     },
     suffixPathValidation: () => {
