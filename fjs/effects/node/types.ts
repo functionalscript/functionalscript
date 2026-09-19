@@ -191,45 +191,32 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
 
 /**
  * Creates `path` with `O_CREAT|O_EXCL` **and writes `data` through that same
- * open** — fails with `EEXIST` if the name is already taken, by anything.
+ * open**.
  *
- * **Either the file exists holding `data`, or it does not exist.** A write that
- * fails after the open takes the file with it, so no caller has to decide
- * whether a failure left one behind — and no caller could: `O_EXCL` succeeding
- * is the only evidence that the file is this call's, and it is on the runner's
- * side of the boundary. Measured on node 22.22.2, with descriptors exhausted, a
- * `wx` open of a name another writer holds answers **`EMFILE` and not
- * `EEXIST`**, so a caller that read "every error but `EEXIST`" as "I created it"
- * would unlink somebody else's file. Git's lockfile has the same contract from
- * the same knowledge: it writes through the descriptor it opened, and
- * `rollback_lock_file` unlinks.
+ * Three things hold, and a caller may rely on each:
  *
- * Not `createExclusive` followed by `writeFile`, and the difference is a hole
- * rather than a round trip. `createExclusive` closes its descriptor, so a
- * `writeFile` after it reopens the *pathname*, with the flags `w` gives —
- * `O_TRUNC`, and symlinks followed. Measured on node 22.22.2: with the name
- * replaced by a symlink between the two calls, the `writeFile` **succeeded and
- * overwrote the link's target**, and the name was still a symlink afterwards —
- * so a caller that then renames it publishes the attacker's link, and a caller
- * that does not has still truncated a file it never named. One `writeFile` with
- * `flag: 'wx'` onto the same symlink answers `EEXIST` and leaves the target
- * alone, as does one onto a *dangling* link, since `O_EXCL` refuses a symlink
- * without following it. The control: `wx` on a free name creates and fills it,
- * and a second `wx` on that name is `EEXIST` with the bytes unchanged.
+ * - **Either the file exists holding `data`, or it does not exist.** A write
+ *   that fails after the open takes the file with it, so a failure never leaves
+ *   a partial one. No caller could do this for itself: `O_EXCL` succeeding is
+ *   the only evidence the file is this call's, and it is on the runner's side of
+ *   the boundary — an error code is not evidence of it, whatever the code.
+ * - **A name already taken fails with `EEXIST`, by whatever holds it** — a file,
+ *   a directory, or a symlink, which `O_EXCL` refuses without following, leaving
+ *   its target untouched, dangling or not.
+ * - **Nothing can reach the pathname between the create and the write**, which
+ *   is why this is not `createExclusive` followed by `writeFile`: that pair
+ *   reopens the name with the flags `w` gives — `O_TRUNC`, and symlinks
+ *   followed — so a symlink planted in the window is written *through*.
  *
- * So this is the operation a lock file wants, and `createExclusive` is for a
- * name claimed now and written later — the lock-free upload's staging file,
- * whose 256 random bits are what make the window uninteresting there.
+ * `createExclusive` remains for a name claimed now and written later, which is
+ * the lock-free upload's staging file. This one is what a **lock file** wants,
+ * and [`fjs/git/refstore`](../../git/refstore/module.f.mjs)'s `tryWrite` is that
+ * caller.
  *
- * **Adding this to `Fs` widens `NodeOp`, which is a breaking change** and is
- * declared as one: `NodeOperationMap` and `CommandSet<NodeOp>` are both checked
- * for *completeness*, so a custom runner that annotates either has to grow a
- * handler to compile, and an exhaustive `switch` over `NodeOp` has to grow an
- * arm. `resolveFileModule` was added the same way in
- * [#2117](https://github.com/functionalscript/functionalscript/pull/2117) and
- * declared the same way.
- * [`fjs/git/refstore`](../../git/refstore/module.f.mjs)'s `tryWrite` is this
- * one's caller, where the name is `refs/heads/x.lock` and entirely predictable.
+ * **A custom runner must implement it**: `NodeOperationMap` and
+ * `CommandSet<NodeOp>` are both checked for *completeness*, so annotating
+ * either without a handler does not compile, and an exhaustive `switch` over
+ * `NodeOp` needs an arm.
  */
 export type WriteExclusive = readonly['writeExclusive', (path: string, data: Vec) => IoResult<void>]
 

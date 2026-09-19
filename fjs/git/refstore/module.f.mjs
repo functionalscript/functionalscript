@@ -1908,7 +1908,12 @@ const prefixCollision = (packed, name) => packed.find(e => {
  *   {@link isDirectoryAt} answers before the lock is taken. The symlink is why
  *   the `stat` exists rather than relying on the `rename`: measured, `fs.rename`
  *   over such a link succeeds and leaves every ref inside the linked directory
- *   unreachable, where a real directory is `EISDIR`;
+ *   unreachable, where a real directory is `EISDIR`. **An *empty* directory is
+ *   refused here where `git update-ref` removes it and publishes the ref**,
+ *   which is narrower than Git and is the one refusal of these that a caller
+ *   could reasonably want gone —
+ *   [`../todo/ref-writing.md`](../todo/ref-writing.md) has the measurements and
+ *   what removing it needs;
  * - a **loose file** where a parent directory must go, which the *same* `stat`
  *   answers `ENOTDIR` for, since the ref's own path leads through that file.
  *   That one refusal carries the host's code rather than this one, and the

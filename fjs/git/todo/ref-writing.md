@@ -146,6 +146,41 @@ Whether it should be `refPrefixCode` with Git's message is open: naming the file
 in the way means walking the path component by component, which is a `stat` per
 segment on a state the write is about to refuse anyway.
 
+**An *empty* directory at the ref's path is where this is narrower than Git**, and
+a review round found it. Measured on 2.43.0, with the ref's own path a directory:
+
+| `.git/refs/heads/topic/` holds | `update-ref refs/heads/topic` |
+| --- | --- |
+| nothing | **exit 0** — the directory is removed and the ref published |
+| only an empty `sub/` | **exit 0** — both removed, ref published |
+| a ref file `notaref` | 128, `'refs/heads/topic/notaref' exists; cannot create 'refs/heads/topic'` |
+| only `x.lock` | 128, `there is a non-empty directory '…/refs/heads/topic' blocking reference 'refs/heads/topic'` |
+
+So Git's rule is *recursively empty*, and anything at all in the directory —
+another writer's lock included — refuses. `tryWrite` refuses all four with
+`refPrefixCode`.
+
+**The state is reachable by ordinary use, and this writer makes it.** The `mkdir`
+runs before the lock, so a write of `refs/heads/topic/x` that then fails leaves
+`refs/heads/topic/` behind; measured, Git does the same — `update-ref
+refs/heads/topic/x` against a held lock leaves the directory — and the next
+`update-ref refs/heads/topic` succeeds there where this refuses. Git's own
+deletes do not leave one: measured, `update-ref -d`, `branch -D` and `pack-refs
+--all` each remove the directories they empty.
+
+Refusing is safe rather than wrong — the `rename` would answer `EISDIR` anyway,
+measured, so nothing is written either way and nothing is left behind; the
+difference is a refusal where Git succeeds. **What removing it needs is a new
+operation.** The emptiness test is a `readdir`, which the walk already has, but
+the removal is not expressible: `Rm` is `(path: string) => IoResult<void>` with no
+options, node's `rm` without `recursive` answers `ERR_FS_EISDIR` for a directory,
+and the virtual runner's `rmOp` never sees one because `operation` descends into
+it first. `rmdir` is the primitive that fits, since it refuses a non-empty
+directory itself (`ENOTEMPTY`, measured) and so cannot lose a ref to a race the
+way a recursive `rm` behind a separate check could. Adding it widens `NodeOp`
+again, which is a second breaking change and its own proofs, so it is a task
+rather than a tail-end addition here.
+
 That check is a snapshot, and `git pack-refs` can invalidate it under either
 writer's feet — Git's included. `refs/heads/a/b` is loose, so a write of
 `refs/heads/a` sees no packed collision and is refused by the `rename` instead,
@@ -319,6 +354,12 @@ else in the name has moved DISOT semantics into Git's namespace.
 - [ ] Decide whether the `ENOTDIR` a loose file in the ref's path is refused
       with becomes `refPrefixCode` carrying Git's message, which costs a `stat`
       per path segment to name the file in the way.
+- [ ] Publish over a **recursively empty** directory at the ref's path, as Git
+      does, rather than refusing it — which needs an `Rmdir` operation in
+      `fjs/effects/node` (a second `NodeOp` widening, so a breaking change), a
+      `readdir` walk to establish emptiness, and fixtures for all four rows of
+      the table above. Worth doing because this writer's own `mkdir` leaves such
+      a directory behind whenever a write of a name under it fails.
 - [ ] Hold the `writeExclusive` rollback with a proof, if a way to fail a write
       after the `O_EXCL` open ever exists here — a fault-injecting host runner,
       or an `Fs` seam a proof can answer for. Deleting the `rm` is green today.
