@@ -27,11 +27,12 @@ export default 1;
 export default 2;
 ```
 
-Native Node ESM resolves the import to `dep.mjs` and returns `1`; the current
-filesystem resolution selects the literal `%64ep.mjs`, which contains `2`.
-The FJS mismatch is source-inspected, not a claimed completed FJS end-to-end
-regression. It violates successful-result agreement even though both paths
-can succeed.
+Native Node ESM resolves the import to `dep.mjs` and returns `1`. The original
+filesystem resolver selected the literal `%64ep.mjs`, which contains `2`.
+The first implementation slice now percent-decodes UTF-8 URL-path segments
+before filesystem normalization in both compiler paths, with the reproducer
+pinned in their FJS proofs. The broader identity/package contract below remains
+open.
 
 ### Proposal
 
@@ -52,7 +53,11 @@ import maps are different environments, not interchangeable defaults.
 
 - [ ] Specify and share the resolution contract between value compilation and
       EDAG linking, including cache identity and loading boundaries.
-- [ ] Add the real FJS/native-ESM escaped-filename regression above.
+- [x] Decode valid UTF-8 percent escapes in relative/file URL-path segments in
+      both value compilation and EDAG linking; pin the escaped-filename
+      reproducer in both FJS proofs.
+- [ ] Add the shared differential FJS/native-ESM compatibility harness; the
+      current proofs pin the FJS side while Node is the external oracle.
 - [ ] Cover equivalent URL spellings, escaped filenames, query/fragment
       identities, relative paths, bare specifiers and module types/import
       attributes. Accepted classes agree with the host; other classes are
