@@ -89,10 +89,12 @@ Re-exports and new expression or function syntax are outside this first step.
 
 ### Compiler changes
 
-The parser's module body currently ends in the default-export expression.
-Change that result to the export object. Carry it through AST evaluation,
-`transpile`, and the EDAG's `unresolved` and `resolve` paths. Default imports
-must project `.default` instead of binding the entire imported result.
+The prerequisite in [#2129](https://github.com/functionalscript/functionalscript/pull/2129)
+makes the parser's module body end in `{ default: value }` and carries that
+export object through AST evaluation, `transpile`, and the EDAG's `unresolved`
+and `resolve` paths. Default imports select `.default`. The remaining work
+extends that representation to named and mixed exports, preserving evaluation
+and sharing when selecting an export.
 
 The EDAG represents the computation of this object. The existing
 [generated Rust entry point](../../fjs/fsc/rust/module.f.mjs),
@@ -145,10 +147,15 @@ and default exports.
       including `default`.
 - [x] Confirm the serialization contract: `result.default` for JSON/DataJS,
       and individual exports for FunctionalScript module source.
+- [x] Prerequisite: make existing default-only modules return `{ default: value }`
+      through AST evaluation, linked EDAG, and generated Rust. Select `default`
+      for import bindings and JSON/DataJS/FunctionalScript output; preserve direct
+      JSON roots, evaluation anchors, shared imports, and normalized DataJS fixed
+      points. Update consumers and declare the module-result API change.
 - [ ] Implement `export const` through the grammar, AST, and linking, preserving
-      local references, evaluation order, sharing, and export names. Make the
-      module body yield the export object and make default imports select
-      `.default`. Prove default-only, named-only, and mixed results, duplicate
+      local references, evaluation order, sharing, and export names. Extend default
+      selection beyond the current single-property export object, keeping every
+      unselected initializer evaluated. Prove named-only and mixed results, duplicate
       names, reserved `then`, missing default exports, and an explicitly
       exported `undefined`. Compare export-key order with JavaScript namespaces
       using declarations whose source order differs from lexicographic order.
@@ -156,7 +163,7 @@ and default exports.
       JavaScript exposes the same exports and values as the original source,
       EDAG and generated Rust results contain all exported properties, and default
       imports (including JSON imports) still yield the selected value. Update
-      consumers and declare the module-result API change in the implementation PR.
+      remaining consumers for named and mixed exports.
 - [ ] With the serializer changes, prove that normalized DataJS documents remain
       fixed points of both writers, including repeated compilation of
       `export default 7;` without accumulating wrappers. Prove JSON serializes

@@ -946,8 +946,9 @@ const extended = env => (word, ref) => setReplace(word)(ref)(env)
  * The statements of a module, in order: each `import` binds its name to
  * the next argument, each `const` resolves its value against the names
  * bound so far — itself not among them, so a `cref` always names an earlier
- * entry — and then binds its name, and the export is resolved against them
- * all.
+ * entry — and then binds its name. The default export is resolved against
+ * them all and placed in the module's result object. Ordinary function bodies
+ * keep their own return values.
  *
  * @type {(module: Module) => Result<AstModule, ParseError>}
  */
@@ -981,7 +982,7 @@ const foldModule = ({ imports, consts, exported }) => {
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [modules, [...body, last]]
+    const astModule = [modules, [...body, ['object', [['default', last]]]]]
     return ok(astModule)
 }
 

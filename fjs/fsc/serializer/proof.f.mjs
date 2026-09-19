@@ -20,7 +20,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../types/result/module.f.mjs'
-import { unresolved } from '../edag/module.f.mjs'
+import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { trySerialize, tryStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
@@ -39,7 +39,7 @@ const reads = e => {
     const text = unwrap(tryStringify(e))
     const { imports, edag } = unresolved(unwrap(parse(path)(text)))
     assertEq(imports.length, 0, text)
-    assertStructurallySame(analysis(edag), analysis(e), text)
+    assertStructurallySame(analysis(_defaultExport(edag)), analysis(e), text)
     return text
 }
 
@@ -194,10 +194,10 @@ export const proof = {
     readsBackNormalized: () => {
         assertEq(unwrap(tryStringify(['-', 1])), 'export default -1;')
         const { edag } = unresolved(unwrap(parse(path)('export default -1;')))
-        assertStructurallySame(edag, -1)
+        assertStructurallySame(edag, ['{}', [[':', 'default', -1]]])
         // and one deeper, where the fold runs twice
         assertEq(unwrap(tryStringify(['-', ['-', 1]])), 'export default - -1;')
-        assertStructurallySame(unresolved(unwrap(parse(path)('export default - -1;'))).edag, 1)
+        assertStructurallySame(unresolved(unwrap(parse(path)('export default - -1;'))).edag, ['{}', [[':', 'default', 1]]])
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared

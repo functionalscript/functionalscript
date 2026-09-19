@@ -80,6 +80,17 @@ repeated key written twice, rather than a plain object: `run` builds the
 object JavaScript builds from the same literal — a repeated key at its first
 position with its last value, integer-like keys first — and the EDAG object
 constructor takes the members as written, which only the syntax still has.
+A module body's last entry is its export object: `export default 7;` lowers to
+`['object', [['default', 7]]]`. An ordinary function body still ends in its
+returned value. Module `aref`s denote selected import bindings; default imports
+bind the dependency's `default` property, including for JSON imports.
+`transpile` returns the complete export object as its denotation's `value`.
+JSON/DataJS output and the source writer select the default export, while EDAG
+and generated Rust retain the complete result. Direct JSON roots remain raw
+documents in every compiler path, without the module wrapper or projection.
+Named-export syntax is the next step in
+[the export TODO](../../spec/todo/3240-export.md).
+
 See [examples/input.f.mjs](./examples/input.f.mjs).
 
 ## EDAG
@@ -88,8 +99,8 @@ A parsed module also compiles to an [EDAG](../edag/README.md) —
 [edag/module.f.mjs](./edag/module.f.mjs), Stage 1 of
 [compile-modules-to-edag](./todo/compile-modules-to-edag.md). `unresolved`
 compiles it over its imports, before any import is read: import `i` is the
-parameter `['.', ['args'], i]`, a `const` is one node however many references
-reach it, and the export is the root; the specifiers ride beside the graph as
+parameter selection `['.', ['.', ['args'], i], 'default']`, a `const` is one node however many references
+reach it, and the export object is the root; the specifiers ride beside the graph as
 `Unresolved`, a compiler's structure and no part of EDAG. `resolve` links a
 program from its root path into one EDAG: each import is read, parsed and
 resolved the same way, recursively, and bound in its parameter's place — the
@@ -99,8 +110,8 @@ twice in one link is one node, so a diamond of imports joins where it should.
 A property access, `a.b` or `a[0]`, is the EDAG's `['.', base, key]`, its
 key a constant the parser admitted — `__proto__` and `constructor` refused at
 the key.
-A JSON module, imported `with { type: "json" }`, is the tree its document
-denotes, as `transpile` reads it; a `.json` file imported without the
+A JSON module, imported `with { type: "json" }`, exposes its document under
+`default`; the import binding selects that tree, as `transpile` does; a `.json` file imported without the
 attribute, or another file imported with it, is refused as JavaScript refuses
 it.
 `fjs compile` writes the linked graph when the output name ends with

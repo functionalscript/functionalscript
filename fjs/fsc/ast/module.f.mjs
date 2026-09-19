@@ -30,14 +30,14 @@ const { isInteger } = Number
  *
  * @type {(base: Unknown, key: string | number) => Unknown}
  */
-const own = (base, key) => {
+export const _own = (base, key) => {
     /** @type {{ readonly [k in string]?: Unknown }} */
     const object = Object(base)
     return hasOwn(object, key) ? object[key] : undefined
 }
 
 /**
- * A property access on a value: the own property, as {@link own} reads it,
+ * A property access on a value: the own property, as {@link _own} reads it,
  * of a base that has properties — a `null` or `undefined` base is the
  * failure JavaScript throws for, and the one failure a data module can
  * make.
@@ -46,7 +46,7 @@ const own = (base, key) => {
  */
 const ownProperty = key => base => base === null || base === undefined
     ? error(`cannot read property "${key}" of ${base}`)
-    : ok(own(base, key))
+    : ok(_own(base, key))
 
 /** @type {<T>(list: List<T>) => (value: T) => List<T>} */
 const appended = list => value => ({ head: list, tail: [value] })
@@ -372,7 +372,7 @@ const repeats = xs => new Set(xs).size !== xs.length
 const byId = m => [m.id, m]
 
 /** The value a chain of keys reaches from a value, by own-property reads; `undefined` past the data. @type {(keys: readonly string[]) => (value: Unknown) => Unknown} */
-const valueAt = keys => value => keys.reduce(own, value)
+const valueAt = keys => value => keys.reduce(_own, value)
 
 /** Whether a literal is a container literal — an array or an object written out — rather than a primitive or a reference. @type {(ast: AstConst) => ast is AstArray | AstObject} */
 const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')
