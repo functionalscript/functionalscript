@@ -224,6 +224,18 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', null, ['=>', null, ['args']]])
     },
+    // Source blocks and returns survive parsing, but lowering still gives
+    // equivalent bodies the same EDAG, including nested block functions.
+    explicitReturns: () => {
+        for (const [expression, block] of [
+            ['() => 7', '() => { return 7; }'],
+            ['() => () => 7', '() => { return () => { return 7; }; }'],
+            ['(...a) => [a, a[0]]', '(...a) => { return [a, a[0]]; }'],
+        ]) {
+            const expected = compile(`export default ${expression};`).edag
+            expectEdag(compile(`export default ${block};`).edag, expected)
+        }
+    },
     // A call takes the EDAG's two forms, and the callee picks which. A
     // property access as the callee is a method call — `a.b(c)` passes `a`
     // as the receiver, so the access owns the call and the two are one node
