@@ -287,9 +287,15 @@ precisely.
    constructed for this case at all — a call needs a code path and
    arguments, not an identity.
 2. **`self` used as a value** — returned, stored, compared, or captured
-   into a nested closure's frame (the mutual-helper pattern in
-   [function-frame](../../spec/todo/3111-function-frame.md)'s worked
-   example, and subject 10's `a`/`b` example). Here a real `Function<A>`
+   into a nested closure's frame. edag-stage1-discussion has the worked
+   snippet for exactly this shape: an outer function puts its own
+   `["self"]` into a nested closure's frame, and the nested closure calls
+   back out through it — `const f = x => { … const b = y => { … f(y) … };
+   … b(…) … }`, under its `["frame"]`-and-closed-scope-model discussion
+   (not [function-frame](../../spec/todo/3111-function-frame.md)'s own
+   `a`/`b` — that one is two independent *top-level* consts with no
+   enclosing function and no `["self"]`, exactly the out-of-scope mutual
+   recursion case below, not this one). Here a real `Function<A>`
    value for the *enclosing* function is observable, and it must be **the
    same value, by identity, every time** — in JS, a given function is one
    object with one stable identity for its entire lifetime, not a new one
@@ -347,7 +353,11 @@ unblocks the harness invoking a function-valued `export default` for the
 first time (today the harness only evaluates data). Proof surface: extend
 `nanvm-harness/fixtures/` with a function-valued `export default` of no
 arguments and of a rest parameter, mirroring the existing
-literal/array/object fixtures.
+literal/array/object fixtures. Worked out in full against the actual
+generator — the placeholder it was believed to already accept turns out to
+be dead code, and four separate refusal points plus a scope-unaware
+node-sharing hazard need fixing — in
+[compile-noncapturing-functions-to-rust](../../fjs/fsc/todo/compile-noncapturing-functions-to-rust.md).
 
 **Stage 2 — `Function<A>` as a real, callable first-class value.**
 Add the header code pointer (and, under option 1 above, the captured
@@ -363,10 +373,12 @@ Extend the generator to lower `["=>", frame, body]` for a body that actually
 references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
 `Function<A>` value with that as its captured field. The nested body reads
-`captured[i]` exactly as it reads `args[i]`. Proof surface: the two-level
-closure fixture already used as a worked example in
-[function-frame](../../spec/todo/3111-function-frame.md) and
-edag-stage1-discussion (`a => b => a + b`).
+`captured[i]` exactly as it reads `args[i]`. Proof surface: a two-level
+closure fixture over an ordinary (non-`self`) captured value — e.g.
+`a => b => a + b`, the outer parameter captured into the inner function's
+frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
+and edag-stage1-discussion's `["frame"]` design are built around, though
+neither document spells this particular example.
 
 **Stage 4 — dynamic calls and higher-order functions.**
 Add the call-site form for when the callee is *not* known at compile time —
@@ -394,9 +406,9 @@ function's canonical `Function<A>` once wherever its enclosing scope already
 builds one, and thread a handle to it into that function's calling
 convention. This is where the calling-convention family from
 [Self-reference](#self-reference) gets a concrete Rust shape. Proof surface:
-the mutually-referencing-helper fixture from
-[function-frame](../../spec/todo/3111-function-frame.md) (`a`/`b` calling
-each other where one captures `["self"]` of the other's enclosing function),
+edag-stage1-discussion's own outer-`f`/nested-`b` snippet cited in
+[Self-reference](#self-reference) above — an enclosing function's `["self"]`
+captured into a nested closure's frame and called back out through it —
 plus a fixture asserting `self === self` across two separate reads.
 
 **Stage 6 — arity and variadic edge cases.**
