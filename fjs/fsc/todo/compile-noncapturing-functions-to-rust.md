@@ -53,7 +53,12 @@ compiler ever emits, so it happens to answer `false` for every function
 1 needs a **second, additional** case recognizing `frame === null`, alongside
 the existing corpus-only check, not a replacement for it (Task 2).
 
-**Four refusal points, each with an exact cause:**
+**Three refusal points, each with an exact cause** (a fourth — a numeric
+index on `.` — was true when this document was first drafted but no longer
+is: `fjs/edag/rust/module.f.mjs`'s `.` dispatch moved to `Any::member_access`
+and `indexExpr` now accepts a literal number directly, so `[".", ["args"], 0]`
+is not refused by the index at all — only by `["args"]` itself, point 2
+below, which Task 3 exists to fix):
 
 1. **`=>` itself.** `isSmallestLambda` covers only the corpus's `['[]', []]`
    shape, not `fjs/fsc`'s `null` — see above.
@@ -68,20 +73,11 @@ the existing corpus-only check, not a replacement for it (Task 2).
    mechanism: `op0Id`'s tags have no operator-table entries either, so a bare
    `['args']` node is refused the same way. Confirmed:
    `export default (...a) => [a[0], a[0]];` fails with `no Rust for: args`
-   (reached while printing the identity read `a[0]`, i.e. `.` on `args`, not
-   the array wrapper — see next point).
-4. **A numeric index on `.`.** `indexExpr` in `fjs/edag/rust/module.f.mjs`
-   accepts only a string index and refuses every numeric one, by design:
-   `Any::own_property` only ever inspects `Unpacked::Object`, so a numeric
-   index — meaningful only for an array or string receiver — would either
-   have to be printed wrong (silently `undefined`) or refused, and the
-   printer refuses it, deferring to
-   [`fjs/edag/todo/entry.md`](../../edag/todo/entry.md)'s future general
-   fix. `[".", ["args"], 0]` is exactly this shape: a `.` node with a numeric
-   index. Its base, `['args']`, is *not* separately refused —
-   `nonObjectLiteralBase` only recognizes primitive/array-literal bases, and
-   `['args']` is neither, so it is treated as an ordinary opaque base — the
-   numeric index is the only thing standing in the way.
+   (reached while printing the identity read `a[0]`, i.e. `.` on `args` —
+   the numeric index `0` itself already has a `nanvm-lib` spelling, verified
+   directly: `export default [1, 2, 3][0];`, a literal-array base rather than
+   `["args"]`, compiles today to
+   `Any::member_access([...].to_array().to_any(), (0f64).to_any()).unwrap()`).
 
 **A fifth problem is latent, not yet triggered by anything the printer
 accepts today, but load-bearing the moment functions exist: node-sharing is
@@ -183,7 +179,12 @@ deferred by choice:**
 - **A computed (non-literal) index into `args`**, e.g. an `args[i]` for a
   run-time `i` rather than a source-literal `0`/`1`/…. Unreachable from the
   grammar today (no arithmetic to compute an index with, no loops), so
-  nothing to design around yet; Task 3 only needs the number-literal case.
+  nothing to design around yet. Every source-literal index the grammar does
+  admit — an integer, a fractional number (`a[0.5]`), a string — already has
+  a correct `nanvm-lib` spelling via `Any::member_access` (Task 3), with
+  nothing left to refuse; see Task 3 for why. (A negative literal, `a[-1]`,
+  needs no handling either way: the grammar has no unary-minus alternative
+  inside `[…]`, so it is a parse error, not an EDAG this printer ever sees.)
 
 ### Design
 
@@ -195,12 +196,14 @@ path that currently panics on failure switches to propagating a `Result`.
 This has to come first, as a foundation, not as part of adding calls:
 
 - **It is already needed by data the printer accepts *today*.** The `.`
-  node's printed form is `Any::own_property(${fa}, ${k}).unwrap()` — an
-  ordinary property read on a nullish or wrong-shaped *opaque* base (a
-  `const`, an import, another `.` result — anything `nonObjectLiteralBase`
-  cannot rule out statically) already compiles to a Rust `panic!`, not a
-  propagated failure, for every existing fixture that reads a property.
-  Nothing forces this into the open before Stage 1; adding calls does,
+  node's printed form is `Any::member_access(${fa}, ${k}).unwrap()` — an
+  ordinary property read on a nullish *opaque* base (a `const`, an import,
+  another `.` result — anything `nullishBase` cannot rule out statically;
+  `Any::member_access` itself only ever fails for a nullish receiver, every
+  other receiver already answering `Ok`, `undefined` included) already
+  compiles to a Rust `panic!`, not a propagated failure, for every existing
+  fixture that reads a property. Nothing forces this into the open before
+  Stage 1; adding calls does,
   because a call is the paradigm case of "fails constantly, for reasons
   the generator cannot see" (any argument's own computation can fail, and
   the callee's body can fail on its own arguments), and generating a fresh
@@ -214,7 +217,7 @@ This has to come first, as a foundation, not as part of adding calls:
   realization of A3 (throws are preserved) every fallible `nanvm-lib`
   operation already threads.
 
-Concretely: `.` prints `Any::own_property(${fa}, ${k})?` in place of
+Concretely: `.` prints `Any::member_access(${fa}, ${k})?` in place of
 `.unwrap()`; `bodyLines`'s final line loses its implicit "just an
 expression" framing and instead needs `Ok(…)` around a bare value or a
 passthrough `?`-chain — worked out fully once Tasks 4–6 restructure
@@ -234,7 +237,7 @@ that base's own printer can emit a `Result`-typed expression — the base
 needs the same `?`-propagation as any other fallible sub-expression, not
 just the read built on top of it. This is easy to get backwards by patching
 only the operation actually being made fallible (`.`'s own
-`Any::own_property(…)`) and reusing the existing operand-printing helper
+`Any::member_access(…)`) and reusing the existing operand-printing helper
 unchanged for its *base* — the bug is silent until a chain nests two
 fallible reads, so it needs its own test case (a two-level property chain,
 not just a one-level read) rather than trusting the single-level fixtures
@@ -284,39 +287,60 @@ also mean "no captures," and the printer will need to treat both as the same
 one canonical empty shape before then. Flagging it here so it isn't
 rediscovered as a surprise when Stage 3 starts.
 
-#### Task 3 — print `args`, bare and indexed
+#### Task 3 — print `args`, bare
 
-Two new cases, both narrowly scoped to the exact shapes the current grammar
-can produce:
+**One new case, and it is enough on its own: `['args']` alone**, used as a
+value (not indexed) — needed even for a Stage 1 fixture as simple as
+`(...a) => a`. Prints as the whole arguments array converted to a value:
+given a generated function's `args: &Array<A>` parameter (Task 5), this is
+`args.clone().to_any()` — an `Rc`-cheap clone through `IContainer`, not a
+deep copy.
 
-1. **`['args']` alone**, used as a value (not indexed) — needed even for a
-   Stage 1 fixture as simple as `(...a) => a`. Prints as the whole
-   arguments array converted to a value: given a generated function's
-   `args: &Array<A>` parameter (Task 5), this is `args.clone().to_any()` —
-   an `Rc`-cheap clone through `IContainer`, not a deep copy.
-2. **`['.', ['args'], i]`, `i` a number literal** — the identity read
-   `a[0]`, `a[1]`, … A dedicated case checked *before* the general `.`
-   dispatch reaches `indexExpr`'s numeric refusal (`entry.md`'s reserved
-   territory, untouched by this task): since `i` is always, for now, a
-   compile-time integer literal copied straight from the source index (there
-   is no way to compute one yet — see Scope), the generator emits it as a
-   literal `u32` in the printed Rust, not a runtime conversion, matching
-   [callable-function-objects.md](../../../nanvm-lib/todo/callable-function-objects.md#arguments--args)'s
-   already-designed shape exactly:
+**No dedicated indexing case is needed, and an earlier draft of this task
+was wrong to add one.** That draft matched a hand-rolled bounds check —
+`if 0 < args.length() { args[0].clone() } else { Nullish::Undefined.into() }`
+— once believed to be the shape a `['.', ['args'], i]` read would need,
+because the shared printer's `.` dispatch used to go through
+`Any::own_property`, which only inspects an `Object` receiver. The shared
+printer (`fjs/edag/rust/module.f.mjs`) has since moved to
+`Any::member_access` for every `.`/`[]` node — confirmed against the
+current tree — which dispatches correctly across `Array`/`String`/`Object`
+and already does its own bounds and canonical-index checking internally
+(`vm/array/member_access.rs`'s `Array::member_access`: an out-of-range or
+non-canonical key answers `None`, which `Any::member_access` turns into
+`undefined`, and the string key `"length"` reads the length the same
+generic way). `indexExpr` already accepts a literal number key directly
+(`(${f64Literal(index)}).to_any()`) alongside a string one. So once bare
+`['args']` prints as an `Any<A>`, an ordinary `['.', ['args'], i]` node
+needs no new code at all: it reaches the *existing* general `.` dispatch,
+which prints `Any::member_access(args.clone().to_any(), (0f64).to_any()).unwrap()`
+for `a[0]` — correct, bounds-checked, and generic enough to also cover
+`a.length` and a non-canonical numeric key with no separate handling:
 
-   ```rust
-   if 0 < args.length() { args[0].clone() } else { Nullish::Undefined.into() }
-   ```
+- **A fractional literal is not a new refusal to add.** The grammar accepts
+  any `number` token inside `[…]` (`fjs/fsc/parser/grammar/module.f.mjs`'s
+  `index` rule, `'[' t (string | number) t ']'`), including a non-integer
+  one — `a[0.5]` parses and lowers to `['.', ['args'], 0.5]` today,
+  confirmed by running the compiler. `Array::member_access`'s own
+  canonical-index check already answers `None` (→ `undefined`) for it, the
+  same outcome real JS gives `[1][0.5]`, with no printer-side special case.
+  (A *negative* literal, `a[-1]`, needs nothing either: confirmed by
+  running the parser, the grammar's `index` rule takes a bare `number`
+  token with no unary-minus alternative inside `[…]`, so `a[-1]` is a parse
+  error and never reaches this printer at all.)
+- **A chain continuation** on this shape (`['.', ['args'], i, k]`) is *not*
+  specially handled and does not need to be: it falls through to the
+  ordinary `.`-dispatch, whose existing `c !== undefined` check already
+  refuses any continuation outright.
+- **A `.` node stacked *on top of*** `['.', ['args'], i]` (`a[0].foo`) is
+  likewise not a new case — it is an ordinary `.` node whose base happens to
+  be this shape, printed by ordinary recursion once the leaf case above
+  exists; nothing about the outer node needs to know its base is special.
 
-   A chain continuation on this shape (`['.', ['args'], i, k]`) is *not*
-   specially handled and does not need to be: it falls through to the
-   ordinary `.`-dispatch, whose existing `c !== undefined` check already
-   refuses any continuation outright, so this stays refused with no new
-   code. A `.` node stacked *on top of* `['.', ['args'], i]` (`a[0].foo`) is
-   likewise not a new case — it is an ordinary `.` node whose base happens
-   to be this new shape, and the base is printed by ordinary recursion once
-   the leaf case above exists; nothing about the outer node needs to know
-   its base is special.
+This also means [callable-function-objects.md](../../../nanvm-lib/todo/callable-function-objects.md#arguments--args)'s
+own Arguments sketch, written against the old `own_property`-era printer, is
+stale in the same way and needs the equivalent update — flagged there
+directly rather than duplicated here.
 
 `['frame']` and `['.', ['frame'], i]` are correctly *not* added here — no
 Stage 1 fixture can reference a frame (frames don't exist until Stage 3),
@@ -413,6 +437,23 @@ Anchor the fixture set on this directly: at least one Stage 1 fixture
 should carry an unreached `const` or import alongside its function export,
 so a shape-check regression shows up as a test failure rather than only in
 a hand-written repro.
+
+**A discovered function must also be excluded from `sharedNodesOf`'s own,
+separate counting (Task 4), not just handled specially by this pass.**
+`sharedNodesOf`'s node-identity walk has no notion of "this is a function"
+— it simply counts how many places reach a node — so a function called more
+than once anywhere in the module (`const f = (...a) => a[0]; export default
+[f(1), f(2)];`, both calls sharing the same `=>` node by identity) reaches
+that node's identity twice and would otherwise be marked "shared" the same
+way a repeated data literal is. `letLines` would then try to print a
+module-level `let cN: Any<A> = …;` for it, hitting `expExpr`'s own `'=>'`
+case (`fjs/edag/rust/module.f.mjs`), which has no spelling for a
+`null`-frame function standing alone as a value — refusing an otherwise
+entirely in-scope program for a reason that has nothing to do with the
+function itself. `functionsOf`'s discovered nodes must be excluded from
+whatever set `sharedNodesOf` feeds `letLines`, at every scope, so a function
+reached from more than one call site is named once by Task 5 and never also
+treated as a shared *value*.
 
 Each discovered function is assigned a private, module-scope Rust name in
 that same stable order — `f0`, `f1`, … (a separate namespace from the
@@ -564,6 +605,17 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
    a Rust-level optimizer would not already do for a private, single-call-site
    function on its own. Revisit only if a concrete reason to prefer inlining
    surfaces.
+4. **A second, independent proposal to change `pub fn module`'s own return
+   type.** [`spec/todo/3240-export.md`](../../../spec/todo/3240-export.md)
+   (named exports) plans for the module's result to become an object of
+   *every* export, `default` included, and names this same generator
+   (`pub fn module<A: IVm>() -> Any<A>`) as needing the equivalent update once
+   it lands — independently of, and for an unrelated reason to, Task 1's
+   change to `Result<Any<A>, Any<A>>`. Neither document is positioned to
+   require the other first; whichever lands second should build on the
+   already-landed signature change rather than reintroduce the older one.
+   Not a blocker for this document — flagged so an implementer of either
+   does not have to rediscover the overlap.
 
 ### Tasks
 
@@ -575,8 +627,9 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
 - [ ] Task 2: add a `frame === null` case beside `isSmallestLambda`'s
       existing `['[]', []]` check (kept, for the operator-conformance
       corpus) with no `body[0] === 'undefined'` restriction on the new case.
-- [ ] Task 3: print bare `['args']` and `['.', ['args'], i]` (`i` a number
-      literal), the latter bounds-checked against `Nullish::Undefined`.
+- [ ] Task 3: print bare `['args']` as `args.clone().to_any()`; no other
+      change needed — an indexed or `.length` read on it already reaches the
+      existing `Any::member_access`-based `.` dispatch once the base prints.
 - [ ] Task 4: scope `sharedNodesOf`'s walk to stop at a `=>` node's `body`;
       run `letLines`/`bodyLines` once per scope (module, plus one per
       discovered function).
@@ -585,7 +638,9 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
       the linker's own comma-wrapping of unreached consts/imports would
       defeat) — discover every `=>` node, refuse one used anywhere but a
       call's callee position, assign deterministic names, emit each as its
-      own `#[rustfmt::skip] fn`.
+      own `#[rustfmt::skip] fn`; exclude discovered function nodes from
+      `sharedNodesOf`'s own counting (Task 4) so a function called from more
+      than one site is named once, not also treated as a shared value.
 - [ ] Task 6: print `['()', callee, args]` as a direct call when `callee` is
       a discovered function and `args` is a fresh array literal; add the
       bare-`Array<A>`-without-`.to_any()` printer helper this needs; refuse

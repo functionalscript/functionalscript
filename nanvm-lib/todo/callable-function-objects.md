@@ -136,23 +136,25 @@ these same operators already would.
 
 Represented as `&Array<A>` at the call boundary — the same wrapper every
 array-valued `Any<A>` already uses
-([`vm/array/mod.rs`](../src/vm/array/mod.rs)), read through the same
-`SizedIndex<u32>` / `Index<u32>` interface every other consumer of an array
-uses
-([`vm/array/sized_index.rs`](../src/vm/array/sized_index.rs),
-[`vm/array/index.rs`](../src/vm/array/index.rs)). A generated function
-destructures declared positions at the top of its body, but it must check
-length before indexing rather than lean on `Index` alone:
-`Array<A>::Index<u32>` panics out of bounds today
-([`vm/array/index.rs`](../src/vm/array/index.rs) already carries a `TODO` to
-return `Nullish::Undefined` instead), while
-[call-like-instructions §6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)
-requires a missing argument to read as `undefined`, never panic:
+([`vm/array/mod.rs`](../src/vm/array/mod.rs)). A generated function reads a
+declared position through `Any::member_access`
+([`vm/member_access.rs`](../src/vm/member_access.rs),
+[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — the same
+call the Rust code generator already prints for every other `.`/`[]` read
+([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs)) — rather
+than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
+bounds ([`vm/array/index.rs`](../src/vm/array/index.rs)), while
+`Array::member_access` already does its own length and canonical-index
+check internally and answers `None` (which `Any::member_access` turns into
+`undefined`) for an out-of-range or otherwise non-canonical key, matching
+[call-like-instructions §6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
+"a missing argument reads as `undefined`, never panics" with no separate
+bounds check to write:
 
 ```rust
 fn f<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = if 0 < args.length() { args[0].clone() } else { Nullish::Undefined.into() };
-    let b = if 1 < args.length() { args[1].clone() } else { Nullish::Undefined.into() };
+    let a = Any::member_access(args.clone().to_any(), (0f64).to_any())?;
+    let b = Any::member_access(args.clone().to_any(), (1f64).to_any())?;
     Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
 }
 ```
@@ -161,9 +163,7 @@ Extra arguments are simply never read — matching
 [§6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
 "the callee does not do anything with extra arguments" exactly. A rest
 parameter (today's only parameter form) needs no destructuring at all — it
-*is* `args`. Should the `Nullish::Undefined` `TODO` land first, generated
-code drops the length check and indexes directly; the two are independent
-and either order works.
+*is* `args`.
 
 #### Local variables and temporaries
 
@@ -348,15 +348,19 @@ representation above. Call sites where the callee is known at compile time
 (a module-level `const`, `export default` itself) compile to a direct Rust
 call — [call-like-instructions §2](../../spec/todo/9100-call-like-instructions.md#2-static-calls-into-user-defined-functions)'s
 "static call" — with no `Function<A>` runtime value in play yet. This is the
-smallest change that makes any generated function body actually run, and it
-unblocks the harness invoking a function-valued `export default` for the
-first time (today the harness only evaluates data). Proof surface: extend
-`nanvm-harness/fixtures/` with a function-valued `export default` of no
-arguments and of a rest parameter, mirroring the existing
+smallest change that makes any generated function body actually run: the
+call happens inside the generated `module()` itself, at Rust compile time
+for the callee, so the harness needs no new logic to detect and invoke a
+function-valued export — it only ever sees the already-applied result.
+Proof surface: extend `nanvm-harness/fixtures/` with an already-applied call
+to a function of no arguments and to one taking a rest parameter — a bare,
+uninvoked function-valued `export default` is explicitly out of scope (no
+`Function<A>` value exists yet to hand the harness) — mirroring the existing
 literal/array/object fixtures. Worked out in full against the actual
-generator — the placeholder it was believed to already accept turns out to
-be dead code, and four separate refusal points plus a scope-unaware
-node-sharing hazard need fixing — in
+generator — the one closure shape the printer already accepts is live only
+for a separate corpus-generator path, not `fjs/fsc`'s own lowering, which
+needs its own new case, and four separate refusal points plus a
+scope-unaware node-sharing hazard need fixing — in
 [compile-noncapturing-functions-to-rust](../../fjs/fsc/todo/compile-noncapturing-functions-to-rust.md).
 
 **Stage 2 — `Function<A>` as a real, callable first-class value.**
@@ -481,7 +485,9 @@ generated-Rust test from one source of cases.
 ### Tasks
 
 - [ ] Stage 1: non-capturing generated function bodies + static call sites;
-      harness fixtures for a function-valued `export default`.
+      harness fixtures whose `export default` is an already-applied call
+      (a bare function-valued `export default` stays out of scope until
+      Stage 2's `Function<A>` value exists).
 - [ ] Stage 2: `FunctionHeader<A>` gains a code pointer (option 1: plus a
       captured `Array<A>` field); `Function::call`; resolve open question 1.
 - [ ] Stage 3: capturing closures — `["=>", frame, body]` lowering, frame
