@@ -40,12 +40,34 @@ Literal text uses URL scalar-value conversion (a lone surrogate becomes
 U+FFFD); percent-encoded bytes still require valid UTF-8. The generic text
 decoder does not choose this URL-specific replacement policy.
 
-**Current portable-segment limit:** decoded slashes, backslashes, NUL and `:`
-are refused.
+URL dot-segment processing now happens before percent-decoding or validating
+surviving filesystem components. `./bad%/../dep.mjs` names `dep.mjs`, as do
+canceled `%ff`, `%2F`, `%5C` and `%00` components. All URL dot spellings are
+recognized case-insensitively (`.`, `%2e`, `..`, `.%2e`, `%2e.`, `%2e%2e`).
+Empty components survive until dot processing: `bad%//../dep.mjs` still has
+an invalid `bad%` component. Double-encoded dots are ordinary filename data,
+not another normalization pass.
+
+**Current portable-segment limit:** surviving decoded slashes, backslashes,
+NUL and `:` are refused. Literal colons and backslashes remain unsupported
+URL syntax and are rejected before dot processing, so cancellation cannot
+hide a raw Windows drive or alter the separator grammar.
 In particular, `./C%3A/x.f.js` must not turn into `C:/x.f.js` after joining.
 Colon-bearing names, including names valid on POSIX, remain unsupported until
 host-specific resolution can preserve them without drive/stream reinterpretation.
 This is a refusal boundary, not a claim that every host prohibits colons.
+
+**URL-path helper boundary:** `decode` accepts only a pathname and refuses raw
+`?`/`#` delimiters. The compiler separates query/fragment components before
+calling it, so suffix text cannot enter dot processing or percent decoding.
+For example, `./ignored#x=/../dep.mjs` loads `ignored`, never `dep.mjs`.
+Module identity retains the suffix according to the host profile below.
+
+To name literal filename characters, percent-encode them in the specifier:
+`%3F` for `?`, `%23` for `#`, and `%25` for `%`. Decoding happens once, so a
+literal file named `%64ep.mjs` is now imported as `./%2564ep.mjs`, not
+`./%64ep.mjs` (which names `dep.mjs`). These filename spellings are distinct
+from URL query/fragment syntax; no new filename ban is introduced for `?`/`#`.
 
 ### Proposal
 
@@ -99,12 +121,15 @@ JSON attribute and uses `id` for reuse and cycles, `path` for reads/diagnostics.
 The Node runner implements the **default Node file-module profile**: entry
 `pathToFileURL`, relative WHATWG URL resolution, `fileURLToPath`, `realpath`, then
 `pathToFileURL` with the resolved URL's `search` and `hash` for the canonical
-identity. Symlink targets determine identity and the base for subsequent imports. This profile always canonicalizes symlinks;
+identity. Symlink targets determine identity and the base for subsequent imports.
+This profile always canonicalizes symlinks;
 Node's optional preserve-symlinks flags are not a second supported profile.
 Bare imports, other schemes and the existing portable segment restrictions
-remain refused. Native host proofs compare module sharing
-with Node ESM; the common graph traversal also has proofs where identity differs
-from loading location.
+remain refused. Filesystem proofs exercise that profile in
+both compiler paths on Node, Deno and Bun. Only Node's native ESM loader is a
+comparison oracle: Deno and Bun have different native resolution/cache semantics.
+The common graph traversal also has proofs where identity differs from loading
+location.
 
 The virtual runner retains its explicitly **lexical path profile**. Its fixture
 filesystem has no working directory or symlinks; its identities are normalized
@@ -132,6 +157,9 @@ falls back to interpreting an unsupported host's specifiers as paths.
 - [x] Decode valid UTF-8 percent escapes in relative/file URL-path segments in
       both value compilation and EDAG linking; pin the escaped-filename
       reproducer in both FJS proofs.
+- [x] Process raw URL dot segments before decoding/validating the remaining
+      components; test canceled invalid components and surviving refusals in
+      both compiler paths.
 - [x] Refuse unsupported non-path specifiers through a shared `ParseError`
       result in value compilation and EDAG linking. Prove misleading local
       targets cannot be loaded, raw spelling is classified before decoding,
@@ -152,6 +180,9 @@ falls back to interpreting an unsupported host's specifiers as paths.
       rules. Run the repository's required compiler, test and coverage checks.
 
 ### Related
+
+- [URL path processing](https://url.spec.whatwg.org/#path-state) — dot segments
+  are recognized before percent-decoding filesystem components.
 
 - [Compatibility epic](../../../todo/fjs-javascript-compatibility.md) — the
   P1 invariant; implementation ownership lives here.
