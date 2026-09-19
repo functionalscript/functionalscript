@@ -181,43 +181,28 @@ No exact spelling or closure/self strategy is selected by this exception.
 Earlier no-exception/refusal directions for authored-text differences are
 superseded; implementing the chosen rendering contract remains work.
 
-#### Function name — decided with `entry`, recorded here as the exception
+#### Function name — not a compatibility observation
 
-A JavaScript function's `name` is set once, at creation, from the binding
-or key it is created for. FunctionalScript erases it, and the decision is
-already in the repository:
-[`entry`](../fjs/edag/todo/entry.md) replaced the earlier own-property
-read with the enumerable-entry helper precisely so that a function's `name`
-cannot be read — `person.name` is enumerable where `f.name` and `f.length`
-are not — and retired the two proposals that would have exposed it,
-`own-access.md` and `function-name.md`, in `4f4da828`; the latter had
-proposed a name operand on `=>` and a writer pattern to restore names, and
-closed itself as unnecessary once `name` was unobservable. So the graph's
-function node carries no name, `f.name` is refused at the key, `entry(f,
-'name')` is `undefined`, and [the language](../spec/README.md#functions)
-says no program observes the difference.
-
-What that decision leaves, and this epic records as its exception: the
-profile is the `.js` output read by a JavaScript consumer, the operation is
-`name`, and the consequence is that a function answers the name JavaScript
-gives the *output's* spelling, there being no name in the EDAG to give
-back — the writer's binding where the function is hoisted, and the
-position it is written in where a single-use binding is inlined. At
-`186af0b`, `const f = (...a) => a; export default [f, f];` is written
-`const $0=(...$a)=>$a;export default [$0,$0];`, so that consumer reads `$0`
-where the source gives `f`; `const f = (...a) => a; export default f;` is
-written `export default (...$a)=>$a;` and reads `default`; and
-`export default [f];` reads `""`. A key or branch on any of them differs.
-Only a function the same position names in both texts — an object member
-under its key, `export default` written in place — reads the same. The
-writer changes nothing. The function-source exception above
-covers the text and [function text and
-serialization](../spec/todo/serialization.md#function-text-and-serialization)
-its open questions; this one covers the name. Unrelated differences remain
-bugs. The property-access and presence plans,
+A compatibility issue exists only where the same program returns different
+serializable data on an FJS VM and a JavaScript engine
+([principles](../spec/README.md#principles)). What a JavaScript engine
+reports about `fsc`'s *written* output is the writer's spelling, not a
+result of the program, so the `.js` writer's names — a hoisted function
+bound as `$0`, an inlined one taking the name of the position it is written
+in — are no compatibility question, and neither is the function text the
+exception above covers. No FJS program reads a function's name at all:
+[`entry`](../fjs/edag/todo/entry.md) replaced the own-property read with
+the enumerable-entry helper so that it cannot — `person.name` is enumerable
+where `f.name` and `f.length` are not — and retired the proposals that would
+have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
+`f.name` is refused at the key, `entry(f, 'name')` is `undefined`, and
+[the language](../spec/README.md#functions) carries no name in the graph.
+The property-access and presence plans,
 [2330](../spec/todo/2330-property-accessor.md) and
 [2345](../spec/todo/2345-has-own-property.md), hold the same boundary from
-the source side.
+the source side. The corpus gate below compares the serializable data each
+execution returns, never the written text or what an engine reports about
+it.
 
 #### Property reflection — incompatible alternatives withdrawn
 
@@ -323,15 +308,17 @@ requirements; compatibility alone would allow randomness and external mutation.
       serializer/`String`, frame and `self` questions in the owning documents.
 - [ ] **P1:** implement and test the chosen function-rendering contract across
       source, EDAG, coercion and execution; preserve other function observations.
-- [x] Record the function-name exception with its profile, operation and
-      consequence: erasure was decided with `entry`, and a JavaScript
-      consumer of the `.js` output may read a generated name.
+- [x] Record that a function's name is no compatibility observation: no
+      FJS program reads one, by `entry`'s decision, and what an engine
+      reports about the written output is the writer's spelling.
 - [ ] **P1:** preserve the property-observation and composition contract in
       each affected implementation. Missing support is refused, not guessed.
 - [ ] **P1:** extend the existing host harness with a shared compatibility
       corpus. Check accepted original text as JavaScript module source, then
-      compare original-JS, EDAG, generated-JS and supported native executions.
-      Exercise exported functions; do not compare only normalized source.
+      compare the serializable data original-JS, EDAG, generated-JS and
+      supported native executions return. Exercise exported functions; do
+      not compare only normalized source, and do not compare the written
+      text or what an engine reports about it.
 - [ ] **P1:** compare number distinctions such as `-0` and `NaN`, bigint,
       string code units, property order, aliasing and allowed function
       observations. JSON stringification alone is not a sufficient comparator.
