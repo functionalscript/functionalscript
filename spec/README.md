@@ -636,14 +636,27 @@ constants, a fragment that several outputs include.
 
 - Only the **default import** form is recognized. Named imports and namespace
   imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
-- The path is a [string literal](#strings), resolved relative to the importing
-  module.
-- Each module is parsed and evaluated once per resolved path, and its value is
-  shared by every importer. A circular dependency is an error.
+- The module specifier is a [string literal](#strings), resolved using the
+  declared host environment's module-resolution rules. Relative specifiers
+  resolve against the importing module's identity; bare specifiers follow the
+  host's package or import-map rules. Unsupported specifier classes are
+  refused, not reinterpreted as sibling filesystem paths.
+- Within one program load, imports resolving to the same module identity
+  share its evaluation and exported value. Distinct module identities remain
+  distinct even when they load the same file; loading paths are not cache
+  keys. A circular dependency is an error.
 - The name is a JavaScript identifier that JavaScript does not reserve:
   `import class from "./a.f.js";` is an error here as there.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
+
+**Current implementation limitation — P1:** the existing filesystem-based
+resolver and path-keyed module memoization do not yet satisfy this contract
+for all accepted specifiers. This is a compatibility defect, not an alternate
+permitted interpretation. The existing
+[module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
+owns the shared resolver correction and its regression tests; the rules above
+do not claim that URL/package resolution is already implemented.
 
 A JSON document is imported with the attribute JavaScript requires of it, and
 denotes the value `JSON.parse` gives it:
