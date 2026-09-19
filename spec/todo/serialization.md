@@ -30,8 +30,13 @@ There are two execution paths, observably identical except in performance:
 
 Both paths bottom out in the same `nanvm-lib` operators, so shared operator tests cover their
 common layer. A natively compiled function still carries its `Any` code description (as static
-data), so hashing and `toString(f)` apply uniformly to all functions: the EDAG is the identity of
-a function; native code is a cached acceleration of it.
+data), so hashing and `toString(f)` apply uniformly to all functions: the EDAG is the stable
+**code/content identity**, while native code is a cached acceleration of it.
+
+Code/content identity is not callable allocation identity. Under a JS-compatible execution
+profile, separately created function objects remain separately allocated even when their EDAGs
+and captured values are equal; sharing a hash does not make `f === g`. Profiles that deliberately
+replace allocation identity with content identity, such as CAVM, must say so explicitly.
 
 Bytecode is an advanced, performance-oriented representation that may vary across architectures,
 VM implementations, and versions, while the EDAG is the stable representation. A VM implementation
