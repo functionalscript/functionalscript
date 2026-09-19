@@ -85,11 +85,45 @@ export const proof = {
         assertStructurallySame(_importSources('/dir/main.f.js')([
             { specifier: './dep.f.js', json: false },
             { specifier: '../data.json', json: true },
-        ]), ['ok', [{ path: '/dir/dep.f.js', json: false }, { path: '/data.json', json: true }]])
+        ]), ['ok', [{ id: '/dir/dep.f.js', path: '/dir/dep.f.js', json: false }, { id: '/data.json', path: '/data.json', json: true }]])
         // Keep rooted input behavior separate from classifying import text.
-        assertStructurallySame(_importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ path: '/dep.f.js', json: false }]])
+        assertStructurallySame(_importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ id: '/dep.f.js', path: '/dep.f.js', json: false }]])
         for (const specifier of ['', '.', '..', '#alias', 'file:///dep.f.js', 'node:fs', 'https://example.com/dep.f.js']) {
             refusedSpecifier(specifier, `import value from "${specifier}"; export default value;`, {})
+        }
+    },
+    // A diamond and a direct escaped spelling share one module allocation;
+    // another file with identical source remains distinct. Cover JSON too.
+    moduleSharing: () => {
+        for (const json of [false, true]) {
+            const extension = json ? 'json' : 'f.js'
+            const attribute = json ? ' with { type: "json" }' : ''
+            const content = utf8(json ? '[42]' : 'export default [42];')
+            const root = {
+                'main.f.js': [utf8(`import a from "./left.f.js"; import b from "./right.f.js"; import c from "./%64ep.${extension}"${attribute}; import d from "./other.${extension}"${attribute}; export default [a, b, c, d];`)],
+                'left.f.js': [utf8(`import d from "./dep.${extension}"${attribute}; export default d;`)],
+                'right.f.js': [utf8(`import d from "./unused/../%64ep.${extension}"${attribute}; export default d;`)],
+                [`dep.${extension}`]: [content],
+                [`other.${extension}`]: [content],
+            }
+            const value = unwrap(run(root)('main.f.js'))
+            assert(value.value instanceof Array)
+            const [a, b, c, d] = value.value
+            assert(a === b && b === c && c !== d)
+            assert(value.shared)
+            const edag = unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1])
+            assert(edag instanceof Array && edag[0] === '[]')
+            const [ea, eb, ec, ed] = edag[1]
+            assert(ea === eb && eb === ec && ec !== ed)
+        }
+    },
+    moduleCycleDiagnostic: () => {
+        const root = {
+            'main.f.js': [utf8('import d from "./dir/dep.f.js"; export default d;')],
+            dir: { 'dep.f.js': [utf8('import m from "../%6dain.f.js"; export default m;')] },
+        }
+        for (const result of [run(root)('main.f.js'), virtual({ ...emptyState, root })(resolve('main.f.js'))[1]]) {
+            assertStructurallySame(result, ['error', { message: 'circular dependency', metadata: null, path: 'main.f.js' }])
         }
     },
     bareImportDiagnostic: () => {

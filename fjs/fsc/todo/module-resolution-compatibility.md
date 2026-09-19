@@ -83,6 +83,12 @@ patch. This refusal does not claim that URL identity handling is complete.
 
 ### Tasks
 
+- [x] Separate module identity (`id`) from loading location (`path`) in the
+      shared source record and both compiler paths. Reuse, import identity and
+      cycle tracking consume `id`; loading and source diagnostics consume `path`.
+      This preparatory refactor preserves the existing path-based keys, including
+      CLI root handling. It does not implement host URL identities; import
+      resolution still uses the importing path and existing refusals remain.
 - [ ] Specify and share the resolution contract between value compilation and
       EDAG linking, including cache identity and loading boundaries.
 - [x] Decode valid UTF-8 percent escapes in relative/file URL-path segments in
