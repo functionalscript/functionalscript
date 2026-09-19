@@ -117,8 +117,8 @@ Repeated identities share a module; different suffixes can instantiate the same
 file separately. Their ordinary relative dependencies still share when those
 resolve to the same identity. Node's default realpath step removes empty `?`/`#`
 components: `./dep.mjs?`, `./dep.mjs#` and `./dep.mjs` share. Native comparisons
-pin this behavior, JSON imports, symlink aliases, and generated-JS allocation
-sharing after EDAG linking. Native differential tests run under Node: Bun/Deno
+pin this behavior, JSON imports and symlink aliases. Synchronous compiler proofs
+check value and linked-EDAG sharing. Native differential tests run under Node: Bun/Deno
 loaders retain empty components and are not the reference for this profile.
 The resolver's explicit canonicalization cases run under all three runtimes.
 
@@ -129,6 +129,13 @@ and its dependencies. `parent: null` means a literal filesystem entry path;
 otherwise `name` is the original admitted specifier and `parent` is the resolved
 importer identity. The result is `{ id, path }`; the compiler adds the existing
 JSON attribute and uses `id` for reuse and cycles, `path` for reads/diagnostics.
+Resolved diagnostics therefore use the Node host's absolute canonical path,
+including parse positions, imported modules and cycles. This is an intentional
+CLI compatibility change from caller-relative spellings; diagnostic consumers
+must accept absolute paths and symlink targets. A root resolution failure still
+names the original input, and an import resolution failure names its resolved
+importer. The compiler's synchronous `hostDiagnosticPaths` proof checks these
+cases through both compiler APIs and CLI output.
 
 The Node runner implements the **default Node file-module profile**: entry
 `pathToFileURL`, relative WHATWG URL resolution, `fileURLToPath`, `realpath`, then
@@ -137,11 +144,13 @@ identity. Symlink targets determine identity and the base for subsequent imports
 This profile always canonicalizes symlinks;
 Node's optional preserve-symlinks flags are not a second supported profile.
 Bare imports, other schemes and the existing portable segment restrictions
-remain refused. Filesystem proofs exercise that profile in
-both compiler paths on Node, Deno and Bun. Only Node's native ESM loader is a
-comparison oracle: Deno and Bun have different native resolution/cache semantics.
-The common graph traversal also has proofs where identity differs from loading
-location.
+remain refused. Filesystem proofs beside the Node adapter
+exercise its resolution operation on Node, Deno and Bun. Only Node's native ESM
+loader is a comparison oracle: Deno and Bun have different native
+resolution/cache semantics. Those host proofs compare resolver identities with
+native `import.meta.url` and module sharing; they do not execute the compiler.
+Both compiler paths have synchronous FunctionalScript proofs for diamond sharing,
+cycles and failures, including hosts where identity differs from loading location.
 
 Each filesystem proof creates its fixtures in a unique temporary directory and
 removes that tree in `finally`, including after failures. Literal spaces, `#`
@@ -157,7 +166,8 @@ test host, not evidence of Node URL normalization semantics.
 It explicitly refuses absolute file URLs; native and custom hosts own that
 specifier class. Compiler proofs pin that such a refusal cannot load a misleading
 local file, while Node comparisons cover relative/absolute sharing, symlink
-aliases, escaped filenames, suffixes, JSON attributes and cycles.
+aliases, escaped filenames and suffixes. Synchronous compiler proofs cover JSON
+attributes, cycles and relative/absolute identity sharing.
 The old decoder is shared in `fjs/path/import`: admission uses its portable
 segment check, and the virtual host uses its lexical resolution. The Node host
 receives original specifiers and uses its URL implementation.
@@ -191,11 +201,12 @@ falls back to interpreting an unsupported host's specifiers as paths.
       paths, preserving encoded filename characters. Replace the initial refusal
       with native sharing, empty-component and symlink regressions; cover JSON,
       cycles, misleading files, CLI output and missing-dependency diagnostics.
-- [x] Add native ESM comparisons for escaped filenames, equivalent
-      spellings and diamond sharing in both compiler paths.
+- [x] Compare Node adapter identities with native ESM for escaped filenames,
+      equivalent spellings and diamond sharing. Prove both compiler paths'
+      identity handling separately through synchronous effect hosts.
 - [x] Admit absolute file URLs through the shared host boundary. Validate their
       parsed pathnames in the Node profile and prove relative/absolute identity
-      sharing in both compiler paths, including generated JavaScript allocations.
+      sharing in both compiler paths through synchronous effect hosts.
 - [ ] Extend differential coverage as new specifier classes are supported.
 - [ ] Cover equivalent URL spellings, escaped filenames, query/fragment
       identities, relative paths, bare specifiers and module types/import

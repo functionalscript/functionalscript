@@ -4,15 +4,16 @@
  * @import { Denotation } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  */
+
 import { _importSources, parse, transpile } from './module.f.mjs'
 import { resolve, unresolved } from '../edag/module.f.mjs'
-import { compile } from '../module.f.mjs'
-import { nodeCommands, exitCode } from '../../effects/node/module.f.mjs'
+import { _errorLocation, compile } from '../module.f.mjs'
+import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
-import { ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
@@ -97,6 +98,70 @@ export const proof = {
         }])
         assertStructurallySame(runner(resolve('entry'))[1], value)
     },
+    // The host chooses identities; both compilers retain original URL spellings
+    // and share by those identities, including relative/absolute JSON aliases.
+    absoluteFileImports: () => {
+        for (const json of [false, true]) {
+            const ext = json ? 'json' : 'mjs'
+            const url = `file:///real/dep%20%23%25.${ext}`
+            const alias = `file:///alias/dep%20%23%25.${ext}`
+            const names = [
+                `./dep%20%23%25.${ext}`, url, `FILE:///real/dep%20%23%25.${ext}`, alias,
+                `file:/real/dep%20%23%25.${ext}`, `file://localhost/real/dep%20%23%25.${ext}`,
+                `file:///real/%64ep%20%23%25.${ext}`, `file:///real/bad%/../dep%20%23%25.${ext}`,
+                url + '?v=1', alias + '?v=1', url + '?v=2', url + '#a', alias + '#a', url + '#b', url + '?', url + '#',
+            ]
+            const groups = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 0, 0]
+            const suffixes = ['', '?v=1', '?v=2', '#a', '#b']
+            const imports = names.map((name, i) => `import v${i} from "${name}"${json ? ' with { type: "json" }' : ''};`).join('\n')
+            const source = imports + `\nexport default [${names.map((_, i) => `v${i}`).join(',')}];`
+            /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadFile | import('../../effects/node/types.ts').ResolveFileModule, null>} */
+            const host = {
+                resolveFileModule: (name, parent) => state => {
+                    if (parent === null) {
+                        assertEq(name, 'entry')
+                        return [state, ok({ id: 'file:///real/main.mjs', path: '/real/main.mjs' })]
+                    }
+                    if (name === './common.mjs') {
+                        assert(suffixes.some(suffix => parent === url + suffix))
+                        return [state, ok({ id: 'file:///real/common.mjs', path: '/real/common.mjs' })]
+                    }
+                    assertEq(parent, 'file:///real/main.mjs')
+                    const index = names.indexOf(name)
+                    assert(index >= 0)
+                    return [state, ok({ id: url + suffixes[groups[index]], path: `/real/dep #%.${ext}` })]
+                },
+                readFile: path => state => {
+                    assert(['/real/main.mjs', '/real/common.mjs', `/real/dep #%.${ext}`].includes(path))
+                    return [state, ok(utf8(path === '/real/main.mjs' ? source : path === '/real/common.mjs'
+                        ? 'export default [42];' : json ? '[[42]]' : 'import common from "./common.mjs"; export default [common];'))]
+                },
+            }
+            const runner = partialRun(nodeCommands)(host)(null)
+            for (let attempt = 0; attempt < 2; attempt++) {
+                const value = unwrap(runner(transpile('entry'))[1]).value
+                assert(value instanceof Array)
+                assertStructurallySame(value, names.map(() => [[42]]))
+                const expected = groups.map(a => groups.map(b => a === b))
+                assertStructurallySame(value.map(a => value.map(b => a === b)), expected)
+                const graph = unwrap(runner(resolve('entry'))[1])
+                assert(graph instanceof Array && graph[0] === '[]')
+                const nodes = graph[1]
+                assertStructurallySame(nodes.map(a => nodes.map(b => a === b)), expected)
+                const dependencies = value.map(item => {
+                    assert(item instanceof Array)
+                    return item[0]
+                })
+                const edges = nodes.map(item => {
+                    assert(item instanceof Array && item[0] === '[]')
+                    return item[1][0]
+                })
+                const nested = groups.map(a => groups.map(b => !json || a === b))
+                assertStructurallySame(dependencies.map(a => dependencies.map(b => a === b)), nested)
+                assertStructurallySame(edges.map(a => edges.map(b => a === b)), nested)
+            }
+        }
+    },
     virtualFileUrlRefusal: () => {
         // This host has no native URL/authority model. Refuse explicitly;
         // a file URL must never become a path below a directory named file:.
@@ -115,6 +180,69 @@ export const proof = {
             assertEq(exitCode(code), 1)
             assertEq(state.root[output], undefined)
             assertEq(state.stderr.trim(), 'main.f.js - error: module resolution failed: invalid module specifier')
+        }
+    },
+    // Once resolved, a diagnostic names the host's loading path, including
+    // syntax positions and cycles. A root that cannot resolve still names the
+    // caller's input; an unresolved dependency names its resolved importer.
+    hostDiagnosticPaths: () => {
+        const imports = 'import value from "./dep.f.js"; export default value;'
+        const root = { id: 'file:///real/main.f.js', path: '/real/main.f.js' }
+        /** @type {readonly (readonly [string | null, string | null, string, string])[]} */
+        const cases = [
+            [null, null, 'main.f.js', 'module resolution failed: missing module'],
+            [imports, null, '/real/main.f.js', 'module resolution failed: missing module'],
+            ['export default [;', null, '/real/main.f.js:1:17', 'unexpected token'],
+            [imports, 'export default [;', '/real/dep.f.js:1:17', 'unexpected token'],
+            ['import value from "./%6dain.f.js"; export default value;', null, '/real/main.f.js', 'circular dependency'],
+            ['import value from "file:///real/main.f.js"; export default value;', null, '/real/main.f.js', 'circular dependency'],
+            ['import unused from "file:///real/bad%"; export default 7;', null, '/real/main.f.js', 'module resolution failed: invalid module specifier'],
+            ['import a from "./data.json" with { type: "json" }; import b from "file:///real/data.json"; export default a;', '[[7]]', '/real/data.json', 'a JSON module needs the import attribute with { type: "json" }'],
+        ]
+        for (const [main, dependency, location, message] of cases) {
+            /** @type {import('../../effects/mock/types.ts').PartialMemOperationMap<import('../types.ts')._CompileOp, string>} */
+            const host = {
+                resolveFileModule: (name, parent) => state => {
+                    if (parent === null) {
+                        assertEq(name, 'main.f.js')
+                        return [state, main === null ? error(ioError({ message: 'missing module' })) : ok(root)]
+                    }
+                    assertEq(parent, root.id)
+                    if (name === './%6dain.f.js' || name === root.id) { return [state, ok(root)] }
+                    if (name === 'file:///real/bad%') { return [state, error(ioError({ message: 'invalid module specifier' }))] }
+                    if (name === './data.json' || name === 'file:///real/data.json') {
+                        return [state, ok({ id: 'file:///real/data.json', path: '/real/data.json' })]
+                    }
+                    assertEq(name, './dep.f.js')
+                    return [state, dependency === null ? error(ioError({ message: 'missing module' }))
+                        : ok({ id: 'file:///real/dep.f.js', path: '/real/dep.f.js' })]
+                },
+                readFile: path => state => {
+                    assert([root.path, '/real/dep.f.js', '/real/data.json'].includes(path))
+                    const source = path === root.path ? main : dependency
+                    assert(source !== null)
+                    return [state, ok(utf8(source))]
+                },
+                write: (stream, data) => state => {
+                    assertEq(stream, 'stderr')
+                    return [state + utf8ToString(data), ok(undefined)]
+                },
+                writeFile: () => state => {
+                    assert(false, 'a failed compilation must not write output')
+                    return [state, ok(undefined)]
+                },
+            }
+            const runner = partialRun(nodeCommands)(host)('')
+            for (const result of [runner(transpile('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
+                assert(result[0] === 'error')
+                assertEq(_errorLocation('main.f.js')(result[1]), location)
+                assertEq(result[1].message, message)
+            }
+            for (const output of ['out.data.js', 'out.edag.data.js']) {
+                const [stderr, result] = runner(compile(['main.f.js', output]))
+                assertEq(exitCode(result), 1)
+                assertEq(stderr.trim(), `${location} - error: ${message}`)
+            }
         }
     },
     // The literal local targets exist: these must be refusals, not fallback
@@ -211,23 +339,37 @@ export const proof = {
     // Suffixes affect identity, never the loading filename. Repeated spellings
     // and empty components share; distinct suffixes allocate independently.
     importComponents: () => {
+        const suffixes = ['', '?v=1', '?v=1', '?v=2', '#a', '#b', '?', '#', '?#', '?v=1#', '?v=1#a', '?v=1#a', '?bad%/a:b#%2F']
+        const groups = [0, 1, 1, 2, 3, 4, 0, 0, 0, 1, 5, 5, 6]
+        const expected = groups.map(a => groups.map(b => a === b))
         for (const json of [false, true]) {
             const ext = json ? 'json' : 'f.js'
             const attr = json ? ' with { type: "json" }' : ''
+            const imports = suffixes.map((suffix, i) => `import v${i} from "./${i === 2 ? '%64' : 'd'}ep.${ext}${suffix}"${attr};`).join('\n')
+            const source = imports + `\nexport default [${suffixes.map((_, i) => `v${i}`).join(',')}];`
             const root = {
-                'main.f.js': [utf8(`import a from "./dep.${ext}?v=1"${attr}; import b from "./%64ep.${ext}?v=1"${attr}; import c from "./dep.${ext}?v=2"${attr}; import d from "./dep.${ext}#copy"${attr}; import e from "./dep.${ext}?"${attr}; import f from "./dep.${ext}#"${attr}; import g from "./dep.${ext}"${attr}; export default [a,b,c,d,e,f,g];`)],
-                [`dep.${ext}`]: [utf8(json ? '[7]' : 'export default [7];')],
+                'main.f.js': [utf8(source)],
+                'common.f.js': [utf8('export default [7];')],
+                [`dep.${ext}`]: [utf8(json ? '[[7]]' : 'import common from "./common.f.js"; export default [common];')],
                 [`dep.${ext}?v=1`]: [utf8(json ? '[99]' : 'export default [99];')],
             }
             const value = unwrap(run(root)('main.f.js')).value
             assert(value instanceof Array)
-            assertStructurallySame(value, [[7], [7], [7], [7], [7], [7], [7]])
-            const [a, b, c, d, e, f, g] = value
-            assert(a === b && a !== c && c !== d && d !== e && e === f && f === g)
+            assertStructurallySame(value, suffixes.map(() => [[7]]))
+            assertStructurallySame(value.map(a => value.map(b => a === b)), expected)
             const graph = unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1])
             assert(graph instanceof Array && graph[0] === '[]')
-            const [ea, eb, ec, ed, ee, ef, eg] = graph[1]
-            assert(ea === eb && ea !== ec && ec !== ed && ed !== ee && ee === ef && ef === eg)
+            const nodes = graph[1]
+            assertStructurallySame(nodes.map(a => nodes.map(b => a === b)), expected)
+            if (!json) {
+                // Distinct suffixed wrappers still share an ordinary dependency.
+                const first = value[0]
+                assert(first instanceof Array)
+                assert(value.every(item => item instanceof Array && item[0] === first[0]))
+                const node = nodes[0]
+                assert(node instanceof Array && node[0] === '[]')
+                assert(nodes.every(item => item instanceof Array && item[0] === '[]' && item[1][0] === node[1][0]))
+            }
         }
     },
     suffixPathValidation: () => {
