@@ -14,31 +14,49 @@ that paragraph worked out against the actual generator, corrected against
 what it turns out to already do (and not do), and broken into concrete,
 independently landable tasks.
 
-**The starting-point description in the existing `todo/` record is wrong in
-one load-bearing way, worth fixing before anything else is built on it.**
-[`fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md) and a
-comment in the printer itself both describe the generator as already
-accepting one specific closure shape — `() => undefined` — and refusing every
-other one. That acceptance is dead code. The check
-(`isSmallestLambda` in
-[`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs)) matches a `=>`
-node whose frame is the array `['[]', []]`. But the real lowering, `lower`'s
-`case '=>':` in
-[`fjs/fsc/edag/module.f.mjs`](../edag/module.f.mjs), always produces the bare
+**A correction, made against this document's own first draft, worth
+recording so it isn't rediscovered as a surprise mid-implementation.** An
+earlier version of this section claimed the printer's one accepted closure
+shape — `() => undefined`, via `isSmallestLambda` in
+[`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs), matching a `=>`
+node whose frame is the array `['[]', []]` — was dead code, on the grounds
+that `fjs/fsc/edag`'s real lowering never produces that shape (it always
+produces the bare primitive `null` for a Stage 2 function's frame — see
+below). That is true for the `fjs/fsc` compiler path, but the check is very
+much alive on a *different* path through the same shared printer:
+[`fjs/nanvm/module.f.mjs`](../../nanvm/module.f.mjs)'s `lambdaExp`
+(`() => ['=>', ['[]', []], ['undefined']]`) hand-builds exactly that node as
+the operator-conformance corpus's stand-in "function value" operand — used
+across dozens of operator test cases (`+function`, `function * 1`, …) — and
+`nanvm-lib/tests/test/generated.rs` contains this check's output nearly
+thirty times, backed by a real `pub fn function_any` in
+`nanvm-lib/tests/test/harness.rs`. Removing the branch, rather than adding
+to it, regresses that whole suite.
+[`fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.md) already
+scoped this precisely — "the one placeholder closure *the operator-test
+corpus uses*" — and this document's first draft dropped that qualifier and
+over-generalized it into a claim about the compiler pipeline as a whole,
+which is the part that was wrong, not the original note.
+
+What *is* true, and is what Stage 1 actually needs: `fjs/fsc/edag`'s
+lowering (`lower`'s `case '=>':` in
+[`fjs/fsc/edag/module.f.mjs`](../edag/module.f.mjs)) always produces the bare
 primitive `null` for a Stage 2 function's frame — never an array — matching
 what [`fjs/fsc/README.md`](../README.md) documents as the canonical shape:
-*"A function is `['=>', null, body]`."* `null instanceof Array` is `false`,
-so `isSmallestLambda` is `false` for every function the compiler can
-currently produce, `() => undefined` included. Compiling
+*"A function is `['=>', null, body]`."* `isSmallestLambda`'s `['[]', []]`
+check is simply a *different, narrower* shape than the one the `fjs/fsc`
+compiler ever emits, so it happens to answer `false` for every function
+`fjs/fsc` can currently produce — a gap in coverage, not dead code. Compiling
 `export default () => undefined;` today produces the EDAG
 `["=>",null,["undefined"]]` and then fails `.rs` generation with
-`no Rust for: =>,,undefined` — confirmed by running the actual CLI. So there
-is no working closure support to extend; Stage 1 starts from zero, and the
-first task below is recognizing the shape the compiler actually emits.
+`no Rust for: =>,,undefined` — confirmed by running the actual CLI. So Stage
+1 needs a **second, additional** case recognizing `frame === null`, alongside
+the existing corpus-only check, not a replacement for it (Task 2).
 
 **Four refusal points, each with an exact cause:**
 
-1. **`=>` itself.** Beyond the dead `isSmallestLambda` check, above.
+1. **`=>` itself.** `isSmallestLambda` covers only the corpus's `['[]', []]`
+   shape, not `fjs/fsc`'s `null` — see above.
 2. **`()`, a call.** `['()', callee, args]` has no entry in any of `expExpr`'s
    `op1`/`op2`/`op3` operator tables, so it falls through to `lookup`'s
    generic `error(['no Rust for', id])` — the same refusal an unrecognized
@@ -236,15 +254,18 @@ their tests are otherwise unaffected).
 
 #### Task 2 — recognize what a non-capturing function actually looks like
 
-Replace `isSmallestLambda`'s check with one for `frame === null` — matching
-`fjs/fsc/edag`'s real lowering and `fjs/fsc/README.md`'s documented
-canonical shape, not an array shape nothing produces — and drop the
-`body[0] === 'undefined'` restriction entirely: Stage 1 needs to print
-whatever the body actually is, not special-case the one body shape the old,
-unreachable check happened to also require. Rename the predicate to say what
-it now checks (e.g. `isNonCapturing`), since "smallest lambda" was never an
-accurate name for "has no frame" and would be actively misleading once the
-body can be anything.
+Add a second case beside `isSmallestLambda`'s existing `['[]', []]` check,
+for `frame === null` — matching `fjs/fsc/edag`'s real lowering and
+`fjs/fsc/README.md`'s documented canonical shape — rather than replacing it:
+the existing check is load-bearing for the operator-conformance corpus (see
+Problem) and must keep answering `true` for `['[]', []]`. The new case drops
+the `body[0] === 'undefined'` restriction entirely for the `null`-frame
+shape specifically: Stage 1 needs to print whatever the body actually is,
+not special-case the one body shape the corpus's own narrower check happens
+to also require. Name the two cases so a reader can tell them apart (e.g.
+keep `isSmallestLambda` for the corpus shape, add a separate `isNonCapturing`
+for `frame === null`), since folding them into one predicate under either
+existing name would misdescribe the other case.
 
 Treat `frame: null` here purely as **a marker to detect and skip**, never as
 a value to print. A non-capturing function's generated `fn` has nothing to
@@ -551,9 +572,9 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
       *operand* positions too (a `.` chain's base, not just its own read);
       regenerate every committed fixture; update `nanvm-harness`'s `run` and
       its tests.
-- [ ] Task 2: fix/rename `isSmallestLambda` to recognize `frame === null`;
-      drop the `body[0] === 'undefined'` restriction; remove the phantom
-      `function_any()` call.
+- [ ] Task 2: add a `frame === null` case beside `isSmallestLambda`'s
+      existing `['[]', []]` check (kept, for the operator-conformance
+      corpus) with no `body[0] === 'undefined'` restriction on the new case.
 - [ ] Task 3: print bare `['args']` and `['.', ['args'], i]` (`i` a number
       literal), the latter bounds-checked against `Nullish::Undefined`.
 - [ ] Task 4: scope `sharedNodesOf`'s walk to stop at a `=>` node's `body`;
