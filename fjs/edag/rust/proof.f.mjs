@@ -142,7 +142,7 @@ export const proof = {
             'Any::member_access(Any::member_access([(string_key("a"), [(1f64).to_any()].to_array().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("length")).unwrap()')
         // `resolvedBase` folds through a `.` node only as far as an actual
         // literal object — a chain whose middle step resolves to something
-        // else (an array, here) stops there, unresolved, rather than
+        // else (an empty array, here) stops there, unresolved, rather than
         // assuming an object further down: its own tag check (`base[0] !==
         // '{}'`) guards against reading an array's items as if they were
         // `[':', key, value]` properties. Printed correctly all the same —
