@@ -18,13 +18,13 @@ export type _Hoisted = readonly ['entry', number] | readonly ['leaf', number | b
 /**
  * What each statement written so far named, in one scope: a hoisted value,
  * or nothing where the statement was an anchor's `const`, which holds a
- * value the scope does not reach. A name is the slot's position, so both
- * kinds take one and the two sequences cannot collide.
+ * value the scope does not reach. Each slot also carries its generated name. Module output chooses a prefix
+ * that cannot collide with an exported binding.
  *
  * A function body starts a list of its own, since it reads only its own
  * names — a reference out of a body is a capture.
  */
-export type _Names = readonly (_Hoisted | null)[]
+export type _Names = readonly (readonly [_Hoisted | null, string])[]
 
 /** The table being written, and the hoisted values named so far in the scope being written. */
 export type _Scope = {

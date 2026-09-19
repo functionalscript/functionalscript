@@ -17,12 +17,13 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../types/result/module.f.mjs'
 import { _defaultExport, unresolved } from '../edag/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
-import { trySerialize, tryStringify } from './module.f.mjs'
+import { trySerialize, tryStringify, tryModuleSerialize, tryModuleStringify } from './module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 
 /** The name the front end gives the text it reads back. */
@@ -116,7 +117,60 @@ const generated = (() => {
     return [...atoms, ...one, ...shapes(one)]
 })()
 
+/** @type {(source: string) => Exp} */
+const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
+
+/** @type {(graph: Exp) => unknown} */
+const moduleValue = graph => memo(analysis(graph))({ frame: null, args: [] })
+
 export const proof = {
+    namedExports: {
+        roundTrip: () => {
+            for (const source of [
+                'export const a=5;',
+                'const unused=[2]; export const z=[1]; export const a=z;',
+                'const base=[1]; export const z=base; export const a=[z,z]; export default a;',
+                'export const z=1; const local=[z]; export const a=local; export default z;',
+                'export const __proto__=7; export const constructor=8;',
+                'export const $0=[]; export const $$0=$0; export default $$0;',
+                'export const a=undefined; export default undefined;',
+                'export const a=(1).x; export const b=-1;',
+            ]) {
+                const graph = moduleGraph(source)
+                const text = unwrap(tryModuleStringify(graph))
+                const result = moduleValue(moduleGraph(text))
+                assertStructurallySame(result, moduleValue(graph), text)
+            }
+            const output = unwrap(tryModuleStringify(moduleGraph('export const z=[]; export const a=z; export default a;')))
+            assertEq(output, 'const $0=[];export const a=$0;export const z=$0;export default $0;')
+            const result = /** @type {{ a: unknown, z: unknown, default: unknown }} */ (moduleValue(moduleGraph(output)))
+            assert(result.a === result.z && result.a === result.default)
+            assertStructurallySame(Object.keys(result), ['a', 'default', 'z'])
+            assertEq(unwrap(tryModuleStringify(moduleGraph('export default 7;'))), 'export default 7;')
+        },
+        functions: () => {
+            const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
+            const result = /** @type {{ f: (...args: unknown[]) => unknown, default: unknown }} */ (moduleValue(moduleGraph(text)))
+            assert(result.f === result.default)
+            assertStructurallySame(result.f(1, 2), [1, 2])
+        },
+        refusals: () => {
+            for (const graph of /** @type {readonly Exp[]} */ ([
+                ['{}', []],
+                ['{}', [[':', 'a', 1], [':', 'a', 2]]],
+                ['{}', [[':', 'then', 1]]],
+                ['{}', [[':', 'if', 1]]],
+                ['{}', [[':', 'NaN', 1]]],
+                ['{}', [[':', 'not-a-name', 1]]],
+                ['{}', [[':', 'a', ['()', 1, ['[]', []]]]]],
+                ['{}', [[':', 'a', [',', [1]]]]],
+                ['{}', [[':', 'a', ['+', 1, 2]], [':', 'b', 1]]],
+                ['{}', [[':', 'a', ['.', 1, 'constructor']]]],
+                ['{}', [[':', 'a', ['=>', 7, 1]]]],
+                ['{}', [[':', 'default', ['()', 1, ['[]', []]]]]],
+            ])) { assertEq(tryModuleSerialize(graph)[0], 'error') }
+        },
+    },
     // A module is one line and one statement when nothing is shared: the
     // export, its value spelled where it stands. The leaves are the DataJS
     // serializer's, this writer owning none of their spelling.

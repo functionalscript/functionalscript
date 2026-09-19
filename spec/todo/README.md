@@ -105,8 +105,9 @@ see [serialization](./serialization.md).
    `return`, and the writer spells them
    ([functions](../README.md#functions))
 4. [ ] [forward-references](./3140-forward-references.md)
-5. [ ] [named exports](./3240-export.md) — **P1:** blocks compilation of the
-   selected `types/range` migration candidate.
+5. [x] `export const`, named-only and mixed modules
+   ([exports](../README.md#exporting-a-value)). The selected `types/range`
+   candidate now reaches the named-parameter blocker above.
 
 ### 3.2. Priority 2
 

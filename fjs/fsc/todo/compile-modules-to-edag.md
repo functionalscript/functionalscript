@@ -146,9 +146,8 @@ written and whether the import carries `with { type: "json" }` — see
 [`ast/types.ts`](../ast/types.ts). Preserve this declared module type for the
 resolver/loader to validate under the host contract, even on cache hits. Its order
 defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
-with the module export object as its root/result, currently `{ default: value }`.
-The [named-export design](../../../spec/todo/3240-export.md) extends that object
-with named properties.
+with the complete module export object as its root/result
+([named and default exports](../../../spec/README.md#exporting-a-value)).
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
 import specifiers and resolved loading locations must not be embedded into EDAG
@@ -486,12 +485,12 @@ accidentally serialize as a module result.
 
 The original Stage 1 promise to preserve the bare exported value is superseded
 by [#2129](https://github.com/functionalscript/functionalscript/pull/2129), the
-prerequisite for [named exports](../../../spec/todo/3240-export.md).
+prerequisite for [named exports](../../../spec/README.md#exporting-a-value).
 `transpile` still returns a `Denotation`, but for a FunctionalScript input its
-`value` is now the complete module export object, currently `{ default: value }`.
+`value` is now the complete module export object, including named properties and `default` when present.
 The linked EDAG and generated Rust compute that same object. JSON and DataJS
 value output serialize `result.default`; FunctionalScript output writes the
-corresponding `export default`. Direct `.json` roots remain documents and bypass
+individual `export const` declarations and a final `export default` when present. Direct `.json` roots remain documents and bypass
 both wrapping and projection, even if the document has a `default` property.
 
 After the baseline interpreter exists, [`interpret-edag.md`](./interpret-edag.md)
