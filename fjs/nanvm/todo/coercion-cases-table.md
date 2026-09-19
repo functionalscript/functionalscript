@@ -9,7 +9,7 @@
 twice — `numberCoercionCases(negate)` for `+n`/`-n` ("keeps the two groups
 from drifting apart") and `comparisonCases` with `relationCases` for the
 four relations ("the move `numberCoercionCases` already makes … and no
-cleverer than it"). Ten binary groups do not follow: `mulCases`,
+cleverer than it"). Eleven binary groups do not follow: `mulCases`,
 `divCases`, `expCases`, `subCases`, `remCases`, `bitAndCases`,
 `bitOrCases`, `bitXorCases`, `shiftLeftCases`, `signedRightShiftCases`,
 `unsignedRightShiftCases` each open with the same left operands in the
