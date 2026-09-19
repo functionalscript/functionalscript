@@ -1886,97 +1886,39 @@ const prefixCollision = (packed, name) => packed.find(e => {
 })?.name ?? null
 
 /**
- * The code a write is refused with when a packed ref name is a directory prefix
- * of the name being written, or the name being written is one of a packed name.
+ * The code a write is refused with when a ref would sit under this name, or this
+ * name under a ref. Git allows neither, and refuses with one message for both:
+ * `'<other>' exists; cannot create '<name>'`.
  *
- * `git update-ref` refuses both directions — measured on Git 2.43.0 with
- * `refs/heads/a` packed, `update-ref refs/heads/a/b` exits 128 with
- * `cannot lock ref 'refs/heads/a/b': 'refs/heads/a' exists; cannot create
- * 'refs/heads/a/b'`, and with `refs/heads/c/d` packed, `update-ref
- * refs/heads/c` exits 128 the other way round — and neither writes a file.
+ * Three things can put a ref there, and a write has to ask about each:
  *
- * **The state is not corrupt by Git's own lights, and one direction still does
- * real harm.** Built by hand, a packed `refs/heads/a` beside a loose
- * `refs/heads/a/b` is listed by `show-ref` and `for-each-ref`, resolved by
- * `rev-parse` both ways, walked by `rev-list --all`, reported by nothing in
- * `fsck` — and `git pack-refs --all` packs both lines happily, so Git's own
- * writer produces the state its `update-ref` refuses to create. The other
- * direction is different: with `refs/heads/c/d` packed and a loose
- * `refs/heads/c` beside it, `git rev-parse refs/heads/c/d` answers
- * `ambiguous argument … unknown revision`, because the loose *file* stands
- * where the path's directory would be. `show-ref` still lists the ref and
- * `rev-list --all` still walks it, so the object is still kept — but a name
- * that resolved before the write does not resolve after it, and no caller was
- * told.
+ * - a **packed** name, which no filesystem answer reveals — the `packed-refs`
+ *   read is for this, and {@link badPackedCode} is what a file that will not
+ *   parse leaves behind;
+ * - a **directory** at the ref's own path, or a **symlink to one**, which
+ *   {@link isDirectoryAt} answers before the lock is taken. The symlink is why
+ *   the `stat` exists rather than relying on the `rename`: measured, `fs.rename`
+ *   over such a link succeeds and leaves every ref inside the linked directory
+ *   unreachable, where a real directory is `EISDIR`;
+ * - a **loose file** where a parent directory must go, which the `mkdir` answers
+ *   `ENOTDIR` for.
  *
- * So one direction is Git's policy and the other is a ref this write breaks,
- * and both are refused rather than one: the rule Git states is one rule, a
- * writer that implemented half of it would be harder to explain than either
- * answer, and the cost is a `packed-refs` read this module already has in
- * {@link tryPackedRefs}.
+ * The message names the *path* and not the ref in the way, unlike Git's, because
+ * knowing which ref that is means walking the directory.
  *
- * **One loose direction needs no check of its own and the other does**, which is
- * not symmetric because the filesystem is not. A loose file where the parent
- * directory must go makes the `mkdir` answer `ENOTDIR`, and a real directory
- * where the ref's file must go makes the `rename` answer `EISDIR` — measured on
- * node 22.22.2. But a **symlink to a directory** at the ref's own path is
- * neither: measured, `fs.rename` over it *succeeds*, replaces the link, and
- * leaves every ref inside the linked directory unreachable, while the same
- * `update-ref` exits 128 with `'refs/heads/a/b' exists; cannot create
- * 'refs/heads/a'` and Git reads `refs/heads/a/b` through the link the whole
- * time — `show-ref`, `for-each-ref` and `rev-parse` all answer it. A destructive
- * success, and review's finding on
- * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
+ * **It is a snapshot, and a concurrent `git pack-refs` can invalidate it —
+ * under `git update-ref` too, which takes its lock before it verifies the name
+ * and is no better protected.** Closing that would mean holding
+ * `packed-refs.lock` across the check and the rename, which `update-ref`
+ * deliberately does not.
  *
- * So a write asks {@link isDirectoryAt} about the ref's path before it takes the
- * lock, and refuses where the answer is yes. `stat` follows the link, so one call
- * covers the symlink and the real directory alike — the `EISDIR` above is belt
- * and braces rather than the guard. It cannot name *which* ref is in the way, as
- * the message Git prints does, because knowing that means walking the directory;
- * it names the path instead.
+ * This module's own readers answer every one of these states the way `show-ref`
+ * does, so the refusal is about the repository this writer leaves for Git rather
+ * than anything read back here.
  *
- * Only a *packed* name is invisible to all of it, which is what the
- * `packed-refs` read is for.
- *
- * Half of that is proven and half is measured against node alone, which is
- * worth knowing rather than glossing. The `rename` direction has a fixture —
- * `writeGivesTheLockBack`. The `mkdir` direction has none, because the virtual
- * filesystem's recursive `mkdir` **replaces the file with a directory and
- * answers `ok`** where node answers `ENOTDIR`, so a fixture written for it would
- * watch this writer delete a ref and call that correct:
- * [`../../effects/node/virtual/todo/mkdir-over-a-file.md`](../../effects/node/virtual/todo/mkdir-over-a-file.md)
- * has the measurement and blocks the fixture.
- *
- * This module's own readers answer both states correctly — measured against the
- * virtual filesystem, `tryResolve` and `tryRoots` agree with `show-ref` on all
- * four names, including the one `rev-parse` will not resolve. The refusal is
- * therefore about the repository this writer leaves for Git, not about anything
- * read back here.
- *
- * **The check is a snapshot, and `git pack-refs` can invalidate it under either
- * writer's feet — Git's included.** The interleaving: `refs/heads/a/b` is loose,
- * so a write of `refs/heads/a` sees no packed collision and is refused by the
- * `rename` instead, because the loose file makes `refs/heads/a` a directory.
- * Between those two moments a concurrent `git pack-refs --all` packs `a/b`,
- * prunes the loose file *and the now-empty directory*, and the rename succeeds —
- * leaving the harmful state above.
- *
- * Measured on Git 2.43.0, and the answer is that this is not this writer's race
- * to lose. `update-ref` takes `refs/heads/a.lock` **before** it verifies the name
- * is available, and `pack-refs --all` does not honour that lock when pruning a
- * different name: with the lock file in place it exits 0, packs `a/b`, removes
- * both the file and the `refs/heads/a` directory, and leaves the lock untouched.
- * The rename that follows is the same rename. Started from the settled state, the
- * control is `update-ref refs/heads/a` exiting 128 with `'refs/heads/a/b'
- * exists; cannot create 'refs/heads/a'` — so the check is real and the race is
- * what defeats it, for Git as much as for this.
- *
- * Closing it would mean holding `packed-refs.lock` across the check and the
- * rename, which is what `pack-refs` itself takes. `update-ref` does not — that
- * would serialise every ref write behind one lock — so a writer that did would be
- * stricter than Git by a protocol Git does not have.
- * [`../todo/ref-writing.md`](../todo/ref-writing.md) carries it as a decision
- * rather than a gap.
+ * Every measurement behind the four paragraphs above, the interleaving table for
+ * the race, and which of them have fixtures and which rest on a node measurement
+ * alone: [`../todo/ref-writing.md`](../todo/ref-writing.md).
  */
 export const refPrefixCode = /** @type {const} */ ('ERR_REF_PREFIX')
 
@@ -2042,119 +1984,52 @@ const collided = (packed, name, dense) => {
  *
  * **The lock is the write.** Git creates `<name>.lock` with `O_CREAT|O_EXCL`,
  * fills it, and renames it over the ref, so a second writer fails to take the
- * lock rather than interleaving with the first and the reader sees either the
- * old file or the new one and never a half-written one. This does the same, in
- * five effects: `packed-refs`, a `stat` of the ref's own path, the directories
- * above the file, the exclusive write, the rename.
+ * lock rather than interleaving and a reader sees the old file or the new one
+ * and never a half-written one. This does the same, in five effects:
+ * `packed-refs`, a `stat` of the ref's path, the directories above the file, the
+ * exclusive write, the rename.
  *
- * **The create and the fill are one effect and not two, which is a hole and not
- * a round trip.** `createExclusive` closes its descriptor, so a `writeFile`
- * after it reopens the *pathname* with the flags `w` gives — `O_TRUNC`, and
- * symlinks followed. Measured on node 22.22.2 with the name replaced by a
- * symlink between the two calls: the `writeFile` **succeeded and overwrote the
- * link's target**, and the name was still a symlink, so the `rename` would have
- * published the link as the ref. `writeExclusive` is one `writeFile` with
- * `flag: 'wx'`, which answers `EEXIST` on that symlink — and on a dangling one,
- * since `O_EXCL` refuses a link without following it — with the target
- * untouched. `fjs/effects/node`'s `WriteExclusive` carries the measurement and
- * its control. An earlier revision of this writer took the two calls; that it is
- * one now is review's finding on
- * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
- *
- * **No proof can see that, and the `@type` below is what stands in for one.**
- * The virtual filesystem has no symlinks, and the host proofs write nothing —
- * `fjs/effects/node/proof.mjs` says so, because the Deno task runs without
- * `--allow-write` — so the two shapes are indistinguishable to every runner this
- * repository can test against. What is not indistinguishable is the operation
- * set: writing the lock through a second call puts `CreateExclusive | WriteFile`
- * in it, and the annotation names `WriteExclusive`, so `tsc` refuses the
- * revision. A `types.ts` assertion restating that set was written and removed —
- * it reported nothing the annotation did not already report, which is the
- * "claims more than it holds" that [§1.4](../../AGENTS.md) warns about.
+ * The create and the fill are **one** effect, `fjs/effects/node`'s
+ * `writeExclusive`, and that is a hole closed rather than a round trip saved: a
+ * `createExclusive` that closes its descriptor and a `writeFile` that reopens the
+ * pathname let a symlink in between be followed and its target overwritten. No
+ * runner here can see the difference, so the `@type` below is what holds it —
+ * the two calls put `CreateExclusive | WriteFile` in the operation set and this
+ * one names `WriteExclusive`, so `tsc` refuses the revision.
  *
  * `.lock` is the suffix because no ref is named that —
  * [`fjs/git/refname`](../refname/module.f.mjs)'s `lockSuffix`, refused at the
- * end of every component — so the lock of one ref is never the file of
- * another, and the walk of `refs/` skips it as a write in progress.
+ * end of every component — so the lock of one ref is never the file of another,
+ * and the walk of `refs/` skips it as a write in progress.
  *
- * **The bytes are the id's hex digits and an LF** — `oidBytes * 2 + 1` of them
- * and not a fixed 41, since the width is the repository's and not the id's.
- * Measured on Git 2.43.0, `.git/refs/heads/x` after `git update-ref` is 41 bytes
- * in a SHA-1 repository and **65 in one created with
- * `git init --object-format=sha256`**, whose commit ids are sixty-four digits.
- * That is the same width {@link idWidthCode} refuses an id for missing, and the
- * width [`fjs/git/ref`](../ref/module.f.mjs) reads back. The LF is not
- * load-bearing for Git's own reader — a file holding the digits alone resolves,
- * measured — and it is written because Git writes it.
+ * **The bytes are the id's hex digits and an LF**, `oidBytes * 2 + 1` of them
+ * and not a fixed 41: the width is the repository's, the same one
+ * {@link idWidthCode} refuses an id for missing and
+ * [`fjs/git/ref`](../ref/module.f.mjs) reads back.
  *
- * **Every refusal comes before any effect that writes**, so a name or an id
- * this cannot write leaves no file behind. Five are decided from the name and
- * the id alone: a name that is no ref name ({@link badNameCode}), one no path
- * spells ({@link unspellableNameCode}), one outside `refs/`
- * ({@link outsideRefsCode}), an id of the wrong width ({@link idWidthCode}) —
- * and the zero id, which is {@link zeroIdCode} on this side too. That last is
- * Git's *delete* and not a value: measured on Git 2.43.0,
- * `git update-ref refs/heads/z 0000…` removes `refs/heads/z` at exit 0 and the
- * same on a name that does not exist is a no-op, while a file holding the zero
- * id makes `git show-ref` answer `bad ref` — and makes {@link tryRoots} refuse
- * the listing. Writing it would be writing a repository this module will not
- * read.
+ * **Every refusal comes before any effect that writes**, so a name or an id this
+ * cannot write leaves no file behind. Five are decided from the name and the id
+ * alone — a name that is no ref name ({@link badNameCode}), one no path spells
+ * ({@link unspellableNameCode}), one outside `refs/` ({@link outsideRefsCode}),
+ * an id of the wrong width ({@link idWidthCode}), and the zero id, which is
+ * Git's *delete* rather than a value and so {@link zeroIdCode} on this side too.
+ * Two more need the filesystem: a ref under the name or the name under a ref
+ * ({@link refPrefixCode}), and a `packed-refs` that will not parse and so cannot
+ * answer the first ({@link badPackedCode}).
  *
- * Three more are decided from the filesystem, which is why a write reads two
- * things before it writes anything: a packed name that is a directory prefix of
- * this one or the other way round, and a directory — or a **symlink to one** — at
- * the ref's own path, both {@link refPrefixCode}; and a `packed-refs` that will
- * not parse, which leaves the first question unanswerable
- * ({@link badPackedCode}). Each is Git's answer and each was measured.
+ * **Where it is narrower than `git update-ref`**, each measured and none of them
+ * a wrong answer: it does not check that the object is there, nor — under
+ * `refs/heads/`, where Git constrains it and nowhere else — that the object is a
+ * commit; it does not honour `core.sharedRepository`, so on a group repository
+ * the directories it creates lack the group-write bit and the *next* writer's
+ * lock fails with `EACCES`; it writes no reflog line; it does not rewrite
+ * `packed-refs`, so a packed line of the same name is shadowed by the new loose
+ * file, which is what Git leaves too; and it does not dereference a symbolic ref
+ * already at the name, which is `update-ref --no-deref`.
  *
- * **It does not check that the object is there**, and Git does: measured,
- * `git update-ref refs/heads/g <a well-formed id no object has>` exits 128 with
- * `trying to write ref … with nonexistent object`, and a file holding such an
- * id makes `show-ref` answer `bad ref`, `for-each-ref` and `rev-list --all`
- * exit 128, and `fsck` report `invalid sha1 pointer`. The id is the caller's
- * claim and checking it here would make a writer of refs a reader of objects;
- * the task is in [`../todo/ref-writing.md`](../todo/ref-writing.md).
- *
- * **Nor what *kind* of object it is, which under `refs/heads/` Git also
- * constrains, and only there.** Measured on Git 2.43.0 across five namespaces
- * and five object kinds: `update-ref refs/heads/<n>` exits 128 with
- * `trying to write non-commit object … to branch` for a blob, a tree, **and a
- * tag object, including one whose own target is a commit** — the rule is
- * "is a commit", not "peels to one" — while `refs/tags/`,
- * `refs/remotes/origin/`, `refs/notes/` and an arbitrary `refs/other/` take
- * every one of the five at exit 0. So this is one namespace's rule and not a
- * rule about refs, and it is a stronger check than existence rather than a
- * corollary of it: the type is in the object's header, so asking needs the same
- * reader the paragraph above defers.
- *
- * A branch written at a blob by hand is **not** a value this module answers
- * wrongly, which is why it is deferred rather than refused. Measured on the
- * same version: `rev-parse` prints the id at exit 0, `show-ref` and
- * `for-each-ref` both list the ref — `for-each-ref` naming its type as `blob` —
- * `rev-list --all` exits 0, and `git branch --list` shows it; only `git fsck`
- * reports `error: refs/heads/<n>: not a commit`. And it is a retention root in
- * fact as well as in this module's listing: with every reflog expired,
- * `git gc --prune=now` printed `error: Object … not a commit` and **kept the
- * blob**. So {@link tryRoots} listing it agrees with `show-ref`, `for-each-ref`
- * and what `gc` does, and what is missing is the validation `fsck` performs.
- *
- * **It does not honour `core.sharedRepository` either, and there the cost lands
- * on somebody else.** Measured on Git 2.43.0 with `git init --shared=group` and
- * a `0022` umask: `git update-ref refs/heads/topic/x` leaves `refs/heads/topic`
- * at mode `2775` and the ref file at `664`, where a plain `mkdir -p` under the
- * same umask gives `2755` and a plain write `644`. So on such a repository this
- * writer succeeds and the next group member's `createExclusive` of a `.lock`
- * inside that directory fails with `EACCES` — a loud failure rather than a wrong
- * value, and still a namespace nobody asked for. Honouring it needs the config
- * read and a mode on `mkdir` and on the write, neither of which these effects
- * have; the measurement and the two ways out are in
+ * Every measurement behind all of this, what each divergence would cost to
+ * close, and which claims have fixtures and which rest on a measurement alone:
  * [`../todo/ref-writing.md`](../todo/ref-writing.md).
- *
- * That file lists what else this leaves to a caller: no reflog line, where
- * `update-ref` writes one under `core.logAllRefUpdates`; no `packed-refs`
- * rewrite, so a packed line of the same name is shadowed by the new loose file
- * rather than removed, which is what Git leaves too; and no dereference of a
- * symbolic ref already at the name, which is `update-ref --no-deref`.
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, void, IoChannel>}
  */

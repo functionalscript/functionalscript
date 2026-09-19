@@ -396,6 +396,15 @@ export const proof = {
         const [state, nested] = virtual({ ...emptyState, root })(writeExclusive('a/b', payload))
         assert(nested[0] === 'error')
         assertStructurallySame(state.root, root)
+        // And a `Vec` that is not whole bytes never reaches this runner at all:
+        // `writeExclusive` refuses it in `../module.f.mjs`, because the node
+        // runner's `fromVec` would pad the last byte and create a file holding
+        // a byte the caller never gave while this one stored the vector as it
+        // was. The refusal is the same one `inflate` makes.
+        const [kept, unaligned] = virtual({ ...emptyState, root })(writeExclusive('x.lock', vec(4n)(0b1010n)))
+        assert(unaligned[0] === 'error')
+        assertIoMessage(unaligned[1], 'invalid buffer size')
+        assertStructurallySame(kept.root, root)
     },
     writeBytesNestedMissing: () => {
         // writeBytes('a/b', ...) where 'a' doesn't exist. Non-empty root, as above.

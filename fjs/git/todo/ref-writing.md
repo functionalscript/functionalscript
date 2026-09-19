@@ -30,7 +30,9 @@ failure: that write succeeding is the only evidence the lock is this writer's,
 and no error code is evidence of the same. The file is `oidBytes * 2 + 1` bytes
 and not a fixed 41 — measured, `update-ref` writes 41 bytes in a SHA-1 repository
 and 65 in one created with `git init --object-format=sha256`, whose ids are
-sixty-four digits.
+sixty-four digits. The LF is not load-bearing for Git's own reader — a file
+holding the digits alone resolves, measured — and is written because Git writes
+it.
 
 **The create and the fill are one effect**, which is a hole and not a round trip.
 `createExclusive` closes its descriptor, so a `writeFile` after it reopens the
@@ -44,6 +46,15 @@ is created and filled and a second attempt on the taken name is `EEXIST` with th
 bytes unchanged. That is `fjs/effects/node`'s `writeExclusive`, added for this.
 Adding it widens `NodeOp`, which a custom runner must implement, so the PR
 declares a breaking change.
+
+No runner here can see that fix: the virtual filesystem has no symlinks and the
+host proofs write nothing, since the Deno task runs without `--allow-write`. What
+holds it is `tryWrite`'s own `@type` — the two calls put
+`CreateExclusive | WriteFile` in the operation set and the annotation names
+`WriteExclusive`, so `tsc` refuses the revision. A `types.ts` `Assert<Equal<…>>`
+restating that set was written and deleted: falsifying it reported, but breaking
+the *mechanism* reported at the annotation instead, so it claimed a guard it did
+not provide.
 
 **And the rollback is the runner's, because that is where `O_EXCL` succeeding is
 known.** Three revisions decided ownership at the caller instead and each was a
@@ -69,10 +80,22 @@ both of the reads. Measured on 2.43.0: with `refs/heads/a` packed,
 `update-ref refs/heads/a/b` exits 128 with `'refs/heads/a' exists; cannot create
 'refs/heads/a/b'`, and with `refs/heads/c/d` packed the same command on
 `refs/heads/c` exits 128 the other way round. `refPrefixCode` and
-`badPackedCode` are the refusals that come out of the `packed-refs` read, and
-`refstore`'s doc has what each direction costs: one is Git's policy over a state
-its own `pack-refs` produces, and the other breaks `git rev-parse` for a ref that
-resolved before the write.
+`badPackedCode` are the refusals that come out of the `packed-refs` read.
+
+The two directions do not cost the same, which is the argument for refusing both.
+A packed `refs/heads/a` beside a loose `refs/heads/a/b` is listed by `show-ref`
+and `for-each-ref`, resolved by `rev-parse` both ways, walked by
+`rev-list --all` and reported by nothing in `fsck` — and `git pack-refs --all`
+packs both lines happily, so Git's own writer produces the state its
+`update-ref` refuses to create. The other direction is different: with
+`refs/heads/c/d` packed and a loose `refs/heads/c` beside it,
+`git rev-parse refs/heads/c/d` answers `ambiguous argument … unknown revision`,
+because the loose *file* stands where the path's directory would be. `show-ref`
+still lists it and `rev-list --all` still walks it, so the object is still kept —
+but a name that resolved before the write does not resolve after it, and no
+caller was told. One direction is policy and the other is a ref the write breaks;
+both are refused, because the rule Git states is one rule and half of it would be
+harder to explain than either answer.
 
 The *loose* directions are the host's to refuse, and only one of them actually
 is. A loose file where the parent directory must go is `ENOTDIR` from the `mkdir`,
