@@ -7,6 +7,8 @@
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  */
 
+import { memo } from '../../edag/memo/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
@@ -47,7 +49,54 @@ const expectEdag = (edag, expected) => {
     assertStructurallySame(edag, expected)
 }
 
+/** @type {(graph: Exp) => unknown} */
+const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
+
 export const proof = {
+    namedExports: {
+        sharing: () => {
+            const source = 'export const z=[]; export const a=z; export default a;'
+            const graph = unresolved(unwrap(parse('')(source))).edag
+            const result = /** @type {{ a: unknown, z: unknown, default: unknown }} */ (execute(graph))
+            assertStructurallySame(Object.keys(result), ['a', 'default', 'z'])
+            assert(result.a === result.z && result.a === result.default)
+            assertStructurallySame(result.a, [])
+            expectEdag(_defaultExport(['{}', []]), ['.', ['{}', []], 'default'])
+        },
+        imports: () => {
+            const root = {
+                'main.f.js': file('import a from "./dep.f.js"; import b from "./dep.f.js"; export const a1=a; export default [a,b];'),
+                'dep.f.js': file('export const z=[]; export default z;'),
+            }
+            const result = /** @type {{ a1: unknown, default: readonly unknown[] }} */ (execute(unwrap(linked(root)('main.f.js'))))
+            assert(result.a1 === result.default[0] && result.default[0] === result.default[1])
+            const missing = { 'main.f.js': file('import a from "./dep.f.js"; export default 1;'), 'dep.f.js': file('export const a=1;') }
+            assertEq(linkRefusal(missing)('main.f.js'), 'module has no default export at no position')
+            const defined = { ...missing, 'dep.f.js': file('export const a=1; export default undefined;') }
+            assertStructurallySame(execute(unwrap(linked(defined)('main.f.js'))), { default: 1 })
+        },
+        importedFunction: () => {
+            const root = {
+                'main.f.js': file('import f from "./dep.f.js"; export default f(5);'),
+                'dep.f.js': file('export const a=1; export default (...args)=>args;'),
+            }
+            const graph = program(root)('main.f.js')
+            assert(graph instanceof Array && graph[0] === '()')
+            assertStructurallySame(execute(graph), [5])
+        },
+        dependencyOrder: () => {
+            const graph = unresolved(unwrap(parse('')('export const z=[]; export const a=[z];'))).edag
+            const result = /** @type {{ a: readonly unknown[], z: unknown }} */ (execute(graph))
+            assertStructurallySame(Object.keys(result), ['a', 'z'])
+            assert(result.a[0] === result.z)
+        },
+        throw: {
+            unselectedInitializer: () => execute(program({
+                'main.f.js': file('import x from "./dep.f.js"; export default x;'),
+                'dep.f.js': file('export const bad=null.x; export default 7;'),
+            })('main.f.js')),
+        },
+    },
     moduleResult: {
         default: () => {
             expectEdag(unresolved(unwrap(parse('')('export default 7;'))).edag,
@@ -91,12 +140,9 @@ export const proof = {
             expectEdag(imported, [',', [['[]', []], ['[]', [7]]]])
         },
         throw: {
-            // The linker and writer only project the parser's default-only
-            // module boundary. Refuse anything outside that invariant.
+            // Malformed internal module boundaries remain compiler errors.
             leaf: () => _defaultExport(7),
             array: () => _defaultExport(['[]', []]),
-            missing: () => _defaultExport(['{}', []]),
-            named: () => _defaultExport(['{}', [[':', 'a', 7]]]),
             spread: () => _defaultExport(['{}', [['...', 7]]]),
             emptyScope: () => _defaultExport([',', []]),
         },

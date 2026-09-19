@@ -253,6 +253,40 @@ const roundTripCorpus = [
 ]
 
 export const proof = {
+    namedExports: {
+        values: () => {
+            assertEq(compileSource('export const a=5; export default 7;')('output.json'), '7')
+            assertEq(compileSource('export const a=5;')('output.data.js'), 'export default undefined;')
+            assertEq(jsonRefused('export const a=5;'), 'output.json - error: no JSON spelling for undefined')
+            assertEq(compileSource('export const a=[]; export default a;')('output.json'), '[]')
+            assertEq(compileSource('const x=[]; export const a=[x,x]; export default 7;')('output.json'), '7')
+            assertEq(jsonRefused('export const a=[]; export default [a,a];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(compileSource('export const a=undefined; export default undefined;')('output.data.js'), 'export default undefined;')
+        },
+        imports: () => {
+            const input = 'import a from "./dep.f.js"; export default a;'
+            const root = { 'input.f.js': [utf8(input)], 'dep.f.js': [utf8('export const x=[]; export default x;')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'output.json'), '[]')
+            const [source, sourceCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            assertEq(exitCode(sourceCode), 0, source.stderr)
+            assertStructurallySame(evaluate(readOutput(source.root, 'output.f.js')), ['ok', []])
+            assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const x=7;')] }), 'dep.f.js - error: module has no default export')
+            assertEq(stderrOf({ ...root, 'dep.f.js': [utf8('export const bad=null.x; export default 7;')] }), 'dep.f.js - error: cannot read property "x" of null')
+            const [defined, definedCode] = virtual({ ...emptyState, root: { ...root, 'dep.f.js': [utf8('export const x=1; export default undefined;')] } })(compile(['input.f.js', 'output.data.js']))
+            assertEq(exitCode(definedCode), 0, defined.stderr)
+            assertEq(readOutput(defined.root, 'output.data.js'), 'export default undefined;')
+        },
+        sourceAndRust: () => {
+            const source = 'export const z=5; export const a=z; export default 7;'
+            assertEq(compileSource(source)('output.f.js'), 'export const a=5;export const z=5;export default 7;')
+            const rust = compileSource(source)('output.rs')
+            assert(rust.includes('string_key("a")'))
+            assert(rust.includes('string_key("z")'))
+            assert(rust.includes('string_key("default")'))
+        },
+    },
     moduleBoundary: {
         fixedPoint: () => {
             for (const source of ['export default 7;', 'export default {"default":7};', 'export default undefined;']) {
@@ -415,16 +449,16 @@ export const proof = {
             assertEq(fjsRoundTrip('const n = null; const check = n.x; export default 1;'), 'const $0=null.x;export default 1;')
             assertEq(moduleRefused('const n = null; const check = n.x; export default 1;'), 'input.f.js - error: cannot read property "x" of null')
         },
-        // a graph the writer has no spelling for is refused against the
-        // output file, as the `.json` and `.rs` refusals are: here a comma
-        // inside a container, which linking leaves where an imported module
-        // has an anchor of its own
-        refused: () => {
+        // Imported evaluation sequences use the same ordered declaration
+        // writer needed when a mixed module's default is selected.
+        importedSequence: () => {
             const root = {
                 'input.f.js': [utf8('import m from "./m.f.js"; export default [m];')],
                 'm.f.js': [utf8('const u = []; export default 1;')],
             }
-            assertEq(fjsRefused(root), 'output.f.js - error: a comma outside a scope')
+            const [output, outputCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            assertEq(exitCode(outputCode), 0, output.stderr)
+            assertStructurallySame(evaluate(readOutput(output.root, 'output.f.js')), ['ok', [1]])
             // the EDAG holds it, the comma being a node like any other
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
             assertEq(exitCode(code), 0, state.stderr)
