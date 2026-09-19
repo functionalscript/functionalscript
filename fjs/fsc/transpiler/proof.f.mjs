@@ -46,6 +46,11 @@ const refusedComponents = (specifier, source, root) => {
     assertStructurallySame(graph, value)
 }
 
+/** The parent's mixed-invalid-input cases now meet the more specific source-level suffix refusal first. @type {(specifier: string) => string} */
+const invalidImportMessage = specifier => specifier.includes('?') || specifier.includes('#')
+    ? `unsupported import specifier "${specifier}": query and fragment components are not supported`
+    : `invalid module specifier: ${specifier}`
+
 export const proof = {
     // The literal local targets exist: these must be refusals, not fallback
     // loads or accidental file-not-found errors. Prefixing ./ is the control.
@@ -242,13 +247,70 @@ export const proof = {
         assertEq(_importPath('main.f.js')('./%255C.f.js'), '%5C.f.js')
         assertEq(_importPath('main.f.js')('./%253A.f.js'), '%3A.f.js')
     },
+    // URL dot processing sees encoded components, not decoded filesystem paths.
+    // These invalid components vanish before validation; the same components
+    // still fail when they survive, or when `..` cancels only an empty one.
+    importPathDotSegments: () => {
+        for (const component of ['bad%', '%ff', '%2F', '%2f', '%00', '%5C', '%5c', 'C%3A', '%ED%A0%80']) {
+            for (const parent of ['..', '.%2e', '%2E.', '%2e%2E']) {
+                const specifier = `./${component}/%2E/${parent}/%64ep.f.js`
+                assertEq(_importPath('main.f.js')(specifier), 'dep.f.js', specifier)
+            }
+            assertEq(_importPath('main.f.js')(`./${component}//../dep.f.js`), null, component)
+            assertEq(_importPath('main.f.js')(`./${component}/../${component}/dep.f.js`), null, component)
+        }
+        assertEq(_importPath('main.f.js')('./bad%/x/../../dep.f.js'), 'dep.f.js')
+        assertEq(_importPath('/a/main.f.js')('/bad%/../../dep.f.js'), '/dep.f.js')
+        assertEq(_importPath('/a/main.f.js')('/../dep.f.js'), '/dep.f.js')
+        assertEq(_importPath('a/main.f.js')('../../dep.f.js'), '../dep.f.js')
+        assertEq(_importPath('main.f.js')('./%252e/dep.f.js'), '%2e/dep.f.js')
+        assertEq(_importPath('main.f.js')('./%252e%252e/dep.f.js'), '%2e%2e/dep.f.js')
+        // Do not confuse a raw drive/separator with percent-encoded data.
+        assertEq(_importPath('main.f.js')('./C:/../dep.f.js'), null)
+        assertEq(_importPath('main.f.js')('./bad%\\extra/../dep.f.js'), null)
+    },
+    canceledImportComponents: () => {
+        for (const component of ['bad%', '%ff', '%2F', '%00', '%5C', 'C%3A']) {
+            for (const parent of ['..', '.%2e', '%2E.', '%2e%2E']) {
+                const specifier = `./${component}/${parent}/dep.f.js`
+                const root = {
+                    'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
+                    'dep.f.js': [utf8('export default 1;')],
+                }
+                assertEq(unwrap(run(root)('main.f.js')).value, 1, specifier)
+                assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 1, specifier)
+            }
+        }
+    },
     importPathRefusals: () => {
         for (const specifier of [
             './bad%.f.js', './%ff.f.js', './a%2Fb.f.js', './a%5Cb.f.js', './a%00b.f.js',
             './C%3A/x.f.js', './dir/../c%3a/x.f.js', './%43%3a/x.f.js', './C:relative.f.js',
             './name%3Astream.f.js', './%ED%A0%80.f.js', './%ED%B0%80.f.js',
+            './dep.f.js?x=%64', './dep.f.js#x=%64', './dep.f.js?', './dep.f.js#',
+            './ignored?x=/../dep.f.js', './ignored#x=/../dep.f.js',
         ]) {
             assertEq(_importPath('main.f.js')(specifier), null, specifier)
+        }
+    },
+    // Escaped URL delimiters are filename data, not query/fragment syntax.
+    // A literal percent sign in a filename must itself be escaped, once.
+    importEncodedFilenameSyntax: () => {
+        for (const [specifier, name] of [
+            ['./name%3Fpart.f.js', 'name?part.f.js'],
+            ['./name%23part.f.js', 'name#part.f.js'],
+            ['./name%3f%23.f.js', 'name?#.f.js'],
+            ['./%2564ep.f.js', '%64ep.f.js'],
+            ['./name%253F.f.js', 'name%3F.f.js'],
+            ['./name%2523.f.js', 'name%23.f.js'],
+        ]) {
+            const root = {
+                'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
+                [name]: [utf8('export default 7;')],
+            }
+            assertEq(_importPath('main.f.js')(specifier), name)
+            assertEq(unwrap(run(root)('main.f.js')).value, 7, specifier)
+            assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 7, specifier)
         }
     },
     // Native URL input is a scalar-value string. Do not apply that replacement
@@ -263,17 +325,28 @@ export const proof = {
     // A valid dependency before a bad, unused import must not hide the error.
     // These are Result assertions, not "throw" proofs: a leaked panic fails.
     invalidImportResult: () => {
-        for (const specifier of ['./bad%.f.js', './a%5Cb.f.js', './a%00b.f.js', './C%3A/x.f.js']) {
+        for (const specifier of [
+            './bad%.f.js', './a%5Cb.f.js', './a%00b.f.js', './C%3A/x.f.js',
+            './bad%//../dep.f.js', './bad%/%252e%252e/dep.f.js',
+            './dep.f.js?x=%64', './dep.f.js#x=%64', './dep.f.js?', './dep.f.js#',
+            './ignored?x=/../dep.f.js', './ignored#x=/../dep.f.js',
+        ]) {
             const root = {
                 'main.f.js': [utf8(`import a from "./ok.f.js"; import b from "${specifier}"; export default a;`)],
                 'ok.f.js': [utf8('export default 1;')],
                 'C:': { 'x.f.js': [utf8('export default 2;')] },
+                // A suffix must not choose one of these files, even when it exists.
+                'dep.f.js': [utf8('export default 2;')],
+                'dep.f.js?x=d': [utf8('export default 3;')],
+                'dep.f.js#x=d': [utf8('export default 4;')],
+                'dep.f.js?': [utf8('export default 5;')],
+                'dep.f.js#': [utf8('export default 6;')],
             }
             const value = run(root)('main.f.js')
             const edag = virtual({ ...emptyState, root })(resolve('main.f.js'))[1]
             for (const result of [value, edag]) {
                 assert(result[0] === 'error', result)
-                assertEq(result[1].message, `invalid module specifier: ${specifier}`)
+                assertEq(result[1].message, invalidImportMessage(specifier))
                 assertEq(result[1].path, 'main.f.js')
             }
         }
@@ -289,12 +362,14 @@ export const proof = {
     // Both callers propagate the error through the CLI: exit 1, a diagnostic,
     // no output. A thrown assertion would fail this ordinary (non-throw) proof.
     invalidImportDiagnostic: () => {
-        for (const output of ['out.data.js', 'out.edag.data.js', 'out.f.js', 'out.json', 'out.rs']) {
-            const root = { 'input.f.js': [utf8('import value from "./bad%.f.js"; export default value;')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
-            assertEq(exitCode(code), 1, state.stderr)
-            assertEq(state.root[output], undefined)
-            assertEq(state.stderr.trim(), 'input.f.js - error: invalid module specifier: ./bad%.f.js')
+        for (const specifier of ['./bad%.f.js', './dep.f.js?x=%64', './dep.f.js#x=%64']) {
+            for (const output of ['out.data.js', 'out.edag.data.js', 'out.f.js', 'out.json', 'out.rs']) {
+                const root = { 'input.f.js': [utf8(`import value from "${specifier}"; export default value;`)] }
+                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+                assertEq(exitCode(code), 1, state.stderr)
+                assertEq(state.root[output], undefined)
+                assertEq(state.stderr.trim(), `input.f.js - error: ${invalidImportMessage(specifier)}`)
+            }
         }
     },
     parseWithSubModules: () => {
