@@ -89,10 +89,12 @@ Re-exports and new expression or function syntax are outside this first step.
 
 ### Compiler changes
 
-The parser's module body currently ends in the default-export expression.
-Change that result to the export object. Carry it through AST evaluation,
-`transpile`, and the EDAG's `unresolved` and `resolve` paths. Default imports
-must project `.default` instead of binding the entire imported result.
+The prerequisite in [#2129](https://github.com/functionalscript/functionalscript/pull/2129)
+makes the parser's module body end in `{ default: value }` and carries that
+export object through AST evaluation, `transpile`, and the EDAG's `unresolved`
+and `resolve` paths. Default imports select `.default`. The remaining work
+extends that representation to named and mixed exports, preserving evaluation
+and sharing when selecting an export.
 
 The EDAG represents the computation of this object. The existing
 [generated Rust entry point](../../fjs/fsc/rust/module.f.mjs),
