@@ -41,10 +41,16 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6 }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6 }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
+    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
 }
+/* Every link on the site is coloured the same whether or not it has been
+   opened: nearly every word here is a link into the tree, and the visited
+   distinction says only where this reader has been, not what a file holds.
+   --link is its own token, not an alias for --pass, even though it starts at
+   the same values — moving one later must not drag the other with it. */
+a, a:visited { color: var(--link) }
 /* Nearly every word on this site is a path, and a path has no space for a line
    to break at. On a phone a page's title, a proof's name or a digest is wider
    than the screen, and with nowhere to break it the whole page scrolls
