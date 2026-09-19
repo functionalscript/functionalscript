@@ -18,8 +18,8 @@
       (the reasoning is [`../README.md`](../README.md))
 - [x] A link looks the same once it has been followed, in the site's own
       green (`--link` in `fjs/website/style/module.f.mjs`)
-- [ ] A favicon, two committed files linked from every head — see
-      [favicon](favicon.md)
+- [x] A favicon, two committed files linked from every head ("fs", the
+      reasoning is [`../README.md`](../README.md))
 - [ ] Decide what the build owes its own leftovers — see
       [stale-generated-pages](stale-generated-pages.md)
 - [x] Convention for a `demo` export — an optional pure demo, discovered like a
