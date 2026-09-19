@@ -8,10 +8,16 @@ export const pair = (a, b) => [a, b];
 ```
 
 The language already supports empty and rest-only parameter lists
-([functions](../README.md#functions)). Sergey approved implementing `a => …`,
-`(a) => …`, and `(a, b) => …` on 2026-09-19, following #2131.
-This task owns all three spellings, including the bare single parameter;
+([functions](../README.md#functions)). This task proposes `a => …`,
+`(a) => …`, and `(a, b) => …`. It owns all three spellings;
 the former separate one-parameter task is consolidated here.
+
+**Language-design approval:** no verifiable approval link is recorded here.
+Before implementation, link an explicit decision by `sergey-shandar` covering
+the syntax and the representation/writer scope below, as required by
+[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
+The earlier reference to #2131 identified implementation context, not an
+approval record, and must not be used as evidence that this gate was met.
 
 **Benefit:** familiar JavaScript syntax and compiling existing modules unchanged.
 **Cost:** parameter/group disambiguation, binding logic, and preservation of the
@@ -108,6 +114,8 @@ does not admit mixed-rest syntax into FunctionalScript.
 
 ## Implementation tasks after that decision
 
+- [ ] Record the approving language designer and a direct link to their
+  explicit approval of the syntax and representation/writer scope.
 - [ ] Add named parameter parsing with JavaScript's grouping distinction and
   no line terminator before `=>`. Allow an ordinary trailing parameter comma.
   Reject expressions, nested groups and property accesses as binding names.
