@@ -498,6 +498,11 @@ Before implementing it, obtain **formal, explicit approval from another language
 designer**, distinct from the proposer. Record the approving designer and a link
 to their approval in the TODO; silence or self-approval does not count.
 
+The language designers authorized to grant this approval are named here.
+Currently, the language designer is **`sergey-shandar`**. Task ownership under
+[SESSION.md](./SESSION.md) does not by itself grant this authority, and ordinary
+code review does not replace explicit language-design approval.
+
 This gate also applies to familiar JavaScript features. The general
 incremental-design guidance in [§3](#3-design-before-implementation) does not
 waive the TODO, benefit/drawback explanation, or independent approval.
