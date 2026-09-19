@@ -85,6 +85,16 @@ refuse unsupported specifier classes rather than reinterpret them as relative
 filesystem paths. Host choice is explicit: Node package resolution and browser
 import maps are different environments, not interchangeable defaults.
 
+### Current specifier admission
+
+Both compiler paths now share `_importSources`, which classifies original import
+strings before decoding, normalizing or loading them. Imports starting with
+`./`, `../` or `/` continue through the existing path resolver. Bare package
+names/subpaths, `#` aliases and scheme-based URLs are explicitly refused until
+their host resolution is implemented; they never fall back to sibling files.
+This is a resolution restriction, not a JavaScript grammar restriction or a
+restriction on CLI input filenames. It does not complete URL identity handling.
+
 ### Tasks
 
 - [ ] Specify and share the resolution contract between value compilation and
@@ -98,6 +108,11 @@ import maps are different environments, not interchangeable defaults.
 - [x] Refuse unsupported query/fragment syntax before path decoding in both
       compiler paths; preserve percent-encoded filename delimiters and prove
       single decoding, normal diagnostics and no compiler output on refusal.
+- [x] Refuse unsupported non-path specifiers through a shared `ParseError`
+      result in value compilation and EDAG linking. Prove misleading local
+      targets cannot be loaded, raw spelling is classified before decoding,
+      and explicit relative controls still work; retain package resolution
+      and URL identity as future work.
 - [ ] Add the shared differential FJS/native-ESM compatibility harness; the
       current proofs pin the FJS side while Node is the external oracle.
 - [ ] Cover equivalent URL spellings, escaped filenames, query/fragment
