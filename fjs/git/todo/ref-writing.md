@@ -38,6 +38,31 @@ it, and `refstore`'s doc has the measurement of what each direction costs: one i
 Git's policy over a state its own `pack-refs` produces, and the other breaks
 `git rev-parse` for a ref that resolved before the write.
 
+That check is a snapshot, and `git pack-refs` can invalidate it under either
+writer's feet — Git's included. `refs/heads/a/b` is loose, so a write of
+`refs/heads/a` sees no packed collision and is refused by the `rename` instead,
+the loose file having made `refs/heads/a` a directory; between those two moments
+a concurrent `pack-refs --all` packs `a/b`, prunes the loose file *and the
+now-empty directory*, and the rename succeeds. Measured on Git 2.43.0:
+
+| step | result |
+| --- | --- |
+| `refs/heads/a.lock` in place, as `update-ref` takes it first | — |
+| `git pack-refs --all` | exit 0; `a/b` packed; loose file **and** `refs/heads/a` directory pruned; **`a.lock` untouched** |
+| the lock holder's `rename` | succeeds |
+| `git rev-parse refs/heads/a/b` | `ambiguous argument … unknown revision` |
+| control: `update-ref refs/heads/a` from the settled state | exit 128, `'refs/heads/a/b' exists; cannot create 'refs/heads/a'` |
+
+So `update-ref` takes the lock before it verifies availability, `pack-refs` does
+not honour that lock when pruning a *different* name, and the rename that follows
+is the same rename. The check is real and the race is what defeats it, for Git as
+much as for this writer. Closing it means holding `packed-refs.lock` across the
+check and the rename — what `pack-refs` itself takes, and what `update-ref`
+deliberately does not, since it would serialise every ref write behind one lock.
+A writer that took it would be stricter than Git by a protocol Git does not have,
+and would fail or block whenever `pack-refs` runs. Found by review of this PR;
+recorded as a decision below rather than built.
+
 Deleting a ref is the harder half, because a name can be in two files: the
 loose file must go *and* the `packed-refs` line with it, or the packed line
 reappears as the ref. Git rewrites `packed-refs` under its own lock for that.
@@ -177,6 +202,9 @@ else in the name has moved DISOT semantics into Git's namespace.
 - [x] Refuse a name a packed ref bars as a directory prefix, either way round,
       and a `packed-refs` that will not parse — the questions no filesystem
       answer can stand in for.
+- [ ] Decide whether a write holds `packed-refs.lock` across its prefix check
+      and its rename, which is the only thing that closes the `pack-refs` race
+      above — and is stricter than `git update-ref`, which does not take it.
 - [ ] Decide `core.sharedRepository`: honour the mode, or refuse such a
       repository. Needs a `core.*` read either way, and a mode on `mkdir` and on
       the write if it is honoured.

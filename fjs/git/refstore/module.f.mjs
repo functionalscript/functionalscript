@@ -1915,6 +1915,31 @@ const prefixCollision = (packed, name) => packed.find(e => {
  * four names, including the one `rev-parse` will not resolve. The refusal is
  * therefore about the repository this writer leaves for Git, not about anything
  * read back here.
+ *
+ * **The check is a snapshot, and `git pack-refs` can invalidate it under either
+ * writer's feet — Git's included.** The interleaving: `refs/heads/a/b` is loose,
+ * so a write of `refs/heads/a` sees no packed collision and is refused by the
+ * `rename` instead, because the loose file makes `refs/heads/a` a directory.
+ * Between those two moments a concurrent `git pack-refs --all` packs `a/b`,
+ * prunes the loose file *and the now-empty directory*, and the rename succeeds —
+ * leaving the harmful state above.
+ *
+ * Measured on Git 2.43.0, and the answer is that this is not this writer's race
+ * to lose. `update-ref` takes `refs/heads/a.lock` **before** it verifies the name
+ * is available, and `pack-refs --all` does not honour that lock when pruning a
+ * different name: with the lock file in place it exits 0, packs `a/b`, removes
+ * both the file and the `refs/heads/a` directory, and leaves the lock untouched.
+ * The rename that follows is the same rename. Started from the settled state, the
+ * control is `update-ref refs/heads/a` exiting 128 with `'refs/heads/a/b'
+ * exists; cannot create 'refs/heads/a'` — so the check is real and the race is
+ * what defeats it, for Git as much as for this.
+ *
+ * Closing it would mean holding `packed-refs.lock` across the check and the
+ * rename, which is what `pack-refs` itself takes. `update-ref` does not — that
+ * would serialise every ref write behind one lock — so a writer that did would be
+ * stricter than Git by a protocol Git does not have.
+ * [`../todo/ref-writing.md`](../todo/ref-writing.md) carries it as a decision
+ * rather than a gap.
  */
 export const refPrefixCode = /** @type {const} */ ('ERR_REF_PREFIX')
 

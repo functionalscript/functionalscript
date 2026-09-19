@@ -47,6 +47,19 @@ does and of what the doc claims. So the claim rests on the node measurement
 alone, with no fixture behind it, and that is recorded here rather than left as
 a proof that passes for the wrong reason.
 
+**This is not a reason for `tryWrite` to refuse the write.** Review of
+[#2115](https://github.com/functionalscript/functionalscript/pull/2115) asked for
+exactly that — the writer to refuse a loose prefix until this runner matches the
+host — and it inverts where the defect is. This runner holds the filesystem in a
+JavaScript object and its README calls it "primarily used for testing"; every
+importer of it in the repository is a `proof`, the one exception being
+`fjs/dev`'s own proof entries. No ref store runs on it. A production refusal
+added because a test double models one operation wrongly would let the double set
+the contract, and `tryWrite` cannot ask which runner it is on in any case: the
+only check available to it is an extra `stat` of the parent before the `mkdir`,
+which is racy on a real host, redundant there because the `mkdir` already answers
+`ENOTDIR`, and paid on every write for a mock's benefit. The fix is here.
+
 ### Proposal
 
 Answer `ENOTDIR` where a remaining segment names something that is not a
