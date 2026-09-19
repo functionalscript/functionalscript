@@ -418,14 +418,17 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   in a SHA-1 repository, and what a trust layer does about a hash that can
   collide, is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
-- **A `refDelta` whose base is not in the pack that names it.** Packs are read
-  — [`packstore/`](packstore/module.f.mjs) answers from the `.idx` and the pack
-  beside it, and `store` reads them beside the loose path — and what is left is
-  a pack `index-pack --fix-thin` did not complete, whose delta names a base
-  stored elsewhere. Refused rather than guessed, because the base may be loose,
-  in another pack or nowhere, and only a reader of the whole store can say:
-  [`todo/packfiles.md`](todo/packfiles.md) and
-  [`todo/object-store.md`](todo/object-store.md). Multi-pack indexes, bitmaps
+- **A `refDelta` whose base is not in the pack that names it** is refused, and
+  that is the answer rather than a gap. Packs are read —
+  [`packstore/`](packstore/module.f.mjs) answers from the `.idx` and the pack
+  beside it, and `store` reads them beside the loose path — and such a pack is
+  one `index-pack --fix-thin` did not complete. Git refuses it too, with the
+  base in reach: measured on 2.43.0 over two hand-built packs alike but for
+  where the base sits, the one holding its own base read the object at exit 0
+  and the one whose base was loose *and* in a second pack beside it exited 128.
+  Resolving it through the whole store would read a pack every Git calls
+  broken, so whether to be deliberately more capable is a decision rather than
+  work: [`todo/packfiles.md`](todo/packfiles.md). Multi-pack indexes, bitmaps
   and the reverse index are not needed to read an object and are not here
   either.
 - **Writing a ref**, with the lock file Git takes, and the reflog:

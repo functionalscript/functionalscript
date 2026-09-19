@@ -192,7 +192,10 @@ const x = { a: undefined } // {}
 
 This way we can also keep better compatibility with JSON.
 
-See [todo/blocked/undefined-removes-property.md](./blocked/undefined-removes-property.md) — blocked on ECMAScript for compatibility reasons; a new PL isn't bound by that and adopts the behavior directly.
+See [todo/blocked/undefined-removes-property.md](./blocked/undefined-removes-property.md)
+— unresolved semantics and compatibility research for FunctionalScript, not a
+wait for an ECMAScript change. This section proposes property removal for a
+separate language; it does not define FunctionalScript semantics.
 
 #### Pipeline Operator
 

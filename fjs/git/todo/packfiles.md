@@ -10,12 +10,31 @@ below `objects/pack/`, and `fjs/git/store` reads the loose file and the packs
 alike — so the readers in this module read a fresh clone, where `git clone`
 and `git gc` leave almost nothing loose.
 
-What is left is one pack a reader cannot answer for on its own: a `refDelta`
-whose base is not in the pack that names it. That is a question about where a
-store may look rather than about what it can read, which is why it is the
-remainder of this issue and not a second one. The name-resolution and
-signature issues under [`todo/`](../../../todo/) both walk clones and both
-want it.
+What was left was one pack a reader seemed unable to answer for on its own: a
+`refDelta` whose base is not in the pack that names it. Measuring it closed the
+question rather than opening the work, because **Git refuses such a pack as
+well, with the base in reach.**
+
+Two hand-built v2 packs on Git 2.43.0, alike but for where the base sits — the
+same delta instructions, the same index shape, and the crc32 the index carries
+computed over the entry as it lies in the pack:
+
+| the base | `git cat-file -p <target>` |
+| --- | --- |
+| the pack's own first entry | exit 0, the object |
+| loose, *and* in a second pack beside it | exit 128, `fatal: Not a valid object name` |
+
+The first row is the control that makes the second mean anything: the same
+delta, read, so the construction is sound. `git fsck` calls the second
+`failed to validate delta base reference at offset <n>` — it is a broken pack,
+not an object kept somewhere else. `git index-pack` will not complete one
+either: `--fix-thin` appends the bases a fetched pack lacked, which is why a
+pack on disk normally carries its own.
+
+So `packstore`'s refusal is not a gap, and resolving the base through the whole
+store would answer for a pack every Git refuses — the same shape as answering
+for the two-byte delta `fjs/git/pack`'s floor was added to stop. What remains is
+a **choice** rather than a task, and it is recorded as one below.
 
 ### Proposal
 
@@ -54,17 +73,26 @@ the index's offsets for the next one up — see `after` in
 - [x] `tryRead(id)` over a pack directory, returning what the loose reader
       returns: [`fjs/git/packstore`](../packstore/module.f.mjs), and
       `fjs/git/store` reading the loose file and the packs alike.
-- [ ] A `refDelta` whose base is not in the same pack. Such a pack is one
-      `index-pack --fix-thin` did not complete — measured: storing a thin pack
-      appends the bases it lacked, so a pack on disk normally carries its own —
-      and `packstore` refuses one rather than guess where the base lives. The
-      base may be loose, in another pack, or nowhere, so resolving it is the
-      whole store's question and belongs with the `read(id)` of
-      [object-store.md](./object-store.md), not under one pack.
+- [x] A `refDelta` whose base is not in the same pack: refused, which is what
+      Git does with the same pack — measured above, with the base in the pack as
+      the control. `packstore`'s `baseNotInPack` pins the refusal and carries the
+      measurement. Nothing is resolved through the store, so `packstore` stays a
+      reader of one directory and does not call back into `fjs/git/store`.
+- [ ] **Decide whether to be deliberately more capable than Git here**, which is
+      the only thing left and is a choice, not a gap. Resolving the base through
+      `readIn` would read a thin pack Git calls broken. It could not answer
+      *wrongly* — whatever the delta produces is hashed against the id asked
+      for — so this is unlike the inputs the delta floor refuses. Against it:
+      `git fsck` reports such a pack, so reading it silently hides what Git
+      reports; no Git command writes one; and it would make `fjs/git/store` and
+      `fjs/git/packstore` mutually recursive, where today the dependency runs one
+      way. The cost of *not* deciding is nil, since the refusal names the pack,
+      the offset and the base id.
 
 ### Related
 
 - [`fjs/git/README.md`](../README.md) — the readers a pack feeds, and the
   framing table that puts a pack on the decoder side.
-- [object-store.md](./object-store.md) — the walk that chooses between
-  loose and packed.
+- [`fjs/git/store`](../store/module.f.mjs) — the read that chooses between
+  loose and packed, and the whole-store read a base would have resolved
+  through.
