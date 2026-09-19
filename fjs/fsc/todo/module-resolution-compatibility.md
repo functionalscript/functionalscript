@@ -57,6 +57,19 @@ Colon-bearing names, including names valid on POSIX, remain unsupported until
 host-specific resolution can preserve them without drive/stream reinterpretation.
 This is a refusal boundary, not a claim that every host prohibits colons.
 
+**Current URL-syntax limit:** raw `?` and `#` in specifiers are refused before
+path splitting or dot processing, including empty query/fragment markers.
+For example, `./dep.mjs?x=%64` must not load a file named `dep.mjs?x=d`, and
+`./ignored#x=/../dep.mjs` must not collapse to `dep.mjs`. Stripping the suffix
+would also be wrong: distinct module identities would share a path-keyed cache.
+Supporting those identities remains part of the resolver work below.
+
+To name literal filename characters, percent-encode them in the specifier:
+`%3F` for `?`, `%23` for `#`, and `%25` for `%`. Decoding happens once, so a
+literal file named `%64ep.mjs` is now imported as `./%2564ep.mjs`, not
+`./%64ep.mjs` (which names `dep.mjs`). These filename spellings are distinct
+from URL query/fragment syntax; no new filename ban is introduced for `?`/`#`.
+
 ### Proposal
 
 Give all compiler paths one module-resolution contract that separates:
@@ -101,6 +114,9 @@ patch. This refusal does not claim that URL identity handling is complete.
 - [x] Process raw URL dot segments before decoding/validating the remaining
       components; test canceled invalid components and surviving refusals in
       both compiler paths.
+- [x] Refuse unsupported query/fragment syntax before path decoding in both
+      compiler paths; preserve percent-encoded filename delimiters and prove
+      single decoding, normal diagnostics and no compiler output on refusal.
 - [x] Refuse unsupported non-path specifiers through a shared `ParseError`
       result in value compilation and EDAG linking. Prove misleading local
       targets cannot be loaded, raw spelling is classified before decoding,
