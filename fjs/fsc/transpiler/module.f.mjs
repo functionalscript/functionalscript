@@ -25,7 +25,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { sharing, values } from '../ast/module.f.mjs'
+import { _own, sharing, values } from '../ast/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { errorMessage, readUtf8File, resolveFileModule } from '../../effects/node/module.f.mjs'
 
@@ -49,8 +49,11 @@ const mapDjs = context => id => {
     return res
 }
 
-/** @type {(context: ParseContext) => (id: string) => Import} */
-const importAt = context => id => ({ ...mapDjs(context)(id), id })
+/** A default binding selected from the cached module result. @type {(context: ParseContext) => (id: string) => Import} */
+const importAt = context => id => {
+    const denotation = mapDjs(context)(id)
+    return { ...denotation, value: _own(denotation.value, 'default'), id }
+}
 
 /** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */
 const jsonDenotation = value => ({ value, shared: false, reaches: [] })
@@ -180,7 +183,7 @@ const transpileWithImports = source => module => context => {
 }
 
 /** A JSON module's denotation recorded under its identity. @type {(id: string, context: ParseContext) => (value: JsonUnknown) => ParseContext} */
-const jsonDone = (id, context) => value => ({ ...context, complete: setReplace(id)(jsonDenotation(value))(context.complete) })
+const jsonDone = (id, context) => value => ({ ...context, complete: setReplace(id)(jsonDenotation({ default: value }))(context.complete) })
 
 /**
  * The next import of a module, or the root: an identity met again while it is
@@ -242,8 +245,9 @@ export const _parseJson = path => step(
 const transpileJson = path => mapStep(_parseJson(path), jsonDenotation)
 
 /**
- * Transpiles the file at `path` into what it denotes: one value, and whether
- * that value's graph has a node two references reach.
+ * Transpiles the file at `path` into its module export object (currently
+ * `{ default: value }`), or the document itself for a direct JSON input,
+ * and whether that value's graph has a node two references reach.
  *
  * The extension names the root's language: a `.json` file is a JSON
  * document, read by `fjs/media/json`, and anything else is a FunctionalScript

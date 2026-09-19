@@ -9,5 +9,5 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
     let c0: Any<A> = [(string_key("x"), (1f64).to_any())].to_object().to_any();
-    [c0.clone(), c0.clone()].to_array().to_any()
+    [(string_key("default"), [c0.clone(), c0.clone()].to_array().to_any())].to_object().to_any()
 }

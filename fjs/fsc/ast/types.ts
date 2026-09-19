@@ -20,9 +20,10 @@ export type AstImport = {
 }
 
 /**
- * A parsed DJS module: its imports, in source order, and its body.
+ * A parsed DJS module: its imports, in source order, and its body. The last
+ * body entry constructs the object of exports, currently `{ default: value }`.
  *
- * The import list indexes `['aref', i]`.
+ * The import list indexes `['aref', i]`, each a selected default binding.
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
@@ -55,7 +56,7 @@ export type AstArgs = readonly ['args']
  * A reference to a value defined outside this `AstConst`.
  *
  * - `['aref', i]` — the `i`-th argument of the body, i.e. the `i`-th imported
- *   module of the enclosing `AstModule`.
+ *   module's default export in the enclosing `AstModule`.
  * - `['cref', i]` — the `i`-th entry of the enclosing `AstBody`, which is the
  *   module's body or a function's, whichever the reference is written in.
  *
@@ -137,7 +138,8 @@ export type AstNeg = readonly ['-', AstConst]
  * (...args) => { const c0 = ...; const c1 = ...; return <last> }
  * ```
  *
- * A module's body is that function with `args` the imported modules; a
+ * A module's body is that function with `args` the selected import bindings
+ * and the last value its export object; a
  * function's body ({@link AstFunction}) is that function literally, `args`
  * its rest parameter.
  */
@@ -160,7 +162,8 @@ export type Sharing = {
 }
 
 /**
- * What a module denotes: the value the front end built for it, and what the
+ * What an input denotes: a module's export object or a direct JSON document,
+ * and what the
  * sweep says of its graph. The sweep's answer is known from the module's
  * syntax — a `const` or a module referenced twice — and is carried beside
  * the value because nothing about a plain object says it afterwards without

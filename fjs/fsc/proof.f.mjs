@@ -9,13 +9,13 @@ import { _errorLocation, _tryJson, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { analysis } from '../edag/analysis/module.f.mjs'
-import { run } from './ast/module.f.mjs'
+import { _own, run } from './ast/module.f.mjs'
 import { tryParse as parseDataJs, tryStringify } from '../media/datajs/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
-import { invert, unwrap } from '../types/result/module.f.mjs'
+import { invert, mapOk, unwrap } from '../types/result/module.f.mjs'
 import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -54,7 +54,7 @@ const documentText = document => {
  */
 const evaluate = source => {
     const [tag, value] = parse('')(source)
-    return tag === 'error' ? ['error', value.message] : run(value[1])([])
+    return tag === 'error' ? ['error', value.message] : mapOk(value => _own(value, 'default'))(run(value[1])([]))
 }
 
 /** @type {(root: typeof emptyState.root, path: string) => string} */
@@ -253,6 +253,29 @@ const roundTripCorpus = [
 ]
 
 export const proof = {
+    moduleBoundary: {
+        fixedPoint: () => {
+            for (const source of ['export default 7;', 'export default {"default":7};', 'export default undefined;']) {
+                for (const output of ['output.data.js', 'output.f.js']) {
+                    const once = compileSource(source)(output)
+                    assertEq(once, source)
+                    assertEq(compileSource(once)(output), source)
+                }
+            }
+            assertEq(compileSource('export default 7;')('output.json'), '7')
+        },
+        jsonDocuments: () => {
+            for (const document of ['7', 'null', '{"default":7}']) {
+                for (const output of ['output.json', 'output.data.js', 'output.f.js']) {
+                    const root = { 'input.json': [utf8(document)] }
+                    const [state, code] = virtual({ ...emptyState, root })(compile(['input.json', output]))
+                    assertEq(exitCode(code), 0, state.stderr)
+                    const expected = output.endsWith('.json') ? document : `export default ${document};`
+                    assertEq(readOutput(state.root, output), expected)
+                }
+            }
+        },
+    },
     tooFewArgs: {
         noArgs: () => {
             const [state, code] = virtual(emptyState)(compile([]))
@@ -293,7 +316,7 @@ export const proof = {
             assertEq(compileSource(source)('out.data.mjs'), dataJs)
             assertEq(compileSource(source)('out.js'), dataJs)
             assertEq(compileSource(source)('out.mjs'), dataJs)
-            const edag = 'const $0=["[]",[1]];export default ["[]",[$0,$0]];'
+            const edag = 'const $0=["[]",[1]];export default ["{}",[[":","default",["[]",[$0,$0]]]]];'
             assertEq(compileSource(source)('out.edag.data.js'), edag)
             assertEq(compileSource(source)('out.edag.data.mjs'), edag)
             // JSON denotes a tree, so the shared node is the one thing it
@@ -305,11 +328,11 @@ export const proof = {
         // name here ends `.js`. A function tells the three apart, having a
         // spelling in the widest writer alone.
         longestSuffix: () => {
-            assertEq(compileSource('export default [1];')('x.edag.data.js'), 'export default ["[]",[1]];')
+            assertEq(compileSource('export default [1];')('x.edag.data.js'), 'export default ["{}",[[":","default",["[]",[1]]]]];')
             assertEq(compileSource('export default [1];')('x.data.js'), 'export default [1];')
             assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
             assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$a)=>$a;')
-            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["=>",null,["args"]];')
+            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,["args"]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
         },
         // Any other JavaScript name is FunctionalScript: `.f.js` says which
@@ -405,7 +428,7 @@ export const proof = {
             // the EDAG holds it, the comma being a node like any other
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default ["[]",[[",",[["[]",[]],1]]]];')
+            assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[[",",[["[]",[]],1]]]]]]];')
         },
         // the input's own failures stay the input's, this route reading it
         // through the same linker the EDAG route does
@@ -445,7 +468,7 @@ export const proof = {
             }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(readOutput(state.root, 'output.edag.data.js'), 'const $0=["[]",["text"]];export default ["[]",[1,1,$0,["{}",[[":","x",$0]]]]];')
+            assertEq(readOutput(state.root, 'output.edag.data.js'), 'const $0=["[]",["text"]];export default ["{}",[[":","default",["[]",[1,1,$0,["{}",[[":","x",$0]]]]]]]];')
             const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.data.js'), 'const $0=["text"];export default [1,1,$0,{"x":$0}];')
@@ -455,7 +478,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('export default { a: undefined };')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.mjs']))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(readOutput(state.root, 'output.edag.data.mjs'), 'export default ["{}",[[":","a",["undefined"]]]];')
+            assertEq(readOutput(state.root, 'output.edag.data.mjs'), 'export default ["{}",[[":","default",["{}",[[":","a",["undefined"]]]]]]];')
             const [moduleState, moduleCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.mjs']))
             assertEq(exitCode(moduleCode), 0, moduleState.stderr)
             assertEq(readOutput(moduleState.root, 'output.data.mjs'), 'export default {"a":undefined};')
@@ -466,7 +489,7 @@ export const proof = {
             const root = { 'input.f.js': [utf8('const a = { b: 1 }; export default a.b;')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default [".",["{}",[[":","b",1]]],"b"];')
+            assertEq(readOutput(state.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b"]]]];')
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.data.js'), 'export default 1;')
             assertEq(compileSource('const a = { b: 1 }; export default a.b;')('output.json'), '1')
         },
@@ -474,8 +497,8 @@ export const proof = {
         // so the graph holds it where the value outputs refuse the module or
         // drop the value: `n.x` on a `null` fails `run`, and is a node here
         anchored: () => {
-            assertEq(compileSource('const a = []; export default 1;')('output.edag.data.js'), 'export default [",",[["[]",[]],1]];')
-            assertEq(compileSource('const n = null; const check = n.x; export default 1;')('output.edag.data.js'), 'export default [",",[[".",null,"x"],1]];')
+            assertEq(compileSource('const a = []; export default 1;')('output.edag.data.js'), 'export default [",",[["[]",[]],["{}",[[":","default",1]]]]];')
+            assertEq(compileSource('const n = null; const check = n.x; export default 1;')('output.edag.data.js'), 'export default [",",[[".",null,"x"],["{}",[[":","default",1]]]]];')
             assertEq(moduleRefused('const n = null; const check = n.x; export default 1;'), 'input.f.js - error: cannot read property "x" of null')
         },
         // a function is written as its EDAG: its arguments one node, hoisted
@@ -483,10 +506,10 @@ export const proof = {
         // the value outputs refuse a module holding one, since a value has
         // no function in it
         func: () => {
-            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["=>",null,["args"]];')
-            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["args"];export default ["=>",null,["[]",[$0,$0]]];')
-            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["[]",[["=>",null,["args"]],["=>",null,["args"]]]];')
-            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",null,1],2]];')
+            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,["args"]]]]];')
+            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["args"];export default ["{}",[[":","default",["=>",null,["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",null,["args"]],["=>",null,["args"]]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",null,1],["{}",[[":","default",2]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: a function has no value')
             assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
@@ -496,8 +519,8 @@ export const proof = {
         // anchored by a comma inside the body — the first comma the
         // compiler emits anywhere but a module's root.
         bodyConst: () => {
-            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["=>",null,["[]",[$0,$0]]];')
-            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["=>",null,[",",[["[]",[]],1]]];')
+            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",null,["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,[",",[["[]",[]],1]]]]]];')
             // the value outputs refuse the module for its function, as ever
             assertEq(moduleRefused('export default (...a) => { const x = 1; return x; };'), 'input.f.js - error: a function has no value')
             // and the FunctionalScript output writes the body back as a
@@ -523,8 +546,8 @@ export const proof = {
         // remaining Stage 2 task of
         // `fjs/fsc/todo/compile-modules-to-edag.md`.
         call: () => {
-            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["()",["=>",null,1],["[]",[1]]];')
-            assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default [".",["{}",[[":","b",1]]],"b",["|()",["[]",[2]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",null,1],["[]",[1]]]]]];')
+            assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b",["|()",["[]",[2]]]]]]];')
             // a module whose entries hold no function still has no value
             // once a call is reached: applying one is the interpreter's
             assertEq(moduleRefused('export default [1][0](2);'), 'input.f.js - error: a call has no value')
@@ -567,7 +590,7 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    Any::member_access([(string_key("b"), (1f64).to_any())].to_object().to_any(), string_any("b")).unwrap()
+    [(string_key("default"), Any::member_access([(string_key("b"), (1f64).to_any())].to_object().to_any(), string_any("b")).unwrap())].to_object().to_any()
 }
 `)
         },
@@ -578,11 +601,15 @@ pub fn module<A: IVm>() -> Any<A> {
                 compileSource('const a = [1]; export default a[0];')('output.rs'),
                 `// @generated by \`fjs compile\`. Do not edit: recompile the source module instead.
 
-use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
+use nanvm_lib::vm::{Any, IVm, String, ToAny, ToArray, ToObject};
+
+fn string_key<A: IVm>(v: &str) -> String<A> {
+    v.into()
+}
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    Any::member_access([(1f64).to_any()].to_array().to_any(), (0f64).to_any()).unwrap()
+    [(string_key("default"), Any::member_access([(1f64).to_any()].to_array().to_any(), (0f64).to_any()).unwrap())].to_object().to_any()
 }
 `)
         },
@@ -608,14 +635,14 @@ pub fn module<A: IVm>() -> Any<A> {
             /** @type {(source: string, detail: string) => void} */
             const expect = (source, detail) => assertEq(
                 rustRefused(source),
-                `output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: ${detail}`)
+                `output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: {},:,default,${detail}`)
             expect('export default -[1];', '-,[],1')
             expect('const a = [1]; export default -a;', '-,[],1')
             expect('export default -"a";', '-,a')
             // and the folded ones print, `-1` as the leaf it lowers to
             assertEq(
                 compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
-                '    [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any()')
+                '    [(string_key("default"), [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any())].to_object().to_any()')
         },
     },
     // An error with no token to point at names the file being compiled, not
@@ -676,7 +703,7 @@ pub fn module<A: IVm>() -> Any<A> {
         const root = { 'input.f.js': [utf8(source)] }
         const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
         assert(result[0] === 'ok', result[1])
-        assertStructurallySame(result[1].value, value, source)
+        assertStructurallySame(result[1].value, { default: value }, source)
     }),
     // The subset law, FunctionalScript's half: every DataJS accept document
     // is a FunctionalScript module, and the front end reads it to the graph
@@ -896,7 +923,7 @@ pub fn module<A: IVm>() -> Any<A> {
             assertEq(readOutput(state.root, 'output.json'), '[{"a":[null]},1]')
             const [edagState, edagCode] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.edag.data.js']))
             assertEq(exitCode(edagCode), 0)
-            assertEq(readOutput(edagState.root, 'output.edag.data.js'), 'export default ["[]",[["{}",[[":","a",["[]",[null]]]]],1]];')
+            assertEq(readOutput(edagState.root, 'output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["{}",[[":","a",["[]",[null]]]]],1]]]]];')
             const missing = { ...root, 'input.f.js': [utf8('import d from "./d.json"; export default [d, 1];')] }
             assertEq(stderrOf(missing), 'd.json - error: a JSON module needs the import attribute with { type: "json" }')
             const [missingState, missingCode] = virtual({ ...emptyState, root: missing })(compile(['input.f.js', 'output.edag.data.js']))
@@ -979,7 +1006,7 @@ pub fn module<A: IVm>() -> Any<A> {
             const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const { value } = result[1]
+            const value = _own(result[1].value, 'default')
             assert(value instanceof Array && value.length === 3, value)
             assert(is(value[0], NaN), value[0])
             assertEq(value[1], Infinity)
@@ -1074,7 +1101,7 @@ pub fn module<A: IVm>() -> Any<A> {
             expect('export default -{toString:1};')
             expect('const a = []; export default -a;')
             // the graph keeps it either way: only a value wants a number
-            assertEq(compileSource('export default -[1];')('output.edag.data.js'), 'export default ["-",["[]",[1]]];')
+            assertEq(compileSource('export default -[1];')('output.edag.data.js'), 'export default ["{}",[[":","default",["-",["[]",[1]]]]]];')
         },
     },
     negativeZero: {
@@ -1082,7 +1109,7 @@ pub fn module<A: IVm>() -> Any<A> {
             const root = { 'input.f.js': [utf8('export default -0;')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            assert(is(result[1].value, -0), result[1])
+            assert(is(_own(result[1].value, 'default'), -0), result[1])
         },
         moduleRoundTrip: () => {
             assertEq(compileSource('export default -0;')('output.data.js'), 'export default -0;')
@@ -1172,7 +1199,7 @@ pub fn module<A: IVm>() -> Any<A> {
             const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
-            const { value } = result[1]
+            const value = _own(result[1].value, 'default')
             assert(isObject(value), value)
             assertStructurallySame(value, protoValue)
             assertEq(getPrototypeOf(value), objectPrototype)

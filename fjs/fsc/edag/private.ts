@@ -16,13 +16,12 @@ export type _Nodes = {
 }
 
 /**
- * One link operation in progress: the modules resolved so far, each under
- * its identity and boxed, since an EDAG may be `null` and `at` says `null` for
- * an identity it has not seen; and the chain of module identities being
- * followed, in which an identity met twice is a cycle.
+ * One link operation in progress: the modules resolved so far under their
+ * identities, and the chain being followed, in which a repeated identity is
+ * a cycle.
  */
 export type _Link = {
-    readonly complete: OrderedMap<readonly [Exp]>
+    readonly complete: OrderedMap<_Resolved>
     readonly stack: List<string>
 }
 
@@ -30,4 +29,13 @@ export type _Link = {
 export type _Binding = {
     readonly context: _Link
     readonly bound: readonly Exp[]
+}
+
+/**
+ * A module's full result and its default binding. Select once so repeated
+ * imports share the same computation, including its evaluation anchors.
+ */
+export type _Resolved = {
+    readonly exports: Exp
+    readonly default: Exp
 }
