@@ -25,12 +25,14 @@ import childProcess from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import process from 'node:process'
 import zlib from 'node:zlib'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
+import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
@@ -311,6 +313,18 @@ const runNodeEffect = asyncRun({
         return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
     mkdir: (path, options) => io(async () => { await mkdir(path, options) }),
+    resolveFileModule: (name, parent) => io(async () => {
+        if (parent !== null && decodeImportPath(name) === null) {
+            throw new Error('invalid module specifier')
+        }
+        const url = parent === null ? pathToFileURL(name) : new URL(name, parent)
+        if (url.protocol !== 'file:') {
+            throw new Error('only file modules are supported')
+        }
+        const loadingPath = fileURLToPath(url)
+        const path = await fs.promises.realpath(loadingPath)
+        return { id: pathToFileURL(path).href, path }
+    }),
     readFile: path => io(async () => {
         const fileStats = await stat(path)
         // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.

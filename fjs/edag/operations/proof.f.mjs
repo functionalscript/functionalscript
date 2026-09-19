@@ -46,6 +46,8 @@ export const proof = {
         eq(['%', 7, 3], 1)
         eq(['**', 2, 3], 8)
         eq(['===', 2, 2], true)
+        eq(['is', NaN, NaN], true)
+        eq(['is', 0, -0], false)
         eq(['!==', 2, 3], true)
         eq(['<', 2, 3], true)
         eq(['<=', 3, 3], true)

@@ -14,10 +14,15 @@
       inheriting it; the reasoning is [`../README.md`](../README.md))
 - [x] Pages fit a phone screen (any line may break inside a word; the
       reasoning is [`../README.md`](../README.md))
-- [ ] Touch-sized links in a page's lists — see
-      [touch-targets](touch-targets.md)
-- [ ] Decide what the build owes its own leftovers — see
-      [stale-generated-pages](stale-generated-pages.md)
+- [x] Touch-sized links in a page's lists, padded for `any-pointer: coarse`
+      (the reasoning is [`../README.md`](../README.md))
+- [x] A link looks the same once it has been followed, in the site's own
+      green (`--link` in `fjs/website/style/module.f.mjs`)
+- [ ] A favicon, two committed files linked from every head — see
+      [favicon](favicon.md)
+- [x] Decide what the build owes its own leftovers: nothing — `git clean -Xd`
+      already removes a stale generated page, so the fix is a note where the
+      symptom is debugged (`fjs/website/module.f.mjs`'s `@module` block)
 - [x] Convention for a `demo` export — an optional pure demo, discovered like a
       proof, rendered on its page (`fjs/website/demo/`, `demo-runtime.mjs`;
       the first is `fjs/crypto/sha2/demo.f.mjs`, and the reasoning is

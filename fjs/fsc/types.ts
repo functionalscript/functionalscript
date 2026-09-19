@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { ReadFile, Write, WriteFile } from '../effects/node/types.ts'
+import type { ReadFile, ResolveFileModule, Write, WriteFile } from '../effects/node/types.ts'
 
 /** The effect operations `compile` performs: file I/O and error output. */
-export type _CompileOp = ReadFile | WriteFile | Write
+export type _CompileOp = ReadFile | ResolveFileModule | WriteFile | Write

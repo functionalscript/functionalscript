@@ -16,7 +16,8 @@
  * the whole module. Each `import` binds its name, each `const` resolves its
  * value against the names bound so far and then binds its own — so
  * `const a = a` is `const not found`, as it is a reference before its
- * declaration in JavaScript — and the export is the module's last value.
+ * declaration in JavaScript. Export names select those bindings into the
+ * module result, with an optional final default expression.
  *
  * The grammar sees symbols and the fold sees text, which is the line that
  * decides where a check belongs: every check that has to read a *word* is
@@ -42,28 +43,30 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { Children, Meta } from '../../ebnf/ast/types.ts'
+ * @import { Ast, Children, Meta } from '../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstConst, AstFunction, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
- * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
- * @import { Body, Items, Member, Value } from './grammar/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
+ * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _ContainerFrame, _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
+import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
-import { keywords } from '../../js/keywords/module.f.mjs'
+import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, value, values,
+    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, unary, value,
+    values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -175,11 +178,11 @@ const constAt = node => {
     return out.statement
 }
 
-/** @type {(node: _Leaf) => Node} */
+/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'export' }>} */
 const exportAt = node => {
     const out = outAt(node)
     assert(out.id === 'export')
-    return out.node
+    return out
 }
 
 /** @type {(node: _Leaf) => Module} */
@@ -190,14 +193,16 @@ const moduleAt = node => {
 }
 
 /**
- * The word an identifier token spells. A framing keyword is an identifier
- * too, arriving as the same `id` token.
+ * The word a name token spells. A framing keyword is an identifier too,
+ * arriving as the same `id` token; each of the six words that denote a
+ * value is a token kind of its own, and *is* its own word.
  *
  * @type {(t: DjsTokenWithMetadata) => string}
  */
 const nameOf = ({ token }) => {
-    assert(token.kind === 'id')
-    return token.value
+    if (token.kind === 'id') { return token.value }
+    assert(literalWordSet.has(token.kind), token.kind)
+    return token.kind
 }
 
 /** @type {(t: DjsTokenWithMetadata) => string} */
@@ -222,7 +227,6 @@ const primitiveOf = ([tag, leaf]) => {
         case 'undefined': { return undefined }
         case 'NaN': { return NaN }
         case 'Infinity': { return Infinity }
-        case '-Infinity': { return -Infinity }
         case 'number': {
             assert(token.kind === 'number')
             return parseFloat(token.value)
@@ -287,21 +291,63 @@ const symbol = out => ({ symbol: 0, meta: out })
  * constant — at the third position of either branch, under the identifier's
  * or the constant's own alternative.
  *
- * @type {(round: _AccessNode) => DjsTokenWithMetadata}
+ * @type {(branch: _KeyBranch) => DjsTokenWithMetadata}
  */
-const accessKey = round => tokenAt(unmapped(unmapped(unmapped(round)[1])[2])[1])
+const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
 
-/** One access applied to the node before it. @type {(base: Node, round: _AccessNode) => Node} */
-const accessed = (base, round) => ['.', base, accessKey(round)]
+/**
+ * The token naming a function's parameter, when the list holds one: the
+ * identifier at the third position of `... t id t`, under the alternative
+ * its word matched, as a `const`'s name is. An empty list has no token,
+ * which is what `null` says — and the fold has no word to bind, so a body
+ * under it names nothing.
+ *
+ * @type {(node: _ParameterNode) => DjsTokenWithMetadata | null}
+ */
+const parameterOf = node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? null : tokenAt(unmapped(unmapped(rounds[0])[2])[1])
+}
+
+/**
+ * One step applied to the node before it: a property access by the token
+ * its key is read from, or a call by its arguments — the optional list at
+ * the third position of `( t [ items(value) ] ) t`, read as an array's
+ * items are.
+ *
+ * What a step applies to is everything written before it, which is what
+ * folding them in order says: `a.b(1)[0]` is the index of the call of the
+ * access, and `f(1)(2)` is the call of the call. A group is no boundary
+ * here — the step reads the value inside it, so `(a.b)(c)` is the node
+ * `a.b(c)` is.
+ *
+ * @type {(base: Node, round: _AccessNode) => Node}
+ */
+const accessed = (base, round) => {
+    const [tag, branch] = unmapped(round)
+    if (tag !== 'call') { return ['.', base, accessKey(/** @type {_KeyBranch} */(branch))] }
+    const call = unmapped(/** @type {_CallBranch} */(branch))
+    return ['()', base, toArray(valueItems(call[2]))]
+}
+
+/**
+ * A value's own part and the steps written after it, each applied to
+ * everything before it: the node the last of them leaves.
+ *
+ * @type {(base: Node, accesses: readonly _AccessNode[]) => Node}
+ */
+const steps = (base, accesses) => accesses.reduce(accessed, base)
 
 /**
  * The node a value's own part makes, before the accesses after it: a
  * primitive converted from its token, a reference by its token, and a
  * container of the items its list returned — `[ open t [ items ] close t
- * ]`, the list at the third position. A function is not here: it takes no
- * access, so its node is made whole.
+ * ]`, the list at the third position. What a `(` opens, a block and a
+ * negation are not here: a function, a block and a negation take no access,
+ * so each node is made whole, and a group's value is reached through
+ * {@link parenNode}.
  *
- * @type {(node: Exclude<Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['func', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -313,23 +359,73 @@ const baseOf = ([tag, branch]) => {
 }
 
 /**
+ * What a `(` opened, at the third position of `( t (func | group)`: a
+ * function, by its parameter list at the first position of
+ * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group,
+ * the value at the first position of `value ) t access*` and the steps
+ * after the `)` at the fourth.
+ *
+ * A group is no node of its own: `(x)` is whatever `x` is, and the steps
+ * after the `)` apply to that same node, so nothing downstream can tell a
+ * group was written. That is what JavaScript means by parentheses — they
+ * keep even a property reference, so `(a.b)(c)` passes `a` as `a.b(c)`
+ * does — and it leaves a group no canonical form to choose.
+ *
+ * @type {(node: Children<Parenthesized, DjsTokenWithMetadata, Out>) => Node}
+ */
+const parenNode = ([tag, branch]) => {
+    if (tag === 'func') {
+        const [p, , , , , b] = unmapped(branch)
+        return ['=>', parameterOf(p), nodeAt(b)]
+    }
+    return groupNode(branch)
+}
+
+/**
+ * A group's node, from `value ) t access*`: the value at the first position
+ * with the steps after the `)`, at the fourth, applied to it.
+ *
+ * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
+ */
+const groupNode = node => {
+    const [v, , , accesses] = unmapped(node)
+    return steps(nodeAt(v), unmapped(accesses))
+}
+
+/**
  * A value is the node its branch made, with each access after it applied
  * in turn — the accesses at the second position of every branch, after
- * the value's own part — or a function, by the token naming its parameter,
- * at the fifth position of `( t ... t id t ) s => t body`, and its body at
- * the eleventh. A body is a value less the object, and its node is made
- * the same way.
+ * the value's own part — or what a `(` opened, {@link parenNode}. A body is
+ * a value less the object, and its node is made the same way.
  *
- * @type {(node: Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ * A block preserves its ordered `const` declarations and explicit `return`,
+ * including when no declaration precedes it. The source tree keeps that
+ * syntax until the fold lowers it to an executable function body.
+ *
+ * @type {(node: Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = node => {
-    if (node[0] === 'func') {
-        const [, , , , name, , , , , , b] = unmapped(node[1])
-        return symbol({ id: 'value', node: ['=>', tokenAt(unmapped(name)[1]), nodeAt(b)] })
+    if (node[0] === 'paren') {
+        return symbol({ id: 'value', node: parenNode(unmapped(unmapped(node[1])[2])) })
+    }
+    if (node[0] === 'group') {
+        return symbol({ id: 'value', node: groupNode(unmapped(node[1])[2]) })
+    }
+    if (node[0] === 'neg') {
+        const [, , v] = unmapped(node[1])
+        return symbol({ id: 'value', node: ['-', nodeAt(v)] })
+    }
+    if (node[0] === 'block') {
+        const [, , consts, , , v] = unmapped(node[1])
+        const statements = unmapped(consts).map(constAt).map(constNode)
+        return symbol({ id: 'value', node: ['block', [...statements, ['return', nodeAt(v)]]] })
     }
     const [, accesses] = unmapped(node[1])
-    return symbol({ id: 'value', node: unmapped(accesses).reduce(accessed, baseOf(node)) })
+    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
 }
+
+/** A declaration in a block's ordered statement list. @type {(statement: Const) => readonly ['const', Const]} */
+const constNode = statement => ['const', statement]
 
 /**
  * The token a key is read from, the name it spells, and whether it is the
@@ -363,8 +459,8 @@ const toMember = ([k, , , , v]) => {
 
 /**
  * An import's attribute, when the optional list holds one round: the key at
- * the fifth position of `with t { t id t : t string t } t`, the value at the
- * ninth.
+ * the fifth position of `with t { t identifier t : t string t } t`, under
+ * the alternative its word matched, and the value at the ninth.
  *
  * @type {(node: _AttributeNode) => Import['attribute']}
  */
@@ -372,7 +468,7 @@ const attributeOf = node => {
     const rounds = unmapped(node)
     if (rounds.length === 0) { return null }
     const round = unmapped(rounds[0])
-    return [tokenAt(round[4]), tokenAt(round[8])]
+    return [tokenAt(unmapped(round[4])[1]), tokenAt(round[8])]
 }
 
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
@@ -383,18 +479,40 @@ const toImport = ([, , name, , , , module, , attribute]) =>
 const toConst = ([, , name, , , , v]) =>
     symbol({ id: 'const', statement: { name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
 
+/** @type {(node: _Leaf) => ModuleConst} */
+const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
+
 /** @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toExport = ([, , , , v]) => symbol({ id: 'export', node: nodeAt(v) })
+const toExport = ([, , choice]) => {
+    const [kind, branch] = unmapped(choice)
+    if (kind === 'default') {
+        return symbol({ id: 'export', consts: null, default: nodeAt(unmapped(branch)[2]) })
+    }
+    const [declaration, consts, tail] = unmapped(branch)
+    const next = unmapped(tail)
+    const rest = next.length === 0 ? null : exportAt(next[0])
+    return symbol({
+        id: 'export',
+        consts: concat([
+            { declaration: constAt(declaration), exported: true },
+            ...unmapped(consts).map(ordinaryConst),
+        ])(rest === null ? null : rest.consts),
+        default: rest === null ? null : rest.default,
+    })
+}
 
 /** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toModule = ([, imports, consts, exported]) => symbol({
-    id: 'module',
-    module: {
-        imports: unmapped(imports).map(importAt),
-        consts: unmapped(consts).map(constAt),
-        exported: exportAt(exported),
-    },
-})
+const toModule = ([, imports, consts, exported]) => {
+    const result = exportAt(exported)
+    return symbol({
+        id: 'module',
+        module: {
+            imports: unmapped(imports).map(importAt),
+            consts: [...unmapped(consts).map(ordinaryConst), ...toArray(result.consts)],
+            exported: result.default,
+        },
+    })
+}
 
 /** @type {Mappings<DjsTokenWithMetadata, Out>} */
 const map = mapping
@@ -416,7 +534,13 @@ const toMembers = node => symbol({ id: 'members', items: membersOf(node) })
 export const mappings = [
     map(value, toNode),
     map(body, toNode),
+    // what a `-` takes is a rule of its own, and its branches are the
+    // value's, so the same reader serves it
+    map(unary, toNode),
     map(values, toValues),
+    // a call's arguments are that same list, reached through a rule of its
+    // own, so the same reader serves both
+    map(callArguments, toValues),
     map(member, toMember),
     map(members, toMembers),
     map(importStatement, toImport),
@@ -459,6 +583,17 @@ const args = ['args']
 
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
+
+/**
+ * The words that denote a value, which the tokenizer gives token kinds of
+ * their own. A name position takes them — a property is named by an
+ * ECMAScript `IdentifierName`, which admits every reserved word — and
+ * {@link identifierOf} then refuses them where a *binding* is wanted, as it
+ * refuses every other keyword.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
 
 /**
  * The word an identifier token spells where JavaScript wants an identifier
@@ -512,30 +647,23 @@ const prohibitedKey = foldError('prohibited property name')
  * a value, `fjs/js/prototype`, but `length` — an own property of an array,
  * a string and a function, which the two languages read alike.
  *
+ * Exported for the writer in [`../serializer`](../serializer/module.f.mjs),
+ * which refuses the same names rather than write an access the parser here
+ * would not read back: the rule is the language's, and it has one owner.
+ * The `_` says that export is linkage rather than API, as it does for
+ * `_tokenKindNames` in [`./grammar`](./grammar/module.f.mjs).
+ *
  * @type {ReadonlySet<string>}
  */
-const prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
+export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
-/**
- * An access on a number or a bigint literal, at the key. JavaScript reads
- * `-1 .x` as `-(1 .x)`, the minus after the access, while the tokenizer
- * folds the minus into the number — and folds `-0n` to `0n`, so no sign
- * is left to tell the two apart by. With no negation in the language to
- * read the spelling JavaScript's way, an access on any numeric literal is
- * refused: `1 .x` is `undefined` in both and worth nothing, and a
- * reference to a number keeps `n.x`, which reads alike in both.
- */
-const numericBase = foldError('access on a numeric literal')
-
-/** What an access's key token names: the identifier's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
-const keyNamed = ({ token }) => {
+/** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
+const keyNamed = t => {
+    const { token } = t
     switch (token.kind) {
-        case 'id': { return token.value }
         case 'string': { return token.value }
-        default: {
-            assert(token.kind === 'number')
-            return parseFloat(token.value)
-        }
+        case 'number': { return parseFloat(token.value) }
+        default: { return nameOf(t) }
     }
 }
 
@@ -547,8 +675,7 @@ const keyNamed = ({ token }) => {
  */
 const accessClosed = (key, base) => {
     const named = keyNamed(key)
-    if (typeof named === 'string' && prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
-    if (typeof base === 'number' || typeof base === 'bigint') { return error(numericBase(key)) }
+    if (typeof named === 'string' && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
     /** @type {AstAccess} */
     const access = ['.', base, named]
     return ok(access)
@@ -623,6 +750,42 @@ const round = (stack, env, frame) => {
 }
 
 /**
+ * How many operands a call has: its callee and its arguments.
+ *
+ * Counted and indexed rather than built into one list, which is what
+ * `[callee, ...args]` per round would be — a copy of every argument for
+ * each of them, and quadratic in a call's width where the parser is linear
+ * in an array's.
+ *
+ * @type {(call: _CallFrame['call']) => number}
+ */
+const callOperandCount = call => call[2].length + 1
+
+/**
+ * The operand a call evaluates at `index`: the callee first, then each
+ * argument as written — JavaScript's own order, and the order an error
+ * among them is reported in.
+ *
+ * @type {(call: _CallFrame['call'], index: number) => Node}
+ */
+const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1]
+
+/**
+ * The next operand of a call, or the call closed when none is left: the
+ * first value is the callee and the rest its arguments.
+ *
+ * @type {(stack: _Stack, env: _Env, frame: _CallFrame) => _State}
+ */
+const callRound = (stack, env, frame) => {
+    const { call, index } = frame
+    if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, env, ['enter', callOperandAt(call, index)]] }
+    const [callee, ...args] = toArray(frame.done)
+    /** @type {AstCall} */
+    const closed = ['()', callee, args]
+    return [stack, env, ok(closed)]
+}
+
+/**
  * Whether a name is bound outside the function being resolved: bound by
  * the names a function frame on the stack holds for after its body, which
  * the body may not use — a function has no frame to capture with yet.
@@ -637,13 +800,56 @@ const bound = (stack, word) => {
 }
 
 /**
+ * The names a function's body begins with: its parameter bound to the
+ * arguments array, and nothing else — the body is resolved against its own
+ * names alone, so a reference to a name bound outside is a capture.
+ *
+ * An empty parameter list binds nothing, so a body under it starts from no
+ * names at all: the arguments are unreachable, having no name, and every
+ * other word is `const not found` or a capture exactly as it is under a
+ * parameter that does not spell it. That is the whole of what an empty
+ * list costs: the function the fold returns carries no parameter either
+ * way, so nothing downstream can tell the two lists apart.
+ *
+ * @type {(name: DjsTokenWithMetadata | null) => Result<_Env, ParseError>}
+ */
+const functionScope = name => {
+    if (name === null) { return ok(empty) }
+    const [tag, word] = identifierOf(name)
+    return tag === 'error' ? error(word) : ok(setReplace(word)(args)(empty))
+}
+
+/**
+ * The next step of a function's block body: the `const` at `index`, its name
+ * checked before its value is entered — as a module's `const` is, so that a
+ * statement wrong in both halves answers for the half a reader meets first
+ * — or the expression of the explicit final `return`.
+ *
+ * @type {(stack: _Stack, env: _Env, frame: _BodyFrame) => _State}
+ */
+const bodyRound = (stack, env, frame) => {
+    const { statements, index } = frame
+    const [kind, statement] = statements[index]
+    if (kind === 'return') { return [{ top: frame, rest: stack }, env, ['enter', statement]] }
+    const [tag, word] = bindable(env)(statement.name)
+    return tag === 'error'
+        ? [stack, env, error(word)]
+        : [{ top: { ...frame, word }, rest: stack }, env, ['enter', statement.value]]
+}
+
+/**
  * Enters a node: a primitive is its value, a reference the binding `env`
  * holds for its name, an access its base under a frame holding the key, a
  * container the first round of a new frame, and a function its body under
- * a frame holding `env` — the body resolved against its parameter alone,
- * so a reference to a name bound outside is a capture, refused where it is
+ * a frame holding `env` — the body resolved against its own names alone, so
+ * a reference to a name bound outside is a capture, refused where it is
  * written, and a name it does not find anywhere is `const not found` as
  * ever.
+ *
+ * A block body is entered the same way, under a frame that also holds its
+ * statements: the parameter is the only name bound when the first of them
+ * is resolved — none is, where the list is empty — and each binds its own
+ * as the module's `const`s do.
  *
  * @type {(stack: _Stack, env: _Env, node: Node) => _State}
  */
@@ -658,12 +864,19 @@ const enter = (stack, env, node) => {
             return [stack, env, error(bound(stack, word) ? capture(node[1]) : constNotFound(node[1]))]
         }
         case '.': { return [{ top: { key: node[2] }, rest: stack }, env, ['enter', node[1]]] }
+        case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
+        case '-': { return [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]] }
         case '=>': {
-            const [tag, word] = identifierOf(node[1])
-            if (tag === 'error') { return [stack, env, error(word)] }
-            return [{ top: { outer: env }, rest: stack }, setReplace(word)(args)(empty), ['enter', node[2]]]
+            const [tag, inner] = functionScope(node[1])
+            if (tag === 'error') { return [stack, env, error(inner)] }
+            const body = node[2]
+            return body[0] === 'block'
+                ? bodyRound(stack, inner, { outer: env, statements: body[1], index: 0, word: '', done: null })
+                : [{ top: { outer: env }, rest: stack }, inner, ['enter', body]]
         }
-        default: { return round(stack, env, { container: node, index: 0, done: null }) }
+        // a block stands only as a function's body, which `'=>'` above
+        // enters; the mapping writes one nowhere else
+        default: { return round(stack, env, { container: /** @type {Container} */ (node), index: 0, done: null }) }
     }
 }
 
@@ -676,9 +889,28 @@ const enter = (stack, env, node) => {
  */
 const returned = (stack, env, frame, value) => {
     if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('call' in frame) { return callRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) { return [stack, env, accessClosed(frame.key, value)] }
+    if ('neg' in frame) {
+        /** @type {AstNeg} */
+        const negated = ['-', value]
+        return [stack, env, ok(negated)]
+    }
+    if ('statements' in frame) {
+        if (frame.statements[frame.index][0] === 'const') {
+            // the binding lands after the value, keeping the name out of its
+            // own initializer's scope, and names entry `index` of this body
+            return bodyRound(
+                stack,
+                extended(env)(frame.word, ['cref', frame.index]),
+                { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
+        }
+        /** @type {AstFunction} */
+        const withConsts = ['=>', [...toArray(frame.done), value]]
+        return [stack, frame.outer, ok(withConsts)]
+    }
     /** @type {AstFunction} */
-    const fn = ['=>', value]
+    const fn = ['=>', [value]]
     return [stack, frame.outer, ok(fn)]
 }
 
@@ -713,26 +945,34 @@ const evaluate = env => root => {
 }
 
 /**
- * Binds a name to a reference, refusing a keyword and a name already bound.
- * `import` and `const` share the one map, so a name taken by either is
- * taken for both.
+ * The word a binding may take: an identifier, refusing a keyword, and one
+ * the environment does not hold — `import` and `const` share the one map,
+ * so a name taken by either is taken for both.
  *
- * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef | AstArgs) => Result<_Env, ParseError>}
+ * Separate from the binding itself because a `const` asks the two questions
+ * at different moments: its name is refused before its value is read, so
+ * that `const NaN = missing;` answers for the name and not for `missing`,
+ * while the binding lands after, keeping the name out of its own
+ * initializer's scope.
+ *
+ * @type {(env: _Env) => (name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
-const bind = env => (name, ref) => {
+const bindable = env => name => {
     const [tag, word] = identifierOf(name)
     if (tag === 'error') { return error(word) }
-    return at(word)(env) !== null
-        ? error(duplicateId(name))
-        : ok(setReplace(word)(ref)(env))
+    return at(word)(env) !== null ? error(duplicateId(name)) : ok(word)
 }
+
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstArgs) => _Env} */
+const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /**
  * The statements of a module, in order: each `import` binds its name to
  * the next argument, each `const` resolves its value against the names
  * bound so far — itself not among them, so a `cref` always names an earlier
- * entry — and then binds its name, and the export is resolved against them
- * all.
+ * entry — and then binds its name. The default export is resolved against
+ * them all and placed in the module's result object. Ordinary function bodies
+ * keep their own return values.
  *
  * @type {(module: Module) => Result<AstModule, ParseError>}
  */
@@ -743,28 +983,37 @@ const foldModule = ({ imports, consts, exported }) => {
     let modules = []
     /** @type {readonly AstConst[]} */
     let body = []
+    /** @type {readonly AstMember[]} */
+    let exports = []
     for (const statement of imports) {
-        const [tag, bound] = bind(env)(statement.name, ['aref', modules.length])
-        if (tag === 'error') { return error(bound) }
+        const [tag, word] = bindable(env)(statement.name)
+        if (tag === 'error') { return error(word) }
         const [read, record] = imported(statement)
         if (read === 'error') { return error(record) }
-        env = bound
+        env = extended(env)(word, ['aref', modules.length])
         modules = [...modules, record]
     }
-    for (const { name, value: node } of consts) {
+    for (const { declaration: { name, value: node }, exported: named } of consts) {
+        // the name first: a statement wrong in both halves answers for the
+        // half a reader meets first
+        const [tag, word] = bindable(env)(name)
+        if (tag === 'error') { return error(word) }
+        if (named && word === 'then') { return error({ message: 'reserved export name then', metadata: name.metadata }) }
         const [resolved, value] = evaluate(env)(node)
         if (resolved === 'error') { return error(value) }
-        const [tag, bound] = bind(env)(name, ['cref', body.length])
-        if (tag === 'error') { return error(bound) }
-        env = bound
+        env = extended(env)(word, ['cref', body.length])
+        if (named) { exports = [...exports, [word, ['cref', body.length]]] }
         body = [...body, value]
     }
-    const [resolved, last] = evaluate(env)(exported)
-    if (resolved === 'error') { return error(last) }
+    if (exported !== null) {
+        const [resolved, last] = evaluate(env)(exported)
+        if (resolved === 'error') { return error(last) }
+        exports = [...exports, ['default', last]]
+    }
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [modules, [...body, last]]
+    const astModule = [modules, [...body, ['object', toArray(sort(exports))]]]
     return ok(astModule)
 }
 
@@ -775,7 +1024,8 @@ const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
 
 /**
  * Reads the token list as a FunctionalScript module: `import` statements, then
- * `const` statements, then one `export default`, each ended by `;`.
+ * `const` and `export const` statements, with an optional final `export default`.
+ * At least one export is required; every statement ends with `;`.
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader
@@ -788,6 +1038,18 @@ const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */
 export const parseFromTokens = tokenList => {
+    const [tag, module] = _parseSyntaxFromTokens(tokenList)
+    return tag === 'error' ? error(module) : foldModule(module)
+}
+
+/**
+ * Internal syntax reader shared with source-tree proofs. Its result has not
+ * passed binding, JavaScript early-error or FunctionalScript admission checks;
+ * callers compiling source use `parseFromTokens`.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<Module, ParseError>}
+ */
+export const _parseSyntaxFromTokens = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
@@ -802,5 +1064,5 @@ export const parseFromTokens = tokenList => {
         })
     }
     const [tree] = result
-    return foldModule(moduleAt(tree))
+    return ok(moduleAt(tree))
 }

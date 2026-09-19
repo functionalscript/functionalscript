@@ -2,8 +2,8 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
-import { run } from '../ast/module.f.mjs'
+import { _parseSyntaxFromTokens, parseFromTokens } from './module.f.mjs'
+import { _own, run } from '../ast/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -46,6 +46,108 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
 export const proof = {
+    namedExports: {
+        results: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['export const a=5;', { a: 5 }],
+                ['const base=5; export const z=base; const local=z; export const a=local; export default a;', { a: 5, default: 5, z: 5 }],
+                ['export const a=undefined; export default undefined;', { a: undefined, default: undefined }],
+                ['export const __proto__=7;', Object.fromEntries([['__proto__', 7]])],
+            ])) {
+                const module = unwrap(parseFromTokens(tokenizeString(source)))
+                const result = unwrap(run(module[1])([]))
+                assertStructurallySame(result, expected)
+                assertStructurallySame(Object.keys(/** @type {object} */ (result)), Object.keys(expected))
+            }
+        },
+        syntax: () => {
+            const source = unwrap(_parseSyntaxFromTokens(tokenizeString('const x=1; export const a=x; const y=a; export const b=y;')))
+            assertEq(source.exported, null)
+            assertStructurallySame(source.consts.map(c => c.exported), [false, true, false, true])
+            assertStructurallySame(source.consts.map(c => c.declaration.name.token), [
+                { kind: 'id', value: 'x' }, { kind: 'id', value: 'a' }, { kind: 'id', value: 'y' }, { kind: 'id', value: 'b' },
+            ])
+        },
+        errors: () => {
+            for (const source of [
+                'export const a=1; export const a=2;',
+                'const a=1; export const a=2;',
+                'export const a=1; const a=2;',
+                'import a from "./x"; export const a=1;',
+                'export const a=a;', 'export const a=b; export const b=1;',
+                'export const then=1;', 'export const then=()=>1;',
+                'export const default=1;', 'export const await=1;', 'export const undefined=1;',
+                'export const a=1', 'export const a=1; import b from "./x";',
+                'export default 1; export const a=2;', 'export default 1; export default 2;',
+                'export { a };', 'export let a=1;', 'const a=1;', '',
+                'export const f=()=>{return;};', 'export const f=()=>{};',
+                'export const f=()=>{return\n1;};',
+            ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'error', source) }
+            const duplicate = parseFromTokens(tokenizeString('export const a=1;\nexport const a=2;'))
+            assert(duplicate[0] === 'error')
+            assertEq(duplicate[1].metadata?.line, 2)
+            assertEq(duplicate[1].metadata?.column, 14)
+            const reserved = parseFromTokens(tokenizeString('export const then=1;'))
+            assert(reserved[0] === 'error')
+            assertEq(reserved[1].metadata?.column, 14)
+        },
+    },
+    sourceBlocks: {
+        // Literal expectations pin syntax before lowering can erase it.
+        explicitReturn: () => {
+            const expression = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => 7;')))
+            const block = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => { return 7; };')))
+            assertStructurallySame(expression.exported, ['=>', null, ['primitive', 7]])
+            assertStructurallySame(block.exported, ['=>', null, ['block', [['return', ['primitive', 7]]]]])
+        },
+        orderedDeclarations: () => {
+            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
+                'export default () => { const x = 1; const y = 2; return [x, y]; };')))
+            assert(exported !== null && exported[0] === '=>')
+            const body = exported[2]
+            assert(body[0] === 'block')
+            const [first, second, last] = body[1]
+            assert(first[0] === 'const' && second[0] === 'const' && last[0] === 'return')
+            assertStructurallySame(first[1].name.token, { kind: 'id', value: 'x' })
+            assertStructurallySame(second[1].name.token, { kind: 'id', value: 'y' })
+            assertStructurallySame(first[1].value, ['primitive', 1])
+            assertStructurallySame(second[1].value, ['primitive', 2])
+            assertEq(first[1].name.metadata.column, 30)
+            assertEq(second[1].name.metadata.column, 43)
+            const returned = last[1]
+            assert(returned[0] === 'array')
+            const [x, y] = returned[1]
+            assert(x[0] === 'ref' && y[0] === 'ref')
+            assertStructurallySame(x[1].token, first[1].name.token)
+            assertStructurallySame(y[1].token, second[1].name.token)
+        },
+        nestedBlocks: () => {
+            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
+                'export default () => { return () => { return 7; }; };')))
+            assertStructurallySame(exported, ['=>', null, ['block', [
+                ['return', ['=>', null, ['block', [['return', ['primitive', 7]]]]]],
+            ]]])
+        },
+        syntaxRefusals: () => {
+            for (const source of [
+                'export default () => {};',
+                'export default () => { return; };',
+                'export default () => { return 7 };',
+                'export default () => { return 7; const x = 1; };',
+                'export default () => { return 7; return 8; };',
+                'export default ()\n=> 7;',
+                'export default () => { return\n7; };',
+                'export default () => { return /*\n*/ 7; };',
+            ]) {
+                assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'error')
+                assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
+            }
+            // A line break inside the returned group is still admitted.
+            const source = 'export default () => { return (\n7\n); };'
+            assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'ok')
+            assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
+        },
+    },
     // The corpus that proved parity against the hand-written state machine,
     // kept as fixed expectations now that the state machine is gone.
     //
@@ -56,58 +158,67 @@ export const proof = {
     parseCorpus: [
         () => {
             for (const [source, expected] of [
-                ["export default null;", "[[],[null]]"],
-                ["export default true;", "[[],[true]]"],
-                ["export default false;", "[[],[false]]"],
-                ["export default undefined;", "[[],[undefined]]"],
-                ["export default 0.1;", "[[],[0.1]]"],
-                ["export default 1.1e+2;", "[[],[110]]"],
-                // the three numbers JSON cannot spell, as words
-                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"array\",[NaN,Infinity,-Infinity]]]]"],
-                ["export default \"abc\";", "[[],[\"abc\"]]"],
-                ["export default 1234567890n;", "[[],[1234567890n]]"],
-                ["export default [];", "[[],[[\"array\",[]]]]"],
-                ["export default [1];", "[[],[[\"array\",[1]]]]"],
-                ["export default [1,];", "[[],[[\"array\",[1]]]]"],
-                ["export default [[]];", "[[],[[\"array\",[[\"array\",[]]]]]]"],
-                ["export default [0,[1,[2,[]]],3];", "[[],[[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]"],
-                ["export default [1234567890n];", "[[],[[\"array\",[1234567890n]]]]"],
-                ["export default {};", "[[],[[\"object\",[]]]]"],
-                ["export default {\"a\":1};", "[[],[[\"object\",[[\"a\",1]]]]]"],
-                ["export default {a: 1};", "[[],[[\"object\",[[\"a\",1]]]]]"],
-                ["export default {\"a\":1,};", "[[],[[\"object\",[[\"a\",1]]]]]"],
-                ["export default {[\"a\"]:1};", "[[],[[\"object\",[[\"a\",1]]]]]"],
-                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[[\"object\",[[\"a\",1],[\"b\",2],[\"c\",3]]]]]"],
-                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[[\"object\",[[\"a\",[\"object\",[[\"b\",[\"object\",[[\"c\",[\"array\",[\"d\"]]]]]]]]]]]]]"],
-                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[[\"object\",[[\"a\",true],[\"b\",false],[\"c\",null],[\"d\",undefined]]]]]"],
-                ["export default {a:1,a:2};", "[[],[[\"object\",[[\"a\",1],[\"a\",2]]]]]"],
-                ["export default {[\"__proto__\"]: 1};", "[[],[[\"object\",[[\"__proto__\",1]]]]]"],
-                ["const a = 1;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
-                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"array\",[[\"cref\",0],[\"cref\",1]]]]]"],
-                ["import x from \"m\";\nexport default x;", "[[{\"json\":false,\"specifier\":\"m\"}],[[\"aref\",0]]]"],
-                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[{\"json\":false,\"specifier\":\"m\"}],[1,[\"cref\",0]]]"],
-                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[{\"json\":false,\"specifier\":\"m\"},{\"json\":false,\"specifier\":\"n\"}],[[\"array\",[[\"aref\",0],[\"aref\",1]]]]]"],
-                ["// c\nexport default 1;", "[[],[1]]"],
-                ["/* c */ export default 1;", "[[],[1]]"],
-                ["\n\n export default 1; \n\n", "[[],[1]]"],
-                ["const from = 1;\nexport default from;", "[[],[1,[\"cref\",0]]]"],
-                ["export default { from: 2, default: 3, with: 4 };", "[[],[[\"object\",[[\"from\",2],[\"default\",3],[\"with\",4]]]]]"],
+                ["export default null;", "[[],[[\"object\",[[\"default\",null]]]]]"],
+                ["export default true;", "[[],[[\"object\",[[\"default\",true]]]]]"],
+                ["export default false;", "[[],[[\"object\",[[\"default\",false]]]]]"],
+                ["export default undefined;", "[[],[[\"object\",[[\"default\",undefined]]]]]"],
+                ["export default 0.1;", "[[],[[\"object\",[[\"default\",0.1]]]]]"],
+                ["export default 1.1e+2;", "[[],[[\"object\",[[\"default\",110]]]]]"],
+                // the three numbers JSON cannot spell, as words — and the
+                // third of them as the negation it is written as, the `-`
+                // being a prefix the grammar reads rather than part of the
+                // word. The one line of this corpus the language moved
+                // under; every other value still says what it recorded.
+                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"object\",[[\"default\",[\"array\",[NaN,Infinity,[\"-\",Infinity]]]]]]]]"],
+                ["export default \"abc\";", "[[],[[\"object\",[[\"default\",\"abc\"]]]]]"],
+                ["export default 1234567890n;", "[[],[[\"object\",[[\"default\",1234567890n]]]]]"],
+                ["export default [];", "[[],[[\"object\",[[\"default\",[\"array\",[]]]]]]]"],
+                ["export default [1];", "[[],[[\"object\",[[\"default\",[\"array\",[1]]]]]]]"],
+                ["export default [1,];", "[[],[[\"object\",[[\"default\",[\"array\",[1]]]]]]]"],
+                ["export default [[]];", "[[],[[\"object\",[[\"default\",[\"array\",[[\"array\",[]]]]]]]]]"],
+                ["export default [0,[1,[2,[]]],3];", "[[],[[\"object\",[[\"default\",[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]]]]"],
+                ["export default [1234567890n];", "[[],[[\"object\",[[\"default\",[\"array\",[1234567890n]]]]]]]"],
+                ["export default {};", "[[],[[\"object\",[[\"default\",[\"object\",[]]]]]]]"],
+                ["export default {\"a\":1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
+                ["export default {a: 1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
+                ["export default {\"a\":1,};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
+                ["export default {[\"a\"]:1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1]]]]]]]]"],
+                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1],[\"b\",2],[\"c\",3]]]]]]]]"],
+                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",[\"object\",[[\"b\",[\"object\",[[\"c\",[\"array\",[\"d\"]]]]]]]]]]]]]]]]"],
+                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",true],[\"b\",false],[\"c\",null],[\"d\",undefined]]]]]]]]"],
+                ["export default {a:1,a:2};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"a\",1],[\"a\",2]]]]]]]]"],
+                ["export default {[\"__proto__\"]: 1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"__proto__\",1]]]]]]]]"],
+                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"object\",[[\"default\",[\"array\",[[\"cref\",0],[\"cref\",1]]]]]]]]"],
+                ["import x from \"m\";\nexport default x;", "[[{\"json\":false,\"specifier\":\"m\"}],[[\"object\",[[\"default\",[\"aref\",0]]]]]]"],
+                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[{\"json\":false,\"specifier\":\"m\"}],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[{\"json\":false,\"specifier\":\"m\"},{\"json\":false,\"specifier\":\"n\"}],[[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"aref\",1]]]]]]]]"],
+                ["// c\nexport default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["/* c */ export default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["\n\n export default 1; \n\n", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["const from = 1;\nexport default from;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["export default { from: 2, default: 3, with: 4 };", "[[],[[\"object\",[[\"default\",[\"object\",[[\"from\",2],[\"default\",3],[\"with\",4]]]]]]]]"],
                 // `;` ends every statement and a newline does not, as DataJS
                 // has it (spec/README.md, module structure); a `;` on its own
                 // line, or several statements on one, are the same module.
                 // The last case is a normalized DataJS document verbatim:
                 // one line, `$`-names, every statement `;`-terminated.
-                ["const a = 1;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
-                ["export default 1;", "[[],[1]]"],
-                ["const a = 1;export default a;", "[[],[1,[\"cref\",0]]]"],
-                ["import x from \"m\";const a = [x];export default [x,a];", "[[{\"json\":false,\"specifier\":\"m\"}],[[\"array\",[[\"aref\",0]]],[\"array\",[[\"aref\",0],[\"cref\",0]]]]]"],
-                ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"cref\",0]]]"],
+                ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["export default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["const a = 1;export default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["import x from \"m\";const a = [x];export default [x,a];", "[[{\"json\":false,\"specifier\":\"m\"}],[[\"array\",[[\"aref\",0]]],[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"cref\",0]]]]]]]]"],
+                ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
                 // whitespace may precede the `;`, newlines included — a
                 // newline is trivia, so the value and its terminator may sit
                 // on different lines
-                ["export default 1\n;", "[[],[1]]"],
-                ["const a = 1\n;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
-                ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"array\",[[\"cref\",0],[\"cref\",0]]]]]"],
+                ["export default 1\n;", "[[],[[\"object\",[[\"default\",1]]]]]"],
+                ["const a = 1\n;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"object\",[[\"default\",[\"array\",[[\"cref\",0],[\"cref\",0]]]]]]]]"],
+                // a word that denotes a value still names a property: it is
+                // an `IdentifierName` in JavaScript, which reads it as the
+                // string, and `{ "NaN": 1 }` has always denoted that object
+                ["export default {NaN: 1, undefined: 2, true: 3};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"NaN\",1],[\"undefined\",2],[\"true\",3]]]]]]]]"],
+                ["const a = {NaN: 1};export default a.NaN;", "[[],[[\"object\",[[\"NaN\",1]]],[\"object\",[[\"default\",[\".\",[\"cref\",0],\"NaN\"]]]]]]"],
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', [source, tag])
@@ -159,18 +270,28 @@ export const proof = {
                 ["import x from \"m\";\nimport x from \"n\";\nexport default x;", "duplicate id", [2, 8]],
                 ["import x from \"m\";\nconst x = 1;\nexport default x;", "duplicate id", [2, 7]],
                 ["export default zzz;", "const not found", [1, 16]],
-                // `NaN` and `Infinity` are reserved, as `undefined` is: each
-                // carries its own token symbol, so it is never an identifier
-                // — not a name, not a key — and a value only where a value
-                // may stand
-                ["const NaN = 1;\nexport default NaN;", "unexpected token", [1, 7]],
-                ["import Infinity from \"m\";\nexport default Infinity;", "unexpected token", [1, 8]],
-                ["export default {NaN: 1};", "unexpected token", [1, 17]],
-                // `-` folds into a number and into `Infinity`, and into
-                // nothing else: before `NaN` it is an error token, and the
-                // grammar refuses at the `NaN` after it, as DataJS refuses
-                ["export default -NaN;", "unexpected token", [1, 17]],
-                ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
+                // `NaN` and `Infinity` are reserved, as `undefined` is, and
+                // reserved is about *binding*: each may name a property,
+                // where JavaScript has an `IdentifierName` and reads the
+                // word as a string, and none may take a name of its own, so
+                // the refusal is the fold's `reserved word` and not the
+                // grammar's `unexpected token` — the same answer `const if`
+                // gets. `{NaN: 1}` and `a.NaN` are accepted above.
+                ["const NaN = 1;\nexport default NaN;", "reserved word", [1, 7]],
+                ["import Infinity from \"m\";\nexport default Infinity;", "reserved word", [1, 8]],
+                ["export default (...undefined) => undefined;", "reserved word", [1, 20]],
+                // a statement wrong in both halves answers for the half a
+                // reader meets first: the name, not the initializer, which
+                // is why the binding name is checked before the value is
+                // read — `const if = missing;` answered `const not found`
+                // at `missing` until it was
+                ["const NaN = missing;\nexport default 1;", "reserved word", [1, 7]],
+                ["const if = missing;\nexport default 1;", "reserved word", [1, 7]],
+                ["const a = 1;\nconst a = missing;\nexport default 1;", "duplicate id", [2, 7]],
+                // `-Infinity` is no name in either language, and it is two
+                // tokens here, so the `-` is what a key position answers at
+                ["export default {-Infinity: 1};", "unexpected token", [1, 17]],
+                ["const undefined = 1;\nexport default undefined;", "reserved word", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
                 // a `const` naming itself is a reference before its declaration,
                 // which JavaScript refuses too; it used to name the entry
@@ -343,8 +464,8 @@ export const proof = {
     membersAsWritten: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "1": 2, "b": 3};'))
         assert(tag === 'ok', tag)
-        assertEq(stringifyDjsModule(value), '[[],[["object",[["b",1],["1",2],["b",3]]]]]')
-        const object = unwrap(run(value[1])([]))
+        assertEq(stringifyDjsModule(value), '[[],[["object",[["default",["object",[["b",1],["1",2],["b",3]]]]]]]]')
+        const object = _own(unwrap(run(value[1])([])), 'default')
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), '1,b')
         assertEq(object.b, 3)
@@ -361,45 +482,50 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), expected)
             }
-            expect('const a = {}; export default a.b;', '[[],[["object",[]],[".",["cref",0],"b"]]]')
-            expect('const a = {}; export default a["b c"];', '[[],[["object",[]],[".",["cref",0],"b c"]]]')
-            expect('const a = []; export default a[0];', '[[],[["array",[]],[".",["cref",0],0]]]')
-            expect('const a = []; export default a[-1.5];', '[[],[["array",[]],[".",["cref",0],-1.5]]]')
-            expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],[".",[".",[".",["cref",0],"b"],1],"default"]]]')
+            expect('const a = {}; export default a.b;', '[[],[["object",[]],["object",[["default",[".",["cref",0],"b"]]]]]]')
+            expect('const a = {}; export default a["b c"];', '[[],[["object",[]],["object",[["default",[".",["cref",0],"b c"]]]]]]')
+            expect('const a = []; export default a[0];', '[[],[["array",[]],["object",[["default",[".",["cref",0],0]]]]]]')
+            // an index is a constant key, a string or a number token, and
+            // the sign was only ever one because the fold made `-1.5` a
+            // number. It is two tokens now, so a negative key is written as
+            // the string it names — which is the key either spelling gives
+            expect('const a = []; export default a["-1.5"];', '[[],[["array",[]],["object",[["default",[".",["cref",0],"-1.5"]]]]]]')
+            expect('const a = {}; export default a.b[1].default;', '[[],[["object",[]],["object",[["default",[".",[".",[".",["cref",0],"b"],1],"default"]]]]]]')
             // any value takes accesses, a literal as a reference does
-            expect('export default [1].length;', '[[],[[".",["array",[1]],"length"]]]')
-            expect('export default "ab"[0];', '[[],[[".","ab",0]]]')
-            expect('export default { a: [1] }.a[0];', '[[],[[".",[".",["object",[["a",["array",[1]]]]],"a"],0]]]')
-            expect('export default null.x;', '[[],[[".",null,"x"]]]')
-            expect('export default true.x;', '[[],[[".",true,"x"]]]')
-            expect('const n = -1; export default n.x;', '[[],[-1,[".",["cref",0],"x"]]]')
-            expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]')
+            expect('export default [1].length;', '[[],[["object",[["default",[".",["array",[1]],"length"]]]]]]')
+            expect('export default "ab"[0];', '[[],[["object",[["default",[".","ab",0]]]]]]')
+            expect('export default { a: [1] }.a[0];', '[[],[["object",[["default",[".",[".",["object",[["a",["array",[1]]]]],"a"],0]]]]]]')
+            expect('export default null.x;', '[[],[["object",[["default",[".",null,"x"]]]]]]')
+            expect('export default true.x;', '[[],[["object",[["default",[".",true,"x"]]]]]]')
+            expect('const n = -1; export default n.x;', '[[],[["-",1],["object",[["default",[".",["cref",0],"x"]]]]]]')
+            expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["object",[["default",["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]]]]')
             // a prototype name is a key like any other: only reading it is refused
-            expect('export default { push: 1, toString: 2 };', '[[],[["object",[["push",1],["toString",2]]]]]')
-            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]')
+            expect('export default { push: 1, toString: 2 };', '[[],[["object",[["default",["object",[["push",1],["toString",2]]]]]]]]')
+            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["object",[["default",["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]]]]')
         },
-        // `-1 .x` is `-(1 .x)` in JavaScript, and the tokenizer folds the
-        // minus into the number — and `-0n` to `0n`, leaving no sign to
-        // tell by — so an access on any numeric literal is refused at the
-        // key; a reference to a number takes one
+        // `-1 .x` is `-(1 .x)` in JavaScript, and it is that here: the `-`
+        // is a prefix the grammar reads, so the negation stands outside the
+        // access rather than inside the literal. An access on a numeric
+        // literal is an access like any other, and `-0n` needs no sign to
+        // tell it by, there being no fold left to lose one.
         numeric: () => {
-            /** @type {(source: string, column: number) => void} */
-            const expect = (source, column) => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
-                assert(tag === 'error', tag)
-                assertEq(value.message, 'access on a numeric literal')
-                assertEq(value.metadata?.column, column)
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
             }
-            expect('export default -1 .x;', 20)
-            expect('export default -0 .x;', 20)
-            expect('export default -1n .x;', 21)
-            expect('export default -0n .x;', 21)
-            expect('export default -Infinity.x;', 26)
-            expect('export default -1["x"];', 19)
-            expect('export default 1 .x;', 19)
-            expect('export default 0n.x;', 19)
-            expect('export default NaN.x;', 20)
-            expect('export default Infinity["x"];', 25)
+            expect('export default -1 .x;', '[[],[["object",[["default",["-",[".",1,"x"]]]]]]]')
+            expect('export default -0 .x;', '[[],[["object",[["default",["-",[".",0,"x"]]]]]]]')
+            expect('export default -1n .x;', '[[],[["object",[["default",["-",[".",1n,"x"]]]]]]]')
+            expect('export default -0n .x;', '[[],[["object",[["default",["-",[".",0n,"x"]]]]]]]')
+            expect('export default -Infinity.x;', '[[],[["object",[["default",["-",[".",Infinity,"x"]]]]]]]')
+            expect('export default -1["x"];', '[[],[["object",[["default",["-",[".",1,"x"]]]]]]]')
+            // and without a sign the access is all there is
+            expect('export default 1 .x;', '[[],[["object",[["default",[".",1,"x"]]]]]]')
+            expect('export default 0n.x;', '[[],[["object",[["default",[".",0n,"x"]]]]]]')
+            expect('export default NaN.x;', '[[],[["object",[["default",[".",NaN,"x"]]]]]]')
+            expect('export default Infinity["x"];', '[[],[["object",[["default",[".",Infinity,"x"]]]]]]')
         },
         prohibited: () => {
             /** @type {(source: string, column: number) => void} */
@@ -434,10 +560,68 @@ export const proof = {
             assertEq(`${value2.message} at ${value2.metadata?.column}`, 'prohibited property name at 33')
         },
     },
+    // The one prefix operator. `-` is a token the grammar reads, so what it
+    // takes is a whole value with its steps — JavaScript's reading — and
+    // what it may take is JavaScript's `UnaryExpression`: not an arrow
+    // function, which is why `-(...a) => 1` is a syntax error in both.
+    neg: {
+        forms: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('export default -1;', '[[],[["object",[["default",["-",1]]]]]]')
+            expect('export default -1n;', '[[],[["object",[["default",["-",1n]]]]]]')
+            expect('export default -0;', '[[],[["object",[["default",["-",0]]]]]]')
+            expect('export default -Infinity;', '[[],[["object",[["default",["-",Infinity]]]]]]')
+            // `-NaN` is a value in JavaScript and is one here, where the
+            // fold made it an error token
+            expect('export default -NaN;', '[[],[["object",[["default",["-",NaN]]]]]]')
+            expect('export default -"2";', '[[],[["object",[["default",["-","2"]]]]]]')
+            expect('export default -[1];', '[[],[["object",[["default",["-",["array",[1]]]]]]]]')
+            expect('export default -{a:1};', '[[],[["object",[["default",["-",["object",[["a",1]]]]]]]]]')
+            // right-recursive, so a negation takes a negation
+            expect('export default - -1;', '[[],[["object",[["default",["-",["-",1]]]]]]]')
+            expect('export default - - -1;', '[[],[["object",[["default",["-",["-",["-",1]]]]]]]]')
+            // and inside a body, where the prefix is the body's own value
+            expect('export default (...a) => -a[0];', '[[],[["object",[["default",["=>",[["-",[".",["args"],0]]]]]]]]]')
+        },
+        refused: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'unexpected token')
+                assertEq(value.metadata?.column, column)
+            }
+            // `--` is the one decrement token, which the language has no
+            // rule for, so it is refused where it is written and never read
+            // as a negation of a negation — `- -1` is how that is spelled
+            expect('export default --1;', 16)
+            // an arrow function is no `UnaryExpression`: `-(...a) => 1` is a
+            // syntax error in JavaScript, so the operand rule takes every
+            // value but a function. The `(` is not what fails — a group
+            // is an operand, `-((...a) => 1)` — so the refusal is at what
+            // the `(` opens: the `...`, exactly where JavaScript's is, or
+            // the `)` of an empty list, which is no value to group either
+            expect('export default -(...a) => 1;', 18)
+            expect('export default -() => 1;', 18)
+            // and it is the *operand rule* that refuses it, not the one
+            // branch: the rule names itself, so a `-` one deeper reaches it
+            // again, and a body's `-` takes the same rule rather than the
+            // body's own. Each of the three references is load-bearing —
+            // point any of them at `value` and the function is admitted
+            expect('export default - -(...a) => 1;', 20)
+            expect('export default (...b) => -(...a) => 1;', 28)
+            expect('export default (...b) => - -(...a) => 1;', 30)
+        },
+    },
     memberOrder: () => {
         const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
         assert(tag === 'ok', tag)
-        const object = unwrap(run(value[1])([]))
+        const object = _own(unwrap(run(value[1])([])), 'default')
         assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
         assertEq(Object.keys(object).join(), 'b,a,c')
         assertEq(object.b, 3)
@@ -487,7 +671,7 @@ export const proof = {
         json: () => {
             const [tag, value] = parseFromTokens(tokenizeString('import x from "m" with { type: "json" };\nexport default x;'))
             assert(tag === 'ok', tag)
-            assertEq(stringifyDjsModule(value), '[[{"json":true,"specifier":"m"}],[["aref",0]]]')
+            assertEq(stringifyDjsModule(value), '[[{"json":true,"specifier":"m"}],[["object",[["default",["aref",0]]]]]]')
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -498,6 +682,10 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('import x from "m" with { kind: "json" };\nexport default x;', 'unknown import attribute', 26)
+            // a key with a symbol of its own is a word like any other here,
+            // as JavaScript's `IdentifierName` key is: the fold names it
+            expect('import x from "m" with { return: "json" };\nexport default x;', 'unknown import attribute', 26)
+            expect('import x from "m" with { export: "json" };\nexport default x;', 'unknown import attribute', 26)
             expect('import x from "m" with { type: "css" };\nexport default x;', 'unknown import type', 32)
         },
     },
@@ -506,7 +694,8 @@ export const proof = {
     // — a `const`, an import, or an enclosing function's parameter — is a
     // capture, refused where it is written, since a function has no frame
     // yet. A parameter may shadow a module name, as in JavaScript, and is
-    // an identifier, so a keyword is refused as one.
+    // an identifier, so a keyword is refused as one. The list may also be
+    // empty, `() => body`, which binds no name at all.
     func: {
         parsed: () => {
             /** @type {(source: string, expected: string) => void} */
@@ -515,14 +704,55 @@ export const proof = {
                 assert(tag === 'ok', value)
                 assertEq(stringifyDjsModule(value), expected)
             }
-            expect('export default (...a) => a;', '[[],[["=>",["args"]]]]')
-            expect('export default (...a) => [a, a[0], a["x"], (...b) => b];', '[[],[["=>",["array",[["args"],[".",["args"],0],[".",["args"],"x"],["=>",["args"]]]]]]]')
-            expect('const f = (...a) => 1; export default [f, f];', '[[],[["=>",1],["array",[["cref",0],["cref",0]]]]]')
-            expect('const a = 1; export default (...a) => a;', '[[],[1,["=>",["args"]]]]')
-            expect('export default ( ... a ) => /* c */ a . b [ 0 ] ;', '[[],[["=>",[".",[".",["args"],"b"],0]]]]')
+            expect('export default (...a) => a;', '[[],[["object",[["default",["=>",[["args"]]]]]]]]')
+            expect('export default (...a) => [a, a[0], a["x"], (...b) => b];', '[[],[["object",[["default",["=>",[["array",[["args"],[".",["args"],0],[".",["args"],"x"],["=>",[["args"]]]]]]]]]]]]')
+            expect('const f = (...a) => 1; export default [f, f];', '[[],[["=>",[1]],["object",[["default",["array",[["cref",0],["cref",0]]]]]]]]')
+            expect('const a = 1; export default (...a) => a;', '[[],[1,["object",[["default",["=>",[["args"]]]]]]]]')
+            expect('export default ( ... a ) => /* c */ a . b [ 0 ] ;', '[[],[["object",[["default",["=>",[[".",[".",["args"],"b"],0]]]]]]]]')
             // a body takes accesses as a value does, and a function none of its own
-            expect('export default (...a) => [a][0];', '[[],[["=>",[".",["array",[["args"]]],0]]]]')
-            expect('export default (...a) => "s"[0];', '[[],[["=>",[".","s",0]]]]')
+            expect('export default (...a) => [a][0];', '[[],[["object",[["default",["=>",[[".",["array",[["args"]]],0]]]]]]]]')
+            expect('export default (...a) => "s"[0];', '[[],[["object",[["default",["=>",[[".","s",0]]]]]]]]')
+        },
+        // An empty parameter list binds nothing, and the AST carries no
+        // parameter either way: `() => 1` and `(...a) => 1` are the one
+        // node, as they are the one function in JavaScript for every
+        // program that can be written here — the arguments a name does not
+        // spell are unreachable, and `f.name` and `f.length` are refused at
+        // the key of `.`.
+        noParameter: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default () => 1;', '[[],[["object",[["default",["=>",[1]]]]]]]')
+            expect('export default ( /* c */ ) => 1;', '[[],[["object",[["default",["=>",[1]]]]]]]')
+            expect('export default () => { return 1; };', '[[],[["object",[["default",["=>",[1]]]]]]]')
+            // a body of its own, with its own entries, as a parameter's is
+            expect('export default () => { const x = 1; return x; };', '[[],[["object",[["default",["=>",[1,["cref",0]]]]]]]]')
+            // the name a parameter would have taken is the body's to bind
+            expect('export default () => { const a = 1; return a; };', '[[],[["object",[["default",["=>",[1,["cref",0]]]]]]]]')
+            // either list nests in the other, and a call needs no parameter
+            expect('export default () => (...a) => a;', '[[],[["object",[["default",["=>",[["=>",[["args"]]]]]]]]]]')
+            expect('export default (...a) => [a, () => 1];', '[[],[["object",[["default",["=>",[["array",[["args"],["=>",[1]]]]]]]]]]]')
+            expect('const f = () => 1; export default f();', '[[],[["=>",[1]],["object",[["default",["()",["cref",0],[]]]]]]]')
+        },
+        // What a body with no parameter may not name: the arguments it has
+        // no word for are not a name, so they answer as any other unbound
+        // word does, and a name bound outside is a capture as ever.
+        noParameterRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default () => a;', 'const not found', 22)
+            expect('const c = 1; export default () => c;', 'capture not supported', 35)
+            expect('export default (...a) => () => a;', 'capture not supported', 32)
+            expect('export default () => { const x = a; return x; };', 'const not found', 34)
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -537,7 +767,221 @@ export const proof = {
             expect('const c = 1; export default (...a) => (...b) => a;', 'capture not supported', 49)
             expect('export default (...a) => zzz;', 'const not found', 26)
             expect('export default (...if) => 1;', 'reserved word', 20)
+            expect('export default (...return) => 1;', 'reserved word', 20)
             expect('export default (...a) => a.__proto__;', 'prohibited property name', 28)
+        },
+        // The fold lowers a return-only block to the same executable body
+        // as an expression, after the source tree has preserved its syntax.
+        block: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (...a) => { return a; };', '[[],[["object",[["default",["=>",[["args"]]]]]]]]')
+            expect('export default (...a) => { return a[0]; };', '[[],[["object",[["default",["=>",[[".",["args"],0]]]]]]]]')
+            // the object literal an expression body cannot spell bare,
+            // `=> {` opening a block — the group spells it, and `group`
+            // pins that the two are one tree
+            expect('export default (...a) => { return { x: 1 }; };', '[[],[["object",[["default",["=>",[["object",[["x",1]]]]]]]]]]')
+            expect('export default (...a) => { return (...b) => { return b; }; };', '[[],[["object",[["default",["=>",[["=>",[["args"]]]]]]]]]]')
+            // the parameter is still the arguments array, and a name bound
+            // outside is still a capture
+            const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { return c; };'))
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'capture not supported')
+        },
+        // A body `const` is an entry of the function's own body, as a
+        // module's is of the module's: `['cref', i]` names entry `i` of the
+        // body it is written in, the value it returns is the last entry,
+        // and a `const` is one node however many references reach it.
+        bodyConst: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (...a) => { const x = 1; return x; };', '[[],[["object",[["default",["=>",[1,["cref",0]]]]]]]]')
+            expect('export default (...a) => { const x = 1; const y = 2; return [x, y]; };', '[[],[["object",[["default",["=>",[1,2,["array",[["cref",0],["cref",1]]]]]]]]]]')
+            // a later statement names an earlier one, and the body's own
+            // numbering is not the module's — both are entry 0 of their own
+            expect('const m = 9; export default (...a) => { const x = 1; const y = x; return y; };', '[[],[9,["object",[["default",["=>",[1,["cref",0],["cref",1]]]]]]]]')
+            // the parameter is in scope for the statements too
+            expect('export default (...a) => { const x = a[0]; return x; };', '[[],[["object",[["default",["=>",[[".",["args"],0],["cref",0]]]]]]]]')
+            // a nested body numbers its own entries from zero
+            expect('export default (...a) => { const x = (...b) => { const y = 1; return y; }; return x; };', '[[],[["object",[["default",["=>",[["=>",[1,["cref",0]]],["cref",0]]]]]]]]')
+            // an entry the return value never names is an entry all the
+            // same: the body keeps it, and the lowering anchors it
+            expect('export default (...a) => { const x = []; return 1; };', '[[],[["object",[["default",["=>",[["array",[]],1]]]]]]]')
+        },
+        // What a body `const` may not be named, each at the name.
+        bodyConstRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default (...a) => { const x = 1; const x = 2; return x; };', 'duplicate id', 47)
+            // the parameter is a name of the body, so a `const` may not
+            // take it — the same answer a module's duplicate gets
+            expect('export default (...a) => { const a = 1; return a; };', 'duplicate id', 34)
+            expect('export default (...a) => { const if = 1; return 1; };', 'reserved word', 34)
+            // the name is answered for before its value is read, as a
+            // module's `const` is
+            expect('export default (...a) => { const NaN = zzz; return 1; };', 'reserved word', 34)
+            // a statement's value is resolved in the body's scope: reaching
+            // out of it is a capture, and a name nothing binds is not found
+            expect('const c = 1; export default (...a) => { const x = c; return x; };', 'capture not supported', 51)
+            expect('export default (...a) => { const x = zzz; return x; };', 'const not found', 38)
+            // a `const` is not in its own initializer's scope
+            expect('export default (...a) => { const x = x; return x; };', 'const not found', 38)
+            // and a later statement is not in an earlier one's
+            expect('export default (...a) => { const x = y; const y = 1; return x; };', 'const not found', 38)
+        },
+        // A call, `['()', callee, args]`: the callee and then the arguments
+        // in the order written, which is the order they are resolved in and
+        // the order an error among them is reported in. A method call keeps
+        // its access as the callee here — which of the EDAG's two call
+        // forms that becomes is the lowering's.
+        call: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('const f = (...a) => 1; export default f();', '[[],[["=>",[1]],["object",[["default",["()",["cref",0],[]]]]]]]')
+            expect('const f = (...a) => 1; export default f(1, 2);', '[[],[["=>",[1]],["object",[["default",["()",["cref",0],[1,2]]]]]]]')
+            expect('const o = {}; export default o.b(3);', '[[],[["object",[]],["object",[["default",["()",[".",["cref",0],"b"],[3]]]]]]]')
+            expect('const f = (...a) => 1; export default f(1)(2);', '[[],[["=>",[1]],["object",[["default",["()",["()",["cref",0],[1]],[2]]]]]]]')
+            expect('export default (...a) => a[0](1);', '[[],[["object",[["default",["=>",[["()",[".",["args"],0],[1]]]]]]]]]')
+            // a trailing comma is the list's, as an array's is
+            expect('const f = (...a) => 1; export default f(1,);', '[[],[["=>",[1]],["object",[["default",["()",["cref",0],[1]]]]]]]')
+        },
+        // A group is no node: `(x)` is whatever `x` is, so the AST is the
+        // one the parentheses are not in — the sharing a module spells
+        // survives them, and a step after the `)` reads the value inside.
+        group: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), expected)
+            }
+            expect('export default (1);', '[[],[["object",[["default",1]]]]]')
+            expect('export default ((1));', '[[],[["object",[["default",1]]]]]')
+            expect('export default ( /* c */ [1] /* c */ );', '[[],[["object",[["default",["array",[1]]]]]]]')
+            // the object body, which `=> {` cannot spell
+            expect('export default (...a) => ({ x: 1 });', '[[],[["object",[["default",["=>",[["object",[["x",1]]]]]]]]]]')
+            // a group takes steps, and they apply to the value it holds
+            expect('export default ([1, 2]).length;', '[[],[["object",[["default",[".",["array",[1,2]],"length"]]]]]]')
+            expect('const a = { b: 1 }; export default (a).b;', '[[],[["object",[["b",1]]],["object",[["default",[".",["cref",0],"b"]]]]]]')
+            // a group of a reference is that reference, so two routes into
+            // one `const` are the one node they were
+            expect('const a = [1]; export default [(a), a];', '[[],[["array",[1]],["object",[["default",["array",[["cref",0],["cref",0]]]]]]]]')
+            // and parentheses keep a property reference, as JavaScript's do
+            // — `(a.at)(0) === 42` there, pinned by `chainsJs.receiver` in
+            // `fjs/edag/proof.f.mjs` — so a call on a grouped access is the
+            // method call, the very node `o.b(1)` is and not a detached one
+            const grouped = '[[],[["object",[["b",1]]],["object",[["default",["()",[".",["cref",0],"b"],[1]]]]]]]'
+            expect('const o = { b: 1 }; export default (o.b)(1);', grouped)
+            expect('const o = { b: 1 }; export default ((o.b))(1);', grouped)
+            expect('const o = { b: 1 }; export default o.b(1);', grouped)
+            // a step reads the value in the group and nothing else, so
+            // parentheses around one add no tree: a numeric literal takes
+            // its access and its call as it does without them
+            expect('export default (1).x;', '[[],[["object",[["default",[".",1,"x"]]]]]]')
+            expect('export default 1 .x;', '[[],[["object",[["default",[".",1,"x"]]]]]]')
+            expect('export default (1)(2);', '[[],[["object",[["default",["()",1,[2]]]]]]]')
+            expect('export default 1(2);', '[[],[["object",[["default",["()",1,[2]]]]]]]')
+            // what a group does change is how far a prefix reaches, since
+            // `-` binds looser than a step: `(-1).x` is the access on the
+            // negation, which nothing else spells, and `-1 .x` the negation
+            // of the access, as JavaScript reads each
+            expect('export default (-1).x;', '[[],[["object",[["default",[".",["-",1],"x"]]]]]]')
+            expect('export default -1 .x;', '[[],[["object",[["default",["-",[".",1,"x"]]]]]]]')
+            // and the group is the `-`'s operand, the one way a function or
+            // an access on a value written in place reaches a prefix
+            expect('export default -(1);', '[[],[["object",[["default",["-",1]]]]]]')
+            expect('export default -(1).x;', '[[],[["object",[["default",["-",[".",1,"x"]]]]]]]')
+            expect('export default -((...a) => 1);', '[[],[["object",[["default",["-",["=>",[1]]]]]]]]')
+        },
+        // A group denotes its value, so it launders nothing: every rule the
+        // value earns it earns inside the parentheses, at the same token.
+        groupRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            // a built-in prototype's name is refused whether the access is
+            // called in place or grouped and called after
+            expect('const o = {}; export default (o.toString)(1);', 'prohibited property name', 33)
+            expect('const o = {}; export default o.toString(1);', 'prohibited property name', 32)
+            // and a name nothing binds is not found where it stands
+            expect('export default (zzz);', 'const not found', 17)
+        },
+        // What a call's operands earn, each where it is written: the callee
+        // is resolved before the arguments, and an argument before the ones
+        // after it, so the first failure in source order is the one reported.
+        callRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default zzz(1);', 'const not found', 16)
+            expect('const f = (...a) => 1; export default f(zzz);', 'const not found', 41)
+            expect('const f = (...a) => 1; export default f(1, zzz);', 'const not found', 44)
+            expect('const f = (...a) => 1; export default f(yyy, zzz);', 'const not found', 41)
+            // a method call's property is the access's, so the rule that
+            // refuses a built-in prototype's name refuses it here too
+            expect('const o = {}; export default o.toString(1);', 'prohibited property name', 32)
+            expect('const o = {}; export default o.__proto__(1);', 'prohibited property name', 32)
+            // and a body still reaches nothing outside itself
+            expect('const f = (...a) => 1; export default (...b) => f(b);', 'capture not supported', 49)
+        },
+        // A call on a numeric literal is a call like any other, and the sign
+        // is outside it: JavaScript reads `-1()` as `-(1())` and calls `1`,
+        // which is what the prefix gives. There is nothing left to refuse —
+        // the fold that made the callee `-1` is gone.
+        numericCallee: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('export default 1();', '[[],[["object",[["default",["()",1,[]]]]]]]')
+            expect('export default -1();', '[[],[["object",[["default",["-",["()",1,[]]]]]]]]')
+            expect('export default -1n();', '[[],[["object",[["default",["-",["()",1n,[]]]]]]]]')
+            expect('export default -Infinity();', '[[],[["object",[["default",["-",["()",Infinity,[]]]]]]]]')
+            // an argument is read as any other is, so its own error is the
+            // one reported — there is no earlier one to come first
+            const [tag, value] = parseFromTokens(tokenizeString('export default 1(zzz);'))
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'const not found')
+            assertEq(value.metadata?.column, 18)
+            // and a reference to a number still reads alike in both
+            expect('const n = 1; export default n();', '[[],[1,["object",[["default",["()",["cref",0],[]]]]]]]')
+        },
+        // A body `const` may take a name the module binds. The body cannot
+        // reach the module's scope at all — a reference out is a capture —
+        // so the module's name is unreachable here rather than hidden, and
+        // no-shadowing (`spec/todo/3150-shadowing.md`) has nothing to
+        // decide about this case.
+        bodyConstShadowsModule: () => {
+            const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { const c = 2; return c; };'))
+            assert(tag === 'ok', value)
+            assertEq(stringifyDjsModule(value), '[[],[1,["object",[["default",["=>",[2,["cref",0]]]]]]]]')
         },
     },
     valid: [
@@ -546,140 +990,140 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[null]]')
+            assertEq(result, '[[],[["object",[["default",null]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default true;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[true]]')
+            assertEq(result, '[[],[["object",[["default",true]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default false;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[false]]')
+            assertEq(result, '[[],[["object",[["default",false]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default undefined;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[undefined]]')
+            assertEq(result, '[[],[["object",[["default",undefined]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default 0.1;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[0.1]]')
+            assertEq(result, '[[],[["object",[["default",0.1]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default 1.1e+2;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[110]]')
+            assertEq(result, '[[],[["object",[["default",110]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default "abc";')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],["abc"]]')
+            assertEq(result, '[[],[["object",[["default","abc"]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[1]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[1]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [[]];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[["array",[]]]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[["array",[]]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [0,[1,[2,[]]],3];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default {};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["object",[]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["array",[["object",[]]]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["array",[["object",[]]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["a",true],["b",false],["c",null],["d",undefined]]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["object",[["a",true],["b",false],["c",null],["d",undefined]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["a",["object",[["b",["object",[["c",["array",["d"]]]]]]]]]]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["object",[["a",["object",[["b",["object",[["c",["array",["d"]]]]]]]]]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["a",1]]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["object",[["a",1]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('export default 1234567890n;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1234567890n]]')
+            assertEq(result, '[[],[["object",[["default",1234567890n]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1234567890n];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[1234567890n]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[1234567890n]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default [1,];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[1]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[1]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('export default {"a":1,};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["a",1]]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["object",[["a",1]]]]]]]]') { throw result }
         }
     ],
     // A computed key `["a"]` is a third spelling of an ordinary key, next to
@@ -690,7 +1134,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["a",1]]]]]')
+            assertEq(result, '[[],[["object",[["default",["object",[["a",1]]]]]]]]')
         },
         () => {
             // all three spellings in one object, plus a trailing comma
@@ -698,7 +1142,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["a",1],["b",2],["c",3]]]]]')
+            assertEq(result, '[[],[["object",[["default",["object",[["a",1],["b",2],["c",3]]]]]]]]')
         },
         () => {
             // trivia is trivia inside the brackets too
@@ -706,7 +1150,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["a",1]]]]]')
+            assertEq(result, '[[],[["object",[["default",["object",[["a",1]]]]]]]]')
         },
         () => {
             // the key that has no other spelling
@@ -714,7 +1158,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["object",[["__proto__",["object",[["a",42]]]]]]]]')
+            assertEq(result, '[[],[["object",[["default",["object",[["__proto__",["object",[["a",42]]]]]]]]]]]')
         },
     ],
     invalidComputedKey: [
@@ -1051,28 +1495,28 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[0,1,2]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[0,1,2]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ; ')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["a",0],["b",1]]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["object",[["a",0],["b",1]]]]]]]]') { throw result }
         },
         () => {
             const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[0,1,2]]]]')
+            assertEq(result, '[[],[["object",[["default",["array",[0,1,2]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r;\r')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[["object",[["a",0],["b",1]]]]]') { throw result }
+            if (result !== '[[],[["object",[["default",["object",[["a",0],["b",1]]]]]]]]') { throw result }
         },
     ],
     // A JSON document is not a module: a statement begins with `import`,
@@ -1132,7 +1576,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"a.f.js"}],[1,["array",[["aref",0],["cref",0]]]]]')
+            assertEq(result, '[[{"json":false,"specifier":"a.f.js"}],[1,["object",[["default",["array",[["aref",0],["cref",0]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const b = 1; \n import a from "a.f.js"; \n export default [a,b];')
@@ -1185,28 +1629,28 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1,2,3]]')
+            assertEq(result, '[[],[1,2,["object",[["default",3]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default b;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1,2,["cref",1]]]')
+            assertEq(result, '[[],[1,2,["object",[["default",["cref",1]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default [b,a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1,2,["array",[["cref",1],["cref",0],["cref",1]]]]]')
+            assertEq(result, '[[],[1,2,["object",[["default",["array",[["cref",1],["cref",0],["cref",1]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default {"1st":b,"2nd":a,"3rd":b};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[1,2,["object",[["1st",["cref",1]],["2nd",["cref",0]],["3rd",["cref",1]]]]]]') { throw result }
+            if (result !== '[[],[1,2,["object",[["default",["object",[["1st",["cref",1]],["2nd",["cref",0]],["3rd",["cref",1]]]]]]]]]') { throw result }
         },
     ],
     invalidWithConst:[
@@ -1243,21 +1687,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"test/test.f.mjs"}],[["aref",0]]]')
+            assertEq(result, '[[{"json":false,"specifier":"test/test.f.mjs"}],[["object",[["default",["aref",0]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"first/test.f.mjs"},{"json":false,"specifier":"second/test.f.mjs"}],[["array",[["aref",1],["aref",0],["aref",1]]]]]')
+            assertEq(result, '[[{"json":false,"specifier":"first/test.f.mjs"},{"json":false,"specifier":"second/test.f.mjs"}],[["object",[["default",["array",[["aref",1],["aref",0],["aref",1]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"test/test.f.mjs"}],[null,["array",[["cref",0],["aref",0],["cref",0]]]]]')
+            assertEq(result, '[[{"json":false,"specifier":"test/test.f.mjs"}],[null,["object",[["default",["array",[["cref",0],["aref",0],["cref",0]]]]]]]]')
         },
     ],
     invalidWithArgs:[
@@ -1304,7 +1748,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[null]]')
+            assertEq(result, '[[],[["object",[["default",null]]]]]')
         },
     ],
     // Regression, from the hand-written parser: closing a container popped its

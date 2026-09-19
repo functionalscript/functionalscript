@@ -101,18 +101,51 @@ via the `Function` constructor — no rustc at the user's run time.
 
 ### Tasks
 
-- [ ] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
+- [x] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
       exposing the compiled module's value (e.g.
-      `pub fn module<A: IVm>() -> Any<A>`), not a `main`.
-- [ ] Create the harness: a crate (or generated tests in `nanvm-lib`) with a
-      thin `main` that evaluates a generated module's `export default` and
-      prints the result as JSON; wire it into CI via `cargo test`.
+      `pub fn module<A: IVm>() -> Any<A>`), not a `main`. Covers literals,
+      arrays, objects, `const` sharing (generalized from the operator-test
+      printer's explicit named `shared` to a linked EDAG's implicit,
+      identity-based sharing), and property access (`.`, via
+      `Any::member_access`, a literal `number` or `string` key over an
+      array, string, object, boolean, number, or bigint receiver — a
+      `Number(...)` cast index, `a[Number(k)]`, is the one form still
+      refused, having no `nanvm-lib` cast primitive to route it through).
+      Unary `-` is the one operator the parser accepts; the lowering folds
+      one over a numeric literal, so `-1` prints as the number, and a
+      negation that survives the fold is refused — `Neg for Any<A>` answers
+      a `Result` a generated module cannot hold. No other operator
+      *expression* is accepted (see
+      [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
+      accepted subset), so there is nothing yet to print through the
+      `op1`/`op2`/`op3` tables. `=>` is a different case — the compiler does
+      emit it, for a function literal compiled to `.edag.data.js` — but it
+      stays out of the `.rs` subset too: this printer accepts only the one
+      placeholder closure the operator-test corpus uses (`() => undefined`)
+      and refuses every real one, since `nanvm-lib` has no closures yet
+      (P2, `fjs/edag/todo/entry.md` and the `Function` constructor task in
+      [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)). The printer is
+      shared with the operator-test generator via
+      [`fjs/edag/rust`](../fjs/edag/rust/module.f.mjs), not duplicated. Wired
+      to the harness (next task) below. Not yet covered: multi-module output
+      layout (see the open question below).
+- [x] Create the harness: a crate (`nanvm-harness`) with a thin `main` that
+      evaluates a generated module's `export default` and prints the result
+      as JSON; wired into CI via `cargo test`.
 - [ ] Define the convention for generated module imports (`use` paths,
       file/directory layout — see the open question in
-      [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)).
-- [ ] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
+      [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)). The
+      harness's own flat fixtures settle only their own layout
+      (`nanvm-harness/fixtures/<name>.rs` beside `<name>.mjs`, pulled into
+      `src/lib.rs` via `#[path]`), not the general multi-module question.
+- [x] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
       subset: a constant default export compiled by `fjs` to `.rs`, built and
-      run by cargo, with the result printed to stdout as JSON.
+      run by cargo, with the result printed to stdout as JSON —
+      `nanvm-harness/fixtures/{number,boolean,string}.mjs` — then extended to
+      arrays, objects, `const`-sharing, and string-keyed property access —
+      `nanvm-harness/fixtures/{array,object,sharing,property}.mjs`, matched
+      by [`Any::to_json`](../nanvm-lib/src/vm/any/to_json.rs) recursing into
+      arrays/objects instead of refusing them.
 - [ ] Complete
       [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md),
       including direct type-checking, declaration emission, packing, and

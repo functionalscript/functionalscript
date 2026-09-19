@@ -43,16 +43,38 @@ export type ParseError = {
  * A value as the mappings build it, before names are resolved: a primitive
  * converted from its token, a reference by the identifier token that spells
  * it — its name, and the position an error is anchored at — a property
- * access by the token its key is read from, a function by the token naming
- * its parameter and its body, or a container of its items in the order
- * written.
+ * access by the token its key is read from, a call by its arguments in the
+ * order written, a negation by its operand, a function by the token naming
+ * its parameter — `null` where the list is empty, there being no token —
+ * and its body,
+ * a block body by its ordered, tagged statements, or a
+ * container of its items in the order written.
+ *
+ * A call carries no token of its own. It held the `(` while an error was
+ * anchored there — a call on a numeric literal, which the fold refused —
+ * and that refusal is gone, `-1()` being the negation of `1()` as
+ * JavaScript reads it.
+ *
+ * A `block` stands only as a function's body. Even `{ return v; }` keeps
+ * its block and return; only lowering may give it the same executable body
+ * as the expression `v`.
  */
 export type Node =
     | readonly ['primitive', Primitive]
     | readonly ['ref', DjsTokenWithMetadata]
     | readonly ['.', Node, DjsTokenWithMetadata]
-    | readonly ['=>', DjsTokenWithMetadata, Node]
+    | readonly ['()', Node, readonly Node[]]
+    | readonly ['-', Node]
+    | readonly ['=>', DjsTokenWithMetadata | null, Node]
+    | Block
     | Container
+
+/**
+ * The block syntax currently understood: zero or more `const` declarations
+ * followed by one explicit value-returning statement. The grammar enforces
+ * this order; bare returns, extra statements and ASI remain unsupported.
+ */
+export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return', Node]]]
 
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =
@@ -89,11 +111,17 @@ export type Const = {
     readonly value: Node
 }
 
-/** A whole module as matched: its statements in order, the export's value last. */
+/** A module declaration, with its source export marker retained. */
+export type ModuleConst = {
+    readonly declaration: Const
+    readonly exported: boolean
+}
+
+/** A whole module as matched: declarations in order and an optional final default. */
 export type Module = {
     readonly imports: readonly Import[]
-    readonly consts: readonly Const[]
-    readonly exported: Node
+    readonly consts: readonly ModuleConst[]
+    readonly exported: Node | null
 }
 
 /**
@@ -109,5 +137,5 @@ export type Out =
     | { readonly id: 'members', readonly items: List<Entry> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
-    | { readonly id: 'export', readonly node: Node }
+    | { readonly id: 'export', readonly consts: List<ModuleConst>, readonly default: Node | null }
     | { readonly id: 'module', readonly module: Module }

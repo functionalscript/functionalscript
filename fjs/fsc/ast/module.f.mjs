@@ -30,14 +30,14 @@ const { isInteger } = Number
  *
  * @type {(base: Unknown, key: string | number) => Unknown}
  */
-const own = (base, key) => {
+export const _own = (base, key) => {
     /** @type {{ readonly [k in string]?: Unknown }} */
     const object = Object(base)
     return hasOwn(object, key) ? object[key] : undefined
 }
 
 /**
- * A property access on a value: the own property, as {@link own} reads it,
+ * A property access on a value: the own property, as {@link _own} reads it,
  * of a base that has properties — a `null` or `undefined` base is the
  * failure JavaScript throws for, and the one failure a data module can
  * make.
@@ -46,7 +46,7 @@ const own = (base, key) => {
  */
 const ownProperty = key => base => base === null || base === undefined
     ? error(`cannot read property "${key}" of ${base}`)
-    : ok(own(base, key))
+    : ok(_own(base, key))
 
 /** @type {<T>(list: List<T>) => (value: T) => List<T>} */
 const appended = list => value => ({ head: list, tail: [value] })
@@ -91,10 +91,58 @@ const foldOp = ast => state => mapOk(evaluated(state))(toDjs(state)(ast))
 const entryStep = (acc, ast) => okThen(foldOp(ast))(acc)
 
 /**
- * The refusal of a function where a value is wanted: a data module's value
- * has no function in it, and what a function denotes is its EDAG.
+ * The refusal of a function where a value is wanted: this evaluator computes
+ * the value a module denotes, and no value here is a function.
+ *
+ * It named the EDAG as the place functions go while that was the only output
+ * holding one. It is not any more — `fjs compile` writes the module itself
+ * under a JavaScript name
+ * ([`../serializer`](../serializer/module.f.mjs)) — so the message says what
+ * is missing and leaves the choice of output to the compiler's own
+ * documentation.
  */
-const noFunctionValue = 'functions are compiled to the EDAG only'
+const noFunctionValue = 'a function has no value'
+
+/**
+ * The refusal of a call where a value is wanted: this evaluator computes
+ * the value a module denotes and has no function to apply, so what a call
+ * returns is not a value it can reach. Interpreting a call is
+ * [`../todo/interpret-edag.md`](../todo/interpret-edag.md)'s.
+ */
+const noCallValue = 'a call has no value'
+
+/**
+ * The refusal of a value this evaluator has no number for: a container.
+ *
+ * Converting one is `ToPrimitive`, JavaScript's own machinery — `valueOf`,
+ * then `toString`, and a `TypeError` where neither answers with a
+ * primitive. Which of those a value reaches depends on what it holds, so
+ * saying in advance that a container converts means assuming what may be
+ * in it. This refuses instead. The numbers JavaScript would give — `-[1]`
+ * is `-1`, `-{}` is `NaN` — wait on that machinery being written rather
+ * than reasoned about.
+ */
+const noNumber = 'no number for this value'
+
+/**
+ * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
+ * bigint, and every other primitive converts — `-null` is `-0`, `-"2"` is
+ * `-2`, `-true` is `-1`, `-undefined` is `NaN`. `Number` is total over
+ * those five and cannot throw, which is what makes this total without
+ * knowing anything about the value beyond its type.
+ *
+ * Anything else is {@link noNumber}'s.
+ *
+ * @type {(value: Unknown) => Result<Unknown, string>}
+ */
+const negated = value => {
+    if (typeof value === 'bigint') { return ok(-value) }
+    if (value === null) { return ok(-0) }
+    switch (typeof value) {
+        case 'number': case 'string': case 'boolean': case 'undefined': { return ok(-Number(value)) }
+        default: { return error(noNumber) }
+    }
+}
 
 /**
  * The value of one entry, or the failure. An object's members are written
@@ -114,6 +162,8 @@ const toDjs = state => ast => {
         case 'object': { return mapOk(objectOf)(fold(collect)(noMembers)(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
         case 'args': { return error(noFunctionValue) }
+        case '()': { return error(noCallValue) }
+        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -189,6 +239,10 @@ const refsOf = view => ast => {
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf(view))) }
         case 'object': { return flat(view.members(ast[1]).map(refsOf(view))) }
+        // a call reaches its callee and every argument, each written where
+        // it stands: what the call *returns* is not reachable from the
+        // syntax at all, which is why a module holding one has no value
+        case '()': { return flat([ast[1], ...ast[2]].map(refsOf(view))) }
         // an access reaches what its key names inside its base: the base's
         // reference, one key deeper — once the view has read the access
         case '.': {
@@ -197,6 +251,9 @@ const refsOf = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
+        // what a negation's operand leaves is the view's: the graph holds it
+        // and the value does not, a negation being a primitive
+        case '-': { return flat(view.negated(ast[1]).map(refsOf(view))) }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }
@@ -315,7 +372,7 @@ const repeats = xs => new Set(xs).size !== xs.length
 const byId = m => [m.id, m]
 
 /** The value a chain of keys reaches from a value, by own-property reads; `undefined` past the data. @type {(keys: readonly string[]) => (value: Unknown) => Unknown} */
-const valueAt = keys => value => keys.reduce(own, value)
+const valueAt = keys => value => keys.reduce(_own, value)
 
 /** Whether a literal is a container literal — an array or an object written out — rather than a primitive or a reference. @type {(ast: AstConst) => ast is AstArray | AstObject} */
 const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')
@@ -370,11 +427,26 @@ const selected = ast => {
 /** A node as the value's view reads it: an access {@link selected}, anything else itself. @type {(ast: AstConst) => AstConst} */
 const selectedOf = ast => ast !== null && typeof ast === 'object' && ast[0] === '.' ? selected(ast) : ast
 
-/** The syntax as the EDAG evaluates it: every member written, and a literal whole before it is read. @type {_View} */
-const written = { members: memberValuesWritten, through: ast => ast }
+/**
+ * The syntax as the EDAG evaluates it: every member written, a literal
+ * whole before it is read, and a negation's operand followed — the graph
+ * holds it as a node of its own, so a `const` nothing but a negation
+ * reaches is reached all the same.
+ *
+ * @type {_View}
+ */
+const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand] }
 
-/** The syntax as the value has it: the last member per key, and of a literal read only what the key selects. @type {_View} */
-const value = { members: memberValues, through: selected }
+/**
+ * The syntax as the value has it: the last member per key, of a literal
+ * only what the key selects, and of a negation nothing — `-x` is a number
+ * or a bigint whatever `x` was, so the operand is consumed and no part of
+ * it is in the value. `const a = []; export default [-a, -a];` is
+ * `[-0, -0]`, two primitives and no node shared between them.
+ *
+ * @type {_View}
+ */
+const value = { members: memberValues, through: selected, negated: () => [] }
 
 /** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })

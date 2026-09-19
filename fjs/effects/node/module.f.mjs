@@ -21,14 +21,15 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { length, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
@@ -214,7 +215,7 @@ const nodeCommandSet = {
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
     read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
-    rename: null, rm: null, sandbox: null, stat: null,
+    rename: null, resolveFileModule: null, rm: null, sandbox: null, stat: null,
     test: null, write: null, writeBytes: null, writeFile: null,
 }
 
@@ -240,6 +241,9 @@ export const fetch = do_('fetch')
 
 /** @type {Func<Mkdir>} */
 export const mkdir = do_('mkdir')
+
+/** @type {Func<ResolveFileModule>} */
+export const resolveFileModule = do_('resolveFileModule')
 
 // readFile
 
@@ -381,6 +385,69 @@ export const writeFromStream = (path, e) =>
     ioStep(
         createExclusive(path),
         () => writeLoop(path)(0, e))
+
+/** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
+const chunkBytes = Number(maxLengthBytes)
+
+/**
+ * The read mirror of {@link writeFromStream}: a byte stream from a chunk
+ * source, each cell at most one `Vec` and the list itself uncapped.
+ *
+ * **It takes a source rather than a path.** `fjs/cas` reads by name safely —
+ * a name in the store is its content's hash — while a served tree carries no
+ * such guarantee and must read through something bound to one inode. A
+ * parameter lets the two callers differ; a path would force one to wait for
+ * the other.
+ *
+ * **Bounded, it advances by the length it got.** Both `fjs/cas` loops stepped
+ * `offset + chunkBytes` whatever the read returned, which is sound only
+ * because an unbounded fold ends at the first empty read — on a local regular
+ * file a short read is the last one. Under a declared length a short chunk is
+ * not the last, and a fixed step would leave a hole in a body whose size the
+ * client has already been told.
+ *
+ * @type {_ReadChunks}
+ */
+export const readChunks = (source, bound) => {
+    /**
+     * What one answered chunk becomes: a refusal, the end, or a cell whose
+     * tail continues from where this chunk actually reached.
+     * @type {(chunk: Vec, offset: number) => List<any, Vec, IoChannel>}
+     */
+    const cell = (chunk, offset) => {
+        const bits = length(chunk)
+        // A chunk that is not whole bytes is refused rather than rounded down.
+        // `_ChunkSource`'s type permits one, and `>> 3n` would report a 1-bit
+        // chunk as nought — an EOF the source never signalled, with the bits
+        // thrown away. That is DESIGN §10's plausible wrong value.
+        if (bits % 8n !== 0n) {
+            return pureError(ioError({ message: `chunk at ${offset} is ${bits} bits, not whole bytes` }))
+        }
+        const got = Number(bits >> 3n)
+        // An empty read ends an unbounded stream. Under a bound it is a file
+        // that shrank mid-read: a truncated body under a declared length, so
+        // it fails the cell instead of ending the stream short.
+        if (got === 0) {
+            return bound === null
+                ? elEmpty()
+                : pureError(ioError({ message: `read ended at ${offset} of ${bound} bytes` }))
+        }
+        return nonEmpty(chunk, loop(offset + got))
+    }
+    /** @type {(offset: number) => List<any, Vec, IoChannel>} */
+    const loop = offset => {
+        const remaining = bound === null ? chunkBytes : bound - offset
+        if (remaining <= 0) { return elEmpty() }
+        // A source that performs a command suspends here, so the list is built
+        // one cell per pull. A source that answers purely does not: `nonEmpty`
+        // takes its tail as an ordinary argument (`../list/module.f.mjs`), so
+        // the whole chain is constructed up front and a large bound overflows
+        // the stack. That is the list representation's property, not this
+        // loop's — every chunk source with a real host behind it is a command.
+        return ioStep(source(offset, Math.min(chunkBytes, remaining)), chunk => cell(chunk, offset))
+    }
+    return loop(0)
+}
 
 // stat
 

@@ -14,7 +14,7 @@ import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { AstArgs, AstConst, AstModuleRef } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
-import type { Container, Node, Out, ParseError } from './types.ts'
+import type { Block, Container, Node, Out, ParseError } from './types.ts'
 
 /**
  * The ordinary token stream the grammar reads, with the tokenizer's one
@@ -44,11 +44,40 @@ export type _ListNode = readonly [
     Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _OptionalList]>]>,
 ]
 
-/** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
-export type _AccessNode = Unmapped<readonly [string, Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>]>
+/**
+ * The node of a function's parameter list: no round, or one holding
+ * `... t id t`, the parameter's token at the third position. The parameter
+ * is an `identifierName`, a choice of one symbol per word, so its token is
+ * one level in, under the alternative the word matched — as a `const`'s
+ * name is.
+ */
+export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown]>]>
 
-/** The node of an import's optional attribute: no round, or one holding `with t { t id t : t string t } t`, the key's token at the fifth position and the value's at the ninth. */
-export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, _Leaf, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
+/** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
+export type _AccessNode = Unmapped<readonly [string, unknown]>
+
+/**
+ * The branch of a property access, `. t name t` or `[ t key t ] t`: the
+ * token its key is read from at the third position, under the identifier's
+ * or the constant's own alternative.
+ */
+export type _KeyBranch = Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, ...unknown[]]>
+
+/**
+ * The branch of a call, `( t [ items(value) ] ) t`: the `(` an error against
+ * the call is anchored at, and its arguments at the third position, the same
+ * optional list an array holds.
+ */
+export type _CallBranch = Unmapped<readonly [_Leaf, unknown, _OptionalList, ...unknown[]]>
+
+/**
+ * The node of an import's optional attribute: no round, or one holding
+ * `with t { t identifier t : t string t } t`, the key at the fifth position
+ * and the value's token at the ninth. The key is an `identifier`, a choice
+ * of one symbol per word, so its token is one level in, under the
+ * alternative the word matched — as a `const`'s name is.
+ */
+export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
 
 /** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments. */
 export type _Env = OrderedMap<AstModuleRef | AstArgs>
@@ -65,6 +94,17 @@ export type _ContainerFrame = {
     readonly done: List<AstConst>
 }
 
+/**
+ * A call being built: `operands(call)[index]` is being evaluated, and `done`
+ * holds the values before it — the callee first and then each argument, in
+ * the order written, which is the order they are evaluated in.
+ */
+export type _CallFrame = {
+    readonly call: readonly ['()', Node, readonly Node[]]
+    readonly index: number
+    readonly done: List<AstConst>
+}
+
 /** An access whose base is being evaluated: the token its key is read from. */
 export type _AccessFrame = {
     readonly key: DjsTokenWithMetadata
@@ -75,9 +115,35 @@ export type _FunctionFrame = {
     readonly outer: _Env
 }
 
-export type _Frame = _ContainerFrame | _AccessFrame | _FunctionFrame
+/**
+ * A function whose block body is being evaluated: the names bound outside
+ * it, as {@link _FunctionFrame} holds them, and the statements to work
+ * through — `statements[index]` is the statement being evaluated and `word`
+ * the name it binds, taken before its value was entered so that a statement
+ * wrong in both halves answers for the half a reader meets first; `done`
+ * holds the entries before it, a list for the reason a container's is.
+ *
+ * The current statement's tag distinguishes a declaration's initializer
+ * from the final return value, where `word` names nothing.
+ */
+export type _BodyFrame = {
+    readonly outer: _Env
+    readonly statements: Block[1]
+    readonly index: number
+    readonly word: string
+    readonly done: List<AstConst>
+}
 
-/** The containers, accesses and functions suspended around the node being evaluated, innermost on top. */
+/**
+ * A negation whose operand is being evaluated. It carries nothing: the
+ * node is the operand's value negated, and one is enough to tell the frame
+ * from the others.
+ */
+export type _NegFrame = { readonly neg: true }
+
+export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _NegFrame | _FunctionFrame | _BodyFrame
+
+/** The containers, accesses, negations and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */

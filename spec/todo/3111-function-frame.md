@@ -78,3 +78,44 @@ function can share same expanded frame memory block with all functions it calls,
 frame can be a contiguous slot range within the callee's expanded frame. That simple technique
 allows to reduce amount of frame memory block allocations / disposals. It makes sense to benchmark
 this optimization that looks like a low hanging fruit.
+
+## Recursive Functions
+
+Where the frames above come from, at the source level. Two mutually
+recursive functions:
+
+```js
+const a = i => b(i + 3)
+const b = i => i % 5 === 0 ? i : a(i)
+```
+
+```rust
+fn a(frame: Array<Any>, param: Array<Any>) {
+  let i = param[0];
+  let b = frame[1];
+  b(frame, &[i + 3])
+}
+fn b(frame: Array<Any>, param: Array<Any>) {
+  let i = param[0];
+  if (i % 5 === 0) {
+      i
+  } else {
+      let a = frame[0];
+      a(frame, &[i])
+  }
+}
+```
+
+Neither spelling is in the language yet — a named parameter is
+[parameters](./3120-parameters.md), and reaching a name declared later is
+[forward-references](./3140-forward-references.md) — and the capture that
+makes `frame` necessary is what this issue holds: a body that names
+anything bound outside it is refused today
+([functions](../README.md#functions)).
+
+This document's frame is the bytecode-interpreter design. The parallel plan
+for the AOT path — Rust code generated per FS function, called directly —
+reuses the same copy-scheme decision and `["args"]`/`["frame"]`/`["self"]`
+model but needs no explicit slot layout, since rustc's own call frame plays
+that role; see
+[callable-function-objects](../../nanvm-lib/todo/callable-function-objects.md).

@@ -7,16 +7,27 @@ The front end: a grammar-based tokenizer over
 from `fjs/djs` when the parsers and serializers were restructured, and its
 issues followed into [`todo/`](./todo/) when the old serializer was retired
 and `fjs/djs` emptied; the value model is DataJS's,
-[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes through
-[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs):
-its module output is a DataJS document in normalized form, and
-its `.json` output refuses what JSON cannot spell rather than approximating
-it — see [`module.f.mjs`](./module.f.mjs).
+[`fjs/media/datajs/types.ts`](../media/datajs/types.ts). `fjs compile` writes
+the language its output name declares: a `.data.js` document through
+[`fjs/media/datajs/serializer`](../media/datajs/serializer/module.f.mjs) in
+normalized form, a `.js` module through [`serializer`](./serializer/module.f.mjs)
+from the linked graph, and a `.json` output that refuses what JSON cannot
+spell rather than approximating it — see [`module.f.mjs`](./module.f.mjs).
+
+File-module resolution uses the host's module identity and loading path. In the
+Node profile, resolved files are read and diagnosed by their absolute canonical
+filesystem path, with symlinks resolved. For example, a syntax error in an input
+spelled `main.f.js` is reported as `/project/main.f.js:line:column`; imported
+modules likewise use the path of the file actually loaded. Tools consuming CLI
+diagnostics must accept absolute paths and symlink targets instead of expecting
+the original input spelling. If the entry cannot resolve, its diagnostic keeps
+that spelling; failure to resolve an import names the canonical importer.
 
 What the compiler accepts today is the data language the sections below call
 DJS, and the roadmap is theirs too — plus property access, `a.b`, `a[0]`
-and `[1].length`, on any value but a number or a bigint literal, which is
-refused since JavaScript reads `-1 .x` as `-(1 .x)`: an own property of the
+and `[1].length`, on any value, a numeric literal included, since `-` is an
+operator the grammar reads and `-1 .x` is the negation of the access as
+JavaScript has it: an own property of the
 base, never the prototype chain, as
 [spec: property accessor](../../spec/todo/2330-property-accessor.md) has
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
@@ -26,9 +37,14 @@ finds a function, `length` excepted, since a value owns it
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function, `(...a) => body`, is accepted for the EDAG output
-alone — see below — and refused by the value outputs, since a value has no
-function in it. Across modules the sweep is coarser: a module whose own value
+node it is. A function, `(...a) => body` or `() => body`, is written by the
+EDAG and FunctionalScript outputs — see below — and refused by the value
+outputs, since a value has no function in it. The AST carries no parameter,
+so the two spellings reach the outputs as the one node and the writer gives
+both the rest parameter. Nothing observes the difference: `f.name` is
+refused at the key, and `f.length` is `0` for a rest parameter as it is for
+none, a rest parameter not counting towards a function's arity in
+JavaScript. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
@@ -64,6 +80,24 @@ repeated key written twice, rather than a plain object: `run` builds the
 object JavaScript builds from the same literal — a repeated key at its first
 position with its last value, integer-like keys first — and the EDAG object
 constructor takes the members as written, which only the syntax still has.
+A module body's last entry is its export object: `export default 7;` lowers to
+`['object', [['default', 7]]]`. An ordinary function body still ends in its
+returned value. Module `aref`s denote selected import bindings; default imports
+bind the dependency's `default` property, including for JSON imports.
+`transpile` returns the complete export object as its denotation's `value`.
+JSON/DataJS output selects the default and its sharing facts; FunctionalScript
+output emits individual named/default exports. EDAG and generated Rust retain
+the complete result. A missing default is refused at an import, but a named-only
+root projects to `undefined` for value output. Direct JSON roots remain raw
+documents in every compiler path, without the module wrapper or projection.
+The source writer's `tryModuleSerialize` / `tryModuleStringify` take that
+complete export object. Its value writers `trySerialize` / `tryStringify`
+remain the boundary for a direct JSON document, emitting it as a default export.
+Named exports use existing `const` binding rules and form the result object in
+lexicographic key order. Source initializers remain ordered in the AST; the EDAG
+preserves dependencies and required evaluations under the specification's
+[failure-equivalence rule](../../spec/README.md#failure-is-one-outcome).
+
 See [examples/input.f.mjs](./examples/input.f.mjs).
 
 ## EDAG
@@ -72,8 +106,8 @@ A parsed module also compiles to an [EDAG](../edag/README.md) —
 [edag/module.f.mjs](./edag/module.f.mjs), Stage 1 of
 [compile-modules-to-edag](./todo/compile-modules-to-edag.md). `unresolved`
 compiles it over its imports, before any import is read: import `i` is the
-parameter `['.', ['args'], i]`, a `const` is one node however many references
-reach it, and the export is the root; the specifiers ride beside the graph as
+parameter selection `['.', ['.', ['args'], i], 'default']`, a `const` is one node however many references
+reach it, and the export object is the root; the specifiers ride beside the graph as
 `Unresolved`, a compiler's structure and no part of EDAG. `resolve` links a
 program from its root path into one EDAG: each import is read, parsed and
 resolved the same way, recursively, and bound in its parameter's place — the
@@ -83,13 +117,16 @@ twice in one link is one node, so a diamond of imports joins where it should.
 A property access, `a.b` or `a[0]`, is the EDAG's `['.', base, key]`, its
 key a constant the parser admitted — `__proto__` and `constructor` refused at
 the key.
-A JSON module, imported `with { type: "json" }`, is the tree its document
-denotes, as `transpile` reads it; a `.json` file imported without the
+A JSON module, imported `with { type: "json" }`, exposes its document under
+`default`; the import binding selects that tree, as `transpile` does; a `.json` file imported without the
 attribute, or another file imported with it, is refused as JavaScript refuses
 it.
 `fjs compile` writes the linked graph when the output name ends with
-`.edag.f.js` or `.edag.f.mjs`, as a DataJS document with its shared nodes
-hoisted as the module output's are. What
+`.edag.data.js` or `.edag.data.mjs`, as a DataJS document with its shared
+nodes hoisted as the DataJS output's are, and writes it back as source under
+any other `.js` or `.mjs` name, through
+[`serializer`](serializer/module.f.mjs) — the one output that holds a
+function, since a value has none. What
 the export does not reach is anchored by the comma operation rather than
 dropped, `[',', [...roots, exported]]`: `transpile` reads every import and
 `run` evaluates every `const`, so a failure behind an unused one fails the
@@ -104,7 +141,57 @@ references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
 nothing outside stands: a reference to a `const`, an import or an enclosing
 function's parameter is a capture, refused where it is written, so no module
 node is ever shared into a body. The body is any value except an object, since
-`=> {` opens a block in JavaScript, and there is no call yet.
+`=> {` opens a block in JavaScript — or that block, in which an object is a
+value again: any number of `const` statements and then one `return`. A body
+`const` is an entry of the function's own body, as a module `const` is of the
+module — one node however many references reach it, and what the returned
+value does not reach anchored by the comma rather than dropped, which is the
+one place a comma stands outside a module's root. With no statement the block
+lowers to the value it returns, the two spellings being one function.
+A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
+— and the language's only operator. It is no part of the literal after it, so
+`-1` is the negation of `1` in the parser's tree, and the lowering folds that
+one case back into the leaf: negating a numeric literal is exact arithmetic,
+so the graph holds the number and [`rust`](rust/module.f.mjs) prints it. A
+negation of anything else stays a node — folding one would mean saying what a
+container converts to — and that route refuses one, `Neg for Any<A>` answering
+a `Result` a module cannot hold. It binds looser than a
+step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
+— which is what retired the two refusals the old fold needed, an access and a
+call on a numeric literal alike. What it takes is JavaScript's
+`UnaryExpression`, so not a function: `-(...a) => 1` is a syntax error in
+both. A group is that expression, though, so the prefix reaches a function
+through one, `-((...a) => 1)`, and the refusal falls on the `...` where
+JavaScript's does rather than on the `(`. The writer still gives a negated
+function a `const` of its own, as it does an access base, until it spells a
+group.
+A call is a step after a value, as an access is, and the callee picks which of
+the EDAG's two forms it lowers to: an access as the callee is a method call,
+`a.b(c)`, whose receiver is that access's base, so the access owns the call
+and the two are one node, `['.', a, 'b', ['|()', args]]`; any other callee is
+the plain `['()', callee, args]`, its arguments one array node the call
+spreads. The plain form over an access is the *detached* receiver,
+`(0, a.b)(c)`, which needs the comma operator and is unspellable, so no
+source writes one — `(a.b)(c)` keeps the receiver and is the method call
+again, parentheses preserving the property reference. A call mints identity — two calls are
+two nodes and a `const` naming one is one — which is what a body's `const`
+keeps. [`serializer`](serializer/module.f.mjs) has no spelling for either
+form yet and refuses both by name, so a module with a call in it compiles to
+the EDAG output alone. When it gets one, a negative callee needs the care an
+access base takes: `-1()` is `-(1())`, so `['()', -1, args]` cannot be
+written `-1()` — the grammar spells it, `(-1)()`, and until the writer reads
+a group a `const` does. The writer's proof refuses that shape by name, so
+the question comes up where the spelling is written.
+A group, `(x)`, is the value it holds: no node in the AST or the graph, and
+nothing downstream can tell one was written — the steps after the `)` read
+the value inside, which is why `(a.b)(c)` is the node `a.b(c)` is, and the
+sharing a module spells survives the parentheses. What it adds is spelling:
+a function returning an object, `(...a) => ({ x: 1 })`, an access or a call
+on a value written in place, `([1]).length`, and the two the prefix cannot
+say without it — the access on a negation, `(-1).x` against `-1 .x`, and a
+negated function, `-((...a) => 1)`. The writer spells both today, through a
+`const` rather than a group: `negHoisted` hoists a negated function, and
+`basedHoisted` the negation an access reads.
 A member a later duplicate shadows is in the graph, since the constructor
 applies every member written, so a reference in it is reached here where the
 sharing decision, which reads the value, does not count it.
@@ -447,7 +534,8 @@ JavaScript lexical surface, because everything that reads a `.f.mjs` — this
 compiler, the website's highlighter, a linter — needs the same tokens, and a
 token that is recognised is not thereby accepted: the compiler's fold and
 grammar refuse what the language does not admit, at the token, as they refuse
-`-NaN`. The rules the grammar shares with JSON flow the other way — it imports
+`--` — the decrement operator, one token the fold turns into an error because
+the language has no rule for it. The rules the grammar shares with JSON flow the other way — it imports
 JSON's digit and string rules from `fjs/ebnf/lib/json`, and no codec reads
 this grammar — so widening it regresses no codec. The parser stays the
 FunctionalScript grammar, LL(1) over those tokens, and grows one production

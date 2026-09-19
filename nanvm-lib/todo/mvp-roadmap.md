@@ -71,8 +71,14 @@ Invariants:
   control flow and dispatch.
 - A natively compiled function still **carries its `Any` code description**
   (as static data), so content hashing and `toString(f)` apply uniformly to
-  all functions: the EDAG is the identity of a function; native code is a
-  cached acceleration of it. This invariant is **staged**: the MVP code
+  all functions. The EDAG is the stable **code/content identity** of a
+  function; native code is a cached acceleration of it. It is not the
+  allocation identity of a callable value. In a JS-compatible execution
+  profile, two separately created function objects remain distinct under
+  `===` even when their EDAGs and captured values are equal. A profile such
+  as CAVM may deliberately use content identity only when that profile
+  explicitly specifies the different identity semantics. This invariant is
+  **staged**: the MVP code
   generator omits the embedded description while the
   [edag-spec](../../todo/edag-spec.md) (P2) is not yet defined — it must not
   invent its own shapes ahead of the spec. Embedding becomes mandatory once
@@ -273,18 +279,23 @@ as a generic `Any` facility, post-MVP.
 
 #### P1
 
-- [ ] **Rust code generator** (FJS) — the `.rs` output branch of
+- [x] **Rust code generator** (FJS) — the `.rs` output branch of
       `fjs compile`: compiles an FJS module into a Rust module that builds
       the module's value via the `nanvm-lib` API. The central MVP task;
-      rustc replaces the previous deserializer task.
-- [ ] **Harness + walking skeleton** — a harness crate (or generated tests
-      in `nanvm-lib`) whose `main` evaluates a generated module's
-      `export default` and prints the result as JSON; wire the pipeline
-      end-to-end early with a minimal synthetic FunctionalScript JavaScript
-      fixture (e.g. a constant default export), driven by `cargo test` in CI,
-      so every later feature lands into a working pipeline. This synthetic
-      fixture may use `.f.mjs`; it does not define the repository extension
-      contract. See
+      rustc replaces the previous deserializer task. Covers the
+      constant-default-export walking-skeleton subset (literals, arrays,
+      objects, `const` sharing, property access); see
+      [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) for what
+      it does and does not cover yet. Continuously verified now by the
+      `nanvm-harness` crate below: `npm run gen` compiles the harness's
+      fixtures with this generator, and `cargo test` runs the result.
+- [x] **Harness + walking skeleton** — a harness crate (`nanvm-harness`)
+      whose `main` evaluates a generated module's `export default` and
+      prints the result as JSON; the pipeline is wired end-to-end with
+      fixtures covering the walking-skeleton subset
+      (`nanvm-harness/fixtures/{number,boolean,string,array,object,sharing,property}.mjs`),
+      compiled by `fjs compile` into sibling `.rs` files committed and
+      drift-checked via `npm run gen`, and proven by `cargo test` in CI. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
 - [x] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests, so
@@ -292,7 +303,7 @@ as a generic `Any` facility, post-MVP.
       shared operator layer is what keeps the interpreter and the generated
       code in agreement. See
       [`nanvm-lib/tests/README.md`](../tests/README.md).
-- [ ] **Complete all basic FunctionalScript operators** (Rust), including the
+- [x] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
       Each operator arrives as cases in
       [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), which is what
@@ -320,8 +331,11 @@ as a generic `Any` facility, post-MVP.
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
 - [ ] **Basic control operator `?:`** (Rust).
 - [ ] **Nested functions** (function frame) (Rust).
-      See [function](../../spec/todo/3110-function.md),
-      [function-frame](../../spec/todo/3111-function-frame.md).
+      See [functions](../../spec/README.md#functions),
+      [function-frame](../../spec/todo/3111-function-frame.md). The staged
+      plan for making generated Rust function bodies callable — arguments,
+      captured-frame, and self-reference representation — is
+      [callable-function-objects](./callable-function-objects.md).
 - [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
       the generated stub trait against the OS; sync subset (fs, console)
       first. Preceded by defining the effect vocabulary as an RTTI schema
