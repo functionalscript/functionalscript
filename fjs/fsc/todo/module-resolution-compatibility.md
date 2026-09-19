@@ -131,6 +131,12 @@ comparison oracle: Deno and Bun have different native resolution/cache semantics
 The common graph traversal also has proofs where identity differs from loading
 location.
 
+Each filesystem proof creates its fixtures in a unique temporary directory and
+removes that tree in `finally`, including after failures. Literal spaces, `#`
+and `%` remain covered without storing those host-only inputs in the repository
+or Cloudflare asset manifest. Deno's test tasks grant write permission for this
+fixture lifecycle.
+
 The virtual runner retains its explicitly **lexical path profile**. Its fixture
 filesystem has no working directory or symlinks; its identities are normalized
 portable paths with pathname delimiters escaped and query/fragment text appended.
@@ -169,7 +175,7 @@ falls back to interpreting an unsupported host's specifiers as paths.
       paths, preserving encoded filename characters. Replace the initial refusal
       with native sharing, empty-component and symlink regressions; cover JSON,
       cycles, misleading files, CLI output and missing-dependency diagnostics.
-- [x] Add read-only native ESM comparisons for escaped filenames, equivalent
+- [x] Add native ESM comparisons for escaped filenames, equivalent
       spellings and diamond sharing in both compiler paths.
 - [ ] Extend differential coverage as new specifier classes are supported.
 - [ ] Cover equivalent URL spellings, escaped filenames, query/fragment

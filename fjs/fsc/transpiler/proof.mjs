@@ -1,5 +1,5 @@
 /**
- * Filesystem proofs of the Node file-module profile on every runtime.
+ * Temporary-filesystem proofs of the Node file-module profile on every runtime.
  * Native ESM comparisons run on Node, whose loader defines this profile.
  *
  * @import { Effect } from '../../effects/types.ts'
@@ -8,12 +8,10 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { realpathSync } from 'node:fs'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
+import { join, sep } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runEffect } from '../../effects/node/module.mjs'
 import { resolveFileModule } from '../../effects/node/module.f.mjs'
 import { resultMapStep } from '../../effects/module.f.mjs'
@@ -36,13 +34,55 @@ const hostCheck = async (effect, check) => {
     })), 0)
 }
 
-// Bun can retain an extra slash in import.meta.url. Derive expectations from
-// the canonical filesystem location, independently of the proof loader's URL.
-const source = pathToFileURL(realpathSync(fileURLToPath(import.meta.url)))
-const directory = new URL('./fixtures/url%2523identity/', source)
-const entry = new URL('entry%20%23%25.mjs', directory)
-const dependency = new URL('dep%20%23%25.mjs', directory)
-const cycle = new URL('cycle.mjs', directory)
+const fixtures = {
+    'dep #%.mjs': 'export default [42];',
+    'other.mjs': 'export default [42];',
+    'left.mjs': 'import value from "./dep%20%23%25.mjs"; export default value;',
+    'right.mjs': 'import value from "./absent/%2e%2e/dep%20%23%25.mjs"; export default value;',
+    'cycle.mjs': 'import value from "./%63ycle.mjs"; export default value;',
+    'entry #%.mjs': 'import a from "./left.mjs"; import b from "./right.mjs"; import c from "./%64ep%20%23%25.mjs"; import d from "./other.mjs"; export default [a, b, c, d];',
+    'suffix-dep.mjs': 'import common from "./dep%20%23%25.mjs"; export default [common];',
+    'suffix-entry.mjs': `
+import v0 from "./suffix-dep.mjs";
+import v1 from "./suffix-dep.mjs?v=1";
+import v2 from "./%73uffix-dep.mjs?v=1";
+import v3 from "./suffix-dep.mjs?v=2";
+import v4 from "./suffix-dep.mjs#a";
+import v5 from "./suffix-dep.mjs#b";
+import v6 from "./suffix-dep.mjs?";
+import v7 from "./suffix-dep.mjs#";
+import v8 from "./suffix-dep.mjs?#";
+import v9 from "./suffix-dep.mjs?v=1#";
+import v10 from "./suffix-dep.mjs?v=1#a";
+import v11 from "./suffix-dep.mjs?v=1#a";
+import v12 from "./suffix-dep.mjs?bad%/a:b#%2F";
+export default [v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12];`,
+}
+
+/**
+ * Each proof owns a unique temporary tree, including native module-cache keys.
+ * Keep deliberately unusual filenames out of the repository/site, and clean up
+ * even when writing a fixture, importing it or an assertion fails.
+ *
+ * @type {(check: (directory: URL) => Promise<void>) => Promise<void>}
+ */
+const withFixtures = async check => {
+    const temporary = await mkdtemp(join(tmpdir(), 'fjs-module-url-'))
+    try {
+        const path = join(temporary, 'url%23identity')
+        await mkdir(path)
+        for (const [name, source] of Object.entries(fixtures)) {
+            await writeFile(join(path, name), source)
+        }
+        // The temporary root may itself be reached through a symlink. Expected
+        // identities use its canonical location, independently of this loader.
+        const directory = pathToFileURL(`${await realpath(path)}${sep}`)
+        await check(directory)
+    } finally {
+        await rm(temporary, { recursive: true, force: true })
+    }
+}
+
 const suffixGroups = /** @type {const} */ ([0, 1, 1, 2, 3, 4, 0, 0, 0, 1, 5, 5, 6])
 const expectedValue = [[42], [42], [42], [42]]
 const expectedSharing = [true, true, true]
@@ -87,7 +127,8 @@ const compareCompilers = async (path, native) => {
 }
 
 const nodeSuffixProof = {
-    suffixIdentities: async () => {
+    suffixIdentities: () => withFixtures(async directory => {
+        const entry = new URL('entry%20%23%25.mjs', directory)
         for (const suffix of ['', '?v=1', '#copy', '?v=1#copy', '?', '#', '?#', '?v=1#', '?q=é x', '?bad%/a:b#%2F']) {
             const specifier = `./suffix-dep.mjs${suffix}`
             const expected = import.meta.resolve(new URL(specifier, directory).href)
@@ -97,18 +138,21 @@ const nodeSuffixProof = {
                 assertEq(path, fileURLToPath(new URL('suffix-dep.mjs', directory)))
             })
         }
-    },
-    suffixSharing: async () => {
+    }),
+    suffixSharing: () => withFixtures(async directory => {
         const url = new URL('suffix-entry.mjs', directory)
-        for (const attempt of [0, 1]) {
+        for (let attempt = 0; attempt < 2; attempt++) {
             const native = (await import(url.href)).default
             assertStructurallySame(identities(native), suffixGroups.map(a => suffixGroups.map(b => a === b)))
             await compareCompilers(fileURLToPath(url), native)
         }
-    },
+    }),
     symlinkAndJsonSuffixes: async () => {
-        const root = await mkdtemp(join(tmpdir(), 'fjs-module-suffix-'))
+        const temporary = await mkdtemp(join(tmpdir(), 'fjs-module-suffix-'))
         try {
+            // Windows can spell tmpdir() with an 8.3 name. Create the junction
+            // against the canonical root so both loaders use the same spelling.
+            const root = await realpath(temporary)
             const real = join(root, 'real')
             const alias = join(root, 'alias')
             await mkdir(real)
@@ -130,7 +174,7 @@ const nodeSuffixProof = {
             const jsonEntry = join(root, 'json.mjs')
             await writeFile(join(root, 'data.json'), '[[42]]')
             await writeFile(jsonEntry, source)
-            for (const attempt of [0, 1]) {
+            for (let attempt = 0; attempt < 2; attempt++) {
                 const jsonNative = (await import(pathToFileURL(jsonEntry).href)).default
                 assertStructurallySame(identities(jsonNative), suffixGroups.map(a => suffixGroups.map(b => a === b)))
                 await compareCompilers(jsonEntry, jsonNative)
@@ -141,7 +185,7 @@ const nodeSuffixProof = {
                 })
             }
         } finally {
-            await rm(root, { recursive: true, force: true })
+            await rm(temporary, { recursive: true, force: true })
         }
     },
 }
@@ -150,7 +194,8 @@ export const proof = {
     // This resolver declares the Node profile even under Node-compatible APIs.
     // Bun/Deno loaders retain empty delimiters, so they are not its reference.
     nodeSuffixes: 'Bun' in globalThis || 'Deno' in globalThis ? {} : nodeSuffixProof,
-    suffixCanonicalization: async () => {
+    suffixCanonicalization: () => withFixtures(async directory => {
+        const entry = new URL('entry%20%23%25.mjs', directory)
         const file = new URL('suffix-dep.mjs', directory)
         const cases = /** @type {const} */ ([
             ['', ''], ['?', ''], ['#', ''], ['?#', ''],
@@ -163,8 +208,10 @@ export const proof = {
                 assertStructurallySame(unwrap(result), { id: file.href + canonical, path: fileURLToPath(file) })
             })
         }
-    },
-    fileIdentity: async () => {
+    }),
+    fileIdentity: () => withFixtures(async directory => {
+        const entry = new URL('entry%20%23%25.mjs', directory)
+        const dependency = new URL('dep%20%23%25.mjs', directory)
         await hostCheck(resolveFileModule(fileURLToPath(entry), null), result => {
             const location = unwrap(result)
             assertEq(location.id, entry.href)
@@ -177,8 +224,9 @@ export const proof = {
                 assertEq(location.path, fileURLToPath(dependency))
             })
         }
-    },
-    moduleSharing: async () => {
+    }),
+    moduleSharing: () => withFixtures(async directory => {
+        const entry = new URL('entry%20%23%25.mjs', directory)
         // Deno and Bun have different native URL resolution/cache semantics.
         // Only Node's native loader is an oracle for the declared Node profile.
         if (!('Bun' in globalThis) && !('Deno' in globalThis)) {
@@ -201,9 +249,9 @@ export const proof = {
                 assertStructurallySame(sharing(graph[1]), expectedSharing)
             })
         }
-    },
-    cycle: async () => {
-        const path = fileURLToPath(cycle)
+    }),
+    cycle: () => withFixtures(async directory => {
+        const path = fileURLToPath(new URL('cycle.mjs', directory))
         for (const input of [path, `${fileURLToPath(directory)}./cycle.mjs`]) {
             /** @type {readonly Effect<NodeOp, unknown, ParseError>[]} */
             const effects = [transpile(input), resolve(input)]
@@ -215,8 +263,9 @@ export const proof = {
                 })
             }
         }
-    },
-    resolutionErrors: async () => {
+    }),
+    resolutionErrors: () => withFixtures(async directory => {
+        const entry = new URL('entry%20%23%25.mjs', directory)
         for (const name of ['./missing.mjs', './dep%2Fmjs', './bad%', 'https://example.com/dep.mjs']) {
             await hostCheck(resolveFileModule(name, entry.href), result => assertEq(result[0], 'error'))
         }
@@ -229,5 +278,5 @@ export const proof = {
                 assert(result[1].message.startsWith('module resolution failed:'))
             })
         }
-    },
+    }),
 }
