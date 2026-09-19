@@ -111,11 +111,17 @@ export type Const = {
     readonly value: Node
 }
 
-/** A whole module as matched: its statements in order, the export's value last. */
+/** A module declaration, with its source export marker retained. */
+export type ModuleConst = {
+    readonly declaration: Const
+    readonly exported: boolean
+}
+
+/** A whole module as matched: declarations in order and an optional final default. */
 export type Module = {
     readonly imports: readonly Import[]
-    readonly consts: readonly Const[]
-    readonly exported: Node
+    readonly consts: readonly ModuleConst[]
+    readonly exported: Node | null
 }
 
 /**
@@ -131,5 +137,5 @@ export type Out =
     | { readonly id: 'members', readonly items: List<Entry> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
-    | { readonly id: 'export', readonly node: Node }
+    | { readonly id: 'export', readonly consts: List<ModuleConst>, readonly default: Node | null }
     | { readonly id: 'module', readonly module: Module }
