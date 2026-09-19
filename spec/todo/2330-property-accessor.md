@@ -6,21 +6,30 @@ read, with every built-in prototype name but `length` a compilation error,
 the names held by [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs),
 and an access on a numeric literal read as JavaScript reads it — `-1 .x` is
 `-(1 .x)`, the unary minus binding looser than the access. The computed key,
-`a[Number(b)]`, and the method call below are not; an index is a constant key,
-a string or a number, and a negative one is written as the string it names.
+`a[Number(b)]`, is not; an index is a constant key, a string or a number,
+and a negative one is written as the string it names. Constant-key method
+calls follow the [current function specification](../README.md#functions).
 
-Syntax examples:
+The runtime-key plan is now [`entry`](../../fjs/edag/todo/entry.md), an
+explicit enumerable-entry helper. It supersedes the old descriptor-value-only
+source pattern and the `Object.hasOwn`-based alternative. `Object.hasOwn`
+and `obj.hasOwnProperty(...)` are prohibited source operations, not operations
+to reinterpret. [Enumerable presence](./2345-has-own-property.md) proposes a
+separate `hasEntity` pattern. All such instructions follow
+[statement-aware AST recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md).
+
+Syntax examples (planned computed/runtime-key forms included):
 
 ```js
 const a = { b: 45, c: [3] }
-// instance_property(a, "b")
+// static read: EDAG '.'
 const c0 = a.b
-// Only string literals allowed (excluding prohibited names). instance_property(a, "c")
+// the same static-read operation, with another permitted constant key
 const c1 = a["c"]
-// at(c1, Number(0))
+// planned numeric-index read: EDAG '.' with a Number operand
 const c2 = c1[Number(0)] // Number(...) is required when index type is unknown at compile time
-// own_property(a, c2)
-const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
+// runtime enumerable-entry read, with entry defined by the pattern below
+const c3 = entry(a, c2)
 ```
 
 In this note we consider whether or not to support JS's property accessors, maybe also
@@ -32,16 +41,15 @@ error. In other cases we might decide to provide a limited property access.
 Finally, some JS standard properties / methods are 100% FS-legit and so will be implemented
 in full.
 
-It's important to be able to access instance's own property regardless object properties
-available in JS via object's prototype chain. In FS we plan to not have prototype chains
-at runtime. Here go snippets showing how to access own properties in JS - that code might
-be useful to support in FS as well. Note that this is more verbose than obj.field syntax
-discussed below in "Instance Property" section, but protects against unwanted access to
-the prototype chain.
+A runtime data-entry read bypasses prototypes through an explicitly written
+JavaScript pattern, rather than changing ordinary bracket access or standard
+reflection semantics. This permits dynamic data names without exposing every
+own property or a descriptor value.
 
-In case a property has no side effects (see 'no' in 'side effects' columns in tables below)
-FS should implement that property 100%. If a property mentioned at several places has
-at least one side effect, we should prohibit it consistently across the board.
+Absence of side effects is necessary, not sufficient for admission. An admitted
+operation must preserve its source's successful JavaScript behavior. The
+[built-in plan](./2360-built-in.md) also prohibits reflection operations for
+which the language intentionally offers a narrower, explicitly spelled pattern.
 
 One important detail regarding run-time access to instance properties, methods is
 `obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
@@ -50,48 +58,79 @@ syntax for array indexing, legit in FS. Our current approach is to force FS user
 wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
 compile time.
 
+The proposed runtime-key helper is shown with a JavaScript behavior example;
+this is not a claim that the helper is implemented in FJS today:
+
 ```js
-const own_property = object => property => Object.getOwnPropertyDescriptor(obj, property)?.value
-// Or
-const own_property = object => property => Object.hasOwn(obj, property) ? obj[property] : undefined
+const entry = (object, property) => {
+    const descriptor = Object.getOwnPropertyDescriptor(object, property);
+    return descriptor?.enumerable ? descriptor.value : undefined;
+};
+const values = [7];
+export default [values.length, entry(values, "length")]; // [1, undefined]
 ```
 
-It's translated into the VM command `own_property`:
+Its complete parsed function body is recognized after statements, expressions
+and binding relationships are known. The matcher does not read newlines or
+repair statement boundaries. Descriptor use is permitted only inside a whole
+approved pattern; extracting or returning a descriptor is still refused.
+[`entry.md`](../../fjs/edag/todo/entry.md) owns the proposed helper function,
+its ordinary calls and the internal `own` migration. None is a fallback for
+ordinary static access.
 
-```rust
-struct OwnProperty {
-    obj: Expression
-    property: Expression
-}
-```
+## Source-to-EDAG mapping
+
+**P1 reconciliation:** source operations, EDAG nodes and bytecode
+specializations are different layers. The former rule that non-built-in
+static names generate `own_property` is superseded. Every admitted
+constant-key read uses `.`; a name's absence from a built-in table does not
+select the enumerable-entry operation.
+
+| Source | EDAG | Status |
+|--------|------|--------|
+| `a.foo`, `a["foo"]` | `['.', A, 'foo']` | Current, for permitted names |
+| `a[0]` | `['.', A, 0]` | Current |
+| `a.foo(x)` | `['.', A, 'foo', ['\|()', Args]]` | Current receiver-preserving lowering, for permitted names |
+| Complete recognized `entry` definition | `['entry']` | Proposed in `entry.md` |
+| `entry(a, key)` | `['()', E, ['[]', [A, K]]]` | Proposed ordinary call of that helper |
+
+`A`, `K` and `E` denote lowered receiver, key and helper expressions;
+`Args` denotes the lowered argument-array expression. The method-call
+continuation preserves the receiver; a detached `()` over a completed
+property read does not. Parsing these constructs into a JavaScript-subset AST
+is separate from admitting and lowering them into EDAG.
+
+Backend names such as `instance_property`, `at` and `own_property` in older
+sketches are not source-to-EDAG rules. A backend may specialize `.` for a
+known receiver/key, or share a lookup helper where the semantics agree,
+without replacing it with an enumerable-only operation. This does not rename
+host helpers or change an existing opcode. `entry.md` owns any coordinated
+migration of internal `own` semantics; its writer refuses bare internal `own`,
+not ordinary static reads represented by `.`.
 
 ## Instance Property
 
-Instance property access is similar to instance method access but there are differences considered
-below, in "Instant Method Call" subsection.
-
 ```js
 obj.property
-obj['property']
+obj["property"]
 ```
 
-It's translated into the VM command `instance_property`:
+Both forms lower to `['.', O, 'property']` when the name is permitted.
+AST-to-EDAG compilation rejects prohibited names; other permitted names do not
+fall back to `own`. Static access keeps its ordinary successful JavaScript
+meaning, including non-enumerable `length`, whereas the proposed `entry`
+helper intentionally excludes non-enumerable properties.
 
-```rust
-struct InstanceProperty {
-    obj: Expression
-    index: <VM's type for strings known at compile time>
-}
-```
+The former `InstanceProperty` structure and built-in-index/`own_property`
+split described possible bytecode specialization, not distinct EDAG
+operations. A backend may optimize an admitted array-length or other known
+read, but must preserve its semantics. No particular bytecode layout is
+required here.
 
-If the property name is one of the implemented property names, it should be translated into `index`. We
-consider that case separately from more general `own_property`, since "built-in" property access might
-deserve special (performance-optimized) treatment in bytecode interpreter (consider a command / data access
-within a command that is similar to array indexing).
-
-If a property name is one of the prohibited property names or one of the method names, then it's a compilation error.
-
-All other property names generate `own_property` commands.
+The property inventories below are research notes, not additional source
+admissions or new runtime-failure rules. The current prohibited-name policy
+above remains authoritative; any later admission must preserve its source
+behavior.
 
 [Object Instance Properties](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_properties): `__proto__` and `consructor`
 
@@ -151,45 +190,43 @@ for the sake of supporting JS legacy in cases when that is FS-safe.
 Syntax examples:
 
 ```js
-// instance_method_call(a, "b", c)
+// static property step owns the call and its receiver
 const c4 = a.b(c)
-// instance_method_call(a, "b", c)
+// the same receiver-preserving EDAG chain
 const c5 = a["b"](c)
-// at_call(a, Number(b), c)
+// planned numeric-key chain, not a runtime entry read
 const c6 = a[Number(b)](c)
 ```
 
 Instance method call is different from property access in JS because of `this` considerations.
 
-For example:
+JavaScript-only receiver example, not admission of these built-in methods:
 ```js
 const a = ["bison"]
 a.indexOf("bison") // returns 0
 const p = a.indexOf
 p("bison") // run-time exception in JS, so FS should throw an exception here as well
 ```
-In the snippet above a.indexOf("bison") compiles into one VM call ("an instance method call"),
-however the remainder of that snippet compiles in a sequence of commands that finally yields
-an exception in this sample.
+The example explains why admitting a method requires preserving its receiver;
+absence of side effects alone does not admit it.
 
 ```js
 obj.property(parameters)
 obj['property'](parameters) // where 'property' is a property name well-known at compile time
 ```
 
-It's translated into VM command `instance_method_call`:
-
-```rust
-struct InstanceMethodCall {
-    obj: Expression
-    property: String16
-    parameters: Array<Expression>
-}
-```
-
-**Note**: All known instance methods can't be used in `instance_property` command! Even if they don't have side effects.
+For admitted names, the property step owns the call:
+`['.', O, 'property', ['|()', Args]]`. The older `InstanceMethodCall`
+structure is a possible bytecode specialization, not another EDAG node.
+A backend may specialize the chain only while preserving the receiver and
+argument behavior. Admission of additional built-in methods, or of their
+use as detached values, remains separate from this lowering rule.
 
 [Object Instance Methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object#instance_methods)
+
+This inventories side effects, not permission to call each method. In
+particular, `hasOwnProperty` remains prohibited; the explicit enumerable
+patterns are the source API instead.
 
 |name                  |side-effect     |
 |----------------------|----------------|
@@ -209,7 +246,7 @@ As stated above, all rows that have other than 'no' in side-effect column should
 
 TODO: file a separate .md regarding custom `toString`, `valueOf` implementations, and maybe other methods listed here as well.
 
-[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array#instance_methods)
+[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
 
 Regarding `iterator` in notes column: why do we want to prohibit 'naked' iterator access (as opposite to iterable objects
 like arrays that can produce iterators via `a[Symbol.iterator]`)? Iterators could be mutated not only via `next`,
@@ -248,7 +285,7 @@ f(i) // returns 0 thanks to side effects!
 |`indexOf`             |no         |        |
 |`join`                |no         |        |
 |`keys`                |yes        |iterator|
-|`lastIndexOf`         |no         |        |
+|`lastIndexOf`          |no         |        |
 |`map`                 |no         |        |
 |`pop`                 |yes        |mutate  |
 |`push`                |yes        |mutate  |
@@ -296,14 +333,10 @@ obj[42]
 obj[Number(index)]
 ```
 
-It's translated into VM command `at`:
-
-```rust
-struct At {
-    obj: Expression
-    index: Expression
-}
-```
+Constant numeric indices use EDAG `.` too. The proposed `Number(...)` form
+would use `['.', O, ['Number', I]]`, subject to its syntax and admission work;
+`at` is only a possible backend specialization, not a separate EDAG tag or
+an enumerable-entry read.
 
 ```js
 import m from './m.f.js'
@@ -319,6 +352,16 @@ In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is,
 `Number(...)`. It means the byte code for the expression inside the `[]` should be either
 `Number(...)`, a number literal, or a string literal (excluding some strings).
 If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
+
+## Regression requirements
+
+- Preserve static `.` lowering for ordinary and missing fields, numeric
+  indices and non-enumerable `length`; reject prohibited names during
+  AST-to-EDAG compilation. Cover receiver-preserving calls and source round
+  trips as their writer support lands.
+- When implementing `entry`, compare the complete helper with JavaScript,
+  including the `length` distinction above. Keep unmatched descriptor uses
+  refused. Backend helper reuse must not merge these semantic contracts.
 
 ## Iterators
 
@@ -342,7 +385,7 @@ type Iterable<T> = {
 
 For example, JS Array implements the `Iterable` protocol.
 
-If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator) in the FS,
+If we need to implement support for [generators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/function*) in the FS,
 the generator function has to be wrapped into `Iterable` interface. For example,
 
 ```js

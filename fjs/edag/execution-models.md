@@ -1,11 +1,20 @@
 # EDAG execution models
 
 EDAG can be executed under different identity and memoization models. They are
-not just progressively faster implementations: only the implementations in
-[§2](#2-js-compatible-execution) are required to have identical observable
-behavior.
+not just progressively faster implementations. The strategies in
+[§2](#2-js-compatible-execution) share one allocation/identity contract;
+Amnesia, global memoization and CAVM use the distinct models below. None grants
+an unspecified exception merely because an executor is not content-addressable.
 
-| model | reuse | JavaScript-compatible |
+The table describes **identity compatibility**. The
+[language principles](../../spec/README.md#principles) separately define
+indistinguishable failures and the adopted
+[function-text exception](../../spec/README.md#function-source-representation-exception).
+Within the same declared identity and rendering contract, successful observations
+must agree. Resource limits may differ; A2's interruption freedom in the stage-1
+discussion does not authorize a different successful answer.
+
+| model | reuse | JavaScript identity-compatible |
 |---|---|---|
 | [Amnesia](#1-amnesia) | none | no |
 | [JS-compatible](#2-js-compatible-execution) | node identity, per function invocation | yes |
@@ -33,8 +42,15 @@ invocation**. A shared node evaluates once during that invocation, while the
 next call starts with fresh values. This preserves observable allocation and
 identity semantics.
 
-There are several implementation strategies. **They must all behave the same;
-only speed and memory use may differ.**
+There are several implementation strategies. **They preserve the same observable
+allocation and sharing behavior**, including through subsequent calls. The
+function-text exception is independent: FJS VM rendering uses associated EDAG,
+while ordinary generated JavaScript retains its host representation unless an
+FJS runtime implements the VM rendering contract. This does not change `.length`,
+allocation identity, or non-function string conversion. The
+[serializer/frame/`self` questions](../../spec/todo/serialization.md#function-text-and-serialization)
+and conditional lazy-rendering requirement remain open/conditional as recorded
+there; the strategies below do not decide them.
 
 ### 2.1 Memoize every node
 
@@ -73,8 +89,10 @@ rather than:
 return [[], []]
 ```
 
-This has the same observable semantics as §2.1 and §2.2, but delegates most
-execution and optimization to the JavaScript engine.
+This preserves the allocation/identity semantics of §2.1 and §2.2 while
+delegating execution and optimization to the JavaScript engine. Its host's
+function text can differ under the adopted exception; generating JavaScript
+does not by itself implement the FJS VM's function renderer.
 
 ## 3. Global memoization
 
@@ -153,8 +171,8 @@ representation. See [the CAVM design TODO](../../spec/todo/content-addressable-v
 The key architectural boundary is between **implementation strategies** and
 **semantic models**:
 
-- §2.1, §2.2, and §2.3 are interchangeable implementations of the same
-  JavaScript-compatible EDAG semantics.
+- §2.1, §2.2, and §2.3 implement the same JavaScript-compatible allocation and
+  sharing semantics. Their separate function-text boundary is stated in §2.
 - Amnesia, global memoization, and CAVM intentionally have different identity
   semantics and therefore need separate behavioral expectations.
 
@@ -197,14 +215,12 @@ requirements say what a transformation may change.
    keeps content identity across bodies in its own representation and
    serializes one node per body.
 
-3. **A VM may compute fewer times than the program says.** A CAVM resolving
-   equal content to one value, a global memoizer reusing a
-   context-independent result. On a CAVM this changes nothing observable,
-   since identity is content there; on a non-CAVM engine the reduced EDAG
-   can make two values one, `result[0] === result[1]` where JavaScript
-   allocates two objects. That side effect is almost impossible to
-   eliminate on a non-CAVM engine and is accepted as the model's, per the
-   table above. Computing more times than the program says is what no
-   transformation and no JS-compatible executor may do, by requirement 1;
-   Amnesia does it by design, evaluating a shared node at every edge, and
-   the table above marks it as not JavaScript-compatible for that reason.
+3. **Reuse follows the selected identity model.** A CAVM resolves equal
+   content to one value; a global memoizer reuses a context-independent result
+   across invocations. Such reuse can change `===`, `!==` and the results of
+   computations depending on them relative to JavaScript allocations. Those
+   differences belong to §3 and §4, not to every non-CAVM executor. A §2
+   executor may cache or reduce only while preserving its observable allocation
+   and sharing contract. Amnesia's repeated evaluation of shared nodes is its
+   deliberate §1 behavior, not a permitted §2 strategy. The approved
+   function-text exception remains separate from all of these identity choices.

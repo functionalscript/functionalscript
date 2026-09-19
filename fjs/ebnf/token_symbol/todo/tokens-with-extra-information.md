@@ -8,8 +8,8 @@ The token half of this shipped: an input symbol is a `Meta<I>` of
 knew about it, and `fjs/fsc/parser` reads a token stream that way — each
 token's symbol from [`../module.f.mjs`](../module.f.mjs), the whole token
 with its position as the metadata, a keyword's word telling it from an
-identifier. What remains is the pipeline below the parser: the backend that
-turns the AST into generated Rust or hands it to `Function`.
+identifier. Remaining metadata propagation follows the checked compiler
+pipeline below; the token representation does not make parser output executable.
 
 Each input token is an integer and may carry additional information:
 
@@ -19,16 +19,33 @@ Each input token is an integer and may carry additional information:
 
 ### FunctionalScript pipeline
 
-```
-tokenizer(CFG) ==AST==> ToFsToken(Fun) ==Token[]==> parser(CFG) ==AST==> backend(Fun) ==generated Rust | Any==>
+```text
+layered tokenizer → tokens with metadata → JavaScript-subset AST
+    → checked AST-to-EDAG compilation → Unresolved { imports, edag }
+    → host resolution and linking → linked EDAG
+    → interpretation, native compilation, or serialization as data
 ```
 
-This allows a simple and fast `LL(1)` parser. **CFG** = context-free grammar, **Fun** = functional transformation.
+The layered LL(1) machinery is unchanged. **P1 correction:** the former
+AST-as-function/backend route is superseded by
+[statement-aware compilation](../../../fsc/parser/todo/statement-aware-intrinsics.md).
+The source AST preserves statement/expression structure; bindings, visibility,
+early errors, complete instruction patterns and FJS admission are checked while
+compiling it to EDAG. Line-terminator information reaches statement recognition;
+the instruction matcher never reparses tokens or repairs statement boundaries.
 
-The AST is the stable representation of functions, expressed as an FJS value (see
-[`spec/todo/serialization.md`](../../../../spec/todo/serialization.md));
-a backend either generates Rust code calling the `nanvm-lib` API (AOT) or hands the AST as data to
-the `Function` constructor (interpretation).
+[Module compilation and linking](../../../fsc/todo/compile-modules-to-edag.md)
+owns the temporary wrapper and resolved identities. The stable function-code
+representation is EDAG, not a grammar tree. A public `Function` input requires
+EDAG validation; AOT backends consume the admitted graph, not unchecked syntax.
+The [parser structure plan](../../todo/parser-structure.md) separates these
+responsibilities without renaming generic grammar ASTs.
+
+[Serialization](../../../../spec/todo/serialization.md) owns EDAG-as-data encoding
+and the open relationship between callable serialization and `String(f)`. This
+metadata task does not decide frame inclusion or `self` rendering. Preserve source
+metadata separately from semantic EDAG through the
+[source-map work](../../../fsc/todo/investigate-edag-source-maps.md).
 
 Result of tokenizer and token transformation:
 
