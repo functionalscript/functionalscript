@@ -27,8 +27,9 @@ return step(_parseModule(path),                           ? mapStep(_parseJson(p
 
 and their contexts are one type written twice, `ParseContext` in the
 transpiler's public `types.ts` and `_Link` in the linker's `private.ts`,
-differing only in what `complete` memoises (`Denotation` against
-`readonly [Exp]`). The readers below the walk are already shared — the
+differing only in what `complete` memoises: the transpiler's
+`ModuleDenotation` against the linker's `_Resolved`, each a module's
+`exports` beside its `default`. The readers below the walk are already shared — the
 transpiler exports `_rootSource`, `_importSources`, `_parseModule`,
 `_parseJson` and `_attributeError` for the linker to use — which is the
 half-finished state: every rule about *reading* a module has one owner, and
