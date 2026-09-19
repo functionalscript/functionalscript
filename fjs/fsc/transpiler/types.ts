@@ -11,8 +11,8 @@ import type { OrderedMap } from '../../types/ordered_map/types.ts'
 /**
  * State threaded through the recursive transpilation of a DJS module graph.
  *
- * - `complete`: modules that have been fully parsed and evaluated, keyed by path.
- * - `stack`: import chain currently being resolved (used to detect circular dependencies).
+ * - `complete`: modules that have been fully parsed and evaluated, keyed by identity.
+ * - `stack`: module identities currently being resolved (used to detect circular dependencies).
  *
  * There is no `error` field. It used to hold "the first parse error
  * encountered, or `null` while everything is clean" — a hand-rolled error
@@ -26,8 +26,14 @@ export type ParseContext = {
     readonly stack: List<string>
 }
 
-/** A file to read as an import or the root: its path, and whether it is a JSON module — said by the import's attribute. */
+/**
+ * A resolved import or root. Identity governs reuse and cycles; path governs
+ * loading and source diagnostics. The current resolver still assigns its
+ * existing path key as the identity; host-defined URL identities remain in
+ * `../todo/module-resolution-compatibility.md`.
+ */
 export type _Source = {
+    readonly id: string
     readonly path: string
     readonly json: boolean
 }

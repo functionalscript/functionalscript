@@ -33,6 +33,24 @@ const refusedSpecifier = (specifier, source, root) => {
     assertStructurallySame(graph, value)
 }
 
+/** Query/fragment refusal goes through the normal error channel in both compilers. @type {(specifier: string, source: string, root: Dir) => void} */
+const refusedComponents = (specifier, source, root) => {
+    const files = { ...root, 'main.f.js': [utf8(source)] }
+    const value = run(files)('main.f.js')
+    const graph = virtual({ ...emptyState, root: files })(resolve('main.f.js'))[1]
+    assertStructurallySame(value, ['error', {
+        message: `unsupported import specifier "${specifier}": query and fragment components are not supported`,
+        metadata: null,
+        path: 'main.f.js',
+    }])
+    assertStructurallySame(graph, value)
+}
+
+/** The parent's mixed-invalid-input cases now meet the more specific source-level suffix refusal first. @type {(specifier: string) => string} */
+const invalidImportMessage = specifier => specifier.includes('?') || specifier.includes('#')
+    ? `unsupported import specifier "${specifier}": query and fragment components are not supported`
+    : `invalid module specifier: ${specifier}`
+
 export const proof = {
     // The literal local targets exist: these must be refusals, not fallback
     // loads or accidental file-not-found errors. Prefixing ./ is the control.
@@ -72,11 +90,45 @@ export const proof = {
         assertStructurallySame(_importSources('/dir/main.f.js')([
             { specifier: './dep.f.js', json: false },
             { specifier: '../data.json', json: true },
-        ]), ['ok', [{ path: '/dir/dep.f.js', json: false }, { path: '/data.json', json: true }]])
+        ]), ['ok', [{ id: '/dir/dep.f.js', path: '/dir/dep.f.js', json: false }, { id: '/data.json', path: '/data.json', json: true }]])
         // Keep rooted input behavior separate from classifying import text.
-        assertStructurallySame(_importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ path: '/dep.f.js', json: false }]])
+        assertStructurallySame(_importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ id: '/dep.f.js', path: '/dep.f.js', json: false }]])
         for (const specifier of ['', '.', '..', '#alias', 'file:///dep.f.js', 'node:fs', 'https://example.com/dep.f.js']) {
             refusedSpecifier(specifier, `import value from "${specifier}"; export default value;`, {})
+        }
+    },
+    // A diamond and a direct escaped spelling share one module allocation;
+    // another file with identical source remains distinct. Cover JSON too.
+    moduleSharing: () => {
+        for (const json of [false, true]) {
+            const extension = json ? 'json' : 'f.js'
+            const attribute = json ? ' with { type: "json" }' : ''
+            const content = utf8(json ? '[42]' : 'export default [42];')
+            const root = {
+                'main.f.js': [utf8(`import a from "./left.f.js"; import b from "./right.f.js"; import c from "./%64ep.${extension}"${attribute}; import d from "./other.${extension}"${attribute}; export default [a, b, c, d];`)],
+                'left.f.js': [utf8(`import d from "./dep.${extension}"${attribute}; export default d;`)],
+                'right.f.js': [utf8(`import d from "./unused/../%64ep.${extension}"${attribute}; export default d;`)],
+                [`dep.${extension}`]: [content],
+                [`other.${extension}`]: [content],
+            }
+            const value = unwrap(run(root)('main.f.js'))
+            assert(value.value instanceof Array)
+            const [a, b, c, d] = value.value
+            assert(a === b && b === c && c !== d)
+            assert(value.shared)
+            const edag = unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1])
+            assert(edag instanceof Array && edag[0] === '[]')
+            const [ea, eb, ec, ed] = edag[1]
+            assert(ea === eb && eb === ec && ec !== ed)
+        }
+    },
+    moduleCycleDiagnostic: () => {
+        const root = {
+            'main.f.js': [utf8('import d from "./dir/dep.f.js"; export default d;')],
+            dir: { 'dep.f.js': [utf8('import m from "../%6dain.f.js"; export default m;')] },
+        }
+        for (const result of [run(root)('main.f.js'), virtual({ ...emptyState, root })(resolve('main.f.js'))[1]]) {
+            assertStructurallySame(result, ['error', { message: 'circular dependency', metadata: null, path: 'main.f.js' }])
         }
     },
     bareImportDiagnostic: () => {
@@ -89,6 +141,77 @@ export const proof = {
             assertEq(exitCode(code), 1, state.stderr)
             assertEq(state.root[output], undefined)
             assertEq(state.stderr.trim(), 'input.f.js - error: unsupported import specifier "pkg": expected ./, ../ or /')
+        }
+    },
+    // Neither a literal suffix-bearing filename nor its stripped counterpart
+    // may be loaded. These are valid JS imports, not parser errors.
+    importComponents: () => {
+        for (const suffix of ['?v=1', '#copy', '?', '#', '?v=1#copy', '?bad%', '#bad%']) {
+            const specifier = `./dep.f.js${suffix}`
+            const source = `import value from "${specifier}"; export default value;`
+            const module = unresolved(unwrap(parse('main.f.js')(source)))
+            assertEq(module.imports[0].specifier, specifier)
+            refusedComponents(specifier, source, {
+                'dep.f.js': [utf8('export default 1;')],
+                [`dep.f.js${suffix}`]: [utf8('export default 2;')],
+            })
+        }
+    },
+    unusedImportComponents: () => {
+        for (const suffix of ['?v=1', '#copy']) {
+            const specifier = `./dep.f.js${suffix}`
+            // Even a valid earlier import or an unused binding cannot bypass
+            // the check. It precedes dependency loading and attribute checks.
+            refusedComponents(specifier, `import a from "./dep.f.js"; import b from "${specifier}"; export default a;`, {
+                'dep.f.js': [utf8('export default 1;')],
+                [`dep.f.js${suffix}`]: [utf8('export default 2;')],
+            })
+            refusedComponents(specifier, `import a from "./missing.f.js"; import b from "${specifier}"; export default 1;`, {})
+            refusedComponents(`./data.json${suffix}`, `import a from "./data.json${suffix}" with { type: "json" }; export default a;`, {})
+        }
+        // JavaScript string escapes are already decoded by the parser; this
+        // restriction is on the specifier's value, not its source spelling.
+        refusedComponents('./dep?copy.f.js', 'import a from "./dep\\u003fcopy.f.js"; export default a;', {})
+    },
+    escapedImportComponents: () => {
+        /** @type {readonly (readonly [string, string])[]} */
+        const cases = [
+            ['./dep%3Fcopy.f.js', 'dep?copy.f.js'],
+            ['./dep%3fcopy.f.js', 'dep?copy.f.js'],
+            ['./dep%23copy.f.js', 'dep#copy.f.js'],
+            ['./dep%3F%23copy.f.js', 'dep?#copy.f.js'],
+            ['./dep%253Fcopy.f.js', 'dep%3Fcopy.f.js'],
+            ['./dep%2523copy.f.js', 'dep%23copy.f.js'],
+        ]
+        for (const [specifier, filename] of cases) {
+            const root = {
+                'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
+                [filename]: [utf8('export default 7;')],
+            }
+            assertEq(unwrap(run(root)('main.f.js')).value, 7)
+            assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 7)
+        }
+        // CLI entry paths are filesystem names, not import specifiers.
+        const root = {
+            'main?#copy.f.js': [utf8('import value from "./dep.f.js"; export default value;')],
+            'dep.f.js': [utf8('export default 7;')],
+        }
+        assertEq(unwrap(run(root)('main?#copy.f.js')).value, 7)
+        assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main?#copy.f.js'))[1]), 7)
+    },
+    importComponentsDiagnostic: () => {
+        for (const suffix of ['?v=1', '#copy']) {
+            for (const output of ['out.data.js', 'out.edag.data.js', 'out.f.js', 'out.json', 'out.rs']) {
+                const specifier = `./dep.f.js${suffix}`
+                const root = {
+                    'input.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
+                    [`dep.f.js${suffix}`]: [utf8('export default 7;')],
+                }
+                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+                assertEq(exitCode(code), 1, state.stderr)
+                assertEq(state.root[output], undefined)
+                assertEq(state.stderr.trim(), `input.f.js - error: unsupported import specifier "${specifier}": query and fragment components are not supported`)
+            }
         }
     },
     parse: () => {
@@ -223,7 +346,7 @@ export const proof = {
             const edag = virtual({ ...emptyState, root })(resolve('main.f.js'))[1]
             for (const result of [value, edag]) {
                 assert(result[0] === 'error', result)
-                assertEq(result[1].message, `invalid module specifier: ${specifier}`)
+                assertEq(result[1].message, invalidImportMessage(specifier))
                 assertEq(result[1].path, 'main.f.js')
             }
         }
@@ -245,7 +368,7 @@ export const proof = {
                 const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
                 assertEq(exitCode(code), 1, state.stderr)
                 assertEq(state.root[output], undefined)
-                assertEq(state.stderr.trim(), `input.f.js - error: invalid module specifier: ${specifier}`)
+                assertEq(state.stderr.trim(), `input.f.js - error: ${invalidImportMessage(specifier)}`)
             }
         }
     },
