@@ -10,18 +10,28 @@
  *
  * The sibling of `fjs/media/nix`, which does the same for Nix expressions.
  *
+ * A literal the target type cannot hold — a string with a lone surrogate,
+ * which no Rust `&str` can hold, or a bigint outside `i64` — is refused as
+ * a `Result` rather than thrown or truncated, and the refusal carries the
+ * value itself under `unknown`: this layer commits to nothing about the
+ * shape of a reason, and the printer above it names one.
+ *
  * @module
+ *
+ * @import { Result } from '../../types/result/types.ts'
  *
  * @example
  *
  * ```js
  * import { f64Literal, i64Literal, stringLiteral } from './module.f.mjs'
  *
- * stringLiteral('a"b') // '"a\\"b"'
+ * stringLiteral('a"b') // ok('"a\\"b"')
  * f64Literal(-0)       // '-0f64'
- * i64Literal(-456n)    // '-456'
+ * i64Literal(-456n)    // ok('-456')
  * ```
  */
+
+import { error, ok } from '../../types/result/module.f.mjs'
 
 /**
  * A character a Rust string literal cannot hold as it stands: a control
@@ -56,15 +66,27 @@ const character = c => {
 }
 
 /**
- * A double-quoted Rust string literal.
+ * A lone surrogate: one code unit of a pair standing without its partner.
+ * Iterating a string yields a paired surrogate as one two-unit character,
+ * so a surrogate that arrives alone is the unpaired one.
  *
- * A lone surrogate passes through as it stands, which no Rust literal can
- * hold — [strings a Rust literal cannot
- * spell](./todo/strings-rust-cannot-spell.md).
- *
- * @type {(v: string) => string}
+ * @type {(c: string) => boolean}
  */
-export const stringLiteral = v => `"${[...v].map(character).join('')}"`
+const loneSurrogate = c => c.length === 1 && c >= '\ud800' && c <= '\udfff'
+
+/**
+ * A double-quoted Rust string literal, or the refusal of a string holding a
+ * lone surrogate: a Rust `&str` is UTF-8 and cannot hold one, and no escape
+ * spells it — `"\u{d800}"` is refused by `rustc` — so the string has no
+ * spelling in the API a printer targets, and is answered back as the
+ * refusal rather than written as bytes `rustc` then refuses to read.
+ *
+ * @type {(v: string) => Result<string, unknown>}
+ */
+export const stringLiteral = v => {
+    const chars = [...v]
+    return chars.some(loneSurrogate) ? error(v) : ok(`"${chars.map(character).join('')}"`)
+}
 
 /**
  * An `f64` literal.
@@ -88,15 +110,12 @@ const i64Min = -(2n ** 63n)
 const i64Max = 2n ** 63n - 1n
 
 /**
- * An `i64` literal. Throws for a value the type cannot hold, rather than
- * silently truncating it.
+ * An `i64` literal, or the refusal of a value the type cannot hold, rather
+ * than a silent truncation.
  *
- * @type {(v: bigint) => string}
+ * @type {(v: bigint) => Result<string, unknown>}
  */
-export const i64Literal = v => {
-    if (v < i64Min || v > i64Max) { throw ['bigint out of i64 range', v] }
-    return v.toString()
-}
+export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toString())
 
 /**
  * A `snake_case` Rust identifier from a `camelCase` name.

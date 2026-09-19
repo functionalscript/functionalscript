@@ -163,14 +163,40 @@ const op2 = lookup(op2Rust)
 
 const op3 = lookup(op3Rust)
 
-/** @type {(v: Primitive) => string} */
+/**
+ * A Rust string literal for `v`, or the refusal: `stringLiteral` answers a
+ * string it cannot spell — one holding a lone surrogate, which no `&str`
+ * can hold — with the string itself under `unknown`, and this printer
+ * names the reason in the `[reason, detail]` shape every refusal here has.
+ * The detail is written by `JSON.stringify`, which spells the surrogate as
+ * its escape rather than the unpaired code unit a diagnostic cannot show.
+ *
+ * @type {(v: string) => Result<string, readonly unknown[]>}
+ */
+const stringExpr = v => {
+    const r = stringLiteral(v)
+    return r[0] === 'ok' ? r : error(['no Rust string literal for a lone surrogate in', JSON.stringify(v)])
+}
+
+/**
+ * The same for a bigint: `i64Literal` answers one outside `i64` with the
+ * value itself, and this printer names the reason.
+ *
+ * @type {(v: bigint) => Result<string, readonly unknown[]>}
+ */
+const bigintExpr = v => {
+    const r = i64Literal(v)
+    return r[0] === 'ok' ? r : error(['no Rust i64 for', v])
+}
+
+/** @type {(v: Primitive) => Result<string, readonly unknown[]>} */
 const primitiveExpr = v => {
-    if (v === null) { return 'Nullish::Null.to_any()' }
+    if (v === null) { return ok('Nullish::Null.to_any()') }
     switch (typeof v) {
-        case 'boolean': { return `${v}.to_any()` }
-        case 'number': { return `(${f64Literal(v)}).to_any()` }
-        case 'string': { return `string_any(${stringLiteral(v)})` }
-        case 'bigint': { return `bigint_any(${i64Literal(v)})` }
+        case 'boolean': { return ok(`${v}.to_any()`) }
+        case 'number': { return ok(`(${f64Literal(v)}).to_any()`) }
+        case 'string': { return mapOk(s => `string_any(${s})`)(stringExpr(v)) }
+        case 'bigint': { return mapOk(s => `bigint_any(${s})`)(bigintExpr(v)) }
     }
 }
 
@@ -185,7 +211,7 @@ const primitiveExpr = v => {
  *
  * @type {(k: Exp) => Result<string, readonly unknown[]>}
  */
-const keyExpr = k => typeof k === 'string' ? ok(`string_key(${stringLiteral(k)})`) : error(['not a literal key', k])
+const keyExpr = k => typeof k === 'string' ? mapOk(s => `string_key(${s})`)(stringExpr(k)) : error(['not a literal key', k])
 
 /**
  * A `.` node's index, as the `Any<A>` key `Any::member_access` takes: a
@@ -202,7 +228,7 @@ const keyExpr = k => typeof k === 'string' ? ok(`string_key(${stringLiteral(k)})
  * @type {(index: Index) => Result<string, readonly unknown[]>}
  */
 const indexExpr = index => {
-    if (typeof index === 'string') { return ok(`string_any(${stringLiteral(index)})`) }
+    if (typeof index === 'string') { return mapOk(s => `string_any(${s})`)(stringExpr(index)) }
     if (typeof index === 'number') { return ok(`(${f64Literal(index)}).to_any()`) }
     return error(['no Rust for a Number(...) cast index', index])
 }
@@ -375,7 +401,7 @@ export const expExpr = shared => {
     ].includes(e[0])
     /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
     const f = e => {
-        if (!(e instanceof Array)) { return ok(primitiveExpr(e)) }
+        if (!(e instanceof Array)) { return primitiveExpr(e) }
         const bound = shared.find(([n]) => n === e)
         if (bound !== undefined) { return ok(bound[1]) }
         const [id, a, b, c] = /** @type {readonly any[]} */ (e)
