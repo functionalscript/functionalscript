@@ -170,3 +170,7 @@ Backup, restore, and synchronization should not require the service that origina
 ## Projections
 
 - [Git projection](./git.md): Git objects, signatures, names, snapshots, and transport examples.
+
+## References
+
+- Sergey Shandar, [Digital Space. How it should be Done](https://medium.com/@sergeyshandar/digital-space-how-it-should-be-done-4c2f3bd3cf9e), Medium, January 31, 2025.
