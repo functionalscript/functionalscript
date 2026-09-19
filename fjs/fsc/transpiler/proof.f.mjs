@@ -5,6 +5,9 @@
  * @import { ParseError } from '../parser/types.ts'
  */
 import { _importPath, transpile } from './module.f.mjs'
+import { resolve } from '../edag/module.f.mjs'
+import { compile } from '../module.f.mjs'
+import { exitCode } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
@@ -43,18 +46,68 @@ export const proof = {
         const s = unwrap(tryStringify(result[1].value))
         assertEq(s, 'export default 1;')
     },
-    // Validate the decoded characters, not overescaped string spellings.
+    // Only the specifier is decoded, once; the importer's filesystem root stays put.
     importPath: () => {
         assertEq(_importPath('main.f.js')('./%64ep.f.js'), 'dep.f.js')
-        // A literal percent sign is decoded once, not recursively.
+        assertEq(_importPath('C:/repo/main.f.js')('./%64ep.f.js'), 'C:/repo/dep.f.js')
+        assertEq(_importPath('dir%25/main.f.js')('./dep.f.js'), 'dir%25/dep.f.js')
         assertEq(_importPath('main.f.js')('./%255C.f.js'), '%5C.f.js')
+        assertEq(_importPath('main.f.js')('./%253A.f.js'), '%3A.f.js')
     },
-    throw: {
-        malformedImport: () => _importPath('main.f.js')('./bad%.f.js'),
-        invalidUtf8Import: () => _importPath('main.f.js')('./%ff.f.js'),
-        escapedSlashImport: () => _importPath('main.f.js')('./a%2Fb.f.js'),
-        escapedBackslashImport: () => _importPath('main.f.js')('./a%5Cb.f.js'),
-        nulImport: () => _importPath('main.f.js')('./a%00b.f.js'),
+    importPathRefusals: () => {
+        for (const specifier of [
+            './bad%.f.js', './%ff.f.js', './a%2Fb.f.js', './a%5Cb.f.js', './a%00b.f.js',
+            './C%3A/x.f.js', './dir/../c%3a/x.f.js', './%43%3a/x.f.js', './C:relative.f.js',
+            './name%3Astream.f.js', './%ED%A0%80.f.js', './%ED%B0%80.f.js',
+        ]) {
+            assertEq(_importPath('main.f.js')(specifier), null, specifier)
+        }
+    },
+    // Native URL input is a scalar-value string. Do not apply that replacement
+    // to percent-encoded UTF-8: the ED A0 80 case above must still fail.
+    importPathSurrogates: () => {
+        assertEq(_importPath('main.f.js')('./\ud800.f.js'), '\ufffd.f.js')
+        assertEq(_importPath('main.f.js')('./\udc00.f.js'), '\ufffd.f.js')
+        assertEq(_importPath('main.f.js')('./\ud800%20.f.js'), '\ufffd .f.js')
+        assertEq(_importPath('main.f.js')('./%61\udc00.f.js'), 'a\ufffd.f.js')
+        assertEq(_importPath('main.f.js')('./\ud83d\ude00.f.js'), '\ud83d\ude00.f.js')
+    },
+    // A valid dependency before a bad, unused import must not hide the error.
+    // These are Result assertions, not "throw" proofs: a leaked panic fails.
+    invalidImportResult: () => {
+        for (const specifier of ['./bad%.f.js', './a%5Cb.f.js', './a%00b.f.js', './C%3A/x.f.js']) {
+            const root = {
+                'main.f.js': [utf8(`import a from "./ok.f.js"; import b from "${specifier}"; export default a;`)],
+                'ok.f.js': [utf8('export default 1;')],
+                'C:': { 'x.f.js': [utf8('export default 2;')] },
+            }
+            const value = run(root)('main.f.js')
+            const edag = virtual({ ...emptyState, root })(resolve('main.f.js'))[1]
+            for (const result of [value, edag]) {
+                assert(result[0] === 'error', result)
+                assertEq(result[1].message, `invalid module specifier: ${specifier}`)
+                assertEq(result[1].path, 'main.f.js')
+            }
+        }
+    },
+    importSurrogateFilename: () => {
+        const root = {
+            'main.f.js': [utf8('import value from "./\\ud800%20.f.js"; export default value;')],
+            '\ufffd .f.js': [utf8('export default 1;')],
+        }
+        assertEq(unwrap(run(root)('main.f.js')).value, 1)
+        assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 1)
+    },
+    // Both callers propagate the error through the CLI: exit 1, a diagnostic,
+    // no output. A thrown assertion would fail this ordinary (non-throw) proof.
+    invalidImportDiagnostic: () => {
+        for (const output of ['out.data.js', 'out.edag.data.js', 'out.f.js', 'out.json', 'out.rs']) {
+            const root = { 'input.f.js': [utf8('import value from "./bad%.f.js"; export default value;')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+            assertEq(exitCode(code), 1, state.stderr)
+            assertEq(state.root[output], undefined)
+            assertEq(state.stderr.trim(), 'input.f.js - error: invalid module specifier: ./bad%.f.js')
+        }
     },
     parseWithSubModules: () => {
         const result = run({

@@ -34,6 +34,19 @@ before filesystem normalization in both compiler paths, with the reproducer
 pinned in their FJS proofs. The broader identity/package contract below remains
 open.
 
+The shared import-record boundary now reports invalid specifiers through
+`Result`/`ParseError` in both compiler paths, before dependency loading.
+Literal text uses URL scalar-value conversion (a lone surrogate becomes
+U+FFFD); percent-encoded bytes still require valid UTF-8. The generic text
+decoder does not choose this URL-specific replacement policy.
+
+**Current portable-segment limit:** decoded slashes, backslashes, NUL and `:`
+are refused.
+In particular, `./C%3A/x.f.js` must not turn into `C:/x.f.js` after joining.
+Colon-bearing names, including names valid on POSIX, remain unsupported until
+host-specific resolution can preserve them without drive/stream reinterpretation.
+This is a refusal boundary, not a claim that every host prohibits colons.
+
 ### Proposal
 
 Give all compiler paths one module-resolution contract that separates:

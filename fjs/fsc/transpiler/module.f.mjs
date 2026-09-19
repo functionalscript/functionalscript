@@ -17,12 +17,12 @@
  * @import { ParseContext } from './types.ts'
  */
 
-import { error } from '../../types/result/module.f.mjs'
-import { assert } from '../../asserts/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
 import { drop, map as listMap, toArray, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
-import { stringToList } from '../../text/utf16/module.f.mjs'
+import { codePointListToString, stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
+import { isValidCodePoint } from '../../text/code_point/module.f.mjs'
 import { percentDecode } from '../../text/percent/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
@@ -84,34 +84,60 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
  */
 export const _parseModule = path => step(notFound(path)(readUtf8File(path)), text => pure(parse(path)(text)))
 
+/** A literal URL string replaces lone surrogates; percent-encoded bytes stay strict UTF-8. @type {(c: number) => number} */
+const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
+
 /**
- * One URL-path segment of a module specifier as a filesystem-path segment.
- * Decode each segment before path normalization so escaped dot segments have
- * their URL meaning, while an escaped separator cannot create a new segment.
+ * One URL-path segment as a portable filesystem segment, or a refusal.
+ * Decoded separators and NUL cannot name a segment. Colons are also refused:
+ * the current portable path layer would reinterpret drive/stream syntax
+ * after joining or normalization. Host-specific colon names need the full
+ * resolver; they must not silently become another root here.
  *
- * @type {(specifier: string) => (segment: string) => string}
+ * @type {(segment: string) => string | null}
  */
-const importSegment = specifier => segment => {
-    const decoded = percentDecode(segment)
-    assert(decoded !== null, ['invalid module specifier', specifier])
-    assert(!decoded.includes('/') && !decoded.includes('\\') && !decoded.includes('\0'), ['invalid module specifier', specifier])
-    return decoded
+const importSegment = segment => {
+    const literal = codePointListToString(listMap(scalarValue)(stringToCodePointList(segment)))
+    const decoded = percentDecode(literal)
+    return decoded === null || decoded.includes('/') || decoded.includes('\\') || decoded.includes('\0') || decoded.includes(':')
+        ? null
+        : decoded
 }
 
 /**
- * The path an import names, resolved against the importing module's URL-path
- * spelling: `./%62.f.js` from `dir/a.f.js` names `dir/b.f.js`. Percent
- * escapes are decoded as UTF-8 before the resulting path is normalized.
- * Exported for the EDAG linker, as `_parseModule` is.
+ * Resolve an import's URL-path spelling against its importing file, or return
+ * null for an unsupported segment. Decode only the specifier, once, and before
+ * normalization: escaped dots have their URL meaning, but decoded filesystem
+ * delimiters cannot create a new root or segment. The importing path is
+ * already a filesystem path and must not be decoded again.
  *
- * This is deliberately only the relative/file-path part of module resolution.
- * Package resolution and distinct URL identities remain owned by
- * `../todo/module-resolution-compatibility.md`.
+ * This is not a complete URL resolver. Package resolution and distinct URL
+ * identities remain in `../todo/module-resolution-compatibility.md`.
  *
- * @type {(path: string) => (specifier: string) => string}
+ * @type {(path: string) => (specifier: string) => string | null}
  */
-export const _importPath = path => specifier =>
-    pathConcat(pathConcat(path)('..'))(specifier.split('/').map(importSegment(specifier)).join('/'))
+export const _importPath = path => specifier => {
+    const segments = specifier.split('/').map(importSegment)
+    return segments.every(segment => segment !== null)
+        ? pathConcat(pathConcat(path)('..'))(segments.join('/'))
+        : null
+}
+
+/**
+ * Resolve all source import records before reading dependencies. Both compiler
+ * paths use this boundary, so invalid source becomes a normal ParseError, not
+ * an assertion escaping the effect. Import order and JSON attributes survive.
+ *
+ * @type {(path: string) => (imports: readonly AstImport[]) => Result<readonly _Source[], ParseError>}
+ */
+export const _importSources = path => imports => {
+    const paths = imports.map(imported => _importPath(path)(imported.specifier))
+    if (paths.every(resolved => resolved !== null)) {
+        return ok(paths.map((resolved, i) => ({ path: resolved, json: imports[i].json })))
+    }
+    const specifier = imports[paths.indexOf(null)].specifier
+    return error({ message: `invalid module specifier: ${specifier}`, metadata: null, path })
+}
 
 /**
  * The context once a module's body has run: what it denotes recorded under
@@ -145,15 +171,14 @@ export const _attributeError = ({ path, json }) => {
     return { message, metadata: null, path }
 }
 
-/** An import as a file to read: its specifier resolved against the importer's path, and what it is. @type {(path: string) => (imported: AstImport) => _Source} */
-const sourceOf = path => ({ specifier, json }) => ({ path: _importPath(path)(specifier), json })
-
 /** @type {(source: _Source) => string} */
 const pathOf = ({ path }) => path
 
 /** @type {(path: string) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const transpileWithImports = path => module => context => {
-    const sources = module[0].map(sourceOf(path))
+    const resolved = _importSources(path)(module[0])
+    if (resolved[0] === 'error') { return pure(resolved) }
+    const sources = resolved[1]
     const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
     const x0 = foldStep(pureOk(sources), contextWithStack, foldNextModuleOp)
     return step(
