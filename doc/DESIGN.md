@@ -17,6 +17,7 @@ brief at the top of [AGENTS.md](../AGENTS.md); everything here is their full tex
 9. [Maximize signal-to-noise](#9-maximize-signal-to-noise)
 10. [Refuse what you cannot handle](#10-refuse-what-you-cannot-handle)
 11. [Build the replacement beside the module it replaces](#11-build-the-replacement-beside-the-module-it-replaces)
+12. [Preserve harmless JavaScript conventions](#12-preserve-harmless-javascript-conventions)
 
 ---
 
@@ -74,7 +75,9 @@ on top of the weaker design.
 
 ## 3. Design before implementation
 
-- Design before implementation is an order of work, not a gate. A non-trivial
+- Except for new language features
+  ([§12](#12-preserve-harmless-javascript-conventions)), design before
+  implementation is an order of work, not a gate. A non-trivial
   feature's design lives in its `todo/` issue, and the issue may be as thin as
   a problem statement. The design grows through
   pull requests — an underspecified issue, then details and ideas, then an
@@ -461,3 +464,40 @@ section is its record. What it taught:
   [`ebnf/terminal/`](../fjs/ebnf/todo/symbol-domain-owner.md) and
   [`ebnf/unicode/`](../fjs/ebnf/unicode/todo/unicode-rules.md) — and their
   being open did not keep the old module alive.
+
+## 12. Preserve harmless JavaScript conventions
+
+**Preserve familiar JavaScript syntax and conventions unless restricting them
+provides a concrete benefit.** Compatibility and familiarity benefit both
+developers and agents. Fewer language constructs do not necessarily make the
+language simpler to use.
+
+Named exports (`export const` and `export { ... }`) and multiple function
+parameters are not bad practices. Do not reject them merely because a module
+could export a single value or a function could accept one aggregate argument.
+An object-shaped module result is a reasonable trade-off for JavaScript
+compatibility and familiar source code.
+
+Restrictions are different when they prevent mistakes or protect the language's
+guarantees. For example, discourage falling through the end of a function block
+without an explicit `return`: making the intended result explicit helps expose
+accidental omissions.
+
+When proposing a restriction, explain which guarantee it protects or which
+mistake it prevents. A simpler internal representation does not, by itself,
+justify a less familiar source language.
+
+### New language features start with a TODO
+
+**Every new language feature starts with a `todo/` proposal, not implementation.**
+Follow the [issue format](../todo/README.md#issue-format), and explicitly explain
+the proposed feature's benefits and drawbacks, including its effects on
+JavaScript compatibility and language complexity.
+
+Before implementing it, obtain **formal, explicit approval from another language
+designer**, distinct from the proposer. Record the approving designer and a link
+to their approval in the TODO; silence or self-approval does not count.
+
+This gate also applies to familiar JavaScript features. The general
+incremental-design guidance in [§3](#3-design-before-implementation) does not
+waive the TODO, benefit/drawback explanation, or independent approval.
