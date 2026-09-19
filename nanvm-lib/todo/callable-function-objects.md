@@ -55,8 +55,10 @@ variables that the generated code and `nanvm-lib` agree on.
   [3120-parameters](../../spec/todo/3120-parameters.md)) at the *parser*
   level — today the language has only the rest-parameter and no-parameter
   forms. This document's representation is written for `["args"]` (an
-  array), which named parameters lower to positionally once 3120 lands, so
-  nothing here needs to change when it does.
+  array), which named parameters still read positionally. The pending
+  parameter-count proposal also changes the function EDAG and requires AOT
+  lowering to preserve the count in the callable header; parser work being
+  separate does not put that runtime obligation out of scope.
 
 #### Grounding: what is already decided
 
@@ -66,12 +68,16 @@ This is not a green field. The EDAG semantics
 function value must respect, and this plan is an implementation of that
 shape, not an alternative to it:
 
-- A function is `["=>", frame, body]`. `frame` is one node, evaluated in the
-  *enclosing* scope, that yields an array of captured values; `body` is the
-  function's own closed graph.
+- The current function node is `["=>", frame, body]`. The
+  [named-parameter proposal](../../spec/todo/3120-parameters.md), pending
+  language-designer approval, would replace it with
+  `["=>", parameterCount, frame, body]`. If approved, this plan must migrate
+  its generator and callable construction with that format. `frame` remains
+  one node, evaluated in the *enclosing* scope, that yields an array of
+  captured values; `body` remains the function's own closed graph.
 - `["args"]` is the arguments array — always an array, positionally indexed;
-  declared parameters are compiler-side sugar over it, not a separate
-  mechanism (subject 2).
+  parameter names are compiler-side sugar over it. Declared arity is
+  observable metadata, distinct from the actual argument count (subject 2).
 - `["frame"]` is the captured-values array inside the body, read the same
   way `["args"]` is (`[".", ["frame"], i]`).
 - `["self"]` is direct self-reference, primitive because a top-level
@@ -189,11 +195,22 @@ reusing the very type Arguments uses above, rather than inventing a second
 "indexed sequence of `Any<A>`" container: a captured frame and an arguments
 list are the same *shape*, so they should be the same *type*. It is read
 inside the body the same way `args` is, by index — a well-formed
-`["=>", frame, body]`'s frame size is fixed by the compiler, so unlike
+function node's frame size is fixed by the compiler, so unlike
 `args` (caller-supplied, arbitrary length) the body's own reads need no
 length check, only the enclosing scope's *construction* of the frame does.
 
 #### The `Function<A>` value and its code pointer
+
+Use the existing header's length for declared arity and expose it as
+`f.length` when callable support lands. Today's
+[`Any::member_access`](../src/vm/any/member_access.rs) returns `undefined`
+for functions, so storing the count alone does not meet this requirement.
+Empty and rest-only parameter lists have length `0`. If the named-parameter
+proposal is approved, each generated callable must carry the function node's
+`parameterCount` in that header, including unused parameters and capturing
+or non-capturing functions. Do not infer it from argument reads or the
+caller's array length. The complete actual argument array still crosses the
+call boundary unchanged.
 
 The piece that turns this from data into something callable: a function
 value needs, alongside its existing name/length header
@@ -372,9 +389,15 @@ generically — this is what lets `export default` be evaluated uniformly by
 the harness whether or not it happens to be a function, closing the gap the
 harness currently special-cases.
 
+Preserve the declared length from the first callable value this stage
+constructs. When named parameters are admitted, compare exported and
+returned functions' `length` with native JavaScript, including unused
+parameters. This obligation is not deferred to Stage 6's call-edge audit
+or Stage 7's EDAG embedding.
+
 **Stage 3 — capturing closures.**
-Extend the generator to lower `["=>", frame, body]` for a body that actually
-references `["frame"]`: build the `frame` operand (an array literal over the
+Extend the generator to lower the approved function-node shape for a body
+that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
 `Function<A>` value with that as its captured field. The nested body reads
 `captured[i]` exactly as it reads `args[i]`. Proof surface: a two-level
@@ -489,8 +512,9 @@ generated-Rust test from one source of cases.
       (a bare function-valued `export default` stays out of scope until
       Stage 2's `Function<A>` value exists).
 - [ ] Stage 2: `FunctionHeader<A>` gains a code pointer (option 1: plus a
-      captured `Array<A>` field); `Function::call`; resolve open question 1.
-- [ ] Stage 3: capturing closures — `["=>", frame, body]` lowering, frame
+      captured `Array<A>` field); preserve observable declared length;
+      `Function::call`; resolve open question 1.
+- [ ] Stage 3: capturing closures — approved function-node lowering, frame
       built as the captured `Array<A>`.
 - [ ] Stage 4: dynamic call sites through `TryFrom<Any<A>> for Function<A>` +
       `Function::call`; paired static/dynamic fixtures proving observable
