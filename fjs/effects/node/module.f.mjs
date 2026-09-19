@@ -21,7 +21,7 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -216,7 +216,8 @@ const nodeCommandSet = {
     memWrite: null, mkdir: null, now: null, randomInt: null,
     read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
     rename: null, rm: null, sandbox: null, stat: null,
-    test: null, write: null, writeBytes: null, writeFile: null,
+    test: null, write: null, writeBytes: null, writeExclusive: null,
+    writeFile: null,
 }
 
 /**
@@ -346,6 +347,21 @@ export const access = do_('access')
 
 /** @type {Func<CreateExclusive>} */
 export const createExclusive = do_('createExclusive')
+
+// writeExclusive
+
+/** @type {Func<WriteExclusive>} */
+export const writeExclusive = do_('writeExclusive')
+
+/**
+ * Creates `path` and writes `content` to it as UTF-8 bytes, through one open,
+ * failing with `EEXIST` where the name is taken. The text form of
+ * {@link writeExclusive}, as {@link writeUtf8File} is of {@link writeFile}.
+ *
+ * @type {(path: string, content: string) => Effect<WriteExclusive, void, IoChannel>}
+ */
+export const writeExclusiveUtf8File = (path, content) =>
+    writeExclusive(path, utf8(content))
 
 // writeBytes
 

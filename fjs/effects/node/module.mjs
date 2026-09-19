@@ -443,6 +443,9 @@ const runNodeEffect = asyncRun({
         const fh = await open(path, 'wx')
         await fh.close()
     }),
+    // One open, and `wx` rather than `w`: the flags are the whole contract, so
+    // they are here rather than behind a pair of calls. See `WriteExclusive`.
+    writeExclusive: (path, data) => io(() => writeFile(path, fromVec(data), { flag: 'wx' })),
     writeBytes: (path, offset, data) => io(async () => {
         const fh = await open(path, 'r+')
         try {

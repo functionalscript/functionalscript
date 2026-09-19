@@ -170,6 +170,33 @@ export type Access = readonly['access', (path: string) => IoResult<void>]
  */
 export type CreateExclusive = readonly['createExclusive', (path: string) => IoResult<void>]
 
+// writeExclusive
+
+/**
+ * Creates `path` with `O_CREAT|O_EXCL` **and writes `data` through that same
+ * open** — fails with `EEXIST` if the name is already taken, by anything.
+ *
+ * Not `createExclusive` followed by `writeFile`, and the difference is a hole
+ * rather than a round trip. `createExclusive` closes its descriptor, so a
+ * `writeFile` after it reopens the *pathname*, with the flags `w` gives —
+ * `O_TRUNC`, and symlinks followed. Measured on node 22.22.2: with the name
+ * replaced by a symlink between the two calls, the `writeFile` **succeeded and
+ * overwrote the link's target**, and the name was still a symlink afterwards —
+ * so a caller that then renames it publishes the attacker's link, and a caller
+ * that does not has still truncated a file it never named. One `writeFile` with
+ * `flag: 'wx'` onto the same symlink answers `EEXIST` and leaves the target
+ * alone, as does one onto a *dangling* link, since `O_EXCL` refuses a symlink
+ * without following it. The control: `wx` on a free name creates and fills it,
+ * and a second `wx` on that name is `EEXIST` with the bytes unchanged.
+ *
+ * So this is the operation a lock file wants, and `createExclusive` is for a
+ * name claimed now and written later — the lock-free upload's staging file,
+ * whose 256 random bits are what make the window uninteresting there.
+ * [`fjs/git/refstore`](../../git/refstore/module.f.mjs)'s `tryWrite` is this
+ * one's caller, where the name is `refs/heads/x.lock` and entirely predictable.
+ */
+export type WriteExclusive = readonly['writeExclusive', (path: string, data: Vec) => IoResult<void>]
+
 // writeBytes
 
 /**
@@ -281,7 +308,7 @@ export type ReadWhole = readonly['readWhole', (path: string) => IoResult<readonl
 
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat
 
 // Server
 

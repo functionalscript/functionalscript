@@ -56,8 +56,9 @@ what a grammar can and cannot do for the formats.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
   in hand, and `tryWrite` to put one at an id — the loose file, through the
-  `.lock` name Git takes, so a second writer fails to take the lock rather
-  than interleaving, and reading `packed-refs` first for the one collision no
+  `.lock` name Git takes, created and filled in **one** exclusive open so no
+  second writer and no symlink can reach the pathname in between, and reading
+  `packed-refs` first for the one collision no
   filesystem answer can stand in for: Git lets no ref name be a directory
   prefix of another, and a packed name has no loose file for a `mkdir` or a
   `rename` to trip over. Two rules live here because no reader of one file can decide

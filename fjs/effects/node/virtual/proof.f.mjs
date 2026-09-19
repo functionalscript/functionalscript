@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
+import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -356,6 +356,34 @@ export const proof = {
         const [state, result] = virtual({ ...emptyState, root })(createExclusive('a/b'))
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
+    },
+    // `writeExclusive` is `createExclusive` and `writeFile` in one step, so it
+    // has both of their answers and one of its own: the name is taken, or the
+    // path names nothing this runner can write, or it is created holding the
+    // payload. All three, because the operation is what a lock file rests on —
+    // see `WriteExclusive` in `../types.ts` for what the two separate calls let
+    // through on a real host.
+    writeExclusiveStates: () => {
+        const payload = vec8(0x2An)
+        // a free name: created, holding the payload and nothing else
+        const [made, ok1] = virtual(emptyState)(writeExclusive('x.lock', payload))
+        assert(ok1[0] === 'ok')
+        assertStructurallySame(made.root, { 'x.lock': [payload] })
+        // the same name again: `EEXIST`, and the bytes already there are kept,
+        // which is the half a plain `writeFile` would get wrong
+        const [again, taken] = virtual(made)(writeExclusive('x.lock', vec8(0x7Fn)))
+        assert(taken[0] === 'error')
+        assertIoCode(taken[1], 'EEXIST')
+        assertStructurallySame(again.root, { 'x.lock': [payload] })
+        // a name whose directory is not there: the operation wrapper falls
+        // through with the whole remaining path, and nothing is created. A
+        // non-empty root, so a mutant that answered the right error beside a
+        // wiped directory would be caught.
+        /** @type {Dir} */
+        const root = { keep: [vec8(0x1n)] }
+        const [state, nested] = virtual({ ...emptyState, root })(writeExclusive('a/b', payload))
+        assert(nested[0] === 'error')
+        assertStructurallySame(state.root, root)
     },
     writeBytesNestedMissing: () => {
         // writeBytes('a/b', ...) where 'a' doesn't exist. Non-empty root, as above.

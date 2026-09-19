@@ -21,13 +21,26 @@ it, and renames it over `refs/heads/x`, so a concurrent writer fails to create
 the lock rather than interleaving. The rename is the atomic step, and the lock
 file is why `fjs/git/refstore`'s walk skips a name ending in `.lock`: such a
 file is a write in progress and not a ref.
-[`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in five
-effects — `packed-refs`, the directories above the file, the exclusive create,
+[`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in four
+effects — `packed-refs`, the directories above the file, the exclusive write of
 the id's hex digits and an LF, the rename — and gives the lock back where a
-failure after the create would otherwise leave it. The file is `oidBytes * 2 + 1`
+failure after the write would otherwise leave it. The file is `oidBytes * 2 + 1`
 bytes and not a fixed 41 — measured, `update-ref` writes 41 bytes in a SHA-1
 repository and 65 in one created with `git init --object-format=sha256`, whose
 ids are sixty-four digits.
+
+**The create and the fill are one effect**, which is a hole and not a round trip.
+`createExclusive` closes its descriptor, so a `writeFile` after it reopens the
+*pathname* with the flags `w` gives — `O_TRUNC`, and symlinks followed. Measured
+on node 22.22.2 with the name replaced by a symlink between the two calls: the
+`writeFile` succeeded and **overwrote the link's target**, and the name was still
+a symlink, so the rename would have published the link as the ref. One
+`writeFile` with `flag: 'wx'` answers `EEXIST` on that symlink — and on a
+dangling one, since `O_EXCL` refuses a link without following it — with the
+target untouched; the control is that `wx` on a free name creates and fills it
+and a second `wx` on the taken name is `EEXIST` with the bytes unchanged. That is
+`fjs/effects/node`'s `writeExclusive`, added for this and carrying the
+measurement. Found by review of the write.
 
 `packed-refs` is read first because of the one collision no filesystem can
 refuse. Git will not let a ref name be a directory prefix of another: measured

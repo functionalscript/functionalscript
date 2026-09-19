@@ -203,7 +203,7 @@
  *
  * @module
  *
- * @import { CreateExclusive, Dirent, FileStat, Mkdir, ReadFile, ReadWhole, Readdir, Rename, Rm, Stat, WriteFile } from '../../effects/node/types.ts'
+ * @import { Dirent, FileStat, Mkdir, ReadFile, ReadWhole, Readdir, Rename, Rm, Stat, WriteExclusive } from '../../effects/node/types.ts'
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
@@ -215,7 +215,7 @@
  */
 
 import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
-import { createExclusive, isDirectory, isNotFound, leadsNowhere, mkdir, readFile, readWholeBytes, readdir, rename, rm, stat, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { isDirectory, isNotFound, leadsNowhere, mkdir, readFile, readWholeBytes, readdir, rename, rm, stat, writeExclusiveUtf8File } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
@@ -1741,21 +1741,40 @@ export const tryRoots = (dirs, oidBytes) => {
 const parentOf = (dir, text) => under(dir, text.slice(0, text.lastIndexOf('/')))
 
 /**
- * `e` with the lock given back where it fails.
+ * Whether a failure means the lock is somebody else's rather than this writer's
+ * to take back.
+ *
+ * `EEXIST` is the one, and it is the only error the exclusive write answers for a
+ * name already taken. Every other failure of it may have created the file and
+ * left it unfilled — one `writeFile` with `wx` still opens, writes and closes, so
+ * a write that fails after the open leaves the name behind — and that one is this
+ * writer's to remove. A failure of the `mkdir` before it, or of the `rename`
+ * after it, is never `EEXIST`: a recursive `mkdir` answers `ok` on a directory
+ * that is there, and a `rename` over an existing file replaces it.
+ *
+ * @type {(e: IoChannel) => boolean}
+ */
+const heldByAnother = e => e[0] === 'ioError' && e[1].code === 'EEXIST'
+
+/**
+ * `e` with the lock given back where it fails, unless the failure says the lock
+ * was never this writer's.
  *
  * A lock left behind refuses every later write of that name, and nothing tells
  * one a writer is holding from one a writer abandoned: both are `EEXIST` from
- * the create. Git leaves none either — measured on Git 2.43.0, there is no
- * `refs/heads/z.lock` after `git update-ref refs/heads/z`, and a `y.lock` put
+ * the exclusive write. Git leaves none either — measured on Git 2.43.0, there is
+ * no `refs/heads/z.lock` after `git update-ref refs/heads/z`, and a `y.lock` put
  * there by hand makes the next `update-ref refs/heads/y` exit 128 with
  * `cannot lock ref 'refs/heads/y': Unable to create '…/refs/heads/y.lock':
  * File exists` and write no `refs/heads/y`.
  *
- * **It wraps what happens after the create and not the whole sequence**, which
- * is the whole of why it is a function rather than one more link: an `EEXIST`
- * from the create means the lock is somebody else's, and a cleanup reached
- * through that error would take a live writer's lock away — the one failure
- * where removing the file is the wrong answer.
+ * **The `EEXIST` carve-out is the whole of why this is a function**, rather than
+ * a `step` like the links around it: a cleanup reached through that one error
+ * would take a live writer's lock away, which is the single failure where
+ * removing the file is the wrong answer. Everything else it wraps — the
+ * directories, the write, the rename — either created this writer's lock or
+ * created nothing, and an `rm` of a name that is not there is answered and
+ * dropped.
  *
  * The `rm`'s own outcome is dropped and the original error is what the caller
  * gets. Reporting the cleanup's failure instead would replace the reason the
@@ -1767,9 +1786,11 @@ const parentOf = (dir, text) => under(dir, text.slice(0, text.lastIndexOf('/')))
  * @param {Effect<O, void, IoChannel>} e
  * @returns {Effect<O | Rm, void, IoChannel>}
  */
-const unlocked = (lock, e) => resultStep(e, r => r[0] === 'ok'
-    ? pureOk(r[1])
-    : resultStep(rm(lock), () => pureError(r[1])))
+const unlocked = (lock, e) => resultStep(e, r => {
+    if (r[0] === 'ok') { return pureOk(r[1]) }
+    if (heldByAnother(r[1])) { return pureError(r[1]) }
+    return resultStep(rm(lock), () => pureError(r[1]))
+})
 
 /**
  * The code a write is refused with when no path spells the name.
@@ -1997,8 +2018,35 @@ const collided = (packed, name, dense) => {
  * fills it, and renames it over the ref, so a second writer fails to take the
  * lock rather than interleaving with the first and the reader sees either the
  * old file or the new one and never a half-written one. This does the same, in
- * four effects: the directories above the file, the exclusive create, the
- * bytes, the rename. `.lock` is the suffix because no ref is named that —
+ * four effects: `packed-refs`, the directories above the file, the exclusive
+ * write, the rename.
+ *
+ * **The create and the fill are one effect and not two, which is a hole and not
+ * a round trip.** `createExclusive` closes its descriptor, so a `writeFile`
+ * after it reopens the *pathname* with the flags `w` gives — `O_TRUNC`, and
+ * symlinks followed. Measured on node 22.22.2 with the name replaced by a
+ * symlink between the two calls: the `writeFile` **succeeded and overwrote the
+ * link's target**, and the name was still a symlink, so the `rename` would have
+ * published the link as the ref. `writeExclusive` is one `writeFile` with
+ * `flag: 'wx'`, which answers `EEXIST` on that symlink — and on a dangling one,
+ * since `O_EXCL` refuses a link without following it — with the target
+ * untouched. `fjs/effects/node`'s `WriteExclusive` carries the measurement and
+ * its control. An earlier revision of this writer took the two calls; that it is
+ * one now is review's finding on
+ * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
+ *
+ * **No proof can see that, and the `@type` below is what stands in for one.**
+ * The virtual filesystem has no symlinks, and the host proofs write nothing —
+ * `fjs/effects/node/proof.mjs` says so, because the Deno task runs without
+ * `--allow-write` — so the two shapes are indistinguishable to every runner this
+ * repository can test against. What is not indistinguishable is the operation
+ * set: writing the lock through a second call puts `CreateExclusive | WriteFile`
+ * in it, and the annotation names `WriteExclusive`, so `tsc` refuses the
+ * revision. A `types.ts` assertion restating that set was written and removed —
+ * it reported nothing the annotation did not already report, which is the
+ * "claims more than it holds" that [§1.4](../../AGENTS.md) warns about.
+ *
+ * `.lock` is the suffix because no ref is named that —
  * [`fjs/git/refname`](../refname/module.f.mjs)'s `lockSuffix`, refused at the
  * end of every component — so the lock of one ref is never the file of
  * another, and the walk of `refs/` skips it as a write in progress.
@@ -2081,7 +2129,7 @@ const collided = (packed, name, dense) => {
  * rather than removed, which is what Git leaves too; and no dereference of a
  * symbolic ref already at the name, which is `update-ref --no-deref`.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<ReadWhole | Mkdir | CreateExclusive | WriteFile | Rename | Rm, void, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<ReadWhole | Mkdir | WriteExclusive | Rename | Rm, void, IoChannel>}
  */
 export const tryWrite = (dirs, oidBytes) => name => id => {
     const dense = byteArray(name)
@@ -2109,9 +2157,9 @@ export const tryWrite = (dirs, oidBytes) => name => id => {
     const dir = dirOf(dirs, text)
     const path = under(dir, text)
     const lock = `${path}${lockSuffix}`
-    // Five effects, one link each and all at one level, so the order they run
-    // in is the order they are written. The cleanup is not a sixth link but a
-    // wrapper around the last two, for the reason {@link unlocked} gives.
+    // Four effects, one link each and all at one level, so the order they run
+    // in is the order they are written. The cleanup is not a fifth link but a
+    // wrapper around all of them, for the reason {@link unlocked} gives.
     //
     // The read comes first and is the only one that reads: a name barred by a
     // packed line must not reach the `mkdir`, because the directory the `mkdir`
@@ -2122,8 +2170,7 @@ export const tryWrite = (dirs, oidBytes) => name => id => {
         ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
         : collided(packed, name, dense))
     const made = step(checked, () => mkdir(parentOf(dir, text), { recursive: true }))
-    const locked = step(made, () => createExclusive(lock))
-    const filled = writeUtf8File(lock, `${hexText(id)}\n`)
-    const published = step(filled, () => rename(lock, path))
-    return step(locked, () => unlocked(lock, published))
+    const locked = step(made, () => writeExclusiveUtf8File(lock, `${hexText(id)}\n`))
+    const published = step(locked, () => rename(lock, path))
+    return unlocked(lock, published)
 }
