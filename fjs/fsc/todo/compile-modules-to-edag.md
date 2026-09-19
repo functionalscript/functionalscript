@@ -717,8 +717,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       links to `[',', [<b's EDAG>, 1]]`, so a failure in `b.f.js` cannot disappear.
       Pinned by `resolve.anchored`.
 - [x] A diamond resolves one module identity once and both paths bind the same
-      EDAG node. Pinned by `resolve.diamond`, `resolve.bound`, and native ESM
-      comparisons in [`transpiler/proof.mjs`](../transpiler/proof.mjs).
+      EDAG node. Pinned by `resolve.diamond`, `resolve.bound`, and
+      `moduleSharing`/`hostIdentities` in
+      [`transpiler/proof.f.mjs`](../transpiler/proof.f.mjs). Native ESM identity
+      comparisons belong to the [Node adapter proofs](../../effects/node/proof.mjs).
       Package and query/fragment support remain separate work.
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in

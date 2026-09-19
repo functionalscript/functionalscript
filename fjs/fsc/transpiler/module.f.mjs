@@ -18,7 +18,7 @@
  */
 
 import { error } from '../../types/result/module.f.mjs'
-import { drop, toArray, includes } from '../../types/list/module.f.mjs'
+import { drop, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'

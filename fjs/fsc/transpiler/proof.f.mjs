@@ -4,15 +4,16 @@
  * @import { Denotation } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  */
+
 import { _importSources, parse, transpile } from './module.f.mjs'
 import { resolve, unresolved } from '../edag/module.f.mjs'
-import { compile } from '../module.f.mjs'
-import { nodeCommands, exitCode } from '../../effects/node/module.f.mjs'
+import { _errorLocation, compile } from '../module.f.mjs'
+import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
-import { ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { partialRun } from '../../effects/mock/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 // The virtual host declares lexical path identities; native URL behavior has host proofs.
@@ -114,6 +115,62 @@ export const proof = {
             metadata: null, path: 'entry',
         }])
         assertStructurallySame(runner(resolve('entry'))[1], value)
+    },
+    // Once resolved, a diagnostic names the host's loading path, including
+    // syntax positions and cycles. A root that cannot resolve still names the
+    // caller's input; an unresolved dependency names its resolved importer.
+    hostDiagnosticPaths: () => {
+        const imports = 'import value from "./dep.f.js"; export default value;'
+        const root = { id: 'file:///real/main.f.js', path: '/real/main.f.js' }
+        /** @type {readonly (readonly [string | null, string | null, string, string])[]} */
+        const cases = [
+            [null, null, 'main.f.js', 'module resolution failed: missing module'],
+            [imports, null, '/real/main.f.js', 'module resolution failed: missing module'],
+            ['export default [;', null, '/real/main.f.js:1:17', 'unexpected token'],
+            [imports, 'export default [;', '/real/dep.f.js:1:17', 'unexpected token'],
+            ['import value from "./%6dain.f.js"; export default value;', null, '/real/main.f.js', 'circular dependency'],
+        ]
+        for (const [main, dependency, location, message] of cases) {
+            /** @type {import('../../effects/mock/types.ts').PartialMemOperationMap<import('../types.ts')._CompileOp, string>} */
+            const host = {
+                resolveFileModule: (name, parent) => state => {
+                    if (parent === null) {
+                        assertEq(name, 'main.f.js')
+                        return [state, main === null ? error(ioError({ message: 'missing module' })) : ok(root)]
+                    }
+                    assertEq(parent, root.id)
+                    if (name === './%6dain.f.js') { return [state, ok(root)] }
+                    assertEq(name, './dep.f.js')
+                    return [state, dependency === null ? error(ioError({ message: 'missing module' }))
+                        : ok({ id: 'file:///real/dep.f.js', path: '/real/dep.f.js' })]
+                },
+                readFile: path => state => {
+                    assert([root.path, '/real/dep.f.js'].includes(path))
+                    const source = path === root.path ? main : dependency
+                    assert(source !== null)
+                    return [state, ok(utf8(source))]
+                },
+                write: (stream, data) => state => {
+                    assertEq(stream, 'stderr')
+                    return [state + utf8ToString(data), ok(undefined)]
+                },
+                writeFile: () => state => {
+                    assert(false, 'a failed compilation must not write output')
+                    return [state, ok(undefined)]
+                },
+            }
+            const runner = partialRun(nodeCommands)(host)('')
+            for (const result of [runner(transpile('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
+                assert(result[0] === 'error')
+                assertEq(_errorLocation('main.f.js')(result[1]), location)
+                assertEq(result[1].message, message)
+            }
+            for (const output of ['out.data.js', 'out.edag.data.js']) {
+                const [stderr, result] = runner(compile(['main.f.js', output]))
+                assertEq(exitCode(result), 1)
+                assertEq(stderr.trim(), `${location} - error: ${message}`)
+            }
+        }
     },
     // The literal local targets exist: these must be refusals, not fallback
     // loads or accidental file-not-found errors. Prefixing ./ is the control.
