@@ -328,7 +328,7 @@ export const expExpr = (shared, options = {}) => {
         if (id === 'args') {
             return options.args === undefined
                 ? error(['no Rust for an args node outside a generated function body', e])
-                : ok(`${options.args}.clone()`)
+                : ok(`${options.args}.clone().to_any()`)
         }
         if (id === '[]') {
             return a.length === 0
