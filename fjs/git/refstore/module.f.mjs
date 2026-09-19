@@ -1741,6 +1741,18 @@ export const tryRoots = (dirs, oidBytes) => {
 const parentOf = (dir, text) => under(dir, text.slice(0, text.lastIndexOf('/')))
 
 /**
+ * The compensation {@link unlocked} runs: remove `lock`, drop whatever that
+ * answers, and report `err`.
+ *
+ * The `rm`'s own outcome is dropped because reporting it would replace the
+ * reason the write failed with the reason it could not be undone, and the first
+ * is the one a caller can act on.
+ *
+ * @type {(lock: string) => (err: IoChannel) => Effect<Rm, never, IoChannel>}
+ */
+const givenBack = lock => err => resultStep(rm(lock), () => pureError(err))
+
+/**
  * `e` with the lock given back where it fails.
  *
  * A lock left behind refuses every later write of that name, and nothing tells
@@ -1776,19 +1788,16 @@ const parentOf = (dir, text) => under(dir, text.slice(0, text.lastIndexOf('/')))
  * lock in every refusal fixture keeps a future revision from putting the question
  * back.
  *
- * The `rm`'s own outcome is dropped and the original error is what the caller
- * gets. Reporting the cleanup's failure instead would replace the reason the
- * rename failed with the reason it could not be undone, and the first is the one
- * a caller can act on.
+ * The two effects are never both in one sequence — the `rm` runs only where `e`
+ * failed — so this is {@link catchStep}'s branch and not a chain to flatten, and
+ * the compensation is named beside it rather than spelled inline.
  *
  * @template {Operation} O
  * @param {string} lock
  * @param {Effect<O, void, IoChannel>} e
  * @returns {Effect<O | Rm, void, IoChannel>}
  */
-const unlocked = (lock, e) => resultStep(e, r => r[0] === 'ok'
-    ? pureOk(r[1])
-    : resultStep(rm(lock), () => pureError(r[1])))
+const unlocked = (lock, e) => catchStep(e, givenBack(lock))
 
 /**
  * The code a write is refused with when no path spells the name.

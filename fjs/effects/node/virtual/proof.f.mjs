@@ -387,6 +387,24 @@ export const proof = {
         assert(taken[0] === 'error')
         assertIoCode(taken[1], 'EEXIST')
         assertStructurallySame(again.root, { 'x.lock': [payload] })
+        // a name held by a *directory*: `EEXIST` as well, since `O_EXCL` fails on
+        // the name being taken and looks no further — measured, node 22.22.2
+        // answers `EEXIST` for a `wx` open of a directory where a plain `w` open
+        // answers `EISDIR`. The directory is left as it was, and the payload goes
+        // nowhere inside it, which is what a handler reached with an empty path
+        // could otherwise do.
+        /** @type {Dir} */
+        const held = { 'x.lock': { inside: [payload] } }
+        const [intact, isDir] = virtual({ ...emptyState, root: held })(writeExclusive('x.lock', vec8(0x7Fn)))
+        assert(isDir[0] === 'error')
+        assertIoCode(isDir[1], 'EEXIST')
+        assertStructurallySame(intact.root, held)
+        // and the same for `createExclusive`, which shares the handler because
+        // the two differ in what the file holds and not in when they refuse
+        const [kept2, isDir2] = virtual({ ...emptyState, root: held })(createExclusive('x.lock'))
+        assert(isDir2[0] === 'error')
+        assertIoCode(isDir2[1], 'EEXIST')
+        assertStructurallySame(kept2.root, held)
         // a name whose directory is not there: the operation wrapper falls
         // through with the whole remaining path, and nothing is created. A
         // non-empty root, so a mutant that answered the right error beside a

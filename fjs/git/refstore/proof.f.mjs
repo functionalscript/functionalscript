@@ -1903,8 +1903,8 @@ export const proof = {
     // So the lock is taken, the rename fails, and the `rm` has to appear. Without
     // it the name is unwritable until someone removes the file by hand.
     writeGivesTheLockBack: () => {
-        /** @type {MemOperationMap<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, readonly string[]>} */
-        const host = {
+        /** @type {(rmResult: Result<void, IoChannel>) => MemOperationMap<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, readonly string[]>} */
+        const host = rmResult => ({
             readWhole: missing,
             // logged rather than `missing`, so the order below pins that the
             // `stat` of the ref's path comes before anything is created
@@ -1915,19 +1915,28 @@ export const proof = {
                 [...log, `rename ${src} ${dst}`],
                 error(ioError({ code: 'EIO', message: dst })),
             ],
-            rm: path => log => [[...log, `rm ${path}`], ok(undefined)],
+            rm: path => log => [[...log, `rm ${path}`], rmResult],
+        })
+        /** @type {(rmResult: Result<void, IoChannel>) => void} */
+        const cleansUp = rmResult => {
+            const [log, r] = mockRun(host(rmResult))(/** @type {readonly string[]} */ ([]))(
+                tryWrite(one(''), 20)(latin1('refs/heads/master'))(idOf(a)))
+            // the rename's error reaches the caller, not the cleanup's outcome
+            assertEq(writeRefusal(r).code, 'EIO')
+            assertStructurallySame(log, [
+                'stat refs/heads/master',
+                'mkdir refs/heads',
+                'writeExclusive refs/heads/master.lock',
+                'rename refs/heads/master.lock refs/heads/master',
+                'rm refs/heads/master.lock',
+            ])
         }
-        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
-            tryWrite(one(''), 20)(latin1('refs/heads/master'))(idOf(a)))
-        // the rename's error reaches the caller, not the cleanup's outcome
-        assertEq(writeRefusal(r).code, 'EIO')
-        assertStructurallySame(log, [
-            'stat refs/heads/master',
-            'mkdir refs/heads',
-            'writeExclusive refs/heads/master.lock',
-            'rename refs/heads/master.lock refs/heads/master',
-            'rm refs/heads/master.lock',
-        ])
+        cleansUp(ok(undefined))
+        // And with the cleanup *itself* failing: still the rename's `EIO`, since
+        // that is the reason a caller can act on and the `rm`'s is the reason it
+        // could not be undone. A compensation built on `step` rather than
+        // `resultStep` would report `EROFS` here.
+        cleansUp(error(ioError({ code: 'EROFS', message: 'refs/heads/master.lock' })))
     },
     // Five refusals, each before any effect runs — which is what the untouched
     // filesystem beside each one says.
