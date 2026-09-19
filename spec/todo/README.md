@@ -140,6 +140,7 @@ see [serialization](./serialization.md).
 
 1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
    name an enclosing scope binds; a warning or an error, undecided.
+2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
 
 ## 4. ECMAScript Proposals
 

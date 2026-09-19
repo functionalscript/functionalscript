@@ -45,10 +45,15 @@ has JavaScript module-namespace semantics. A default import selects `default`
 and fails if that export is absent. It must never receive the whole export table
 as a substitute. JSON imports continue to expose their document as `default`.
 
-**For owner review:** allow named and default exports in the same module,
-keeping `export default` last when present. This follows JavaScript and uses
-the same table for both. The previous alternative was to forbid mixing them;
-that restriction remains undecided. A named-only module needs no default export.
+Named and default exports may coexist, as confirmed by the owner:
+
+```js
+export const x = 5;
+export default 7;
+```
+
+Its export table is `{ x: 5, default: 7 }`. Keep `export default` last under
+the existing statement-order rule. A named-only module needs no default export.
 
 Preserve every declaration's evaluation and the sharing between exported
 bindings. Report duplicate bindings/exports at their source locations.
@@ -57,8 +62,9 @@ of its value: a callable `then` on a namespace interferes with dynamic import's
 promise resolution.
 
 Namespace imports belong to the separate
-[namespace-import TODO](./2220-namespace-import.md). Export lists, re-exports,
-and new expression or function syntax are outside this first step.
+[namespace-import TODO](./2220-namespace-import.md). Investigating `export { ... }`
+belongs to the separate, low-priority [export-list TODO](./export-lists.md).
+Re-exports and new expression or function syntax are outside this first step.
 
 ### Output contract to settle
 
@@ -74,11 +80,12 @@ where the source declared named exports.
 
 ### Tasks
 
-- [ ] Agree on mixed named/default exports and the output contract above;
-      record the selected module-result shape and affected APIs here.
+- [x] Allow named and default exports in the same module.
+- [ ] Agree on the output contract above; record the selected module-result
+      shape and affected APIs here.
 - [ ] Implement `export const` through the grammar, AST, and linking, preserving
       local references, evaluation order, sharing, and export names. Add proofs
-      for named-only and agreed mixed modules, duplicate names, reserved `then`,
+      for named-only and mixed modules, duplicate names, reserved `then`,
       and a default import of a module without a default export.
 - [ ] Carry that result through the affected output paths. Prove generated
       JavaScript exposes the same exports and values as the original source,
