@@ -20,9 +20,9 @@ import { codePointListToString, stringToCodePointList } from '../../text/utf16/m
 import { maxLengthBytes, msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { toHex } from '../oid/module.f.mjs'
+import { toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { badNameCode, headKindCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, packedHeadCode, packedTwiceCode, tryResolve, tryRoots, zeroIdCode } from './module.f.mjs'
+import { badNameCode, headKindCode, idWidthCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, outsideRefsCode, packedHeadCode, packedTwiceCode, tryResolve, tryRoots, tryWrite, unspellableNameCode, zeroIdCode } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -50,15 +50,61 @@ const file = s => [toVec(latin1(s))]
 const ref = /** @type {(hex: string) => readonly Vec[]} */ (hex => file(`${hex}\n`))
 
 /**
- * Runs an effect over a virtual filesystem and unwraps it, since every case
- * below asks about the answer rather than about the channel.
+ * Runs an effect over a virtual filesystem and answers the filesystem it left
+ * beside its result, which is what a *write* has to be asked about: its value is
+ * `void` and everything the call did is in the directory.
+ *
+ * @type {<T>(root: Dir, e: Effect<NodeOp, T, IoChannel>) => readonly [Dir, Result<T, IoChannel>]}
+ */
+const ran = (root, e) => {
+    const [state, r] = virtual({ ...emptyState, root })(e)
+    return [state.root, r]
+}
+
+/**
+ * The same, unwrapped and without the filesystem: what a case about a *read*
+ * asks, since it wants the answer rather than the channel or the directory.
  *
  * @type {<T>(root: Dir, e: Effect<NodeOp, T, IoChannel>) => T}
  */
 const run = (root, e) => {
-    const [, r] = virtual({ ...emptyState, root })(e)
+    const [, r] = ran(root, e)
     assert(r[0] === 'ok')
     return r[1]
+}
+
+/**
+ * An id from the hex it is written as, which is how every fixture here spells
+ * one.
+ *
+ * @type {(hex: string) => Oid}
+ */
+const idOf = hex => {
+    const i = tryFromHex(latin1(hex))
+    assert(i !== null, hex)
+    return i
+}
+
+/**
+ * Writes `name` at the id `hex` into a copy of `root`, and answers the
+ * filesystem left behind beside the outcome.
+ *
+ * @type {(root: Dir, name: string, hex: string) => readonly [Dir, Result<void, IoChannel>]}
+ */
+const wrote = (root, name, hex) => ran(root, tryWrite(one(''), 20)(latin1(name))(idOf(hex)))
+
+/**
+ * The `IoError` a refused write comes back with: every refusal here has that
+ * shape, so a case asserts the code and the message instead of unwrapping three
+ * tags.
+ *
+ * @type {(r: Result<void, IoChannel>) => IoErrorInfo}
+ */
+const writeRefusal = r => {
+    assert(r[0] === 'error')
+    const e = r[1]
+    assert(e[0] === 'ioError')
+    return e[1]
 }
 
 /**
@@ -1746,5 +1792,130 @@ export const proof = {
         // The lookup is not the listing and does not refuse: it answers the
         // file, which is what `rev-parse HEAD` does.
         assertEq(hexOf({ 'packed-refs': file(`${b} HEAD\n`), HEAD: ref(a), refs: {} }, 'HEAD'), a)
+    },
+    // ## Writing a ref
+    //
+    // The whole of a write, asserted on the filesystem it leaves: the
+    // directories above the file, the file itself, and no lock beside it. The
+    // structural comparison is what says the lock is gone — a lock left behind
+    // would be an extra entry — and the read back through `tryResolve` is what
+    // says the 41 bytes are a ref and not just 41 bytes.
+    writeRef: () => {
+        const [fs, r] = wrote({}, 'refs/heads/master', a)
+        assertStructurallySame(r, ok(undefined))
+        assertStructurallySame(fs, { refs: { heads: { master: ref(a) } } })
+        assertEq(hexOf(fs, 'refs/heads/master'), a)
+        // And a name two directories deeper, whose directories are created the
+        // way Git creates them: measured on 2.43.0, `git update-ref
+        // refs/heads/a/b/c` on a repository holding no `refs/heads/a` writes the
+        // file and both directories above it at exit 0. The ref already there is
+        // left alone, which is what makes this about creating and not replacing.
+        const [deep] = wrote(fs, 'refs/heads/a/b/c', b)
+        assertStructurallySame(deep, { refs: { heads: { master: ref(a), a: { b: { c: ref(b) } } } } })
+        assertEq(hexOf(deep, 'refs/heads/a/b/c'), b)
+        // A name already there is replaced, which is what a rename over it does.
+        const [again] = wrote(fs, 'refs/heads/master', b)
+        assertStructurallySame(again, { refs: { heads: { master: ref(b) } } })
+    },
+    // A per-worktree name is written to the worktree's own directory and a
+    // shared one to the shared directory, which is the rule both readers follow
+    // — see `dirOf`. `refs/heads/master` beside it is the control: without it
+    // the case would pass for a writer that always used the gitdir.
+    writeWorktree: () => {
+        /** @type {Dirs} */
+        const dirs = { gitdir: 'wt', common: 'repo' }
+        /** @type {Dir} */
+        const root = { wt: {}, repo: {} }
+        const [own] = ran(root, tryWrite(dirs, 20)(latin1('refs/bisect/good'))(idOf(a)))
+        assertStructurallySame(own, { wt: { refs: { bisect: { good: ref(a) } } }, repo: {} })
+        const [shared] = ran(root, tryWrite(dirs, 20)(latin1('refs/heads/master'))(idOf(a)))
+        assertStructurallySame(shared, { wt: {}, repo: { refs: { heads: { master: ref(a) } } } })
+    },
+    // A lock already there refuses the write, leaves the ref at the id it had,
+    // and leaves the lock — which is not this writer's to remove. Git's answer:
+    // measured on 2.43.0, a `refs/heads/y.lock` put there by hand makes
+    // `git update-ref refs/heads/y <id>` exit 128 with `cannot lock ref
+    // 'refs/heads/y': Unable to create '…/refs/heads/y.lock': File exists` and
+    // write no `refs/heads/y`.
+    //
+    // The lock's name is spelled out rather than built from `lockSuffix`,
+    // because the name is what is under test here.
+    writeLockHeld: () => {
+        /** @type {Dir} */
+        const root = { refs: { heads: { master: ref(a), 'master.lock': [] } } }
+        const [fs, r] = wrote(root, 'refs/heads/master', b)
+        assertEq(writeRefusal(r).code, 'EEXIST')
+        assertStructurallySame(fs, root)
+    },
+    // A directory where the ref's file goes: the rename fails, and the lock is
+    // given back rather than left to refuse every later write of that name. Git
+    // refuses this direction too — measured on 2.43.0, with `refs/heads/a/b`
+    // present, `git update-ref refs/heads/a <id>` exits 128 with
+    // `'refs/heads/a' exists; cannot create 'refs/heads/a'` — and leaves no
+    // lock either.
+    //
+    // The comparison against the untouched repository is the assertion: a
+    // `refs/heads/a.lock` still there is the failure this case exists for, and
+    // `writeLockHeld` above is what keeps the cleanup from being a blanket one
+    // that would take another writer's lock.
+    writeGivesTheLockBack: () => {
+        /** @type {Dir} */
+        const root = { refs: { heads: { a: { b: ref(b) } } } }
+        const [fs, r] = wrote(root, 'refs/heads/a', a)
+        assert(r[0] === 'error')
+        assertStructurallySame(fs, root)
+    },
+    // Five refusals, each before any effect runs — which is what the untouched
+    // filesystem beside each one says.
+    writeRefuses: () => {
+        /** @type {Dir} */
+        const root = { refs: { heads: { master: ref(a) } } }
+        /** @type {(name: string, hex: string, code: string) => IoErrorInfo} */
+        const refuses = (name, hex, code) => {
+            const [fs, r] = wrote(root, name, hex)
+            const e = writeRefusal(r)
+            assertEq(e.code, code)
+            assertStructurallySame(fs, root)
+            return e
+        }
+        // A name that is no ref name. `x.lock` and `.hidden` are the two
+        // file-name conventions a walk of `refs/` skips, so a ref of either name
+        // is one no reader would ever answer; `a..b` and `bad.` are the rules
+        // Git refuses the whole listing over; `../secret` is the one that would
+        // otherwise join below the repository into a path outside it.
+        for (const n of ['refs/heads/x.lock', 'refs/heads/.hidden', 'refs/heads/a..b', 'refs/heads/bad.', 'refs/../secret']) {
+            refuses(n, a, badNameCode)
+        }
+        assertEq(refuses('refs/heads/bad.', a, badNameCode).message, 'refs/heads/bad. is not a ref name')
+        // A name outside `refs/`, which `update-ref` does write — measured,
+        // `FOO_HEAD` becomes `.git/FOO_HEAD` at exit 0 — and this refuses.
+        // `HEAD` is the reason: measured on 2.43.0 with `.git/HEAD` holding
+        // `ref: refs/heads/master`, `git update-ref HEAD <id>` leaves that file
+        // untouched and writes the *branch*, so a writer handed `HEAD` has two
+        // answers and no way to know which was meant.
+        for (const n of ['HEAD', 'FETCH_HEAD', 'a/b']) {
+            refuses(n, a, outsideRefsCode)
+        }
+        assertEq(refuses('HEAD', a, outsideRefsCode).message, 'HEAD is not under refs/')
+        // An id of the wrong width: a 32-byte id in a repository whose ids are
+        // 20 bytes is sixty-four hex digits, which `fjs/git/ref` reads as no ref
+        // at all — so the file would be one this module's own listing refuses.
+        refuses('refs/heads/wide', `${a}${b.slice(0, 24)}`, idWidthCode)
+        // And the zero id, which is Git's delete rather than a value.
+        const zero = '0'.repeat(40)
+        assertEq(
+            refuses('refs/heads/zero', zero, zeroIdCode).message,
+            'refs/heads/zero would hold the zero id')
+        // A name no path spells: `refs/heads/` and the byte `0x80` is a ref name
+        // `check-ref-format` accepts and `rev-parse` resolves, measured, and a
+        // path is text to this host. `tryResolve` answers `null` for it, which a
+        // write may not — see `byteName` above and `todo/byte-ref-names.md`.
+        const byteNamed = /** @type {readonly number[]} */ ([...latin1('refs/heads/'), 0x80])
+        const [fs, r] = ran(root, tryWrite(one(''), 20)(byteNamed)(idOf(a)))
+        const e = writeRefusal(r)
+        assertEq(e.code, unspellableNameCode)
+        // the hex spelling of the name, since there is no text one
+        assertEq(e.message, '726566732f68656164732f80 is no path this host can spell')
+        assertStructurallySame(fs, root)
     },
 }

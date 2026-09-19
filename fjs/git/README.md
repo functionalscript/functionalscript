@@ -54,8 +54,10 @@ what a grammar can and cannot do for the formats.
   trusted, since the lookup is a search and a search over ids that do not
   ascend answers wrongly instead of failing.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
-  the effects: `tryRoots` for every one of them and `tryResolve` for a name
-  in hand. Two rules live here because no reader of one file can decide
+  the effects: `tryRoots` for every one of them, `tryResolve` for a name
+  in hand, and `tryWrite` to put one at an id — the loose file, through the
+  `.lock` name Git takes, so a second writer fails to take the lock rather
+  than interleaving. Two rules live here because no reader of one file can decide
   them: a loose ref shadows the packed line of the same name by existing
   rather than by being good, so a loose file that is no ref leaves the name
   with no value instead of the packed one; and a symbolic ref is followed
@@ -431,12 +433,18 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   work: [`todo/packfiles.md`](todo/packfiles.md). Multi-pack indexes, bitmaps
   and the reverse index are not needed to read an object and are not here
   either.
-- **Writing a ref**, with the lock file Git takes, and the reflog:
-  [`todo/ref-writing.md`](todo/ref-writing.md). Reading the refs is done —
-  [`ref/`](ref/module.f.mjs) for the file grammars and
-  [`refstore/`](refstore/module.f.mjs) over the effects — and reading the
-  *reflog* is not, which is why `tryRoots` answers the refs and not everything
-  the repository is keeping: a reflog entry keeps an object alive until it
+- **Deleting a ref**, and the reflog:
+  [`todo/ref-writing.md`](todo/ref-writing.md). Reading the refs is done, and
+  so is writing one — [`ref/`](ref/module.f.mjs) for the file grammars and
+  [`refstore/`](refstore/module.f.mjs)'s `tryRoots`, `tryResolve` and
+  `tryWrite` over the effects. A delete is the harder half of a write, because
+  a name can be in a loose file *and* a `packed-refs` line, so the line has to
+  go with the file or it comes back as the ref; and the five ways `tryWrite` is
+  narrower than `git update-ref` — no object-existence check, no reflog line,
+  no dereference of a symbolic ref at the name, and a name outside `refs/`
+  refused — are measured and listed in that issue. Reading the
+  *reflog* is not done either, which is why `tryRoots` answers the refs and not
+  everything the repository is keeping: a reflog entry keeps an object alive until it
   expires, and so does the *index* — a staged blob survives `gc --prune=now`
   though no ref names it and `rev-list --all` never lists it, both measured — so
   a caller must not prune by that list
