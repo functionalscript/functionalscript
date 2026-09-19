@@ -4,9 +4,8 @@
  * `NodeProgram` run through `runEffect`, answering `0` where the host did
  * what the operation promises and a code naming what it did instead.
  *
- * **Nothing here touches the filesystem.** The Deno test task runs with
- * `--allow-read` and no `--allow-write`, so a proof that wrote to disk
- * would be a permission the suite does not grant.
+ * Nothing in this module touches the filesystem. Compiler file-module proofs
+ * separately create and clean up temporary trees in `fsc/transpiler/proof.mjs`.
  *
  * @import { NodeProgram } from './types.ts'
  */
