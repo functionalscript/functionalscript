@@ -582,9 +582,23 @@ export const proof = {
         assertEq(e.message, `${packPath}:508 holds a delta that does not apply to its base`)
     },
     // A `refDelta` whose base the pack does not hold is refused and not resolved
-    // elsewhere: the base could be loose, in another pack, or nowhere, and this
-    // reader cannot tell which. The index here holds the delta and one more id
-    // to close its window, and not the base it names.
+    // elsewhere, which is what Git does with the same pack.
+    //
+    // Measured on 2.43.0 over two hand-built packs alike but for where the base
+    // sits — same delta instructions, same index shape, crc32 over the entry as
+    // it lies in the pack:
+    //
+    // | the base | `git cat-file -p <target>` |
+    // | --- | --- |
+    // | the pack's own first entry | exit 0, the object |
+    // | loose, *and* in a second pack beside it | exit 128, `fatal: Not a valid object name` |
+    //
+    // The first row is the control: the same delta, read. `git fsck` calls the
+    // second `failed to validate delta base reference`, so it is a broken pack
+    // and not an object kept elsewhere.
+    //
+    // The index here holds the delta and one more id to close its window, and
+    // not the base it names.
     baseNotInPack: () => {
         const two = idxOf([
             ['38bdeee4d6b597b7d1bd5c1e9e34eb2f38bf7d85', 470],

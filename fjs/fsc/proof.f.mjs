@@ -193,6 +193,8 @@ const fjsCorpus = [
     'export default (...a) => (...b) => b;',
     'export default [(...a) => a, (...a) => a];',
     'export default (...a) => { return { x: a }; };',
+    'export default () => 1;',
+    'export default () => (...a) => a;',
     'const f = (...a) => 1; export default 2;',
     'const a = []; export default 1;',
     'const n = null; const check = n.x; export default 1;',
@@ -357,6 +359,11 @@ export const proof = {
             assertEq(fjsRoundTrip('export default (...a) => a;'), 'export default (...$a)=>$a;')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(fjsRoundTrip('const f = (...a) => 1; export default 2;'), 'const $0=(...$a)=>1;export default 2;')
+            // an empty parameter list reaches here as the node a rest
+            // parameter's function does, the AST carrying no parameter, so
+            // the writer gives it the one spelling it has — which denotes
+            // the same function, a name and an arity being unobservable
+            assertEq(fjsRoundTrip('export default () => 1;'), 'export default (...$a)=>1;')
         },
         // An object's members are the graph's here and the value's there, so
         // the two outputs order them differently and hold a different number
@@ -588,6 +595,28 @@ pub fn module<A: IVm>() -> Any<A> {
                 rustRefused('const a = null; export default a.x;'),
                 'output.rs - error: no Rust spelling for this module: a property access on a nullish base throws at run time; refused rather than compiled to a panic: .,,x')
         },
+        // A negation is the other: `Neg for Any<A>` answers a `Result`,
+        // which a module's `Any<A>` has nowhere to put, so the text
+        // `fjs/edag/rust` prints for one would not compile here — though it
+        // is right where that printer's other caller puts it, a generated
+        // operator test handing the `Result` to a checker.
+        //
+        // A negated *literal* never reaches it: the lowering folds one into
+        // the number, which prints as it always did. What is left is a
+        // negation of something else, and that is what has no text.
+        negation: () => {
+            /** @type {(source: string, detail: string) => void} */
+            const expect = (source, detail) => assertEq(
+                rustRefused(source),
+                `output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: ${detail}`)
+            expect('export default -[1];', '-,[],1')
+            expect('const a = [1]; export default -a;', '-,[],1')
+            expect('export default -"a";', '-,a')
+            // and the folded ones print, `-1` as the leaf it lowers to
+            assertEq(
+                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
+                '    [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any()')
+        },
     },
     // An error with no token to point at names the file being compiled, not
     // `undefined:undefined:undefined`. Each language reports its own missing
@@ -817,7 +846,15 @@ pub fn module<A: IVm>() -> Any<A> {
             assertEq(compileSource('const a = { b: [1, 2] }; export default [a.b, a["b"][1], a.b.length];')('output.data.js'), 'export default [[1,2],2,2];')
             // a literal takes accesses as a reference does
             assertEq(compileSource('export default [[1, 2].length, "ab"[1], { a: 3 }.a, true.x];')('output.data.js'), 'export default [2,"b",3,undefined];')
-            assertEq(moduleRefused('export default 1 .x;'), 'input.f.js:1:19 - error: access on a numeric literal')
+            // a numeric literal takes an access as any other value does, and
+            // a sign before it negates what the access read, as JavaScript
+            // reads it: `-1 .x` is `-(1 .x)`, which is `NaN`
+            assertEq(compileSource('export default [1 .x, -1 .x, 0n.x, -1["x"]];')('output.data.js'), 'export default [undefined,NaN,undefined,NaN];')
+            // a bigint's `n` ends the literal, so `1n.x` needs no space where
+            // `1.x` is one number and a stray word — JavaScript's own
+            // unevenness, which the tokenizer keeps rather than smooths. The
+            // sign composes with it: `-1n.x` is `-(1n.x)`, so `NaN`
+            assertEq(compileSource('export default [1n.x, -1n.x, -1n];')('output.data.js'), 'export default [undefined,NaN,-1n];')
             assertEq(moduleRefused('export default null.x;'), 'input.f.js - error: cannot read property "x" of null')
             assertEq(compileSource('const s = "ab"; export default [s[0], s["1"], s.length];')('output.json'), '["a","b",2]')
             assertEq(compileSource('const a = { b: 1 }; export default [a.c, a.b.x];')('output.data.js'), 'export default [undefined,undefined];')
@@ -900,7 +937,7 @@ pub fn module<A: IVm>() -> Any<A> {
             assertEq(compileSource(withSelected('export default a.selected;'))('output.json'), '1')
             assertEq(compileSource(withSelected('export default a.other[0];'))('output.json'), '[]')
             // a key that is not an index's canonical spelling names no element
-            assertEq(compileSource(withSelected('export default [a.other["01"], a.other[1.5], a.other[-1], a.other["1e0"]];'))('output.data.js'), 'export default [undefined,undefined,undefined,undefined];')
+            assertEq(compileSource(withSelected('export default [a.other["01"], a.other[1.5], a.other["-1"], a.other["1e0"]];'))('output.data.js'), 'export default [undefined,undefined,undefined,undefined];')
             assertEq(jsonRefused(withSelected('export default a.other;')), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused(withSelected('export default [a.selected, a.other];')), 'output.json - error: no JSON spelling for a shared node')
             assertEq(jsonRefused(withSelected('export default [a.other[0], a.other[1]];')), 'output.json - error: no JSON spelling for a shared node')
@@ -1006,6 +1043,40 @@ pub fn module<A: IVm>() -> Any<A> {
     // `parseFloat` keeps the sign, and the serializer writes it back as
     // `-0` — where `String(-0)` is `"0"`, which is why only `Object.is` can
     // state this and why the round trip is pinned rather than assumed.
+    // The one operator, where a value is wanted. Every primitive has a
+    // number and converts; a container is refused, since converting one is
+    // `ToPrimitive` — `valueOf`, then `toString`, and a `TypeError` where
+    // neither answers — and which of those a value reaches depends on what
+    // it holds. Refusing says so rather than assuming.
+    negation: {
+        computes: () => {
+            /** @type {(source: string, expected: string) => void} */
+            const expect = (source, expected) => assertEq(compileSource(source)('output.data.js'), expected)
+            expect('export default [-"2", -true, -false, -null, -1n];', 'export default [-2,-1,-0,-0,-1n];')
+            // `-undefined` is `NaN`, as every conversion that finds no number is
+            expect('export default [-undefined, -"abc", -""];', 'export default [NaN,NaN,-0];')
+            // the operand is a value and not a spelling: a reference reads
+            // as the literal it names
+            expect('const n = 2; export default -n;', 'export default -2;')
+            // and a negation of a negation is one value, not two nodes
+            expect('export default - -1;', 'export default 1;')
+        },
+        // `Number` is total over the five primitive types, so nothing above
+        // can throw whatever the module holds. A container is where it
+        // could — `-{toString:1}` is a `TypeError` in JavaScript — and this
+        // does not sort the ones that would from the ones that would not.
+        refusesAContainer: () => {
+            /** @type {(source: string) => void} */
+            const expect = source => assertEq(moduleRefused(source), 'input.f.js - error: no number for this value')
+            expect('export default -[];')
+            expect('export default -[1];')
+            expect('export default -{};')
+            expect('export default -{toString:1};')
+            expect('const a = []; export default -a;')
+            // the graph keeps it either way: only a value wants a number
+            assertEq(compileSource('export default -[1];')('output.edag.data.js'), 'export default ["-",["[]",[1]]];')
+        },
+    },
     negativeZero: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default -0;')] }

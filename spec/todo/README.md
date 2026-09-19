@@ -32,13 +32,12 @@ We need it to use JSDoc and TypeScript.
 3. [ ] [has-own-property](./2345-has-own-property.md) — open; argues
    against adding `in` and for a pattern-recognized `hasOwn` alongside
    `own_property` instead,
-4. [ ] [grouping](./2350-grouping.md),
-5. [ ] [built-in](./2360-built-in.md),
-6. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
+4. [ ] [built-in](./2360-built-in.md),
+5. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; lands before `built-in`, since
    admitting a name a module may already have bound is a breaking change,
-7. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-8. [ ] computed property key from an expression — `{ [name]: 0 }`. The
+6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+7. [ ] computed property key from an expression — `{ [name]: 0 }`. The
    constant-string form is implemented
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.
@@ -57,16 +56,15 @@ see [serialization](./serialization.md).
 
 |format|any     |    |Notes                          |
 |------|--------|----|-------------------------------|
-|FJS   |function|Func|[function](./3110-function.md) |
+|FJS   |function|Func|[functions](../README.md#functions)|
 
 ### 3.1. Required
 
-1. [ ] [function](./3110-function.md) — the non-capturing rest-parameter
-   form is in the language with either body,
-   `(...a) => expression` and `(...a) => { return expression; }`
-   ([functions](../README.md#functions)); the empty parameter list `()` is
-   not.
-2. [ ] [parameters](./3120-parameters.md)
+1. [x] function — the non-capturing form is in the language with either
+   body and with either parameter list, `(...a) => expression`,
+   `(...a) => { return expression; }` and `() => expression`
+   ([functions](../README.md#functions))
+2. [ ] [parameters](./3120-parameters.md) — the named list is what is left
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))

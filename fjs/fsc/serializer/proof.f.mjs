@@ -101,8 +101,14 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', null, copy(x)]]])),
 ]
 
-/** Every leaf, the arguments, both empty containers, and `undefined`. @type {readonly Exp[]} */
-const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined']]
+/**
+ * Every leaf, the arguments, both empty containers, `undefined`, and a
+ * negation — the one operator, whose operand binds tighter than it does, so
+ * every shape below has to say where the negation happens.
+ *
+ * @type {readonly Exp[]}
+ */
+const atoms = [1, 'a', null, true, 1n, ['args'], ['[]', []], ['{}', []], ['undefined'], ['-', ['[]', []]]]
 
 /** The atoms and two rounds of shapes over them. @type {readonly Exp[]} */
 const generated = (() => {
@@ -121,9 +127,77 @@ export const proof = {
         writes(['[]', []], 'export default [];')
         writes(['{}', []], 'export default {};')
         writes(
-            ['[]', [null, true, false, 1, -0, 1.5, 1n, 'a"b', '\u{1f600}']],
-            'export default [null,true,false,1,-0,1.5,1n,"a\\"b","\u{1f600}"];')
+            ['[]', [null, true, false, 1, 1.5, 1n, 'a"b', '\u{1f600}']],
+            'export default [null,true,false,1,1.5,1n,"a\\"b","\u{1f600}"];')
         writes(['{}', [[':', 'a', 1], [':', 'b', 2], [':', '', 3]]], 'export default {"a":1,"b":2,"":3};')
+    },
+    // The one operator. `-` binds looser than a step, so a negation under an
+    // access is a base the text cannot say without a name — `-1[0]` is
+    // `-(1[0])` — and a negated function is no `UnaryExpression`, so it
+    // takes a name too. `op12` of two operands is the binary minus, which
+    // the language has no spelling for yet.
+    neg: () => {
+        writes(['-', ['[]', [1]]], 'export default -[1];')
+        writes(['-', 'a'], 'export default -"a";')
+        // `- -1` and not `--1`, which is the decrement token. The operand
+        // here is a container, since a negated *literal* has no text
+        writes(['-', ['-', ['[]', []]]], 'export default - -[];')
+        // the negation is inside the access, which is where the text puts it
+        writes(['-', ['.', ['[]', [1]], 0]], 'export default -[1][0];')
+        // and outside it only through a name
+        writes(['.', ['-', ['[]', []]], 0], 'const $0=-[];export default $0[0];')
+        writes(['.', ['-', ['[]', []]], 'a'], 'const $0=-[];export default $0.a;')
+        // a negated function likewise
+        writes(['-', ['=>', null, 1]], 'const $0=(...$a)=>1;export default -$0;')
+        refuses(['-', 1, 2], 'a binary - node')
+        // A call has no spelling yet, and these are the two shapes that
+        // cannot take the obvious one when it lands: `-1()` is `-(1())`, so
+        // a negative callee has to say that the negation happens first. A
+        // group would say it, `(-1)()`, and until the grammar has one a
+        // `const` does — the answer an access base already takes, for a
+        // negative leaf and a `['-', …]` node alike. These two lines redden
+        // the moment a `()` is given a spelling, which is where that has to
+        // be decided.
+        refuses(['()', -1, ['[]', []]], 'a () node')
+        refuses(['()', ['-', 1], ['[]', []]], 'a () node')
+    },
+    /**
+     * A negative number is a leaf — a JSON input gives one — and the
+     * language's only spelling for it is the prefix, which the lowering
+     * folds back into the leaf. So the text reads back as the graph it was
+     * written from.
+     */
+    negativeLeaves: () => {
+        writes(['[]', [-0, -1.5, -1n]], 'export default [-0,-1.5,-1n];')
+    },
+
+    /**
+     * What {@link writes} means by "reads back as the same graph": the same
+     * graph *as the lowering makes of it*. Reading a text is parsing and
+     * lowering, and the lowering folds — a negated numeric literal is the
+     * number — so a text read back is always in the form the lowering
+     * produces.
+     *
+     * For every graph the compiler emits that is the graph itself, since
+     * the compiler's graphs come out of that same lowering. A graph built
+     * by hand need not be: `['-', 1]` is a fine EDAG, worth `-1`, and its
+     * text reads back as the leaf `-1` — the same value, and the form the
+     * fold gives it.
+     *
+     * Refusing it was considered and is wrong. The writer has a faithful
+     * text for the *value*, and the node count differs only because the
+     * reading normalizes. Tying a refusal to what the folder happens to do
+     * would also grow one per fold: `['+', 1, 2]` would want the same
+     * treatment the moment that fold lands, and so would every constant
+     * expression after it.
+     */
+    readsBackNormalized: () => {
+        assertEq(unwrap(tryStringify(['-', 1])), 'export default -1;')
+        const { edag } = unresolved(unwrap(parse(path)('export default -1;')))
+        assertStructurallySame(edag, -1)
+        // and one deeper, where the fold runs twice
+        assertEq(unwrap(tryStringify(['-', ['-', 1]])), 'export default - -1;')
+        assertStructurallySame(unresolved(unwrap(parse(path)('export default - -1;'))).edag, 1)
     },
     // A node that mints identity is one value however many edges reach it,
     // and a `const` is the only thing in text that keeps that, so a shared

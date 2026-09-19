@@ -79,6 +79,7 @@ helper, so they are not part of this.
 
 ### Related
 
-- [object-store.md](./object-store.md) — owns where the width comes from
+- [`fjs/git/config`](../config/module.f.mjs) and
+  [`fjs/git/store`](../store/module.f.mjs) — where the width comes from
   (`config` → `oidBytes`); this issue owns the guard every holder of that
   width re-implements.

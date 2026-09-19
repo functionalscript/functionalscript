@@ -10,7 +10,7 @@
  * @import { Exp } from '../types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { expExpr, nodeExpr, sharedNodesOf } from './module.f.mjs'
 
@@ -19,6 +19,22 @@ const printed = e => unwrap(nodeExpr(e))
 
 /** @type {(shared: readonly (readonly [Exp, string])[]) => (e: Exp) => string} */
 const printedWith = shared => e => unwrap(expExpr(shared)(e))
+
+/**
+ * The refusal reason `nodeExpr` reports for `e`, read straight off the
+ * `Result` rather than through {@link printed}'s `unwrap` — the specific
+ * reason is exactly what a `throw` leaf's plain throw/no-throw check cannot
+ * pin (`fjs/emergent_testing/todo/throw-payload-assertions.md`), but there is
+ * no panic to catch here in the first place: `nodeExpr` never throws, so the
+ * reason is already a plain value to assert on, not a payload to recover.
+ *
+ * @type {(e: Exp) => readonly unknown[]}
+ */
+const refusalReason = e => {
+    const result = nodeExpr(e)
+    assert(result[0] === 'error', result)
+    return result[1]
+}
 
 export const proof = {
     /** Every primitive kind, as {@link printed} prints it standalone. */
@@ -126,16 +142,19 @@ export const proof = {
             'Any::member_access(Any::member_access([(string_key("a"), [(1f64).to_any()].to_array().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("length")).unwrap()')
         // `resolvedBase` folds through a `.` node only as far as an actual
         // literal object — a chain whose middle step resolves to something
-        // else (an array, here) stops there, unresolved, rather than
+        // else (an empty array, here) stops there, unresolved, rather than
         // assuming an object further down: its own tag check (`base[0] !==
         // '{}'`) guards against reading an array's items as if they were
         // `[':', key, value]` properties. Printed correctly all the same —
         // the middle step's own base is checked directly when it is printed
         // — proving the fold neither crashed nor misread the array's shape
-        // two hops up.
+        // two hops up. The array is empty rather than `[1]`: with a
+        // non-empty item list, dropping just that tag check can still stop
+        // at the spread guard by accident, so this is the shape that pins
+        // the tag check itself.
         assertEq(
-            printed(['.', ['.', ['[]', [1]], 'length'], 'toString']),
-            'Any::member_access(Any::member_access([(1f64).to_any()].to_array().to_any(), string_any("length")).unwrap(), string_any("toString")).unwrap()')
+            printed(['.', ['.', ['[]', []], 'length'], 'toString']),
+            'Any::member_access(Any::member_access(Array::default().to_any(), string_any("length")).unwrap(), string_any("toString")).unwrap()')
     },
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
@@ -238,6 +257,16 @@ export const proof = {
         dotOnNestedMissingKey: () => printed(['.', ['.', ['{}', []], 'missing'], 'x']),
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it. */
         emptyComma: () => printed([',', []]),
+    },
+    /**
+     * Two `resolvedBase` shapes whose refusal a bare `throw` leaf cannot
+     * pin: the leaf only checks *that* `printed` throws, so a change to
+     * `resolvedBase` that swaps one refusal reason for another — a real
+     * regression — would still pass under `throw`. {@link refusalReason}
+     * reads `nodeExpr`'s `Result` directly, so each case here checks the
+     * exact reason instead.
+     */
+    resolvedBaseRefusals: {
         /**
          * `resolvedBase` only folds through a literal object; a `.` node
          * holding a chain-step continuation is exactly the shape it must
@@ -249,7 +278,13 @@ export const proof = {
          * down, the same as `dotChainStep` above — proving `resolvedBase`
          * did not crash or silently drop the continuation on the way.
          */
-        dotOnChainStepBase: () => printed(['.', ['.', ['{}', []], 'y', ['|()', ['[]', []]]], 'z']),
+        dotOnChainStepBase: () => {
+            /** @type {Exp} */
+            const inner = ['.', ['{}', []], 'y', ['|()', ['[]', []]]]
+            assertStructurallySame(
+                refusalReason(['.', inner, 'z']),
+                ['no Rust for a property-access chain step', inner])
+        },
         /**
          * A key absent from an object holding a spread cannot be resolved
          * soundly — the spread's own contribution isn't known statically —
@@ -258,6 +293,10 @@ export const proof = {
          * `propertyExpr`'s own spread check when the object is printed,
          * the same one `objectSpread` (`fjs/nanvm/rust/proof.f.mjs`) pins.
          */
-        dotOnObjectWithSpread: () => printed(['.', ['.', ['{}', [['...', 'x']]], 'y'], 'z']),
+        dotOnObjectWithSpread: () => {
+            assertStructurallySame(
+                refusalReason(['.', ['.', ['{}', [['...', 'x']]], 'y'], 'z']),
+                ['not a property', ['...', 'x']])
+        },
     },
 }

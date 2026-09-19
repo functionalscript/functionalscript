@@ -28,6 +28,24 @@ concrete bugs or tasks that belong in a child `todo/`.
 
 If you can't decide where an issue belongs, leave it here and discuss.
 
+## One pull request may file several
+
+A pull request implements one feature or improvement
+([CONTRIBUTING.md](../CONTRIBUTING.md#opening-a-pull-request)). A pull request
+that *files* issues implements none, so that rule does not divide it, and
+related issues land together.
+
+Splitting them buys nothing and costs the usual things. Each would edit the
+same umbrella list, so the branches conflict with each other and the last one
+rebases; each would be reviewed against the same prose it is answering, minus
+the siblings that give it its shape; and a reader of `main` meets a set that
+was written together as unrelated commits. The link colours and the favicon
+were filed in one pull request for exactly this reason.
+
+What does divide a pull request is subject, not file count: an issue about the
+website and one about `git/packidx` are two, because nobody reads them
+together. The test is whether the next reader wants them side by side.
+
 ## GitHub issues are an intake channel
 
 GitHub issues are an **intake** channel, not a tracker: external contributors
@@ -133,10 +151,21 @@ re-based is what put 105 broken links in this tree.
 Issues that cannot progress until an external event occurs (a TC39 proposal lands, a
 runtime ships a feature, a dependency releases a fix) live in `todo/blocked/`.
 
-Each file in `todo/blocked/` **must** include a **Trigger** section that states the
-precise external condition that unblocks it — a proposal reaching Stage 4, a specific
-crate version shipping, etc. Without a clear trigger the issue is just a wish; write the
-trigger first or file it as a regular issue instead.
+Except for the research exception below, each file in `todo/blocked/` **must**
+include a **Trigger** section that states the precise external condition that
+unblocks it — a proposal reaching Stage 4, a specific crate version shipping,
+etc. Without a clear trigger the issue is just a wish; write the trigger first
+or file it as a regular issue instead.
+
+### Research exception
+
+[Undefined-property research](./blocked/undefined-removes-property.md) stays in
+`todo/blocked/` at the
+[task owner's request](https://github.com/functionalscript/functionalscript/pull/2103#discussion_r4049800467).
+Its blocker is semantics and compatibility research, not an external event.
+Its **Trigger** is a concrete proposal and owner approval to move it out. While
+it remains here, it neither directs nor blocks current development. This is a
+named exception, not a change to where other internally blocked tasks belong.
 
 ## Issue format
 
