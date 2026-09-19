@@ -63,6 +63,13 @@ drops `append`/`collect`/`none`/`all` and its `jsonValue` reads
 - [ ] Rewrite the five sites; proofs pass unchanged.
 - [ ] `tsc`, `fjs test`.
 
+[`fjs/media/nix/todo/serializer-validation-split.md`](../../../media/nix/todo/serializer-validation-split.md)
+rules out a `traverse` helper for *its* copies, which are over `undefined`
+and vanish once its serializer is total. That decision stands: none of the
+five sites here goes away by a split — each genuinely collects the results
+of a fallible walk — and `okList` is the `Result` chain's combinator, not a
+`Nullable` array's.
+
 ### Related
 
 - [`../../../effects/todo/allvoid-combinator.md`](../../../effects/todo/allvoid-combinator.md) —

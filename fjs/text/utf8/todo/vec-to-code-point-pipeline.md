@@ -35,9 +35,9 @@ same decoder" — evidence the pipeline is being re-derived in several places.
 The byte-list level below the `Vec` has the same fan-out, outside `text/`:
 
 ```ts
-// fjs/web/module.f.mjs:71 — tryUtf8's inner pipeline, re-derived
+// fjs/text/percent/module.f.mjs, utf8Bytes — tryUtf8's inner pipeline, re-derived
 const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
-// fjs/web/module.f.mjs:77-83 — fromVec minus the alignment check, over bytes
+// fjs/text/percent/module.f.mjs, utf8String — fromVec minus the alignment check, over bytes
 const utf8String = bytes => { /* toCodePointList + isValidCodePoint loop + codePointListToString */ }
 // fjs/effects/common/module.f.mjs:174-175 — utf8ToString's inner pipeline
 const utf8ListToString = bytes => codePointListToString(toCodePointList(bytes))

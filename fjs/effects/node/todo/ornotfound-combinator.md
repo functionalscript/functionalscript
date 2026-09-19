@@ -2,10 +2,39 @@
 
 **Priority:** P4
 **Status:** open
-**Blocked by:** a second consumer of the ENOENT-is-benign policy appearing —
-`list` is the only live site today.
 
 ### Problem
+
+**The blocker this issue waited on has been met.** It was filed blocked on
+"a second consumer of the ENOENT-is-benign policy appearing". `fjs/git`
+now has about ten, all of one shape — `catchStep` over an effect with a
+continuation that forgives one class of error and re-raises the rest:
+
+```js
+// fjs/git/refstore/module.f.mjs, tryWholeBytes
+catchStep(readWholeBytes(path), e => isNotFound(e) ? pureOk(null) : pureError(e))
+// fjs/git/refstore/module.f.mjs, isDirectoryAt
+catchStep(mapStep(stat(path), s => s.isDirectory), e => leadsNowhere(e) ? pureOk(false) : pureError(e))
+// fjs/git/packstore/module.f.mjs, namedIdx
+catchStep(step(stat(path), …), c => leadsNowhere(c) ? pureOk(names) : pureError(c))
+// fjs/git/repo/module.f.mjs, commonOf
+catchStep(line, e => isNotFound(e) ? pureOk(repo) : pureError(e))
+```
+
+The forgiven class varies by site — `isNotFound`, `isNotFound ||
+isDirectory`, `leadsNowhere`, `namesNothing` — so the predicate is a
+parameter, not a fixed `ENOENT`. The proposal below predates `catchStep`
+and is written against a `.step` method that no longer exists; the shape
+it wants is now a **`catchStep` continuation factory**:
+
+```ts
+/** The continuation that answers `fallback` where `forgiven(e)` and re-raises otherwise. */
+export const orElse: <E, T>(forgiven: (e: E) => boolean, fallback: T) => (e: E) => Effect<never, T, E>
+```
+
+so each site reads `catchStep(e, orElse(isNotFound, null))`. The original
+text follows for the record of the policy it names.
+
 
 `fileCas.list` (`fjs/cas/module.f.mjs:280-298`) spells out the three-way
 `IoResult` policy inline: `ok → continue`, `ENOENT → benign default`,
@@ -46,9 +75,10 @@ list: () => access(storePrefix).step(orNotFound<readonly Vec[]>([])(() =>
 
 ### Tasks
 
-- [ ] Add `orNotFound` beside `isNotFound` in `fjs/effects/node/module.f.mjs`
-      (once a second consumer exists).
-- [ ] Rewrite `list` in `fjs/cas/module.f.mjs` on top of it.
+- [ ] Add `orElse` beside `catchStep` in `fjs/effects/module.f.mjs`, with
+      a proof of both branches.
+- [ ] Rewrite `list` in `fjs/cas/module.f.mjs` and the `fjs/git` sites in
+      `refstore`, `packstore`, `repo` and `store` on top of it.
 - [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fjs/effects/node/proof.f.mjs`.
 
 ### Related
