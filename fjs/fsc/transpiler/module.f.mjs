@@ -158,7 +158,10 @@ export const _importPath = path => specifier => {
  * an assertion escaping the effect. Import order and JSON attributes survive.
  * Classify the original spelling before decoding or normalizing it: bare
  * names, package subpaths and other non-path forms need host resolution,
- * not a sibling-file fallback. CLI input paths are not import specifiers.
+ * not a sibling-file fallback. Literal ? and # introduce unsupported URL
+ * components; stripping them would merge distinct module identities. Check
+ * before percent decoding so %3F and %23 remain filename characters.
+ * CLI input paths are not import specifiers.
  *
  * @type {(path: string) => (imports: readonly AstImport[]) => Result<readonly _Source[], ParseError>}
  */
@@ -167,6 +170,10 @@ export const _importSources = path => imports => {
         !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/'))
     if (unsupported !== undefined) {
         return error({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../ or /`, metadata: null, path })
+    }
+    const components = imports.find(({ specifier }) => specifier.includes('?') || specifier.includes('#'))
+    if (components !== undefined) {
+        return error({ message: `unsupported import specifier "${components.specifier}": query and fragment components are not supported`, metadata: null, path })
     }
     const paths = imports.map(imported => _importPath(path)(imported.specifier))
     if (paths.every(resolved => resolved !== null)) {
