@@ -839,8 +839,11 @@ arguments alone:
   ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). A JavaScript
   consumer of a compiled module can read a name, and reads the one the
   writer bound the function under — the EDAG has none to give back — which
-  is this decision's consequence and no bug
-  ([compatibility epic](../todo/fjs-javascript-compatibility.md#function-name--adopted-exception)).
+  is this decision's consequence and no bug: the decision is
+  [`entry`](../fjs/edag/todo/entry.md)'s, which retired the proposals that
+  would have exposed a name, and the
+  [compatibility epic](../todo/fjs-javascript-compatibility.md#function-name--decided-with-entry-recorded-here-as-the-exception)
+  records the consequence.
   Nor is the arity observable, which is what leaves the two parameter lists nothing to be
   told apart by: `f.length` is `0` for a rest parameter as it is for none,
   a rest parameter not counting towards it in JavaScript.

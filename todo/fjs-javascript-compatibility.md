@@ -181,22 +181,38 @@ No exact spelling or closure/self strategy is selected by this exception.
 Earlier no-exception/refusal directions for authored-text differences are
 superseded; implementing the chosen rendering contract remains work.
 
-#### Function name — adopted exception
+#### Function name — decided with `entry`, recorded here as the exception
 
 A JavaScript function's `name` is set once, at creation, from the binding
-or key it is created for. FunctionalScript erases it: the graph's function
-node carries no name, `f.name` is refused at the key, and
-[the language](../spec/README.md#functions) says so. **Decided:** that
-erasure stands. Inside FJS no program reads a name, so nothing is
-observable there; the profile this exception names is the `.js` output read
-by a JavaScript consumer, the operation is `name`, and the consequence is
-that a hoisted function answers the writer's binding — at `186af0b`,
+or key it is created for. FunctionalScript erases it, and the decision is
+already in the repository:
+[`entry`](../fjs/edag/todo/entry.md) replaced the earlier own-property
+read with the enumerable-entry helper precisely so that a function's `name`
+cannot be read — `person.name` is enumerable where `f.name` and `f.length`
+are not — and retired the two proposals that would have exposed it,
+`own-access.md` and `function-name.md`, in `4f4da828`; the latter had
+proposed a name operand on `=>` and a writer pattern to restore names, and
+closed itself as unnecessary once `name` was unobservable. So the graph's
+function node carries no name, `f.name` is refused at the key, `entry(f,
+'name')` is `undefined`, and [the language](../spec/README.md#functions)
+says no program observes the difference.
+
+What that decision leaves, and this epic records as its exception: the
+profile is the `.js` output read by a JavaScript consumer, the operation is
+`name`, and the consequence is that a hoisted function answers the writer's
+binding, there being no name in the EDAG to give back. At `186af0b`,
 `const f = (...a) => a; export default [f, f];` is written
 `const $0=(...$a)=>$a;export default [$0,$0];`, so that consumer reads `$0`
 where the source gives `f`, and a key or branch on it differs. A function
 written in place keeps its name, since the key or `default` names it
-again. The writer changes nothing; the function-source exception above
-covers the text, and this one the name. Unrelated differences remain bugs.
+again. The writer changes nothing. The function-source exception above
+covers the text and [function text and
+serialization](../spec/todo/serialization.md#function-text-and-serialization)
+its open questions; this one covers the name. Unrelated differences remain
+bugs. The property-access and presence plans,
+[2330](../spec/todo/2330-property-accessor.md) and
+[2345](../spec/todo/2345-has-own-property.md), hold the same boundary from
+the source side.
 
 #### Property reflection — incompatible alternatives withdrawn
 
@@ -303,8 +319,8 @@ requirements; compatibility alone would allow randomness and external mutation.
 - [ ] **P1:** implement and test the chosen function-rendering contract across
       source, EDAG, coercion and execution; preserve other function observations.
 - [x] Record the function-name exception with its profile, operation and
-      consequence: erasure stands, and a JavaScript consumer of the `.js`
-      output may read a generated name.
+      consequence: erasure was decided with `entry`, and a JavaScript
+      consumer of the `.js` output may read a generated name.
 - [ ] **P1:** preserve the property-observation and composition contract in
       each affected implementation. Missing support is refused, not guessed.
 - [ ] **P1:** extend the existing host harness with a shared compatibility
