@@ -3,7 +3,7 @@
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { Dirent, FileStat, ReadFile, ReadWhole, Readdir, Stat } from '../../effects/node/types.ts'
+ * @import { Dirent, FileStat, Mkdir, ReadFile, ReadWhole, Readdir, Rename, Rm, Stat, WriteExclusive } from '../../effects/node/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Oid } from '../types.ts'
@@ -2026,5 +2026,38 @@ export const proof = {
         // The same repository read as a SHA-1 one answers nothing, which is what
         // makes the width the repository's: sixty-five bytes is no 41-byte ref.
         assertEq(run(fs, tryResolve(one(''), 20)(latin1('refs/heads/master'))), null)
+    },
+    // **An error is never evidence that the lock is this writer's**, and this is
+    // the case that says so: a failure of the exclusive write that is *not*
+    // `EEXIST` must still leave the lock alone, because the write may never have
+    // reached the name at all.
+    //
+    // `EMFILE` is the measured one. On node 22.22.2 with the process out of file
+    // descriptors, a `wx` open of a name another writer holds answers `EMFILE`
+    // and not `EEXIST` — checked by exhausting them and trying it, against the
+    // same call with descriptors available, which answers `EEXIST`. So a cleanup
+    // that treated `EEXIST` as the only "not mine" would unlink a live lock here.
+    // The virtual filesystem cannot run out of descriptors, so the host below
+    // answers what one does.
+    writeNotMineOnAnyError: () => {
+        /** @type {MemOperationMap<ReadWhole | Mkdir | WriteExclusive | Rename | Rm, readonly string[]>} */
+        const host = {
+            // no `packed-refs`, so there is no prefix collision to refuse
+            readWhole: missing,
+            mkdir: (path, _) => log => [[...log, `mkdir ${path}`], ok(undefined)],
+            writeExclusive: path => log => [
+                [...log, `writeExclusive ${path}`],
+                error(ioError({ code: 'EMFILE', message: path })),
+            ],
+            rename: (src, dst) => log => [[...log, `rename ${src} ${dst}`], ok(undefined)],
+            rm: path => log => [[...log, `rm ${path}`], ok(undefined)],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryWrite(one(''), 20)(latin1('refs/heads/master'))(idOf(a)))
+        assertEq(writeRefusal(r).code, 'EMFILE')
+        // the write was attempted and nothing was removed or published
+        assert(log.includes('writeExclusive refs/heads/master.lock'), log)
+        assert(!log.some(l => l.startsWith('rm ')), log)
+        assert(!log.some(l => l.startsWith('rename ')), log)
     },
 }

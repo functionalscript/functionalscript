@@ -1741,24 +1741,7 @@ export const tryRoots = (dirs, oidBytes) => {
 const parentOf = (dir, text) => under(dir, text.slice(0, text.lastIndexOf('/')))
 
 /**
- * Whether a failure means the lock is somebody else's rather than this writer's
- * to take back.
- *
- * `EEXIST` is the one, and it is the only error the exclusive write answers for a
- * name already taken. Every other failure of it may have created the file and
- * left it unfilled — one `writeFile` with `wx` still opens, writes and closes, so
- * a write that fails after the open leaves the name behind — and that one is this
- * writer's to remove. A failure of the `mkdir` before it, or of the `rename`
- * after it, is never `EEXIST`: a recursive `mkdir` answers `ok` on a directory
- * that is there, and a `rename` over an existing file replaces it.
- *
- * @type {(e: IoChannel) => boolean}
- */
-const heldByAnother = e => e[0] === 'ioError' && e[1].code === 'EEXIST'
-
-/**
- * `e` with the lock given back where it fails, unless the failure says the lock
- * was never this writer's.
+ * `e` with the lock given back where it fails.
  *
  * A lock left behind refuses every later write of that name, and nothing tells
  * one a writer is holding from one a writer abandoned: both are `EEXIST` from
@@ -1768,31 +1751,34 @@ const heldByAnother = e => e[0] === 'ioError' && e[1].code === 'EEXIST'
  * `cannot lock ref 'refs/heads/y': Unable to create '…/refs/heads/y.lock':
  * File exists` and write no `refs/heads/y`.
  *
- * **What it wraps is as load-bearing as what it does, and one revision of this
- * got it wrong.** It wraps the exclusive write and the rename, and nothing
- * before them. An earlier revision wrapped the whole sequence — the
- * `packed-refs` read, the prefix check and the `mkdir` too — on the reasoning
- * that those either create this writer's lock or create nothing, so an `rm` of a
- * name that is not there would be answered and dropped. That reasoning is wrong
- * whenever the lock *is* there and is somebody else's: {@link badPackedCode} and
- * {@link refPrefixCode} both refuse before the write, neither is `EEXIST`, and
- * the cleanup would have deleted a live writer's lock — after which a third
- * writer takes the name while the first is still publishing, which is the one
- * thing the lock exists to prevent. Found by review of
- * [#2115](https://github.com/functionalscript/functionalscript/pull/2115), and
- * pinned by the foreign lock in every refusal fixture: `writeBadPacked` and
- * `writePackedPrefix` refuse a repository that holds one and compare the whole
- * filesystem afterwards.
+ * **What it wraps is the whole of its correctness, and two revisions of this got
+ * it wrong in the same way — by inferring from an error whether the lock was
+ * ours.** It wraps the `rename` and nothing else, because the `rename` is the
+ * only thing {@link tryWrite} does *after* an operation that proves the lock is
+ * this writer's.
  *
- * The `EEXIST` carve-out covers the other half, inside the span: the exclusive
- * write itself answers `EEXIST` for a name another writer holds, and that failure
- * must not clean up either. Every other failure in the span may have created
- * this writer's lock — a `wx` write that fails after its open leaves the name
- * behind — and that one is this writer's to remove.
+ * The first wrong revision wrapped the whole sequence, on the reasoning that the
+ * links above either create this writer's lock or create nothing — false
+ * whenever the lock is there and is somebody else's, which
+ * {@link badPackedCode} and {@link refPrefixCode} both reach. The second kept
+ * the exclusive write inside the span and carved out `EEXIST`, on the reasoning
+ * that `EEXIST` is the one error meaning "not mine" — also false: measured on
+ * node 22.22.2 with descriptors exhausted, a `wx` open of a name another writer
+ * holds answers `EMFILE`, so the carve-out let the cleanup through and it
+ * unlinked a live lock. Both were review findings on
+ * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
+ *
+ * The rule that survives both is that **an error code is never evidence of
+ * ownership**. `O_EXCL` succeeding is, and it is the runner that holds it — so
+ * the rollback for a write that fails after its open lives in
+ * `fjs/effects/node`'s `writeExclusive`, whose contract is that the file either
+ * holds the data or is not there. Nothing here has to ask which, and the foreign
+ * lock in every refusal fixture keeps a future revision from putting the question
+ * back.
  *
  * The `rm`'s own outcome is dropped and the original error is what the caller
  * gets. Reporting the cleanup's failure instead would replace the reason the
- * write failed with the reason it could not be undone, and the first is the one
+ * rename failed with the reason it could not be undone, and the first is the one
  * a caller can act on.
  *
  * @template {Operation} O
@@ -1800,11 +1786,9 @@ const heldByAnother = e => e[0] === 'ioError' && e[1].code === 'EEXIST'
  * @param {Effect<O, void, IoChannel>} e
  * @returns {Effect<O | Rm, void, IoChannel>}
  */
-const unlocked = (lock, e) => resultStep(e, r => {
-    if (r[0] === 'ok') { return pureOk(r[1]) }
-    if (heldByAnother(r[1])) { return pureError(r[1]) }
-    return resultStep(rm(lock), () => pureError(r[1]))
-})
+const unlocked = (lock, e) => resultStep(e, r => r[0] === 'ok'
+    ? pureOk(r[1])
+    : resultStep(rm(lock), () => pureError(r[1])))
 
 /**
  * The code a write is refused with when no path spells the name.
@@ -2184,10 +2168,10 @@ export const tryWrite = (dirs, oidBytes) => name => id => {
         ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
         : collided(packed, name, dense))
     const made = step(checked, () => mkdir(parentOf(dir, text), { recursive: true }))
-    // The cleanup starts at the exclusive write and not before it: a refusal or a
-    // failure above this line created nothing, and the lock that is there may be
-    // another writer's. See {@link unlocked}.
-    const filled = writeExclusiveUtf8File(lock, `${hexText(id)}\n`)
-    const published = step(filled, () => rename(lock, path))
-    return step(made, () => unlocked(lock, published))
+    // The cleanup starts *after* the exclusive write and covers the rename alone:
+    // that write succeeding is the only evidence the lock is this writer's, and
+    // no failure — of it or of anything above it — is evidence of the same. See
+    // {@link unlocked}.
+    const filled = step(made, () => writeExclusiveUtf8File(lock, `${hexText(id)}\n`))
+    return step(filled, () => unlocked(lock, rename(lock, path)))
 }

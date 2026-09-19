@@ -197,6 +197,17 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
  * Creates `path` with `O_CREAT|O_EXCL` **and writes `data` through that same
  * open** — fails with `EEXIST` if the name is already taken, by anything.
  *
+ * **Either the file exists holding `data`, or it does not exist.** A write that
+ * fails after the open takes the file with it, so no caller has to decide
+ * whether a failure left one behind — and no caller could: `O_EXCL` succeeding
+ * is the only evidence that the file is this call's, and it is on the runner's
+ * side of the boundary. Measured on node 22.22.2, with descriptors exhausted, a
+ * `wx` open of a name another writer holds answers **`EMFILE` and not
+ * `EEXIST`**, so a caller that read "every error but `EEXIST`" as "I created it"
+ * would unlink somebody else's file. Git's lockfile has the same contract from
+ * the same knowledge: it writes through the descriptor it opened, and
+ * `rollback_lock_file` unlinks.
+ *
  * Not `createExclusive` followed by `writeFile`, and the difference is a hole
  * rather than a round trip. `createExclusive` closes its descriptor, so a
  * `writeFile` after it reopens the *pathname*, with the flags `w` gives —

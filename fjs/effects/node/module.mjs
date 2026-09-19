@@ -470,9 +470,39 @@ const runNodeEffect = asyncRun({
         const fh = await open(path, 'wx')
         await fh.close()
     }),
-    // One open, and `wx` rather than `w`: the flags are the whole contract, so
-    // they are here rather than behind a pair of calls. See `WriteExclusive`.
-    writeExclusive: (path, data) => io(() => writeFile(path, fromVec(data), { flag: 'wx' })),
+    // One open, `wx` rather than `w`, and the rollback here rather than at the
+    // caller — all three are the contract, and the third is why this is not
+    // `writeFile(path, data, { flag: 'wx' })`. `O_EXCL` succeeding is the only
+    // evidence that the file is *this* call's, and it exists on this side of the
+    // boundary alone: a caller holding an error code cannot tell a write that
+    // failed after creating the file from an open that never created one.
+    // Measured on node 22.22.2, with descriptors exhausted, a `wx` open of a
+    // name another writer holds answers `EMFILE` and not `EEXIST` — so "every
+    // error but `EEXIST` means I created it" is wrong, and a caller that cleaned
+    // up on it would unlink somebody else's file.
+    //
+    // So the file either exists holding `data` or does not exist, and nothing
+    // above needs to reason about which. Git's lockfile does the same from the
+    // same knowledge: it writes through the descriptor it opened and its
+    // `rollback_lock_file` unlinks.
+    writeExclusive: (path, data) => io(async () => {
+        const fh = await open(path, 'wx')
+        let failure = null
+        try {
+            await fh.writeFile(fromVec(data))
+        } catch (e) {
+            failure = e
+        }
+        // Not in a `finally`: a failure to close must not replace the write's,
+        // which is the one a caller can act on. If the close itself fails the
+        // file is left behind, which is a stale lock on a filesystem already
+        // failing — recorded in `fjs/git/todo/ref-writing.md`.
+        await fh.close()
+        if (failure !== null) {
+            await rm(path, { force: true })
+            throw failure
+        }
+    }),
     writeBytes: (path, offset, data) => io(async () => {
         const fh = await open(path, 'r+')
         try {

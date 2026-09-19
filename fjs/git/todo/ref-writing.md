@@ -24,11 +24,28 @@ file is a write in progress and not a ref.
 [`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in four
 effects — `packed-refs`, the directories above the file, the exclusive write of
 the id's hex digits and an LF, the rename — and gives the lock back where a
-failure **after** that write would otherwise leave it, and never before it: a
-refusal above the write created nothing, and the lock that is there may be
-another writer's. A revision that cleaned up over the whole sequence would have
-deleted a live writer's lock on a `packed-refs` refusal; every refusal fixture
-now holds a foreign lock so that cannot come back. The file is `oidBytes * 2 + 1`
+failure of the **rename** would otherwise leave it, and never on any earlier
+failure: that write succeeding is the only evidence the lock is this writer's,
+and no error code is evidence of the same.
+
+Two revisions got that wrong in the same way and both were review findings. The
+first cleaned up over the whole sequence, so a `packed-refs` refusal deleted a
+live writer's lock. The second kept the write inside the span and carved out
+`EEXIST` as the one "not mine" error — also wrong: measured on node 22.22.2 with
+the process out of file descriptors, a `wx` open of a name another writer holds
+answers **`EMFILE`**, not `EEXIST`, against the same call with descriptors
+available which answers `EEXIST`. So the rollback for a write that fails *after*
+its open now lives in `fjs/effects/node`'s `writeExclusive`, where `O_EXCL`
+succeeding is known, and its contract is that the file either holds the data or
+is not there. Every refusal fixture holds a foreign lock, and
+`writeNotMineOnAnyError` drives an `EMFILE` host, so neither revision can come
+back.
+
+What is left of it: if the runner's `close` fails after a successful write the
+file is left behind, and the rollback unlinks by path rather than by descriptor,
+so a replacement in that window would be removed instead. Both are failures on a
+filesystem already failing, and both are `fjs/effects/node`'s to fix if a caller
+ever needs them fixed. The file is `oidBytes * 2 + 1`
 bytes and not a fixed 41 — measured, `update-ref` writes 41 bytes in a SHA-1
 repository and 65 in one created with `git init --object-format=sha256`, whose
 ids are sixty-four digits.
