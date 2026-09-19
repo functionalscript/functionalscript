@@ -43,6 +43,14 @@ const b = /** @type {const} */ ('b1c209491856b9e26208165c5cafbf07ae2e7937')
 /** A tag object's id, which is what a tag ref names. */
 const t = /** @type {const} */ ('a48bd2c1bb20c1a3457dfa663047827f1e48ad4e')
 
+/**
+ * Sixty-four hex digits, which is an id in a SHA-256 repository and no id at all
+ * in a SHA-1 one. The same string is used both ways below — refused at
+ * `oidBytes` 20 and written at 32 — so the width is asserted to be the
+ * repository's rather than the id's.
+ */
+const wide = /** @type {const} */ (`${a}${b.slice(0, 24)}`)
+
 /** @type {(s: string) => readonly Vec[]} */
 const file = s => [toVec(latin1(s))]
 
@@ -1799,7 +1807,10 @@ export const proof = {
     // directories above the file, the file itself, and no lock beside it. The
     // structural comparison is what says the lock is gone — a lock left behind
     // would be an extra entry — and the read back through `tryResolve` is what
-    // says the 41 bytes are a ref and not just 41 bytes.
+    // says the bytes are a ref and not just bytes. Forty-one of them here
+    // because these fixtures are a SHA-1 repository; the file is
+    // `oidBytes * 2 + 1` long, which is why `idWidth` in `writeRefuses` refuses
+    // an id of the other width rather than writing sixty-five.
     writeRef: () => {
         const [fs, r] = wrote({}, 'refs/heads/master', a)
         assertStructurallySame(r, ok(undefined))
@@ -1900,7 +1911,8 @@ export const proof = {
         // An id of the wrong width: a 32-byte id in a repository whose ids are
         // 20 bytes is sixty-four hex digits, which `fjs/git/ref` reads as no ref
         // at all — so the file would be one this module's own listing refuses.
-        refuses('refs/heads/wide', `${a}${b.slice(0, 24)}`, idWidthCode)
+        // `writeSha256` writes this very id, at `oidBytes` 32.
+        refuses('refs/heads/wide', wide, idWidthCode)
         // And the zero id, which is Git's delete rather than a value.
         const zero = '0'.repeat(40)
         assertEq(
@@ -1981,5 +1993,24 @@ export const proof = {
         assertEq(e.code, badPackedCode)
         assertEq(e.message, 'packed-refs is no packed-refs')
         assertStructurallySame(fs, root)
+    },
+    // The file is the id's hex digits and an LF, which is `oidBytes * 2 + 1`
+    // bytes and not a fixed 41 — measured, a repository created with
+    // `git init --object-format=sha256` has a 65-byte `refs/heads/x` after
+    // `git update-ref`. This writes the same sixty-four-digit id
+    // `writeRefuses` refuses at `oidBytes` 20, and here it is the repository's
+    // own width and the write succeeds. Without this the doc's claim to support
+    // both widths would rest on reading the code.
+    writeSha256: () => {
+        const [fs, r] = ran({}, tryWrite(one(''), 32)(latin1('refs/heads/master'))(idOf(wide)))
+        assertStructurallySame(r, ok(undefined))
+        assertStructurallySame(fs, { refs: { heads: { master: ref(wide) } } })
+        // and the lookup at the same width reads it back
+        const got = run(fs, tryResolve(one(''), 32)(latin1('refs/heads/master')))
+        assert(got !== null)
+        assertEq(codePointListToString(toHex(got)), wide)
+        // The same repository read as a SHA-1 one answers nothing, which is what
+        // makes the width the repository's: sixty-five bytes is no 41-byte ref.
+        assertEq(run(fs, tryResolve(one(''), 20)(latin1('refs/heads/master'))), null)
     },
 }

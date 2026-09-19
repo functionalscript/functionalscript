@@ -23,8 +23,11 @@ file is why `fjs/git/refstore`'s walk skips a name ending in `.lock`: such a
 file is a write in progress and not a ref.
 [`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in five
 effects — `packed-refs`, the directories above the file, the exclusive create,
-the 41 bytes, the rename — and gives the lock back where a failure after the
-create would otherwise leave it.
+the id's hex digits and an LF, the rename — and gives the lock back where a
+failure after the create would otherwise leave it. The file is `oidBytes * 2 + 1`
+bytes and not a fixed 41 — measured, `update-ref` writes 41 bytes in a SHA-1
+repository and 65 in one created with `git init --object-format=sha256`, whose
+ids are sixty-four digits.
 
 `packed-refs` is read first because of the one collision no filesystem can
 refuse. Git will not let a ref name be a directory prefix of another: measured

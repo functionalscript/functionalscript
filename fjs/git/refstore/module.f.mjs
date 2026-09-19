@@ -2003,11 +2003,15 @@ const collided = (packed, name, dense) => {
  * end of every component — so the lock of one ref is never the file of
  * another, and the walk of `refs/` skips it as a write in progress.
  *
- * **The bytes are the forty hex digits and an LF**, which is what Git writes:
- * measured on Git 2.43.0, `.git/refs/heads/x` after `git update-ref` is exactly
- * 41 bytes. The LF is not load-bearing for Git's own reader — a file holding
- * the digits alone resolves, measured — and it is written because Git writes it
- * and because [`fjs/git/ref`](../ref/module.f.mjs) reads the file Git produces.
+ * **The bytes are the id's hex digits and an LF** — `oidBytes * 2 + 1` of them
+ * and not a fixed 41, since the width is the repository's and not the id's.
+ * Measured on Git 2.43.0, `.git/refs/heads/x` after `git update-ref` is 41 bytes
+ * in a SHA-1 repository and **65 in one created with
+ * `git init --object-format=sha256`**, whose commit ids are sixty-four digits.
+ * That is the same width {@link idWidthCode} refuses an id for missing, and the
+ * width [`fjs/git/ref`](../ref/module.f.mjs) reads back. The LF is not
+ * load-bearing for Git's own reader — a file holding the digits alone resolves,
+ * measured — and it is written because Git writes it.
  *
  * **Every refusal comes before any effect that writes**, so a name or an id
  * this cannot write leaves no file behind. Five are decided from the name and
