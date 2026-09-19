@@ -747,7 +747,9 @@ authored and never part of the EDAG.
 
 #### 2. Arguments reference
 
-**Status:** decided
+**Status:** decided for `['args']`; declared-arity representation reopened
+by the [named-parameter proposal](../spec/todo/3120-parameters.md), pending
+language-designer approval
 
 **Resolution: a zero-parameter `["args"]` command yields the array of
 arguments passed to the function.**
@@ -757,9 +759,11 @@ arguments passed to the function.**
   Missing arguments read as `undefined` via ordinary array indexing; extra
   arguments are simply present; forwarding is `["()", f, ["args"]]` —
   all ordinary array semantics, matching JS.
-- Declared parameters are a compiler-side naming convention over the
-  arguments array, not an EDAG concept; declared arity matters only for
-  `.length` and `toString(f)` fidelity (subject 7).
+- Parameter names are a compiler-side convention over the arguments array
+  and remain erased. The former decision also erased declared arity; the
+  named-parameter prototype exposed a `.length` mismatch. The linked
+  proposal would supersede that part by recording the count in every
+  function node (subject 7), without changing `['args']`.
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
   `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
@@ -1070,11 +1074,19 @@ remains — every position, the body included, is a node, and the body
 composes directly into `["=>", frame, body]`
 ([Operations](#operations)).
 
-To decide: whether stage 1's `Function` constructor input is the bare
-body node or a wrapper carrying observable metadata, including parameter count
-for `.length` (subject 2 erases names and arity). The function-text exception
-does not permit changing arity. Exact parameter spelling need not reproduce
-authored text; source rendering and callable reconstruction follow subject 12.
+The [named-parameter proposal](../spec/todo/3120-parameters.md) would replace
+that current shape with `["=>", parameterCount, frame, body]`. If approved,
+it selects the function node as the owner of declared arity and supersedes
+the earlier alternative of keeping that metadata only in a `Function`
+constructor wrapper. It remains pending language-designer approval; do not
+implement both representations as parallel contracts. The constructor's
+input API otherwise remains open.
+
+The function-text exception does not permit changing arity. Exact parameter
+spelling need not reproduce authored text; source rendering and callable
+reconstruction follow subject 12, with the explicit writer limitation in the
+named-parameter proposal for positive-arity graphs that inspect complete
+argument lists.
 
 #### 8. `","`: anchored evaluation
 
