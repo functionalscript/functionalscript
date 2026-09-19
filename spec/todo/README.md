@@ -105,14 +105,15 @@ see [serialization](./serialization.md).
    `return`, and the writer spells them
    ([functions](../README.md#functions))
 4. [ ] [forward-references](./3140-forward-references.md)
+5. [ ] [named exports](./3240-export.md) — **P1:** blocks compilation of the
+   selected `types/range` migration candidate.
 
 ### 3.2. Priority 2
 
 1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
-4. [ ] [export](./3240-export.md)
-5. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
+4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](./io-effects.md)).
 
@@ -140,6 +141,7 @@ see [serialization](./serialization.md).
 
 1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
    name an enclosing scope binds; a warning or an error, undecided.
+2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
 
 ## 4. ECMAScript Proposals
 

@@ -652,15 +652,11 @@ constants, a fragment that several outputs include.
 
 **Current supported host profile:** the Node runner resolves admitted file imports
 against the importing file URL, canonicalizes symlinks, and reuses modules by the
-resulting file URL identity. Absolute `file:/…` URLs (including `file:///…`)
-are supported: a relative import and an absolute URL share when they resolve to
-the same identity. The host parses the URL and validates its pathname, recognizing
-native drive roots separately from filename segments. This is the default Node
-file-module profile; preserve-symlinks modes are not supported profiles. Bare packages, other URL
-schemes and nonportable path segments remain explicitly refused. Query and
-fragment components participate in module identity, while loading uses only the
-pathname. Empty components follow Node's default canonicalization and disappear.
-The existing
+resulting file URL identity. Imports use portable URL-path spellings beginning
+with `./`, `../`, or `/`. Absolute `file:` imports and query/fragment components
+are outside the supported grammar, as are bare packages and other URL schemes.
+Encoded filename characters such as `%23` still work. This is the default Node
+file-module profile; preserve-symlinks modes are not supported profiles. The existing
 [module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
 records the host boundary, tests, and remaining support work.
 

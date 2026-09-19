@@ -32,7 +32,7 @@ import { once } from 'node:events'
 import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
-import { decode as decodeImportPath, _isAbsoluteFileUrl } from '../../path/import/module.f.mjs'
+import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
@@ -314,29 +314,16 @@ const runNodeEffect = asyncRun({
     }),
     mkdir: (path, options) => io(async () => { await mkdir(path, options) }),
     resolveFileModule: (name, parent) => io(async () => {
+        if (parent !== null && decodeImportPath(name) === null) {
+            throw new Error('invalid module specifier')
+        }
         const url = parent === null ? pathToFileURL(name) : new URL(name, parent)
         if (url.protocol !== 'file:') {
             throw new Error('only file modules are supported')
         }
         const loadingPath = fileURLToPath(url)
-        if (parent !== null && _isAbsoluteFileUrl(name)) {
-            // Bun's fileURLToPath preserves malformed percent escapes. Check
-            // the original pathname before re-encoding the native drive root.
-            decodeURIComponent(url.pathname)
-            // fileURLToPath has validated the native root. A Windows drive is
-            // URL structure, not a colon-bearing portable filename segment.
-            const pathname = pathToFileURL(loadingPath).pathname
-            const segments = process.platform === 'win32' && url.hostname === '' ? pathname.slice(3) : pathname
-            if (decodeImportPath(segments) === null) {
-                throw new Error('invalid module specifier')
-            }
-        }
         const path = await fs.promises.realpath(loadingPath)
-        const canonical = pathToFileURL(path)
-        // Match Node's default ESM realpath step, including empty components.
-        canonical.search = url.search
-        canonical.hash = url.hash
-        return { id: canonical.href, path }
+        return { id: pathToFileURL(path).href, path }
     }),
     readFile: path => io(async () => {
         const fileStats = await stat(path)
