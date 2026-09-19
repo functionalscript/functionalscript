@@ -105,21 +105,47 @@ const importSegment = segment => {
 }
 
 /**
- * Resolve an import's URL-path spelling against its importing file, or return
- * null for an unsupported segment. Decode only the specifier, once, and before
- * normalization: escaped dots have their URL meaning, but decoded filesystem
- * delimiters cannot create a new root or segment. The importing path is
- * already a filesystem path and must not be decoded again.
+ * Reduce URL dot segments while the other components are still encoded.
+ * Only the URL grammar's exact dot spellings are structural; canceled
+ * components need not be valid UTF-8 or valid filesystem names. Keep empty
+ * components here: in `bad%//../dep`, `..` removes the empty one, not `bad%`.
  *
- * This is not a complete URL resolver. Package resolution and distinct URL
- * identities remain in `../todo/module-resolution-compatibility.md`.
+ * @type {(rooted: boolean) => (segments: readonly string[], segment: string) => readonly string[]}
+ */
+const importDotSegments = rooted => (segments, segment) => {
+    switch (segment.toLowerCase()) {
+        case '.': case '%2e': return segments
+        case '..': case '.%2e': case '%2e.': case '%2e%2e':
+            return segments.length !== 0 && segments[segments.length - 1] !== '..'
+                ? segments.slice(0, -1)
+                : rooted ? segments : [...segments, '..']
+        default: return [...segments, segment]
+    }
+}
+
+/**
+ * Resolve an import's URL-path spelling against its importing file, or return
+ * null for unsupported syntax or a surviving unsupported segment. URL dot
+ * processing precedes decoding and filesystem validation, so `bad%/../dep`
+ * names `dep`. Decode only the surviving specifier components, once; the
+ * importing path is already a filesystem path and is never decoded again.
+ *
+ * Literal colons and backslashes remain outside this path-only subset. They
+ * can change URL drive/separator parsing, so a dot must not hide them before
+ * a full host resolver understands them. Encoded bytes are not URL syntax.
+ * Package resolution and distinct URL identities remain in
+ * `../todo/module-resolution-compatibility.md`.
  *
  * @type {(path: string) => (specifier: string) => string | null}
  */
 export const _importPath = path => specifier => {
-    const segments = specifier.split('/').map(importSegment)
+    if (specifier.includes(':') || specifier.includes('\\')) { return null }
+    const rooted = specifier.startsWith('/')
+    const raw = specifier.split('/')
+    const components = (rooted ? raw.slice(1) : raw).reduce(importDotSegments(rooted), [])
+    const segments = components.map(importSegment)
     return segments.every(segment => segment !== null)
-        ? pathConcat(pathConcat(path)('..'))(segments.join('/'))
+        ? pathConcat(pathConcat(path)('..'))(`${rooted ? '/' : ''}${segments.join('/')}`)
         : null
 }
 
