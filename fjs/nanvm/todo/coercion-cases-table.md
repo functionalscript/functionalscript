@@ -1,4 +1,4 @@
-## coercion-cases-table. Ten operator groups restate the `ToNumeric` operand table
+## coercion-cases-table. Eleven operator groups restate the `ToNumeric` operand table
 
 **Priority:** P4
 **Status:** open

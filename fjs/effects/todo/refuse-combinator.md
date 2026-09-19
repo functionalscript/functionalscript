@@ -1,4 +1,4 @@
-## refuse-combinator. `pureError(ioError({ code, message }))` is spelled at about twenty sites
+## refuse-combinator. `pureError(ioError({ code, message }))` is spelled at about a dozen sites
 
 **Priority:** P4
 **Status:** open
@@ -8,8 +8,7 @@
 `fjs/effects` owns both halves of a refusal — `ioError` and `pureError` —
 but not their composition, so every module that refuses with a code and a
 message writes the object literal itself. `fjs/git/refstore` has about
-eight such sites, `fjs/git/packstore` five, and `fjs/effects/node`,
-`fjs/cas` and `fjs/protocol/mcp/stdio` the rest:
+eight such sites and `fjs/git/packstore` five:
 
 ```js
 // fjs/git/refstore/module.f.mjs, readAsRef
@@ -24,6 +23,12 @@ const entryRefusal = (path, at) => what => pureError(ioError({ code: packEntryCo
 
 `packstore` has already invented the helper three times over; `refstore`
 has not, and several of its refusals run to three lines.
+
+The half-dozen `pureError(ioError({ message }))` sites in `fjs/effects/node`,
+`fjs/cas` and `fjs/protocol/mcp/stdio` are **not** this shape: they carry
+a message and no code, and inventing codes for them is not this issue's
+business. They stay as they are; a message-only combinator is a separate
+question, worth asking only if a second module wants one.
 
 ### Proposal
 
@@ -46,8 +51,8 @@ refuses what is checkable against the code.
 ### Tasks
 
 - [ ] `refuse` in `fjs/effects/module.f.mjs` with a proof.
-- [ ] Rewrite the sites in `fjs/git/refstore`, `fjs/git/packstore`,
-      `fjs/effects/node`, `fjs/cas`, `fjs/protocol/mcp/stdio`.
+- [ ] Rewrite the code-bearing sites in `fjs/git/refstore` and
+      `fjs/git/packstore`; the message-only sites elsewhere are untouched.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
