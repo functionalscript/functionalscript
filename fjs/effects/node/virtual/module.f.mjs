@@ -526,6 +526,24 @@ const createExclusiveOp = (dir, path) => {
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
 const createExclusive = operation(createExclusiveOp)
 
+/**
+ * `createExclusive` and `writeFile` in one step, which is what the operation is:
+ * the host takes the name and fills it through a single open, so nothing can
+ * reach the pathname in between. See `WriteExclusive` in `../types.ts` for what
+ * the two separate calls let through on a real host.
+ *
+ * @type {(payload: Vec) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
+ */
+const writeExclusiveOp = payload => (dir, path) => {
+    if (path.length !== 1) { return [dir, invalidPath] }
+    const [name] = path
+    if (entryOf(dir, name) !== undefined) { return [dir, eexist] }
+    return [{ ...dir, [name]: [payload] }, okVoid]
+}
+
+/** @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]} */
+const writeExclusive = payload => operation(writeExclusiveOp(payload))
+
 // The lock-free upload only ever writes sequentially at the current end of the
 // staging file (`offset === size`), so the virtual model implements that append
 // case exactly: it never creates (a missing file is `ENOENT`), never overwrites
@@ -813,6 +831,7 @@ const map = {
     rename,
     readBytes: readBytesOp,
     createExclusive,
+    writeExclusive: (path, payload) => writeExclusive(payload)(path),
     writeBytes: writeBytesOp,
     readWhole,
     stat: statOp,

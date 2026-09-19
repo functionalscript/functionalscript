@@ -89,9 +89,8 @@ that one was not, which is why it was fixed instead of listed.
 
 ### Related
 
-- [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks; this
-  issue owns the two lines it looks at differently.
+- [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks, so this
+  issue owns only the two lines it looks at differently: `alternatesIn` and its
+  note on why neither is refused, and `untilNul` for the shape that was a third.
 - [byte-paths.md](./byte-paths.md) — owns what a path can spell, and where the
   `NUL` cut belongs once one is a byte list.
-- [`fjs/git/store`](../store/module.f.mjs) — `alternatesIn`, and its note on why
-  neither is refused; `untilNul` for the shape that was a third.
