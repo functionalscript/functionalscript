@@ -58,15 +58,18 @@ export const proof = {
     },
     demo: {
         graph: {
-            // Two keys naming the same array is one node with two incoming
-            // edges, merged into one label — the graph's whole reason for
-            // being here, and the demo's own initial document.
+            // Two keys naming the same array from two different parents is
+            // one node with two incoming edges, each its own label — the
+            // graph's whole reason for being here, and the demo's own
+            // initial document. `"a"` reaches it directly and `"c"` through
+            // `"b"`, the longer route, so the array ranks by `"c"`'s path
+            // and `"a"`'s edge is the one left skipping a rank.
             sharing: () => {
                 const html = htmlToString(demo.view(demo.init))
                 assertEq((html.match(/data-graph-kind="array"/g) ?? []).length, 1)
-                assert(html.includes('>&quot;a&quot;, &quot;b&quot;<'), html)
+                assert(html.includes('>&quot;a&quot;<'), html)
                 assert(html.includes('>&quot;c&quot;<'), html)
-                assertEq((html.match(/data-graph-kind="leaf"/g) ?? []).length, 3)
+                assertEq((html.match(/data-graph-kind="leaf"/g) ?? []).length, 2)
             },
             // `typeof null === 'object'` is why `walk` checks `=== null`
             // first — without it, `null` would reach `instanceof Array` and

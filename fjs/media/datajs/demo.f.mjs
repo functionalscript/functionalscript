@@ -294,14 +294,17 @@ const graphSvg = g => {
  * it, and storing a value the state can already compute is how the two
  * drift apart.
  *
- * The initial document is chosen for the one thing plain JSON cannot show:
- * `"a"` and `"b"` name the same array, so it is one node with two incoming
- * edges — the graph's whole reason for being here.
+ * The initial document carries both of this demo's reasons for existing.
+ * `"a"` and `"c"` name the same array — the one thing plain JSON cannot
+ * show, drawn as one node with two incoming edges. And they reach it by
+ * routes of different lengths, `"a"` directly and `"c"` through `"b"`, so
+ * the array ranks by the longer one: `"a"`'s edge is the one that visibly
+ * skips a rank, not the one that decided where the array sits.
  *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'const $0=[1,2];\nexport default {"a":$0,"b":$0,"c":3};',
+    init: 'const $0=[1,2];\nexport default {"a":$0,"b":{"c":$0}};',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
         const g = graphOf(text)
