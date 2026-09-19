@@ -48,9 +48,13 @@ instances of it. `outAt` is a different step and stays: a parser leaf's
 `meta` is `DjsTokenWithMetadata | Out`, and a token deliberately has no
 `id`, so `outAt`'s `assert('id' in meta)` is the narrowing from the
 grammar's input alphabet to its output one, which `Tagged.at` — typed over
-`{ readonly id: string }` — cannot perform. Each reader is then one line,
-`node => value.at(outAt(node))`, with `outAt` kept as the shared narrowing
-and the eight tag checks gone.
+`{ readonly id: string }` — cannot perform. `Tagged.at` takes the *node*
+and reads it through `symbolAt`, so the narrowing has to hand the node on,
+not its metadata: `outAt` becomes `(node: _Leaf) => Meta<Out> | readonly unknown[]`,
+asserting `'id' in meta` as it does now and returning the node it was
+given under the narrower type. Each reader is then one line,
+`node => value.at(outAt(node))`, with the narrowing kept once and the
+eight tag checks gone.
 
 ### Proposal
 

@@ -46,18 +46,24 @@ over the two things that differ — what a JSON document becomes, and what a
 parsed module becomes once its imports are bound:
 
 ```ts
-type _Context<T> = { readonly complete: OrderedMap<readonly [T]>, readonly stack: List<string> }
+/** A resolved module, whatever the arm makes of one: its exports beside its default. */
+type _Context<T> = { readonly complete: OrderedMap<T>, readonly stack: List<string> }
 const _walk: <T>(
     onJson: (value: JsonUnknown) => T,
     onModule: (source: _Source, bound: readonly T[], module: AstModule) => Effect<ReadFile | ResolveFileModule, T, ParseError>,
 ) => (source: _Source) => (context: _Context<T>) => Effect<ReadFile | ResolveFileModule, readonly [_Context<T>, T], ParseError>
 ```
 
-The transpiler's arm supplies `jsonDenotation` and the body that evaluates
-`values`; the linker's supplies `jsonEdag` and `lowered`. One `_Context<T>`
-replaces both context types — the one-tuple box `_Link` already uses for a
-possibly-`null` EDAG is harmless for a `Denotation`. `ParseContext` leaves
-`types.ts` in the same change.
+`T` is the **complete module** in both arms, not a bare value: the walk
+memoises what a later import reads `.default` from and what a root may ask
+either half of, so `onJson` returns the same shape `onModule` does. The
+transpiler's `T` is `ModuleDenotation`; its `onJson` is today's `jsonDone`
+body, `{ exports: jsonDenotation({ default: value }), default: jsonDenotation(value) }`,
+and its `onModule` the body that evaluates `values` and ends in `done`.
+The linker's `T` is `_Resolved`; its `onJson` is `completed` over
+`jsonEdag`, and its `onModule` is `lowered`. One `_Context<T>` replaces
+both context types, which already agree on the shape. `ParseContext`
+leaves `types.ts` in the same change.
 
 [interpret-edag](./interpret-edag.md) would retire the transpiler's
 evaluator eventually; it is blocked, and it says nothing about the walk. A
