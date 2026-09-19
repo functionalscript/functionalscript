@@ -24,7 +24,11 @@ file is a write in progress and not a ref.
 [`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in four
 effects — `packed-refs`, the directories above the file, the exclusive write of
 the id's hex digits and an LF, the rename — and gives the lock back where a
-failure after the write would otherwise leave it. The file is `oidBytes * 2 + 1`
+failure **after** that write would otherwise leave it, and never before it: a
+refusal above the write created nothing, and the lock that is there may be
+another writer's. A revision that cleaned up over the whole sequence would have
+deleted a live writer's lock on a `packed-refs` refusal; every refusal fixture
+now holds a foreign lock so that cannot come back. The file is `oidBytes * 2 + 1`
 bytes and not a fixed 41 — measured, `update-ref` writes 41 bytes in a SHA-1
 repository and 65 in one created with `git init --object-format=sha256`, whose
 ids are sixty-four digits.
@@ -212,9 +216,9 @@ else in the name has moved DISOT semantics into Git's namespace.
 
 ### Tasks
 
-- [x] Write a ref under a lock: the directories, the exclusive create, the 41
-      bytes, the rename, and the lock given back on a failure after it is
-      taken.
+- [x] Write a ref under a lock: the directories, the exclusive write of
+      `oidBytes * 2 + 1` bytes through one open, the rename, and the lock given
+      back on a failure after that write and not before it.
 - [x] Refuse a name a packed ref bars as a directory prefix, either way round,
       and a `packed-refs` that will not parse — the questions no filesystem
       answer can stand in for.

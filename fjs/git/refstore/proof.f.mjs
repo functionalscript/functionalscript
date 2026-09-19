@@ -1879,8 +1879,11 @@ export const proof = {
     // Five refusals, each before any effect runs — which is what the untouched
     // filesystem beside each one says.
     writeRefuses: () => {
+        // A lock of a name one of these writes targets, so the comparison in
+        // `refuses` says these answer before any effect runs at all — not merely
+        // that they leave the refs alone.
         /** @type {Dir} */
-        const root = { refs: { heads: { master: ref(a) } } }
+        const root = { refs: { heads: { master: ref(a), 'zero.lock': [] } } }
         /** @type {(name: string, hex: string, code: string) => IoErrorInfo} */
         const refuses = (name, hex, code) => {
             const [fs, r] = wrote(root, name, hex)
@@ -1953,12 +1956,17 @@ export const proof = {
                 assertEq(e.message, message)
                 assertStructurallySame(fs, root)
             })
+        // Each fixture holds a lock of the name being written, belonging to
+        // another writer, and `refuses` compares the whole filesystem — so a
+        // cleanup that reached back past the exclusive write would delete it and
+        // fail here. A revision of `unlocked` wrapped the whole sequence and did
+        // exactly that.
         refuses(
-            { 'packed-refs': file(`${a} refs/heads/a\n`), refs: { heads: {} } },
+            { 'packed-refs': file(`${a} refs/heads/a\n`), refs: { heads: { a: { 'b.lock': [] } } } },
             'refs/heads/a/b',
             'refs/heads/a exists; cannot create refs/heads/a/b')
         refuses(
-            { 'packed-refs': file(`${a} refs/heads/c/d\n`), refs: { heads: {} } },
+            { 'packed-refs': file(`${a} refs/heads/c/d\n`), refs: { heads: { 'c.lock': [] } } },
             'refs/heads/c',
             'refs/heads/c/d exists; cannot create refs/heads/c')
         // Three controls, because a check written over text rather than over
@@ -1985,9 +1993,15 @@ export const proof = {
     // `git update-ref refs/heads/n <id>` exits 128 with `unexpected line in
     // .git/packed-refs` and writes nothing, while the identical write against a
     // well-formed `packed-refs` exits 0 and writes the file.
+    // The lock in this fixture is another writer's, and the comparison below is
+    // what says this refusal leaves it alone: the refusal happens before the
+    // exclusive write, so the cleanup must not reach it.
     writeBadPacked: () => {
         /** @type {Dir} */
-        const root = { 'packed-refs': file('this is not a packed-refs file\n'), refs: { heads: {} } }
+        const root = {
+            'packed-refs': file('this is not a packed-refs file\n'),
+            refs: { heads: { 'master.lock': [] } },
+        }
         const [fs, r] = wrote(root, 'refs/heads/master', a)
         const e = writeRefusal(r)
         assertEq(e.code, badPackedCode)

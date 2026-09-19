@@ -1768,13 +1768,27 @@ const heldByAnother = e => e[0] === 'ioError' && e[1].code === 'EEXIST'
  * `cannot lock ref 'refs/heads/y': Unable to create '…/refs/heads/y.lock':
  * File exists` and write no `refs/heads/y`.
  *
- * **The `EEXIST` carve-out is the whole of why this is a function**, rather than
- * a `step` like the links around it: a cleanup reached through that one error
- * would take a live writer's lock away, which is the single failure where
- * removing the file is the wrong answer. Everything else it wraps — the
- * directories, the write, the rename — either created this writer's lock or
- * created nothing, and an `rm` of a name that is not there is answered and
- * dropped.
+ * **What it wraps is as load-bearing as what it does, and one revision of this
+ * got it wrong.** It wraps the exclusive write and the rename, and nothing
+ * before them. An earlier revision wrapped the whole sequence — the
+ * `packed-refs` read, the prefix check and the `mkdir` too — on the reasoning
+ * that those either create this writer's lock or create nothing, so an `rm` of a
+ * name that is not there would be answered and dropped. That reasoning is wrong
+ * whenever the lock *is* there and is somebody else's: {@link badPackedCode} and
+ * {@link refPrefixCode} both refuse before the write, neither is `EEXIST`, and
+ * the cleanup would have deleted a live writer's lock — after which a third
+ * writer takes the name while the first is still publishing, which is the one
+ * thing the lock exists to prevent. Found by review of
+ * [#2115](https://github.com/functionalscript/functionalscript/pull/2115), and
+ * pinned by the foreign lock in every refusal fixture: `writeBadPacked` and
+ * `writePackedPrefix` refuse a repository that holds one and compare the whole
+ * filesystem afterwards.
+ *
+ * The `EEXIST` carve-out covers the other half, inside the span: the exclusive
+ * write itself answers `EEXIST` for a name another writer holds, and that failure
+ * must not clean up either. Every other failure in the span may have created
+ * this writer's lock — a `wx` write that fails after its open leaves the name
+ * behind — and that one is this writer's to remove.
  *
  * The `rm`'s own outcome is dropped and the original error is what the caller
  * gets. Reporting the cleanup's failure instead would replace the reason the
@@ -2170,7 +2184,10 @@ export const tryWrite = (dirs, oidBytes) => name => id => {
         ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
         : collided(packed, name, dense))
     const made = step(checked, () => mkdir(parentOf(dir, text), { recursive: true }))
-    const locked = step(made, () => writeExclusiveUtf8File(lock, `${hexText(id)}\n`))
-    const published = step(locked, () => rename(lock, path))
-    return unlocked(lock, published)
+    // The cleanup starts at the exclusive write and not before it: a refusal or a
+    // failure above this line created nothing, and the lock that is there may be
+    // another writer's. See {@link unlocked}.
+    const filled = writeExclusiveUtf8File(lock, `${hexText(id)}\n`)
+    const published = step(filled, () => rename(lock, path))
+    return step(made, () => unlocked(lock, published))
 }
