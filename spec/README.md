@@ -51,6 +51,13 @@ stage and outrank everything else:
    except for explicitly specified semantic exceptions. This includes later
    observations through exported functions, not just the initial module value.
 
+The observable result is the serializable data the program returns. What a
+JavaScript engine reports about the *written* output of a compiler — a
+function's `name` or its text after `fsc` has serialized a module — is the
+writer's spelling, not a result of the program, and no compatibility
+question: a compatibility issue exists only where the same program returns
+different serializable data on a FunctionalScript VM and a JavaScript engine.
+
 The execution profile declares its ECMAScript and host-resolution environment.
 An exception names its profile, affected operations and observable consequences;
 an identity exception is not an excuse for arbitrary differences in another
@@ -836,8 +843,12 @@ arguments alone:
   would name them, and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property
-  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). Nor is the arity
-  observable, which is what leaves the two parameter lists nothing to be
+  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)), which is the
+  decision that retired the proposals that would have exposed a name. The
+  name a JavaScript engine gives a function it loads from the written
+  output is the writer's spelling, not a result of the program
+  ([principles](#principles)).
+  Nor is the arity observable, which is what leaves the two parameter lists nothing to be
   told apart by: `f.length` is `0` for a rest parameter as it is for none,
   a rest parameter not counting towards it in JavaScript.
 - A body `const` is the body's, and binds as a module's does: it names a
