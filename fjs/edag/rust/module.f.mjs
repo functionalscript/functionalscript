@@ -13,7 +13,7 @@
  * What stays with each caller: naming shared nodes (the corpus's own names via
  * `data.shared`, or synthetic names for a compiled module's implicit sharing),
  * and everything about *why* a printer is invoked — a test case, a whole
- * module's `pub fn module<A: IVm>() -> Any<A>`.
+ * module's `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.
  *
  * @module
  *
@@ -295,7 +295,7 @@ const resolvedBase = e => {
  * Every use site fixes `A`, so no expression needs a turbofish: the operators
  * above take `Any<A>` arguments and the shared `let` bindings are annotated.
  *
- * @type {(shared: readonly (readonly[Exp, string])[], options?: { readonly args?: string }) => (e: Exp) => Result<string, readonly unknown[]>}
+ * @type {(shared: readonly (readonly[Exp, string])[], options?: { readonly args?: string; readonly fallible?: boolean; readonly functionValue?: boolean }) => (e: Exp) => Result<string, readonly unknown[]>}
  */
 export const expExpr = (shared, options = {}) => {
     /**
@@ -333,7 +333,7 @@ export const expExpr = (shared, options = {}) => {
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(allOk(a.map(f)))
+                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(allOk(a.map(options.fallible ? nested : f)))
         }
         if (id === '{}') {
             return a.length === 0
@@ -345,7 +345,9 @@ export const expExpr = (shared, options = {}) => {
             const base = resolvedBase(a)
             if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
             if (nonObjectLiteralBase(base)) { return error(['no nanvm-lib own-property read for this receiver type yet', e]) }
-            return map2((fa, k) => `Any::own_property(${fa}, ${k}).unwrap()`)(f(a), indexExpr(b))
+            return map2((fa, k) => options.fallible
+                ? `Any::own_property(${fa}, ${k})`
+                : `Any::own_property(${fa}, ${k}).unwrap()`)(f(a), indexExpr(b))
         }
         if (id === ',') {
             // `Exps` admits an empty operand list in the schema (shape-only,
@@ -367,10 +369,7 @@ export const expExpr = (shared, options = {}) => {
             })(allOk(a.map(f)))
         }
         if (id === '=>') {
-            // `nanvm-lib` has no closures yet, so no `=>` node prints as one.
-            // The one lambda a caller may hand this printer is `() =>
-            // undefined`, which no operator inspects; any other lambda is
-            // refused rather than printed as a function it is not.
+            if (!options.functionValue) { return error(['no Rust for a function value in this stage', e]) }
             return isSmallestLambda(a, b) ? ok('function_any()') : error(['no Rust for', e])
         }
         return e.length === 2 ? map2((fn, x) => fn(x))(op1(id), nested(a))
@@ -378,8 +377,17 @@ export const expExpr = (shared, options = {}) => {
             : map4((fn, x, y, z) => fn(x, y, z))(op3(id), nested(a), nested(b), nested(c))
     }
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
+    /** @type {(e: Exp) => boolean} */
+    const resultNode = e => e instanceof Array && (
+        e[0] === '.' || (e.length === 2 && (/** @type {Record<string, unknown>} */ (op1Rust))[e[0]] !== undefined)
+        || (e.length === 3 && (/** @type {Record<string, unknown>} */ (op2Rust))[e[0]] !== undefined && e[0] !== '===')
+        || (e.length === 4 && (/** @type {Record<string, unknown>} */ (op3Rust))[e[0]] !== undefined)
+    )
     /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
-    const nested = e => mapOk(s => composed(e) ? `(${s})` : s)(f(e))
+    const nested = e => mapOk(s => {
+        const value = composed(e) ? `(${s})` : s
+        return options.fallible && resultNode(e) ? `${value}?` : value
+    })(f(e))
     /**
      * One object entry.
      *
@@ -395,16 +403,11 @@ export const expExpr = (shared, options = {}) => {
      */
     const propertyExpr = p => p[0] !== ':'
         ? error(['not a property', p])
-        : map2((k, v) => `(${k}, ${v})`)(keyExpr(p[1]), f(p[2]))
+        : map2((k, v) => `(${k}, ${v})`)(keyExpr(p[1]), options.fallible ? nested(p[2]) : f(p[2]))
     return f
 }
 
-/**
- * `true` for the operands of `() => undefined`: an empty frame and the
- * `undefined` node — the one `=>` this printer has a spelling for.
- *
- * @type {(frame: Exp, body: Exp) => boolean}
- */
+/** @type {(frame: Exp, body: Exp) => boolean} */
 const isSmallestLambda = (frame, body) =>
     frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
     && body instanceof Array && body[0] === 'undefined'

@@ -1,2 +1,2 @@
-/** A rest-argument function export for the Stage 1 AOT call path. */
+/** @type {(...args: any[]) => any[]} */
 export default (...args) => args;

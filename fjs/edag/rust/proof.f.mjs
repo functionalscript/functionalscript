@@ -62,7 +62,9 @@ export const proof = {
         assertEq(
             printed(['?:', true, 1, 2]),
             'Any::conditional(true.to_any(), (1f64).to_any(), (2f64).to_any())')
-        assertEq(printed(['=>', ['[]', []], ['undefined']]), 'function_any()')
+        assertEq(
+            unwrap(expExpr([], { functionValue: true })(['=>', ['[]', []], ['undefined']])),
+            'function_any()')
         assertEq(printed(['*', 1, 2]), '(1f64).to_any() * (2f64).to_any()')
     },
     /** A composed operand keeps its parentheses; an atomic one does not. */

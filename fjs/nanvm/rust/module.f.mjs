@@ -65,10 +65,10 @@ import { expExpr as sharedExpExpr, nodeExpr as sharedNodeExpr } from '../../edag
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
  */
-const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
+const expExpr = shared => e => unwrap(sharedExpExpr(shared, { functionValue: true })(e))
 
 /** @type {(e: Exp) => string} */
-export const nodeExpr = e => unwrap(sharedNodeExpr(e))
+export const nodeExpr = e => unwrap(sharedExpExpr([], { functionValue: true })(e))
 
 const indent = '    '
 

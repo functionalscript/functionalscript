@@ -12,7 +12,7 @@
  * operator conformance corpus the same way. What is specific to this module:
  * finding a whole module's implicitly shared nodes ({@link sharedNodesOf}
  * over the linked EDAG, rather than a corpus's explicit named `shared`),
- * naming them, assembling the `pub fn module<A: IVm>() -> Any<A>` a harness
+ * naming them, assembling the `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>` a harness
  * can call, and picking exactly the `nanvm_lib` imports and private helpers
  * the printed text actually needs — no harness crate to `use`, since this
  * output is meant to compile inside whatever crate a caller drops it into.
@@ -158,12 +158,16 @@ const functionRoot = root => root instanceof Array && root[0] === '=>' && root[1
 const functionLines = root => {
     if (!functionRoot(root)) { return error(['not a capture-free function', root]) }
     const body = /** @type {readonly any[]} */ (root)[2]
+    const resultBody = body instanceof Array && (
+        body[0] === '.' || ['+', '-', '*', '/', '**', '%', '&', '|', '^', '<<', '>>', '>>>',
+            '<', '<=', '>', '>=', '&&', '||', '??', 'own', 'typeof', 'String', '!', '~'].includes(body[0])
+    )
     return mapOk(s => [
         'fn f0<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {',
-        `${indent}Ok(${s})`,
+        `${indent}${resultBody ? s : `Ok(${s})`}`,
         '}',
         '',
-    ])(expExpr([], { args: 'args' })(body))
+    ])(expExpr([], { args: 'args', fallible: true })(body))
 }
 
 /**
