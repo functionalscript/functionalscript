@@ -57,7 +57,6 @@ const hostCheck = async (effect, check) => {
 
 const fixtures = {
     'dep #%.mjs': 'export const url = import.meta.url; export default [42];',
-    'suffix-dep.mjs': 'export const url = import.meta.url; import common from "./dep%20%23%25.mjs"; export default [common];',
     'other.mjs': 'export default [42];',
     'left.mjs': 'import value from "./dep%20%23%25.mjs"; export default value;',
     'right.mjs': 'import value from "./absent/%2e%2e/dep%20%23%25.mjs"; export default value;',
@@ -99,197 +98,26 @@ const sharing = value => {
     return [a === b, b === c, c !== d]
 }
 
-/** @type {(value: unknown) => readonly (readonly boolean[])[]} */
-const identities = value => {
-    assert(value instanceof Array)
-    return value.map(a => value.map(b => a === b))
-}
-
-const suffixes = /** @type {const} */ (['', '?v=1', '?v=1', '?v=2', '#a', '#b', '?', '#', '?#', '?v=1#', '?v=1#a', '?v=1#a', '?bad%/a:b#%2F'])
-const suffixGroups = /** @type {const} */ ([0, 1, 1, 2, 3, 4, 0, 0, 0, 1, 5, 5, 6])
-
-const nodeSuffixProof = {
-    suffixIdentities: () => withFixtures(async directory => {
-        const entry = new URL('entry%20%23%25.mjs', directory)
-        for (const suffix of ['', '?v=1', '#copy', '?v=1#copy', '?', '#', '?#', '?v=1#', '?q=é x', '?bad%/a:b#%2F']) {
-            const specifier = `./suffix-dep.mjs${suffix}`
-            const expected = import.meta.resolve(new URL(specifier, directory).href)
-            await hostCheck(resolveFileModule(specifier, entry.href + '?parent#old'), result => {
-                const { id, path } = unwrap(result)
-                assertEq(id, expected)
-                assertEq(path, fileURLToPath(new URL('suffix-dep.mjs', directory)))
-            })
-        }
-    }),
-    suffixSharing: () => withFixtures(async directory => {
-        const entry = new URL('entry%20%23%25.mjs', directory)
-        for (let attempt = 0; attempt < 2; attempt++) {
-            const values = await Promise.all(suffixes.map(async (suffix, i) => {
-                const name = `./${i === 2 ? '%73' : 's'}uffix-dep.mjs${suffix}`
-                const native = await import(new URL(name, entry).href)
-                await hostCheck(resolveFileModule(name, entry.href), result => {
-                    assertEq(unwrap(result).id, native.url)
-                    assertEq(unwrap(result).path, fileURLToPath(new URL('suffix-dep.mjs', directory)))
-                })
-                return native.default
-            }))
-            assertStructurallySame(identities(values), suffixGroups.map(a => suffixGroups.map(b => a === b)))
-            assert(values.every(value => value[0] === values[0][0]))
-        }
-    }),
-    symlinkAndJsonSuffixes: async () => {
-        const temporary = await mkdtemp(join(tmpdir(), 'fjs-module-suffix-'))
-        try {
-            // Windows can spell tmpdir() with an 8.3 name. Create the junction
-            // against the canonical root so both loaders use the same spelling.
-            const root = await realpath(temporary)
-            const real = join(root, 'real')
-            const alias = join(root, 'alias')
-            await mkdir(real)
-            // Directory junctions need no Windows symlink privilege.
-            await symlink(real, alias, 'junction')
-            await writeFile(join(real, 'common.mjs'), 'export default [42];')
-            await writeFile(join(real, 'dep.mjs'), 'export const url = import.meta.url; import c from "./common.mjs"; export default [c];')
-            const entry = pathToFileURL(join(root, 'main.mjs'))
-            const values = await Promise.all(['./real/dep.mjs?v=1', './alias/dep.mjs?v=1', './alias/dep.mjs?v=2'].map(async name => {
-                const native = await import(new URL(name, entry).href)
-                await hostCheck(resolveFileModule(name, entry.href), result => {
-                    assertEq(unwrap(result).id, native.url)
-                    assertEq(unwrap(result).path, join(real, 'dep.mjs'))
-                })
-                return native.default
-            }))
-            assert(values[0] === values[1] && values[0] !== values[2])
-            assert(values[0][0] === values[2][0])
-            await writeFile(join(root, 'data.json'), '[[42]]')
-            for (let attempt = 0; attempt < 2; attempt++) {
-                const jsonValues = await Promise.all(suffixes.map(async suffix => {
-                    const name = `./data.json${suffix}`
-                    const url = new URL(name, entry).href
-                    const native = await import(url, { with: { type: 'json' } })
-                    await hostCheck(resolveFileModule(name, entry.href), result => {
-                        assertEq(unwrap(result).id, import.meta.resolve(url))
-                        assertEq(unwrap(result).path, join(root, 'data.json'))
-                    })
-                    return native.default
-                }))
-                assertStructurallySame(identities(jsonValues), suffixGroups.map(a => suffixGroups.map(b => a === b)))
-            }
-            for (const suffix of ['?v=1', '#copy', '?', '#']) {
-                await hostCheck(resolveFileModule(`./alias/dep.mjs${suffix}`, entry.href), result => {
-                    assertEq(unwrap(result).id, import.meta.resolve(pathToFileURL(join(alias, 'dep.mjs')).href + suffix))
-                })
-            }
-        } finally {
-            await rm(temporary, { recursive: true, force: true })
-        }
-    },
-}
-
 export const proof = {
     resolveFileModule: {
-        absoluteFileRefusalsAndCycles: async () => {
-            const temporary = await mkdtemp(join(tmpdir(), 'fjs-absolute-errors-'))
-            try {
-                const root = await realpath(temporary)
-                const path = join(root, 'entry.mjs')
-                const entry = pathToFileURL(path).href
-                const base = pathToFileURL(`${root}${sep}`).href
-                await writeFile(path, 'export default 7;')
-                await writeFile(join(root, 'bad%.mjs'), 'export default 99;')
-                if (process.platform !== 'win32') {
-                    await writeFile(join(root, 'a:b.mjs'), 'export default 99;')
-                    await writeFile(join(root, 'a\\b.mjs'), 'export default 99;')
-                }
-                // Refuse invalid surviving bytes, separators and authorities,
-                // even when the forbidden filename exists on this filesystem.
-                for (const name of [
-                    base + 'bad%.mjs', base + '%ff.mjs', base + '%00.mjs',
-                    base + 'a%2Fb.mjs', base + 'a%5Cb.mjs', base + 'a%3Ab.mjs',
-                    'file://[bad/dep.mjs', 'file://user@localhost/dep.mjs', 'file://localhost:80/dep.mjs',
-                ]) {
-                    await hostCheck(resolveFileModule(name, entry), result => assertEq(result[0], 'error'))
-                }
-                // An absolute self import resolves to the root's identity.
-                for (const [name, parent] of [[path, null], [entry, entry]]) {
-                    assert(name !== null)
-                    await hostCheck(resolveFileModule(name, parent), result => {
-                        assertStructurallySame(unwrap(result), { id: entry, path })
-                    })
-                }
-            } finally {
-                await rm(temporary, { recursive: true, force: true })
-            }
-        },
-        absoluteFileImports: async () => {
-            const temporary = await mkdtemp(join(tmpdir(), 'fjs-absolute-import-'))
-            try {
-                const root = await realpath(temporary)
-                const real = join(root, 'real')
-                const alias = join(root, 'alias')
-                await mkdir(real)
-                await symlink(real, alias, 'junction')
-                await writeFile(join(real, 'common.mjs'), 'export default [42];')
-                for (const json of [false, true]) {
-                    const name = `dep #%.${json ? 'json' : 'mjs'}`
-                    const path = join(real, name)
-                    await writeFile(path, json ? '[[42]]' : 'export const url = import.meta.url; import c from "./common.mjs"; export default [c];')
-                    const url = pathToFileURL(path).href
-                    const other = pathToFileURL(join(alias, name)).href
-                    const entry = pathToFileURL(join(root, 'entry.mjs')).href
-                    const names = [
-                        `./real/dep%20%23%25.${json ? 'json' : 'mjs'}`, url,
-                        url.replace('file:', 'FILE:'), other,
-                        url.replace('/dep', '/%64ep'), url.replace('/dep', '/bad%/../dep'),
-                        url.replace('file://', 'file:'), url.replace('file://', 'file://localhost'),
-                        url + '?v=1', other + '?v=1', url + '?v=2',
-                        url + '#a', other + '#a', url + '#b', url + '?', url + '#',
-                        ...(process.platform === 'win32' ? [url.slice(0, 8) + encodeURIComponent(url.slice(8, 10)) + url.slice(10)] : []),
-                    ]
-                    const groups = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 0, 0, ...(process.platform === 'win32' ? [0] : [])]
-                    const suffixes = ['', '?v=1', '?v=2', '#a', '#b']
-                    for (const [i, specifier] of names.entries()) {
-                        await hostCheck(resolveFileModule(specifier, entry), result => {
-                            assertStructurallySame(unwrap(result), { id: url + suffixes[groups[i]], path })
-                        })
-                    }
-                    // Only Node defines the native identity profile. The adapter
-                    // contract above also runs under Bun and Deno.
-                    if (!('Bun' in globalThis) && !('Deno' in globalThis)) {
-                        for (let attempt = 0; attempt < 2; attempt++) {
-                            const values = await Promise.all(names.map(async specifier => {
-                                const resolved = new URL(specifier, entry).href
-                                const native = await import(resolved, json ? { with: { type: 'json' } } : {})
-                                await hostCheck(resolveFileModule(specifier, entry), result => {
-                                    assertEq(unwrap(result).id, json ? import.meta.resolve(resolved) : native.url)
-                                })
-                                return native.default
-                            }))
-                            assertStructurallySame(values, names.map(() => [[42]]))
-                            assertStructurallySame(identities(values), groups.map(a => groups.map(b => a === b)))
-                            assertStructurallySame(identities(values.map(value => value[0])), groups.map(a => groups.map(b => !json || a === b)))
-                        }
-                    }
-                }
-            } finally {
-                await rm(temporary, { recursive: true, force: true })
-            }
-        },
-        // Bun/Deno loaders retain empty delimiters; only Node defines this profile.
-        nodeSuffixes: 'Bun' in globalThis || 'Deno' in globalThis ? {} : nodeSuffixProof,
-        suffixCanonicalization: () => withFixtures(async directory => {
+        symlinkIdentity: () => withFixtures(async directory => {
+            const root = fileURLToPath(directory)
+            const real = join(root, 'real')
+            await mkdir(real)
+            await symlink(real, join(root, 'alias'), 'junction')
+            await writeFile(join(real, 'dep.mjs'), 'export const url = import.meta.url; export default [42];')
             const entry = new URL('entry%20%23%25.mjs', directory)
-            const file = new URL('suffix-dep.mjs', directory)
-            const cases = /** @type {const} */ ([
-                ['', ''], ['?', ''], ['#', ''], ['?#', ''],
-                ['?v=1#', '?v=1'], ['?#copy', '#copy'],
-                ['?v=1#copy', '?v=1#copy'], ['?q=é x', '?q=%C3%A9%20x'],
-                ['?bad%/a:b#%2F', '?bad%/a:b#%2F'],
-            ])
-            for (const [suffix, canonical] of cases) {
-                await hostCheck(resolveFileModule(`./suffix-dep.mjs${suffix}`, entry.href + '?parent#old'), result => {
-                    assertStructurallySame(unwrap(result), { id: file.href + canonical, path: fileURLToPath(file) })
+            const expected = pathToFileURL(join(real, 'dep.mjs')).href
+            for (const name of ['./real/dep.mjs', './alias/dep.mjs']) {
+                await hostCheck(resolveFileModule(name, entry.href), result => {
+                    assertStructurallySame(unwrap(result), { id: expected, path: join(real, 'dep.mjs') })
                 })
+            }
+            if (!('Bun' in globalThis) && !('Deno' in globalThis)) {
+                const direct = await import(new URL('./real/dep.mjs', entry).href)
+                const alias = await import(new URL('./alias/dep.mjs', entry).href)
+                assertEq(alias.url, expected)
+                assertEq(alias.default, direct.default)
             }
         }),
         fileIdentity: () => withFixtures(async directory => {
@@ -341,7 +169,7 @@ export const proof = {
         }),
         resolutionErrors: () => withFixtures(async directory => {
             const entry = new URL('entry%20%23%25.mjs', directory)
-            for (const name of ['./missing.mjs', './dep%2Fmjs', './bad%', 'https://example.com/dep.mjs']) {
+            for (const name of ['./missing.mjs', './dep%2Fmjs', './bad%', 'https://example.com/dep.mjs', entry.href, './dep%20%23%25.mjs?v=1', './dep%20%23%25.mjs#copy']) {
                 await hostCheck(resolveFileModule(name, entry.href), result => assertEq(result[0], 'error'))
             }
             const missing = fileURLToPath(new URL('missing.mjs', directory))

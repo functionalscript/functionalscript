@@ -5,7 +5,7 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
- * @import { Dirent, FileModule, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server } from '../types.ts'
+ * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server } from '../types.ts'
  * @import { Operation } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
@@ -14,8 +14,7 @@
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
-import { components, resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
-import { percentDecode } from '../../../text/percent/module.f.mjs'
+import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
@@ -38,19 +37,6 @@ export const emptyState = {
     listening: [],
     requests: [],
     responses: [],
-}
-
-/** Escape pathname delimiters so literal filenames cannot alias suffixes. @type {(path: string) => string} */
-const pathIdentity = path => normalize(path).replaceAll('%', '%25').replaceAll('?', '%3F').replaceAll('#', '%23')
-
-/** Virtual lexical resolution; suffix text is opaque, not a WHATWG URL parser. @type {(name: string, parent: string | null) => FileModule | null} */
-const fileModule = (name, parent) => {
-    if (parent === null) { return { id: pathIdentity(name), path: name } }
-    const base = percentDecode(components(parent).path)
-    if (base === null) { return null }
-    const { path: pathname, suffix } = components(name)
-    const path = resolveImportPath(base)(pathname)
-    return path === null ? null : { id: pathIdentity(path) + suffix, path }
 }
 
 /**
@@ -815,8 +801,8 @@ const map = {
     },
     mkdir: (path, p) => mkdir(p !== undefined)(path),
     resolveFileModule: (name, parent) => state => {
-        const location = fileModule(name, parent)
-        return [state, location === null ? fail('invalid module specifier') : ok(location)]
+        const path = parent === null ? name : resolveImportPath(parent)(name)
+        return [state, path === null ? fail('invalid module specifier') : ok({ id: normalize(path), path })]
     },
     readFile,
     readdir: (path, { recursive }) => readdir(path, recursive === true)(path),
