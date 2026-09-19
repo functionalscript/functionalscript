@@ -126,8 +126,8 @@ Two smaller shapes are worth measuring first:
 
 ### Related
 
-- [object-store.md](./object-store.md) — owns where a store looks; this issue
-  owns what it can spell.
+- [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks; this
+  issue owns what it can spell.
 - [alternates-line-quirks.md](./alternates-line-quirks.md) — carries this as one
   of the two lines where that reader and Git look in different directories, and
   the `NUL` as the shape that was a third until it was cut.

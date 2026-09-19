@@ -52,11 +52,26 @@
  * out with the delta at offset 470 and the base it names appended at 545. That
  * is also what makes an out-of-pack base a refusal here rather than a missing
  * feature: `--fix-thin` appends the bases a fetched pack lacked, so a pack on
- * disk carries its own, and one that does not is a pack this cannot read — the
- * base could be loose, in another pack, or nowhere, and answering from the wrong
- * one of those is worse than refusing. `tryRead` over the whole store, which
- * would resolve such a base wherever it lives, is
- * [object-store.md](../todo/object-store.md).
+ * disk carries its own.
+ *
+ * **Git refuses such a pack too, with the base in reach.** Measured on 2.43.0
+ * over two hand-built packs, alike but for where the base sits — the same delta
+ * instructions, the same index shape, and the crc32 the index carries computed
+ * over the entry as it lies in the pack:
+ *
+ * | the base | `git cat-file -p <target>` |
+ * | --- | --- |
+ * | the pack's own first entry | exit 0, the object |
+ * | loose, *and* in a second pack beside it | exit 128, `fatal: Not a valid object name` |
+ *
+ * The first row is the control that makes the second mean anything: the same
+ * delta, read. `git fsck` calls the second `failed to validate delta base
+ * reference at offset <n>` — a broken pack, not an object kept somewhere else.
+ * So resolving such a base through the whole store would answer for a pack every
+ * Git refuses, which is the shape [`fjs/git/pack`](../pack/module.f.mjs)'s delta
+ * floor was added to stop. What is left of the question is a choice about being
+ * deliberately more capable rather than a gap, and
+ * [packfiles.md](../todo/packfiles.md) carries it as an open decision.
  *
  * **`null` is absence and an error is corruption.** No pack in the directory
  * holds the id is `null`, which is what lets

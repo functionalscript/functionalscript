@@ -9,8 +9,8 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — operators, type
-annotations — and the design documents for the VM, I/O,
+Features the parser does not recognize yet — every operator but unary `-`,
+type annotations — and the design documents for the VM, I/O,
 serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
 
@@ -286,9 +286,9 @@ See
 
 ## Supported Value Types
 
-An expression is a data expression, a property access, a function or a call.
-Operators and grouping are not recognized yet — see the
-[roadmap](./todo/README.md).
+An expression is a data expression, a property access, a function, a call, a
+negation, or any of those in parentheses ([grouping](#grouping)). Unary `-` is
+the one operator — see the [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -313,8 +313,10 @@ also what a `.json` output cannot carry ([output](#output)).
 
 ### Numbers
 
-A number is written with JSON number syntax: an optional `-`, an integer part,
-an optional fraction, an optional exponent.
+A number is written with JSON number syntax less its sign: an integer part, an
+optional fraction, an optional exponent. A leading `-` is not part of the
+literal but the [unary minus](#supported-value-types) applied to it, which is
+why `- 42.5` is the same value written with a space.
 
 ```js
 export default [0, -42.5, 3e2, 1E-7];
@@ -336,14 +338,27 @@ bind or shadow them, so each denotes its value wherever a value stands.
 They still name a property, as every reserved word does: `{ NaN: 1 }` and
 `a.NaN` are a key and an access, and mean the string `"NaN"`, exactly as in
 JavaScript, where a property is named by an `IdentifierName` and a value by
-an `IdentifierReference`. `-Infinity` names nothing in either language: here
-it is one token, and in JavaScript it is two — the operator and the word —
-which no property name may be.
+an `IdentifierReference`. `-Infinity` names nothing in either language: it is
+two tokens in both — the operator and the word — which no property name may
+be.
 
-The `-` is lexical: it joins the number to its left as part of one token, so
-`-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
-`Infinity` the same way — `-Infinity` is one token and `-NaN` is not a value.
-There is no negation operator ([operators](./todo/2340-operators.md)).
+The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
+and the only operator the language has. It is not part of the literal after
+it: `-42.5` is the negation of `42.5`, `- 42.5` is the same value written with
+a space, and `-NaN` and `-Infinity` are values as JavaScript has them. It binds
+looser than a property access or a call, as it does in JavaScript, so `-1 .x`
+is `-(1 .x)` and `-1()` is `-(1())`. What it takes is JavaScript's
+`UnaryExpression`, which an arrow function is not, so `-(...a) => 1` is a
+syntax error in both. Two adjacent `-` characters are the decrement operator,
+which the language has no rule for: a negation of a negation is `- -1`.
+
+A negative number is therefore an expression rather than a literal *in the
+syntax*. The graph is another matter: lowering folds a negation of a numeric
+literal into the number, since negating one is exact arithmetic, so the EDAG
+of `-1` is the leaf `-1` and not an operation. A negation of anything else
+stays an operation there — folding one would mean saying what a string or a
+container converts to — and what such a value is worth is computed where a
+value is wanted, a `.json` or DataJS output being the value.
 
 ### Strings
 
@@ -480,6 +495,38 @@ it is the only spelling whose evaluation reproduces the property. In JSON
 output the plain key stays: `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the bracketed form is not JSON at all.
 
+## Grouping
+
+```js
+export default ([80, 443]).length;
+```
+
+A value may be written in parentheses, and it denotes that value: `(x)` is
+`x`, so the parentheses leave nothing behind — no node of their own and no
+change to which values a module shares — exactly as in JavaScript. A group
+is a value like any other and takes a property access or a call after its
+`)`, and it holds one value: a bare comma inside it waits on the comma
+operator ([operators](./todo/2340-operators.md)).
+
+Parentheses are not a boundary that anything downstream can see. They keep
+a property reference, so `(o.m)(a)` is the method call `o.m(a)` is
+([functions](#functions)), and they keep sharing, so a `const` reached
+through a group is the one value it is reached without one. They launder
+nothing either: `(1).x` is the access `1 .x` is, `(1)(2)` the call `1(2)`
+is, and `(o.toString)(1)` is refused at the key where `o.toString` is.
+
+What a group does change is how far a prefix reaches, since `-` binds looser
+than a step ([unary minus](#supported-value-types)): `(-1).x` is the access
+on the negation and `-1 .x` the negation of the access, as JavaScript reads
+each. A group is an operand of `-` as well, and the one way a function
+reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
+is a syntax error, there and here.
+
+A parenthesized parameter list, `(a, b) => …`, is not a group and is not
+recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
+tells one from the other only past the `)`, so `(a) => 1` is read as a group
+and refused at the `=>`.
+
 ## Property Access
 
 ```js
@@ -487,12 +534,13 @@ const cfg = { ports: [80, 443] };
 export default [cfg.ports[0], cfg["ports"].length];
 ```
 
-A property access reads an **own property** of any value but a number or a
-bigint literal — a reference, an array, an object or a string written out, or
-an access — a member of an object, an element or the `length` of an array, a
-code unit or the `length` of a string. A number or a bigint literal takes no
-access: JavaScript reads `-1 .x` as `-(1 .x)`, and the language has no
-negation to read it that way, so `1 .x` is an error while `const n = 1;`
+A property access reads an **own property** of any value — a reference, an
+array, an object, a number or a string written out, or an access — a member of
+an object, an element or the `length` of an array, a code unit or the `length`
+of a string. A numeric literal takes an access like anything else: `1 .x` is
+`undefined`, written with a space since `1.x` is one number and a stray word.
+The sign binds looser, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and
+`const n = 1;`
 followed by `n.x` is `undefined` in both languages. The key is a constant — an identifier
 after `.`, or a string or a number in brackets — and `0` and `"0"` name the
 same element, as in JavaScript. A property the value does not own is
@@ -629,28 +677,52 @@ The same function, written with a block body:
 export default (...args) => { return [args, args[0]]; };
 ```
 
-A function is written as an arrow function of one rest parameter, and its
-body is an expression or a block. It denotes a function of its arguments
-alone:
+A function that takes no arguments, its parameter list empty:
+
+```js
+export default () => 6;
+```
+
+A function is written as an arrow function of one rest parameter or of none,
+and its body is an expression or a block. It denotes a function of its
+arguments alone:
 
 - The parameter is the arguments array, `args[0]` the first argument, and
   the body may name it and nothing declared outside — a `const`, an import,
   or an enclosing function's parameter is a **capture**, which is an error
   ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
   a module name, as in JavaScript.
+- An **empty parameter list** binds no name at all, so a body written under
+  one cannot reach its arguments: the arguments array is named by the
+  parameter and by nothing else, and a word the list does not spell is
+  unbound here exactly as any other unbound word is. Nothing else
+  distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
+  function, and a body `const` may take the name a parameter would have
+  taken, there being no parameter to collide with. A list of **named**
+  parameters, `(a, b) => body`
+  ([parameters](./todo/3120-parameters.md)), is not recognized yet.
 - The body is an expression or a block, and `value` and `{ return value; }`
-  denote the same function. As an expression the body is any value except an
-  object literal: after `=>` JavaScript reads `{` as a block, never as an
-  object, so the spelling is refused rather than read another way. The block
+  denote the same function. As an expression the body is any value except a
+  bare object literal: after `=>` JavaScript reads `{` as a block, never as
+  an object, so the spelling is refused rather than read another way, and the
+  object is written in parentheses instead ([grouping](#grouping)) —
+  `(...args) => ({ a: 1 })`, as in JavaScript. The block
   is any number of `const` statements and then one `return`, each with its
   `;` as after every statement, and an object literal is an ordinary value
   again, since after `return` JavaScript expects an expression. `return` and
   the value share a line: a newline between them ends the statement in
   JavaScript, which would return `undefined`, so it is refused here rather
-  than read another way, exactly as a newline before `=>` is. A parameter
-  list other than one rest parameter
-  ([function](./todo/3110-function.md), [parameters](./todo/3120-parameters.md))
-  is not recognized yet.
+  than read another way, exactly as a newline before `=>` is.
+- A function **carries no name**. Its EDAG is `['=>', frame, body]`,
+  name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
+  `export default () => 0` compile to the same node whatever JavaScript
+  would name them, and no program observes the difference: `f.name` is
+  refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
+  `name` is not an enumerable own property
+  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). Nor is the arity
+  observable, which is what leaves the two parameter lists nothing to be
+  told apart by: `f.length` is `0` for a rest parameter as it is for none,
+  a rest parameter not counting towards it in JavaScript.
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
   written twice, and it is not in its own initializer's scope. The parameter
@@ -681,9 +753,10 @@ alone:
   Parentheses around the property do not drop the receiver: `(o.m)(a)`
   passes `o` as surely as `o.m(a)` does, since the parentheses keep the
   property reference — only detaching the value loses it, as `(0, o.m)(a)`
-  does with the comma operator. Neither spelling is in the language yet, so
-  `o.m(a)` is the one way to call a method and every call written on a
-  property is a call with a receiver.
+  does with the comma operator. `(o.m)(a)` is in the language
+  ([grouping](#grouping)) and is the same program as `o.m(a)`, down to the
+  graph it compiles to; the detached spelling waits on the comma operator,
+  so every call written on a property today is a call with a receiver.
 
   A method call's property is the access's, so the names an access may not
   read, a built-in prototype's among them

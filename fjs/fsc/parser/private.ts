@@ -44,6 +44,15 @@ export type _ListNode = readonly [
     Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _OptionalList]>]>,
 ]
 
+/**
+ * The node of a function's parameter list: no round, or one holding
+ * `... t id t`, the parameter's token at the third position. The parameter
+ * is an `identifierName`, a choice of one symbol per word, so its token is
+ * one level in, under the alternative the word matched — as a `const`'s
+ * name is.
+ */
+export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown]>]>
+
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
 export type _AccessNode = Unmapped<readonly [string, unknown]>
 
@@ -91,7 +100,7 @@ export type _ContainerFrame = {
  * the order written, which is the order they are evaluated in.
  */
 export type _CallFrame = {
-    readonly call: readonly ['()', Node, readonly Node[], DjsTokenWithMetadata]
+    readonly call: readonly ['()', Node, readonly Node[]]
     readonly index: number
     readonly done: List<AstConst>
 }
@@ -128,9 +137,16 @@ export type _BodyFrame = {
     readonly result: Node
 }
 
-export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _FunctionFrame | _BodyFrame
+/**
+ * A negation whose operand is being evaluated. It carries nothing: the
+ * node is the operand's value negated, and one is enough to tell the frame
+ * from the others.
+ */
+export type _NegFrame = { readonly neg: true }
 
-/** The containers, accesses and functions suspended around the node being evaluated, innermost on top. */
+export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _NegFrame | _FunctionFrame | _BodyFrame
+
+/** The containers, accesses, negations and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */

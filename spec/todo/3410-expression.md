@@ -9,4 +9,6 @@ export default {
 }
 ```
 
-Depends on [function](./3110-function.md) and [grouping](./2350-grouping.md)
+Depends on functions and on grouping, both implemented
+([functions](../README.md#functions), [grouping](../README.md#grouping)) — the
+grouping is what gives the object body of `"c"` its spelling.

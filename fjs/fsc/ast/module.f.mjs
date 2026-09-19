@@ -112,6 +112,39 @@ const noFunctionValue = 'a function has no value'
 const noCallValue = 'a call has no value'
 
 /**
+ * The refusal of a value this evaluator has no number for: a container.
+ *
+ * Converting one is `ToPrimitive`, JavaScript's own machinery — `valueOf`,
+ * then `toString`, and a `TypeError` where neither answers with a
+ * primitive. Which of those a value reaches depends on what it holds, so
+ * saying in advance that a container converts means assuming what may be
+ * in it. This refuses instead. The numbers JavaScript would give — `-[1]`
+ * is `-1`, `-{}` is `NaN` — wait on that machinery being written rather
+ * than reasoned about.
+ */
+const noNumber = 'no number for this value'
+
+/**
+ * A value negated, as JavaScript's unary `-` negates it: a bigint stays a
+ * bigint, and every other primitive converts — `-null` is `-0`, `-"2"` is
+ * `-2`, `-true` is `-1`, `-undefined` is `NaN`. `Number` is total over
+ * those five and cannot throw, which is what makes this total without
+ * knowing anything about the value beyond its type.
+ *
+ * Anything else is {@link noNumber}'s.
+ *
+ * @type {(value: Unknown) => Result<Unknown, string>}
+ */
+const negated = value => {
+    if (typeof value === 'bigint') { return ok(-value) }
+    if (value === null) { return ok(-0) }
+    switch (typeof value) {
+        case 'number': case 'string': case 'boolean': case 'undefined': { return ok(-Number(value)) }
+        default: { return error(noNumber) }
+    }
+}
+
+/**
  * The value of one entry, or the failure. An object's members are written
  * into a plain object in the order the syntax holds them, so the result is
  * the object JavaScript builds from the same literal: a repeated key keeps
@@ -130,6 +163,7 @@ const toDjs = state => ast => {
         case '=>':
         case 'args': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
+        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -217,6 +251,9 @@ const refsOf = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
+        // what a negation's operand leaves is the view's: the graph holds it
+        // and the value does not, a negation being a primitive
+        case '-': { return flat(view.negated(ast[1]).map(refsOf(view))) }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }
@@ -390,11 +427,26 @@ const selected = ast => {
 /** A node as the value's view reads it: an access {@link selected}, anything else itself. @type {(ast: AstConst) => AstConst} */
 const selectedOf = ast => ast !== null && typeof ast === 'object' && ast[0] === '.' ? selected(ast) : ast
 
-/** The syntax as the EDAG evaluates it: every member written, and a literal whole before it is read. @type {_View} */
-const written = { members: memberValuesWritten, through: ast => ast }
+/**
+ * The syntax as the EDAG evaluates it: every member written, a literal
+ * whole before it is read, and a negation's operand followed — the graph
+ * holds it as a node of its own, so a `const` nothing but a negation
+ * reaches is reached all the same.
+ *
+ * @type {_View}
+ */
+const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand] }
 
-/** The syntax as the value has it: the last member per key, and of a literal read only what the key selects. @type {_View} */
-const value = { members: memberValues, through: selected }
+/**
+ * The syntax as the value has it: the last member per key, of a literal
+ * only what the key selects, and of a negation nothing — `-x` is a number
+ * or a bigint whatever `x` was, so the operand is consumed and no part of
+ * it is in the value. `const a = []; export default [-a, -a];` is
+ * `[-0, -0]`, two primitives and no node shared between them.
+ *
+ * @type {_View}
+ */
+const value = { members: memberValues, through: selected, negated: () => [] }
 
 /** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })

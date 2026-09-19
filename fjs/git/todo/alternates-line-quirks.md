@@ -89,8 +89,8 @@ that one was not, which is why it was fixed instead of listed.
 
 ### Related
 
-- [object-store.md](./object-store.md) — owns where a store looks; this issue
-  owns the two lines it looks at differently.
+- [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks; this
+  issue owns the two lines it looks at differently.
 - [byte-paths.md](./byte-paths.md) — owns what a path can spell, and where the
   `NUL` cut belongs once one is a byte list.
 - [`fjs/git/store`](../store/module.f.mjs) — `alternatesIn`, and its note on why

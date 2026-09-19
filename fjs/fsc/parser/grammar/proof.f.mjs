@@ -15,8 +15,8 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, array, attribute, block, body, constStatement, djsModule,
-    exportStatement, func, identifier, importStatement, index, items, key, member, object, primitive, sym, symbolOf, trivia,
-    value,
+    exportStatement, func, group, identifier, importStatement, index, items, key, member, object, parameters, paren, parenGroup,
+    parenthesized, primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -66,7 +66,12 @@ export const proof = {
         parser(/** @type {Rule} */ (value))
         parser(/** @type {Rule} */ (array))
         parser(/** @type {Rule} */ (object))
+        parser(parameters)
         parser(/** @type {Rule} */ (func))
+        parser(/** @type {Rule} */ (group))
+        parser(/** @type {Rule} */ (parenthesized))
+        parser(/** @type {Rule} */ (paren))
+        parser(/** @type {Rule} */ (parenGroup))
         parser(/** @type {Rule} */ (body))
         parser(/** @type {Rule} */ (block))
         parser(attribute)
@@ -97,14 +102,15 @@ export const proof = {
     // of them may be *bound* is the fold's to say, as for every other
     // keyword. Where a value may stand, the word is the value.
     //
-    // `-Infinity` is one token and no name, so it is where the grammar
-    // still answers.
+    // `-Infinity` is no longer a word: it is the prefix and `Infinity`, so
+    // where a value may stand it is a negation, and where a key may stand
+    // the `-` is what the grammar answers at.
     reserved: () => {
         assertStructurallySame(read('const NaN = 1;\nexport default NaN;'), ['ok'])
         assertStructurallySame(read('export default { Infinity: 1 };'), ['ok'])
         assertStructurallySame(read('const a = { NaN: 1 };export default a.NaN;'), ['ok'])
         assertStructurallySame(read('export default [NaN, Infinity, -Infinity];'), ['ok'])
-        assertStructurallySame(read('export default { -Infinity: 1 };'), ['error', '-Infinity'])
+        assertStructurallySame(read('export default { -Infinity: 1 };'), ['error', '-'])
     },
     accepted: () => {
         assertStructurallySame(read('export default 1;'), ['ok'])
@@ -133,18 +139,36 @@ export const proof = {
         assertStructurallySame(read('export default {};'), ['ok'])
         assertStructurallySame(read('export default [];'), ['ok'])
     },
-    // A function: `(`, `...`, one parameter, `)`, `=>`, and a body that is
+    // A function: `(`, the parameter list, `)`, `=>`, and a body that is
     // a value less the object — `=> {` opens a block, which `block` below
-    // covers — each token followed by its trivia; no other parameter form
-    // yet
+    // covers — each token followed by its trivia. The list is the one rest
+    // parameter or nothing; no named form yet
     func: () => {
         assertStructurallySame(read('export default (...a) => a;'), ['ok'])
         assertStructurallySame(read('export default ( ... a ) => /* c */ [ a , (...b) => 1 , ] ;'), ['ok'])
         assertStructurallySame(read('const f = (...a) => a.b[0]; export default { f: f };'), ['ok'])
-        assertStructurallySame(read('export default () => 1;'), ['error', ')'])
-        assertStructurallySame(read('export default (a) => 1;'), ['error', 'a'])
+        // the empty list, and the trivia inside it: the one symbol after
+        // the `(` decides all three ways — `...` opens the parameter, `)`
+        // closes an empty list, and everything a value may start with is a
+        // group's
+        assertStructurallySame(read('export default () => 1;'), ['ok'])
+        assertStructurallySame(read('export default ( /* c */ ) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (\n) => 1;'), ['ok'])
+        assertStructurallySame(read('export default () => () => 1;'), ['ok'])
+        assertStructurallySame(read('export default () => { return 1; };'), ['ok'])
+        assertStructurallySame(read('const f = () => 1; export default f();'), ['ok'])
+        // `(a)` is a group of a reference, so the failure is not at the
+        // name but at the `=>`, which cannot follow a value: parenthesized
+        // parameters wait on named parameters
+        // (`spec/todo/3120-parameters.md`), which JavaScript itself tells
+        // from a group only past the `)`
+        assertStructurallySame(read('export default (a) => 1;'), ['error', '=>'])
         assertStructurallySame(read('export default (...1) => 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a, ...b) => 1;'), ['error', ','])
+        assertStructurallySame(read('export default (,) => 1;'), ['error', ','])
+        assertStructurallySame(read('export default () 1;'), ['error', 'number'])
+        assertStructurallySame(read('export default () => ;'), ['error', ';'])
+        assertStructurallySame(read('export default ()\n=> 1;'), ['error', 'nl'])
         assertStructurallySame(read('export default (...a) 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a) => ;'), ['error', ';'])
         // no line terminator before `=>`, as JavaScript has it: a newline,
@@ -226,6 +250,57 @@ export const proof = {
         assertStructurallySame(read('const a = {}; export default a.1;'), ['error', 'number'])
         assertStructurallySame(read('const a = {}; export default a.;'), ['error', ';'])
         assertStructurallySame(read('const a = {}; export default a."b";'), ['error', 'string'])
+    },
+    // A group is a value in parentheses, the other thing a `(` opens: the
+    // two part at the symbol after it, `...` against a value's first, so
+    // one symbol of lookahead still decides and the grammar never looks
+    // past the `)`.
+    //
+    // A group takes steps as any value does, and the value inside is the
+    // whole value rule — the object included, which is what gives a
+    // function returning an object its short spelling.
+    group: () => {
+        assertStructurallySame(read('export default (1);'), ['ok'])
+        assertStructurallySame(read('export default ((1));'), ['ok'])
+        assertStructurallySame(read('export default ( /* c */ 1 /* c */ ) ;'), ['ok'])
+        assertStructurallySame(read('export default ({ a: 1 });'), ['ok'])
+        assertStructurallySame(read('export default ([1, 2]).length;'), ['ok'])
+        assertStructurallySame(read('const a = {}; export default (a).b[0];'), ['ok'])
+        // a function is a value, so a group holds one, and a group is a
+        // value, so a function's body is one — which is how a body spells
+        // the object `=> {` cannot
+        assertStructurallySame(read('export default ((...a) => 1);'), ['ok'])
+        assertStructurallySame(read('export default (...a) => (a);'), ['ok'])
+        assertStructurallySame(read('export default (...a) => ({ x: a });'), ['ok'])
+        assertStructurallySame(read('export default (...a) => ({ x: a }).x;'), ['ok'])
+        // a call on a group: the grammar takes it, and it is the same call
+        // `o.b(1)` is, since parentheses keep the property reference
+        assertStructurallySame(read('const o = {}; export default (o.b)(1);'), ['ok'])
+        // a group holds one value and holds it: no bare comma (which waits
+        // on the operator, `spec/todo/2340-operators.md`), and no missing
+        // `)`. The hole is not refused here any more: `()` is a function's
+        // empty parameter list, which the `(` opens wherever a value may
+        // stand, so the refusal is at the `=>` that never comes. That is
+        // one symbol past JavaScript's own, which backtracks to the `)`
+        // once it finds no arrow — a reach this grammar does not have and
+        // does not need, the spelling being refused either way. Under a
+        // `-` the `(` opens a group alone, and the hole is refused at the
+        // `)` there, below
+        assertStructurallySame(read('export default ();'), ['error', ';'])
+        assertStructurallySame(read('export default (,);'), ['error', ','])
+        assertStructurallySame(read('export default (1, 2);'), ['error', ','])
+        assertStructurallySame(read('export default (1;'), ['error', ';'])
+        assertStructurallySame(read('export default (1));'), ['error', ')'])
+        // a group is a `-`'s operand, and the only way a function reaches
+        // one: `-((...a) => 1)` is a `UnaryExpression` in JavaScript where
+        // `-(...a) => 1` is a syntax error, so the operand rule is the
+        // group alone and the `...` is refused where JavaScript refuses it
+        assertStructurallySame(read('export default -(1);'), ['ok'])
+        assertStructurallySame(read('export default -(1).x;'), ['ok'])
+        assertStructurallySame(read('export default - -(1);'), ['ok'])
+        assertStructurallySame(read('export default -((...a) => 1);'), ['ok'])
+        assertStructurallySame(read('export default -(...a) => 1;'), ['error', '...'])
+        assertStructurallySame(read('export default -();'), ['error', ')'])
     },
     // A call is a step after a value, as an access is: `(` decides it, and
     // what it applies to is everything written before it. Its arguments are

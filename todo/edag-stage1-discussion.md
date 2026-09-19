@@ -13,8 +13,9 @@ Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
 non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
 [property-accessor](../spec/todo/2330-property-accessor.md); source functions
-and later captured frames are tracked by [function](../spec/todo/3110-function.md)
-and [function-frame](../spec/todo/3111-function-frame.md); VM-internal call
+are in the language ([functions](../spec/README.md#functions)) and later
+captured frames are tracked by
+[function-frame](../spec/todo/3111-function-frame.md); VM-internal call
 lowering belongs to
 [call-like-instructions](../spec/todo/9100-call-like-instructions.md).
 
@@ -410,7 +411,7 @@ recursion with no special machinery.
 
 - **Mutual recursion is not covered.** `["self"]` reaches only the
   innermost enclosing function; `a` calling `b` calling `a`
-  ([function](../spec/todo/3110-function.md) has exactly this example)
+  ([function-frame](../spec/todo/3111-function-frame.md) has exactly this example)
   is a cycle *between* functions. Either the partner is passed as an
   argument, or mutually recursive functions form a hashed **group** with
   members addressed by index. Open, and it belongs with subject 9 —
@@ -892,7 +893,7 @@ the FJS compiler would never emit. To validate:
 
 - constants: function values in constant position are a validation error
   (until a `["=>", ...]` node exists,
-  [function](../spec/todo/3110-function.md));
+  [functions](../spec/README.md#functions));
 - the body: a single operation node;
 - `","` (when introduced): at least two operands — a single-operand
   `","` is the identity and non-canonical; an assert operand reachable
