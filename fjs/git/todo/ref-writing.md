@@ -47,9 +47,20 @@ bytes unchanged. That is `fjs/effects/node`'s `writeExclusive`, added for this.
 Adding it widens `NodeOp`, which a custom runner must implement, so the PR
 declares a breaking change.
 
-No runner here can see that fix: the virtual filesystem has no symlinks and the
-host proofs write nothing, since the Deno task runs without `--allow-write`. What
-holds it is `tryWrite`'s own `@type` — the two calls put
+The virtual runner cannot see that fix — it has no symlinks — and for two review
+rounds nothing else could either, because a proof that writes on the host was
+refused by the Deno task's permissions. `60abfe04` on `main` granted
+`--allow-write` for the file-module fixtures, which is what makes
+`effects/node/proof.mjs`'s `writeExclusive` proofs possible: they hold the flag
+itself. `exclusive` writes a free name and reads the bytes back, then refuses the
+same name with the bytes it held unchanged; `symlink` plants a link at the name
+and a dangling link beside it and refuses both with the target untouched and the
+named file never created. Changing `wx` back to `w` reddens both and nothing else,
+which is the check the earlier rounds could only assert. The file symlinks are
+skipped on Windows, where creating one needs a privilege — hence the first case,
+which holds the flag on every platform on its own.
+
+`tryWrite`'s own `@type` holds the rest: the two calls put
 `CreateExclusive | WriteFile` in the operation set and the annotation names
 `WriteExclusive`, so `tsc` refuses the revision. A `types.ts` `Assert<Equal<…>>`
 restating that set was written and deleted: falsifying it reported, but breaking
@@ -57,7 +68,7 @@ the *mechanism* reported at the annotation instead, so it claimed a guard it did
 not provide.
 
 **And the rollback is the runner's, because that is where `O_EXCL` succeeding is
-known.** Three revisions decided ownership at the caller instead and each was a
+known.** Two revisions decided ownership at the caller instead and each was a
 review finding. The first cleaned up over the whole sequence, so a `packed-refs`
 refusal deleted a live writer's lock. The second kept the write inside the span
 and carved out `EEXIST` as the one "not mine" error — also wrong: measured on node
@@ -69,7 +80,19 @@ or is not there. Every refusal fixture holds a foreign lock, and
 `writeNotMineOnAnyError` drives an `EMFILE` host, so neither revision can come
 back.
 
-What is left of that: if the runner's `close` fails after a successful write the
+**The rollback itself has no fixture, and none is available here.** It runs where
+the write fails after the `O_EXCL` open succeeded, and nothing in node's API
+produces that: the open is what fails for a taken name, a bad path or a full
+descriptor table, and once it has succeeded a write of at most `maxLengthBytes`
+to a fresh descriptor does not fail without a filesystem fault. `fromVec` cannot
+raise it either — `writeExclusive` refuses a non-octet `Vec` ahead of the host,
+and every other `Vec` converts. So deleting the `rm` leaves the suite green,
+measured, and that is recorded rather than closed with a contrivance: a proof
+would need a fault-injecting filesystem, and inventing a failure the operation
+does not otherwise have in order to reach the line would put the test's shape
+into the runner.
+
+What is left over: if the runner's `close` fails after a successful write the
 file is left behind, and the rollback unlinks by path rather than by descriptor,
 so a replacement in that window would be removed instead. Both are failures on a
 filesystem already failing, and both are `fjs/effects/node`'s to fix if a caller
@@ -284,6 +307,9 @@ else in the name has moved DISOT semantics into Git's namespace.
       [`fjs/effects/node/virtual/todo/mkdir-over-a-file.md`](../../effects/node/virtual/todo/mkdir-over-a-file.md)
       stops the virtual `mkdir` replacing a file with a directory — today a
       fixture there would watch the writer delete a ref and pass.
+- [ ] Hold the `writeExclusive` rollback with a proof, if a way to fail a write
+      after the `O_EXCL` open ever exists here — a fault-injecting host runner,
+      or an `Fs` seam a proof can answer for. Deleting the `rm` is green today.
 - [ ] Delete a ref: the loose file *and* the `packed-refs` line, under
       `packed-refs`'s own lock, or the packed line comes back as the ref.
 - [ ] Decide whether a write checks that the object is there **and, under
