@@ -206,6 +206,22 @@ the same shape as a generated function's body (Task 5). The `,` node's
 what a failing sub-expression inside it does (propagates via `?` the same
 as anywhere else).
 
+**Fallibility composes, and the printer must thread it through every
+operand position, not just the outermost one.** Once `.`'s own read can
+fail, its *receiver* can too — `{ a: { b: 1 } }.a.b` is
+`['.', ['.', obj, 'a'], 'b']`, an ordinary `.` node whose base is itself a
+`.` node. Printing the outer node's base as a plain `Any<A>` expression
+(reusing whatever helper prints a non-fallible operand) is wrong the moment
+that base's own printer can emit a `Result`-typed expression — the base
+needs the same `?`-propagation as any other fallible sub-expression, not
+just the read built on top of it. This is easy to get backwards by patching
+only the operation actually being made fallible (`.`'s own
+`Any::own_property(…)`) and reusing the existing operand-printing helper
+unchanged for its *base* — the bug is silent until a chain nests two
+fallible reads, so it needs its own test case (a two-level property chain,
+not just a one-level read) rather than trusting the single-level fixtures
+above to exercise it.
+
 **Blast radius, and why it's mechanical rather than risky:** every committed
 fixture in `nanvm-harness/fixtures/*.rs` needs regenerating (the return type
 changed on all of them, function or not), which `npm run gen`'s drift check
@@ -357,6 +373,25 @@ not a general EDAG property):
  */
 export const functionsOf = root => { /* … */ }
 ```
+
+**This has to be a genuine reachability walk from the linked root, never a
+shape check against the root value itself** (`root[0] === '=>'`, say).
+`resolve` in `fjs/fsc/edag/module.f.mjs` anchors any unreached `const` or
+import ahead of the real exported value with a `,` node, so an ordinary
+module with one unused import beside a function export —
+`import unused from './u.f.js'; export default () => 42;` — links to a `,`
+root whose *last* operand is the `=>` node, not a `=>` root directly. A
+check that only recognizes the arrow as the module's literal top-level
+value refuses every such module outright, for a reason that has nothing to
+do with the function itself. `functionsOf` doesn't need special-casing for
+this: an ordinary recursive walk (visit every node reachable from `root`,
+the same way `sharedNodesOf` already does) finds the `=>` node wherever it
+sits — as the root, as a `,` node's last operand, as a call's callee —
+because nothing about *finding* a node depends on where the search started.
+Anchor the fixture set on this directly: at least one Stage 1 fixture
+should carry an unreached `const` or import alongside its function export,
+so a shape-check regression shows up as a test failure rather than only in
+a hand-written repro.
 
 Each discovered function is assigned a private, module-scope Rust name in
 that same stable order — `f0`, `f1`, … (a separate namespace from the
@@ -512,8 +547,10 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
 ### Tasks
 
 - [ ] Task 1: `pub fn module` returns `Result<Any<A>, Any<A>>`; replace the
-      `.` node's `.unwrap()` with `?`; regenerate every committed fixture;
-      update `nanvm-harness`'s `run` and its tests.
+      `.` node's `.unwrap()` with `?`, propagating through a fallible node's
+      *operand* positions too (a `.` chain's base, not just its own read);
+      regenerate every committed fixture; update `nanvm-harness`'s `run` and
+      its tests.
 - [ ] Task 2: fix/rename `isSmallestLambda` to recognize `frame === null`;
       drop the `body[0] === 'undefined'` restriction; remove the phantom
       `function_any()` call.
@@ -522,9 +559,12 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
 - [ ] Task 4: scope `sharedNodesOf`'s walk to stop at a `=>` node's `body`;
       run `letLines`/`bodyLines` once per scope (module, plus one per
       discovered function).
-- [ ] Task 5: add `functionsOf` (or similarly named) — discover every `=>`
-      node, refuse one used anywhere but a call's callee position, assign
-      deterministic names, emit each as its own `#[rustfmt::skip] fn`.
+- [ ] Task 5: add `functionsOf` (or similarly named) — a genuine reachability
+      walk from the linked root (not a shape check on the root value, which
+      the linker's own comma-wrapping of unreached consts/imports would
+      defeat) — discover every `=>` node, refuse one used anywhere but a
+      call's callee position, assign deterministic names, emit each as its
+      own `#[rustfmt::skip] fn`.
 - [ ] Task 6: print `['()', callee, args]` as a direct call when `callee` is
       a discovered function and `args` is a fresh array literal; add the
       bare-`Array<A>`-without-`.to_any()` printer helper this needs; refuse
