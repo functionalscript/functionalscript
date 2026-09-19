@@ -120,8 +120,13 @@ li[data-status="passed"] { color: var(--muted) }
    input, and it was Arial the moment the first demo landed. A list that has to
    be extended for each new control is a rule that is wrong between the element
    arriving and somebody noticing. */
-button, input, pre { font: inherit }
+button, input, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
+/* A textarea's own baseline sits at its bottom edge, so a label before a
+   multi-line field — the JSON demo's, the first of its kind — floated to the
+   bottom of the box beside it rather than the top. A single-line input has
+   no such seam: its one line of text already sits on the label's baseline. */
+textarea { vertical-align: top }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
