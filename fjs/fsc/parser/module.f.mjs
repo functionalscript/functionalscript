@@ -351,93 +351,25 @@ const withPow = (base, powTail) => {
 }
 
 /**
- * `*`, `/`, `%`, read off the variant a round of `multiplicativeOp`
- * matched — one string of the eight layers' worth this file reads, so the
- * parameter is the whole set's rather than this layer's own three, with an
- * `assert` for the tags no round of this layer can carry, which the grammar
- * having matched here already refused.
+ * Every binary layer's own tag, read to its operator, in one flat map:
+ * `multiplicativeOp` through `bitwiseOrOp` (`./grammar/module.f.mjs`) each
+ * key their own rounds by a name none of the other seven use, so one map
+ * serves a round from any layer — no per-layer reader, and so no branch for
+ * a tag no round can carry: a plain lookup has no branch to leave
+ * unreachable where a `switch`'s `default` would.
  *
- * @type {(tag: string) => '*' | '/' | '%'}
+ * @type {{ readonly [tag: string]: '*' | '/' | '%' | '+' | '-' | '<<' | '>>' | '>>>' | '<' | '<=' | '>' | '>=' | '===' | '!==' | '&' | '^' | '|' }}
  */
-const multiplicativeTag = tag => {
-    switch (tag) {
-        case 'mul': { return '*' }
-        case 'div': { return '/' }
-        case 'mod': { return '%' }
-        default: { assert(false, tag) }
-    }
+const binaryOpTag = {
+    mul: '*', div: '/', mod: '%',
+    add: '+', sub: '-',
+    left: '<<', right: '>>', unsigned: '>>>',
+    lt: '<', le: '<=', gt: '>', ge: '>=',
+    eq: '===', ne: '!==',
+    and: '&',
+    xor: '^',
+    or: '|',
 }
-
-/** `+`, `-`, the binary `-` told from {@link toNode}'s unary one by arity, never by this tag alone. @type {(tag: string) => '+' | '-'} */
-const additiveTag = tag => {
-    switch (tag) {
-        case 'add': { return '+' }
-        case 'sub': { return '-' }
-        default: { assert(false, tag) }
-    }
-}
-
-/** `<<`, `>>`, `>>>`. @type {(tag: string) => '<<' | '>>' | '>>>'} */
-const shiftTag = tag => {
-    switch (tag) {
-        case 'left': { return '<<' }
-        case 'right': { return '>>' }
-        case 'unsigned': { return '>>>' }
-        default: { assert(false, tag) }
-    }
-}
-
-/** `<`, `<=`, `>`, `>=`. @type {(tag: string) => '<' | '<=' | '>' | '>='} */
-const relationalTag = tag => {
-    switch (tag) {
-        case 'lt': { return '<' }
-        case 'le': { return '<=' }
-        case 'gt': { return '>' }
-        case 'ge': { return '>=' }
-        default: { assert(false, tag) }
-    }
-}
-
-/** `===`, `!==`. @type {(tag: string) => '===' | '!=='} */
-const equalityTag = tag => {
-    switch (tag) {
-        case 'eq': { return '===' }
-        case 'ne': { return '!==' }
-        default: { assert(false, tag) }
-    }
-}
-
-/** `&`, the one key `bitwiseAndOp` has. @type {(tag: string) => '&'} */
-const bitwiseAndTag = tag => {
-    switch (tag) {
-        case 'and': { return '&' }
-        default: { assert(false, tag) }
-    }
-}
-
-/** `^`, the one key `bitwiseXorOp` has. @type {(tag: string) => '^'} */
-const bitwiseXorTag = tag => {
-    switch (tag) {
-        case 'xor': { return '^' }
-        default: { assert(false, tag) }
-    }
-}
-
-/** `|`, the one key `bitwiseOrOp` has. @type {(tag: string) => '|'} */
-const bitwiseOrTag = tag => {
-    switch (tag) {
-        case 'or': { return '|' }
-        default: { assert(false, tag) }
-    }
-}
-
-/**
- * One tag reader per binary layer, `multiplicative` through `bitwiseOr`,
- * indexed the way {@link applyTail}'s own tail lists are: a round's own
- * layer is how many trailing tail lists it carries, which is this array's
- * index too.
- */
-const layerTag = [multiplicativeTag, additiveTag, shiftTag, relationalTag, equalityTag, bitwiseAndTag, bitwiseXorTag, bitwiseOrTag]
 
 /**
  * One binary layer's rounds folded onto `base`, left-associative: each
@@ -447,13 +379,13 @@ const layerTag = [multiplicativeTag, additiveTag, shiftTag, relationalTag, equal
  * layer already applied to it, `1 + 2 * 3` folding `2 * 3` before `+`
  * ever sees it.
  *
- * @type {(layer: number) => (base: Node, rounds: readonly _TailRound[]) => Node}
+ * @type {(base: Node, rounds: readonly _TailRound[]) => Node}
  */
-const foldLayer = layer => (base, rounds) => rounds.reduce((left, round) => {
+const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const [opChoice, , v, ...lowerTails] = unmapped(round)
     const [opTag] = unmapped(opChoice)
     const right = applyTail(nodeAt(v), lowerTails)
-    return [layerTag[layer](opTag), left, right]
+    return [binaryOpTag[opTag], left, right]
 }, base)
 
 /**
@@ -468,7 +400,7 @@ const foldLayer = layer => (base, rounds) => rounds.reduce((left, round) => {
 const applyTail = (base, tailLists) => tailLists.reduce(tailStep, base)
 
 /**
- * One tail list applied to the accumulator so far, at its own layer.
+ * One tail list applied to the accumulator so far.
  *
  * `unmapped` infers its return type from `_Leaf`'s own array member here,
  * `readonly unknown[]`, rather than from `foldLayer`'s expected one: a
@@ -478,9 +410,9 @@ const applyTail = (base, tailLists) => tailLists.reduce(tailStep, base)
  * itself, so the cast states what {@link _TailRound} already documents,
  * rather than a new claim.
  *
- * @type {(acc: Node, rounds: _Leaf, layer: number) => Node}
+ * @type {(acc: Node, rounds: _Leaf) => Node}
  */
-const tailStep = (acc, rounds, layer) => foldLayer(layer)(acc, /** @type {readonly _TailRound[]} */ (unmapped(rounds)))
+const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[]} */ (unmapped(rounds)))
 
 /**
  * The node a value's own part makes, before the accesses, the power and the
