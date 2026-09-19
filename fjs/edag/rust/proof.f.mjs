@@ -353,7 +353,16 @@ export const proof = {
          * both miss unconditionally, the same as an out-of-range number.
          */
         dotOnArrayNonNumericStringIndex: () => printed(['.', ['.', ['[]', [1]], 'toString'], 'y']),
-        dotOnArrayNonCanonicalStringIndex: () => printed(['.', ['.', ['[]', [1]], '01'], 'y']),
+        /**
+         * A two-element array, not one: `arrayIndexOf`'s round-trip check
+         * (`String(n) === b`) is the only thing standing between `"01"` and
+         * index `1` — drop the check and `Number('01')` still canonicalizes
+         * to `1`. With a single-element array that mutation is invisible,
+         * since index `1` is out of range either way and the refusal holds
+         * for an unrelated reason; a second element makes `1` a real,
+         * in-range index, so only the round-trip check still refuses this.
+         */
+        dotOnArrayNonCanonicalStringIndex: () => printed(['.', ['.', ['[]', [1, 2]], '01'], 'y']),
         /**
          * `Any::member_access` never special-cases a number, a boolean, a
          * bigint, or a function receiver — every key on one answers
