@@ -202,3 +202,9 @@ need tests in addition to direct internal-operation tests.
 - [Property access](../../../spec/todo/2330-property-accessor.md).
 - [Built-ins](../../../spec/todo/2360-built-in.md).
 - [Amnesia](../amnesia/README.md) — the existing internal read.
+- [Functions](../../../spec/README.md#functions) — the language rule that a
+  function carries no name, which this proposal's retirement of
+  `own-access.md` and `function-name.md` decided.
+- [Compatibility epic](../../../todo/fjs-javascript-compatibility.md#function-name--not-a-compatibility-observation)
+  — records that a function's name is therefore no compatibility
+  observation, whatever the `.js` writer binds it under.
