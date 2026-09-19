@@ -127,10 +127,18 @@ export const _importPath = path => specifier => {
  * Resolve all source import records before reading dependencies. Both compiler
  * paths use this boundary, so invalid source becomes a normal ParseError, not
  * an assertion escaping the effect. Import order and JSON attributes survive.
+ * Classify the original spelling before decoding or normalizing it: bare
+ * names, package subpaths and other non-path forms need host resolution,
+ * not a sibling-file fallback. CLI input paths are not import specifiers.
  *
  * @type {(path: string) => (imports: readonly AstImport[]) => Result<readonly _Source[], ParseError>}
  */
 export const _importSources = path => imports => {
+    const unsupported = imports.find(({ specifier }) =>
+        !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/'))
+    if (unsupported !== undefined) {
+        return error({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../ or /`, metadata: null, path })
+    }
     const paths = imports.map(imported => _importPath(path)(imported.specifier))
     if (paths.every(resolved => resolved !== null)) {
         return ok(paths.map((resolved, i) => ({ path: resolved, json: imports[i].json })))

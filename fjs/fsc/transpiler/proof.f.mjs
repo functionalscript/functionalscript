@@ -4,15 +4,15 @@
  * @import { Denotation } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  */
-import { _importPath, transpile } from './module.f.mjs'
-import { resolve } from '../edag/module.f.mjs'
+import { _importPath, _importSources, parse, transpile } from './module.f.mjs'
+import { resolve, unresolved } from '../edag/module.f.mjs'
 import { compile } from '../module.f.mjs'
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(root: Dir) => (path: string) => Result<Denotation, ParseError>} */
 const run = root => path => {
@@ -20,7 +20,77 @@ const run = root => path => {
     return result
 }
 
+/** Both public compiler paths report the same unsupported-specifier error. @type {(specifier: string, source: string, root: Dir) => void} */
+const refusedSpecifier = (specifier, source, root) => {
+    const files = { ...root, 'main.f.js': [utf8(source)] }
+    const value = run(files)('main.f.js')
+    const graph = virtual({ ...emptyState, root: files })(resolve('main.f.js'))[1]
+    assertStructurallySame(value, ['error', {
+        message: `unsupported import specifier "${specifier}": expected ./, ../ or /`,
+        metadata: null,
+        path: 'main.f.js',
+    }])
+    assertStructurallySame(graph, value)
+}
+
 export const proof = {
+    // The literal local targets exist: these must be refusals, not fallback
+    // loads or accidental file-not-found errors. Prefixing ./ is the control.
+    bareImports: () => {
+        const file = [utf8('export default 7;')]
+        /** @type {readonly (readonly [string, Dir])[]} */
+        const cases = [
+            ['pkg', { pkg: file }],
+            ['pkg/submodule', { pkg: { submodule: file } }],
+            ['@scope/pkg', { '@scope': { pkg: file } }],
+            ['@scope/pkg/submodule', { '@scope': { pkg: { submodule: file } } }],
+            ['.hidden', { '.hidden': file }],
+            ['..hidden', { '..hidden': file }],
+            ['pkg/../dep.f.js', { 'dep.f.js': file }],
+            ['%2e/dep.f.js', { 'dep.f.js': file }],
+        ]
+        for (const [specifier, root] of cases) {
+            const source = `import value from "${specifier}"; export default value;`
+            // Grammar recognition and unresolved compilation still retain the
+            // original specifier. Refusal belongs to dependency resolution.
+            const module = unresolved(unwrap(parse('main.f.js')(source)))
+            assertEq(module.imports[0].specifier, specifier)
+            refusedSpecifier(specifier, source, root)
+            const relative = { ...root, 'main.f.js': [utf8(`import value from "./${specifier}"; export default value;`)] }
+            assertEq(unwrap(run(relative)('main.f.js')).value, 7)
+            assertEq(unwrap(virtual({ ...emptyState, root: relative })(resolve('main.f.js'))[1]), 7)
+        }
+    },
+    bareUnusedAndRepeated: () => {
+        const root = { pkg: [utf8('export default 7;')] }
+        refusedSpecifier('pkg', 'import value from "pkg"; export default 1;', root)
+        refusedSpecifier('pkg', 'import a from "./pkg"; import b from "pkg"; export default a;', root)
+        refusedSpecifier('pkg.json', 'import value from "pkg.json" with { type: "json" }; export default value;', { 'pkg.json': [utf8('7')] })
+    },
+    importSources: () => {
+        assertStructurallySame(_importSources('main.f.js')([]), ['ok', []])
+        assertStructurallySame(_importSources('/dir/main.f.js')([
+            { specifier: './dep.f.js', json: false },
+            { specifier: '../data.json', json: true },
+        ]), ['ok', [{ path: '/dir/dep.f.js', json: false }, { path: '/data.json', json: true }]])
+        // Keep rooted input behavior separate from classifying import text.
+        assertStructurallySame(_importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ path: '/dep.f.js', json: false }]])
+        for (const specifier of ['', '.', '..', '#alias', 'file:///dep.f.js', 'node:fs', 'https://example.com/dep.f.js']) {
+            refusedSpecifier(specifier, `import value from "${specifier}"; export default value;`, {})
+        }
+    },
+    bareImportDiagnostic: () => {
+        for (const output of ['out.data.js', 'out.edag.data.js', 'out.f.js', 'out.json', 'out.rs']) {
+            const root = {
+                'input.f.js': [utf8('import value from "pkg"; export default value;')],
+                pkg: [utf8('export default 7;')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
+            assertEq(exitCode(code), 1, state.stderr)
+            assertEq(state.root[output], undefined)
+            assertEq(state.stderr.trim(), 'input.f.js - error: unsupported import specifier "pkg": expected ./, ../ or /')
+        }
+    },
     parse: () => {
         const result = run({ a: [utf8('export default 1;')] })('a')
         assert(result[0] !== 'error', result[1])
@@ -28,7 +98,7 @@ export const proof = {
         assertEq(s, 'export default 1;')
     },
     parseWithSubModule: () => {
-        const result = run({ a: { b: [utf8('import c from "c";\nexport default c;')], c: [utf8('export default 2;')] } })('a/b')
+        const result = run({ a: { b: [utf8('import c from "./c";\nexport default c;')], c: [utf8('export default 2;')] } })('a/b')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
         assertEq(s, 'export default 2;')
@@ -111,9 +181,9 @@ export const proof = {
     },
     parseWithSubModules: () => {
         const result = run({
-            a: [utf8('import b from "b";\nimport c from "c";\nexport default [b,c,b];')],
-            b: [utf8('import d from "d";\nexport default [0,d];')],
-            c: [utf8('import d from "d";\nexport default [1,d];')],
+            a: [utf8('import b from "./b";\nimport c from "./c";\nexport default [b,c,b];')],
+            b: [utf8('import d from "./d";\nexport default [0,d];')],
+            c: [utf8('import d from "./d";\nexport default [1,d];')],
             d: [utf8('export default 2;')],
         })('a')
         assert(result[0] !== 'error', result[1])
@@ -164,15 +234,15 @@ export const proof = {
         assertEq(result[1].message, 'file not found', result)
     },
     parseWithFileNotFoundError: () => {
-        const result = run({ a: [utf8('import b from "b";\nexport default b;')] })('a')
+        const result = run({ a: [utf8('import b from "./b";\nexport default b;')] })('a')
         assert(result[0] === 'error', result)
         assertEq(result[1].message, 'file not found', result)
     },
     parseWithCycleError: () => {
         const result = run({
-            a: [utf8('import b from "b";\nimport c from "c";\nexport default [b,c,b];')],
-            b: [utf8('import c from "c";\nexport default c;')],
-            c: [utf8('import b from "b";\nexport default b;')],
+            a: [utf8('import b from "./b";\nimport c from "./c";\nexport default [b,c,b];')],
+            b: [utf8('import c from "./c";\nexport default c;')],
+            c: [utf8('import b from "./b";\nexport default b;')],
         })('a')
         assert(result[0] === 'error', result)
         assertEq(result[1].message, 'circular dependency', result)
