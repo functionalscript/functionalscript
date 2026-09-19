@@ -43,6 +43,10 @@ export const proof = {
         assertStructurallySame(resolvedModule('./dir/../main.mjs')(null), ['ok', { id: 'main.mjs', path: './dir/../main.mjs' }])
         assertStructurallySame(resolvedModule('./%64ep.mjs')('main.mjs'), ['ok', { id: 'dep.mjs', path: 'dep.mjs' }])
         assertEq(resolvedModule('./bad%')('main.mjs')[0], 'error')
+        assertEq(resolvedModule('./dep.mjs')('bad%')[0], 'error')
+        assertStructurallySame(resolvedModule('./dep%3F%23%25.mjs?v=1#copy')('main.mjs?old'), ['ok', { id: 'dep%3F%23%25.mjs?v=1#copy', path: 'dep?#%.mjs' }])
+        assertStructurallySame(resolvedModule('./next.mjs')('dep%3F%23%25.mjs?v=1#copy'), ['ok', { id: 'next.mjs', path: 'next.mjs' }])
+        assertStructurallySame(resolvedModule('main?#%.mjs')(null), ['ok', { id: 'main%3F%23%25.mjs', path: 'main?#%.mjs' }])
     },
     // The two ways a command can have no handler here, which are not the same
     // failure and must not answer alike.

@@ -606,7 +606,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Extend the shared [module-identity contract](./module-resolution-compatibility.md)
       to additional specifier classes. Preserve same-identity sharing and
       distinct-identity separation on value/EDAG paths and warm/cold builds;
-      package and query/fragment imports remain explicitly refused.
+      package imports remain explicitly refused; query/fragment components now
+      participate in identity without entering the loading path.
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
       Done: `resolve` returns an `Exp`.
@@ -721,7 +722,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `moduleSharing`/`hostIdentities` in
       [`transpiler/proof.f.mjs`](../transpiler/proof.f.mjs). Native ESM identity
       comparisons belong to the [Node adapter proofs](../../effects/node/proof.mjs).
-      Package and query/fragment support remain separate work.
+      Query/fragment identity support has since landed; package resolution
+      remains separate work.
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in
       [`fjs/fsc/proof.f.mjs`](../proof.f.mjs) (`specialNumbers`, the `jsonRefused`

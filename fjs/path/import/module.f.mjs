@@ -15,6 +15,20 @@ import { concat as pathConcat } from '../module.f.mjs'
 const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
 
 /**
+ * Separate a path-like spelling before percent decoding. Empty components are
+ * omitted, as in Node's default realpath-based file-module profile. The suffix
+ * text stays opaque here; native URL normalization belongs to the host.
+ * @type {(specifier: string) => { readonly path: string, readonly suffix: string }}
+ */
+export const components = specifier => {
+    const [head, ...fragments] = specifier.split('#')
+    const [path, ...queries] = head.split('?')
+    const query = queries.join('?')
+    const fragment = fragments.join('#')
+    return { path, suffix: (query === '' ? '' : `?${query}`) + (fragment === '' ? '' : `#${fragment}`) }
+}
+
+/**
  * One URL-path segment as a portable filesystem segment, or a refusal.
  * Decoded separators and NUL cannot name a segment. Colons are also refused:
  * the current portable path layer would reinterpret drive/stream syntax
