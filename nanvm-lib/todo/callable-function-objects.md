@@ -349,6 +349,142 @@ first time (today the harness only evaluates data). Proof surface: extend
 arguments and of a rest parameter, mirroring the existing
 literal/array/object fixtures.
 
+##### Stage 1 implementation specification
+
+This stage is complete only when the following contract is implemented. It is
+intentionally narrower than the final callable-function design: no runtime
+`Function<A>` value is constructed, and no call is dispatched through an
+`Any<A>`.
+
+**Accepted source shapes.** The Rust backend must accept a capture-free arrow
+whose EDAG is `['=>', [], body]`. `body` may contain the literals, arrays,
+objects, property reads, shared nodes, and operators that the existing Rust
+expression printer already supports, plus `['args']` and a static call. A
+body may read `['args']` more than once and may return it directly. It must
+not read `['frame']` or `['self']`, reference an enclosing/module binding,
+create a nested arrow, or use a dynamic callee. Those cases remain explicit
+refusals until Stages 3-5; they must not be accidentally emitted as Rust.
+
+The existing language distinction between `() => body` and `(...a) => body`
+is not observable in this stage: both lower to the same capture-free EDAG
+shape and both receive an `Array<A>`. Named parameters are not part of this
+stage. A future named-parameter lowering must use the same positional reads
+and therefore must not change this ABI.
+
+**Generated Rust ABI.** Each accepted arrow gets one private, uniquely named
+generic item in the generated module:
+
+```rust
+fn f0<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
+    Ok(/* generated body */)
+}
+```
+
+The name is an implementation detail, but it must be deterministic from the
+linked graph and collision-free with user-independent helper names. The item
+must not capture Rust state, use `dyn Fn`, or require `A` to be `Naive`:
+`A: IVm` is the only VM bound. Locals and shared EDAG nodes inside the body
+are ordinary Rust `let` bindings of `Any<A>`; they are not entries in a new
+runtime frame.
+
+`['args']` lowers to the `args` parameter itself. A rest parameter therefore
+returns or consumes the complete caller-supplied array. A positional read
+introduced by future parameter lowering must use the existing safe rule: if
+the index is outside `args.length()`, use `Nullish::Undefined.to_any()`;
+otherwise clone the indexed value. Extra arguments are ignored when no source
+read reaches them. Stage 1 must not use `Array` indexing without this bounds
+check, because the current `Index` implementation panics on an absent item.
+
+Every generated body that can fail returns `Result<Any<A>, Any<A>>` and uses
+`?` for a failing `nanvm-lib` operation. This includes the body of a function
+that is statically called. The generated code must not turn an ordinary
+FunctionalScript throw into an unchecked Rust panic merely because the call
+was statically resolved.
+
+**Static call lowering.** A call whose callee is an arrow node or a compiler-
+known module constant containing such an arrow lowers to a direct Rust item
+call. The argument expressions are evaluated once, left to right, assembled
+as an `Array<A>`, and passed by reference:
+
+```rust
+let call_args: Array<A> = [arg0, arg1].to_array();
+f0(&call_args)?
+```
+
+An empty argument list uses `Array::default()` or the established equivalent;
+it must not rely on type inference that only happens to work for `Naive`.
+The call lowering must preserve the callee's result type and propagate its
+`Err(Any<A>)`. A static call is permitted only when the generator can name the
+callee item and prove that it is not a capture-dependent or dynamic call. The
+backend must refuse all other call shapes with the normal `toRust` output
+error rather than emit a plausible but different program.
+
+The generated module's public entry point must evaluate the export uniformly:
+for a data export it keeps the current value construction, and for a
+function-valued export it makes one static call with an empty arguments array.
+The entry point must expose the same `Result<Any<A>, Any<A>>` failure channel
+as the generated function instead of calling `.unwrap()` around the call. The
+harness adapts its `run` helper to consume that result and serializes the
+successful value; an `Err` is reported as a runtime failure, not as a JSON
+function refusal. This entry-point change is part of Stage 1 because it is the
+first observable execution of generated function code.
+
+For compatibility with existing non-function generated modules, the chosen
+entry-point signature must be applied consistently to every generated module
+and every checked-in fixture in the same change. Do not leave two public
+`module` ABIs selected by the export's shape.
+
+**Generator structure.** Keep expression printing and function printing
+separate. The expression printer should gain an explicit environment carrying
+the current function's `args` binding and the set of statically named
+functions; it must not infer captures by looking for arbitrary Rust names.
+Function discovery and deterministic item naming belong to the FJS Rust
+backend, before the existing `bodyLines` assembly. The generated output order
+must place helper functions and generated function items before `module`, and
+each item must be emitted once even when the same EDAG node is referenced more
+than once. Reuse the existing `expExpr` literal/operator spellings and import
+catalog; add only the imports required by the new text (`Array`, `ToArray`,
+`Nullish`, and any already-used operator traits).
+
+The old special case for exactly `() => undefined` must be removed. It must
+become an ordinary generated function body. Conversely, a function node that
+falls outside the accepted capture-free/static-call subset must no longer be
+silently represented by `function_any()` or any other placeholder.
+
+**Harness fixtures and proofs.** Add two source/generated fixture pairs:
+
+1. `function.mjs` exports `() => 42`; its harness test calls the generated
+   module and expects JSON `42`. This proves a no-argument function body and
+   the empty static call.
+2. `rest-function.mjs` exports `(...args) => args`; its harness test calls the
+   generated module and expects JSON `[]`. The generated source must visibly
+   pass an `Array<A>` into the body, so this test is not satisfied by a
+   constant-returning stub.
+
+Add generator proofs for the exact Rust text (including the function item,
+the `args` lowering, the direct call, and the imports), plus refusal proofs for
+a captured reference and a dynamic callee. Add the fixtures to the committed
+generation command and to `nanvm-harness/src/lib.rs`; generated `.rs` files
+remain outputs of `fjs compile` and are never hand-edited.
+
+**Acceptance checks.** Stage 1 is ready when all of these hold:
+
+- `fjs compile` accepts both new fixtures and produces deterministic Rust;
+- `cargo test -p nanvm-harness` runs both function fixtures through `Naive`;
+- an accepted function body containing an existing throwing operator returns
+  an `Err(Any<A>)` through the generated entry point rather than panicking;
+- the generator refuses captures, nested arrows, dynamic calls, and
+  unsupported body nodes with a diagnostic naming the unsupported shape;
+- existing literal, array, object, sharing, property, and scalar fixtures
+  still produce the same JSON and compile under the one entry-point ABI; and
+- `cargo fmt -- --check`, `cargo clippy`, and the repository's required Node
+  suite pass after generation.
+
+The implementation should land as one behaviorally complete stage: a partial
+generator that emits function items but cannot execute a function-valued
+export does not satisfy Stage 1 and must not leave the former placeholder in
+the output path.
+
 **Stage 2 — `Function<A>` as a real, callable first-class value.**
 Add the header code pointer (and, under option 1 above, the captured
 `Array<A>` field) plus `Function::call`. A non-capturing function used as a

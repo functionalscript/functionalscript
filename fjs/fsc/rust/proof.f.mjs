@@ -25,9 +25,9 @@ export const proof = {
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(1f64).to_any(), (2f64).to_any()].to_array().to_any();
-    [c0.clone(), c0.clone()].to_array().to_any()
+    Ok([c0.clone(), c0.clone()].to_array().to_any())
 }
 `)
     },
@@ -53,8 +53,8 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 }
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    Any::own_property([(string_key("a"), string_any("x"))].to_object().to_any(), string_any("a")).unwrap()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok(Any::own_property([(string_key("a"), string_any("x"))].to_object().to_any(), string_any("a")).unwrap())
 }
 `)
     },
@@ -65,8 +65,8 @@ pub fn module<A: IVm>() -> Any<A> {
 use nanvm_lib::vm::{Any, IVm, Nullish, ToAny};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    Nullish::Null.to_any()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok(Nullish::Null.to_any())
 }
 `)
     },
@@ -81,8 +81,8 @@ fn bigint_any<A: IVm>(v: i64) -> Any<A> {
 }
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    bigint_any(-5)
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok(bigint_any(-5))
 }
 `)
     },
@@ -99,8 +99,8 @@ pub fn module<A: IVm>() -> Any<A> {
 use nanvm_lib::vm::{Any, Array, IVm, ToAny};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    { let _: Any<A> = Array::default().to_any(); (42f64).to_any() }
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok({ let _: Any<A> = Array::default().to_any(); (42f64).to_any() })
 }
 `)
     },
@@ -108,7 +108,7 @@ pub fn module<A: IVm>() -> Any<A> {
         ok: () => {
             const result = toRust(null)
             assertEq(result[0], 'ok')
-            assert(result[1].includes('pub fn module<A: IVm>() -> Any<A> {'), result)
+            assert(result[1].includes('pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {'), result)
         },
         /**
          * A node shape the printer refuses — here, a numeric index, which has

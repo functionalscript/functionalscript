@@ -549,7 +549,7 @@ export const proof = {
     // printer — see `fjs/edag/rust/module.f.mjs`.
     rustOutput: {
         // Property access on an object literal, the same source the EDAG
-        // and value outputs above compile, to a `pub fn module<A: IVm>()`.
+        // and value outputs above compile, to a Result-returning module.
         graph: () => {
             assertEq(
                 compileSource('const a = { b: 1 }; export default a.b;')('output.rs'),
@@ -566,8 +566,8 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 }
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    Any::own_property([(string_key("b"), (1f64).to_any())].to_object().to_any(), string_any("b")).unwrap()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok(Any::own_property([(string_key("b"), (1f64).to_any())].to_object().to_any(), string_any("b")).unwrap())
 }
 `)
         },
@@ -599,8 +599,8 @@ pub fn module<A: IVm>() -> Any<A> {
             expect('export default -"a";', '-,a')
             // and the folded ones print, `-1` as the leaf it lowers to
             assertEq(
-                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
-                '    [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any()')
+                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    Ok(['))[0],
+                '    Ok([(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any())')
         },
     },
     // An error with no token to point at names the file being compiled, not

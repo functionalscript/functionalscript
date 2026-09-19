@@ -295,9 +295,9 @@ const resolvedBase = e => {
  * Every use site fixes `A`, so no expression needs a turbofish: the operators
  * above take `Any<A>` arguments and the shared `let` bindings are annotated.
  *
- * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
+ * @type {(shared: readonly (readonly[Exp, string])[], options?: { readonly args?: string }) => (e: Exp) => Result<string, readonly unknown[]>}
  */
-export const expExpr = shared => {
+export const expExpr = (shared, options = {}) => {
     /**
      * `true` when a node prints as an operator expression.
      *
@@ -325,6 +325,11 @@ export const expExpr = shared => {
         if (bound !== undefined) { return ok(bound[1]) }
         const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok('Nullish::Undefined.to_any()') }
+        if (id === 'args') {
+            return options.args === undefined
+                ? error(['no Rust for an args node outside a generated function body', e])
+                : ok(`${options.args}.clone()`)
+        }
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
