@@ -3,13 +3,13 @@
  *
  * @module
  *
- * @import { Nullable } from '../types/nullable/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { isValidCodePoint } from './code_point/module.f.mjs'
-import { fromCodePointList, toCodePointList } from './utf8/module.f.mjs'
-import { codePointListToString, stringToCodePointList } from './utf16/module.f.mjs'
-import { toArray } from '../types/list/module.f.mjs'
+import { isValidCodePoint } from '../code_point/module.f.mjs'
+import { fromCodePointList, toCodePointList } from '../utf8/module.f.mjs'
+import { codePointListToString, stringToCodePointList } from '../utf16/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 
 /** @type {string} */
 const hexDigits = '0123456789abcdef'

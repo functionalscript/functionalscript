@@ -94,7 +94,7 @@ export const _parseModule = path => step(notFound(path)(readUtf8File(path)), tex
 const importSegment = specifier => segment => {
     const decoded = percentDecode(segment)
     assert(decoded !== null, ['invalid module specifier', specifier])
-    assert(!decoded.includes('/') && !decoded.includes('\\\\') && !decoded.includes('\\0'), ['invalid module specifier', specifier])
+    assert(!decoded.includes('/') && !decoded.includes('\\') && !decoded.includes('\0'), ['invalid module specifier', specifier])
     return decoded
 }
 

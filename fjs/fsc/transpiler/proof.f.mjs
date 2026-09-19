@@ -4,7 +4,7 @@
  * @import { Denotation } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  */
-import { transpile } from './module.f.mjs'
+import { _importPath, transpile } from './module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
@@ -35,13 +35,26 @@ export const proof = {
     // not win merely because it exists beside dep.
     parseWithPercentEscapedImport: () => {
         const result = run({
-            'main.f.js': [utf8('import value from "./%64ep.f.js";\\nexport default value;')],
+            'main.f.js': [utf8('import value from "./%64ep.f.js";\nexport default value;')],
             'dep.f.js': [utf8('export default 1;')],
             '%64ep.f.js': [utf8('export default 2;')],
         })('main.f.js')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
         assertEq(s, 'export default 1;')
+    },
+    // Validate the decoded characters, not overescaped string spellings.
+    importPath: () => {
+        assertEq(_importPath('main.f.js')('./%64ep.f.js'), 'dep.f.js')
+        // A literal percent sign is decoded once, not recursively.
+        assertEq(_importPath('main.f.js')('./%255C.f.js'), '%5C.f.js')
+    },
+    throw: {
+        malformedImport: () => _importPath('main.f.js')('./bad%.f.js'),
+        invalidUtf8Import: () => _importPath('main.f.js')('./%ff.f.js'),
+        escapedSlashImport: () => _importPath('main.f.js')('./a%2Fb.f.js'),
+        escapedBackslashImport: () => _importPath('main.f.js')('./a%5Cb.f.js'),
+        nulImport: () => _importPath('main.f.js')('./a%00b.f.js'),
     },
     parseWithSubModules: () => {
         const result = run({
