@@ -140,10 +140,26 @@ The module function returns an object of its exports: this module returns
 JSON/DataJS value output serializes. If the default export is an object, it
 remains inside that property; its members do not become module exports.
 
-`export default` is currently **required** and **last**: only comments and
-whitespace may follow it. A module without one is an error.
+Named constants are exports and local bindings:
 
-Every module is this shape, however large the value gets:
+```js
+export const z = [5];
+export const a = z;
+export default a;
+```
+
+This module returns `{ a: z, default: z, z: z }`, with all three properties
+sharing the same array. Export keys follow JavaScript namespace order
+(lexicographic, including `default`). Initializers use the existing `const`
+rules: earlier bindings are available, and duplicate bindings are errors.
+The name `then` is reserved for exports, regardless of its value.
+
+At least one export is required. A named-only module needs no default:
+`export const a = 5;` returns `{ a: 5 }`. When present, `export default` is
+**last**; only comments and whitespace may follow it. Ordinary and exported
+constants may appear together after all imports.
+
+A default export can be any supported value:
 
 ```js
 export default { "name": "fjs", "tags": ["data", "config"] };
@@ -156,7 +172,8 @@ tree, and past what JSON can hold at all, is the rest of the language:
 name shared parts, and [`bigint`](#supported-value-types) and
 [`undefined`](#supported-value-types) are values JSON has no spelling for.
 
-Named exports are not recognized yet ([export](./todo/3240-export.md)).
+`export { ... }` and re-exports remain unsupported. Export-list options are
+tracked separately in [export-lists](./todo/export-lists.md).
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#using_the_default_export>.
@@ -287,8 +304,12 @@ of the five is refused, rather than written in a language the name does not
 declare.
 
 For a FunctionalScript input, JSON and DataJS output serialize the module
-result's `default` property. FunctionalScript output writes the corresponding
-`export default`, so recompilation does not add another wrapper. EDAG and Rust
+result's `default` property, with sharing checked for that selected value.
+A named-only root projects to `undefined`: DataJS writes
+`export default undefined;`, while JSON refuses `undefined`. FunctionalScript
+output preserves each named export as `export const` and writes `export default`
+last when present. Dependencies and shared values are declared before use;
+recompilation does not add another wrapper. EDAG and Rust
 output compute the complete export object. A direct `.json` input remains a
 document: its value is used without projection, even when it contains a property
 named `default`. Imported JSON instead exposes `{ default: document }` at the
@@ -642,10 +663,12 @@ computed at run time is not recognized yet.
 import a from "./a.f.js";
 ```
 
-An `import` statement binds the exported value of another module to a name, so
+An `import` statement binds another module's `default` export to a name, so
 modules can be shared and reused — a common configuration, a shared table of
 constants, a fragment that several outputs include.
 
+- A default import requires an actual default export; a missing default is
+  an error, while `export default undefined;` is valid.
 - Only the **default import** form is recognized. Named imports and namespace
   imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
 - The module specifier is a [string literal](#strings), resolved using the
@@ -729,7 +752,8 @@ written.
   recognized yet ([forward-references](./todo/3140-forward-references.md)).
 - Imported and constant names share one namespace: declaring the same name
   twice is an error.
-- Every `const` comes after every `import` and before `export default`
+- Every ordinary or exported `const` comes after every `import` and before
+  `export default`, when present
   ([module structure](#module-structure)).
 - `let` and `var` are not part of the language ([let](./todo/3220-let.md)).
 
@@ -908,6 +932,7 @@ so every DataJS document parses here.
 |default import|`import name from "./path";`|
 |JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
+|named export|`export const name = expression;`|
 |default export|`export default expression;`|
 
 ```js
@@ -915,10 +940,10 @@ import base from "./base.f.js";    // imports first
 
 const extra = { "debug": true };   // then constants
 
-export default [base, extra];      // exactly one, last
+export default [base, extra];      // optional, at most one, last
 ```
 
-These three forms are the whole language. A statement begins with `import`,
+These statement forms are the whole language. A statement begins with `import`,
 `const`, or `export`, and never with a value; more forms land as the language
 grows ([`spec/todo/`](./todo/README.md)).
 

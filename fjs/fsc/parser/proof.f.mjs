@@ -46,6 +46,52 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
 export const proof = {
+    namedExports: {
+        results: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['export const a=5;', { a: 5 }],
+                ['const base=5; export const z=base; const local=z; export const a=local; export default a;', { a: 5, default: 5, z: 5 }],
+                ['export const a=undefined; export default undefined;', { a: undefined, default: undefined }],
+                ['export const __proto__=7;', Object.fromEntries([['__proto__', 7]])],
+            ])) {
+                const module = unwrap(parseFromTokens(tokenizeString(source)))
+                const result = unwrap(run(module[1])([]))
+                assertStructurallySame(result, expected)
+                assertStructurallySame(Object.keys(/** @type {object} */ (result)), Object.keys(expected))
+            }
+        },
+        syntax: () => {
+            const source = unwrap(_parseSyntaxFromTokens(tokenizeString('const x=1; export const a=x; const y=a; export const b=y;')))
+            assertEq(source.exported, null)
+            assertStructurallySame(source.consts.map(c => c.exported), [false, true, false, true])
+            assertStructurallySame(source.consts.map(c => c.declaration.name.token), [
+                { kind: 'id', value: 'x' }, { kind: 'id', value: 'a' }, { kind: 'id', value: 'y' }, { kind: 'id', value: 'b' },
+            ])
+        },
+        errors: () => {
+            for (const source of [
+                'export const a=1; export const a=2;',
+                'const a=1; export const a=2;',
+                'export const a=1; const a=2;',
+                'import a from "./x"; export const a=1;',
+                'export const a=a;', 'export const a=b; export const b=1;',
+                'export const then=1;', 'export const then=()=>1;',
+                'export const default=1;', 'export const await=1;', 'export const undefined=1;',
+                'export const a=1', 'export const a=1; import b from "./x";',
+                'export default 1; export const a=2;', 'export default 1; export default 2;',
+                'export { a };', 'export let a=1;', 'const a=1;', '',
+                'export const f=()=>{return;};', 'export const f=()=>{};',
+                'export const f=()=>{return\n1;};',
+            ]) { assertEq(parseFromTokens(tokenizeString(source))[0], 'error', source) }
+            const duplicate = parseFromTokens(tokenizeString('export const a=1;\nexport const a=2;'))
+            assert(duplicate[0] === 'error')
+            assertEq(duplicate[1].metadata?.line, 2)
+            assertEq(duplicate[1].metadata?.column, 14)
+            const reserved = parseFromTokens(tokenizeString('export const then=1;'))
+            assert(reserved[0] === 'error')
+            assertEq(reserved[1].metadata?.column, 14)
+        },
+    },
     sourceBlocks: {
         // Literal expectations pin syntax before lowering can erase it.
         explicitReturn: () => {
@@ -57,7 +103,7 @@ export const proof = {
         orderedDeclarations: () => {
             const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
                 'export default () => { const x = 1; const y = 2; return [x, y]; };')))
-            assert(exported[0] === '=>')
+            assert(exported !== null && exported[0] === '=>')
             const body = exported[2]
             assert(body[0] === 'block')
             const [first, second, last] = body[1]

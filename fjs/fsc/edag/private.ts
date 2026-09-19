@@ -37,5 +37,5 @@ export type _Binding = {
  */
 export type _Resolved = {
     readonly exports: Exp
-    readonly default: Exp
+    readonly default: Exp | undefined
 }

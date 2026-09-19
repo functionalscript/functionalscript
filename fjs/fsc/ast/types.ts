@@ -21,7 +21,7 @@ export type AstImport = {
 
 /**
  * A parsed DJS module: its imports, in source order, and its body. The last
- * body entry constructs the object of exports, currently `{ default: value }`.
+ * body entry constructs the object of exports, with its keys in JavaScript namespace order.
  *
  * The import list indexes `['aref', i]`, each a selected default binding.
  */

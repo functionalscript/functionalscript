@@ -16,7 +16,8 @@
  * the whole module. Each `import` binds its name, each `const` resolves its
  * value against the names bound so far and then binds its own — so
  * `const a = a` is `const not found`, as it is a reference before its
- * declaration in JavaScript — and the export is the module's last value.
+ * declaration in JavaScript. Export names select those bindings into the
+ * module result, with an optional final default expression.
  *
  * The grammar sees symbols and the fold sees text, which is the line that
  * decides where a check belongs: every check that has to read a *word* is
@@ -48,7 +49,7 @@
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
- * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
+ * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _Stack, _State, _TokenStream } from './private.ts'
@@ -56,6 +57,7 @@
 
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
+import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
@@ -176,11 +178,11 @@ const constAt = node => {
     return out.statement
 }
 
-/** @type {(node: _Leaf) => Node} */
+/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'export' }>} */
 const exportAt = node => {
     const out = outAt(node)
     assert(out.id === 'export')
-    return out.node
+    return out
 }
 
 /** @type {(node: _Leaf) => Module} */
@@ -477,18 +479,40 @@ const toImport = ([, , name, , , , module, , attribute]) =>
 const toConst = ([, , name, , , , v]) =>
     symbol({ id: 'const', statement: { name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
 
+/** @type {(node: _Leaf) => ModuleConst} */
+const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
+
 /** @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toExport = ([, , , , v]) => symbol({ id: 'export', node: nodeAt(v) })
+const toExport = ([, , choice]) => {
+    const [kind, branch] = unmapped(choice)
+    if (kind === 'default') {
+        return symbol({ id: 'export', consts: null, default: nodeAt(unmapped(branch)[2]) })
+    }
+    const [declaration, consts, tail] = unmapped(branch)
+    const next = unmapped(tail)
+    const rest = next.length === 0 ? null : exportAt(next[0])
+    return symbol({
+        id: 'export',
+        consts: concat([
+            { declaration: constAt(declaration), exported: true },
+            ...unmapped(consts).map(ordinaryConst),
+        ])(rest === null ? null : rest.consts),
+        default: rest === null ? null : rest.default,
+    })
+}
 
 /** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toModule = ([, imports, consts, exported]) => symbol({
-    id: 'module',
-    module: {
-        imports: unmapped(imports).map(importAt),
-        consts: unmapped(consts).map(constAt),
-        exported: exportAt(exported),
-    },
-})
+const toModule = ([, imports, consts, exported]) => {
+    const result = exportAt(exported)
+    return symbol({
+        id: 'module',
+        module: {
+            imports: unmapped(imports).map(importAt),
+            consts: [...unmapped(consts).map(ordinaryConst), ...toArray(result.consts)],
+            exported: result.default,
+        },
+    })
+}
 
 /** @type {Mappings<DjsTokenWithMetadata, Out>} */
 const map = mapping
@@ -959,6 +983,8 @@ const foldModule = ({ imports, consts, exported }) => {
     let modules = []
     /** @type {readonly AstConst[]} */
     let body = []
+    /** @type {readonly AstMember[]} */
+    let exports = []
     for (const statement of imports) {
         const [tag, word] = bindable(env)(statement.name)
         if (tag === 'error') { return error(word) }
@@ -967,22 +993,27 @@ const foldModule = ({ imports, consts, exported }) => {
         env = extended(env)(word, ['aref', modules.length])
         modules = [...modules, record]
     }
-    for (const { name, value: node } of consts) {
+    for (const { declaration: { name, value: node }, exported: named } of consts) {
         // the name first: a statement wrong in both halves answers for the
         // half a reader meets first
         const [tag, word] = bindable(env)(name)
         if (tag === 'error') { return error(word) }
+        if (named && word === 'then') { return error({ message: 'reserved export name then', metadata: name.metadata }) }
         const [resolved, value] = evaluate(env)(node)
         if (resolved === 'error') { return error(value) }
         env = extended(env)(word, ['cref', body.length])
+        if (named) { exports = [...exports, [word, ['cref', body.length]]] }
         body = [...body, value]
     }
-    const [resolved, last] = evaluate(env)(exported)
-    if (resolved === 'error') { return error(last) }
+    if (exported !== null) {
+        const [resolved, last] = evaluate(env)(exported)
+        if (resolved === 'error') { return error(last) }
+        exports = [...exports, ['default', last]]
+    }
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [modules, [...body, ['object', [['default', last]]]]]
+    const astModule = [modules, [...body, ['object', toArray(sort(exports))]]]
     return ok(astModule)
 }
 
@@ -993,7 +1024,8 @@ const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
 
 /**
  * Reads the token list as a FunctionalScript module: `import` statements, then
- * `const` statements, then one `export default`, each ended by `;`.
+ * `const` and `export const` statements, with an optional final `export default`.
+ * At least one export is required; every statement ends with `;`.
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader

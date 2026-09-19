@@ -20,12 +20,11 @@
  * @import { ReadFile, ResolveFileModule } from '../effects/node/types.ts'
  */
 
-import { transpile } from './transpiler/module.f.mjs'
-import { _defaultExport, resolve } from './edag/module.f.mjs'
-import { _own } from './ast/module.f.mjs'
+import { _transpileDefault } from './transpiler/module.f.mjs'
+import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
-import { tryStringify as fjsStringify } from './serializer/module.f.mjs'
+import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { empty, flat, map } from '../types/list/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
@@ -246,7 +245,7 @@ const rustText = path => mapStep(resolve(path), toRust)
  *
  * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolve(path), graph => fjsStringify(path.endsWith('.json') ? graph : _defaultExport(graph)))
+const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsStringify(graph) : tryModuleStringify(graph))
 
 /**
  * Write the default export of a module, or the whole document for a direct
@@ -254,9 +253,7 @@ const fjsText = path => mapStep(resolve(path), graph => fjsStringify(path.endsWi
  *
  * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const denotedText = write => path => mapStep(transpile(path), denotation => write(path.endsWith('.json')
-    ? denotation
-    : { ...denotation, value: _own(denotation.value, 'default') }))
+const denotedText = write => path => mapStep(_transpileDefault(path), write)
 
 /**
  * The text an output name asks for, from the input, or `null` when the name

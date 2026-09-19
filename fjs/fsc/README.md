@@ -85,11 +85,18 @@ A module body's last entry is its export object: `export default 7;` lowers to
 returned value. Module `aref`s denote selected import bindings; default imports
 bind the dependency's `default` property, including for JSON imports.
 `transpile` returns the complete export object as its denotation's `value`.
-JSON/DataJS output and the source writer select the default export, while EDAG
-and generated Rust retain the complete result. Direct JSON roots remain raw
+JSON/DataJS output selects the default and its sharing facts; FunctionalScript
+output emits individual named/default exports. EDAG and generated Rust retain
+the complete result. A missing default is refused at an import, but a named-only
+root projects to `undefined` for value output. Direct JSON roots remain raw
 documents in every compiler path, without the module wrapper or projection.
-Named-export syntax is the next step in
-[the export TODO](../../spec/todo/3240-export.md).
+The source writer's `tryModuleSerialize` / `tryModuleStringify` take that
+complete export object. Its value writers `trySerialize` / `tryStringify`
+remain the boundary for a direct JSON document, emitting it as a default export.
+Named exports use existing `const` binding rules and form the result object in
+lexicographic key order. Source initializers remain ordered in the AST; the EDAG
+preserves dependencies and required evaluations under the specification's
+[failure-equivalence rule](../../spec/README.md#failure-is-one-outcome).
 
 See [examples/input.f.mjs](./examples/input.f.mjs).
 

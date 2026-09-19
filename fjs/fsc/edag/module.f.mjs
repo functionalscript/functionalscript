@@ -197,29 +197,37 @@ const over = imports => edag => ({ imports, edag })
 export const unresolved = module => over(module[0])(lowered(module[0].map(parameter))(module))
 
 /**
- * Select the default export from a linked module, keeping every evaluation
- * anchored before its result. The parser currently emits exactly one export;
- * this projection must grow with named exports so unselected initializers
- * remain evaluated. Direct JSON roots are documents and never use it.
+ * The statically known exports at a module boundary, past its evaluation
+ * sequence. A malformed boundary is an internal compiler error.
  *
- * The object is the compiler's module boundary, so selecting its known member
- * does not introduce a property call receiver for a default-imported function.
- * Exported for the source writer's same projection.
+ * @type {(module: Exp) => readonly (readonly [':', string, Exp])[]}
+ */
+export const _moduleExports = module => {
+    if (module instanceof Array) {
+        if (module[0] === ',') { return _moduleExports(module[1][module[1].length - 1]) }
+        if (module[0] === '{}' && module[1].every(p => p[0] === ':' && typeof p[1] === 'string')) {
+            return /** @type {readonly (readonly [':', string, Exp])[]} */ (module[1])
+        }
+    }
+    throw 'expected a module export object'
+}
+
+/**
+ * Select a default value while evaluating the whole module. The default-only
+ * shape keeps its normalized spelling; a named module keeps its complete
+ * computation under the access, including unselected initializers. A missing
+ * default projects to undefined here; import linking checks presence separately.
  *
  * @type {(module: Exp) => Exp}
  */
 export const _defaultExport = module => {
-    if (module instanceof Array) {
-        if (module[0] === ',') {
-            const operands = module[1]
-            return [',', [...operands.slice(0, -1), _defaultExport(operands[operands.length - 1])]]
-        }
-        if (module[0] === '{}' && module[1].length === 1) {
-            const member = module[1][0]
-            if (member[0] === ':' && member[1] === 'default') { return member[2] }
-        }
+    const members = _moduleExports(module)
+    if (members.length !== 1 || members[0][1] !== 'default') { return ['.', module, 'default'] }
+    if (module instanceof Array && module[0] === ',') {
+        const operands = module[1]
+        return [',', [...operands.slice(0, -1), _defaultExport(operands[operands.length - 1])]]
     }
-    throw 'expected a module export object with only default'
+    return members[0][2]
 }
 
 // ── resolution ────────────────────────────────────────────────────────────────
@@ -248,7 +256,7 @@ const jsonEdag = value => {
  * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
  */
 const completed = id => context => edag => {
-    const resolved = { exports: edag, default: _defaultExport(edag) }
+    const resolved = { exports: edag, default: _moduleExports(edag).some(([, key]) => key === 'default') ? _defaultExport(edag) : undefined }
     return [{
         complete: setReplace(id)(resolved)(context.complete),
         stack: drop(1)(context.stack),
@@ -258,11 +266,11 @@ const completed = id => context => edag => {
 /** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
 const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonEdag(value)]]])
 
-/** @type {(bound: readonly Exp[]) => (linked: readonly [_Link, _Resolved]) => _Binding} */
-const appended = bound => ([context, resolved]) => ({ context, bound: [...bound, resolved.default] })
-
-/** One import resolved and its EDAG appended to the module's bound imports. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => mapStep(link(source)(context), appended(bound))
+/** One import resolved, with a default export required even if its binding is unused. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
+const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) =>
+    resolved.default === undefined
+        ? pureError({ message: 'module has no default export', metadata: null, path: source.path })
+        : pureOk({ context: linked, bound: [...bound, resolved.default] }))
 
 /**
  * A parsed module linked: its imports resolved in source order, each to its
