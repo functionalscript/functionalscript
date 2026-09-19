@@ -60,6 +60,12 @@ Apply the same rule to every module, including one with only a default export:
 | `export default { first: 17 };` | `{ default: { first: 17 } }` |
 | `export const first = 17;` | `{ first: 17 }` |
 
+The result's exported keys follow JavaScript module-namespace order:
+lexicographic order, including `default` when present. For
+`export const z = 1; export const a = 2;`, the keys are `a`, then `z`.
+This orders the result's properties, not initializer evaluation; source
+declarations and generated declarations retain their required dependency order.
+
 A default import selects `.default` from the imported module's result. An
 absent default export is an error; an explicitly exported `undefined` is still
 an export. JSON imports expose `{ default: document }` at the module boundary,
@@ -105,6 +111,13 @@ contract:
 | FunctionalScript module source | Emit named properties as `export const` in dependency order, preserving shared bindings; emit `default` as the final `export default`. |
 | EDAG / generated Rust | Preserve the computation of the complete module result. |
 
+Value output uses the literal `result.default` projection even for a named-only
+root. For `export const first = 17;`, that value is `undefined`: DataJS writes
+`export default undefined;`, and JSON reports its existing refusal of
+`undefined`. A missing default and an explicitly exported `undefined` therefore
+have the same value output. Export presence remains distinct for module
+linking, where a default import requires an actual default export.
+
 A direct [JSON input](../README.md#json-input) keeps the existing document path:
 JSON/DataJS serializers receive the document itself, without `.default`
 projection. FunctionalScript output exports that document as `default`; EDAG
@@ -137,7 +150,8 @@ and default exports.
       module body yield the export object and make default imports select
       `.default`. Prove default-only, named-only, and mixed results, duplicate
       names, reserved `then`, missing default exports, and an explicitly
-      exported `undefined`.
+      exported `undefined`. Compare export-key order with JavaScript namespaces
+      using declarations whose source order differs from lexicographic order.
 - [ ] Carry that result through the affected output paths. Prove generated
       JavaScript exposes the same exports and values as the original source,
       EDAG and generated Rust results contain all exported properties, and default
@@ -151,7 +165,9 @@ and default exports.
       conversions and the existing `protoKey.jsonInput` and
       `protoKey.jsonInputRoundTrip` proofs in `fjs/fsc/proof.f.mjs`; include
       primitive documents and an object with its own `default` property to prove
-      that direct document inputs bypass projection.
+      that direct document inputs bypass projection. Cover named-only module
+      roots: DataJS emits `export default undefined;`, and JSON refuses
+      `undefined`, as for an explicitly undefined default export.
 - [ ] Retry the unchanged `types/range/module.f.mjs`. If it fails, show the next
       diagnostic to the owner, who chooses a source rewrite or a missing
       compiler feature. Rename it to `.f.js` only after full compilation succeeds.
