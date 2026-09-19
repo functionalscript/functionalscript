@@ -64,6 +64,17 @@ Implementation observations were inspected at
 `1b4d0218ab93f2abc812b5e79f7fe4cb8d91b3d7`. Proposed conflicts are not claims
 that those features already execute in FJS.
 
+Re-inspected at `186af0b` with a differential corpus of a few hundred
+modules — lexical edge cases, key order and duplicates, property access,
+unary-minus coercion, number and string round trips, sharing across
+`const`, imports, symlinks and JSON modules, and function arity — each run
+through Node and compared with the `.data.js` and `.js` outputs, and a
+sample with the `.rs` output on the naive VM. No accepted program computed
+a different result and no invalid program was accepted; every difference
+was a refusal. The one output defect found is a wrong kind of failure, not
+a wrong value: [strings a Rust literal cannot
+spell](../fjs/media/rust/todo/strings-rust-cannot-spell.md).
+
 #### Module resolution — current implementation, rule 2
 
 [Module-resolution compatibility](../fjs/fsc/todo/module-resolution-compatibility.md)
@@ -155,6 +166,16 @@ used wherever normal conversion reaches it. Do not confuse that operation with
 the surrounding conversion rules, and do not derive it from mutable execution
 or optimization state. Function allocation identity and arity are unchanged.
 Ordinary JavaScript execution retains the host's representation.
+
+**Observed at `186af0b`:** the `.js` output already renders every function
+from the graph — `() => 1` is written `(...$a)=>1`, and a function a `const`
+names is hoisted under a generated name — so a JavaScript consumer of that
+output sees different text, as adopted, and also a different `name`: a
+function the source bound as `const f` answers `$0` there where the source
+answers `f`. Inside FJS `f.name` is refused at the key, so no FJS program
+observes it, and the exception's text covers the string representation
+alone. Whether `name` is a consequence of this exception or its own
+observation is a decision to record here, not to infer.
 
 [Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
 owns the three open questions: whether the FSC function serializer and `String`
