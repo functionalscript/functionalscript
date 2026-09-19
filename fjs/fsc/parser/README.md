@@ -1,7 +1,8 @@
 # DJS Parser
 
 Reads a DJS token stream as a FunctionalScript module: `import` statements, then
-`const` statements, then one `export default`, each ended by `;`.
+ordinary and exported `const` statements, with an optional final `export default`.
+Every statement ends with `;`, and at least one export is required.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
@@ -17,7 +18,7 @@ symbols here.
 module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
-export ::= 'export' t 'default' t value ';' t
+export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
 value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
 body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
 unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
@@ -72,8 +73,10 @@ the backtracking grammar this replaced had
   nothing follows.
 
 Two rules that were once code are shape. Statement ordering — every `import`
-before every `const` — is `import* const* export`, and a late `import` is a
-token the grammar cannot use. A reserved literal — `true`, `false`, `null`,
+before every ordinary or exported `const` — is in the grammar, and a late
+`import` is a token it cannot use. The `export` rule factors the common keyword:
+`default` ends the module, while `const` can be followed by ordinary declarations
+and another export. Its optional tail permits a named-only module. A reserved literal — `true`, `false`, `null`,
 `undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, and the
 rules take it wherever a *name* may stand: `{ NaN: 1 }` and `a.NaN` are a
 key and an access, and `const NaN = 1;` reaches the fold and is refused

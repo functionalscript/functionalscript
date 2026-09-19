@@ -12,7 +12,7 @@ const x = 5;
 export { x };
 ```
 
-This syntax is separate from the current [`export const` work](./3240-export.md).
+This syntax is separate from implemented [`export const`](../README.md#exporting-a-value).
 Investigate the options and their usefulness before choosing what
 FunctionalScript should support.
 
@@ -28,4 +28,4 @@ FunctionalScript should support.
 
 ### Related
 
-- [Named exports](./3240-export.md).
+- [Named exports](../README.md#exporting-a-value).

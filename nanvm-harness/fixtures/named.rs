@@ -8,6 +8,6 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    let c0: Any<A> = [(string_key("x"), (1f64).to_any())].to_object().to_any();
-    [(string_key("default"), [c0.clone(), c0.clone()].to_array().to_any())].to_object().to_any()
+    let c0: Any<A> = [(5f64).to_any()].to_array().to_any();
+    [(string_key("a"), c0.clone()), (string_key("default"), c0.clone()), (string_key("z"), c0.clone())].to_object().to_any()
 }

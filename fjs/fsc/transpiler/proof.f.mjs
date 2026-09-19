@@ -6,7 +6,8 @@
  */
 
 import { _importSources, parse, transpile } from './module.f.mjs'
-import { resolve, unresolved } from '../edag/module.f.mjs'
+import { _defaultExport, resolve, unresolved } from '../edag/module.f.mjs'
+import { _own } from '../ast/module.f.mjs'
 import { _errorLocation, compile } from '../module.f.mjs'
 import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
@@ -40,6 +41,19 @@ const refusedSpecifier = (specifier, source, root) => {
 }
 
 export const proof = {
+    moduleResult: () => {
+        for (const [source, expected] of [
+            ['export default 7;', { default: 7 }],
+            ['export default { a: 5 };', { default: { a: 5 } }],
+            ['export default undefined;', { default: undefined }],
+        ]) {
+            assert(typeof source === 'string')
+            const root = { 'main.f.js': [utf8(source)] }
+            assertStructurallySame(unwrap(run(root)('main.f.js')).value, expected)
+            const imported = { ...root, 'entry.f.js': [utf8('import x from "./main.f.js"; export default x;')] }
+            assertStructurallySame(unwrap(run(imported)('entry.f.js')).value, expected)
+        }
+    },
     // The resolver's identity may differ from the read path in both directions:
     // one identity under two spellings, and two identities at one location.
     hostIdentities: () => {
@@ -65,10 +79,10 @@ export const proof = {
             },
         }
         const runner = partialRun(nodeCommands)(host)(null)
-        const value = unwrap(runner(transpile('entry'))[1]).value
+        const value = _own(unwrap(runner(transpile('entry'))[1]).value, 'default')
         assert(value instanceof Array)
         assert(value[0] === value[2] && value[0] !== value[1])
-        const graph = unwrap(runner(resolve('entry'))[1])
+        const graph = _defaultExport(unwrap(runner(resolve('entry'))[1]))
         assert(graph instanceof Array && graph[0] === '[]')
         assert(graph[1][0] === graph[1][2] && graph[1][0] !== graph[1][1])
     },
@@ -181,8 +195,8 @@ export const proof = {
             assertEq(module.imports[0].specifier, specifier)
             refusedSpecifier(specifier, source, root)
             const relative = { ...root, 'main.f.js': [utf8(`import value from "./${specifier}"; export default value;`)] }
-            assertEq(unwrap(run(relative)('main.f.js')).value, 7)
-            assertEq(unwrap(virtual({ ...emptyState, root: relative })(resolve('main.f.js'))[1]), 7)
+            assertStructurallySame(unwrap(run(relative)('main.f.js')).value, { default: 7 })
+            assertStructurallySame(unwrap(virtual({ ...emptyState, root: relative })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 7]]])
         }
     },
     bareUnusedAndRepeated: () => {
@@ -218,11 +232,12 @@ export const proof = {
                 [`other.${extension}`]: [content],
             }
             const value = unwrap(run(root)('main.f.js'))
-            assert(value.value instanceof Array)
-            const [a, b, c, d] = value.value
+            const selected = _own(value.value, 'default')
+            assert(selected instanceof Array)
+            const [a, b, c, d] = selected
             assert(a === b && b === c && c !== d)
             assert(value.shared)
-            const edag = unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1])
+            const edag = _defaultExport(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]))
             assert(edag instanceof Array && edag[0] === '[]')
             const [ea, eb, ec, ed] = edag[1]
             assert(ea === eb && eb === ec && ec !== ed)
@@ -265,28 +280,28 @@ export const proof = {
                 [filename]: [utf8('import a from "./dep.f.js"; export default a;')],
                 'dep.f.js': [utf8('export default 7;')],
             }
-            assertEq(unwrap(run(root)('main.f.js')).value, 7)
-            assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 7)
+            assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 7 })
+            assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 7]]])
         }
         // CLI entry paths are filesystem names, not import specifiers.
         const root = {
             'main?#copy.f.js': [utf8('import value from "./dep.f.js"; export default value;')],
             'dep.f.js': [utf8('export default 7;')],
         }
-        assertEq(unwrap(run(root)('main?#copy.f.js')).value, 7)
-        assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main?#copy.f.js'))[1]), 7)
+        assertStructurallySame(unwrap(run(root)('main?#copy.f.js')).value, { default: 7 })
+        assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main?#copy.f.js'))[1]), ['{}', [[':', 'default', 7]]])
     },
     parse: () => {
         const result = run({ a: [utf8('export default 1;')] })('a')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'export default 1;')
+        assertEq(s, 'export default {"default":1};')
     },
     parseWithSubModule: () => {
         const result = run({ a: { b: [utf8('import c from "./c";\nexport default c;')], c: [utf8('export default 2;')] } })('a/b')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'export default 2;')
+        assertEq(s, 'export default {"default":2};')
     },
     // Module specifiers are URL-path spellings, not literal filesystem names:
     // Node resolves %64 to "d" before loading, so the literal %64ep file must
@@ -299,7 +314,7 @@ export const proof = {
         })('main.f.js')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'export default 1;')
+        assertEq(s, 'export default {"default":1};')
     },
     canceledImportComponents: () => {
         for (const component of ['bad%', '%ff', '%2F', '%00', '%5C', 'C%3A']) {
@@ -309,8 +324,8 @@ export const proof = {
                     'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
                     'dep.f.js': [utf8('export default 1;')],
                 }
-                assertEq(unwrap(run(root)('main.f.js')).value, 1, specifier)
-                assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 1, specifier)
+                assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 1 }, specifier)
+                assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 1]]], specifier)
             }
         }
     },
@@ -329,8 +344,8 @@ export const proof = {
                 'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
                 [name]: [utf8('export default 7;')],
             }
-            assertEq(unwrap(run(root)('main.f.js')).value, 7, specifier)
-            assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 7, specifier)
+            assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 7 }, specifier)
+            assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 7]]], specifier)
         }
     },
     // A valid dependency before a bad, unused import must not hide the error.
@@ -362,8 +377,8 @@ export const proof = {
             'main.f.js': [utf8('import value from "./\\ud800%20.f.js"; export default value;')],
             '\ufffd .f.js': [utf8('export default 1;')],
         }
-        assertEq(unwrap(run(root)('main.f.js')).value, 1)
-        assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 1)
+        assertStructurallySame(unwrap(run(root)('main.f.js')).value, { default: 1 })
+        assertStructurallySame(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), ['{}', [[':', 'default', 1]]])
     },
     // Both callers propagate the error through the CLI: exit 1, a diagnostic,
     // no output. A thrown assertion would fail this ordinary (non-throw) proof.
@@ -387,25 +402,25 @@ export const proof = {
         })('a')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'const $0=[0,2];export default [$0,[1,2],$0];')
+        assertEq(s, 'const $0=[0,2];export default {"default":[$0,[1,2],$0]};')
     },
     parseWithIdentifierKeys: () => {
         const result = run({ a: [utf8('export default {a:1,b:2};')] })('a')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'export default {"a":1,"b":2};')
+        assertEq(s, 'export default {"default":{"a":1,"b":2}};')
     },
     parseWithConstIdentifier: () => {
         const result = run({ a: [utf8('const a = 1;\nconst b = a;\nexport default {x:a,y:b};')] })('a')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'export default {"x":1,"y":1};')
+        assertEq(s, 'export default {"default":{"x":1,"y":1}};')
     },
     parseWithUnaryMinusOperator: () => {
         const result = run({ a: [utf8('export default [-1,2,-3];')] })('a')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'export default [-1,2,-3];')
+        assertEq(s, 'export default {"default":[-1,2,-3]};')
     },
     // A module named by an absolute path resolves its imports: `transpile`
     // reaches them through `concat(concat(path)('..'))(importPath)`, which
@@ -419,7 +434,7 @@ export const proof = {
         })('/m.f.js')
         assert(result[0] !== 'error', result[1])
         const s = unwrap(tryStringify(result[1].value))
-        assertEq(s, 'export default 8080;')
+        assertEq(s, 'export default {"default":8080};')
     },
     // The control: with no root to clamp it, the same `..` escapes and finds
     // nothing — which is why the case above is about the root and not about

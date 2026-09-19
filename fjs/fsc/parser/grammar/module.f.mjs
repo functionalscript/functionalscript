@@ -60,7 +60,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, Block, Body, Func, Group, Items, Member, Parameters, Paren, ParenGroup, Parenthesized, Unary, Value } from './types.ts'
+ * @import { ExportStatement, Access, Block, Body, Func, Group, Items, Member, Parameters, Paren, ParenGroup, Parenthesized, Unary, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -528,13 +528,15 @@ export const importStatement = /** @type {const} */ ([
     sym('import'), trivia, identifierName, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
 ])
 
-export const exportStatement = /** @type {const} */ ([
-    sym('export'), trivia, sym('default'), trivia, value, ...end,
-])
+/** @type {ExportStatement} */
+export const exportStatement = () => ['const', [sym('export'), trivia, {
+    default: [sym('default'), trivia, value, ...end],
+    named: [constStatement, repeatFrom0(constStatement), option(exportStatement)],
+}]]
 
 /**
- * The whole module: every `import` before every `const`, one
- * `export default` last, each ended by `;`, and nothing but trivia around
+ * The whole module: imports first, ordinary and exported constants in order,
+ * an optional `export default` last, at least one export, and trivia around
  * them. Ending on `eof` is what makes a trailing stray token a failure.
  */
 export const djsModule = /** @type {const} */ ([

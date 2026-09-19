@@ -112,3 +112,10 @@ Neither spelling is in the language yet — a named parameter is
 makes `frame` necessary is what this issue holds: a body that names
 anything bound outside it is refused today
 ([functions](../README.md#functions)).
+
+This document's frame is the bytecode-interpreter design. The parallel plan
+for the AOT path — Rust code generated per FS function, called directly —
+reuses the same copy-scheme decision and `["args"]`/`["frame"]`/`["self"]`
+model but needs no explicit slot layout, since rustc's own call frame plays
+that role; see
+[callable-function-objects](../../nanvm-lib/todo/callable-function-objects.md).
