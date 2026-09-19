@@ -20,11 +20,11 @@
  * @import { ReadFile, ResolveFileModule } from '../effects/node/types.ts'
  */
 
-import { transpile } from './transpiler/module.f.mjs'
+import { _transpileDefault } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
-import { tryStringify as fjsStringify } from './serializer/module.f.mjs'
+import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { empty, flat, map } from '../types/list/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
@@ -245,14 +245,15 @@ const rustText = path => mapStep(resolve(path), toRust)
  *
  * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolve(path), fjsStringify)
+const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsStringify(graph) : tryModuleStringify(graph))
 
 /**
- * The module at `path` as the text `write` makes of what it denotes.
+ * Write the default export of a module, or the whole document for a direct
+ * JSON input. Input language decides the boundary, never an object's keys.
  *
  * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const denotedText = write => path => mapStep(transpile(path), write)
+const denotedText = write => path => mapStep(_transpileDefault(path), write)
 
 /**
  * The text an output name asks for, from the input, or `null` when the name
@@ -336,10 +337,11 @@ export const _stringifyTree = value => concat(treeValue(value))
  * `.mjs`.
  * Each of the three module outputs is in normalized form — one line, shared
  * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
- * module gave them. The DataJS and JSON outputs are the value the program
- * denotes; the FunctionalScript output is the linked graph written back as
- * source, so it holds a function, which no value does; the EDAG output is
- * that graph as a DataJS document; and the `.rs` output prints it as `let`
+ * module gave them. The DataJS and JSON outputs are the default export
+ * (the document itself for a direct JSON input); the FunctionalScript output
+ * is the linked graph written back as source, so it holds a function, which no value does; the EDAG output is
+ * that graph, including the module's complete export object, as a DataJS
+ * document; and the `.rs` output prints it as `let`
  * bindings and a `pub fn module<A: IVm>() -> Any<A>`.
  *
  * Returns the process exit code: `0` once the output file is written, `1` on
