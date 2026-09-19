@@ -118,11 +118,11 @@ rather than compiled to `.`. For example, `a.x`, `a['x']`, and `a[0]` can lower 
 while `a['constructor']` and `a[x]` (when `x` is a runtime string value) do not.
 
 This stage is required before EDAG can replace the current AST as the representation of
-an **unresolved module**, because imported values are parameters and module EDAGs need
-to access those parameters, for example:
+an **unresolved module**, because module export objects are parameters and default
+imports select their `default` property, for example:
 
 ```js
-['.', ['args'], 0]
+['.', ['.', ['args'], 0], 'default']
 ```
 
 #### Temporary `Unresolved`
@@ -146,7 +146,8 @@ written and whether the import carries `with { type: "json" }` — see
 [`ast/types.ts`](../ast/types.ts). Preserve this declared module type for the
 resolver/loader to validate under the host contract, even on cache hits. Its order
 defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
-with `export default` as its root/result.
+with the complete module export object as its root/result
+([named and default exports](../../../spec/README.md#exporting-a-value)).
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
 import specifiers and resolved loading locations must not be embedded into EDAG
@@ -165,13 +166,13 @@ can compile conceptually to:
 
 ```js
 const args = ['args']
-const a = ['.', args, 0]
-const x = ['[]', a, 1]
-
-const edag = ['{}',
+const a = ['.', ['.', args, 0], 'default']
+const x = ['[]', [a, 1]]
+const value = ['{}', [
     [':', 'x', x],
     [':', 'y', x],
-]
+]]
+const edag = ['{}', [[':', 'default', value]]]
 ```
 
 with temporary unresolved metadata:
@@ -196,9 +197,10 @@ export default 1
 ```
 
 must not silently become the successful EDAG constant `1`. The `','` operation anchors
-it: the module lowers to `[',', [['.', null, 'x'], 1]]`, every operand evaluated and the
-last one's value taken, so the failure stays in the graph. The operands before the
-result are the **roots** of the part the export does not reach — an unreached `const`
+it: the module lowers to
+`[',', [['.', null, 'x'], ['{}', [[':', 'default', 1]]]]]`, every operand evaluated
+and the last one's value taken, so the failure stays in the graph. The operands
+before the result are the **roots** of the part the export does not reach — an unreached `const`
 another unreached `const` reaches is anchored through it, since an operand a sibling
 reaches is a redundant anchor — in source order, and a module the export reaches
 entirely has no `','` at all.
@@ -239,10 +241,12 @@ a sibling filesystem path. Unsupported URL forms or attributes are refused,
 not silently normalized into another meaning. The CLI's root filesystem input
 also needs a host module identity before resolving its imports.
 
-Resolution binds the resolved imported module results to the corresponding import
-parameter positions in the importing module EDAG. The import array order therefore
-remains significant: position `i` in `imports` corresponds to import parameter `i` in
-the EDAG.
+Resolution binds the imported modules' export objects to the corresponding import
+parameter positions; default bindings select `.default`. The current linker lowers
+over those selected computations directly, preserving their evaluation anchors and
+sharing. Imported JSON exposes `{ default: document }` at this boundary. The import
+array order remains significant: position `i` in `imports` corresponds to import
+parameter `i` in the EDAG.
 
 **Import binding is scope-aware.** At module scope, `['args']` is the import-parameter
 array described above. A nested `['=>', frame, body]` introduces a new function scope,
@@ -475,32 +479,34 @@ leaf, so the graph holds the number either way.
 
 ### Existing compile API boundary
 
-This task adds an **EDAG-producing compilation path**; it does not change the public
-success result of the existing value-producing DJS transpiler/CLI yet. Until an EDAG
-execution path is integrated, existing `transpile` callers and `fjs compile` continue
-to evaluate the module and serialize its exported value exactly as they do today.
+The EDAG-producing path remains separate from the evaluated-value path. Its
+artifact is a computation graph, not a value that `transpile` callers should
+accidentally serialize as a module result.
 
-The current `transpile` success value is a `Denotation` — the evaluated value and
-whether its graph is shared (`fjs/fsc/ast/types.ts`) — and this task preserves it;
-the final EDAG artifact described below is a distinct compiler artifact,
-not a replacement for the current `fjs compile <input> <output>` result during this
-stage. Land the EDAG-producing path alongside the current value-producing path rather
-than routing existing callers to an EDAG value that they would accidentally stringify
-as the module result.
+The original Stage 1 promise to preserve the bare exported value is superseded
+by [#2129](https://github.com/functionalscript/functionalscript/pull/2129), the
+prerequisite for [named exports](../../../spec/README.md#exporting-a-value).
+`transpile` still returns a `Denotation`, but for a FunctionalScript input its
+`value` is now the complete module export object, including named properties and `default` when present.
+The linked EDAG and generated Rust compute that same object. JSON and DataJS
+value output serialize `result.default`; FunctionalScript output writes the
+individual `export const` declarations and a final `export default` when present. Direct `.json` roots remain documents and bypass
+both wrapping and projection, even if the document has a `default` property.
 
-After the baseline interpreter exists, [`interpret-edag.md`](./interpret-edag.md) owns
-the migration of the existing value-producing path to:
+After the baseline interpreter exists, [`interpret-edag.md`](./interpret-edag.md)
+owns the migration of the evaluated-value path to:
 
 ```text
 source modules
   -> final EDAG
   -> interpret EDAG
-  -> exported value
-  -> existing output serialization
+  -> module export object
+  -> select result.default for JSON/DataJS value output
+  -> existing value serialization
 ```
 
-That migration changes the internal execution path, not the public value/output
-contract.
+That migration changes the internal execution path while preserving this updated
+public result and output contract, including the direct JSON document path.
 
 ### Final EDAG serialization
 
@@ -686,12 +692,13 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       shared node as the DataJS output does; no JSON form of the EDAG is offered,
       since JSON cannot hold a shared node and an EDAG's sharing is its meaning. The
       name is `.edag.data.js` since the output route landed.
-- [x] Preserve the existing value-producing `transpile` / `fjs compile` success output
-      — `transpile`'s `Denotation` and `fjs compile`'s bytes — until
-      `interpret-edag.md` integrates EDAG execution behind that API. (It holds for
-      the value outputs; a plain `.js` is the FunctionalScript writer's now, written
-      from the graph and not from the value.) Done: pinned
-      side by side with the EDAG output in `fjs/fsc/proof.f.mjs` (`edagOutput`).
+- [x] Add the EDAG artifact alongside the evaluated-value path. Stage 1 preserved
+      the existing output; #2129 subsequently changed module results to export
+      objects while keeping CLI value/source output stable. The future
+      `interpret-edag.md` migration must preserve the updated
+      [compile API boundary](#existing-compile-api-boundary), including direct JSON
+      roots. Pinned side by side in `fjs/fsc/proof.f.mjs` (`moduleBoundary`,
+      `edagOutput`).
 - [x] Preserve current missing-file, parse-error, and circular-dependency behavior.
       Done: the linker reads through the transpiler's reader and reports the same
       `ParseError`; pinned in `fjs/fsc/edag/proof.f.mjs` (`resolve.refused`).
@@ -708,11 +715,13 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       and entry-descriptor identity is not checked — see the same subject — so neither
       is pinned.)
 - [x] `const n = null; const check = n.x; export default 1` is not compiled to the
-      constant `1`: it is `[',', [['.', null, 'x'], 1]]`, and `fjs compile` writes it so
-      where its value outputs fail on the read. Pinned by `anchored` here and in
+      constant `1`: it is `[',', [['.', null, 'x'], ['{}', [[':', 'default', 1]]]]]`,
+      and `fjs compile` retains the failing read in EDAG and FunctionalScript output
+      while its value outputs fail on that read. Pinned by `anchored` here and in
       [`fjs/fsc/proof.f.mjs`](../proof.f.mjs).
 - [x] An unused import is not discarded: `import b from './b.f.js'; export default 1`
-      links to `[',', [<b's EDAG>, 1]]`, so a failure in `b.f.js` cannot disappear.
+      anchors `b`'s selected computation before `{ default: 1 }`, so a failure
+      in `b.f.js` cannot disappear.
       Pinned by `resolve.anchored`.
 - [x] A diamond resolves one module identity once and both paths bind the same
       EDAG node. Pinned by `resolve.diamond`, `resolve.bound`, and
@@ -747,6 +756,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`fjs/fsc/ast/module.f.mjs`](../../fsc/ast/module.f.mjs) — current sequential AST evaluator.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
+- [`compile-noncapturing-functions-to-rust.md`](./compile-noncapturing-functions-to-rust.md)
+  — the Rust-output follow-through for the `=>`/`()` shapes Stage 2 here
+  already lowers correctly but nothing yet prints to Rust.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter
   execution strategy for the final EDAG and later integration behind the existing
   value-producing transpile/compile API.

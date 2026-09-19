@@ -1,7 +1,8 @@
 # DJS Parser
 
 Reads a DJS token stream as a FunctionalScript module: `import` statements, then
-`const` statements, then one `export default`, each ended by `;`.
+ordinary and exported `const` statements, with an optional final `export default`.
+Every statement ends with `;`, and at least one export is required.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
@@ -17,19 +18,23 @@ symbols here.
 module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
-export ::= 'export' t 'default' t value ';' t
-value  ::= '-' t unary tail | '~' t unary tail
+export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
+value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
          | (primitive t | id t | array | object) access* powTail tail
          | '(' t (func | group tail)
-body   ::= '-' t unary tail | '~' t unary tail
+body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
          | (primitive t | id t | array) access* powTail tail
          | '(' t (func | group tail) | block
-unary  ::= '-' t unary | '~' t unary
+unary  ::= '-' t unaryOperand | '~' t unaryOperand
          | (primitive t | id t | array | object) access* powTail
          | '(' t group
+unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
+         | (primitive t | id t | array | object) access*
+         | '(' t groupOperand
 block  ::= '{' t const* 'return' s value ';' t '}' t
 func   ::= [ '...' t id t ] ')' s '=>' t body
 group  ::= value ')' t access* powTail
+groupOperand ::= value ')' t access*
 powTail ::= [ '**' t unary ]
 tail   ::= { mulOp t unary }
            { addOp t unary <the multiplicative repeat above> }
@@ -106,8 +111,10 @@ the backtracking grammar this replaced had
   nothing follows.
 
 Two rules that were once code are shape. Statement ordering — every `import`
-before every `const` — is `import* const* export`, and a late `import` is a
-token the grammar cannot use. A reserved literal — `true`, `false`, `null`,
+before every ordinary or exported `const` — is in the grammar, and a late
+`import` is a token it cannot use. The `export` rule factors the common keyword:
+`default` ends the module, while `const` can be followed by ordinary declarations
+and another export. Its optional tail permits a named-only module. A reserved literal — `true`, `false`, `null`,
 `undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, and the
 rules take it wherever a *name* may stand: `{ NaN: 1 }` and `a.NaN` are a
 key and an access, and `const NaN = 1;` reaches the fold and is refused
