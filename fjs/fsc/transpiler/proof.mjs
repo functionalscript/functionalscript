@@ -1,6 +1,6 @@
 /**
- * Read-only Node-host comparisons for module resolution. The virtual proofs
- * exercise compiler traversal; these compare filesystem/URL behavior with ESM.
+ * Read-only filesystem proofs of the Node file-module profile on every runtime.
+ * Native ESM comparisons run on Node, whose loader defines this profile.
  *
  * @import { Effect } from '../../effects/types.ts'
  * @import { NodeOp } from '../../effects/node/types.ts'
@@ -8,7 +8,8 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { fileURLToPath } from 'node:url'
+import { realpathSync } from 'node:fs'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runEffect } from '../../effects/node/module.mjs'
 import { resolveFileModule } from '../../effects/node/module.f.mjs'
 import { resultMapStep } from '../../effects/module.f.mjs'
@@ -30,10 +31,15 @@ const hostCheck = async (effect, check) => {
     })), 0)
 }
 
-const directory = new URL('./fixtures/url%2523identity/', import.meta.url)
+// Bun can retain an extra slash in import.meta.url. Derive expectations from
+// the canonical filesystem location, independently of the proof loader's URL.
+const source = pathToFileURL(realpathSync(fileURLToPath(import.meta.url)))
+const directory = new URL('./fixtures/url%2523identity/', source)
 const entry = new URL('entry%20%23%25.mjs', directory)
 const dependency = new URL('dep%20%23%25.mjs', directory)
 const cycle = new URL('cycle.mjs', directory)
+const expectedValue = [[42], [42], [42], [42]]
+const expectedSharing = [true, true, true]
 
 /** Observe sharing, not just equal contents. @type {(value: unknown) => readonly boolean[]} */
 const sharing = value => {
@@ -57,22 +63,27 @@ export const proof = {
             })
         }
     },
-    nativeSharing: async () => {
-        const native = (await import(entry.href)).default
-        assertStructurallySame(sharing(native), [true, true, true])
-        // A warm native cache and repeated cold compiler loads have the same
-        // sharing relationships; compilation never caches evaluated instances
-        // across calls.
+    moduleSharing: async () => {
+        // Deno and Bun have different native URL resolution/cache semantics.
+        // Only Node's native loader is an oracle for the declared Node profile.
+        if (!('Bun' in globalThis) && !('Deno' in globalThis)) {
+            const native = (await import(entry.href)).default
+            assertStructurallySame(native, expectedValue)
+            assertStructurallySame(sharing(native), expectedSharing)
+        }
+        // Both compiler paths must implement that profile on every runtime.
+        // Repeated cold compiler loads preserve sharing even with a warm
+        // native cache; compilation never caches instances across calls.
         for (const path of [fileURLToPath(entry), `${fileURLToPath(directory)}./entry #%.mjs`]) {
             await hostCheck(transpile(path), result => {
                 const { value } = unwrap(result)
-                assertStructurallySame(value, native)
-                assertStructurallySame(sharing(value), sharing(native))
+                assertStructurallySame(value, expectedValue)
+                assertStructurallySame(sharing(value), expectedSharing)
             })
             await hostCheck(resolve(path), result => {
                 const graph = unwrap(result)
                 assert(graph instanceof Array && graph[0] === '[]')
-                assertStructurallySame(sharing(graph[1]), sharing(native))
+                assertStructurallySame(sharing(graph[1]), expectedSharing)
             })
         }
     },

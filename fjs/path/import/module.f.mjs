@@ -32,11 +32,30 @@ const importSegment = segment => {
 }
 
 /**
+ * Reduce URL dot segments while the other components are still encoded.
+ * Only the URL grammar's exact dot spellings are structural; canceled
+ * components need not be valid UTF-8 or valid filesystem names. Keep empty
+ * components here: in `bad%//../dep`, `..` removes the empty one, not `bad%`.
+ *
+ * @type {(rooted: boolean) => (segments: readonly string[], segment: string) => readonly string[]}
+ */
+const importDotSegments = rooted => (segments, segment) => {
+    switch (segment.toLowerCase()) {
+        case '.': case '%2e': return segments
+        case '..': case '.%2e': case '%2e.': case '%2e%2e':
+            return segments.length !== 0 && segments[segments.length - 1] !== '..'
+                ? segments.slice(0, -1)
+                : rooted ? segments : [...segments, '..']
+        default: return [...segments, segment]
+    }
+}
+
+/**
  * Resolve an import's URL-path spelling against its importing file, or return
- * null for an unsupported segment. Decode only the specifier, once, and before
- * normalization: escaped dots have their URL meaning, but decoded filesystem
- * delimiters cannot create a new root or segment. The importing path is
- * already a filesystem path and must not be decoded again.
+ * null for unsupported syntax or a surviving unsupported segment. URL dot
+ * processing precedes decoding and filesystem validation, so `bad%/../dep`
+ * names `dep`. Decode only the surviving specifier components, once; the
+ * importing path is already a filesystem path and is never decoded again.
  *
  * This is the virtual host's lexical path profile. Native file URL identities
  * come from the host resolution effect, not from this helper.
@@ -48,8 +67,22 @@ export const resolve = path => specifier => {
     return decoded === null ? null : pathConcat(pathConcat(path)('..'))(decoded)
 }
 
-/** Decode admitted portable URL-path segments, without resolving a module identity. @type {(specifier: string) => string | null} */
+/**
+ * Reduce URL dot segments and decode portable path components without resolving
+ * a module identity. Refuse raw colons, backslashes and URL suffixes before
+ * dot processing: suffix text must neither be decoded nor canceled as a path.
+ * Percent-encoded `?` and `#` are filename data, not URL delimiters.
+ *
+ * @type {(specifier: string) => string | null}
+ */
 export const decode = specifier => {
-    const segments = specifier.split('/').map(importSegment)
-    return segments.every(segment => segment !== null) ? segments.join('/') : null
+    if (specifier.includes(':') || specifier.includes('\\')
+        || specifier.includes('?') || specifier.includes('#')) { return null }
+    const rooted = specifier.startsWith('/')
+    const raw = specifier.split('/')
+    const components = (rooted ? raw.slice(1) : raw).reduce(importDotSegments(rooted), [])
+    const segments = components.map(importSegment)
+    return segments.every(segment => segment !== null)
+        ? `${rooted ? '/' : ''}${segments.join('/')}`
+        : null
 }

@@ -29,17 +29,21 @@ const utf8String = bytes => {
     return codePointListToString(codePoints)
 }
 
-/** @type {(part: string) => boolean} */
+/** Whether a part split on `%` begins with two hexadecimal digits. @type {(part: string) => boolean} */
 const isEscape = part =>
     part.length >= 2 && hexDigit(part.charAt(0)) >= 0 && hexDigit(part.charAt(1)) >= 0
 
-/** @type {(part: string) => readonly number[]} */
+/** The escape byte and following literal bytes; `isEscape` has validated the part. @type {(part: string) => readonly number[]} */
 const escapeBytes = part =>
     [hexDigit(part.charAt(0)) * 16 + hexDigit(part.charAt(1)), ...utf8Bytes(part.slice(2))]
 
 /**
  * Percent-decodes UTF-8 text. Returns `null` for malformed escapes or byte
  * sequences that are not valid UTF-8.
+ *
+ * Validate every escape before producing bytes, then decode the whole byte
+ * stream: several escapes can encode one character. Keep these passes linear;
+ * repeatedly copying the accumulated byte array per escape is quadratic.
  *
  * @type {(s: string) => Nullable<string>}
  */
