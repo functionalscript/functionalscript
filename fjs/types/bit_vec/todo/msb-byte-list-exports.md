@@ -23,8 +23,8 @@ const chunkVec = u8ListToVec(msb)
 ```
 
 Eight of the git modules carry one or both, and `tree`, `pack`, `packidx`
-and `loose` add more; `fjs/text/utf8` and `fjs/media/type` apply
-`u8List(msb)` inline instead. The byte order is a fact stated once by
+and `loose` add more; `fjs/text`, `fjs/text/utf8`, `fjs/media/type` and
+`fjs/effects/node`'s `readChunks` apply `u8List(msb)` inline instead. The byte order is a fact stated once by
 `fjs/ebnf/byte`'s doc — `u8List(msb)` is the canonical spelling — and then
 re-derived at every import under whatever name the module chose.
 `packstore` then composes one step further four times: `v => byteArray(toBytes(v))`
@@ -51,8 +51,11 @@ and is orthogonal to this.
 ### Tasks
 
 - [ ] `u8ListMsb` and `u8ListToVecMsb` in `fjs/types/bit_vec` with proofs.
-- [ ] Replace the bindings in `fjs/git/*`, `fjs/types/uint8array`,
-      `fjs/text/utf8`, `fjs/media/type`.
+- [ ] Replace the bindings in `fjs/git/*` and `fjs/types/uint8array`, and
+      the inline applications in `fjs/text`, `fjs/text/utf8`,
+      `fjs/media/type` and `fjs/effects/node`; afterwards `u8List(msb)`
+      and `u8ListToVec(msb)` appear only in `fjs/types/bit_vec` and its
+      proofs.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

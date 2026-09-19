@@ -29,8 +29,12 @@ const isPort = s => isDigits(s) && Number(s) <= maxPort
 `maxPort`, `isPort: (port: number) => boolean` and a `badPortCode` /
 `badPortMessage` pair beside `emptyHost*`; the virtual runner builds its
 refusal from them as it does for the host; `fjs/web` imports `maxPort`
-and keeps its two own rules — a digits-shaped string in the authority, and
-`0` is not a URL — documented where they are.
+and keeps its two own rules, documented where they are. They are
+different domains and stay so: the authority grammar's `isPort` accepts a
+digits-shaped string in `0`..`maxPort`, so `:0` is a valid authority and
+must remain one; `main` refuses a numeric `0` on the command line as a
+binding policy — Node reads it as any free port, and the program cannot
+announce which one it got — not as a fact about URLs.
 
 ### Tasks
 
