@@ -135,9 +135,13 @@ This is a complete module:
 export default 5;
 ```
 
-A module denotes exactly one value, and `export default` is how it says which.
-The statement is **required** and **last**: only comments and whitespace may
-follow it. A module without one is an error.
+The module function returns an object of its exports: this module returns
+`{ default: 5 }`. The default export is `5`, which a default import binds and
+JSON/DataJS value output serializes. If the default export is an object, it
+remains inside that property; its members do not become module exports.
+
+`export default` is currently **required** and **last**: only comments and
+whitespace may follow it. A module without one is an error.
 
 Every module is this shape, however large the value gets:
 
@@ -146,7 +150,7 @@ export default { "name": "fjs", "tags": ["data", "config"] };
 ```
 
 `export default` alone already expresses everything JSON expresses — the value
-that follows it is the whole content of the module. What takes a module past a
+that follows it is the module's default export. What takes a module past a
 tree, and past what JSON can hold at all, is the rest of the language:
 [constants](#shared-values-constants) and [imports](#importing-other-modules)
 name shared parts, and [`bigint`](#supported-value-types) and
@@ -282,11 +286,19 @@ module under `.rs`. They are compiler artifacts, and
 of the five is refused, rather than written in a language the name does not
 declare.
 
+For a FunctionalScript input, JSON and DataJS output serialize the module
+result's `default` property. FunctionalScript output writes the corresponding
+`export default`, so recompilation does not add another wrapper. EDAG and Rust
+output compute the complete export object. A direct `.json` input remains a
+document: its value is used without projection, even when it contains a property
+named `default`. Imported JSON instead exposes `{ default: document }` at the
+module boundary, from which a default import selects the document.
+
 - A DataJS document is written in
   [normalized form](./datajs/README.md#normalized-form): one line, and a
   value referenced more than once hoisted into a `const` named `$0`, `$1`, …
   so it stays shared ([shared values](#shared-values-constants)). Every value
-  a module denotes has a document.
+  default export in the data subset has a document.
 - JSON is a tree, and the compiler refuses what JSON cannot spell rather than
   write a file that reads back as a different value: a shared value, which
   written twice reads back as two; `bigint`, `undefined`, `NaN`, `Infinity`
