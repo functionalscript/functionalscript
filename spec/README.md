@@ -654,8 +654,10 @@ constants, a fragment that several outputs include.
 against the importing file URL, canonicalizes symlinks, and reuses modules by the
 resulting file URL identity. This is the default Node file-module profile;
 preserve-symlinks modes are not supported profiles. Bare packages, other URL
-schemes, literal query/fragment components, and nonportable path segments remain
-explicitly refused. The existing
+schemes and nonportable path segments remain explicitly refused. Query and
+fragment components participate in module identity, while loading uses only the
+pathname. Empty components follow Node's default canonicalization and disappear.
+The existing
 [module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
 records the host boundary, tests, and remaining support work.
 

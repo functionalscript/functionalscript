@@ -1,7 +1,15 @@
-import { resolve, decode } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { resolve, decode, components } from './module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 export const proof = {
+    components: () => {
+        for (const suffix of ['', '?', '#', '?#']) {
+            assertStructurallySame(components(`./dep%23.mjs${suffix}`), { path: './dep%23.mjs', suffix: '' })
+        }
+        assertStructurallySame(components('./dep?one?two#three#four?five'), { path: './dep', suffix: '?one?two#three#four?five' })
+        assertStructurallySame(components('./dep?#one'), { path: './dep', suffix: '#one' })
+        assertStructurallySame(components('./dep?one#'), { path: './dep', suffix: '?one' })
+    },
     decode: () => assertEq(decode('./%64ep.f.js'), './dep.f.js'),
     // Only the specifier is decoded, once; the importer's filesystem root stays put.
     importPath: () => {

@@ -314,12 +314,15 @@ const runNodeEffect = asyncRun({
     mkdir: (path, options) => io(async () => { await mkdir(path, options) }),
     resolveFileModule: (name, parent) => io(async () => {
         const url = parent === null ? pathToFileURL(name) : new URL(name, parent)
-        // Empty ?/# components matter too; URL.search/hash alone miss them.
-        if (url.protocol !== 'file:' || url.href.includes('?') || url.href.includes('#')) {
-            throw new Error('only file modules without query or fragment components are supported')
+        if (url.protocol !== 'file:') {
+            throw new Error('only file modules are supported')
         }
         const path = await fs.promises.realpath(fileURLToPath(url))
-        return { id: pathToFileURL(path).href, path }
+        const canonical = pathToFileURL(path)
+        // Match Node's default ESM realpath step, including empty components.
+        canonical.search = url.search
+        canonical.hash = url.hash
+        return { id: canonical.href, path }
     }),
     readFile: path => io(async () => {
         const fileStats = await stat(path)

@@ -97,8 +97,10 @@ export type FileModule = {
  * against its parent identity. The Node host uses WHATWG file URLs and realpath,
  * with default Node ESM symlink semantics, independent of preserve-symlinks flags.
  * Callers admit supported import classes; URL parsing and filesystem identity
- * belong to the host. Queries/fragments are not supported by this operation yet.
- * The virtual host declares its own lexical path identities (no cwd or symlinks).
+ * belong to the host. Query/fragment components belong to identity, not the
+ * loading path; the default Node realpath step removes empty components.
+ * The virtual host declares lexical identities with opaque suffix text (no cwd
+ * or symlinks); it escapes pathname delimiters to keep filenames distinct.
  */
 export type ResolveFileModule = readonly['resolveFileModule', (name: string, parent: string | null) => IoResult<FileModule>]
 
