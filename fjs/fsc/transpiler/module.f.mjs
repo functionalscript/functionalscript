@@ -18,10 +18,12 @@
  */
 
 import { error } from '../../types/result/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 import { drop, map as listMap, toArray, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
+import { percentDecode } from '../../text/percent/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
@@ -83,13 +85,33 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
 export const _parseModule = path => step(notFound(path)(readUtf8File(path)), text => pure(parse(path)(text)))
 
 /**
- * The path an import names, resolved against the importing module's:
- * `./b.f.js` from `dir/a.f.js` is `dir/b.f.js`. Exported for the EDAG
- * linker, as `_parseModule` is.
+ * One URL-path segment of a module specifier as a filesystem-path segment.
+ * Decode each segment before path normalization so escaped dot segments have
+ * their URL meaning, while an escaped separator cannot create a new segment.
+ *
+ * @type {(specifier: string) => (segment: string) => string}
+ */
+const importSegment = specifier => segment => {
+    const decoded = percentDecode(segment)
+    assert(decoded !== null, ['invalid module specifier', specifier])
+    assert(!decoded.includes('/') && !decoded.includes('\\\\') && !decoded.includes('\\0'), ['invalid module specifier', specifier])
+    return decoded
+}
+
+/**
+ * The path an import names, resolved against the importing module's URL-path
+ * spelling: `./%62.f.js` from `dir/a.f.js` names `dir/b.f.js`. Percent
+ * escapes are decoded as UTF-8 before the resulting path is normalized.
+ * Exported for the EDAG linker, as `_parseModule` is.
+ *
+ * This is deliberately only the relative/file-path part of module resolution.
+ * Package resolution and distinct URL identities remain owned by
+ * `../todo/module-resolution-compatibility.md`.
  *
  * @type {(path: string) => (specifier: string) => string}
  */
-export const _importPath = path => pathConcat(pathConcat(path)('..'))
+export const _importPath = path => specifier =>
+    pathConcat(pathConcat(path)('..'))(specifier.split('/').map(importSegment(specifier)).join('/'))
 
 /**
  * The context once a module's body has run: what it denotes recorded under
