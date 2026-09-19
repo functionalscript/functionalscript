@@ -149,6 +149,15 @@ const resultOperator = node => node instanceof Array && (
  * The module's value as a Rust expression of type `Any<A>`, and the `let`
  * bindings its implicitly shared nodes need first — or the refusal.
  *
+ * `analysis(root)` recurses once per operand ({@link ../../edag/analysis/module.f.mjs}),
+ * so this refusal is itself reached only up to the depth that walk survives:
+ * a module deep enough overflows the call stack before this function can
+ * report the clean refusal below. Tracked, not fixed here — the walk is
+ * shared infrastructure every EDAG consumer depends on, and a rewrite has
+ * to preserve its merge/scope semantics exactly, which is a bigger and
+ * riskier change than this refusal's own scope:
+ * `fjs/edag/todo/stack-safety.md`.
+ *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
 const bodyLines = root => {

@@ -1,6 +1,6 @@
 ## `fjs/edag/analysis`'s walk recurses through a deeply nested EDAG
 
-**Priority:** P2
+**Priority:** P1
 **Status:** open
 
 ### Problem
@@ -34,6 +34,22 @@ resolves a value's own operators. This issue is the same fix, one
 layer further down, in code shared by every EDAG consumer rather than
 one compiler stage — a bigger, more central rewrite, out of Stage A's
 own scope.
+
+Confirmed reachable through the Rust backend's own operator refusal
+(`fjs/fsc/rust/module.f.mjs`'s `bodyLines`, added by Stage A): it calls
+`analysis(root)` to find every operator node *before* it can report the
+clean refusal Stage A's PR description promises, so a 5,000-term chain
+crashes there rather than reaching that refusal. Raised again,
+independently, as a Stage A PR review finding
+([functionalscript/functionalscript#2106, discussion_r4053431594](https://github.com/functionalscript/functionalscript/pull/2106#discussion_r4053431594))
+— left unfixed there for the reason above: a correctness-preserving
+rewrite of this module's merge/scope/ordering semantics is a bigger,
+riskier change than that PR's own scope, and a rushed one risks
+trading a loud crash for a silent miscompilation, which
+[DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+ranks strictly worse. The crash is real and worth fixing — it stayed a
+crash rather than becoming a wrong answer, but it is a real gap, hence
+P1 rather than P2.
 
 ### Proposal
 
