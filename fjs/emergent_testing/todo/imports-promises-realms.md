@@ -27,9 +27,10 @@ what nobody has stated:
 **A module namespace object is a thenable.** `import()` resolves by *adopting*
 what a module exports, so a module exporting a function named `then` corrupts
 its own dynamic import. That is why exporting `then` from a proof module is
-forbidden ([`spec/todo/3240-export.md`](../../../spec/todo/3240-export.md)) —
-but the rule lives in a spec issue and a README paragraph, and nothing checks
-it. The proof discovery in `../../dev/module.f.mjs` imports whatever it finds.
+forbidden ([`spec/README.md#exporting-a-value`](../../../spec/README.md#exporting-a-value)) —
+FSC now enforces this for compiled modules. Proof discovery in
+`../../dev/module.f.mjs` still imports authored `.f.mjs` directly without that
+compiler check.
 
 **A proof tree is not a thenable, even when it has a `then`.** The runner's rule
 is that only an actual `Promise` is an asynchronous value, so `{ then: f }`
@@ -448,5 +449,5 @@ Three things to consider first, if the day comes:
   the guarded reads of user values, which share a cause with the cross-realm
   exposure this file measures.
 - [Browser testing](browser-testing.md) — iframes and workers.
-- [`spec/todo/3240-export.md`](../../../spec/todo/3240-export.md) — the `then`
+- [`spec/README.md#exporting-a-value`](../../../spec/README.md#exporting-a-value) — the `then`
   export ban.

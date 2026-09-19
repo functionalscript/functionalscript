@@ -8,15 +8,16 @@
  * @import { Denotation, Import } from '../ast/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
- * @import { AstImport, AstModule } from '../ast/types.ts'
+ * @import { AstImport, AstModule, AstObject } from '../ast/types.ts'
  * @import { _Source } from './types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
- * @import { ParseContext } from './types.ts'
+ * @import { ModuleDenotation, ParseContext } from './types.ts'
  */
 
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
@@ -25,7 +26,7 @@ import { stringToList } from '../../text/utf16/module.f.mjs'
 import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
-import { sharing, values } from '../ast/module.f.mjs'
+import { _own, sharing, values } from '../ast/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { errorMessage, readUtf8File, resolveFileModule } from '../../effects/node/module.f.mjs'
 
@@ -39,7 +40,7 @@ import { errorMessage, readUtf8File, resolveFileModule } from '../../effects/nod
 const notFound = path => e =>
     catchStep(e, () => pureError({ message: 'file not found', metadata: null, path }))
 
-/** @type {(context: ParseContext) => (id: string) => Denotation} */
+/** @type {(context: ParseContext) => (id: string) => ModuleDenotation} */
 const mapDjs = context => id => {
     const res = at(id)(context.complete)
     if (res === null)
@@ -49,10 +50,13 @@ const mapDjs = context => id => {
     return res
 }
 
-/** @type {(context: ParseContext) => (id: string) => Import} */
-const importAt = context => id => ({ ...mapDjs(context)(id), id })
+/** A default binding selected from the cached module result. @type {(context: ParseContext) => (id: string) => Import} */
+const importAt = context => id => {
+    const denotation = assertNotNullish(mapDjs(context)(id).default)
+    return { ...denotation, id }
+}
 
-/** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */
+/** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: Unknown) => Denotation} */
 const jsonDenotation = value => ({ value, shared: false, reaches: [] })
 
 /** @type {(denotation: Denotation) => Unknown} */
@@ -132,11 +136,24 @@ export const _importSources = source => imports => {
  *
  * @type {(id: string, module: AstModule, imports: readonly Import[], context: ParseContext) => (consts: readonly Unknown[]) => ParseContext}
  */
-const done = (id, module, imports, context) => consts => ({
-    ...context,
-    stack: drop(1)(context.stack),
-    complete: setReplace(id)({ value: consts[consts.length - 1], ...sharing(module[1])(imports)(consts) })(context.complete),
-})
+const done = (id, module, imports, context) => consts => {
+    const last = consts.length - 1
+    const value = consts[last]
+    const selected = _own(value, 'default')
+    const result = /** @type {AstObject} */ (module[1][last])
+    // Every parsed module ends in an export object. Check keys, not the
+    // selected value: an explicitly undefined default is still present.
+    const hasDefault = result[1].some(([key]) => key === 'default')
+    /** @type {ModuleDenotation} */
+    const denotation = {
+        exports: { value, ...sharing(module[1])(imports)(consts) },
+        default: hasDefault ? {
+            value: selected,
+            ...sharing([...module[1], ['.', ['cref', last], 'default']])(imports)([...consts, selected]),
+        } : null,
+    }
+    return { ...context, stack: drop(1)(context.stack), complete: setReplace(id)(denotation)(context.complete) }
+}
 
 /**
  * The disagreement between an import's attribute and the file's extension,
@@ -168,6 +185,10 @@ const transpileWithImports = source => module => context => {
     return step(
         x0,
         ([contextWithImports, sources]) => {
+            const missing = sources.find(({ id }) => mapDjs(contextWithImports)(id).default === null)
+            if (missing !== undefined) {
+                return pureError({ message: 'module has no default export', metadata: null, path: missing.path })
+            }
             const imports = sources.map(idOf).map(importAt(contextWithImports))
             // a body fails on a property read of `null` or `undefined`, as
             // JavaScript throws; the failure has no token, since the value
@@ -180,7 +201,11 @@ const transpileWithImports = source => module => context => {
 }
 
 /** A JSON module's denotation recorded under its identity. @type {(id: string, context: ParseContext) => (value: JsonUnknown) => ParseContext} */
-const jsonDone = (id, context) => value => ({ ...context, complete: setReplace(id)(jsonDenotation(value))(context.complete) })
+const jsonDone = (id, context) => value => {
+    /** @type {ModuleDenotation} */
+    const denotation = { exports: jsonDenotation({ default: value }), default: jsonDenotation(value) }
+    return { ...context, complete: setReplace(id)(denotation)(context.complete) }
+}
 
 /**
  * The next import of a module, or the root: an identity met again while it is
@@ -217,7 +242,7 @@ const foldNextModuleOp = source => context => {
 /** @type {(source: _Source) => Effect<ReadFile | ResolveFileModule, Denotation, ParseError>} */
 const transpileModule = source => mapStep(
     foldNextModuleOp(source)({ stack: null, complete: null }),
-    context => mapDjs(context)(source.id))
+    context => mapDjs(context)(source.id).exports)
 
 /**
  * A JSON document is a value, not a module: it imports nothing and names
@@ -242,8 +267,8 @@ export const _parseJson = path => step(
 const transpileJson = path => mapStep(_parseJson(path), jsonDenotation)
 
 /**
- * Transpiles the file at `path` into what it denotes: one value, and whether
- * that value's graph has a node two references reach.
+ * Transpiles the file at `path` into its complete module export object, or the document itself for a direct JSON input,
+ * and whether that value's graph has a node two references reach.
  *
  * The extension names the root's language: a `.json` file is a JSON
  * document, read by `fjs/media/json`, and anything else is a FunctionalScript
@@ -273,3 +298,15 @@ export const proof = {
         mapDjsUnresolvedImport: () => mapDjs({ complete: null, stack: null })('missing.djs'),
     },
 }
+
+/**
+ * The CLI's value-output boundary: select the module's default with its own
+ * sharing facts, or keep a direct JSON document. A named-only root projects
+ * to undefined after its complete body has been evaluated.
+ *
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Denotation, ParseError>}
+ */
+export const _transpileDefault = path => step(_rootSource(path), source => source.json
+    ? transpileJson(source.path)
+    : mapStep(foldNextModuleOp(source)({ stack: null, complete: null }),
+        context => mapDjs(context)(source.id).default ?? jsonDenotation(undefined)))

@@ -14,7 +14,7 @@
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Link, _Nodes } from './private.ts'
+ * @import { _Binding, _Link, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors } from '../ast/module.f.mjs'
@@ -48,7 +48,7 @@ const args = /** @type {const} */ (['args'])
 const undefinedNode = () => ['undefined']
 
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
-const parameter = (_, i) => ['.', args, i]
+const parameter = (_, i) => ['.', ['.', args, i], 'default']
 
 /** @type {(lower: (ast: AstConst) => Exp) => (member: AstMember) => readonly [':', string, Exp]} */
 const property = lower => ([key, value]) => [':', key, lower(value)]
@@ -196,6 +196,40 @@ const over = imports => edag => ({ imports, edag })
  */
 export const unresolved = module => over(module[0])(lowered(module[0].map(parameter))(module))
 
+/**
+ * The statically known exports at a module boundary, past its evaluation
+ * sequence. A malformed boundary is an internal compiler error.
+ *
+ * @type {(module: Exp) => readonly (readonly [':', string, Exp])[]}
+ */
+export const _moduleExports = module => {
+    if (module instanceof Array) {
+        if (module[0] === ',') { return _moduleExports(module[1][module[1].length - 1]) }
+        if (module[0] === '{}' && module[1].every(p => p[0] === ':' && typeof p[1] === 'string')) {
+            return /** @type {readonly (readonly [':', string, Exp])[]} */ (module[1])
+        }
+    }
+    throw 'expected a module export object'
+}
+
+/**
+ * Select a default value while evaluating the whole module. The default-only
+ * shape keeps its normalized spelling; a named module keeps its complete
+ * computation under the access, including unselected initializers. A missing
+ * default projects to undefined here; import linking checks presence separately.
+ *
+ * @type {(module: Exp) => Exp}
+ */
+export const _defaultExport = module => {
+    const members = _moduleExports(module)
+    if (members.length !== 1 || members[0][1] !== 'default') { return ['.', module, 'default'] }
+    if (module instanceof Array && module[0] === ',') {
+        const operands = module[1]
+        return [',', [...operands.slice(0, -1), _defaultExport(operands[operands.length - 1])]]
+    }
+    return members[0][2]
+}
+
 // ── resolution ────────────────────────────────────────────────────────────────
 
 /** @type {(member: Entry<JsonUnknown>) => readonly [':', string, Exp]} */
@@ -215,28 +249,28 @@ const jsonEdag = value => {
         : ['{}', definedEntries(value).map(jsonMember)]
 }
 
-/** An EDAG boxed for the record of resolved modules, which cannot hold a bare `null`. @type {(edag: Exp) => readonly [Exp]} */
-const boxed = edag => [edag]
-
 /**
  * A module's EDAG recorded under its identity, and the chain of imports left as
  * it was before the module was entered.
  *
- * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, Exp]}
+ * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
  */
-const completed = id => context => edag => [{
-    complete: setReplace(id)(boxed(edag))(context.complete),
-    stack: drop(1)(context.stack),
-}, edag]
+const completed = id => context => edag => {
+    const resolved = { exports: edag, default: _moduleExports(edag).some(([, key]) => key === 'default') ? _defaultExport(edag) : undefined }
+    return [{
+        complete: setReplace(id)(resolved)(context.complete),
+        stack: drop(1)(context.stack),
+    }, resolved]
+}
 
-/** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, Exp]} */
-const completedJson = id => context => value => completed(id)(context)(jsonEdag(value))
+/** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
+const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonEdag(value)]]])
 
-/** @type {(bound: readonly Exp[]) => (linked: readonly [_Link, Exp]) => _Binding} */
-const appended = bound => ([context, edag]) => ({ context, bound: [...bound, edag] })
-
-/** One import resolved and its EDAG appended to the module's bound imports. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => mapStep(link(source)(context), appended(bound))
+/** One import resolved, with a default export required even if its binding is unused. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
+const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) =>
+    resolved.default === undefined
+        ? pureError({ message: 'module has no default export', metadata: null, path: source.path })
+        : pureOk({ context: linked, bound: [...bound, resolved.default] }))
 
 /**
  * A parsed module linked: its imports resolved in source order, each to its
@@ -244,7 +278,7 @@ const linkImport = source => ({ context, bound }) => mapStep(link(source)(contex
  * reference is lowered, so the graph is built once, with the imported
  * module's node where its parameter would be.
  *
- * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadFile | ResolveFileModule, readonly [_Link, Exp], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadFile | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
  */
 const linkModule = source => context => module => step(
     foldStep(_importSources(source)(module[0]), { context, bound: [] }, linkImport),
@@ -258,7 +292,7 @@ const linkModule = source => context => module => step(
  * `with { type: "json" }`; a `.json` file imported without it, or another
  * file imported with it, is refused as JavaScript refuses it.
  *
- * @type {(source: _Source) => (context: _Link) => Effect<ReadFile | ResolveFileModule, readonly [_Link, Exp], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => Effect<ReadFile | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
  */
 const link = source => context => {
     const { id, path, json } = source
@@ -268,15 +302,15 @@ const link = source => context => {
     if (mismatch !== null) { return pureError(mismatch) }
     if (includes(id)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
     const done = at(id)(context.complete)
-    if (done !== null) { return pureOk([context, done[0]]) }
+    if (done !== null) { return pureOk([context, done]) }
     const entered = { ...context, stack: { first: id, tail: context.stack } }
     return json
         ? mapStep(_parseJson(path), completedJson(id)(entered))
         : step(_parseModule(path), linkModule(source)(entered))
 }
 
-/** @type {(linked: readonly [_Link, Exp]) => Exp} */
-const edagOf = ([, edag]) => edag
+/** @type {(linked: readonly [_Link, _Resolved]) => Exp} */
+const edagOf = ([, resolved]) => resolved.exports
 
 /**
  * The program at `path` as one EDAG: the module read and parsed, each of

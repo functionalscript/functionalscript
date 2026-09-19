@@ -226,3 +226,9 @@ export type Func = readonly [Parameters, number, typeof sameLine, number, typeof
 // that would leave `Children<Func>` unable to hold a tree the grammar
 // produces while every file still compiles.
 type _FuncParameterIsAName = Assert<Equal<Parameter[2], typeof identifierName>>
+
+/** An export and the declarations after a named export; default ends the module. */
+export type ExportStatement = () => readonly ['const', readonly [number, typeof trivia, {
+    readonly default: readonly [number, typeof trivia, Value, number, typeof trivia]
+    readonly named: readonly [typeof constStatement, RepeatFrom<0, typeof constStatement>, Option<Rule>]
+}]]

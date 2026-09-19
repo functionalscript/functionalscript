@@ -22,7 +22,7 @@ import type { OrderedMap } from '../../types/ordered_map/types.ts'
  * a context that exists is a context that is still good.
  */
 export type ParseContext = {
-    readonly complete: OrderedMap<Denotation>
+    readonly complete: OrderedMap<ModuleDenotation>
     readonly stack: List<string>
 }
 
@@ -35,4 +35,10 @@ export type _Source = {
     readonly id: string
     readonly path: string
     readonly json: boolean
+}
+
+/** A module result and its selected default, each with its own sharing facts. */
+export type ModuleDenotation = {
+    readonly exports: Denotation
+    readonly default: Denotation | null
 }
