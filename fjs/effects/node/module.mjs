@@ -32,6 +32,7 @@ import { once } from 'node:events'
 import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
+import { decode as decodeImportPath, _isAbsoluteFileUrl } from '../../path/import/module.f.mjs'
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
@@ -317,7 +318,20 @@ const runNodeEffect = asyncRun({
         if (url.protocol !== 'file:') {
             throw new Error('only file modules are supported')
         }
-        const path = await fs.promises.realpath(fileURLToPath(url))
+        const loadingPath = fileURLToPath(url)
+        if (parent !== null && _isAbsoluteFileUrl(name)) {
+            // Bun's fileURLToPath preserves malformed percent escapes. Check
+            // the original pathname before re-encoding the native drive root.
+            decodeURIComponent(url.pathname)
+            // fileURLToPath has validated the native root. A Windows drive is
+            // URL structure, not a colon-bearing portable filename segment.
+            const pathname = pathToFileURL(loadingPath).pathname
+            const segments = process.platform === 'win32' && url.hostname === '' ? pathname.slice(3) : pathname
+            if (decodeImportPath(segments) === null) {
+                throw new Error('invalid module specifier')
+            }
+        }
+        const path = await fs.promises.realpath(loadingPath)
         const canonical = pathToFileURL(path)
         // Match Node's default ESM realpath step, including empty components.
         canonical.search = url.search

@@ -93,14 +93,17 @@ export type FileModule = {
 }
 
 /**
- * Resolve a literal entry path (parent null), or an admitted path-like import
+ * Resolve a literal entry path (parent null), or an admitted file import
  * against its parent identity. The Node host uses WHATWG file URLs and realpath,
  * with default Node ESM symlink semantics, independent of preserve-symlinks flags.
  * Callers admit supported import classes; URL parsing and filesystem identity
  * belong to the host. Query/fragment components belong to identity, not the
  * loading path; the default Node realpath step removes empty components.
+ * Absolute file:/ imports are parsed by the host, which validates the resulting
+ * pathname's portable segments after recognizing native authority/drive roots.
  * The virtual host declares lexical identities with opaque suffix text (no cwd
- * or symlinks); it escapes pathname delimiters to keep filenames distinct.
+ * or symlinks); it escapes pathname delimiters to keep filenames distinct and
+ * refuses absolute file URLs rather than interpreting them as lexical paths.
  */
 export type ResolveFileModule = readonly['resolveFileModule', (name: string, parent: string | null) => IoResult<FileModule>]
 
