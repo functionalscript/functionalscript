@@ -28,19 +28,31 @@ come from.
 
 ### Proposal
 
+The question is about a bit count, and one consumer holds only the count:
+`fjs/media/type`'s `finish` reads `DetectState.length`, a running `bigint`,
+because the vector is deliberately never buffered. So the primitives take
+the count, and the `Vec` forms are one application each:
+
 ```ts
-/** The whole bytes `v` holds; `v` need not be byte-aligned. */
+/** The whole bytes in `bits`; `bits` need not be a multiple of eight. */
+export const bytesIn: (bits: bigint) => bigint
+/** Whether `bits` is a whole number of bytes. */
+export const isWholeBytesIn: (bits: bigint) => boolean
+/** `bytesIn(length(v))`. */
 export const byteLength: (v: Vec) => bigint
-/** Whether `v` is a whole number of bytes. */
+/** `isWholeBytesIn(length(v))`. */
 export const isWholeBytes: (v: Vec) => boolean
 ```
 
-exported here, and one `invalidBufferSize` refusal in `fjs/effects/node`
-for the two sites that already share its message.
+`media/type` and `readChunks`'s `bits` use the count forms; the sites that
+hold a `Vec` use the other two. `maxLengthBytes` becomes
+`bytesIn(maxLength)`. One `invalidBufferSize` refusal in
+`fjs/effects/node` serves the two sites that already share its message.
 
 ### Tasks
 
-- [ ] The two exports with proofs; the consumers over them.
+- [ ] The four exports with proofs, the count forms pinned at seven, eight
+      and nine bits; the consumers over them, each in the form it holds.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

@@ -38,39 +38,42 @@ returns, so a consumer that needs both makes one call:
 export type Analysis = {
     readonly root: Operand
     readonly nodes: readonly Node[]
-    /** One source expression per entry, in walk order: the object `nodes[i]` was built from. */
-    readonly exps: readonly ExpOp[]
     readonly scope: readonly number[]
     /** Entries written at more than one place once identity-free twins are merged — what a FunctionalScript writer hoists. */
     readonly shared: readonly number[]
-    /** Entries reached by more than one edge, every edge counted once — what a printer that binds by object identity hoists. */
-    readonly identityShared: readonly number[]
+    /** The source objects reached by more than one edge, in first-visit order — what a printer that binds by object identity hoists. */
+    readonly identityShared: readonly ExpOp[]
 }
 ```
 
-No second traversal: `identityShared` is the same `places` fold as `shared`
-with every edge weighted `1` instead of `mergeable`-weighted, and `exps` is
-the walk's `visited` map read back in entry order, which the walk already
-keeps as its one identity-keyed structure. `fjs/edag/rust`'s
-`sharedNodesOf(root)` is then `identityShared.map(i => exps[i])` and `visit`
-goes; `fsc/rust`'s `bodyLines` reads the negation check and the binding
-list off one `analysis(root)`; `nanvm/rust`'s `usedShared` filters
-`identityShared` by the group's reach instead of re-walking with `reaches`.
+**Counted in the walk, not read off the table.** The table cannot answer
+this: `visited` maps a merged twin to the entry it merged into, so when two
+structural-twin parents both reference one identity-minting child, the
+table holds one parent and one edge to the child, while the child was
+reached twice and needs a binding. Every edge into a node passes through
+the walk's `node` handler exactly once — the known and the fresh case
+alike — so the walk's state gains an `edges: ReadonlyMap<ExpOp, number>`
+incremented there, beside `visited`, and `identityShared` is its keys with
+a count of two or more. That is the count `visit` computes today, taken
+by the traversal that already happens instead of a second one with a
+`findIndex` memo. It answers in source objects rather than entry indices
+because identity is the question; the entries are the merged view.
 
-One difference to pin in the proof rather than paper over: `visited` maps
-a merged node to the entry it merged into, so two structurally equal
-identity-free objects are one entry and get one `let`, where `visit`
-counted them apart. That is a correct binding — the two objects denote one
-value — and it changes generated Rust only for a program that writes such
-twins; the task below says which fixtures, if any, move.
+`fjs/edag/rust`'s `sharedNodesOf(root)` is then `analysis(root).identityShared`
+and `visit` goes; `fsc/rust`'s `bodyLines` reads the negation check and
+the binding list off one `analysis(root)`; `nanvm/rust`'s `usedShared`
+filters `identityShared` by the group's reach instead of re-walking with
+`reaches`. Generated Rust is unchanged, since the count is the same count.
 
 ### Tasks
 
-- [ ] `exps` and `identityShared` on `Analysis`, with a proof against the
-      cases `fjs/edag/rust/proof.f.mjs` pins for `sharedNodesOf`, the
-      merged-twins case pinned separately.
-- [ ] The three consumers rewritten; `npm run gen`; any change in generated
-      Rust is a merged-twins case and is named in the PR; `tsc`, `fjs test`.
+- [ ] `edges` in the walk state and `identityShared` on `Analysis`, with a
+      proof against the cases `fjs/edag/rust/proof.f.mjs` pins for
+      `sharedNodesOf`, plus the twin-parents case: two structurally equal
+      mergeable parents of one constructor child, the child reported
+      shared.
+- [ ] The three consumers rewritten; `npm run gen`; generated Rust
+      unchanged; `tsc`, `fjs test`.
 
 ### Related
 
