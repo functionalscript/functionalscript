@@ -45,85 +45,13 @@ import {
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
-import { isValidCodePoint } from '../text/code_point/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
-import { fromCodePointList, toCodePointList } from '../text/utf8/module.f.mjs'
-import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.mjs'
 import { length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { percentDecode } from '../text/percent/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 
 // ── Routing ───────────────────────────────────────────────────────────────────
-
-/** @type {string} */
-const hexDigits = '0123456789abcdef'
-
-/** The value of one hexadecimal digit, or `-1` for anything else.
- *
- * @type {(c: string) => number}
- */
-const hexDigit = c => hexDigits.indexOf(c.toLowerCase())
-
-/** The UTF-8 bytes of `s`.
- *
- * @type {(s: string) => readonly number[]}
- */
-const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
-
-/** Reads `bytes` back as a string, or `null` if they are not valid UTF-8.
- *
- * @type {(bytes: readonly number[]) => Nullable<string>}
- */
-const utf8String = bytes => {
-    const codePoints = toArray(toCodePointList(bytes))
-    for (const c of codePoints) {
-        if (!isValidCodePoint(c)) { return null }
-    }
-    return codePointListToString(codePoints)
-}
-
-/**
- * Whether `part` — a piece of a target split on `%` — opens with two hexadecimal
- * digits, which is what makes it an escape rather than a mistake.
- *
- * @type {(part: string) => boolean}
- */
-const isEscape = part =>
-    part.length >= 2 && hexDigit(part.charAt(0)) >= 0 && hexDigit(part.charAt(1)) >= 0
-
-/**
- * The bytes one escape contributes: the byte it names, then whatever plain text
- * followed it. Total, because {@link isEscape} has already vouched for the part.
- *
- * @type {(part: string) => readonly number[]}
- */
-const escapeBytes = part =>
-    [hexDigit(part.charAt(0)) * 16 + hexDigit(part.charAt(1)), ...utf8Bytes(part.slice(2))]
-
-/**
- * Percent-decodes `s`: each `%XX` becomes the byte it names, every other
- * character contributes its own UTF-8 bytes, and the whole byte sequence is
- * then read back as UTF-8 — so `%D0%9F` is one letter rather than two mangled
- * ones. Decoding per escape could not do that: a multi-byte character arrives
- * as several escapes, and no one of them is a character on its own.
- *
- * Validating every escape *before* decoding any is what keeps this linear.
- * Growing one byte array per escape — `[...bytes, byte, ...rest]` — copies
- * everything decoded so far on every escape, which is quadratic in the number of
- * escapes: a 15 KB target of 5,000 escapes fits under Node's header limit and
- * cost about 140 ms of event loop, per request, to reach whatever answer it was
- * always going to get. Two linear passes cost one.
- *
- * `null` when an escape is not two hexadecimal digits, or when the bytes they
- * spell are not valid UTF-8.
- *
- * @type {(s: string) => Nullable<string>}
- */
-const percentDecode = s => {
-    const [literal, ...escaped] = s.split('%')
-    if (!escaped.every(isEscape)) { return null }
-    return utf8String([...utf8Bytes(literal), ...escaped.flatMap(escapeBytes)])
-}
 
 /** What separates a scheme from the authority that follows it.
  *
