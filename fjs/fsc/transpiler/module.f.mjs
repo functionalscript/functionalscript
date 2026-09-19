@@ -130,16 +130,19 @@ const importDotSegments = rooted => (segments, segment) => {
  * names `dep`. Decode only the surviving specifier components, once; the
  * importing path is already a filesystem path and is never decoded again.
  *
- * Literal colons and backslashes remain outside this path-only subset. They
- * can change URL drive/separator parsing, so a dot must not hide them before
- * a full host resolver understands them. Encoded bytes are not URL syntax.
+ * Literal colons, backslashes, query and fragment delimiters remain outside
+ * this path-only subset. Reject them before dot processing: suffix text is
+ * not a filesystem component and must neither be decoded nor canceled as one.
+ * Do not strip suffixes, which would merge distinct module identities.
+ * Percent-encoded `?` and `#` are filename data, not URL delimiters.
  * Package resolution and distinct URL identities remain in
  * `../todo/module-resolution-compatibility.md`.
  *
  * @type {(path: string) => (specifier: string) => string | null}
  */
 export const _importPath = path => specifier => {
-    if (specifier.includes(':') || specifier.includes('\\')) { return null }
+    if (specifier.includes(':') || specifier.includes('\\')
+        || specifier.includes('?') || specifier.includes('#')) { return null }
     const rooted = specifier.startsWith('/')
     const raw = specifier.split('/')
     const components = (rooted ? raw.slice(1) : raw).reduce(importDotSegments(rooted), [])
