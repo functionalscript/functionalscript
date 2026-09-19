@@ -836,8 +836,12 @@ arguments alone:
   would name them, and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property
-  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). Nor is the arity
-  observable, which is what leaves the two parameter lists nothing to be
+  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). A JavaScript
+  consumer of a compiled module can read a name, and reads the one the
+  writer bound the function under — the EDAG has none to give back — which
+  is this decision's consequence and no bug
+  ([compatibility epic](../todo/fjs-javascript-compatibility.md#function-name--adopted-exception)).
+  Nor is the arity observable, which is what leaves the two parameter lists nothing to be
   told apart by: `f.length` is `0` for a rest parameter as it is for none,
   a rest parameter not counting towards it in JavaScript.
 - A body `const` is the body's, and binds as a module's does: it names a

@@ -181,34 +181,22 @@ No exact spelling or closure/self strategy is selected by this exception.
 Earlier no-exception/refusal directions for authored-text differences are
 superseded; implementing the chosen rendering contract remains work.
 
-#### Function name — current implementation, rule 2
+#### Function name — adopted exception
 
 A JavaScript function's `name` is set once, at creation, from the binding
-or key it is created for. The `.js` output loses it wherever the writer
-hoists a function: at `186af0b`, `const f = (...a) => 1; export default
-[f, f];` is written `const $0=(...$a)=>$a;export default [$0,$0];`, and
-`export const g = (...a) => a;` becomes `const $3=…;export const g=$3;`, so
-a JavaScript consumer reads `$0` and `$3` where the source gives `f` and
-`g`. A function written in place keeps its name — `{ f: … }.f`, `export
-default (…) => …` — since the key or `default` names it again.
-
-The function-source exception covers the string representation alone and
-says other function observations keep their contracts, so this is not its
-consequence. [The language](../spec/README.md#functions) erases the name
-from the graph and says no program observes the difference. That is true of
-an FJS program, where `f.name` is refused at the key, and false of the
-generated-JS execution this epic's corpus gate compares by exercising
-exported functions. A different successful result there is rule 2.
-
-**Root-cause correction, one of two, decided rather than inferred:** either
-the graph carries the name JavaScript gives at creation and the writer
-binds a hoisted function under it, with the clash against generated `$n`
-names and user bindings handled where hoisted names are chosen; or the
-existing name erasure becomes an explicit exception here, naming its
-profile (the `.js` output read by a JavaScript consumer), the operation
-(`name`) and the consequence (a key or branch on it). Until one is
-recorded, [function name in the writer](../fjs/fsc/serializer/todo/function-name.md)
-holds the concrete task and the current-implementation reproducer.
+or key it is created for. FunctionalScript erases it: the graph's function
+node carries no name, `f.name` is refused at the key, and
+[the language](../spec/README.md#functions) says so. **Decided:** that
+erasure stands. Inside FJS no program reads a name, so nothing is
+observable there; the profile this exception names is the `.js` output read
+by a JavaScript consumer, the operation is `name`, and the consequence is
+that a hoisted function answers the writer's binding — at `186af0b`,
+`const f = (...a) => a; export default [f, f];` is written
+`const $0=(...$a)=>$a;export default [$0,$0];`, so that consumer reads `$0`
+where the source gives `f`, and a key or branch on it differs. A function
+written in place keeps its name, since the key or `default` names it
+again. The writer changes nothing; the function-source exception above
+covers the text, and this one the name. Unrelated differences remain bugs.
 
 #### Property reflection — incompatible alternatives withdrawn
 
@@ -314,8 +302,9 @@ requirements; compatibility alone would allow randomness and external mutation.
       serializer/`String`, frame and `self` questions in the owning documents.
 - [ ] **P1:** implement and test the chosen function-rendering contract across
       source, EDAG, coercion and execution; preserve other function observations.
-- [ ] **P1:** decide the function-name correction above and land it in the
-      writer, or record the exception with its consequences.
+- [x] Record the function-name exception with its profile, operation and
+      consequence: erasure stands, and a JavaScript consumer of the `.js`
+      output may read a generated name.
 - [ ] **P1:** preserve the property-observation and composition contract in
       each affected implementation. Missing support is refused, not guessed.
 - [ ] **P1:** extend the existing host harness with a shared compatibility
