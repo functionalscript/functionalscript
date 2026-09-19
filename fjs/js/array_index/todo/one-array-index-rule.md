@@ -89,7 +89,10 @@ than one at a time. The module's proof pins the boundary cases by name —
 
 - [ ] `fjs/js/array_index/module.f.mjs` with `arrayIndex` and
       `numberArrayIndex`, `types.ts`, and a `proof.f.mjs` at 100% with the
-      boundary cases above; register it in `deno.json` `exports`.
+      boundary cases above. No `deno.json` `exports` entry: the file has
+      no map today, and [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
+      reserves introducing one for the change that enumerates every
+      module, since a partial map restricts what is unrestricted now.
 - [ ] `fjs/rtti/common`: import `arrayIndex`; `readIndices`,
       `restMembers` and the undeclared scan read `null` for absence.
 - [ ] `fjs/fsc/ast`: import `arrayIndex`; `literalAt` unchanged but for the

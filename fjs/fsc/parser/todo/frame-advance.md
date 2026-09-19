@@ -41,7 +41,8 @@ type _Operands<F> = {
     readonly at: (f: F, i: number) => Node
     /** The frame to suspend and the node to enter for entry `i`, or the error the entry earns first. */
     readonly enter: (f: F, env: _Env, i: number) => Result<readonly [F, Node], string>
-    readonly close: (f: F, done: readonly AstConst[]) => AstConst
+    /** The value the frame closes to, and the environment in force after it. */
+    readonly close: (f: F, env: _Env, done: readonly AstConst[]) => readonly [_Env, AstConst]
 }
 const advance: (stack: _Stack, env: _Env, frame: _CountingFrame, value: AstConst) => _State
 ```
@@ -57,7 +58,13 @@ hook that answered only the error would lose that name. Containers and
 calls return their frame unchanged; the body kind returns
 `{ ...f, word }`, or `[f, statement]` for a `return`. `badKey` fits the
 error half of `enter` as it is;
-`bodyRound`'s `bindable` check is its success half. `_ContainerFrame`, `_CallFrame`
+`bodyRound`'s `bindable` check is its success half. `close` returns the
+environment as well as the value for the mirror-image reason: a body was
+entered under its own names, and today's `returned` restores `frame.outer`
+when the last `return` completes. Containers and calls close to `[env, …]`
+unchanged; the body kind closes to `[f.outer, ['=>', …]]`, so the
+parameter and the body's `const`s go out of scope exactly where they do
+now. `_ContainerFrame`, `_CallFrame`
 and `_BodyFrame` share one base with the payload that differs.
 
 ### Tasks

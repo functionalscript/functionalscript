@@ -18,16 +18,19 @@ const visit = visited => root => {
     return [...withChildren, [root, 1]]
 }
 export const sharedNodesOf = root => visit([])(root).filter(([, count]) => count >= 2).map(([node]) => node)
-// fjs/nanvm/rust/module.f.mjs, reaches — a third reachability walk
-const reaches = (e, n) => e === n || (e instanceof Array && e.some(x => reaches(x, n)))
 ```
 
-and `fjs/fsc/rust`'s `bodyLines` runs two of them over the same root:
+and `fjs/fsc/rust`'s `bodyLines` runs both over the same root:
 `analysis(root)` for the negation check, then `sharedNodesOf(root)` for the
 bindings. The two notions do differ — `analysis` merges structurally equal
 identity-free nodes within a scope, `sharedNodesOf` counts object identity
 — which is a reason to name the second where the first lives, not to keep
 it in a printer with a quadratic memo.
+
+`fjs/nanvm/rust`'s `reaches` looks like a third copy and is not one: it
+asks whether a group's expressions reach a *named* shared value from
+`data.shared`, which needs a binding when reached once, where this issue
+counts edges to two or more. That test stays as it is.
 
 ### Proposal
 
@@ -67,9 +70,8 @@ because identity is the question; the entries are the merged view.
 
 `fjs/edag/rust`'s `sharedNodesOf(root)` is then `analysis(root).identityShared`
 and `visit` goes; `fsc/rust`'s `bodyLines` reads the negation check and
-the binding list off one `analysis(root)`; `nanvm/rust`'s `usedShared`
-filters `identityShared` by the group's reach instead of re-walking with
-`reaches`. Generated Rust is unchanged, since the count is the same count.
+the binding list off one `analysis(root)`. Generated Rust is unchanged,
+since the count is the same count.
 
 ### Tasks
 
@@ -78,7 +80,7 @@ filters `identityShared` by the group's reach instead of re-walking with
       `sharedNodesOf` — the nested-constructor case pins inner before
       outer — plus the twin-parents case: two structurally equal mergeable
       parents of one constructor child, the child reported shared.
-- [ ] The three consumers rewritten; `npm run gen`; generated Rust
+- [ ] `fjs/edag/rust` and `fjs/fsc/rust` rewritten; `npm run gen`; generated Rust
       unchanged; `tsc`, `fjs test`.
 
 ### Related
