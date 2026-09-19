@@ -12,6 +12,15 @@ const [finalState, result] = virtual(emptyState)(myEffect)
 
 State carries in-memory representations of the filesystem (`root`), stdout/stderr output (`stdout`, `stderr`), network responses (`internet`), and a simulated clock (`epochNs`).
 
+## File-module resolution
+
+`resolveFileModule` uses a lexical path profile: a literal entry path, or an
+admitted portable URL-path spelling resolved against a normalized path identity.
+The fixture filesystem has no working directory or symlinks. This preserves the
+virtual host's path model; it does not simulate Node's file URL/realpath rules.
+Compiler traversal is tested here, and native ESM comparisons test those Node
+rules in `fjs/fsc/transpiler/proof.mjs`.
+
 ## Race condition detection
 
 Because the virtual runner executes effects **synchronously and sequentially**, it serialises operations that would run concurrently in production. This makes it a useful tool for detecting potential race conditions: if two effects would conflict when run concurrently (e.g. both writing to the same file), the virtual runner will expose the problem deterministically — the second write always sees the result of the first.

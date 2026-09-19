@@ -13,7 +13,8 @@
  */
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
-import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
+import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
+import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
@@ -799,6 +800,10 @@ const map = {
         return result === undefined ? [state, fail('not found')] : [state, ok(result)]
     },
     mkdir: (path, p) => mkdir(p !== undefined)(path),
+    resolveFileModule: (name, parent) => state => {
+        const path = parent === null ? name : resolveImportPath(parent)(name)
+        return [state, path === null ? fail('invalid module specifier') : ok({ id: normalize(path), path })]
+    },
     readFile,
     readdir: (path, { recursive }) => readdir(path, recursive === true)(path),
     writeFile: (path, payload) => writeFile(payload)(path),
