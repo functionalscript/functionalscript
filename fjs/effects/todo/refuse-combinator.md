@@ -31,11 +31,15 @@ One export beside `pureError`:
 
 ```ts
 /** A refused effect: an `ioError` carrying `code` and `message`. */
-export const refuse: (code: string, message: string) => Effect<never, never, IoChannel>
+export const refuse: (code: string) => (message: string) => Effect<never, never, IoChannel>
 ```
 
-Every site becomes one line, `packstore`'s three wrappers become partial
-applications of it, and `refstore`'s `xCode`/`xMessage` pairs can move
+Curried on the code first, since a code is what a module fixes and a
+message is what a site supplies: `refuse(badNameCode)(badNameMessage(item.path))`
+at a site, and `const notAFile = path => refuse(notAFileCode)(notAFileMessage(path))`
+where a module already names the pair. Every site becomes one line,
+`packstore`'s three wrappers become `refuse(packFileCode)` and its kin
+applied to their message, and `refstore`'s `xCode`/`xMessage` pairs can move
 beside the site that uses them, so the module doc's table of which listing
 refuses what is checkable against the code.
 

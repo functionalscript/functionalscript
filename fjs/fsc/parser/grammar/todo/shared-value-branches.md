@@ -33,16 +33,24 @@ repetition buries. The failure mode is a form added to `value` and not to
 Name the shared four once, in both files:
 
 ```js
-const valueBranches = /** @type {const} */ ({
+/** The four branches every value form starts with. A thunk, like the rules: `unary` and `array` are declared after it, and the grammar is recursive through them. */
+const valueBranches = () => /** @type {const} */ ({
     neg: [sym('-'), trivia, unary],
     primitive: primitiveValue,
     ref: reference,
     array: [array, accesses],
 })
-export const value = () => ['const', { ...valueBranches, object: [object, accesses], paren }]
-export const unary = () => ['const', { ...valueBranches, object: [object, accesses], group: parenGroup }]
-export const body = () => ['const', { ...valueBranches, paren, block }]
+export const value = () => ['const', { ...valueBranches(), object: [object, accesses], paren }]
+export const unary = () => ['const', { ...valueBranches(), object: [object, accesses], group: parenGroup }]
+export const body = () => ['const', { ...valueBranches(), paren, block }]
 ```
+
+The shared set is a thunk rather than a constant for the same reason the
+rules are: `value` refers to `unary`, `unary` to itself, and both to
+`array`, which the module declares later. An eager constant at module
+scope would read `unary` in its temporal dead zone and fail every
+importer; a thunk reads it only when a rule is forced, after the module
+has initialised, exactly as the rules already do.
 
 with a `ValueBranches` type the three types intersect. Each rule then
 reads as its difference, and the doc comments shrink to the reason for

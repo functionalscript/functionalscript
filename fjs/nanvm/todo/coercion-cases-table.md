@@ -24,7 +24,9 @@ same order against a fixed right operand:
 { name: 'emptyArrayDividedByFour', args: [[], 4], … },        { name: 'emptyArrayBitAndSix', args: [[], 6], … },
 ```
 
-The five bitwise and shift groups repeat a second identical block —
+The six bitwise and shift groups — `bitAnd`, `bitOr`, `bitXor`,
+`shiftLeft`, `signedRightShift`, `unsignedRightShift` — repeat a second
+identical block —
 truncation, `NaN`, the infinities, the 32-bit wrap — and every arithmetic
 group ends with the same `number`/`bigint` mixed pair that throws. An
 operand added to the coercion space today lands in whichever lists someone
@@ -37,13 +39,15 @@ records that this drift has already narrowed the Rust suite once.
 The third instance of the module's own move: one operand table and a
 `coercionCases(op, right, rightWord)(f)` that yields the shared rows with
 `f` applied to the coerced left value, plus a `int32Cases` block for the
-five bitwise groups. Each group then states its operator, its fixed right
+six bitwise and shift groups. Each group then states its operator, its fixed right
 operand, and what is genuinely its own — `div`'s signed zeros and
 infinities, `**`'s special cases, the bigint rows.
 
 ### Tasks
 
-- [ ] The table and the two factories; the ten groups rewritten; case names
+- [ ] The table and the two factories; the five arithmetic groups (`mul`,
+      `div`, `exp`, `sub`, `rem`) and the six bitwise and shift groups
+      rewritten; case names
       unchanged so the generated Rust test names are stable.
 - [ ] `npm run gen`; `tsc`, `fjs test`, `cargo test`.
 

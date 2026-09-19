@@ -41,7 +41,7 @@ export type Analysis = {
     readonly scope: readonly number[]
     /** Entries written at more than one place once identity-free twins are merged — what a FunctionalScript writer hoists. */
     readonly shared: readonly number[]
-    /** The source objects reached by more than one edge, in first-visit order — what a printer that binds by object identity hoists. */
+    /** The source objects reached by more than one edge, operands before the nodes that use them — what a printer that binds by object identity hoists. */
     readonly identityShared: readonly ExpOp[]
 }
 ```
@@ -53,10 +53,16 @@ table holds one parent and one edge to the child, while the child was
 reached twice and needs a binding. Every edge into a node passes through
 the walk's `node` handler exactly once — the known and the fresh case
 alike — so the walk's state gains an `edges: ReadonlyMap<ExpOp, number>`
-incremented there, beside `visited`, and `identityShared` is its keys with
-a count of two or more. That is the count `visit` computes today, taken
-by the traversal that already happens instead of a second one with a
-`findIndex` memo. It answers in source objects rather than entry indices
+beside `visited`, and `identityShared` is its keys with a count of two or
+more, in insertion order. **Insertion happens where the entry is added**,
+in `fresh`, after the node's operands have been walked, and a known node
+only has its count raised — so the map's order is post-order, an inner
+constructor before the outer one that holds it, which is the order the
+Rust emitter needs to declare a binding before the binding that uses it
+and the order `visit` reports today. Recording on the way in would put
+the outer first and break every nested binding. That is the count and
+the order `visit` computes, taken by the traversal that already happens
+instead of a second one with a `findIndex` memo. It answers in source objects rather than entry indices
 because identity is the question; the entries are the merged view.
 
 `fjs/edag/rust`'s `sharedNodesOf(root)` is then `analysis(root).identityShared`
@@ -69,9 +75,9 @@ filters `identityShared` by the group's reach instead of re-walking with
 
 - [ ] `edges` in the walk state and `identityShared` on `Analysis`, with a
       proof against the cases `fjs/edag/rust/proof.f.mjs` pins for
-      `sharedNodesOf`, plus the twin-parents case: two structurally equal
-      mergeable parents of one constructor child, the child reported
-      shared.
+      `sharedNodesOf` — the nested-constructor case pins inner before
+      outer — plus the twin-parents case: two structurally equal mergeable
+      parents of one constructor child, the child reported shared.
 - [ ] The three consumers rewritten; `npm run gen`; generated Rust
       unchanged; `tsc`, `fjs test`.
 
