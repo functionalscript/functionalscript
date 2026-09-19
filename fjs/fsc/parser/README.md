@@ -62,8 +62,15 @@ A `-` or a `~` takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript
 and `-((...a) => 1)` is not, so the operand is the group alone and the
 `...` is refused where JavaScript refuses it rather than at the `(`. Every
-binary operator's operand is the same `unary` — see the next section for
-why it can be no wider a rule.
+binary operator's operand is `unary` — see the next section for why it
+can be no wider a rule — but `-`/`~`'s own operand is `unaryOperand`, a
+narrower rule still: JavaScript refuses `**` immediately after a
+unary-prefixed operand, full stop, at any depth (`- -2 ** 2` exactly as
+`- 2 ** 2`), so `unaryOperand` is every alternative `unary` has minus
+`powTail`, recursing through itself rather than `unary` for a nested
+`-`/`~`. Only `(-2) ** 2` and `-(2 ** 2)` write either reading:
+parentheses that move the `**` to where it no longer immediately follows
+the prefix.
 
 `tail`, the Stage A binary-operator suffix
 ([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)), is
@@ -77,9 +84,7 @@ a greedy reader never needs the choice the checker flags, but the checker
 cannot see that. Spelling `tail` inline, with `unary` — narrow, `func`
 excluded — as every operand throughout, avoids the leak entirely: `func`
 is reachable only where `value`/`body` put it directly, never as a repeated
-operand any layer wraps. `-`/`~` sit *above* `**` by design, a departure
-from JavaScript, so `- 2 ** 2` reads `-(2 ** 2)` where JavaScript admits
-neither reading without parentheses at all.
+operand any layer wraps.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had

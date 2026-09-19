@@ -343,15 +343,19 @@ two tokens in both — the operator and the word — which no property name may
 be.
 
 The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
-the first operator the language had and still the only prefix. It is not
-part of the literal after it: `-42.5` is the negation of `42.5`, `- 42.5` is
-the same value written with a space, and `-NaN` and `-Infinity` are values
-as JavaScript has them. It binds looser than a property access or a call, as
-it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`. What
-it takes is JavaScript's `UnaryExpression`, which an arrow function is not,
-so `-(...a) => 1` is a syntax error in both. Two adjacent `-` characters are
-the decrement operator, which the language has no rule for: a negation of a
-negation is `- -1`. [Operators](#operators) has the rest of them.
+the first operator the language had; `~`, the **bitwise not operator**, is the
+other prefix, Stage A of the same operators document. Neither is part of the
+literal after it: `-42.5` is the negation of `42.5`, `- 42.5` is the same
+value written with a space, and `-NaN` and `-Infinity` are values as
+JavaScript has them. Each binds looser than a property access or a call, as
+in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`. What either
+takes is JavaScript's `UnaryExpression`, which an arrow function is not, so
+`-(...a) => 1` and `~(...a) => 1` are syntax errors in both, and neither
+stands immediately before `**` — `-2 ** 2` is refused, matching JavaScript,
+where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized readings. Two
+adjacent `-` characters are the decrement operator, which the language has
+no rule for: a negation of a negation is `- -1`, and likewise `~ ~1` for
+bitwise not. [Operators](#operators) has the rest of them.
 
 A negative number is therefore an expression rather than a literal *in the
 syntax*. The graph is another matter: lowering folds a negation of a numeric
@@ -544,9 +548,11 @@ conditional (`?:`), and the comma operator are not recognized yet.
 Precedence and associativity follow JavaScript's own: arithmetic binds
 tighter than comparison, which binds tighter than bitwise, `**` is
 right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), and every other
-operator here is left-associative. One departure is deliberate: `-`/`~` bind
-*looser* than `**` rather than being refused beside it, so `-2 ** 2` reads
-`-(2 ** 2)`, a spelling JavaScript admits only with parentheses.
+operator here is left-associative. `-`/`~` immediately before `**` are
+refused, matching JavaScript exactly: `-2 ** 2` and `~2 ** 2` are syntax
+errors here as there, at any depth of `-`/`~` nesting, and parentheses are
+the only way to write either reading — `(-2) ** 2` raises the negation,
+`-(2 ** 2)` negates the power.
 
 A function is an operand of none of these, unparenthesized: `(...a) => body`
 reads everything to its right as `body`, exactly as in JavaScript, so

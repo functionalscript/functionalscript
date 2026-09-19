@@ -49,15 +49,18 @@ literal — exact, total arithmetic, so the graph holds the leaf rather than a
 node — and nothing else does: `+` alone would need `ToPrimitive` to decide
 number or string, and folding the rest while leaving `+` a node draws an
 inconsistent line the front end refuses to draw. The `.json` and DataJS
-outputs answer `an operator has no value` for all eighteen, the same refusal
-a function or a call already earns — a value for them is the EDAG's
-question, once an interpreter is written for it
+outputs answer `an operator has no value` for all nineteen — the eighteen
+binary tags plus unary `~` — the same refusal a function or a call already
+earns — a value for them is the EDAG's question, once an interpreter is
+written for it
 ([`fjs/fsc/todo/interpret-edag.md`](../../fjs/fsc/todo/interpret-edag.md)).
 
 Precedence follows JavaScript's own order, arithmetic above comparison above
-bitwise, with `-`/`~` sitting *above* `**` by design — a departure JavaScript
-does not allow at all — so `-2 ** 2` reads `-(2 ** 2)` rather than being
-refused. A function is no operand of any of these, unparenthesized:
+bitwise. `-`/`~` immediately before `**` are refused, exactly as in
+JavaScript: `-2 ** 2` and `~2 ** 2` are syntax errors, at any depth of
+`-`/`~` nesting, and parentheses are the only way to write either reading —
+`(-2) ** 2` raises the negation, `-(2 ** 2)` negates the power. A function
+is no operand of any of these, unparenthesized:
 `(...a) => body` reads everything to its right as `body`, so `1 * (...a) =>
 2` is refused exactly where `-(...a) => 1` already is, and an extra pair of
 parentheses is what turns a function into an ordinary operand, as it always

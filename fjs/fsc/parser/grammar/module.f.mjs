@@ -7,18 +7,22 @@
  * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t 'default' t value ';' t
- * value  ::= '-' t unary tail | '~' t unary tail
+ * value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
  *          | (primitive t | id t | array | object) access* powTail tail
  *          | '(' t (func | group tail)
- * body   ::= '-' t unary tail | '~' t unary tail
+ * body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
  *          | (primitive t | id t | array) access* powTail tail
  *          | '(' t (func | group tail) | block
- * unary  ::= '-' t unary | '~' t unary
+ * unary  ::= '-' t unaryOperand | '~' t unaryOperand
  *          | (primitive t | id t | array | object) access* powTail
  *          | '(' t group
+ * unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
+ *          | (primitive t | id t | array | object) access*
+ *          | '(' t groupOperand
  * block  ::= '{' t const* 'return' s value ';' t '}' t
  * func   ::= [ '...' t id t ] ')' s '=>' t body
  * group  ::= value ')' t access* powTail
+ * groupOperand ::= value ')' t access*
  * powTail ::= [ '**' t unary ]
  * tail   ::= { mulOp t unary }
  *            { addOp t unary <the multiplicative repeat above> }
@@ -82,7 +86,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, Block, Body, Func, Group, Items, Member, Parameters, Paren, ParenGroup, Parenthesized, PowTail, Tail, Unary, Value } from './types.ts'
+ * @import { Access, Block, Body, Func, Group, GroupOperand, Items, Member, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -367,10 +371,10 @@ export const parameters = option([sym('...'), trivia, identifierName, trivia])
  * {@link paren}, which a function shares — taking the `(` alternative
  * whole would admit the spelling JavaScript refuses.
  *
- * Every other alternative may be raised to a power, {@link powTail}, which
- * is what lets `unary` recurse through itself rather than a narrower rule
- * for `**`'s right operand: `-`/`~` sit above `**` by design, so `unary`
- * has to reach its own prefixes from there too.
+ * Every other alternative may be raised to a power, {@link powTail} —
+ * `2 ** 2`, a primary with nothing before it, is fine — but neither prefix
+ * reaches `powTail` itself: each recurses into {@link unaryOperand}
+ * instead, whose own comment has why.
  *
  * `unary` is also every binary operator's own operand, both the leading
  * one and every repeated one after an operator token — never {@link value}
@@ -389,8 +393,8 @@ export const parameters = option([sym('...'), trivia, identifierName, trivia])
  * @type {Unary}
  */
 export const unary = () => ['const', {
-    neg: [sym('-'), trivia, unary],
-    bitnot: [sym('~'), trivia, unary],
+    neg: [sym('-'), trivia, unaryOperand],
+    bitnot: [sym('~'), trivia, unaryOperand],
     primitive: [primitiveValue, powTail],
     ref: [reference, powTail],
     array: [[array, accesses], powTail],
@@ -403,16 +407,51 @@ export const unary = () => ['const', {
  * is raised to a power: right-associative, so `2 ** 3 ** 2` is
  * `2 ** (3 ** 2)`, and reaching back into {@link unary} — not stopping at
  * a bare primary — is how `2 ** -2` and `2 ** ~2` stand without
- * parentheses.
- *
- * One deliberate departure from JavaScript, which {@link unary} inherits:
- * `-`/`~` sit *above* `**` here rather than being refused beside it, so
- * `- 2 ** 2` reads `-(2 ** 2)` where JavaScript admits neither reading
- * without parentheses at all.
+ * parentheses: `unary`'s own prefixes recurse into {@link unaryOperand},
+ * which is what keeps `2 ** -2 ** 2` a syntax error exactly as it is in
+ * JavaScript, the inner `-2 ** 2` refused the same way the outer would be.
  *
  * @type {PowTail}
  */
 const powTail = option([sym('**'), trivia, unary])
+
+/**
+ * What a `-` or a `~` takes: every alternative {@link unary} has — a
+ * primitive, a reference, an array, an object, a group, or a further
+ * `-`/`~` — but none of them carries {@link powTail}, here or through any
+ * depth of recursion.
+ *
+ * JavaScript refuses `**` immediately after a unary-prefixed operand,
+ * full stop, at any depth: `- 2 ** 2`, `- -2 ** 2` and `- (2) ** 2` are
+ * all syntax errors, because each of `-2`, `- -2` and `-(2)` is a
+ * `UnaryExpression`, and `**`'s own left operand — an `UpdateExpression` —
+ * may never be one. Only `(-2) ** 2` and `-(2 ** 2)` write either reading:
+ * parentheses that move the `**` to where it no longer immediately
+ * follows the prefix, one wrapping the negation and the other the power.
+ *
+ * So {@link unary}'s own neg/bitnot branches, and {@link value}'s and
+ * {@link body}'s, all reach this rule for their operand rather than
+ * `unary` itself — and this rule reaches itself, not `unary`, for a
+ * nested `-`/`~`'s own operand, `- -2 ** 2` refused the same way `- 2 **
+ * 2` is rather than only the outer prefix carrying the restriction.
+ *
+ * The four leaves are each still wrapped one tuple deep, `[primitiveValue]`
+ * rather than `primitiveValue` bare, matching {@link unary}'s own
+ * `[primitiveValue, powTail]` at the same depth minus the slot `powTail`
+ * held — `./module.f.mjs`'s reader shares one function, `baseOf`, between
+ * both rules, and that depth is what lets it.
+ *
+ * @type {UnaryOperand}
+ */
+export const unaryOperand = () => ['const', {
+    neg: [sym('-'), trivia, unaryOperand],
+    bitnot: [sym('~'), trivia, unaryOperand],
+    primitive: [primitiveValue],
+    ref: [reference],
+    array: [[array, accesses]],
+    object: [[object, accesses]],
+    group: parenGroupOperand,
+}]
 
 /**
  * `*`, `/`, `%` — the binary layer directly above {@link unary}: zero or
@@ -484,8 +523,8 @@ const tail = [
  * @type {Value}
  */
 export const value = () => ['const', {
-    neg: [sym('-'), trivia, unary, ...tail],
-    bitnot: [sym('~'), trivia, unary, ...tail],
+    neg: [sym('-'), trivia, unaryOperand, ...tail],
+    bitnot: [sym('~'), trivia, unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
     ref: [reference, powTail, ...tail],
     array: [[array, accesses], powTail, ...tail],
@@ -511,8 +550,8 @@ export const value = () => ['const', {
  * @type {Body}
  */
 export const body = () => ['const', {
-    neg: [sym('-'), trivia, unary, ...tail],
-    bitnot: [sym('~'), trivia, unary, ...tail],
+    neg: [sym('-'), trivia, unaryOperand, ...tail],
+    bitnot: [sym('~'), trivia, unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
     ref: [reference, powTail, ...tail],
     array: [[array, accesses], powTail, ...tail],
@@ -596,6 +635,27 @@ export const paren = [sym('('), trivia, parenthesized]
  * @type {ParenGroup}
  */
 export const parenGroup = [sym('('), trivia, group]
+
+/**
+ * A group after its `(`, without the power {@link group} itself may
+ * carry: the value, `)`, the trivia after it, and the steps the group
+ * takes — everything {@link group} has but its own {@link powTail}.
+ * `-(1).x` is the negation of the access, but `-(1) ** 2` is a syntax
+ * error in JavaScript, so {@link unaryOperand}'s restricted `(` stops
+ * here rather than reaching {@link group}'s own.
+ *
+ * @type {GroupOperand}
+ */
+export const groupOperand = [value, sym(')'), trivia, accesses]
+
+/**
+ * `(`, trivia and {@link groupOperand}: what a `-`/`~` may take in
+ * parentheses, {@link unaryOperand}'s own `(` branch — not {@link
+ * parenGroup}, whose {@link group} still carries a `**` of its own.
+ *
+ * @type {ParenGroupOperand}
+ */
+export const parenGroupOperand = [sym('('), trivia, groupOperand]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({

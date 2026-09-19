@@ -122,16 +122,36 @@ export type PowTail = Option<readonly [number, typeof trivia, Unary]>
  * What a `-` or a `~` takes: a value less the function, JavaScript's unary
  * operand being a `UnaryExpression`, which an arrow function is not — and a
  * group, {@link ParenGroup}, which is one. Every alternative but the two
- * prefixes may be raised to a power, {@link PowTail}.
+ * prefixes may be raised to a power, {@link PowTail}; the prefixes
+ * themselves recurse into {@link UnaryOperand}, never {@link Unary}, since
+ * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */
 export type Unary = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary]
-    readonly bitnot: readonly [number, typeof trivia, Unary]
+    readonly neg: readonly [number, typeof trivia, UnaryOperand]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand]
     readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail]
     readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
+}]
+
+/**
+ * What a `-` or a `~` takes: every alternative {@link Unary} has, but none
+ * of them — including a nested `-`/`~`, recursing through this same type —
+ * carries {@link PowTail}. JavaScript refuses `**` immediately after a
+ * unary-prefixed operand at any depth, `- -2 ** 2` exactly as `- 2 ** 2`,
+ * so recursing through this type rather than {@link Unary} keeps that
+ * refusal at every depth a `-`/`~` chain reaches.
+ */
+export type UnaryOperand = () => readonly ['const', {
+    readonly neg: readonly [number, typeof trivia, UnaryOperand]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>]]
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>]]
+    readonly group: ParenGroupOperand
 }]
 
 /**
@@ -183,8 +203,8 @@ export type Tail = readonly [
  * alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary, ...Tail]
-    readonly bitnot: readonly [number, typeof trivia, Unary, ...Tail]
+    readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
@@ -198,8 +218,8 @@ export type Value = () => readonly ['const', {
  * a group, which is the other spelling of a body that is an object.
  */
 export type Body = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary, ...Tail]
-    readonly bitnot: readonly [number, typeof trivia, Unary, ...Tail]
+    readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
@@ -235,6 +255,20 @@ export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access
  * `UnaryExpression` the function is not.
  */
 export type ParenGroup = readonly [number, typeof trivia, Group]
+
+/**
+ * A group after its `(`, without the power {@link Group} itself may carry:
+ * everything {@link Group} has but its own {@link PowTail}. `-(1) ** 2` is
+ * a syntax error in JavaScript, so {@link UnaryOperand}'s restricted `(`
+ * stands on this type rather than {@link Group}'s.
+ */
+export type GroupOperand = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>]
+
+/**
+ * `(`, trivia and {@link GroupOperand}: what a `-`/`~` may take in
+ * parentheses, {@link UnaryOperand}'s own `(` branch.
+ */
+export type ParenGroupOperand = readonly [number, typeof trivia, GroupOperand]
 
 /**
  * `{`, trivia, the body's `const` statements, `return`, same-line trivia,

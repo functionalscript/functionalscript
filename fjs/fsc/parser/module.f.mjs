@@ -49,7 +49,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
- * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
+ * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
@@ -63,8 +63,8 @@ import { prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, unary, value,
-    values,
+    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, unary,
+    unaryOperand, value, values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -427,11 +427,13 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  *
  * Takes the whole node, tag and branch together, rather than a pre-peeled
  * `x`: the branch narrows by `tag` only inside the discriminated union
- * `Children<Unary | Value | Body, …>` still is at this position, which is
- * what lets the second `unmapped` below see a precise shape instead of
- * `unknown`.
+ * `Children<Unary | UnaryOperand | Value | Body, …>` still is at this
+ * position, which is what lets the second `unmapped` below see a precise
+ * shape instead of `unknown`. `UnaryOperand`'s own four leaves are wrapped
+ * one tuple deep for exactly this reason — see its own comment in
+ * `./grammar/module.f.mjs` — so the same reads serve both rules.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -543,6 +545,33 @@ const toNode = node => {
 }
 
 /**
+ * A `-`/`~`'s own operand: {@link unaryOperand}'s branches, read the same
+ * way {@link toNode} reads {@link unary}'s but for the power and the
+ * binary layers above it, neither of which this rule's grammar admits — a
+ * further `-`/`~`, recursing through this same reader by way of
+ * {@link nodeAt}, {@link unaryOperand} mapped here exactly as {@link
+ * unary} is by `toNode`; a group, whose own steps apply with no power past
+ * the `)`; or the base itself, through {@link baseOf}, with only the
+ * accesses after it applied.
+ *
+ * @type {(node: Children<UnaryOperand, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const operandToNode = node => {
+    if (node[0] === 'neg' || node[0] === 'bitnot') {
+        const [, , v] = unmapped(node[1])
+        return symbol({ id: 'value', node: [node[0] === 'neg' ? '-' : '~', nodeAt(v)] })
+    }
+    if (node[0] === 'group') {
+        const [, , g] = unmapped(node[1])
+        const [v, , , accesses] = unmapped(g)
+        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses)) })
+    }
+    const x = unmapped(node[1])[0]
+    const [, accesses] = unmapped(x)
+    return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
+}
+
+/**
  * The token a key is read from, the name it spells, and whether it is the
  * computed spelling — `[ '[' t string t ']' ]`, the string at the third
  * position. The distinction exists for `__proto__` alone.
@@ -630,6 +659,9 @@ export const mappings = [
     // what a `-` takes is a rule of its own, and its branches are the
     // value's, so the same reader serves it
     map(unary, toNode),
+    // a `-`/`~`'s own operand is a further rule of its own, its branches
+    // `unary`'s minus the power, so it takes a reader of its own too
+    map(unaryOperand, operandToNode),
     map(values, toValues),
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both

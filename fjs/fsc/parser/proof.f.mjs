@@ -534,15 +534,30 @@ export const proof = {
             expect('export default 1 + 2 * 3;', '[[],[["+",1,["*",2,3]]]]')
             expect('export default 1 * 2 + 3;', '[[],[["+",["*",1,2],3]]]')
             expect('export default 5 - 2 - 1;', '[[],[["-",["-",5,2],1]]]')
+            expect('export default 6 / 4 / 2;', '[[],[["/",["/",6,4],2]]]')
+            expect('export default 6 % 4 % 3;', '[[],[["%",["%",6,4],3]]]')
             // `**` right-associative, and above it in precedence
             expect('export default 2 ** 3 ** 2;', '[[],[["**",2,["**",3,2]]]]')
-            // `-`/`~` sit above `**` by design, `- 2 ** 2` reading `-(2 ** 2)`
-            expect('export default -2 ** 2;', '[[],[["-",["**",2,2]]]]')
+            // `**`'s own right operand reaches back into a full `unary`, so
+            // a `-`/`~` stands there without parentheses, as it does in
+            // JavaScript
+            expect('export default 2 ** -2;', '[[],[["**",2,["-",2]]]]')
+            expect('export default 2 ** ~2;', '[[],[["**",2,["~",2]]]]')
+            expect('export default 2 ** - -2;', '[[],[["**",2,["-",["-",2]]]]]')
+            // parentheses are the only way to raise a negation to a power,
+            // or to negate one, matching JavaScript exactly
+            expect('export default (-2) ** 2;', '[[],[["**",["-",2],2]]]')
+            expect('export default -(2 ** 2);', '[[],[["-",["**",2,2]]]]')
             expect('export default ~1 & 2;', '[[],[["&",["~",1],2]]]')
             // strict comparison and bitwise, in JavaScript's own precedence
             expect('export default 1 + 2 < 3 * 4;', '[[],[["<",["+",1,2],["*",3,4]]]]')
+            expect('export default 1 <= 2 >= 1;', '[[],[[">=",["<=",1,2],1]]]')
+            expect('export default 2 > 1;', '[[],[[">",2,1]]]')
             expect('export default 1 < 2 === 3 < 4;', '[[],[["===",["<",1,2],["<",3,4]]]]')
+            expect('export default 1 !== 2 === (3 !== 4);', '[[],[["===",["!==",1,2],["!==",3,4]]]]')
             expect('export default 1 << 2 + 3;', '[[],[["<<",1,["+",2,3]]]]')
+            expect('export default 256 >> 4 >> 1;', '[[],[[">>",[">>",256,4],1]]]')
+            expect('export default -1 >>> 16 >>> 8;', '[[],[[">>>",[">>>",["-",1],16],8]]]')
             expect('export default 1 & 2 | 3 ^ 4;', '[[],[["|",["&",1,2],["^",3,4]]]]')
             // a group as an operand, and steps/power bound tighter than a layer
             expect('export default (1 + 2) * 3;', '[[],[["*",["+",1,2],3]]]')
@@ -571,6 +586,21 @@ export const proof = {
             expect('export default 1 * (...a) => 2;', 21)
             // an empty group is no value either, refused at the `)`
             expect('export default 1 + () => 2;', 21)
+            // JavaScript refuses `**` immediately after a unary-prefixed
+            // operand, full stop — no reading admitted without parentheses
+            // — so `unaryOperand` carries no `powTail` of its own, at any
+            // depth of `-`/`~` nesting, whether the operand is bare or
+            // itself parenthesized
+            expect('export default -2 ** 2;', 19)
+            expect('export default ~2 ** 2;', 19)
+            expect('export default - -2 ** 2;', 21)
+            expect('export default ~ ~2 ** 2;', 21)
+            expect('export default - (2) ** 2;', 22)
+            // the same restriction recurses through `**`'s own right
+            // operand: `2 ** -2 ** 2` reads its own right side as an
+            // exponentiation in turn, and `-2 ** 2` refuses there exactly
+            // as it does standing alone
+            expect('export default 2 ** -2 ** 2;', 24)
         },
         scope: () => {
             /** @type {(source: string, message: string, column: number) => void} */
