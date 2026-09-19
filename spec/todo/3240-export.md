@@ -91,19 +91,37 @@ must project `.default` instead of binding the entire imported result.
 The EDAG represents the computation of this object. The existing
 [generated Rust entry point](../../fjs/fsc/rust/module.f.mjs),
 `pub fn module<A: IVm>() -> Any<A>`, computes the same result for `.rs` output.
-Update module-result consumers and proofs together; do not unwrap `.default`
-merely to preserve the former result shape. This replaces the earlier proposal
-to keep the bare default value as the compiler's result for some output paths.
+Update module-result consumers and proofs together.
 
-Writers must distinguish a data document describing the module result from
-generated JavaScript module source. The latter must expose the original named
-and default exports, rather than turn the result object into one default export.
+### Serialization
+
+The complete export object remains the module function's result. Each output
+format consumes it according to its contract:
+
+| Output | Serializer behavior |
+| --- | --- |
+| JSON / DataJS value output | Pass `result.default` to the value serializer. |
+| FunctionalScript module source | Emit named properties as `export const` in dependency order, preserving shared bindings; emit `default` as the final `export default`. |
+| EDAG / generated Rust | Preserve the computation of the complete module result. |
+
+For `export default 7;`, the module result is `{ default: 7 }`, but the DataJS
+serializer receives `7` and writes `export default 7;`. Repeating compilation
+must not add another `default` wrapper. This preserves the existing guarantee
+that normalized DataJS documents are fixed points of both the DataJS and
+FunctionalScript writers. JSON output for the same module is `7`.
+
+The FunctionalScript serializer must expose each original export; it must not
+emit the complete result object as a single default export. Its dependency
+ordering and shared bindings must preserve evaluation and sharing across named
+and default exports.
 
 ### Tasks
 
 - [x] Allow named and default exports in the same module.
 - [x] Define the module function's result as the object of all exports,
       including `default`.
+- [x] Confirm the serialization contract: `result.default` for JSON/DataJS,
+      and individual exports for FunctionalScript module source.
 - [ ] Implement `export const` through the grammar, AST, and linking, preserving
       local references, evaluation order, sharing, and export names. Make the
       module body yield the export object and make default imports select
@@ -115,6 +133,11 @@ and default exports, rather than turn the result object into one default export.
       EDAG and generated Rust results contain all exported properties, and default
       imports (including JSON imports) still yield the selected value. Update
       consumers and declare the module-result API change in the implementation PR.
+- [ ] With the serializer changes, prove that normalized DataJS documents remain
+      fixed points of both writers, including repeated compilation of
+      `export default 7;` without accumulating wrappers. Prove JSON serializes
+      the default value and FunctionalScript preserves dependency order and
+      sharing between named and default exports.
 - [ ] Retry the unchanged `types/range/module.f.mjs`. If it fails, show the next
       diagnostic to the owner, who chooses a source rewrite or a missing
       compiler feature. Rename it to `.f.js` only after full compilation succeeds.
