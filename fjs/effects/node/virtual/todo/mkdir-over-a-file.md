@@ -34,13 +34,16 @@ it watches a destructive operation and calls it correct.
 [`fjs/git/refstore`](../../../../git/refstore/module.f.mjs)'s `tryWrite` is the
 caller today. It refuses a *packed* ref name that is a directory prefix of the
 name being written (`refPrefixCode`), and its doc says the two **loose**
-directions need no check of their own because the filesystem is the check: a
-loose file where the parent directory must go makes the `mkdir` answer `ENOTDIR`,
-and a directory where the ref's file must go makes the `rename` answer `EISDIR`.
+directions are the filesystem's to refuse: a loose file where the parent
+directory must go makes the `mkdir` answer `ENOTDIR`, and a directory where the
+ref's file must go makes the `rename` answer `EISDIR` — the second now behind a
+`stat` of the ref's path, which also catches the symlink-to-a-directory the
+`rename` would have replaced.
 
 Half of that is provable here and half is not. The `rename` direction is
-modelled — `insertEntityAt` refuses to overwrite a directory with a file — and
-`writeGivesTheLockBack` pins it. The `mkdir` direction is this issue: a proof of
+modelled — `insertEntityAt` refuses to overwrite a directory with a file — though
+what `tryWrite` now reaches first is a `stat` of the ref's path, which
+`writeRefIsADirectory` pins. The `mkdir` direction is this issue: a proof of
 it against this runner would show `tryWrite` **deleting the ref
 `refs/heads/a`** and answering success, which is the opposite of what a host
 does and of what the doc claims. So the claim rests on the node measurement

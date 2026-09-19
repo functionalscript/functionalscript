@@ -58,10 +58,10 @@ what a grammar can and cannot do for the formats.
   in hand, and `tryWrite` to put one at an id — the loose file, through the
   `.lock` name Git takes, created and filled in **one** exclusive open so no
   second writer and no symlink can reach the pathname in between, and reading
-  `packed-refs` first for the one collision no
-  filesystem answer can stand in for: Git lets no ref name be a directory
-  prefix of another, and a packed name has no loose file for a `mkdir` or a
-  `rename` to trip over. Two rules live here because no reader of one file can decide
+  `packed-refs` and `stat`ting the ref's own path first for the collision no
+  other answer catches: Git lets no ref name be a directory prefix of another,
+  and neither a packed name nor a symlink to a directory gives a `mkdir` or a
+  `rename` anything to trip over. Two rules live here because no reader of one file can decide
   them: a loose ref shadows the packed line of the same name by existing
   rather than by being good, so a loose file that is no ref leaves the name
   with no value instead of the packed one; and a symbolic ref is followed

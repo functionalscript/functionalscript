@@ -1869,12 +1869,48 @@ export const proof = {
     // `refs/heads/a.lock` still there is the failure this case exists for, and
     // `writeLockHeld` above is what keeps the cleanup from being a blanket one
     // that would take another writer's lock.
-    writeGivesTheLockBack: () => {
+    writeRefIsADirectory: () => {
         /** @type {Dir} */
         const root = { refs: { heads: { a: { b: ref(b) } } } }
         const [fs, r] = wrote(root, 'refs/heads/a', a)
-        assert(r[0] === 'error')
+        const e = writeRefusal(r)
+        assertEq(e.code, refPrefixCode)
+        assertEq(e.message, 'refs/heads/a is a directory; cannot create it')
         assertStructurallySame(fs, root)
+    },
+    // And the cleanup itself, which now needs a host: the only failure left
+    // *after* the exclusive write is the `rename`, and the virtual filesystem
+    // cannot produce one — a directory at the path is refused by the `stat` above
+    // before the lock is taken, which is what `writeRefIsADirectory` pins.
+    //
+    // So the lock is taken, the rename fails, and the `rm` has to appear. Without
+    // it the name is unwritable until someone removes the file by hand.
+    writeGivesTheLockBack: () => {
+        /** @type {MemOperationMap<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, readonly string[]>} */
+        const host = {
+            readWhole: missing,
+            // logged rather than `missing`, so the order below pins that the
+            // `stat` of the ref's path comes before anything is created
+            stat: path => log => [[...log, `stat ${path}`], error(ioError({ code: 'ENOENT', message: path }))],
+            mkdir: (path, _) => log => [[...log, `mkdir ${path}`], ok(undefined)],
+            writeExclusive: path => log => [[...log, `writeExclusive ${path}`], ok(undefined)],
+            rename: (src, dst) => log => [
+                [...log, `rename ${src} ${dst}`],
+                error(ioError({ code: 'EIO', message: dst })),
+            ],
+            rm: path => log => [[...log, `rm ${path}`], ok(undefined)],
+        }
+        const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(
+            tryWrite(one(''), 20)(latin1('refs/heads/master'))(idOf(a)))
+        // the rename's error reaches the caller, not the cleanup's outcome
+        assertEq(writeRefusal(r).code, 'EIO')
+        assertStructurallySame(log, [
+            'stat refs/heads/master',
+            'mkdir refs/heads',
+            'writeExclusive refs/heads/master.lock',
+            'rename refs/heads/master.lock refs/heads/master',
+            'rm refs/heads/master.lock',
+        ])
     },
     // Five refusals, each before any effect runs — which is what the untouched
     // filesystem beside each one says.
@@ -2040,10 +2076,12 @@ export const proof = {
     // The virtual filesystem cannot run out of descriptors, so the host below
     // answers what one does.
     writeNotMineOnAnyError: () => {
-        /** @type {MemOperationMap<ReadWhole | Mkdir | WriteExclusive | Rename | Rm, readonly string[]>} */
+        /** @type {MemOperationMap<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, readonly string[]>} */
         const host = {
             // no `packed-refs`, so there is no prefix collision to refuse
             readWhole: missing,
+            // and nothing at the ref's path, so no directory bars it either
+            stat: missing,
             mkdir: (path, _) => log => [[...log, `mkdir ${path}`], ok(undefined)],
             writeExclusive: path => log => [
                 [...log, `writeExclusive ${path}`],

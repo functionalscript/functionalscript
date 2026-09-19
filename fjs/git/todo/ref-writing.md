@@ -21,9 +21,10 @@ it, and renames it over `refs/heads/x`, so a concurrent writer fails to create
 the lock rather than interleaving. The rename is the atomic step, and the lock
 file is why `fjs/git/refstore`'s walk skips a name ending in `.lock`: such a
 file is a write in progress and not a ref.
-[`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in four
-effects — `packed-refs`, the directories above the file, the exclusive write of
-the id's hex digits and an LF, the rename — and gives the lock back where a
+[`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in five
+effects — `packed-refs`, a `stat` of the ref's own path, the directories above
+the file, the exclusive write of the id's hex digits and an LF, the rename — and
+gives the lock back where a
 failure of the **rename** would otherwise leave it, and never on any earlier
 failure: that write succeeding is the only evidence the lock is this writer's,
 and no error code is evidence of the same. The file is `oidBytes * 2 + 1` bytes
@@ -63,17 +64,28 @@ so a replacement in that window would be removed instead. Both are failures on a
 filesystem already failing, and both are `fjs/effects/node`'s to fix if a caller
 ever needs them fixed.
 
-`packed-refs` is read first because of the one collision no filesystem can
-refuse. Git will not let a ref name be a directory prefix of another: measured
-on 2.43.0, with `refs/heads/a` packed, `update-ref refs/heads/a/b` exits 128 with
-`'refs/heads/a' exists; cannot create 'refs/heads/a/b'`, and with `refs/heads/c/d`
-packed the same command on `refs/heads/c` exits 128 the other way round. The
-*loose* directions are refused by the host — `ENOTDIR` from the `mkdir`, `EISDIR`
-from the `rename` — and a packed name is invisible to both, so the file has to be
-read. `refPrefixCode` and `badPackedCode` are the two refusals that come out of
-it, and `refstore`'s doc has the measurement of what each direction costs: one is
-Git's policy over a state its own `pack-refs` produces, and the other breaks
-`git rev-parse` for a ref that resolved before the write.
+**No ref name may be a directory prefix of another**, and finding that out takes
+both of the reads. Measured on 2.43.0: with `refs/heads/a` packed,
+`update-ref refs/heads/a/b` exits 128 with `'refs/heads/a' exists; cannot create
+'refs/heads/a/b'`, and with `refs/heads/c/d` packed the same command on
+`refs/heads/c` exits 128 the other way round. `refPrefixCode` and
+`badPackedCode` are the refusals that come out of the `packed-refs` read, and
+`refstore`'s doc has what each direction costs: one is Git's policy over a state
+its own `pack-refs` produces, and the other breaks `git rev-parse` for a ref that
+resolved before the write.
+
+The *loose* directions are the host's to refuse, and only one of them actually
+is. A loose file where the parent directory must go is `ENOTDIR` from the `mkdir`,
+and a real directory where the ref's file must go is `EISDIR` from the `rename`.
+A **symlink to a directory** at the ref's own path is neither: measured on node
+22.22.2, `fs.rename` over it succeeds, replaces the link, and leaves every ref
+inside the linked directory unreachable — while `update-ref` exits 128 and Git
+reads those refs through the link the whole time, `show-ref`, `for-each-ref` and
+`rev-parse` all answering them. So the write `stat`s the ref's path before taking
+the lock and refuses a directory, which covers the symlink and the real directory
+alike because `stat` follows links. Found by review of the write; the symlink
+itself has no fixture, since the virtual filesystem has no symlinks, and
+`writeRefIsADirectory` pins the branch through a real directory.
 
 That check is a snapshot, and `git pack-refs` can invalidate it under either
 writer's feet — Git's included. `refs/heads/a/b` is loose, so a write of

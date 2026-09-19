@@ -1915,10 +1915,28 @@ const prefixCollision = (packed, name) => packed.find(e => {
  * answer, and the cost is a `packed-refs` read this module already has in
  * {@link tryPackedRefs}.
  *
- * **The loose directions need no check of their own**, because the filesystem
- * is the check: a loose file where the parent directory must go makes the
- * `mkdir` answer `ENOTDIR`, and a directory where the ref's file must go makes
- * the `rename` answer `EISDIR`. Only a *packed* name is invisible to those.
+ * **One loose direction needs no check of its own and the other does**, which is
+ * not symmetric because the filesystem is not. A loose file where the parent
+ * directory must go makes the `mkdir` answer `ENOTDIR`, and a real directory
+ * where the ref's file must go makes the `rename` answer `EISDIR` — measured on
+ * node 22.22.2. But a **symlink to a directory** at the ref's own path is
+ * neither: measured, `fs.rename` over it *succeeds*, replaces the link, and
+ * leaves every ref inside the linked directory unreachable, while the same
+ * `update-ref` exits 128 with `'refs/heads/a/b' exists; cannot create
+ * 'refs/heads/a'` and Git reads `refs/heads/a/b` through the link the whole
+ * time — `show-ref`, `for-each-ref` and `rev-parse` all answer it. A destructive
+ * success, and review's finding on
+ * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
+ *
+ * So a write asks {@link isDirectoryAt} about the ref's path before it takes the
+ * lock, and refuses where the answer is yes. `stat` follows the link, so one call
+ * covers the symlink and the real directory alike — the `EISDIR` above is belt
+ * and braces rather than the guard. It cannot name *which* ref is in the way, as
+ * the message Git prints does, because knowing that means walking the directory;
+ * it names the path instead.
+ *
+ * Only a *packed* name is invisible to all of it, which is what the
+ * `packed-refs` read is for.
  *
  * Half of that is proven and half is measured against node alone, which is
  * worth knowing rather than glossing. The `rename` direction has a fixture —
@@ -1972,6 +1990,16 @@ const refPrefixMessage = (other, name) =>
     `${nameForMessage(other)} exists; cannot create ${nameForMessage(name)}`
 
 /**
+ * The same refusal reached through the filesystem rather than through
+ * `packed-refs`: something at the ref's own path is a directory, so refs sit
+ * under the name. Git's wording names the ref in the way and this names the path,
+ * for the reason {@link refPrefixCode} gives.
+ *
+ * @type {(name: Bytes) => string}
+ */
+const refIsDirectoryMessage = name => `${nameForMessage(name)} is a directory; cannot create it`
+
+/**
  * The code a write is refused with when `packed-refs` is there and is no
  * `packed-refs`.
  *
@@ -2016,8 +2044,8 @@ const collided = (packed, name, dense) => {
  * fills it, and renames it over the ref, so a second writer fails to take the
  * lock rather than interleaving with the first and the reader sees either the
  * old file or the new one and never a half-written one. This does the same, in
- * four effects: `packed-refs`, the directories above the file, the exclusive
- * write, the rename.
+ * five effects: `packed-refs`, a `stat` of the ref's own path, the directories
+ * above the file, the exclusive write, the rename.
  *
  * **The create and the fill are one effect and not two, which is a hole and not
  * a round trip.** `createExclusive` closes its descriptor, so a `writeFile`
@@ -2072,11 +2100,12 @@ const collided = (packed, name, dense) => {
  * the listing. Writing it would be writing a repository this module will not
  * read.
  *
- * Two more are decided from `packed-refs`, which is why a write reads one file
- * before it writes any: a packed name that is a directory prefix of this one or
- * the other way round ({@link refPrefixCode}), and a `packed-refs` that will not
- * parse, which leaves that question unanswerable ({@link badPackedCode}). Both
- * are Git's answers, each measured with a control.
+ * Three more are decided from the filesystem, which is why a write reads two
+ * things before it writes anything: a packed name that is a directory prefix of
+ * this one or the other way round, and a directory — or a **symlink to one** — at
+ * the ref's own path, both {@link refPrefixCode}; and a `packed-refs` that will
+ * not parse, which leaves the first question unanswerable
+ * ({@link badPackedCode}). Each is Git's answer and each was measured.
  *
  * **It does not check that the object is there**, and Git does: measured,
  * `git update-ref refs/heads/g <a well-formed id no object has>` exits 128 with
@@ -2127,7 +2156,7 @@ const collided = (packed, name, dense) => {
  * rather than removed, which is what Git leaves too; and no dereference of a
  * symbolic ref already at the name, which is `update-ref --no-deref`.
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<ReadWhole | Mkdir | WriteExclusive | Rename | Rm, void, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, void, IoChannel>}
  */
 export const tryWrite = (dirs, oidBytes) => name => id => {
     const dense = byteArray(name)
@@ -2155,9 +2184,9 @@ export const tryWrite = (dirs, oidBytes) => name => id => {
     const dir = dirOf(dirs, text)
     const path = under(dir, text)
     const lock = `${path}${lockSuffix}`
-    // Four effects, one link each and all at one level, so the order they run
-    // in is the order they are written. The cleanup is not a fifth link but a
-    // wrapper around all of them, for the reason {@link unlocked} gives.
+    // Five effects, one link each and all at one level, so the order they run
+    // in is the order they are written. The cleanup is not a sixth link but a
+    // wrapper around the last one, for the reason {@link unlocked} gives.
     //
     // The read comes first and is the only one that reads: a name barred by a
     // packed line must not reach the `mkdir`, because the directory the `mkdir`
@@ -2167,7 +2196,15 @@ export const tryWrite = (dirs, oidBytes) => name => id => {
     const checked = step(read, packed => packed === null
         ? pureError(ioError({ code: badPackedCode, message: badPackedMessage(dirs) }))
         : collided(packed, name, dense))
-    const made = step(checked, () => mkdir(parentOf(dir, text), { recursive: true }))
+    // A directory at the ref's own path, which the `rename` would refuse — unless
+    // it is a *symlink* to one, which the `rename` silently replaces. One `stat`
+    // covers both, and it is before the lock so a refusal leaves nothing behind.
+    // See {@link refPrefixCode}.
+    const kind = step(checked, () => isDirectoryAt(path))
+    const clear = step(kind, there => there
+        ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name) }))
+        : pureOk(/** @type {void} */ (undefined)))
+    const made = step(clear, () => mkdir(parentOf(dir, text), { recursive: true }))
     // The cleanup starts *after* the exclusive write and covers the rename alone:
     // that write succeeding is the only evidence the lock is this writer's, and
     // no failure — of it or of anything above it — is evidence of the same. See
