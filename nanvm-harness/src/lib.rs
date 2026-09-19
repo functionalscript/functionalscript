@@ -13,6 +13,8 @@
 pub mod array;
 #[path = "../fixtures/boolean.rs"]
 pub mod boolean;
+#[path = "../fixtures/escapes.rs"]
+pub mod escapes;
 #[path = "../fixtures/named.rs"]
 pub mod named;
 #[path = "../fixtures/number.rs"]
@@ -54,7 +56,7 @@ pub fn run<A: IVm>(module: fn() -> Any<A>) -> Result<std::string::String, JsonEr
 mod tests {
     use nanvm_lib::naive::Naive;
 
-    use crate::{array, boolean, named, number, object, property, run, sharing, string};
+    use crate::{array, boolean, escapes, named, number, object, property, run, sharing, string};
 
     #[test]
     fn module_result_contains_exports() {
@@ -121,5 +123,17 @@ mod tests {
     #[test]
     fn property_access() {
         assert_eq!(run::<Naive>(property::module), Ok("42".into()));
+    }
+
+    #[test]
+    fn escaped_characters() {
+        // `escapes.rs` spells each of these as a `\u{…}` escape, since a
+        // control character or a bidirectional control cannot stand in a
+        // Rust literal as it is; the VM reads back the character itself.
+        // `to_json` escapes the two control characters and prints the rest.
+        assert_eq!(
+            run::<Naive>(escapes::module),
+            Ok("[\"\\u0000\",\"\\u001f\",\"\u{7f}\",\"\u{202e}\",\"\u{2069}\"]".into())
+        );
     }
 }

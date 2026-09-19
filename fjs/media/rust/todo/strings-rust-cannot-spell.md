@@ -5,27 +5,11 @@
 
 ### Problem
 
-`stringLiteral` escapes five characters and passes every other one through
-as it stands. Two classes of JavaScript string fall outside that, and each
-is answered the wrong way. Observed at `186af0b` through `fjs compile
-<input> <output>.rs`:
-
-- **A control character throws.** `export default "\u0000";` — or any of
-  U+0000 to U+001F but the three escaped ones, or U+007F — reaches the
-  `throw ['control character in a Rust string literal', v]` in
-  `stringLiteral`, and nothing above catches it: the CLI dies with an
-  uncaught exception instead of a diagnostic. The intent is a refusal, but
-  the shape is a crash, and it contradicts what `fjs/fsc/rust`'s
-  `generateResult` promises — that the printer never throws and every gap
-  is a `Result`, which is why `fjs/edag/rust`'s `expExpr` answers one.
-  `i64Literal` throws the same way for a bigint outside `i64`.
-
-- **A bidirectional control character writes a file Rust refuses.** The
-  code points that change the visible direction of text — U+202A to U+202E
-  and U+2066 to U+2069 — pass through unescaped, the compile reports
-  success, and `rustc` refuses the literal under its default
-  `text_direction_codepoint_in_literal` deny. U+FEFF and U+200B pass.
-  Found in review, by running the generated file.
+`stringLiteral` escapes what Rust and JavaScript spell alike and passes
+every other code point through as it stands. A control character and a
+bidirectional control are spelled by their `\u{…}` escape since the first
+task below; what remains is answered the wrong way. Observed at `186af0b`
+through `fjs compile <input> <output>.rs`:
 
 - **A lone surrogate writes a file Rust cannot read.** `export default
   "\ud800";` compiles with exit code 0. The code unit passes through
@@ -35,24 +19,27 @@ is answered the wrong way. Observed at `186af0b` through `fjs compile
   surrogate at all, so there is no escape to reach for: the value has no
   spelling in the API the printer targets.
 
-None computes a wrong value, so none is a compatibility violation
-under [the epic](../../../../todo/fjs-javascript-compatibility.md). All three are
-the wrong kind of failure: a crash where a refusal is owed, and a success
-where a spelling or a refusal is owed
+- **A bigint outside `i64` throws.** `i64Literal` answers it with a
+  `throw ['bigint out of i64 range', v]` that nothing above catches, so
+  the CLI dies with an uncaught exception instead of a diagnostic. The
+  intent is a refusal, but the shape is a crash, and it contradicts what
+  `fjs/fsc/rust`'s `generateResult` promises — that the printer never
+  throws and every gap is a `Result`, which is why `fjs/edag/rust`'s
+  `expExpr` answers one. `stringLiteral` threw the same way for a control
+  character before the escape retired the refusal.
+
+Neither computes a wrong value, so neither is a compatibility violation
+under [the epic](../../../../todo/fjs-javascript-compatibility.md). Both are
+the wrong kind of failure: a success where a refusal is owed, and a crash
+where a refusal is owed
 ([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 The same values write correctly through the other outputs: `.data.js`,
-`.js` and `.json` spell `"\u0000"` and `"\ud800"` as escapes and read back
-as the same strings.
+`.js` and `.json` spell `"\ud800"` as an escape and read it back as the
+same string.
 
 ### Proposal
 
-- Spell a control character rather than refuse it: Rust's `\u{…}` escape
-  holds any scalar value, so `\u{0}` and `\u{7f}` are ordinary literals and
-  the refusal has no reason left. The bidirectional controls take the same
-  escape — `"a\u{202e}b"` builds where the raw code point does not — so
-  the escaped set is U+0000 to U+001F, U+007F, U+202A to U+202E and U+2066
-  to U+2069, each range named once in the writer.
 - Refuse a lone surrogate as a `Result`, from `stringLiteral` itself, and
   thread that `Result` through `primitiveExpr`, `keyExpr` and `indexExpr` in
   `fjs/edag/rust`, so `fjs compile` prints it as it prints every other
@@ -71,11 +58,11 @@ as the same strings.
 
 ### Tasks
 
-- [ ] Escape control and bidirectional control characters with `\u{…}`;
+- [x] Escape control and bidirectional control characters with `\u{…}`;
       prove U+0000, U+001F, U+007F, U+202E and U+2069 round-trip through a
       generated module in `nanvm-harness`.
-- [ ] Return a `Result` from `stringLiteral` and `i64Literal`; move the two
-      throws to refusals `fjs/edag/rust` carries and `fjs/nanvm/rust`
+- [ ] Return a `Result` from `stringLiteral` and `i64Literal`; move the
+      surrogate and the range refusal to `Result`s `fjs/edag/rust` carries and `fjs/nanvm/rust`
       unwraps; prove `fjs compile` reports a lone surrogate and an
       out-of-range bigint as diagnostics.
 - [ ] Run the check set: `tsc`, `fjs test`, `node --test`, `npm run gen`.
