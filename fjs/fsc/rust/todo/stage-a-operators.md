@@ -7,9 +7,12 @@
 
 Stage A of [operators](../../../../spec/todo/2340-operators.md) made the
 eighteen binary operators and `~` reachable from source. `fjs/edag/rust`
-already has a `nanvm-lib` spelling for every one of them — it is shared
-with the operator-conformance corpus generator, which needed them first —
-but every one of those spellings answers `Result<Any<A>, Any<A>>`, and
+already has a `nanvm-lib` spelling for most of them — it is shared with
+the operator-conformance corpus generator, which needed them first — but
+not all: `!==` has no `op2Rust` entry at all, and `===`'s entry calls
+`strict_eq`, a helper the operator-test harness defines
+(`nanvm-lib/tests/test/harness.rs`), not one `nanvm-lib` itself has. Every
+spelling that does exist answers `Result<Any<A>, Any<A>>`, and
 `pub fn module<A: IVm>() -> Any<A>` has nowhere to put the `Err`. Before
 this refuses cleanly (see below), compiling one of these operators to
 `.rs` exited `0` and wrote Rust `rustc` rejects — a type mismatch for
@@ -43,7 +46,9 @@ mismatch from `rustc` to this module's own type.
 
 - [ ] Decide the generated module's own failure contract (see Proposal).
 - [ ] Spell every `op1Rust`/`op2Rust` entry `resultOperator` currently
-      refuses, against that contract, in `fjs/fsc/rust/module.f.mjs`.
+      refuses, against that contract, in `fjs/fsc/rust/module.f.mjs` — and
+      give `!==`/`===` a real `nanvm-lib` spelling first, since neither
+      has one to reuse yet (see Problem).
 - [ ] New proof coverage per operator, alongside the refusal proofs
       already in `../proof.f.mjs`'s `rustOutput.operators`.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check` on the
