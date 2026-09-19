@@ -28,6 +28,9 @@ const utf8 = text => fromCodePointList(stringToCodePointList(text))
 /** The graph the document denotes, read as code units. */
 const graph = unwrap(tryParse(document))
 
+/** How many times `needle` appears in `text`, non-overlapping. @type {(text: string, needle: string) => number} */
+const occurrences = (text, needle) => text.split(needle).length - 1
+
 export const proof = {
     // The surface holds the four signatures the design fixed, and the
     // deeper proofs are each entry point's own: `parser/proof.f.mjs` for the
@@ -66,17 +69,17 @@ export const proof = {
             // and `"a"`'s edge is the one left skipping a rank.
             sharing: () => {
                 const html = htmlToString(demo.view(demo.init))
-                assertEq((html.match(/data-graph-kind="array"/g) ?? []).length, 1)
+                assertEq(occurrences(html, 'data-graph-kind="array"'), 1)
                 assert(html.includes('>&quot;a&quot;<'), html)
                 assert(html.includes('>&quot;c&quot;<'), html)
-                assertEq((html.match(/data-graph-kind="leaf"/g) ?? []).length, 2)
+                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 2)
             },
             // `typeof null === 'object'` is why `walk` checks `=== null`
             // first — without it, `null` would reach `instanceof Array` and
             // `Object.entries` as if it held members.
             nullIsALeaf: () => {
                 const html = htmlToString(demo.view('export default null;'))
-                assertEq((html.match(/data-graph-kind="leaf"/g) ?? []).length, 1)
+                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 1)
                 assert(!html.includes('data-graph-edge'), html)
                 assert(html.includes('>null<'), html)
             },
@@ -90,12 +93,30 @@ export const proof = {
                 assert(html.includes('>undefined<'), html)
                 assert(html.includes('>-0<'), html)
             },
+            // The label sits two-thirds of the way to the child, not at the
+            // midpoint — pinned by an exact coordinate, on a straight
+            // one-rank edge where the two positions are easy to tell apart
+            // by hand: y = 36 + (76-36)*t is 62 at t=0.65 and 56 at t=0.5.
+            edgeLabelPosition: () => {
+                const html = htmlToString(demo.view('export default [1];'))
+                assert(html.includes('<text x="35" y="62" text-anchor="middle" data-graph-edge-label="">0<'), html)
+            },
+            // Two equal numbers are two leaf nodes, not one shared like a
+            // container would be — "primitive sharing is not [written]".
+            // Merged, this would render as a single leaf with edges "0, 1"
+            // into it, the same shape `parallelEdgesMerge` below checks for
+            // an actually-shared container.
+            equalLeavesDoNotShare: () => {
+                const html = htmlToString(demo.view('export default [1,1];'))
+                assertEq(occurrences(html, 'data-graph-kind="leaf"'), 2)
+                assert(!html.includes('>0, 1<'), html)
+            },
             // Three array elements sharing one value are three edges with
             // the same endpoints — drawn separately only the last label
             // would ever be visible, so they draw as one line.
             parallelEdgesMerge: () => {
                 const html = htmlToString(demo.view('const $0={"n":1};\nexport default [$0,$0,$0];'))
-                assertEq((html.match(/data-graph-edge-label="">/g) ?? []).length, 2)
+                assertEq(occurrences(html, 'data-graph-edge-label="">'), 2)
                 assert(html.includes('>0, 1, 2<'), html)
             },
             // A shared node reached again from above an intervening rank

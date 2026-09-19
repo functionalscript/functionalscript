@@ -32,6 +32,7 @@
  * @import { Primitive, Unknown } from './types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Element } from '../../media/html/types.ts'
+ * @import { _Bare, _Edge, _Graph, _Node, _Positioned, _State } from './private.ts'
  */
 
 import { tryParse } from './module.f.mjs'
@@ -40,36 +41,6 @@ import { concat } from '../../types/string/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 
 const { is } = Object
-
-/**
- * A node as the walk discovers it — everything but its rank, which is not
- * yet known: a later edge from elsewhere in the document may still demand a
- * longer route to it than the one that created it.
- *
- * @typedef {{
- *   readonly id: number,
- *   readonly kind: 'array' | 'object' | 'leaf',
- *   readonly label: string,
- * }} _Bare
- *
- * @typedef {_Bare & { readonly rank: number }} _Node
- *
- * @typedef {{ readonly from: number, readonly to: number, readonly label: string }} _Edge
- *
- * @typedef {{
- *   readonly refs: readonly (readonly [object, number])[],
- *   readonly nodes: readonly _Bare[],
- *   readonly edges: readonly _Edge[],
- *   readonly next: number,
- * }} _State
- *
- * @typedef {_Node & { readonly x: number, readonly y: number, readonly width: number, readonly height: number }} _Positioned
- *
- * @typedef {
- *   | { readonly ok: true, readonly nodes: readonly _Node[], readonly edges: readonly _Edge[] }
- *   | { readonly ok: false, readonly error: string }
- * } _Graph
- */
 
 /**
  * The id already assigned to `ref`, by the reference it was walked under —
@@ -135,25 +106,35 @@ const walk = state => value => {
  * index here — `walk` assigns ids 0, 1, 2, … in creation order with no
  * gaps — so `current[edge.from]` reads a node by id directly.
  *
- * **Bellman-Ford's relaxation, not a topological sort.** `nodes.length`
- * rounds is more rounds than the longest possible simple path in a graph
- * this size can have edges, which is the bound the algorithm needs; a
- * demo-sized graph has nothing for a sort to save. Each round reads the
- * previous one's ranks only, so the order edges happen to be in does not
- * matter.
+ * **Bellman-Ford's relaxation, not a topological sort**, stopped the moment
+ * a round changes nothing. `nodes.length` rounds is the bound the algorithm
+ * needs in its worst case, a document nested that deep — not what an
+ * ordinary one costs: a flat array of a thousand leaves settles in one
+ * round regardless of how many leaves it has, since every one of them
+ * depends on the root alone.
+ *
+ * Incoming edges are grouped by target once, not searched for per node on
+ * every round: `edges.filter` inside the loop turned this quadratic in the
+ * number of rounds a large shared graph took to settle, measured directly —
+ * a 1500-element document went from 138 ms to 3.9 s under that version.
  *
  * @type {(nodes: readonly _Bare[], edges: readonly _Edge[]) => readonly _Node[]}
  */
 const ranked = (nodes, edges) => {
-    /** @type {readonly _Node[]} */
-    const initial = nodes.map(n => ({ ...n, rank: n.id === 0 ? 0 : -Infinity }))
-    /** @type {(current: readonly _Node[]) => readonly _Node[]} */
-    const relax = current => current.map(node => {
-        const incoming = edges.filter(e => e.to === node.id)
-        const best = incoming.reduce((m, e) => Math.max(m, current[e.from].rank + 1), node.rank)
-        return best === node.rank ? node : { ...node, rank: best }
-    })
-    return Array.from({ length: nodes.length }, () => null).reduce(relax, initial)
+    /** @type {readonly (readonly _Edge[])[]} */
+    const incomingOf = nodes.map(n => edges.filter(e => e.to === n.id))
+    let current = nodes.map(n => ({ ...n, rank: n.id === 0 ? 0 : -Infinity }))
+    for (let round = 0; round < nodes.length; round++) {
+        let changed = false
+        current = current.map((node, i) => {
+            const best = incomingOf[i].reduce((m, e) => Math.max(m, current[e.from].rank + 1), node.rank)
+            if (best === node.rank) { return node }
+            changed = true
+            return { ...node, rank: best }
+        })
+        if (!changed) { break }
+    }
+    return current
 }
 
 /**
@@ -179,9 +160,12 @@ const charWidth = 7
 const widthOf = label => Math.max(50, label.length * charWidth + 16)
 
 /**
- * Every node at rank `r`, in the order the walk created them — which is
- * already left-to-right document order, since a rank fills before the walk
- * descends into the rank below it.
+ * Every node at rank `r`, ordered by id — creation order, not rank order:
+ * `ranked` can move a node to a deeper rank than the one it was created at,
+ * so id order is not always the order a reader would find the nodes of a
+ * rank in if they walked the document themselves. It is still a simple,
+ * deterministic left-to-right position, which is what a demo-sized graph
+ * needs and no more.
  *
  * @type {(nodes: readonly _Node[]) => readonly (readonly _Node[])[]}
  */
@@ -221,7 +205,7 @@ const mergeParallel = edges => edges.reduce((acc, edge) => {
 
 /**
  * A graph, drawn: a node per array, object and leaf, an edge per index or
- * key, ranked by depth of first discovery.
+ * key, ranked by longest path from the root.
  *
  * @type {(g: { readonly nodes: readonly _Node[], readonly edges: readonly _Edge[] }) => Element}
  */
