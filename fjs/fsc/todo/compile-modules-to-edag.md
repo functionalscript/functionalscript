@@ -756,6 +756,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`fjs/fsc/ast/module.f.mjs`](../../fsc/ast/module.f.mjs) — current sequential AST evaluator.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
+- [`compile-noncapturing-functions-to-rust.md`](./compile-noncapturing-functions-to-rust.md)
+  — the Rust-output follow-through for the `=>`/`()` shapes Stage 2 here
+  already lowers correctly but nothing yet prints to Rust.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter
   execution strategy for the final EDAG and later integration behind the existing
   value-producing transpile/compile API.
