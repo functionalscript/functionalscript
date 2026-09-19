@@ -30,6 +30,22 @@ hand-written instances across two sibling readers; the `id` tag exists
 only to make the assert possible, so nothing stops another copy with a
 mismatched tag.
 
+The largest copy site is outside `fjs/media`: `fjs/fsc/parser` reads an
+eight-member alphabet, `Out`, through `outAt` and eight one-per-id
+readers — `nodeAt`, `valuesAt`, `memberAt`, `membersAt`, `importAt`,
+`constAt`, `exportAt`, `moduleAt` — each the same three statements with
+the `id` and the field changed:
+
+```js
+// fjs/fsc/parser/module.f.mjs, nodeAt and valuesAt
+const nodeAt = node => { const out = outAt(node); assert(out.id === 'value'); return out.node }
+const valuesAt = node => { const out = outAt(node); assert(out.id === 'values'); return out.items }
+```
+
+Every member of `Out` carries exactly one field besides `id`, which is the
+constraint `tagged` below requires, so all eight are instances of it and
+`outAt` — the widener they share — goes with them.
+
 ### Proposal
 
 Export `textAt` from `fjs/media/json/parser/module.f.mjs` beside
@@ -207,6 +223,8 @@ one-line follow-up rather than a design decision.
       `json/parser`; drop `datajs/parser`'s copy; rewrite the four
       wrap/read functions as typed `const` instances; the proof imports
       `_valueSymbol` instead of restating it.
+- [ ] `fjs/fsc/parser`: the eight readers become typed `tagged`
+      instances; `outAt` goes.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
