@@ -1,7 +1,15 @@
-import { resolve, decode, components } from './module.f.mjs'
+import { resolve, decode, components, _isAbsoluteFileUrl } from './module.f.mjs'
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 export const proof = {
+    absoluteFileUrl: () => {
+        for (const specifier of ['file:///a.mjs', 'FILE:///a.mjs', 'file:/a.mjs', 'file://localhost/a.mjs', 'file://[bad']) {
+            assertEq(_isAbsoluteFileUrl(specifier), true)
+        }
+        for (const specifier of ['', './file:/a', 'file:relative.mjs', 'file:', 'https://host/a', 'filex:///a']) {
+            assertEq(_isAbsoluteFileUrl(specifier), false)
+        }
+    },
     components: () => {
         for (const suffix of ['', '?', '#', '?#']) {
             assertStructurallySame(components(`./dep%23.mjs${suffix}`), { path: './dep%23.mjs', suffix: '' })

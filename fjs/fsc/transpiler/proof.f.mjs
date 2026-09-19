@@ -31,7 +31,7 @@ const refusedSpecifier = (specifier, source, root) => {
     const value = run(files)('main.f.js')
     const graph = virtual({ ...emptyState, root: files })(resolve('main.f.js'))[1]
     assertStructurallySame(value, ['error', {
-        message: `unsupported import specifier "${specifier}": expected ./, ../ or /`,
+        message: `unsupported import specifier "${specifier}": expected ./, ../, / or an absolute file: URL`,
         metadata: null,
         path: 'main.f.js',
     }])
@@ -50,7 +50,7 @@ export const proof = {
                     return [state, ok({ id: 'file:///logical/main.mjs', path: 'physical/main' })]
                 }
                 assertEq(parent, 'file:///logical/main.mjs')
-                assert(['./one.mjs', './two.mjs', './%6fne.mjs'].includes(name))
+                assert(['./one.mjs', './two.mjs', './%6fne.mjs', 'FILE:///logical/%6fne.mjs'].includes(name))
                 return [state, ok({
                     id: name === './two.mjs' ? 'file:///logical/two.mjs' : 'file:///logical/one.mjs',
                     path: 'physical/shared',
@@ -59,17 +59,17 @@ export const proof = {
             readFile: path => state => {
                 assert(['physical/main', 'physical/shared'].includes(path))
                 return [state, ok(utf8(path === 'physical/main'
-                    ? 'import a from "./one.mjs"; import b from "./two.mjs"; import c from "./%6fne.mjs"; export default [a, b, c];'
+                    ? 'import a from "./one.mjs"; import b from "./two.mjs"; import c from "./%6fne.mjs"; import d from "FILE:///logical/%6fne.mjs"; export default [a, b, c, d];'
                     : 'export default [7];'))]
             },
         }
         const runner = partialRun(nodeCommands)(host)(null)
         const value = unwrap(runner(transpile('entry'))[1]).value
         assert(value instanceof Array)
-        assert(value[0] === value[2] && value[0] !== value[1])
+        assert(value[0] === value[2] && value[0] === value[3] && value[0] !== value[1])
         const graph = unwrap(runner(resolve('entry'))[1])
         assert(graph instanceof Array && graph[0] === '[]')
-        assert(graph[1][0] === graph[1][2] && graph[1][0] !== graph[1][1])
+        assert(graph[1][0] === graph[1][2] && graph[1][0] === graph[1][3] && graph[1][0] !== graph[1][1])
     },
     rootJsonAlias: () => {
         /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadFile | import('../../effects/node/types.ts').ResolveFileModule, null>} */
@@ -96,6 +96,26 @@ export const proof = {
             metadata: null, path: 'entry',
         }])
         assertStructurallySame(runner(resolve('entry'))[1], value)
+    },
+    virtualFileUrlRefusal: () => {
+        // This host has no native URL/authority model. Refuse explicitly;
+        // a file URL must never become a path below a directory named file:.
+        const root = {
+            'main.f.js': [utf8('import value from "file:///dep.f.js"; export default value;')],
+            'file:': { 'dep.f.js': [utf8('export default 99;')] },
+            'dep.f.js': [utf8('export default 99;')],
+        }
+        const value = run(root)('main.f.js')
+        assertStructurallySame(value, ['error', {
+            message: 'module resolution failed: invalid module specifier', metadata: null, path: 'main.f.js',
+        }])
+        assertStructurallySame(virtual({ ...emptyState, root })(resolve('main.f.js'))[1], value)
+        for (const output of ['out.data.js', 'out.edag.data.js']) {
+            const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', output]))
+            assertEq(exitCode(code), 1)
+            assertEq(state.root[output], undefined)
+            assertEq(state.stderr.trim(), 'main.f.js - error: module resolution failed: invalid module specifier')
+        }
     },
     // The literal local targets exist: these must be refusals, not fallback
     // loads or accidental file-not-found errors. Prefixing ./ is the control.
@@ -138,7 +158,7 @@ export const proof = {
         ]), ['ok', [{ id: '/dir/dep.f.js', path: '/dir/dep.f.js', json: false }, { id: '/data.json', path: '/data.json', json: true }]])
         // Keep rooted input behavior separate from classifying import text.
         assertStructurallySame(importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ id: '/dep.f.js', path: '/dep.f.js', json: false }]])
-        for (const specifier of ['', '.', '..', '#alias', 'file:///dep.f.js', 'node:fs', 'https://example.com/dep.f.js']) {
+        for (const specifier of ['', '.', '..', '#alias', 'file:relative.mjs', 'node:fs', 'https://example.com/dep.f.js']) {
             refusedSpecifier(specifier, `import value from "${specifier}"; export default value;`, {})
         }
     },
@@ -185,7 +205,7 @@ export const proof = {
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', output]))
             assertEq(exitCode(code), 1, state.stderr)
             assertEq(state.root[output], undefined)
-            assertEq(state.stderr.trim(), 'input.f.js - error: unsupported import specifier "pkg": expected ./, ../ or /')
+            assertEq(state.stderr.trim(), 'input.f.js - error: unsupported import specifier "pkg": expected ./, ../, / or an absolute file: URL')
         }
     },
     // Suffixes affect identity, never the loading filename. Repeated spellings

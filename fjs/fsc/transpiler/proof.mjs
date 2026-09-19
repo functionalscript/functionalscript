@@ -147,6 +147,104 @@ const nodeSuffixProof = {
 }
 
 export const proof = {
+    absoluteFileRefusalsAndCycles: async () => {
+        const root = await mkdtemp(join(tmpdir(), 'fjs-absolute-errors-'))
+        try {
+            const path = join(root, 'entry.mjs')
+            const entryUrl = pathToFileURL(path).href
+            const base = pathToFileURL(root + '/').href
+            await writeFile(join(root, 'bad%.mjs'), 'export default 99;')
+            if (process.platform !== 'win32') {
+                await writeFile(join(root, 'a:b.mjs'), 'export default 99;')
+                await writeFile(join(root, 'a\\b.mjs'), 'export default 99;')
+            }
+            // Invalid UTF-8/separators, a malformed authority, credentials and
+            // a port must fail even for an unused import. Colon names remain
+            // outside the portable subset, including on POSIX.
+            for (const specifier of [
+                base + 'bad%.mjs', base + '%ff.mjs', base + '%00.mjs',
+                base + 'a%2Fb.mjs', base + 'a%5Cb.mjs', base + 'a%3Ab.mjs',
+                'file://[bad/dep.mjs', 'file://user@localhost/dep.mjs', 'file://localhost:80/dep.mjs',
+            ]) {
+                await writeFile(path, `import unused from ${JSON.stringify(specifier)}; export default 7;`)
+                /** @type {readonly Effect<NodeOp, unknown, ParseError>[]} */
+                const effects = [transpile(path), resolve(path)]
+                for (const effect of effects) {
+                    await hostCheck(effect, result => {
+                        assert(result[0] === 'error')
+                        assertEq(result[1].path, path)
+                        assert(result[1].message.startsWith('module resolution failed:'))
+                    })
+                }
+            }
+            // A previously cached valid JSON import must not hide a later
+            // absolute import's missing attribute.
+            await writeFile(join(root, 'data.json'), '[[42]]')
+            await writeFile(path, `import a from "./data.json" with { type: "json" }; import b from ${JSON.stringify(base + 'data.json')}; export default a;`)
+            /** @type {readonly Effect<NodeOp, unknown, ParseError>[]} */
+            const attributes = [transpile(path), resolve(path)]
+            for (const effect of attributes) {
+                await hostCheck(effect, result => {
+                    assert(result[0] === 'error')
+                    assertEq(result[1].message, 'a JSON module needs the import attribute with { type: "json" }')
+                })
+            }
+            await writeFile(path, `import self from ${JSON.stringify(entryUrl)}; export default self;`)
+            /** @type {readonly Effect<NodeOp, unknown, ParseError>[]} */
+            const cycles = [transpile(path), resolve(path)]
+            for (const effect of cycles) {
+                await hostCheck(effect, result => {
+                    assert(result[0] === 'error')
+                    assertEq(result[1].message, 'circular dependency')
+                })
+            }
+        } finally {
+            await rm(root, { recursive: true, force: true })
+        }
+    },
+    absoluteFileImports: async () => {
+        const root = await mkdtemp(join(tmpdir(), 'fjs-absolute-import-'))
+        try {
+            const real = join(root, 'real')
+            const alias = join(root, 'alias')
+            await mkdir(real)
+            await symlink(real, alias, 'junction')
+            await writeFile(join(real, 'common.mjs'), 'export default [42];')
+            for (const json of [false, true]) {
+                const name = `dep #%.${json ? 'json' : 'mjs'}`
+                await writeFile(join(real, name), json ? '[[42]]' : 'import c from "./common.mjs"; export default [c];')
+                const url = pathToFileURL(join(real, name)).href
+                const other = pathToFileURL(join(alias, name)).href
+                const specifiers = [
+                    `./real/dep%20%23%25.${json ? 'json' : 'mjs'}`, url,
+                    url.replace('file:', 'FILE:'), other,
+                    url.replace('/dep', '/%64ep'), url.replace('/dep', '/bad%/../dep'),
+                    url.replace('file://', 'file:'), url.replace('file://', 'file://localhost'),
+                    url + '?v=1', other + '?v=1', url + '?v=2',
+                    url + '#a', other + '#a', url + '#b', url + '?', url + '#',
+                    ...(process.platform === 'win32' ? [url.slice(0, 8) + encodeURIComponent(url.slice(8, 10)) + url.slice(10)] : []),
+                ]
+                const groups = /** @type {const} */ ([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 0, 0, ...(process.platform === 'win32' ? [0] : [])])
+                const common = /** @type {const} */ ([42])
+                const instances = [0, 1, 2, 3, 4].map(() => [json ? [42] : common])
+                const expected = groups.map(group => instances[group])
+                const path = join(root, json ? 'json-entry.mjs' : 'entry.mjs')
+                const imports = specifiers.map((specifier, i) => `import v${i} from ${JSON.stringify(specifier)}${json ? ' with { type: "json" }' : ''};`).join('\n')
+                await writeFile(path, imports + `\nexport default [${specifiers.map((_, i) => `v${i}`).join(',')}];`)
+                for (const attempt of [0, 1]) {
+                    if (!('Bun' in globalThis) && !('Deno' in globalThis)) {
+                        const native = (await import(pathToFileURL(path).href)).default
+                        assertStructurallySame(identities(native), identities(expected))
+                        await compareCompilers(path, native)
+                    } else {
+                        await compareCompilers(path, expected)
+                    }
+                }
+            }
+        } finally {
+            await rm(root, { recursive: true, force: true })
+        }
+    },
     // This resolver declares the Node profile even under Node-compatible APIs.
     // Bun/Deno loaders retain empty delimiters, so they are not its reference.
     nodeSuffixes: 'Bun' in globalThis || 'Deno' in globalThis ? {} : nodeSuffixProof,

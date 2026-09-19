@@ -22,6 +22,7 @@ Suffix text otherwise stays opaque: Unicode/space URL normalization is the
 native host's responsibility.
 The fixture filesystem has no working directory or symlinks. This preserves the
 virtual host's path model; it does not simulate Node's file URL/realpath rules.
+Absolute `file:` imports are explicitly refused by this lexical host.
 Compiler traversal is tested here, and native ESM comparisons test those Node
 rules under Node in `fjs/fsc/transpiler/proof.mjs`.
 
