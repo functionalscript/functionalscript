@@ -608,7 +608,7 @@ pub fn module<A: IVm>() -> Any<A> {
             /** @type {(source: string, detail: string) => void} */
             const expect = (source, detail) => assertEq(
                 rustRefused(source),
-                `output.rs - error: no Rust spelling for this module: no Rust for a negation in a module: ${detail}`)
+                `output.rs - error: no Rust spelling for this module: no Rust for an operator in a module: ${detail}`)
             expect('export default -[1];', '-,[],1')
             expect('const a = [1]; export default -a;', '-,[],1')
             expect('export default -"a";', '-,a')
@@ -616,6 +616,40 @@ pub fn module<A: IVm>() -> Any<A> {
             assertEq(
                 compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
                 '    [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any()')
+        },
+        // Stage A's binary operators, and `~`, are every one of them a node
+        // `fjs/edag/rust` has a `nanvm-lib` spelling for — but every one of
+        // those spellings answers a `Result` too, so each is refused here
+        // exactly as a non-literal negation is: no literal ever folds a
+        // binary operator away, unlike unary `-`, so none of them ever
+        // prints from source at all yet.
+        operators: () => {
+            /** @type {(source: string, detail: string) => void} */
+            const expect = (source, detail) => assertEq(
+                rustRefused(source),
+                `output.rs - error: no Rust spelling for this module: no Rust for an operator in a module: ${detail}`)
+            expect('export default 1 + 2;', '+,1,2')
+            expect('export default 1 - 2;', '-,1,2')
+            expect('export default 1 * 2;', '*,1,2')
+            expect('export default 1 / 2;', '/,1,2')
+            expect('export default 1 % 2;', '%,1,2')
+            expect('export default 1 ** 2;', '**,1,2')
+            expect('export default 1 === 2;', '===,1,2')
+            // `!==` has no `op2Rust` entry at all yet (unlike the rest,
+            // which do and are refused here instead) — `fjs/edag/rust`'s
+            // own `lookup` refuses it first, one layer down
+            assertEq(rustRefused('export default 1 !== 2;'), 'output.rs - error: no Rust spelling for this module: no Rust for: !==')
+            expect('export default 1 < 2;', '<,1,2')
+            expect('export default 1 <= 2;', '<=,1,2')
+            expect('export default 1 > 2;', '>,1,2')
+            expect('export default 1 >= 2;', '>=,1,2')
+            expect('export default 1 & 2;', '&,1,2')
+            expect('export default 1 | 2;', '|,1,2')
+            expect('export default 1 ^ 2;', '^,1,2')
+            expect('export default 1 << 2;', '<<,1,2')
+            expect('export default 1 >> 2;', '>>,1,2')
+            expect('export default 1 >>> 2;', '>>>,1,2')
+            expect('export default ~1;', '~,1')
         },
     },
     // An error with no token to point at names the file being compiled, not

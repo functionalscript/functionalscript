@@ -26,8 +26,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstFunction|AstArgs
 
 /**
  * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
@@ -125,6 +125,37 @@ export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
  * the document outputs, or refuses where the conversion is `ToPrimitive`'s.
  */
 export type AstNeg = readonly ['-', AstConst]
+
+/**
+ * A bitwise not, `~v`: the EDAG's `['~', exp]`, `op1Id`. Unlike {@link AstNeg}
+ * it folds nothing — `~` is exact only over an integer already reduced to
+ * one, which is `ToInt32`'s question and not this tree's — so it always
+ * reaches `run` as a node, refused the same way a container is.
+ */
+export type AstBitnot = readonly ['~', AstConst]
+
+/**
+ * A binary operator, Stage A of
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
+ * arithmetic, strict comparison, and bitwise — the EDAG's `op2Id`, and `-`
+ * again at two operands, `op12Id`'s other arity, told from {@link AstNeg}
+ * by length.
+ *
+ * `run` computes no value for one, the same refusal a function or a call
+ * earns: JavaScript's `+` alone needs `ToPrimitive` to decide number or
+ * string, and folding the rest piecemeal while leaving `+` a node would be
+ * an inconsistent line to draw, so every operator here waits on that
+ * question rather than answering half of it. The EDAG is where each is
+ * exact, over the graph's own values.
+ */
+export type AstBinary = readonly [BinaryTag, AstConst, AstConst]
+
+/** Every binary operator Stage A admits, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
+export type BinaryTag =
+    | '*' | '/' | '%' | '**'
+    | '+' | '-'
+    | '===' | '!==' | '<' | '<=' | '>' | '>='
+    | '&' | '|' | '^' | '<<' | '>>' | '>>>'
 
 /**
  * The constants of a body, in declaration order. The **last** entry is the
