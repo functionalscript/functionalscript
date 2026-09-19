@@ -73,6 +73,8 @@
  * @import { _Hoisted, _Names, _Root, _Scope, _Statement } from './private.ts'
  */
 
+import { _defaultExport, _moduleExports } from '../edag/module.f.mjs'
+import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, colon, objectWrap } from '../../media/json/serializer/module.f.mjs'
@@ -82,6 +84,9 @@ import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetter
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
+
+/** Names the parser refuses to bind. */
+const reservedExports = new Set([...keywords, ...literalWords, 'then'])
 
 /** The node kinds a compiled graph holds and this writer spells. @type {(node: Node) => boolean} */
 const minting = node => {
@@ -135,7 +140,7 @@ const sameHoisted = (x, y) => x[0] === y[0] && Object.is(x[1], y[1])
  * @type {(names: _Names, h: _Hoisted) => number | null}
  */
 const slotOf = (names, h) => {
-    const i = names.findIndex(n => n !== null && sameHoisted(n, h))
+    const i = names.findIndex(([n]) => n !== null && sameHoisted(n, h))
     return i === -1 ? null : i
 }
 
@@ -174,10 +179,10 @@ const parameter = depth => `$${column(depth)}`
  */
 const hoistName = (depth, i) => depth === 0 ? `$${i}` : `${parameter(depth)}${i}`
 
-/** The name a hoisted value took in the scope at `depth`, or `null` where it has none yet. @type {(names: _Names, depth: number, h: _Hoisted) => string | null} */
-const nameOf = (names, depth, h) => {
+/** The name a hoisted value took in the scope at `depth`, or `null` where it has none yet. @type {(names: _Names, h: _Hoisted) => string | null} */
+const nameOf = (names, h) => {
     const i = slotOf(names, h)
-    return i === null ? null : hoistName(depth, i)
+    return i === null ? null : names[i][1]
 }
 
 /** What may open an identifier: a Latin letter, `_` or `$`. @type {(codePoint: number) => boolean} */
@@ -229,7 +234,7 @@ const every = xs => {
  */
 const operand = (s, depth) => v => {
     if (!(v instanceof Array)) { return ok(leafSerialize(v)) }
-    const name = nameOf(s.names, depth, ['entry', v[1]])
+    const name = nameOf(s.names, ['entry', v[1]])
     return name === null ? entry(s, depth)(v[1]) : ok([name])
 }
 
@@ -246,7 +251,7 @@ const base = (s, depth) => v => {
     const h = /** @type {_Hoisted} */ (v instanceof Array ? ['entry', v[1]] : ['leaf', v])
     // Every such base was collected before the statement that needs it, so a
     // missing name is this writer's own mistake.
-    return ok([assertNotNullish(nameOf(s.names, depth, h), ['an access base that was not hoisted', v])])
+    return ok([assertNotNullish(nameOf(s.names, h), ['an access base that was not hoisted', v])])
 }
 
 /** An array's item: a spread has no source spelling. @type {(s: _Scope, depth: number) => (v: Operand | readonly ['...', Operand]) => Document} */
@@ -406,7 +411,7 @@ const hoists = s => {
     const found = (names, v) => {
         /** @type {(ns: readonly _Hoisted[], h: _Hoisted) => readonly _Hoisted[]} */
         const add = (ns, h) =>
-            slotOf(s.names, h) === null && slotOf(ns, h) === null ? [...ns, h] : ns
+            slotOf(s.names, h) === null && !ns.some(n => sameHoisted(n, h)) ? [...ns, h] : ns
         if (!(v instanceof Array)) { return names }
         const i = v[1]
         if (slotOf(s.names, ['entry', i]) !== null) { return names }
@@ -470,7 +475,7 @@ const statement = (a, depth, last) => ({ text, names }, v) => {
             /** @type {(value: List<string>) => _Statement} */
             (value => ({
                 text: flat([before.text, [`const ${hoistName(depth, before.names.length)}=`], value, [';']]),
-                names: [...before.names, h],
+                names: [...before.names, [h, hoistName(depth, before.names.length)]],
             })),
         )(hoistedText(s, depth)(h))
     }
@@ -490,7 +495,7 @@ const statement = (a, depth, last) => ({ text, names }, v) => {
                 value,
                 [';'],
             ]),
-            names: last ? before.names : [...before.names, null],
+            names: last ? before.names : [...before.names, [null, hoistName(depth, before.names.length)]],
         })),
     )(operand(s, depth)(v))
 }
@@ -558,3 +563,111 @@ export const tryStringify = e => mapOk(
     /** @type {(text: List<string>) => string} */
     (text => toArray(text).join('')),
 )(trySerialize(e))
+
+/** A generated-name prefix that cannot collide with any exported binding. @type {(keys: readonly string[], prefix: string) => string} */
+const modulePrefix = (keys, prefix) => keys.some(key => key.startsWith(prefix)) ? modulePrefix(keys, `${prefix}$`) : prefix
+
+/** Emit one named value using the same expression writer as value output. @type {(a: Analysis, prefix: string, h: _Hoisted) => (before: _Statement) => Result<_Statement, string>} */
+const moduleBinding = (a, prefix, h) => before => {
+    const name = `${prefix}${before.names.length}`
+    return mapOk(
+        /** @type {(text: List<string>) => _Statement} */
+        (text => ({ text: flat([before.text, [`const ${name}=`], text, [';']]), names: [...before.names, [h, name]] })),
+    )(hoistedText({ a, names: before.names }, 0)(h))
+}
+
+/**
+ * Evaluate a module operand in graph order and name it once. Commas become
+ * ordered declarations and an alias of their last operand. Function bodies
+ * stay in the existing scope writer; no value is hoisted out of a function.
+ *
+ * @type {(a: Analysis, prefix: string) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ */
+const moduleOperand = (a, prefix) => (before, v) => {
+    if (!(v instanceof Array) || slotOf(before.names, ['entry', v[1]]) !== null) { return ok(before) }
+    const node = a.nodes[v[1]]
+    if (node[0] === ',' && node[1].length < 2) { return error('a comma with fewer than two operands') }
+    const children = operands(node).reduce(
+        /** @type {(acc: Result<_Statement, string>, child: Operand) => Result<_Statement, string>} */
+        ((acc, child) => okThen(state => moduleOperand(a, prefix)(state, child))(acc)), ok(before))
+    return okThen(state => {
+        if (node[0] === ',') {
+            const last = node[1][node[1].length - 1]
+            const name = `${prefix}${state.names.length}`
+            return mapOk(
+                /** @type {(text: List<string>) => _Statement} */
+                (text => ({ text: flat([state.text, [`const ${name}=`], text, [';']]), names: [...state.names, [['entry', v[1]], name]] })),
+            )(operand({ a, names: state.names }, 0)(last))
+        }
+        const prepared = hoists({ a, names: state.names })(v).reduce(
+            /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
+            ((acc, h) => okThen(moduleBinding(a, prefix, h))(acc)), ok(state))
+        return okThen(ready => slotOf(ready.names, ['entry', v[1]]) !== null
+            ? ok(ready)
+            : moduleBinding(a, prefix, ['entry', v[1]])(ready))(prepared)
+    })(children)
+}
+
+/** @type {(a: Analysis, v: Operand) => readonly (readonly [':', string, Operand])[]} */
+const exportOperands = (a, v) => {
+    const node = a.nodes[/** @type {Ref} */ (v)[1]]
+    return node[0] === ','
+        ? exportOperands(a, node[1][node[1].length - 1])
+        : /** @type {readonly (readonly [':', string, Operand])[]} */ (/** @type {Extract<Node, readonly ['{}', unknown]>} */ (node)[1])
+}
+
+/** Evaluate a module's sequence and exports without constructing a discarded namespace. @type {(a: Analysis, prefix: string) => (state: _Statement, v: Operand) => Result<_Statement, string>} */
+const moduleBody = (a, prefix) => (state, v) => {
+    const node = a.nodes[/** @type {Ref} */ (v)[1]]
+    const values = node[0] === ',' ? node[1].slice(0, -1) : exportOperands(a, v).map(([, , value]) => value)
+    const before = values.reduce(
+        /** @type {(acc: Result<_Statement, string>, value: Operand) => Result<_Statement, string>} */
+        ((acc, value) => okThen(s => moduleOperand(a, prefix)(s, value))(acc)), ok(state))
+    return node[0] === ','
+        ? okThen(s => moduleBody(a, prefix)(s, node[1][node[1].length - 1]))(before)
+        : before
+}
+
+/** One original export, after its computation has been emitted. @type {(a: Analysis, state: _Statement) => (member: readonly [':', string, Operand]) => Document} */
+const moduleExport = (a, state) => ([, key, v]) => mapOk(
+    /** @type {(text: List<string>) => List<string>} */
+    (text => flat([[key === 'default' ? 'export default ' : `export const ${key}=`], text, [';']])),
+)(operand({ a, names: state.names }, 0)(v))
+
+/**
+ * A module export object as source, preserving export names and declaration
+ * evaluation. The compact value writer keeps default-only DataJS fixed points;
+ * the module walk also handles dependencies whose selected export retains an
+ * internal evaluation sequence.
+ *
+ * @type {(e: Exp) => Document}
+ */
+export const tryModuleSerialize = e => {
+    const members = _moduleExports(e)
+    if (members.length === 0) { return error('a module without exports') }
+    const keys = members.map(([, key]) => key)
+    if (new Set(keys).size !== keys.length) { return error('duplicate export names') }
+    if (keys.some(key => key !== 'default' && (!identifierKey(key) || reservedExports.has(key)))) {
+        return error('an unsupported export name')
+    }
+    if (keys.length === 1 && keys[0] === 'default') {
+        const compact = trySerialize(_defaultExport(e))
+        if (compact[0] === 'ok') { return compact }
+    }
+    const a = analysis(e)
+    const exports = exportOperands(a, a.root)
+    const prefix = modulePrefix(keys, '$')
+    return okThen(state => mapOk(
+        /** @type {(parts: readonly List<string>[]) => List<string>} */
+        (parts => flat([state.text, ...parts])),
+    )(every([
+        ...exports.filter(([, key]) => key !== 'default'),
+        ...exports.filter(([, key]) => key === 'default'),
+    ].map(moduleExport(a, state)))))(moduleBody(a, prefix)({ text: null, names: [] }, a.root))
+}
+
+/** The module source as one string. @type {(e: Exp) => Result<string, string>} */
+export const tryModuleStringify = e => mapOk(
+    /** @type {(text: List<string>) => string} */
+    (text => toArray(text).join('')),
+)(tryModuleSerialize(e))

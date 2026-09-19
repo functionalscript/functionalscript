@@ -47,6 +47,13 @@ most important part of quality** — if a new version can have a better, simpler
 API, change it; breaking changes are the right call whenever they improve the
 API. The full set, which governs both code bases, is [DESIGN.md](./doc/DESIGN.md).
 
+Before proposing changes to FunctionalScript syntax or semantics, read
+[DESIGN.md §12](./doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
+Preserve harmless JavaScript conventions and justify restrictions. A new
+language feature must start with a `todo/` proposal explaining its benefits and
+drawbacks, and receive formal, explicit approval from another language designer
+before implementation.
+
 This file is a map: each section below holds the facts you must not violate and
 links to the document that holds the rest. Read a linked document when the task
 actually touches its subject.
@@ -79,7 +86,9 @@ Two habits come before the procedure:
   inside another, say — export it under a name.
 
 File an issue in `todo/`, next to the code it describes, when the work is worth
-tracking — a problem statement is enough. A design is not a gate: it grows one pull request at a time — an
+tracking — a problem statement is enough. Except for
+[new language features](./doc/DESIGN.md#12-preserve-harmless-javascript-conventions),
+a design is not a gate: it grows one pull request at a time — an
 underspecified `todo/`, then details and ideas, then an implementation — and
 none of them waits on the document being complete. What every step owes is
 direction and consistency: a `todo/` that contradicts the code or another
