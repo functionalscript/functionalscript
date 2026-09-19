@@ -73,7 +73,7 @@ that never terminates on `[]` is gone. The name is
 [`fjs/media/nix/todo/serializer-validation-split.md`](../../../media/nix/todo/serializer-validation-split.md)
 rules out a `traverse` helper for *its* copies, which are over `undefined`
 and vanish once its serializer is total. That decision stands: none of the
-five sites here goes away by a split — each genuinely collects the results
+six sites here goes away by a split — each genuinely collects the results
 of a fallible walk — and `okList` is the `Result` chain's combinator, not a
 `Nullable` array's.
 
