@@ -235,6 +235,36 @@ carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
 
+## A section's list pads its links for a finger, not a mouse
+
+```css
+@media (any-pointer: coarse) {
+    [data-section] > ul a { display: inline-block; padding-block: .25rem }
+}
+```
+
+A page lists its files, directories and issues one link per line with nothing
+under it, and at `d05b70ce`, rendered at 390px, every listed link measured
+19px tall — under the 24px minimum WCAG 2.2's Target Size (Minimum, AA) sets.
+These lists are exactly how a reader moves through the tree, so a target a
+finger cannot pick without risking its neighbour is the site's own navigation
+working against the reader.
+
+**`any-pointer`, not `pointer`.** `pointer: coarse` reads only the *primary*
+pointer, and a touch-screen laptop's primary pointer is its trackpad — fine,
+even though the screen a reader might tap is right there. That query would
+leave the laptop's lists at 19px for the one input the padding exists for.
+`any-pointer: coarse` asks whether a coarse pointer is available at all, so
+the laptop's touchscreen gets the same padding its trackpad doesn't need, and
+a device with no coarse pointer — an ordinary desktop and mouse — keeps the
+list exactly as dense as it was.
+
+Padded, a link measures 27px, confirmed by rendering the generated site at
+390px with a touch-capable viewport; an ordinary 1280px desktop viewport
+measured the original 19px, unchanged. Like the phone-fit rule
+([One face, the whole site](#one-face-the-whole-site)), no proof holds this —
+target size is layout, which only a rendering browser can measure.
+
 ## A file opens on GitHub, at the commit the site was built from
 
 A listed file or issue links to
