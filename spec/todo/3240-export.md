@@ -95,14 +95,24 @@ Update module-result consumers and proofs together.
 
 ### Serialization
 
-The complete export object remains the module function's result. Each output
-format consumes it according to its contract:
+For FunctionalScript module input, the complete export object remains the
+module function's result. Each output format consumes it according to its
+contract:
 
 | Output | Serializer behavior |
 | --- | --- |
 | JSON / DataJS value output | Pass `result.default` to the value serializer. |
 | FunctionalScript module source | Emit named properties as `export const` in dependency order, preserving shared bindings; emit `default` as the final `export default`. |
 | EDAG / generated Rust | Preserve the computation of the complete module result. |
+
+A direct [JSON input](../README.md#json-input) keeps the existing document path:
+JSON/DataJS serializers receive the document itself, without `.default`
+projection. FunctionalScript output exports that document as `default`; EDAG
+and Rust output retain the document's value. The input language selects this
+path, not the presence of a property called `default`. For example, a root JSON
+document `{"default":7}` must serialize as `{"default":7}` to JSON and
+`export default {"default":7};` to DataJS. The wrapper for **imported** JSON
+belongs at the module-import boundary and does not change direct JSON inputs.
 
 For `export default 7;`, the module result is `{ default: 7 }`, but the DataJS
 serializer receives `7` and writes `export default 7;`. Repeating compilation
@@ -137,7 +147,11 @@ and default exports.
       fixed points of both writers, including repeated compilation of
       `export default 7;` without accumulating wrappers. Prove JSON serializes
       the default value and FunctionalScript preserves dependency order and
-      sharing between named and default exports.
+      sharing between named and default exports. Preserve direct JSON input
+      conversions and the existing `protoKey.jsonInput` and
+      `protoKey.jsonInputRoundTrip` proofs in `fjs/fsc/proof.f.mjs`; include
+      primitive documents and an object with its own `default` property to prove
+      that direct document inputs bypass projection.
 - [ ] Retry the unchanged `types/range/module.f.mjs`. If it fails, show the next
       diagnostic to the owner, who chooses a source rewrite or a missing
       compiler feature. Rename it to `.f.js` only after full compilation succeeds.
