@@ -120,8 +120,13 @@ li[data-status="passed"] { color: var(--muted) }
    input, and it was Arial the moment the first demo landed. A list that has to
    be extended for each new control is a rule that is wrong between the element
    arriving and somebody noticing. */
-button, input, pre { font: inherit }
+button, input, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
+/* A textarea's own baseline sits at its bottom edge, so a label before a
+   multi-line field — the JSON demo's, the first of its kind — floated to the
+   bottom of the box beside it rather than the top. A single-line input has
+   no such seam: its one line of text already sits on the label's baseline. */
+textarea { vertical-align: top }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
@@ -148,4 +153,23 @@ pre { white-space: pre-wrap }
 @media (any-pointer: coarse) {
     [data-section] > ul a { display: inline-block; padding-block: .25rem }
 }
+/* SVG text does not inherit the page's font on its own, unlike every
+   ordinary element — the DataJS demo's graph is the first thing on the site
+   to draw one. */
+svg text { font: inherit }
+/* The DataJS demo's graph: a rect per array, object or leaf, a line per
+   index or key. A leaf is dashed rather than solid, since a leaf and a
+   container are the one distinction this graph draws beyond sharing itself.
+   An edge label is haloed in the page's own background rather than boxed,
+   so two crossing lines still read under it without a second shape per
+   label. */
+[data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+[data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
+[data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
+[data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+[data-graph-edge-label] {
+    dominant-baseline: middle; fill: var(--muted); font-size: .7rem;
+    paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; stroke-width: 3px;
+}
+[data-graph-arrow] { fill: var(--muted) }
 `
