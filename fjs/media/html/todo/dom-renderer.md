@@ -33,9 +33,19 @@ other.
 An impure sibling, `fjs/media/html/module.mjs`, exporting `toDom(document, element)`
 and `fill(target, element)` — the `module.f.mjs`/`module.mjs` pairing
 `fjs/emergent_testing/browser` already uses. The test runner imports them
-and drops its two; `demo-runtime`'s `render` becomes `fill(root, view)`,
-which sets attributes on nodes already in the tree and replaces only text,
-so the input survives a re-render and `focused`/`refocus` go.
+and drops its two; `demo-runtime`'s `render` builds the view's node with
+`toDom` and swaps it in with `replaceChildren`, instead of serializing to
+a string and letting the browser parse it back.
+
+What this does **not** buy is the focus problem. `fill` is not a
+reconciler: it assigns `textContent`, which drops every existing child,
+and appends freshly built descendants, so a re-render through it destroys
+the input being typed into exactly as `innerHTML` does. `focused` and
+`refocus` therefore stay, wrapped around the new `render` as they are
+around the old one. Making `fill` update matching nodes in place — same
+tag at the same position keeps its node and has its attributes and text
+reset — would retire them, and is a separate change to weigh on its own:
+it is a small reconciler, and the test runner's rows do not need one.
 
 ### Tasks
 
