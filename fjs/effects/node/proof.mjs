@@ -188,6 +188,93 @@ const nodeSuffixProof = {
 
 export const proof = {
     resolveFileModule: {
+        absoluteFileRefusalsAndCycles: async () => {
+            const temporary = await mkdtemp(join(tmpdir(), 'fjs-absolute-errors-'))
+            try {
+                const root = await realpath(temporary)
+                const path = join(root, 'entry.mjs')
+                const entry = pathToFileURL(path).href
+                const base = pathToFileURL(`${root}${sep}`).href
+                await writeFile(path, 'export default 7;')
+                await writeFile(join(root, 'bad%.mjs'), 'export default 99;')
+                if (process.platform !== 'win32') {
+                    await writeFile(join(root, 'a:b.mjs'), 'export default 99;')
+                    await writeFile(join(root, 'a\\b.mjs'), 'export default 99;')
+                }
+                // Refuse invalid surviving bytes, separators and authorities,
+                // even when the forbidden filename exists on this filesystem.
+                for (const name of [
+                    base + 'bad%.mjs', base + '%ff.mjs', base + '%00.mjs',
+                    base + 'a%2Fb.mjs', base + 'a%5Cb.mjs', base + 'a%3Ab.mjs',
+                    'file://[bad/dep.mjs', 'file://user@localhost/dep.mjs', 'file://localhost:80/dep.mjs',
+                ]) {
+                    await hostCheck(resolveFileModule(name, entry), result => assertEq(result[0], 'error'))
+                }
+                // An absolute self import resolves to the root's identity.
+                for (const [name, parent] of [[path, null], [entry, entry]]) {
+                    assert(name !== null)
+                    await hostCheck(resolveFileModule(name, parent), result => {
+                        assertStructurallySame(unwrap(result), { id: entry, path })
+                    })
+                }
+            } finally {
+                await rm(temporary, { recursive: true, force: true })
+            }
+        },
+        absoluteFileImports: async () => {
+            const temporary = await mkdtemp(join(tmpdir(), 'fjs-absolute-import-'))
+            try {
+                const root = await realpath(temporary)
+                const real = join(root, 'real')
+                const alias = join(root, 'alias')
+                await mkdir(real)
+                await symlink(real, alias, 'junction')
+                await writeFile(join(real, 'common.mjs'), 'export default [42];')
+                for (const json of [false, true]) {
+                    const name = `dep #%.${json ? 'json' : 'mjs'}`
+                    const path = join(real, name)
+                    await writeFile(path, json ? '[[42]]' : 'export const url = import.meta.url; import c from "./common.mjs"; export default [c];')
+                    const url = pathToFileURL(path).href
+                    const other = pathToFileURL(join(alias, name)).href
+                    const entry = pathToFileURL(join(root, 'entry.mjs')).href
+                    const names = [
+                        `./real/dep%20%23%25.${json ? 'json' : 'mjs'}`, url,
+                        url.replace('file:', 'FILE:'), other,
+                        url.replace('/dep', '/%64ep'), url.replace('/dep', '/bad%/../dep'),
+                        url.replace('file://', 'file:'), url.replace('file://', 'file://localhost'),
+                        url + '?v=1', other + '?v=1', url + '?v=2',
+                        url + '#a', other + '#a', url + '#b', url + '?', url + '#',
+                        ...(process.platform === 'win32' ? [url.slice(0, 8) + encodeURIComponent(url.slice(8, 10)) + url.slice(10)] : []),
+                    ]
+                    const groups = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 3, 3, 4, 0, 0, ...(process.platform === 'win32' ? [0] : [])]
+                    const suffixes = ['', '?v=1', '?v=2', '#a', '#b']
+                    for (const [i, specifier] of names.entries()) {
+                        await hostCheck(resolveFileModule(specifier, entry), result => {
+                            assertStructurallySame(unwrap(result), { id: url + suffixes[groups[i]], path })
+                        })
+                    }
+                    // Only Node defines the native identity profile. The adapter
+                    // contract above also runs under Bun and Deno.
+                    if (!('Bun' in globalThis) && !('Deno' in globalThis)) {
+                        for (let attempt = 0; attempt < 2; attempt++) {
+                            const values = await Promise.all(names.map(async specifier => {
+                                const resolved = new URL(specifier, entry).href
+                                const native = await import(resolved, json ? { with: { type: 'json' } } : {})
+                                await hostCheck(resolveFileModule(specifier, entry), result => {
+                                    assertEq(unwrap(result).id, json ? import.meta.resolve(resolved) : native.url)
+                                })
+                                return native.default
+                            }))
+                            assertStructurallySame(values, names.map(() => [[42]]))
+                            assertStructurallySame(identities(values), groups.map(a => groups.map(b => a === b)))
+                            assertStructurallySame(identities(values.map(value => value[0])), groups.map(a => groups.map(b => !json || a === b)))
+                        }
+                    }
+                }
+            } finally {
+                await rm(temporary, { recursive: true, force: true })
+            }
+        },
         // Bun/Deno loaders retain empty delimiters; only Node defines this profile.
         nodeSuffixes: 'Bun' in globalThis || 'Deno' in globalThis ? {} : nodeSuffixProof,
         suffixCanonicalization: () => withFixtures(async directory => {

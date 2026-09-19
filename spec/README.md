@@ -652,8 +652,11 @@ constants, a fragment that several outputs include.
 
 **Current supported host profile:** the Node runner resolves admitted file imports
 against the importing file URL, canonicalizes symlinks, and reuses modules by the
-resulting file URL identity. This is the default Node file-module profile;
-preserve-symlinks modes are not supported profiles. Bare packages, other URL
+resulting file URL identity. Absolute `file:/…` URLs (including `file:///…`)
+are supported: a relative import and an absolute URL share when they resolve to
+the same identity. The host parses the URL and validates its pathname, recognizing
+native drive roots separately from filename segments. This is the default Node
+file-module profile; preserve-symlinks modes are not supported profiles. Bare packages, other URL
 schemes and nonportable path segments remain explicitly refused. Query and
 fragment components participate in module identity, while loading uses only the
 pathname. Empty components follow Node's default canonicalization and disappear.

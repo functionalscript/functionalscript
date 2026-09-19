@@ -49,8 +49,8 @@ an invalid `bad%` component. Double-encoded dots are ordinary filename data,
 not another normalization pass.
 
 **Current portable-segment limit:** surviving decoded slashes, backslashes,
-NUL and `:` are refused. Literal colons and backslashes remain unsupported
-URL syntax and are rejected before dot processing, so cancellation cannot
+NUL and `:` are refused. For path-like imports, literal colons and backslashes
+remain unsupported URL syntax and are rejected before dot processing, so cancellation cannot
 hide a raw Windows drive or alter the separator grammar.
 In particular, `./C%3A/x.f.js` must not turn into `C:/x.f.js` after joining.
 Colon-bearing names, including names valid on POSIX, remain unsupported until
@@ -88,11 +88,23 @@ import maps are different environments, not interchangeable defaults.
 
 Both compiler paths now share `_importSources`, which classifies original import
 strings before decoding, normalizing or loading them. Imports starting with
-`./`, `../` or `/` are admitted to host resolution. Bare package
-names/subpaths, `#` aliases and scheme-based URLs are explicitly refused until
+`./`, `../`, `/` or `file:/` (case-insensitive scheme) are admitted to host
+resolution. Bare package names/subpaths, `#` aliases, relative `file:dep.mjs`
+spellings and other URL schemes are explicitly refused until
 their host resolution is implemented; they never fall back to sibling files.
 This is a resolution restriction, not a JavaScript grammar restriction or a
 restriction on CLI input filenames. Package and other URL schemes remain open.
+
+Absolute file URLs use the host URL parser, never the portable decoder on the
+whole string. The Node host validates the parsed pathname with the existing
+portable segment rules; `fileURLToPath` recognizes authorities and, on Windows,
+the drive root before that check. The drive colon is structural, while colons
+inside filename segments remain refused. URL dot processing precedes this
+validation, and the original query/fragment components retain their identity
+semantics. Malformed authorities, credentials, ports and encoded separators
+fail through the normal resolver error channel. CLI entries remain literal paths.
+Validate percent escapes on the original parsed pathname before re-encoding the
+native path: Bun's `fileURLToPath` preserves malformed escapes that Node rejects.
 
 Literal `?` and `#` in a path-like import delimit query/fragment components.
 Admission checks portable segments only in the pathname, before decoding;
@@ -105,8 +117,8 @@ Repeated identities share a module; different suffixes can instantiate the same
 file separately. Their ordinary relative dependencies still share when those
 resolve to the same identity. Node's default realpath step removes empty `?`/`#`
 components: `./dep.mjs?`, `./dep.mjs#` and `./dep.mjs` share. Native comparisons
-pin this behavior, JSON imports, symlink aliases, and generated-JS allocation
-sharing after EDAG linking. Native differential tests run under Node: Bun/Deno
+pin this behavior, JSON imports and symlink aliases. Synchronous compiler proofs
+check value and linked-EDAG sharing. Native differential tests run under Node: Bun/Deno
 loaders retain empty components and are not the reference for this profile.
 The resolver's explicit canonicalization cases run under all three runtimes.
 
@@ -151,6 +163,11 @@ filesystem has no working directory or symlinks; its identities are normalized
 portable paths with pathname delimiters escaped and query/fragment text appended.
 Empty components are omitted; other suffix text remains opaque. It is a traversal
 test host, not evidence of Node URL normalization semantics.
+It explicitly refuses absolute file URLs; native and custom hosts own that
+specifier class. Compiler proofs pin that such a refusal cannot load a misleading
+local file, while Node comparisons cover relative/absolute sharing, symlink
+aliases, escaped filenames and suffixes. Synchronous compiler proofs cover JSON
+attributes, cycles and relative/absolute identity sharing.
 The old decoder is shared in `fjs/path/import`: admission uses its portable
 segment check, and the virtual host uses its lexical resolution. The Node host
 receives original specifiers and uses its URL implementation.
@@ -187,6 +204,9 @@ falls back to interpreting an unsupported host's specifiers as paths.
 - [x] Compare Node adapter identities with native ESM for escaped filenames,
       equivalent spellings and diamond sharing. Prove both compiler paths'
       identity handling separately through synchronous effect hosts.
+- [x] Admit absolute file URLs through the shared host boundary. Validate their
+      parsed pathnames in the Node profile and prove relative/absolute identity
+      sharing in both compiler paths through synchronous effect hosts.
 - [ ] Extend differential coverage as new specifier classes are supported.
 - [ ] Cover equivalent URL spellings, escaped filenames, query/fragment
       identities, relative paths, bare specifiers and module types/import
