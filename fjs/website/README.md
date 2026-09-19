@@ -170,6 +170,43 @@ is built from the repository path and never from where the page sits. The
 exception is a page's own proof sources, which are relative *by design*: that
 is what makes their names the ones `fjs t` uses.
 
+## A link keeps its colour, whether or not it has been followed
+
+`a, a:visited { color: var(--link) }` in
+[`style/module.f.mjs`](./style/module.f.mjs). Nearly every word on this site is
+a link into the tree — a breadcrumb, a file, a subdirectory, an issue — so a
+list of them turned two-toned as it was read, and the second colour said only
+*where this reader has been*, nothing about the file it names. That distinction
+earns its keep in a bibliography, deciding what is left to read; these lists
+are a directory's contents, navigated by structure, and a reader returns to one
+to go somewhere else from it. The underline stays, so nothing about *being* a
+link depends on the colour.
+
+**`--link` is green, and its own token even though it starts at `--pass`'s
+values.** The site names every other colour in `:root` — background, text,
+muted text, border, pass, fail — and left links to the browser's blue, the one
+colour it never chose. Green reads as this site's own: everything is set in a
+monospace face already ([One face, the whole site](#one-face-the-whole-site)),
+and green is the colour that face suggests, a terminal's.
+
+One green cannot serve both colour schemes. The terminal green this was after,
+`#00ff00`, is 13.65:1 against the dark background and 1.37:1 against white,
+where WCAG AA asks 4.5:1 for text — unreadable in the light scheme. So, like
+every other colour here, it is a pair: `#137333` (5.95:1) in `:root`,
+`#81c995` (9.56:1) under `prefers-color-scheme: dark`. Quieter candidates
+toward the terminal green were considered for the dark value — `#3fb950`
+(7.37:1) — and set aside for the same reason the light value was never
+`#0f5132` (9.36:1, the darkest that still passes): the pair the site already
+had, `--pass`, passed both, and taking it was the decision to make
+deliberately rather than by reaching for the nearest green.
+
+That is also why `--link` is not simply `--pass`. In the test report green
+means *passed* — a module's dot and counts are green, red is a failure — and a
+link in that same green would make one colour mean both "this went well" and
+"go here" on the page where both appear. `--link` keeping `--pass`'s starting
+values is coincidence, not aliasing: moving one later must not drag the other
+with it.
+
 ## A file opens on GitHub, at the commit the site was built from
 
 A listed file or issue links to

@@ -51,6 +51,6 @@ the site has no logo to inherit.
 
 ### Related
 
-- [green-link-colour](green-link-colour.md) — a colour of the site's own, which
-  the mark would be the first use of.
-- [Generate website](generate-website.md) — the umbrella list.
+- [Generate website](generate-website.md) — the umbrella list; `--link` in
+  `fjs/website/style/module.f.mjs` is the site's own colour, landed since this
+  issue was filed.

@@ -36,18 +36,26 @@ subset as a DataJS document, through DataJS's own writer.
 ## Principles
 
 **Compatibility with JavaScript.** FunctionalScript is a subset of JavaScript,
-not a language that resembles it. Every FunctionalScript module is an ES
-module, and it denotes in FunctionalScript the value that a JavaScript engine
-gives it. Nothing has to be stripped, preprocessed, or interpreted specially
-for `node`, `deno`, `bun`, or a browser to load a `.f.js` file: the file is
-already JavaScript.
+not a language that resembles it. Every accepted FunctionalScript module must
+be valid JavaScript ES module source, including lexical restrictions and early
+errors. Check the original text, not text repaired or stripped by a transpiler.
+Nothing has to be preprocessed for `node`, `deno`, `bun`, or a browser to parse
+a `.f.js` file: the file is already JavaScript.
 
-Two rules follow, and they outrank everything else:
+Source inclusion and the following requirements hold at every development
+stage and outrank everything else:
 
-1. if FS code passes validation/compilation, then it doesn't have
-   side-effects;
-2. the code that passed validation/compilation should behave on the
-   FunctionalScript VM the same way as on any other modern JavaScript engine.
+1. code that passes FunctionalScript validation/compilation has no side effects;
+2. for the same admitted inputs and dependency environment, successful
+   FunctionalScript and JavaScript executions have the same observable result,
+   except for explicitly specified semantic exceptions. This includes later
+   observations through exported functions, not just the initial module value.
+
+The execution profile declares its ECMAScript and host-resolution environment.
+An exception names its profile, affected operations and observable consequences;
+an identity exception is not an excuse for arbitrary differences in another
+profile. Missing support may be refused, but accepted source must not silently
+receive a different successful meaning.
 
 Compatibility runs one way only. Every FunctionalScript module is JavaScript;
 most JavaScript is not FunctionalScript. So the language is a **whitelist**,
@@ -57,13 +65,67 @@ component of a recognized pattern that lowers to a FunctionalScript primitive
 — the bracketed `__proto__` key ([below](#the-__proto__-key)) is the current
 example.
 
-Rule 2 also decides what to do when JavaScript gives one text a meaning
-FunctionalScript cannot reproduce: the text is a compilation error. Giving it
-a second, more convenient meaning would make a module mean one thing here and
-another thing in a browser.
+**Every pattern instruction must be recognized after statement and expression
+structure is known.** The parser owns JavaScript's syntax, line-terminator
+restrictions and statement boundaries. Pattern recognition operates on that
+parsed structure with validated binding relationships; it never reinterprets
+source tokens, joins statements or repairs syntax. Syntactic recognition does
+not by itself admit a construct into FunctionalScript: the complete pattern
+must pass the whitelist, and protected operations cannot escape it.
+
+Outside the explicitly specified exceptions, rule 2 also decides what to do
+when JavaScript gives one text a meaning FunctionalScript cannot reproduce:
+the text is a compilation error, not an invitation to give it a second,
+more convenient meaning.
+
+### Function-source representation exception
+
+**Adopted:** in FJS VM execution, the default string representation of an FJS
+function is source reconstructed from its associated EDAG, not the original
+source text. Original comments, formatting and identifier spellings need not
+survive. This applies to `String(f)` and every admitted indirect conversion
+that reaches the same default function representation, including conversions
+inside complete instruction patterns. It applies to exported functions too.
+
+Running source directly on a JavaScript engine retains that host's function
+representation. Its text can differ from the FJS VM's, including when a
+JavaScript consumer reflects on an exported function. Differences caused by
+using that text as a key, comparing it or branching on it are consequences of
+this exception, not a blanket waiver for unrelated results. Non-function
+conversion, other admitted function observations and source syntax retain
+their existing contracts. The exception alone admits no new syntax or API.
+
+[Function text and serialization](./todo/serialization.md#function-text-and-serialization)
+owns the remaining questions: whether the FSC function serializer and
+`String(f)` are the same operation, whether `String(f)` instantiates captured
+frames, and how each handles `self`. Adopting EDAG-derived text does not settle
+those questions or claim that the conversion is implemented today.
+
+### Failure is one outcome
+
+All execution failures are one indistinguishable semantic outcome:
+
+```text
+throw A ≡ throw B ≡ memory failure ≡ time failure
+```
+
+Error types, messages, stacks, source positions, the first failing operation
+and the work performed before failure are not language-level observations.
+Operational diagnostics may report a cause, but cannot become program values
+that distinguish failures. Syntax rejection remains a compiler property:
+accepting invalid JavaScript is not excused by failure equivalence.
+
+This deliberately allows reordering failing EDAG computations to fail earlier.
+Do not impose source-order barriers, identical evaluation counts or identical
+resource thresholds merely to preserve failure behavior. Preserve successful
+paths: failure equivalence does not authorize executing an otherwise skipped
+failure on such a path or inventing a successful value by deleting a required
+failure. Different executors may exhaust different memory or time limits; a
+more efficient one may finish where another stops. A stopped run is a failure,
+not a guessed result.
 
 When we implement features of FunctionalScript, the first priority is a
-simplification of the VM.
+simplification of the VM, subject to these requirements.
 
 ## Exporting a Value
 
@@ -256,7 +318,10 @@ declare.
 
 ## Comments
 
-Comments are trivia. They may appear between any two tokens and are ignored.
+Comments are trivia. Their text does not become an AST value, but the parser
+preserves line-terminator information needed by JavaScript's grammar. A line
+break inside a block comment counts at a restricted boundary too, such as
+after `return` or before `=>` ([functions](#functions)).
 
 ```js
 // a line comment runs to the end of the line
@@ -274,9 +339,10 @@ Block comments carry JSDoc/TypeScript type declarations, which is why the
 language has them: a `.f.js` file is type-checked as JavaScript, and JSDoc is
 how it says what its types are.
 
-A comment is trivia, as whitespace is: it neither ends a statement nor keeps
-one open, so the `;` that ends a statement may follow a comment, on the same
-line or a later one ([module structure](#module-structure)).
+A comment can separate tokens where whitespace can. At unrestricted boundaries,
+the `;` that ends a statement may follow a comment on the same line or a later
+one ([module structure](#module-structure)). This does not make newlines
+interchangeable with spaces at restricted boundaries.
 
 Comments belong to the module language. A `.json` input containing one is an
 error, because JSON has no comments.
@@ -610,14 +676,27 @@ constants, a fragment that several outputs include.
 
 - Only the **default import** form is recognized. Named imports and namespace
   imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
-- The path is a [string literal](#strings), resolved relative to the importing
-  module.
-- Each module is parsed and evaluated once per resolved path, and its value is
-  shared by every importer. A circular dependency is an error.
+- The module specifier is a [string literal](#strings), resolved using the
+  declared host environment's module-resolution rules. Relative specifiers
+  resolve against the importing module's identity; bare specifiers follow the
+  host's package or import-map rules. Unsupported specifier classes are
+  refused, not reinterpreted as sibling filesystem paths.
+- Within one program load, imports resolving to the same module identity
+  share its evaluation and exported value. Distinct module identities remain
+  distinct even when they load the same file; loading paths are not cache
+  keys. A circular dependency is an error.
 - The name is a JavaScript identifier that JavaScript does not reserve:
   `import class from "./a.f.js";` is an error here as there.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
+
+**Current implementation limitation — P1:** the existing filesystem-based
+resolver and path-keyed module memoization do not yet satisfy this contract
+for all accepted specifiers. This is a compatibility defect, not an alternate
+permitted interpretation. The existing
+[module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
+owns the shared resolver correction and its regression tests; the rules above
+do not claim that URL/package resolution is already implemented.
 
 A JSON document is imported with the attribute JavaScript requires of it, and
 denotes the value `JSON.parse` gives it:
