@@ -167,18 +167,20 @@ export const proof = {
             'Any::member_access(Any::member_access(Array::default().to_any(), string_any("length")).unwrap(), string_any("toString")).unwrap()')
     },
     /**
-     * `resolvedBase` also folds a literal array's own canonical numeric
-     * index and a literal object's own numeric key (stringified first),
-     * mirroring `Array`/`Object::member_access` — the fold `throw` below
-     * needs (`dotOnArrayOutOfRangeIndex` and its neighbors) to catch a
+     * `resolvedBase` also folds a literal array's or string's own canonical
+     * index — a number or its canonical decimal string, matching
+     * `Array`/`String::member_access` treating the two alike — and a
+     * literal object's own numeric key (stringified first), mirroring
+     * `Object::member_access`. The fold `throw` below needs
+     * (`dotOnArrayOutOfRangeIndex` and its neighbors) is what catches a
      * nullish result several hops down an index, not just a property name.
      * Here, the other side: an in-bounds index resolving to a non-nullish
-     * value, printed rather than refused. Both cases nest two `.` steps
+     * value, printed rather than refused. Every case nests two `.` steps
      * deep — a direct `['.', literal, index]` never reaches this fold at
      * all, since `resolvedBase` only inspects a *resolved* base, one level
      * in from whichever `.` node is being checked.
      */
-    resolvedBaseThroughNumericKey: () => {
+    resolvedBaseThroughIndex: () => {
         // An array literal's in-bounds index resolves to its element, and
         // the fold continues into that element — an object literal here —
         // exactly as it would one property access away.
@@ -200,6 +202,21 @@ export const proof = {
         assertEq(
             printed(['.', ['.', 'ab', 0], 'length']),
             'Any::member_access(Any::member_access(string_any("ab"), (0f64).to_any()).unwrap(), string_any("length")).unwrap()')
+        // `[1]["0"]` reads element `0` exactly as `[1][0]` does: `"0"` is
+        // the canonical decimal form of the index `0`, which
+        // `Array::member_access` accepts as an alternative spelling of the
+        // same key. Resolves to `1`, and `.x` on a number is `undefined`
+        // (never nullish), so this prints two hops in.
+        assertEq(
+            printed(['.', ['.', ['[]', [1]], '0'], 'x']),
+            'Any::member_access(Any::member_access([(1f64).to_any()].to_array().to_any(), string_any("0")).unwrap(), string_any("x")).unwrap()')
+        // `.length` on a string literal is a number, never nullish, so it
+        // is left opaque here exactly as an array's `.length` is above —
+        // proving the string branch's own `b === 'length'` guard behaves
+        // the same way.
+        assertEq(
+            printed(['.', ['.', 'ab', 'length'], 'toString']),
+            'Any::member_access(Any::member_access(string_any("ab"), string_any("length")).unwrap(), string_any("toString")).unwrap()')
     },
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
@@ -327,6 +344,46 @@ export const proof = {
         dotOnArrayNegativeIndex: () => printed(['.', ['.', ['[]', [1]], -1], 'x']),
         dotOnArrayFractionalIndex: () => printed(['.', ['.', ['[]', [1]], 0.5], 'x']),
         dotOnArrayNanIndex: () => printed(['.', ['.', ['[]', [1]], NaN], 'x']),
+        /**
+         * The same numeric-index refusal again, this time through a *string*
+         * key that names no index at all: `Array::member_access`'s string
+         * branch answers `undefined` for any key that is neither `"length"`
+         * nor the canonical decimal form of an in-range index — a bare
+         * word like `"toString"` and a non-canonical numeral like `"01"`
+         * both miss unconditionally, the same as an out-of-range number.
+         */
+        dotOnArrayNonNumericStringIndex: () => printed(['.', ['.', ['[]', [1]], 'toString'], 'y']),
+        dotOnArrayNonCanonicalStringIndex: () => printed(['.', ['.', ['[]', [1]], '01'], 'y']),
+        /**
+         * `Any::member_access` never special-cases a number, a boolean, a
+         * bigint, or a function receiver — every key on one answers
+         * `undefined` unconditionally (see its own doc comment in
+         * `nanvm-lib`), the same as `Any::own_property` did for these
+         * before `member_access` existed. `resolvedBase` folds straight to
+         * the tagged `['undefined']` node for one of these regardless of
+         * the key, the same way it folds a missing property or an
+         * out-of-range index — before this, a chain two hops past one of
+         * these primitives (or past a lambda a `.` node's own value
+         * resolved to) compiled to a call chain that panics.
+         */
+        dotOnNumberPrimitiveMiss: () => printed(['.', ['.', 1, 'x'], 'y']),
+        dotOnBooleanPrimitiveMiss: () => printed(['.', ['.', true, 'x'], 'y']),
+        dotOnBigintPrimitiveMiss: () => printed(['.', ['.', 5n, 'x'], 'y']),
+        dotOnFunctionMiss: () => printed(
+            ['.', ['.', ['.', ['{}', [[':', 'f', ['=>', ['[]', []], ['undefined']]]]], 'f'], 'x'], 'y']),
+        /**
+         * A `Number(...)` cast key one step into a chain, over an array or a
+         * string base this time (the object case is
+         * {@link resolvedBaseRefusals}'s `dotOnObjectWithNumberCastKey`):
+         * `resolvedBase`'s array and string branches accept only a literal
+         * `string` or `number` key, so a `NumberCast` key leaves the base
+         * unresolved rather than mistaking it for one. The refusal surfaces
+         * one level up regardless, from `indexExpr`'s own refusal of the
+         * same key when the inner node is printed — the same one
+         * `numberCastIndex` pins directly.
+         */
+        dotOnArrayWithNumberCastKey: () => printed(['.', ['.', ['[]', []], ['Number', 1]], 'x']),
+        dotOnStringWithNumberCastKey: () => printed(['.', ['.', 'ab', ['Number', 1]], 'x']),
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it. */
         emptyComma: () => printed([',', []]),
     },
