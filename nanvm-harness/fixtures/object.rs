@@ -11,6 +11,6 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 }
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    [(string_key("a"), (1f64).to_any()), (string_key("b"), string_any("two"))].to_object().to_any()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok([(string_key("a"), (1f64).to_any()), (string_key("b"), string_any("two"))].to_object().to_any())
 }

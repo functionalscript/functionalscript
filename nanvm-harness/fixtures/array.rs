@@ -3,6 +3,6 @@
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    [(1f64).to_any(), (2f64).to_any(), (3f64).to_any()].to_array().to_any()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok([(1f64).to_any(), (2f64).to_any(), (3f64).to_any()].to_array().to_any())
 }

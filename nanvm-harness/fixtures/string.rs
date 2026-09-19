@@ -7,6 +7,6 @@ fn string_any<A: IVm>(v: &str) -> Any<A> {
 }
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    string_any("hello")
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok(string_any("hello"))
 }

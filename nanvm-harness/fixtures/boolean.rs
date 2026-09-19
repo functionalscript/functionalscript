@@ -3,6 +3,6 @@
 use nanvm_lib::vm::{Any, IVm, ToAny};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    true.to_any()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok(true.to_any())
 }
