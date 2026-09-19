@@ -21,10 +21,22 @@ it, and renames it over `refs/heads/x`, so a concurrent writer fails to create
 the lock rather than interleaving. The rename is the atomic step, and the lock
 file is why `fjs/git/refstore`'s walk skips a name ending in `.lock`: such a
 file is a write in progress and not a ref.
-[`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in four
-effects — the directories above the file, the exclusive create, the 41 bytes,
-the rename — and gives the lock back where a failure after the create would
-otherwise leave it.
+[`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in five
+effects — `packed-refs`, the directories above the file, the exclusive create,
+the 41 bytes, the rename — and gives the lock back where a failure after the
+create would otherwise leave it.
+
+`packed-refs` is read first because of the one collision no filesystem can
+refuse. Git will not let a ref name be a directory prefix of another: measured
+on 2.43.0, with `refs/heads/a` packed, `update-ref refs/heads/a/b` exits 128 with
+`'refs/heads/a' exists; cannot create 'refs/heads/a/b'`, and with `refs/heads/c/d`
+packed the same command on `refs/heads/c` exits 128 the other way round. The
+*loose* directions are refused by the host — `ENOTDIR` from the `mkdir`, `EISDIR`
+from the `rename` — and a packed name is invisible to both, so the file has to be
+read. `refPrefixCode` and `badPackedCode` are the two refusals that come out of
+it, and `refstore`'s doc has the measurement of what each direction costs: one is
+Git's policy over a state its own `pack-refs` produces, and the other breaks
+`git rev-parse` for a ref that resolved before the write.
 
 Deleting a ref is the harder half, because a name can be in two files: the
 loose file must go *and* the `packed-refs` line with it, or the packed line
@@ -93,6 +105,29 @@ every reflog expired, `git gc --prune=now` printed `error: Object … not a
 commit` and kept the blob. So `tryRoots` listing it agrees with `show-ref`,
 `for-each-ref` and `gc`, and what is missing is the validation `fsck` does.
 
+**It does not honour `core.sharedRepository`.** Measured on Git 2.43.0 with
+`git init --shared=group` and a `0022` umask:
+
+| path | `git update-ref refs/heads/topic/x` | this writer |
+| --- | --- | --- |
+| `refs/heads/topic` | `2775` | `2755` — what `mkdir -p` gives under that umask |
+| `refs/heads/topic/x` | `664` | `644` |
+
+The group-write bit is the one that matters: without it the next group member's
+exclusive create of a `.lock` inside that directory fails with `EACCES`, so this
+writer succeeds and the *next* one cannot. That is a loud failure rather than a
+wrong value, which is why it is recorded here, and it is still a namespace nobody
+asked for.
+
+Two ways out, and neither is free. **Honour it**: read `core.sharedRepository`
+(nothing in `fjs/git/config` reads any `core.*` key today) and give `mkdir` and
+the write a mode — `MakeDirectoryOptions` is `{ recursive: true }` and nothing
+else, so the effects grow. **Refuse it**: the config read alone, and then
+`tryWrite` is unusable on every shared repository, which is a wide refusal for a
+narrow gap. Whichever is chosen, the file mode is wrong on such a repository even
+when the directory already exists, so a fix that only touches `mkdir` is half a
+fix.
+
 **It writes no reflog line**, where `update-ref` writes one under
 `core.logAllRefUpdates` — measured, `logs/refs/heads/master` gains a line on
 each update in a non-bare repository. A ref with no reflog is ordinary (every
@@ -139,6 +174,16 @@ else in the name has moved DISOT semantics into Git's namespace.
 - [x] Write a ref under a lock: the directories, the exclusive create, the 41
       bytes, the rename, and the lock given back on a failure after it is
       taken.
+- [x] Refuse a name a packed ref bars as a directory prefix, either way round,
+      and a `packed-refs` that will not parse — the questions no filesystem
+      answer can stand in for.
+- [ ] Decide `core.sharedRepository`: honour the mode, or refuse such a
+      repository. Needs a `core.*` read either way, and a mode on `mkdir` and on
+      the write if it is honoured.
+- [ ] Give the loose `mkdir` direction a fixture, once
+      [`fjs/effects/node/virtual/todo/mkdir-over-a-file.md`](../../effects/node/virtual/todo/mkdir-over-a-file.md)
+      stops the virtual `mkdir` replacing a file with a directory — today a
+      fixture there would watch the writer delete a ref and pass.
 - [ ] Delete a ref: the loose file *and* the `packed-refs` line, under
       `packed-refs`'s own lock, or the packed line comes back as the ref.
 - [ ] Decide whether a write checks that the object is there **and, under
@@ -163,3 +208,5 @@ else in the name has moved DISOT semantics into Git's namespace.
   produce, measured against Git.
 - [`fjs/git/store`](../store/module.f.mjs) — from an id to the object a ref
   keeps, and what an object-existence check would have to read.
+- [`fjs/effects/node/virtual/todo/mkdir-over-a-file.md`](../../effects/node/virtual/todo/mkdir-over-a-file.md)
+  — why the loose prefix direction has a node measurement and no fixture.

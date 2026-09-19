@@ -57,7 +57,10 @@ what a grammar can and cannot do for the formats.
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
   in hand, and `tryWrite` to put one at an id — the loose file, through the
   `.lock` name Git takes, so a second writer fails to take the lock rather
-  than interleaving. Two rules live here because no reader of one file can decide
+  than interleaving, and reading `packed-refs` first for the one collision no
+  filesystem answer can stand in for: Git lets no ref name be a directory
+  prefix of another, and a packed name has no loose file for a `mkdir` or a
+  `rename` to trip over. Two rules live here because no reader of one file can decide
   them: a loose ref shadows the packed line of the same name by existing
   rather than by being good, so a loose file that is no ref leaves the name
   with no value instead of the packed one; and a symbolic ref is followed
@@ -441,9 +444,10 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   a name can be in a loose file *and* a `packed-refs` line, so the line has to
   go with the file or it comes back as the ref; and every way `tryWrite` is
   narrower than `git update-ref` — no check that the object is there or, under
-  `refs/heads/`, that it is a commit, no reflog line, no `packed-refs` rewrite,
-  no dereference of a symbolic ref at the name, and a name outside `refs/`
-  refused — is measured and listed in that issue. Reading the
+  `refs/heads/`, that it is a commit, no `core.sharedRepository` mode, no reflog
+  line, no `packed-refs` rewrite, no dereference of a symbolic ref at the name,
+  and a name outside `refs/` refused — is measured and listed in that issue.
+  Reading the
   *reflog* is not done either, which is why `tryRoots` answers the refs and not
   everything the repository is keeping: a reflog entry keeps an object alive until it
   expires, and so does the *index* — a staged blob survives `gc --prune=now`

@@ -22,7 +22,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { badNameCode, headKindCode, idWidthCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, outsideRefsCode, packedHeadCode, packedTwiceCode, tryResolve, tryRoots, tryWrite, unspellableNameCode, zeroIdCode } from './module.f.mjs'
+import { badNameCode, badPackedCode, headKindCode, idWidthCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, outsideRefsCode, packedHeadCode, packedTwiceCode, refPrefixCode, tryResolve, tryRoots, tryWrite, unspellableNameCode, zeroIdCode } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -1916,6 +1916,70 @@ export const proof = {
         assertEq(e.code, unspellableNameCode)
         // the hex spelling of the name, since there is no text one
         assertEq(e.message, '726566732f68656164732f80 is no path this host can spell')
+        assertStructurallySame(fs, root)
+    },
+    // A packed name that is a directory prefix of the name being written, and the
+    // other way round. `git update-ref` refuses both — measured on 2.43.0, with
+    // `refs/heads/a` packed it exits 128 with `'refs/heads/a' exists; cannot
+    // create 'refs/heads/a/b'`, and with `refs/heads/c/d` packed the same
+    // command on `refs/heads/c` exits 128 the other way round — and no
+    // filesystem answer can stand in for the check, because the packed name has
+    // no loose file for the `mkdir` or the `rename` to trip over.
+    //
+    // The second direction is the one that does harm rather than only differing
+    // from Git's policy: with `refs/heads/c/d` packed and a loose `refs/heads/c`
+    // beside it, `git rev-parse refs/heads/c/d` answers `ambiguous argument …
+    // unknown revision`, because the loose *file* stands where the path's
+    // directory would be. `show-ref` still lists it, so a name that resolved
+    // before the write does not resolve after it and nothing said so.
+    writePackedPrefix: () => {
+        const refuses = /** @type {(root: Dir, name: string, message: string) => void} */ (
+            (root, name, message) => {
+                const [fs, r] = wrote(root, name, b)
+                const e = writeRefusal(r)
+                assertEq(e.code, refPrefixCode)
+                assertEq(e.message, message)
+                assertStructurallySame(fs, root)
+            })
+        refuses(
+            { 'packed-refs': file(`${a} refs/heads/a\n`), refs: { heads: {} } },
+            'refs/heads/a/b',
+            'refs/heads/a exists; cannot create refs/heads/a/b')
+        refuses(
+            { 'packed-refs': file(`${a} refs/heads/c/d\n`), refs: { heads: {} } },
+            'refs/heads/c',
+            'refs/heads/c/d exists; cannot create refs/heads/c')
+        // Three controls, because a check written over text rather than over
+        // segments passes the two cases above and fails all of these.
+        //
+        // A packed name that is a *string* prefix and no directory prefix: the
+        // byte after it is not the separator.
+        const [wider] = wrote({ 'packed-refs': file(`${a} refs/heads/ab\n`), refs: { heads: {} } }, 'refs/heads/a', b)
+        assertStructurallySame(wider, { 'packed-refs': file(`${a} refs/heads/ab\n`), refs: { heads: { a: ref(b) } } })
+        // The same name, which is an update of a packed-only ref and what Git
+        // does too: measured, `update-ref` writes the loose file and leaves the
+        // packed line stale.
+        const [same] = wrote({ 'packed-refs': file(`${a} refs/heads/a\n`), refs: { heads: {} } }, 'refs/heads/a', b)
+        assertStructurallySame(same, { 'packed-refs': file(`${a} refs/heads/a\n`), refs: { heads: { a: ref(b) } } })
+        // And a packed name with the separator in the right place but different
+        // bytes before it, which is the third way the test can be got wrong.
+        const q = { 'packed-refs': file(`${a} refs/heads/q\n`), refs: { tags: {} } }
+        const [other] = wrote(q, 'refs/tags/qq/r', b)
+        assertStructurallySame(other, { ...q, refs: { tags: { qq: { r: ref(b) } } } })
+    },
+    // A `packed-refs` that will not parse leaves the prefix question above
+    // unanswerable, so the write is refused rather than made anyway. Git refuses
+    // it too, measured with a control: with one junk line in the file,
+    // `git update-ref refs/heads/n <id>` exits 128 with `unexpected line in
+    // .git/packed-refs` and writes nothing, while the identical write against a
+    // well-formed `packed-refs` exits 0 and writes the file.
+    writeBadPacked: () => {
+        /** @type {Dir} */
+        const root = { 'packed-refs': file('this is not a packed-refs file\n'), refs: { heads: {} } }
+        const [fs, r] = wrote(root, 'refs/heads/master', a)
+        const e = writeRefusal(r)
+        assertEq(e.code, badPackedCode)
+        assertEq(e.message, 'packed-refs is no packed-refs')
         assertStructurallySame(fs, root)
     },
 }
