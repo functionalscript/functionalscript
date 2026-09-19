@@ -32,31 +32,46 @@ export const first = base;
 export const second = first;
 ```
 
-Represent a module's exports by name, with `default` as the name of its default
-export. Keep this export table distinct from a default-exported object:
+### Module function result
 
-| Source | Export table |
-| --- | --- |
-| `export default { first: 17 };` | `{ default: { first: 17 } }` |
-| `export const first = 17;` | `{ first: 17 }` |
-
-The table describes compiler linkage; it is not a claim that an ordinary object
-has JavaScript module-namespace semantics. A default import selects `default`
-and fails if that export is absent. It must never receive the whole export table
-as a substitute. JSON imports continue to expose their document as `default`.
-
-Named and default exports may coexist, as confirmed by the owner:
+The module function returns an object containing **all** exported properties,
+including `default`. This is the module's result, not just linkage metadata.
+The owner confirmed that named and default exports may coexist:
 
 ```js
-export const x = 5;
+export const a = 5;
 export default 7;
 ```
 
-Its export table is `{ x: 5, default: 7 }`. Keep `export default` last under
-the existing statement-order rule. A named-only module needs no default export.
+The module function returns:
 
-Preserve every declaration's evaluation and the sharing between exported
-bindings. Report duplicate bindings/exports at their source locations.
+```js
+{
+    a: 5,
+    default: 7,
+}
+```
+
+Apply the same rule to every module, including one with only a default export:
+
+| Source | Module function result |
+| --- | --- |
+| `export default 7;` | `{ default: 7 }` |
+| `export default { first: 17 };` | `{ default: { first: 17 } }` |
+| `export const first = 17;` | `{ first: 17 }` |
+
+A default import selects `.default` from the imported module's result. An
+absent default export is an error; an explicitly exported `undefined` is still
+an export. JSON imports expose `{ default: document }` at the module boundary,
+so their default import continues to yield the document.
+
+Keep `export default` last under the existing statement-order rule. A named-only
+module needs no default export. Construct the result from the existing bindings,
+preserving evaluation order and sharing rather than evaluating initializers
+again. Ordinary function bodies keep their own return values; this object is
+the result of the **module** function.
+
+Report duplicate bindings/exports at their source locations.
 Retain the existing design's reservation of the export name `then`, regardless
 of its value: a callable `then` on a namespace interferes with dynamic import's
 promise resolution.
@@ -66,30 +81,40 @@ Namespace imports belong to the separate
 belongs to the separate, low-priority [export-list TODO](./export-lists.md).
 Re-exports and new expression or function syntax are outside this first step.
 
-### Output contract to settle
+### Compiler changes
 
-FSC currently lowers a module to one exported value/EDAG. Named exports require
-the export table to survive parsing, linking, and module output; accepting the
-syntax alone is insufficient.
+The parser's module body currently ends in the default-export expression.
+Change that result to the export object. Carry it through AST evaluation,
+`transpile`, and the EDAG's `unresolved` and `resolve` paths. Default imports
+must project `.default` instead of binding the entire imported result.
 
-Propose preserving export names in generated JavaScript and retaining the
-default value for JSON and DataJS value outputs, with a diagnostic when no
-default exists. Decide how the EDAG and Rust entry-point APIs expose named
-exports before changing them. Do not silently emit a default-exported object
-where the source declared named exports.
+The EDAG represents the computation of this object. The existing
+[generated Rust entry point](../../fjs/fsc/rust/module.f.mjs),
+`pub fn module<A: IVm>() -> Any<A>`, computes the same result for `.rs` output.
+Update module-result consumers and proofs together; do not unwrap `.default`
+merely to preserve the former result shape. This replaces the earlier proposal
+to keep the bare default value as the compiler's result for some output paths.
+
+Writers must distinguish a data document describing the module result from
+generated JavaScript module source. The latter must expose the original named
+and default exports, rather than turn the result object into one default export.
 
 ### Tasks
 
 - [x] Allow named and default exports in the same module.
-- [ ] Agree on the output contract above; record the selected module-result
-      shape and affected APIs here.
+- [x] Define the module function's result as the object of all exports,
+      including `default`.
 - [ ] Implement `export const` through the grammar, AST, and linking, preserving
-      local references, evaluation order, sharing, and export names. Add proofs
-      for named-only and mixed modules, duplicate names, reserved `then`,
-      and a default import of a module without a default export.
+      local references, evaluation order, sharing, and export names. Make the
+      module body yield the export object and make default imports select
+      `.default`. Prove default-only, named-only, and mixed results, duplicate
+      names, reserved `then`, missing default exports, and an explicitly
+      exported `undefined`.
 - [ ] Carry that result through the affected output paths. Prove generated
       JavaScript exposes the same exports and values as the original source,
-      and preserve default-export and JSON-import behavior.
+      EDAG and generated Rust results contain all exported properties, and default
+      imports (including JSON imports) still yield the selected value. Update
+      consumers and declare the module-result API change in the implementation PR.
 - [ ] Retry the unchanged `types/range/module.f.mjs`. If it fails, show the next
       diagnostic to the owner, who chooses a source rewrite or a missing
       compiler feature. Rename it to `.f.js` only after full compilation succeeds.

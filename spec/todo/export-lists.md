@@ -23,8 +23,8 @@ FunctionalScript should support.
       with declaration exports.
 - [ ] Consider whether forms with `from` (re-exports) belong in the proposed
       scope or need a separate task.
-- [ ] Describe the implications for binding resolution and the module export
-      table, then propose a scope for owner review before implementation.
+- [ ] Describe the implications for binding resolution and the module result
+      object, then propose a scope for owner review before implementation.
 
 ### Related
 
