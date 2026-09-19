@@ -30,6 +30,19 @@ export const proof = {
         const s = unwrap(tryStringify(result[1].value))
         assertEq(s, 'export default 2;')
     },
+    // Module specifiers are URL-path spellings, not literal filesystem names:
+    // Node resolves %64 to "d" before loading, so the literal %64ep file must
+    // not win merely because it exists beside dep.
+    parseWithPercentEscapedImport: () => {
+        const result = run({
+            'main.f.js': [utf8('import value from "./%64ep.f.js";\\nexport default value;')],
+            'dep.f.js': [utf8('export default 1;')],
+            '%64ep.f.js': [utf8('export default 2;')],
+        })('main.f.js')
+        assert(result[0] !== 'error', result[1])
+        const s = unwrap(tryStringify(result[1].value))
+        assertEq(s, 'export default 1;')
+    },
     parseWithSubModules: () => {
         const result = run({
             a: [utf8('import b from "b";\nimport c from "c";\nexport default [b,c,b];')],
