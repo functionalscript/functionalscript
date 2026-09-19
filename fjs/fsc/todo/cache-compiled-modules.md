@@ -32,11 +32,22 @@ type Unresolved = {
 ```
 
 A cached entry carries each import's record whole: the specifier and the `json`
-flag of `with { type: "json" }`, which selects the reader when the linker follows
-the import, so a warm build reads a JSON module as the cold one did.
+flag of `with { type: "json" }`. The resolver/loader validates that declared type
+and selects the reader under the same host contract on warm and cold builds.
 
 Source identity and compiler/cache identity belong to the cache machinery, not to
 `Unresolved`.
+
+**A compiled template is not a module instance.** Reusing a cached `Unresolved`
+artifact does not establish module identity or authorize cross-module sharing
+of identity-producing computations. Apply the
+[module-resolution contract](./module-resolution-compatibility.md) independently:
+resolve the recorded imports using each importer's resolved identity and declared
+host environment, and reuse linked results only for the same module identity.
+Identical source under different identities may resolve relative dependencies
+differently. Preserve within-module sharing without conflating distinct module
+instances, whether the build is warm or cold. This does not add location fields
+to `Unresolved` or change the source-content cache key.
 
 ### Cache layout
 
@@ -188,6 +199,11 @@ second-level cache yet.
       version bump with unchanged source bytes, concurrent writers with different
       compiler versions, read-only/unwritable cache locations, source-map-enabled
       builds, and failed cache writes that still return the freshly compiled result.
+- [ ] Compare warm/cold linking for identical source under distinct importer
+      identities and different relative dependencies; also test distinct URL
+      identities loading one file and repeated/diamond imports of one identity.
+      Reusing a template must neither merge distinct module instances nor
+      duplicate the observable allocations of a shared module instance.
 - [ ] Keep the possible resolved-module second-level cache as future work until its
       identity and representation are designed.
 

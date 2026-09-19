@@ -1,6 +1,8 @@
 # Built-in Objects and Functions
 
-The built-in objects are special. We can call a function, like `Object.getOwnPropertyDescriptor()`, but not the `Object` or the function.
+The built-in objects are special. We can call a permitted function, but cannot
+use its global namespace as an ordinary value. Some operations are permitted
+only inside a complete recognized pattern, not as independent calls.
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 
@@ -116,6 +118,28 @@ mean inventing a global JavaScript does not have. `AsyncIterator` and
 ## Object
 
 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+
+### Reflection boundary
+
+`Object.hasOwn`, `Object.getOwnPropertyNames` and
+`Object.getOwnPropertyDescriptors` are prohibited in FJS source. They keep
+their JavaScript meanings; do not redefine them over enumerable properties.
+`obj.hasOwnProperty(...)` is not a replacement source spelling.
+
+Use explicit enumerable-entry patterns instead:
+[`entry`](../../fjs/edag/todo/entry.md) reads a data value, and
+[enumerable presence](./2345-has-own-property.md) proposes a separate
+`hasEntity` pattern. `Object.getOwnPropertyDescriptor` is permitted only as
+part of a complete approved AST pattern, never as an exposed descriptor API.
+
+[Statement-aware recognition](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+resolves statements, expressions and bindings before matching. No built-in
+receives a whitespace-insensitive token-parser shortcut. A standard operation
+must either retain its successful JavaScript behavior or remain prohibited.
+
+The table below inventories side effects, **not unconditional admission**.
+Having no side effects is necessary but not sufficient. It neither overrides
+the reflection restrictions nor changes host-side implementation helpers.
 
 |Function                 |side-effect                |
 |-------------------------|---------------------------|

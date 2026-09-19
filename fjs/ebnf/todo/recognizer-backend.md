@@ -187,15 +187,28 @@ in its own sibling module — [`../ll1`](../ll1/README.md), then
 **`fjs/ebnf/recognizer` and `fjs/ebnf/dfa`** for the new backends. The IR
 stays free of any one parser's machinery.
 
-`toData` is itself a special case of a more general mechanism. The functional
-grammar embeds *functions* (a rule behind a thunk, `() => Info`; `rtti`
-schemas are thunks the same way), and the planned `Function.getAst` /
-`fromAst` ([new-pl.md](../../../todo/new-pl.md)) returns any function's IR as
-serializable data (JSON) and reconstructs it. So the whole eDSL — including its
-function-valued parts — becomes plain data, and via `Object.id` that AST is the
-value's canonical identity: **content-addressable**. That closes the loop back
-to the CAS this work started from — a serialized grammar/automaton/type is
-hashable and storable in it.
+**P1 boundary correction:** `toData` lowers grammar definitions, not the
+function code of the thunks used to author them. For example,
+`() => ['set', 48, 58]` becomes `['set', 48, 58]`; the rule description
+is retained, not the thunk's source AST or EDAG. This is grammar-specific
+lowering through the existing grammar API, not general callable serialization.
+
+Recognizer and DFA builders consume the resulting `RuleSet` data, whether
+lowered, authored directly or deserialized, subject to rule-set validation
+and each builder's grammar-class checks. No function-introspection API is
+required. Persist the grammar using the data layer's DJS representation;
+ordinary JSON cannot preserve an unbounded repetition's `Infinity`.
+
+General function serialization is separate work under the
+[EDAG serialization design](../../../spec/todo/serialization.md#function-text-and-serialization),
+not a recognizer dependency. [new-pl.md](../../../todo/new-pl.md) explores a
+separate language; its function-introspection and identity sketches do not
+approve FJS APIs. This correction selects no `String(f)`, frame or `self` strategy.
+
+An AST-less recognizer remains valid. The
+[statement-aware instruction requirement](../../fsc/parser/todo/statement-aware-intrinsics.md)
+governs admitting FJS instructions during source-to-EDAG compilation; an
+accept/reject grammar recognizer neither performs nor replaces that admission.
 
 #### Compatibility is a build-time check (throw, don't fall back)
 
@@ -353,9 +366,10 @@ Bigger automata are built from BNF pieces in two complementary ways:
   values, many artifacts (TS type, validator, parser) derived by function
 - `fjs/media/html` — the markup-level sibling: an embedded DSL of nested element
   values, not an external syntax (JSX)
-- [new-pl.md](../../../todo/new-pl.md) — `Function.getAst` / `fromAst` (functions
-  as serializable IR); `toData` is the grammar-specific case, and the serialized
-  forms become content-addressable via `Object.id`
+- [`../data`](../data/README.md) — grammar-specific lowering and the serializable
+  `RuleSet` consumed by recognizer and DFA builders.
+- [EDAG serialization](../../../spec/todo/serialization.md#function-text-and-serialization)
+  — separate function-rendering work, not a prerequisite for this backend.
 - `fjs/media/type` `detectStream` — first concrete consumer (streaming MIME/UTF-8
   recognizer), shipped with hand-rolled `A_magic`/`A_utf8` factors that this
   backend should later replace
