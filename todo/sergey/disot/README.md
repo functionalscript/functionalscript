@@ -11,7 +11,7 @@ flowchart LR
     A["Document"] -->|hash| H["sha256:abcd..."]
 ```
 
-The same document may have different filenames, URLs, or storage locations. Its content stays the same.
+The same document may have different filenames, URLs, or storage locations. Its content stays the same, and so does its hash for a given hash algorithm. The hash identifier can therefore serve as a permanent link without specifying a storage location or transport protocol.
 
 Documents can reference other documents by hash:
 
