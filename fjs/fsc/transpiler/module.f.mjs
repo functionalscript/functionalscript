@@ -13,23 +13,21 @@
  * @import { Operation } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
- * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
  * @import { ParseContext } from './types.ts'
  */
 
-import { error, ok } from '../../types/result/module.f.mjs'
-import { drop, map as listMap, toArray, includes } from '../../types/list/module.f.mjs'
+import { error } from '../../types/result/module.f.mjs'
+import { drop, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
-import { codePointListToString, stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
-import { isValidCodePoint } from '../../text/code_point/module.f.mjs'
-import { percentDecode } from '../../text/percent/module.f.mjs'
-import { concat as pathConcat } from '../../path/module.f.mjs'
+import { stringToList } from '../../text/utf16/module.f.mjs'
+import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { sharing, values } from '../ast/module.f.mjs'
-import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
-import { readUtf8File } from '../../effects/node/module.f.mjs'
+import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { errorMessage, readUtf8File, resolveFileModule } from '../../effects/node/module.f.mjs'
 
 /**
  * Reads a file, reporting any failure as the one `ParseError` a caller can act
@@ -84,103 +82,50 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
  */
 export const _parseModule = path => step(notFound(path)(readUtf8File(path)), text => pure(parse(path)(text)))
 
-/** A literal URL string replaces lone surrogates; percent-encoded bytes stay strict UTF-8. @type {(c: number) => number} */
-const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
-
 /**
- * One URL-path segment as a portable filesystem segment, or a refusal.
- * Decoded separators and NUL cannot name a segment. Colons are also refused:
- * the current portable path layer would reinterpret drive/stream syntax
- * after joining or normalization. Host-specific colon names need the full
- * resolver; they must not silently become another root here.
+ * Resolve a root filesystem name or an admitted source import through its host.
+ * A null parent denotes a literal CLI path; imports use the parent's identity.
  *
- * @type {(segment: string) => string | null}
+ * @type {(name: string, parent: string | null, json: boolean, path: string) => Effect<ResolveFileModule, _Source, ParseError>}
  */
-const importSegment = segment => {
-    const literal = codePointListToString(listMap(scalarValue)(stringToCodePointList(segment)))
-    const decoded = percentDecode(literal)
-    return decoded === null || decoded.includes('/') || decoded.includes('\\') || decoded.includes('\0') || decoded.includes(':')
-        ? null
-        : decoded
+const sourceAt = (name, parent, json, path) => {
+    const located = catchStep(resolveFileModule(name, parent), e =>
+        pureError({ message: `module resolution failed: ${errorMessage(e)}`, metadata: null, path }))
+    return mapStep(located, location => ({ ...location, json }))
 }
 
-/**
- * Reduce URL dot segments while the other components are still encoded.
- * Only the URL grammar's exact dot spellings are structural; canceled
- * components need not be valid UTF-8 or valid filesystem names. Keep empty
- * components here: in `bad%//../dep`, `..` removes the empty one, not `bad%`.
- *
- * @type {(rooted: boolean) => (segments: readonly string[], segment: string) => readonly string[]}
- */
-const importDotSegments = rooted => (segments, segment) => {
-    switch (segment.toLowerCase()) {
-        case '.': case '%2e': return segments
-        case '..': case '.%2e': case '%2e.': case '%2e%2e':
-            return segments.length !== 0 && segments[segments.length - 1] !== '..'
-                ? segments.slice(0, -1)
-                : rooted ? segments : [...segments, '..']
-        default: return [...segments, segment]
-    }
-}
+/** Root names are filesystem paths, never import specifiers. @type {(path: string) => Effect<ResolveFileModule, _Source, ParseError>} */
+export const _rootSource = path => sourceAt(path, null, path.endsWith('.json'), path)
+
+/** @type {(source: _Source) => (imported: AstImport) => (sources: readonly _Source[]) => Effect<ResolveFileModule, readonly _Source[], ParseError>} */
+const importSource = ({ id, path }) => ({ specifier, json }) => sources =>
+    mapStep(sourceAt(specifier, id, json, path), source => [...sources, source])
 
 /**
- * Resolve an import's URL-path spelling against its importing file, or return
- * null for unsupported syntax or a surviving unsupported segment. URL dot
- * processing precedes decoding and filesystem validation, so `bad%/../dep`
- * names `dep`. Decode only the surviving specifier components, once; the
- * importing path is already a filesystem path and is never decoded again.
+ * Admit original source spellings before host resolution or dependency loading.
+ * Both compiler paths share these restrictions. Encoded %3F/%23 remain filename
+ * characters; literal ?/# remain refused until their identity contract ships.
+ * The portable segment guard is admission only: the host receives the original
+ * specifier and the importer identity, never a prejoined filesystem path.
  *
- * Literal colons, backslashes, query and fragment delimiters remain outside
- * this path-only subset. Reject them before dot processing: suffix text is
- * not a filesystem component and must neither be decoded nor canceled as one.
- * Do not strip suffixes, which would merge distinct module identities.
- * Percent-encoded `?` and `#` are filename data, not URL delimiters.
- * Package resolution and distinct URL identities remain in
- * `../todo/module-resolution-compatibility.md`.
- *
- * @type {(path: string) => (specifier: string) => string | null}
+ * @type {(source: _Source) => (imports: readonly AstImport[]) => Effect<ResolveFileModule, readonly _Source[], ParseError>}
  */
-export const _importPath = path => specifier => {
-    if (specifier.includes(':') || specifier.includes('\\')
-        || specifier.includes('?') || specifier.includes('#')) { return null }
-    const rooted = specifier.startsWith('/')
-    const raw = specifier.split('/')
-    const components = (rooted ? raw.slice(1) : raw).reduce(importDotSegments(rooted), [])
-    const segments = components.map(importSegment)
-    return segments.every(segment => segment !== null)
-        ? pathConcat(pathConcat(path)('..'))(`${rooted ? '/' : ''}${segments.join('/')}`)
-        : null
-}
-
-/**
- * Resolve all source import records before reading dependencies. Both compiler
- * paths use this boundary, so invalid source becomes a normal ParseError, not
- * an assertion escaping the effect. Import order and JSON attributes survive.
- * Classify the original spelling before decoding or normalizing it: bare
- * names, package subpaths and other non-path forms need host resolution,
- * not a sibling-file fallback. Literal ? and # introduce unsupported URL
- * components; stripping them would merge distinct module identities. Check
- * before percent decoding so %3F and %23 remain filename characters.
- * CLI input paths are not import specifiers.
- *
- * @type {(path: string) => (imports: readonly AstImport[]) => Result<readonly _Source[], ParseError>}
- */
-export const _importSources = path => imports => {
+export const _importSources = source => imports => {
+    const { path } = source
     const unsupported = imports.find(({ specifier }) =>
         !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/'))
     if (unsupported !== undefined) {
-        return error({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../ or /`, metadata: null, path })
+        return pureError({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../ or /`, metadata: null, path })
     }
     const components = imports.find(({ specifier }) => specifier.includes('?') || specifier.includes('#'))
     if (components !== undefined) {
-        return error({ message: `unsupported import specifier "${components.specifier}": query and fragment components are not supported`, metadata: null, path })
+        return pureError({ message: `unsupported import specifier "${components.specifier}": query and fragment components are not supported`, metadata: null, path })
     }
-    const paths = imports.map(imported => _importPath(path)(imported.specifier))
-    if (paths.every(resolved => resolved !== null)) {
-        return ok(paths.map((resolved, i) => ({ id: resolved, path: resolved, json: imports[i].json })))
+    const invalid = imports.find(({ specifier }) => decodeImportPath(specifier) === null)
+    if (invalid !== undefined) {
+        return pureError({ message: `invalid module specifier: ${invalid.specifier}`, metadata: null, path })
     }
-    const specifier = imports[paths.indexOf(null)].specifier
-    return error({ message: `invalid module specifier: ${specifier}`, metadata: null, path })
+    return foldStep(pureOk(imports), [], importSource(source))
 }
 
 /**
@@ -218,16 +163,15 @@ export const _attributeError = ({ path, json }) => {
 /** @type {(source: _Source) => string} */
 const idOf = ({ id }) => id
 
-/** @type {(source: _Source) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
-const transpileWithImports = ({ id, path }) => module => context => {
-    const resolved = _importSources(path)(module[0])
-    if (resolved[0] === 'error') { return pure(resolved) }
-    const sources = resolved[1]
+/** @type {(source: _Source) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile | ResolveFileModule, ParseContext, ParseError>} */
+const transpileWithImports = source => module => context => {
+    const { id, path } = source
+    const resolved = _importSources(source)(module[0])
     const contextWithStack = { ...context, stack: { first: id, tail: context.stack } }
-    const x0 = foldStep(pureOk(sources), contextWithStack, foldNextModuleOp)
+    const x0 = historyStep(history(resolved), sources => foldStep(pureOk(sources), contextWithStack, foldNextModuleOp))
     return step(
         x0,
-        contextWithImports => {
+        ([contextWithImports, sources]) => {
             const imports = sources.map(idOf).map(importAt(contextWithImports))
             // a body fails on a property read of `null` or `undefined`, as
             // JavaScript throws; the failure has no token, since the value
@@ -250,7 +194,7 @@ const jsonDone = (id, context) => value => ({ ...context, complete: setReplace(i
  * with it, is refused as JavaScript refuses it, and anything else is parsed
  * as a module and its own imports followed.
  *
- * @type {(source: _Source) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>}
+ * @type {(source: _Source) => (context: ParseContext) => Effect<ReadFile | ResolveFileModule, ParseContext, ParseError>}
  */
 const foldNextModuleOp = source => context => {
     const { id, path, json } = source
@@ -274,7 +218,7 @@ const foldNextModuleOp = source => context => {
         module => transpileWithImports(source)(module)(context))
 }
 
-/** @type {(source: _Source) => Effect<ReadFile, Denotation, ParseError>} */
+/** @type {(source: _Source) => Effect<ReadFile | ResolveFileModule, Denotation, ParseError>} */
 const transpileModule = source => mapStep(
     foldNextModuleOp(source)({ stack: null, complete: null }),
     context => mapDjs(context)(source.id))
@@ -316,11 +260,11 @@ const transpileJson = path => mapStep(_parseJson(path), jsonDenotation)
  * Returns `['ok', denotation]` on success, or `['error', ParseError]` on a
  * parse failure, a missing file, or a circular dependency.
  *
- * @type {(path: string) => Effect<ReadFile, Denotation, ParseError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Denotation, ParseError>}
  */
-export const transpile = path => path.endsWith('.json')
-    ? transpileJson(path)
-    : transpileModule({ id: path, path, json: false })
+export const transpile = path => step(_rootSource(path), source => source.json
+    ? transpileJson(source.path)
+    : transpileModule(source))
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 

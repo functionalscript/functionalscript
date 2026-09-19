@@ -4,15 +4,21 @@
  * @import { Denotation } from '../ast/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  */
-import { _importPath, _importSources, parse, transpile } from './module.f.mjs'
+
+import { _importSources, parse, transpile } from './module.f.mjs'
 import { resolve, unresolved } from '../edag/module.f.mjs'
-import { compile } from '../module.f.mjs'
-import { exitCode } from '../../effects/node/module.f.mjs'
+import { _errorLocation, compile } from '../module.f.mjs'
+import { nodeCommands, exitCode, ioError } from '../../effects/node/module.f.mjs'
 import { tryStringify } from '../../media/datajs/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
-import { utf8 } from '../../text/module.f.mjs'
+import { partialRun } from '../../effects/mock/module.f.mjs'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+
+// The virtual host declares lexical path identities; native URL behavior has host proofs.
+/** @type {(path: string) => (imports: readonly import('../ast/types.ts').AstImport[]) => Result<readonly import('./types.ts')._Source[], ParseError>} */
+const importSources = path => imports => virtual(emptyState)(_importSources({ id: path, path, json: false })(imports))[1]
 
 /** @type {(root: Dir) => (path: string) => Result<Denotation, ParseError>} */
 const run = root => path => {
@@ -52,6 +58,120 @@ const invalidImportMessage = specifier => specifier.includes('?') || specifier.i
     : `invalid module specifier: ${specifier}`
 
 export const proof = {
+    // The resolver's identity may differ from the read path in both directions:
+    // one identity under two spellings, and two identities at one location.
+    hostIdentities: () => {
+        /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadFile | import('../../effects/node/types.ts').ResolveFileModule, null>} */
+        const host = {
+            resolveFileModule: (name, parent) => state => {
+                if (parent === null) {
+                    assertEq(name, 'entry')
+                    return [state, ok({ id: 'file:///logical/main.mjs', path: 'physical/main' })]
+                }
+                assertEq(parent, 'file:///logical/main.mjs')
+                assert(['./one.mjs', './two.mjs', './%6fne.mjs'].includes(name))
+                return [state, ok({
+                    id: name === './two.mjs' ? 'file:///logical/two.mjs' : 'file:///logical/one.mjs',
+                    path: 'physical/shared',
+                })]
+            },
+            readFile: path => state => {
+                assert(['physical/main', 'physical/shared'].includes(path))
+                return [state, ok(utf8(path === 'physical/main'
+                    ? 'import a from "./one.mjs"; import b from "./two.mjs"; import c from "./%6fne.mjs"; export default [a, b, c];'
+                    : 'export default [7];'))]
+            },
+        }
+        const runner = partialRun(nodeCommands)(host)(null)
+        const value = unwrap(runner(transpile('entry'))[1]).value
+        assert(value instanceof Array)
+        assert(value[0] === value[2] && value[0] !== value[1])
+        const graph = unwrap(runner(resolve('entry'))[1])
+        assert(graph instanceof Array && graph[0] === '[]')
+        assert(graph[1][0] === graph[1][2] && graph[1][0] !== graph[1][1])
+    },
+    rootJsonAlias: () => {
+        /** @type {import('../../effects/mock/types.ts').MemOperationMap<import('../../effects/node/types.ts').ReadFile | import('../../effects/node/types.ts').ResolveFileModule, null>} */
+        const host = {
+            resolveFileModule: (name, parent) => state => {
+                assertEq(name, 'input.json')
+                assertEq(parent, null)
+                return [state, ok({ id: 'file:///real/data', path: 'real/data' })]
+            },
+            readFile: path => state => {
+                assertEq(path, 'real/data')
+                return [state, ok(utf8('[1,2]'))]
+            },
+        }
+        const runner = partialRun(nodeCommands)(host)(null)
+        assertStructurallySame(unwrap(runner(transpile('input.json'))[1]).value, [1, 2])
+        assertStructurallySame(unwrap(runner(resolve('input.json'))[1]), ['[]', [1, 2]])
+    },
+    missingResolver: () => {
+        const runner = partialRun(nodeCommands)({})(null)
+        const value = runner(transpile('entry'))[1]
+        assertStructurallySame(value, ['error', {
+            message: 'module resolution failed: operation not implemented: resolveFileModule',
+            metadata: null, path: 'entry',
+        }])
+        assertStructurallySame(runner(resolve('entry'))[1], value)
+    },
+    // Once resolved, a diagnostic names the host's loading path, including
+    // syntax positions and cycles. A root that cannot resolve still names the
+    // caller's input; an unresolved dependency names its resolved importer.
+    hostDiagnosticPaths: () => {
+        const imports = 'import value from "./dep.f.js"; export default value;'
+        const root = { id: 'file:///real/main.f.js', path: '/real/main.f.js' }
+        /** @type {readonly (readonly [string | null, string | null, string, string])[]} */
+        const cases = [
+            [null, null, 'main.f.js', 'module resolution failed: missing module'],
+            [imports, null, '/real/main.f.js', 'module resolution failed: missing module'],
+            ['export default [;', null, '/real/main.f.js:1:17', 'unexpected token'],
+            [imports, 'export default [;', '/real/dep.f.js:1:17', 'unexpected token'],
+            ['import value from "./%6dain.f.js"; export default value;', null, '/real/main.f.js', 'circular dependency'],
+        ]
+        for (const [main, dependency, location, message] of cases) {
+            /** @type {import('../../effects/mock/types.ts').PartialMemOperationMap<import('../types.ts')._CompileOp, string>} */
+            const host = {
+                resolveFileModule: (name, parent) => state => {
+                    if (parent === null) {
+                        assertEq(name, 'main.f.js')
+                        return [state, main === null ? error(ioError({ message: 'missing module' })) : ok(root)]
+                    }
+                    assertEq(parent, root.id)
+                    if (name === './%6dain.f.js') { return [state, ok(root)] }
+                    assertEq(name, './dep.f.js')
+                    return [state, dependency === null ? error(ioError({ message: 'missing module' }))
+                        : ok({ id: 'file:///real/dep.f.js', path: '/real/dep.f.js' })]
+                },
+                readFile: path => state => {
+                    assert([root.path, '/real/dep.f.js'].includes(path))
+                    const source = path === root.path ? main : dependency
+                    assert(source !== null)
+                    return [state, ok(utf8(source))]
+                },
+                write: (stream, data) => state => {
+                    assertEq(stream, 'stderr')
+                    return [state + utf8ToString(data), ok(undefined)]
+                },
+                writeFile: () => state => {
+                    assert(false, 'a failed compilation must not write output')
+                    return [state, ok(undefined)]
+                },
+            }
+            const runner = partialRun(nodeCommands)(host)('')
+            for (const result of [runner(transpile('main.f.js'))[1], runner(resolve('main.f.js'))[1]]) {
+                assert(result[0] === 'error')
+                assertEq(_errorLocation('main.f.js')(result[1]), location)
+                assertEq(result[1].message, message)
+            }
+            for (const output of ['out.data.js', 'out.edag.data.js']) {
+                const [stderr, result] = runner(compile(['main.f.js', output]))
+                assertEq(exitCode(result), 1)
+                assertEq(stderr.trim(), `${location} - error: ${message}`)
+            }
+        }
+    },
     // The literal local targets exist: these must be refusals, not fallback
     // loads or accidental file-not-found errors. Prefixing ./ is the control.
     bareImports: () => {
@@ -86,13 +206,13 @@ export const proof = {
         refusedSpecifier('pkg.json', 'import value from "pkg.json" with { type: "json" }; export default value;', { 'pkg.json': [utf8('7')] })
     },
     importSources: () => {
-        assertStructurallySame(_importSources('main.f.js')([]), ['ok', []])
-        assertStructurallySame(_importSources('/dir/main.f.js')([
+        assertStructurallySame(importSources('main.f.js')([]), ['ok', []])
+        assertStructurallySame(importSources('/dir/main.f.js')([
             { specifier: './dep.f.js', json: false },
             { specifier: '../data.json', json: true },
         ]), ['ok', [{ id: '/dir/dep.f.js', path: '/dir/dep.f.js', json: false }, { id: '/data.json', path: '/data.json', json: true }]])
         // Keep rooted input behavior separate from classifying import text.
-        assertStructurallySame(_importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ id: '/dep.f.js', path: '/dep.f.js', json: false }]])
+        assertStructurallySame(importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ id: '/dep.f.js', path: '/dep.f.js', json: false }]])
         for (const specifier of ['', '.', '..', '#alias', 'file:///dep.f.js', 'node:fs', 'https://example.com/dep.f.js']) {
             refusedSpecifier(specifier, `import value from "${specifier}"; export default value;`, {})
         }
@@ -239,36 +359,6 @@ export const proof = {
         const s = unwrap(tryStringify(result[1].value))
         assertEq(s, 'export default 1;')
     },
-    // Only the specifier is decoded, once; the importer's filesystem root stays put.
-    importPath: () => {
-        assertEq(_importPath('main.f.js')('./%64ep.f.js'), 'dep.f.js')
-        assertEq(_importPath('C:/repo/main.f.js')('./%64ep.f.js'), 'C:/repo/dep.f.js')
-        assertEq(_importPath('dir%25/main.f.js')('./dep.f.js'), 'dir%25/dep.f.js')
-        assertEq(_importPath('main.f.js')('./%255C.f.js'), '%5C.f.js')
-        assertEq(_importPath('main.f.js')('./%253A.f.js'), '%3A.f.js')
-    },
-    // URL dot processing sees encoded components, not decoded filesystem paths.
-    // These invalid components vanish before validation; the same components
-    // still fail when they survive, or when `..` cancels only an empty one.
-    importPathDotSegments: () => {
-        for (const component of ['bad%', '%ff', '%2F', '%2f', '%00', '%5C', '%5c', 'C%3A', '%ED%A0%80']) {
-            for (const parent of ['..', '.%2e', '%2E.', '%2e%2E']) {
-                const specifier = `./${component}/%2E/${parent}/%64ep.f.js`
-                assertEq(_importPath('main.f.js')(specifier), 'dep.f.js', specifier)
-            }
-            assertEq(_importPath('main.f.js')(`./${component}//../dep.f.js`), null, component)
-            assertEq(_importPath('main.f.js')(`./${component}/../${component}/dep.f.js`), null, component)
-        }
-        assertEq(_importPath('main.f.js')('./bad%/x/../../dep.f.js'), 'dep.f.js')
-        assertEq(_importPath('/a/main.f.js')('/bad%/../../dep.f.js'), '/dep.f.js')
-        assertEq(_importPath('/a/main.f.js')('/../dep.f.js'), '/dep.f.js')
-        assertEq(_importPath('a/main.f.js')('../../dep.f.js'), '../dep.f.js')
-        assertEq(_importPath('main.f.js')('./%252e/dep.f.js'), '%2e/dep.f.js')
-        assertEq(_importPath('main.f.js')('./%252e%252e/dep.f.js'), '%2e%2e/dep.f.js')
-        // Do not confuse a raw drive/separator with percent-encoded data.
-        assertEq(_importPath('main.f.js')('./C:/../dep.f.js'), null)
-        assertEq(_importPath('main.f.js')('./bad%\\extra/../dep.f.js'), null)
-    },
     canceledImportComponents: () => {
         for (const component of ['bad%', '%ff', '%2F', '%00', '%5C', 'C%3A']) {
             for (const parent of ['..', '.%2e', '%2E.', '%2e%2E']) {
@@ -280,17 +370,6 @@ export const proof = {
                 assertEq(unwrap(run(root)('main.f.js')).value, 1, specifier)
                 assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 1, specifier)
             }
-        }
-    },
-    importPathRefusals: () => {
-        for (const specifier of [
-            './bad%.f.js', './%ff.f.js', './a%2Fb.f.js', './a%5Cb.f.js', './a%00b.f.js',
-            './C%3A/x.f.js', './dir/../c%3a/x.f.js', './%43%3a/x.f.js', './C:relative.f.js',
-            './name%3Astream.f.js', './%ED%A0%80.f.js', './%ED%B0%80.f.js',
-            './dep.f.js?x=%64', './dep.f.js#x=%64', './dep.f.js?', './dep.f.js#',
-            './ignored?x=/../dep.f.js', './ignored#x=/../dep.f.js',
-        ]) {
-            assertEq(_importPath('main.f.js')(specifier), null, specifier)
         }
     },
     // Escaped URL delimiters are filename data, not query/fragment syntax.
@@ -308,19 +387,9 @@ export const proof = {
                 'main.f.js': [utf8(`import value from "${specifier}"; export default value;`)],
                 [name]: [utf8('export default 7;')],
             }
-            assertEq(_importPath('main.f.js')(specifier), name)
             assertEq(unwrap(run(root)('main.f.js')).value, 7, specifier)
             assertEq(unwrap(virtual({ ...emptyState, root })(resolve('main.f.js'))[1]), 7, specifier)
         }
-    },
-    // Native URL input is a scalar-value string. Do not apply that replacement
-    // to percent-encoded UTF-8: the ED A0 80 case above must still fail.
-    importPathSurrogates: () => {
-        assertEq(_importPath('main.f.js')('./\ud800.f.js'), '\ufffd.f.js')
-        assertEq(_importPath('main.f.js')('./\udc00.f.js'), '\ufffd.f.js')
-        assertEq(_importPath('main.f.js')('./\ud800%20.f.js'), '\ufffd .f.js')
-        assertEq(_importPath('main.f.js')('./%61\udc00.f.js'), 'a\ufffd.f.js')
-        assertEq(_importPath('main.f.js')('./\ud83d\ude00.f.js'), '\ud83d\ude00.f.js')
     },
     // A valid dependency before a bad, unused import must not hide the error.
     // These are Result assertions, not "throw" proofs: a leaked panic fails.

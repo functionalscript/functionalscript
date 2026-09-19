@@ -61,10 +61,10 @@ rollout below records existing work; it does not authorize retaining that defect
 restriction below — and so are the unresolved module and its resolution:
 [`fjs/fsc/edag`](../edag/module.f.mjs) compiles a parsed module to
 `Unresolved { imports, edag }`, anchoring required computations the export does
-not reach. The current `resolve` links from a root filesystem path, memoized by
-path within the link. That describes the implementation, not the required
-module-identity contract: its path-based resolver and keys still need the
-linked P1 correction. The binding is done where a reference is lowered — the
+not reach. `resolve` asks the shared host resolver for the entry and imported
+module identities, and memoizes by identity within the link. The Node file
+profile supplies canonical file URLs; unsupported classes remain refused as
+tracked in the [resolution TODO](./module-resolution-compatibility.md). The binding is done where a reference is lowered — the
 importing module is lowered over the imported modules' EDAGs, its parameters
 never built — rather than by rewriting a finished `Unresolved`, which would
 need a memo keyed by node identity to keep sharing; a cache that stores
@@ -599,15 +599,14 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       nested function-local `['args']` nodes are never interpreted as import parameters.
       Done by construction: reachability is read from the syntax (`unreached`), where
       an import is an `aref`, never from `['args']` nodes.
-- [x] Add per-link memoization for repeated/diamond imports in the implemented
-      path-based domain; pinned by `resolve.diamond` in
-      [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs). This shipped mechanism
-      still uses filesystem-path keys; it does not complete the P1 identity fix.
-- [ ] **P1:** replace path-based resolution, memo keys and cycle tracking with the
-      shared [module-identity contract](./module-resolution-compatibility.md).
-      Preserve same-identity sharing and distinct-identity separation; test
-      escaped names, bare specifiers, URL variants and import attributes on
-      value/EDAG paths and warm/cold builds. Unsupported classes stay refused.
+- [x] Add per-link memoization for repeated/diamond imports, pinned by
+      `resolve.diamond` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
+      Memo keys and cycle tracking now use host-resolved identities; the Node
+      file profile supplies canonical file URLs for roots and dependencies.
+- [ ] Extend the shared [module-identity contract](./module-resolution-compatibility.md)
+      to additional specifier classes. Preserve same-identity sharing and
+      distinct-identity separation on value/EDAG paths and warm/cold builds;
+      package and query/fragment imports remain explicitly refused.
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
       Done: `resolve` returns an `Exp`.
@@ -717,9 +716,12 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] An unused import is not discarded: `import b from './b.f.js'; export default 1`
       links to `[',', [<b's EDAG>, 1]]`, so a failure in `b.f.js` cannot disappear.
       Pinned by `resolve.anchored`.
-- [x] A diamond in the implemented path-based domain resolves one module once
-      and both paths bind the same EDAG node. Pinned by `resolve.diamond` and
-      `resolve.bound`; these do not establish URL/package identity compatibility.
+- [x] A diamond resolves one module identity once and both paths bind the same
+      EDAG node. Pinned by `resolve.diamond`, `resolve.bound`, and
+      `moduleSharing`/`hostIdentities` in
+      [`transpiler/proof.f.mjs`](../transpiler/proof.f.mjs). Native ESM identity
+      comparisons belong to the [Node adapter proofs](../../effects/node/proof.mjs).
+      Package and query/fragment support remain separate work.
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in
       [`fjs/fsc/proof.f.mjs`](../proof.f.mjs) (`specialNumbers`, the `jsonRefused`
