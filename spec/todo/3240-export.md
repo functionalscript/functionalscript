@@ -1,65 +1,96 @@
-# Non-default Export
+## Named exports
 
-In FunctionalScript we use `export default`:
+**Priority:** P1
+**Status:** open
 
-```js
-export default 17
-```
+### Problem
 
-The main reason is that it's compatible with other module types, such as JSON and CommonJS.
-
-ECMAScript supports `export` of other non-default objects. We wouldn't have much reasons to support but systems as JSR doesn't really like `default` exports.
-
-To implement `export` we should change our definition of a module from `unknown` to
-
-```ts
-type Module = {
-    readonly [k in string]?: unknonwn
-    readonly default?: unknown
-}
-```
-
-Or, more strict version, which allows either `export` or `export default` but not both:
-
-```ts
-type Module = ExportMap | ExportDefault
-type ExportMap = Omit<{
-    readonly[k in string]: unknown
-}, 'default'>
-type DefaultExport = {
-    readonly default: unknown
-}
-```
-
-We don't need to change `import` for now if we implement `import * as X from ...`. For example
+FSC requires one final `export default`. Existing FunctionalScript modules use
+named exports: compiling the dependency-free
+[`types/range`](../../fjs/types/range/module.f.mjs) module unchanged at
+`3552bca74723a79037e05d0906f3446bffee993e` fails with `unexpected token` at
+`const` in its first export:
 
 ```js
-// types/list/module.f.js
-export const map = ...
+export const contains = (b, e) => i => b <= i && i <= e
 ```
+
+This is the first observed blocker for that candidate in the
+[compiler-compatibility migration](../../todo/fjs-nanvm-integration.md).
+Supporting named exports does not establish that the rest of the file compiles.
+
+### Proposal
+
+Start with `export const name = expression;`, using the existing `const`
+binding and expression rules. An exported constant is also a local binding;
+later declarations may refer to it. Imports stay first, and ordinary and
+exported constants may appear together in declaration order.
 
 ```js
-import * as List from 'types/list/module.f.js'
-const { map } = List
+const base = 17;
+export const first = base;
+export const second = first;
 ```
 
-## Reserved Export Names
+Represent a module's exports by name, with `default` as the name of its default
+export. Keep this export table distinct from a default-exported object:
 
-Certain export names are forbidden because they give the module namespace object special meaning in the JavaScript runtime.
+| Source | Export table |
+| --- | --- |
+| `export default { first: 17 };` | `{ default: { first: 17 } }` |
+| `export const first = 17;` | `{ first: 17 }` |
 
-### `then`
+The table describes compiler linkage; it is not a claim that an ordinary object
+has JavaScript module-namespace semantics. A default import selects `default`
+and fails if that export is absent. It must never receive the whole export table
+as a substitute. JSON imports continue to expose their document as `default`.
 
-A module **must not** export a zero-argument (or one-or-two-argument) function named `then`:
+**For owner review:** allow named and default exports in the same module,
+keeping `export default` last when present. This follows JavaScript and uses
+the same table for both. The previous alternative was to forbid mixing them;
+that restriction remains undecided. A named-only module needs no default export.
 
-```ts
-// FORBIDDEN
-export const then = () => { ... }
-```
+Preserve every declaration's evaluation and the sharing between exported
+bindings. Report duplicate bindings/exports at their source locations.
+Retain the existing design's reservation of the export name `then`, regardless
+of its value: a callable `then` on a namespace interferes with dynamic import's
+promise resolution.
 
-When a module namespace object has a callable `.then` property, JavaScript's `await` (and `Promise.resolve()`) treats the entire namespace as a *thenable*. A dynamic import `await import('./module.f.mjs')` would call `.then()` on the namespace instead of resolving to it — causing the import to hang, resolve to an unexpected value, or never complete, depending on what `then` does.
+Namespace imports belong to the separate
+[namespace-import TODO](./2220-namespace-import.md). Export lists, re-exports,
+and new expression or function syntax are outside this first step.
 
-Since FunctionalScript modules are loaded via dynamic import in the test framework and the runtime, this would silently corrupt module loading. The FunctionalScript compiler/validator must reject any module that exports a function named `then`.
+### Output contract to settle
 
-Non-function exports named `then` (e.g. a string or number) are also problematic because `Promise.resolve()` only checks `typeof value.then === 'function'` — so a function is the critical case, but for clarity the name `then` should be reserved entirely.
+FSC currently lowers a module to one exported value/EDAG. Named exports require
+the export table to survive parsing, linking, and module output; accepting the
+syntax alone is insufficient.
 
-This constraint was surfaced by the test-framework thenable regression.
+Propose preserving export names in generated JavaScript and retaining the
+default value for JSON and DataJS value outputs, with a diagnostic when no
+default exists. Decide how the EDAG and Rust entry-point APIs expose named
+exports before changing them. Do not silently emit a default-exported object
+where the source declared named exports.
+
+### Tasks
+
+- [ ] Agree on mixed named/default exports and the output contract above;
+      record the selected module-result shape and affected APIs here.
+- [ ] Implement `export const` through the grammar, AST, and linking, preserving
+      local references, evaluation order, sharing, and export names. Add proofs
+      for named-only and agreed mixed modules, duplicate names, reserved `then`,
+      and a default import of a module without a default export.
+- [ ] Carry that result through the affected output paths. Prove generated
+      JavaScript exposes the same exports and values as the original source,
+      and preserve default-export and JSON-import behavior.
+- [ ] Retry the unchanged `types/range/module.f.mjs`. If it fails, show the next
+      diagnostic to the owner, who chooses a source rewrite or a missing
+      compiler feature. Rename it to `.f.js` only after full compilation succeeds.
+- [ ] Move the implemented contract into the specification and compiler docs,
+      then remove this TODO.
+
+### Related
+
+- [Current export contract](../README.md#exporting-a-value).
+- [Compiler entry points](../../fjs/fsc/module.f.mjs).
+- [Namespace imports](./2220-namespace-import.md).
