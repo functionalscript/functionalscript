@@ -16,10 +16,8 @@
       reasoning is [`../README.md`](../README.md))
 - [ ] Touch-sized links in a page's lists — see
       [touch-targets](touch-targets.md)
-- [ ] A link looks the same once it has been followed — see
-      [visited-link-colour](visited-link-colour.md)
-- [ ] A link colour of the site's own, green — see
-      [green-link-colour](green-link-colour.md)
+- [x] A link looks the same once it has been followed, in the site's own
+      green (`--link` in `fjs/website/style/module.f.mjs`)
 - [ ] A favicon, two committed files linked from every head — see
       [favicon](favicon.md)
 - [ ] Decide what the build owes its own leftovers — see
