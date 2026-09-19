@@ -79,8 +79,8 @@ the third. The `ascii` module doc's ownership claim then holds.
 
 ### Related
 
-- [../../web/todo/hex-digit-value.md](../../web/todo/hex-digit-value.md) —
-  the same rederivation in `fjs/web`, where the general decoder *is* a
+- [../../text/percent/todo/hex-digit-value.md](../../text/percent/todo/hex-digit-value.md) —
+  the same rederivation in `fjs/text/percent`, where the general decoder *is* a
   drop-in.
 - [../../git/todo/ascii-digit-folds.md](../../git/todo/ascii-digit-folds.md)
   — the decimal/octal cousins of the same "reached past `fjs/text/ascii`"

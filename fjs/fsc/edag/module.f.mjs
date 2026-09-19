@@ -18,8 +18,8 @@
  */
 
 import { anchors } from '../ast/module.f.mjs'
-import { _attributeError, _importPath, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
-import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { _attributeError, _importSources, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
+import { foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
@@ -238,9 +238,6 @@ const appended = bound => ([context, edag]) => ({ context, bound: [...bound, eda
 /** One import resolved and its EDAG appended to the module's bound imports. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile, _Binding, ParseError>} */
 const linkImport = source => ({ context, bound }) => mapStep(link(source)(context), appended(bound))
 
-/** An import as a file to read: its specifier resolved against the importer's path, and what it is. @type {(path: string) => (imported: AstImport) => _Source} */
-const sourceOf = path => ({ specifier, json }) => ({ path: _importPath(path)(specifier), json })
-
 /**
  * A parsed module linked: its imports resolved in source order, each to its
  * own EDAG, and the module lowered over them — the binding happens where a
@@ -250,7 +247,7 @@ const sourceOf = path => ({ specifier, json }) => ({ path: _importPath(path)(spe
  * @type {(path: string) => (context: _Link) => (module: AstModule) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
  */
 const linkModule = path => context => module => step(
-    foldStep(pureOk(module[0].map(sourceOf(path))), { context, bound: [] }, linkImport),
+    foldStep(pure(_importSources(path)(module[0])), { context, bound: [] }, linkImport),
     ({ context: linked, bound }) => pureOk(completed(path)(linked)(lowered(bound)(module))))
 
 /**

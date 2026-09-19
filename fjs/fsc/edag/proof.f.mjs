@@ -116,6 +116,16 @@ export const proof = {
         const root = { 'a.f.js': file('import m from "./m.f.js"; export default m.x;'), 'm.f.js': file('export default { x: 1 };') }
         expectEdag(program(root)('a.f.js'), ['.', ['{}', [[':', 'x', 1]]], 'x'])
     },
+    // Linking uses the same URL-path resolution as transpilation: an escaped
+    // spelling resolves to dep.f.js, not to a literal %64ep.f.js sibling.
+    percentEscapedImport: () => {
+        const root = {
+            'main.f.js': file('import value from "./%64ep.f.js"; export default value;'),
+            'dep.f.js': file('export default 1;'),
+            '%64ep.f.js': file('export default 2;'),
+        }
+        expectEdag(program(root)('main.f.js'), 1)
+    },
     // imports take their positions from the source, and one import is one
     // parameter node however many references reach it
     parameters: () => {
