@@ -163,11 +163,11 @@ const functionLines = root => {
             '<', '<=', '>', '>=', '&&', '||', '??', 'own', 'typeof', 'String', '!', '~'].includes(body[0])
     )
     return mapOk(s => [
-        'fn f0<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {',
+        'fn f0<A: IVm>(_args: &Array<A>) -> Result<Any<A>, Any<A>> {',
         `${indent}${resultBody ? s : `Ok(${s})`}`,
         '}',
         '',
-    ])(expExpr([], { args: 'args', fallible: true })(body))
+    ])(expExpr([], { args: '_args', fallible: true })(body))
 }
 
 /**
@@ -201,7 +201,7 @@ const generateResult = root => mapOk(body => {
         '#[rustfmt::skip]',
         'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
         ...(functionRoot(root)
-            ? [`${indent}let args: Array<A> = Array::default();`, `${indent}f0(&args)`]
+            ? [`${indent}let _args: Array<A> = Array::default();`, `${indent}f0(&_args)`]
             : body),
         '}',
         '',

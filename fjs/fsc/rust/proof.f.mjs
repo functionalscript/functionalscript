@@ -93,14 +93,14 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 
 use nanvm_lib::vm::{Any, Array, IVm, ToAny};
 
-fn f0<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
-    (args.clone().to_any()) + (1f64).to_any()
+fn f0<A: IVm>(_args: &Array<A>) -> Result<Any<A>, Any<A>> {
+    (_args.clone().to_any()) + (1f64).to_any()
 }
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    let args: Array<A> = Array::default();
-    f0(&args)
+    let _args: Array<A> = Array::default();
+    f0(&_args)
 }
 `)
     },
@@ -108,7 +108,7 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         /** @type {Exp} */
         const root = ['=>', null, ['[]', [['+', ['args'], 1]]]]
         const result = generate(root)
-        assert(result.includes('[((args.clone().to_any()) + (1f64).to_any())?].to_array().to_any()'), result)
+        assert(result.includes('[((_args.clone().to_any()) + (1f64).to_any())?].to_array().to_any()'), result)
     },
     refuseNestedFunctionValue: () => {
         const result = toRust(['=>', null, ['[]', [['=>', ['[]', []], ['undefined']]]]])
