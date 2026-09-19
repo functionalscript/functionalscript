@@ -2,18 +2,6 @@
 
 **Decentralized Immutable Source Of Truth**
 
-```text
-immutable documents
-       +
-immutable history
-       +
-signatures + trusted time
-       +
-decentralized names
-       =
-      DISOT
-```
-
 ## Documents
 
 A [document](./doc-def.md) is a finite sequence of bits. A hash is its immutable global name.
