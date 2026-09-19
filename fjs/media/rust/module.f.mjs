@@ -24,28 +24,47 @@
  */
 
 /**
- * A double-quoted Rust string literal.
+ * A character a Rust string literal cannot hold as it stands: a control
+ * character — U+0000 to U+001F, or U+007F — or one of the bidirectional
+ * controls, U+202A to U+202E and U+2066 to U+2069, which `rustc` refuses in
+ * a literal under its default `text_direction_codepoint_in_literal` deny.
+ * Each is spelled by its `\u{…}` escape instead. The comparisons are on
+ * one character, so they compare its code unit, and every character named
+ * here is one code unit.
  *
- * Any other control character is rejected rather than escaped: no caller needs
- * one, and a silently mangled literal is worse than a failed generation.
- *
- * @type {(v: string) => string}
+ * @type {(c: string) => boolean}
  */
-export const stringLiteral = v => `"${[...v].map(c => {
+const unspellable = c =>
+    c < ' ' || c === '\u007f' || (c >= '\u202a' && c <= '\u202e') || (c >= '\u2066' && c <= '\u2069')
+
+/**
+ * One character of a Rust string literal: the five escapes Rust and
+ * JavaScript spell alike, the `\u{…}` escape for what {@link unspellable}
+ * names, and every other character as it stands, Rust source being UTF-8.
+ *
+ * @type {(c: string) => string}
+ */
+const character = c => {
     switch (c) {
         case '\\': { return '\\\\' }
         case '"': { return '\\"' }
         case '\n': { return '\\n' }
         case '\r': { return '\\r' }
         case '\t': { return '\\t' }
-        default: {
-            if (c < ' ' || c === '\u007f') {
-                throw ['control character in a Rust string literal', v]
-            }
-            return c
-        }
+        default: { return unspellable(c) ? `\\u{${c.charCodeAt(0).toString(16)}}` : c }
     }
-}).join('')}"`
+}
+
+/**
+ * A double-quoted Rust string literal.
+ *
+ * A lone surrogate passes through as it stands, which no Rust literal can
+ * hold — [strings a Rust literal cannot
+ * spell](./todo/strings-rust-cannot-spell.md).
+ *
+ * @type {(v: string) => string}
+ */
+export const stringLiteral = v => `"${[...v].map(character).join('')}"`
 
 /**
  * An `f64` literal.
