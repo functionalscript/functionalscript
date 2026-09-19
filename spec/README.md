@@ -9,10 +9,11 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — every operator but unary `-`,
-type annotations — and the design documents for the VM, I/O,
-serialization, and the rest of the roadmap live in
-[`spec/todo/`](./todo/README.md).
+Features the parser does not recognize yet — the lazy operators (`&& || ??`),
+loose equality (`== !=`), the remaining unary operators (`! + typeof`), the
+conditional (`?:`), the comma operator, and type annotations — and the
+design documents for the VM, I/O, serialization, and the rest of the roadmap
+live in [`spec/todo/`](./todo/README.md).
 
 Those documents sort planned features into two layers, and use the names here.
 **DJS** — data JS — is the data subset: a module denotes a graph of values,
@@ -393,8 +394,8 @@ See
 ## Supported Value Types
 
 An expression is a data expression, a property access, a function, a call, a
-negation, or any of those in parentheses ([grouping](#grouping)). Unary `-` is
-the one operator — see the [roadmap](./todo/README.md).
+negation, a binary operator ([operators](#operators)), or any of those in
+parentheses ([grouping](#grouping)).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -449,14 +450,19 @@ two tokens in both — the operator and the word — which no property name may
 be.
 
 The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
-and the only operator the language has. It is not part of the literal after
-it: `-42.5` is the negation of `42.5`, `- 42.5` is the same value written with
-a space, and `-NaN` and `-Infinity` are values as JavaScript has them. It binds
-looser than a property access or a call, as it does in JavaScript, so `-1 .x`
-is `-(1 .x)` and `-1()` is `-(1())`. What it takes is JavaScript's
-`UnaryExpression`, which an arrow function is not, so `-(...a) => 1` is a
-syntax error in both. Two adjacent `-` characters are the decrement operator,
-which the language has no rule for: a negation of a negation is `- -1`.
+the first operator the language had; `~`, the **bitwise not operator**, is the
+other prefix, Stage A of the same operators document. Neither is part of the
+literal after it: `-42.5` is the negation of `42.5`, `- 42.5` is the same
+value written with a space, and `-NaN` and `-Infinity` are values as
+JavaScript has them. Each binds looser than a property access or a call, as
+in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`. What either
+takes is JavaScript's `UnaryExpression`, which an arrow function is not, so
+`-(...a) => 1` and `~(...a) => 1` are syntax errors in both, and neither
+stands immediately before `**` — `-2 ** 2` is refused, matching JavaScript,
+where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized readings. Two
+adjacent `-` characters are the decrement operator, which the language has
+no rule for: a negation of a negation is `- -1`, and likewise `~ ~1` for
+bitwise not. [Operators](#operators) has the rest of them.
 
 A negative number is therefore an expression rather than a literal *in the
 syntax*. The graph is another matter: lowering folds a negation of a numeric
@@ -632,6 +638,41 @@ A parenthesized parameter list, `(a, b) => …`, is not a group and is not
 recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
 tells one from the other only past the `)`, so `(a) => 1` is read as a group
 and refused at the `=>`.
+
+## Operators
+
+```js
+export default 1 + 2 * 3;
+```
+
+Beyond unary `-` ([supported value types](#supported-value-types)), the
+language has arithmetic (`+ - * / % **`), strict comparison
+(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
+[operators](./todo/2340-operators.md). `==`/`!=` stay refused, since neither
+language reads them the same way twice. The lazy operators (`&& || ??`), the
+conditional (`?:`), and the comma operator are not recognized yet.
+
+Precedence and associativity follow JavaScript's own: arithmetic binds
+tighter than comparison, which binds tighter than bitwise, `**` is
+right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), and every other
+operator here is left-associative. `-`/`~` immediately before `**` are
+refused, matching JavaScript exactly: `-2 ** 2` and `~2 ** 2` are syntax
+errors here as there, at any depth of `-`/`~` nesting, and parentheses are
+the only way to write either reading — `(-2) ** 2` raises the negation,
+`-(2 ** 2)` negates the power.
+
+A function is an operand of none of these, unparenthesized: `(...a) => body`
+reads everything to its right as `body`, exactly as in JavaScript, so
+`1 * (...a) => 2` is refused where `1 * (...a)` runs out of value to read. A
+group makes it one, the same way it does for `-`: `1 * ((...a) => 2)` is a
+value, however little multiplying by a function is worth.
+
+The front end computes none of these — it builds the operation and passes
+it on. Unary `-` alone folds over a numeric literal, exact and total
+arithmetic; every other operator here reaches the EDAG as a node, and a
+`.json` or DataJS output — the readers that compute a value — refuses one
+the same way it refuses a function or a call, until an interpreter answers
+for the rest of them ([roadmap](./todo/README.md)).
 
 ## Property Access
 
