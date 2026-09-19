@@ -11,25 +11,8 @@ import { isValidCodePoint } from '../../text/code_point/module.f.mjs'
 import { percentDecode } from '../../text/percent/module.f.mjs'
 import { concat as pathConcat } from '../module.f.mjs'
 
-/** Classify absolute file spellings; the host parses and validates the URL. @type {(specifier: string) => boolean} */
-export const _isAbsoluteFileUrl = specifier => specifier.slice(0, 6).toLowerCase() === 'file:/'
-
 /** A literal URL string replaces lone surrogates; percent-encoded bytes stay strict UTF-8. @type {(c: number) => number} */
 const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
-
-/**
- * Separate a path-like spelling before percent decoding. Empty components are
- * omitted, as in Node's default realpath-based file-module profile. The suffix
- * text stays opaque here; native URL normalization belongs to the host.
- * @type {(specifier: string) => { readonly path: string, readonly suffix: string }}
- */
-export const components = specifier => {
-    const [head, ...fragments] = specifier.split('#')
-    const [path, ...queries] = head.split('?')
-    const query = queries.join('?')
-    const fragment = fragments.join('#')
-    return { path, suffix: (query === '' ? '' : `?${query}`) + (fragment === '' ? '' : `#${fragment}`) }
-}
 
 /**
  * One URL-path segment as a portable filesystem segment, or a refusal.

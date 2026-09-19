@@ -257,9 +257,8 @@ One link operation must memoize resolved modules by the **resolved module
 identity** supplied by that contract, not by their loading path or source hash.
 The same identity must govern in-progress/cycle tracking. Different accepted
 spellings of one identity, including diamond imports, reuse the same resolved
-EDAG. Conversely, distinct identities must not be merged merely because they
-load the same file: query/fragment variants remain distinct where the declared
-host makes them distinct. Import-attribute validation still applies to each
+EDAG. Distinct identities supplied by a host remain distinct.
+Import-attribute validation still applies to each
 request; a memo hit cannot bypass it.
 
 EDAG sharing affects exported array/object identity. Preserve the sharing
@@ -603,11 +602,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `resolve.diamond` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
       Memo keys and cycle tracking now use host-resolved identities; the Node
       file profile supplies canonical file URLs for roots and dependencies.
-- [ ] Extend the shared [module-identity contract](./module-resolution-compatibility.md)
-      to additional specifier classes. Preserve same-identity sharing and
-      distinct-identity separation on value/EDAG paths and warm/cold builds;
-      package imports remain explicitly refused; query/fragment components now
-      participate in identity without entering the loading path.
+- [ ] Check same-identity sharing and distinct-identity separation on value
+      and EDAG paths across warm/cold builds under the shared
+      [module-identity contract](./module-resolution-compatibility.md).
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
       Done: `resolve` returns an `Exp`.
@@ -722,8 +719,6 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       `moduleSharing`/`hostIdentities` in
       [`transpiler/proof.f.mjs`](../transpiler/proof.f.mjs). Native ESM identity
       comparisons belong to the [Node adapter proofs](../../effects/node/proof.mjs).
-      Query/fragment identity support has since landed; package resolution
-      remains separate work.
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in
       [`fjs/fsc/proof.f.mjs`](../proof.f.mjs) (`specialNumbers`, the `jsonRefused`
