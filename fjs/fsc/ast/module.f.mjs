@@ -6,8 +6,8 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
- * @import { _Node, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, Import, Sharing, Anchors } from './types.ts'
+ * @import { _Node, _OperandStack, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
 import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
@@ -239,6 +239,64 @@ const memberValues = members => [...new Map(members).values()]
 const memberValuesWritten = members => members.map(([, value]) => value)
 
 /**
+ * The operands a chain of operator/negation/bitwise-not nodes bottoms out
+ * at, `ast` itself included when it is none of them — every branch
+ * {@link refsOf} would otherwise recurse straight through to reach its
+ * operands, and so the one shape a source expression can nest arbitrarily
+ * deep through, left-associative chains of `+`/`*`/… and right-associative
+ * ones of `-`/`~`/`**` alike.
+ *
+ * A heap-allocated cons-list stack in place of the recursion every one of
+ * those nodes would otherwise call {@link refsOf} through, so a chain
+ * however many terms long costs stack frames on the heap rather than the JS
+ * call stack — the shape {@link evaluate} in `../parser/module.f.mjs`
+ * already resolves a value's own operators with, over its own `_Stack`. A
+ * `while` loop reassigning `stack`/`bottom` rather than a recursive walk:
+ * nothing here is mutated in place, only rebound, `stack`'s own cons cells
+ * each built once and never revisited.
+ *
+ * @type {(view: _View) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary>>}
+ */
+const operandsOf = view => ast => {
+    /** @type {_OperandStack} */
+    let stack = { top: ast, rest: null }
+    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary>>} */
+    let bottom = empty
+    while (stack !== null) {
+        const node = stack.top
+        /** @type {_OperandStack} */
+        const rest = stack.rest
+        if (node === null || typeof node !== 'object') { bottom = concat(bottom)([node]); stack = rest; continue }
+        switch (node[0]) {
+            case '-': {
+                if (node.length !== 2) { stack = { top: node[1], rest: { top: node[2], rest } }; break }
+                // the view's own read of a negation's operand —
+                // `written`'s is one operand, `value`'s none, negation
+                // being a primitive
+                stack = view.negated(node[1]).reduceRight(
+                    /** @type {(s: _OperandStack, operand: AstConst) => _OperandStack} */
+                    ((s, operand) => ({ top: operand, rest: s })),
+                    rest,
+                )
+                break
+            }
+            case '~': { stack = { top: node[1], rest }; break }
+            case '*': case '/': case '%': case '**':
+            case '+':
+            case '===': case '!==': case '<': case '<=': case '>': case '>=':
+            case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+                // the left operand on top, so it is the next popped — the
+                // order the recursive walk read the two in
+                stack = { top: node[1], rest: { top: node[2], rest } }
+                break
+            }
+            default: { bottom = concat(bottom)([node]); stack = rest }
+        }
+    }
+    return bottom
+}
+
+/**
  * The references one entry makes directly: its `cref`s and `aref`s, however
  * deep inside its own literals, and nothing behind them — a referenced
  * `const` is an entry of its own, visited once as such, which is what keeps
@@ -250,7 +308,18 @@ const memberValuesWritten = members => members.map(([, value]) => value)
  *
  * @type {(view: _View) => (ast: AstConst) => List<_Ref>}
  */
-const refsOf = view => ast => {
+const refsOf = view => ast => flat(map(refsOfOperand(view))(operandsOf(view)(ast)))
+
+/**
+ * One operand {@link operandsOf} bottomed out at: never itself an operator,
+ * negation or bitwise not, so every branch here may recurse through
+ * {@link refsOf} exactly as it always did — a container, a call, or an
+ * access chain nests only as deep as the source that built it, which is a
+ * separate, narrower concern than an operator chain's unbounded length.
+ *
+ * @type {(view: _View) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary>) => List<_Ref>}
+ */
+const refsOfOperand = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf(view))) }
@@ -266,24 +335,6 @@ const refsOf = view => ast => {
             return read !== null && typeof read === 'object' && read[0] === '.'
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
-        }
-        // what a negation's operand leaves is the view's: the graph holds it
-        // and the value does not, a negation being a primitive. The binary
-        // `-` past it is `noOperatorValue`'s, never folded, so both its
-        // operands are reached exactly as a call's are
-        case '-': {
-            return ast.length === 2
-                ? flat(view.negated(ast[1]).map(refsOf(view)))
-                : flat([ast[1], ast[2]].map(refsOf(view)))
-        }
-        // a bitwise not or a binary operator folds nothing — noOperatorValue's
-        // own comment has why — so both operands are always reached
-        case '~': { return refsOf(view)(ast[1]) }
-        case '*': case '/': case '%': case '**':
-        case '+':
-        case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
-            return flat([ast[1], ast[2]].map(refsOf(view)))
         }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':

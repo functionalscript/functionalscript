@@ -6,6 +6,19 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 /** Whether the sweep finds a shared node in a body with no imports, given its values. @type {(body: import('./types.ts').AstBody) => boolean} */
 const sharedOf = body => sharing(body)([])(unwrap(values(body)([]))).shared
 
+/**
+ * Whether the sweep finds a shared node in a body holding an operator,
+ * where `values` has none to compute — `sharing` alone, an operator's own
+ * value being none `values` could give it. Every entry but the export
+ * stands in as `['array', []]` and needs no real value, its own value,
+ * `[]`, taking the place `values` would have computed; a leaf entry would
+ * need its real one instead, `containerNode` reading only a referenced
+ * entry's containerness.
+ *
+ * @type {(body: readonly import('./types.ts').AstConst[]) => boolean}
+ */
+const sharedWithOperator = body => sharing(body)([])(body.map((_, i) => i < body.length - 1 ? [] : null)).shared
+
 /** What the sweep says of a body over `imports`, given the values the body has over them. @type {(imports: readonly import('./types.ts').Import[]) => (body: import('./types.ts').AstBody) => import('./types.ts').Sharing} */
 const sharingWith = imports => body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
 
@@ -226,18 +239,11 @@ export const proof = {
             assert(!sharedOf([1, ['array', [['cref', 0], ['cref', 0]]]]))
         },
         // a binary operator's operands are reached exactly as a call's
-        // arguments are, and a bitwise not's the same way a call's callee
-        // is — `sharing` alone, an operator's own value being none `values`
-        // could compute. Every entry but the export is `['array', []]`
-        // here, so its own value, `[]`, stands in for what `values` would
-        // have computed — a leaf entry would need its real one instead,
-        // `containerNode` reading only a referenced entry's containerness
+        // arguments are, and a bitwise not's the same way a call's callee is
         operator: () => {
-            /** @type {(body: readonly import('./types.ts').AstConst[]) => boolean} */
-            const shared = body => sharing(body)([])(body.map((_, i) => i < body.length - 1 ? [] : null)).shared
-            assert(shared([['array', []], ['+', ['cref', 0], ['cref', 0]]]))
-            assert(!shared([['array', []], ['array', []], ['+', ['cref', 0], ['cref', 1]]]))
-            assert(shared([['array', []], ['array', [['cref', 0], ['~', ['cref', 0]]]]]))
+            assert(sharedWithOperator([['array', []], ['+', ['cref', 0], ['cref', 0]]]))
+            assert(!sharedWithOperator([['array', []], ['array', []], ['+', ['cref', 0], ['cref', 1]]]))
+            assert(sharedWithOperator([['array', []], ['array', [['cref', 0], ['~', ['cref', 0]]]]]))
         },
         access: () => {
             /** @type {readonly import('./types.ts').AstConst[]} */
@@ -292,5 +298,24 @@ export const proof = {
             const zero = [{ id: '0', value: [], shared: false, reaches: [] }]
             assert(!sharingWith(zero)([['array', []], ['array', [['cref', 0], ['aref', 0]]]]).shared)
         },
+    },
+    // A chain of operators, as deep as the source that built it: `refsOf`
+    // walks one with an explicit stack rather than recursion, so 5,000
+    // terms — the depth `fjs/fsc/parser/proof.f.mjs`'s own `stackSafety`
+    // uses — cost no call stack, left-associative for a binary operator and
+    // right-associative for `-`/`~` alike.
+    stackSafety: () => {
+        // a reference at the deep end of a left-associative chain is still
+        // found, and reached exactly once — `refsOf` never revisits a node
+        // through the chain it flattens
+        /** @type {import('./types.ts').AstConst} */
+        let plus = ['cref', 0]
+        for (let i = 0; i < 5000; i++) { plus = ['+', plus, 1] }
+        assert(!sharedWithOperator([['array', []], plus]))
+        // a right-associative chain of negations, `refsOf`'s other shape
+        /** @type {import('./types.ts').AstConst} */
+        let neg = ['cref', 0]
+        for (let i = 0; i < 5000; i++) { neg = ['-', neg] }
+        assert(!sharedWithOperator([['array', []], neg]))
     },
 }

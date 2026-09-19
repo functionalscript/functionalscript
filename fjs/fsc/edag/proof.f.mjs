@@ -41,6 +41,27 @@ const expectEdag = (edag, expected) => {
     assertStructurallySame(edag, expected)
 }
 
+/**
+ * Confirms `exp` is a left-associative `+` chain `depth` terms deep, bottoming
+ * out at `1` — `((1+1)+1)+…`. `validate`/`assertStructurallySame` are
+ * themselves recursive (`fjs/edag/todo/stack-safety.md` tracks that, one
+ * layer down from this one), so a chain deep enough to prove `lower` stack-safe
+ * overflows them before it says anything about `lower`. This walks the same
+ * shape iteratively instead, the one comparison this proof needs at a depth
+ * the two shared helpers cannot reach.
+ * @type {(depth: number) => (exp: Exp) => void}
+ */
+const expectPlusChain = depth => exp => {
+    let node = exp
+    let remaining = depth
+    while (remaining > 0) {
+        assert(Array.isArray(node) && node[0] === '+' && node[2] === 1, node)
+        node = node[1]
+        remaining = remaining - 1
+    }
+    assertEq(node, 1)
+}
+
 export const proof = {
     // The issue's own example: one shared `const` is one node, reached from
     // two members, and the import is a property of the arguments.
@@ -422,5 +443,20 @@ export const proof = {
             expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['args'], 1], ['[]', [['.', ['args'], 0]]]]])
             expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
         },
+    },
+    // A chain of operators, as deep as the source that built it: `lower`
+    // walks one with an explicit stack rather than recursion, so 5,000
+    // terms — the depth `fjs/fsc/parser/proof.f.mjs`'s own `stackSafety`
+    // uses — cost no call stack. Left-associative for a binary operator,
+    // the EDAG nests on its own left, `((1+1)+1)+…`, checked by
+    // `expectPlusChain` rather than `expectEdag` for the reason given on
+    // it; right-associative for `-`, on its right, `-(-(-…))`, folding away
+    // to the leaf it started from since 5,000 negations is even — a single
+    // number, so `expectEdag` never recurses into it.
+    stackSafety: () => {
+        const plus = `1${' + 1'.repeat(5000)}`
+        expectPlusChain(5000)(compile(`export default ${plus};`).edag)
+        const neg = `${'- '.repeat(5000)}1`
+        expectEdag(compile(`export default ${neg};`).edag, 1)
     },
 }

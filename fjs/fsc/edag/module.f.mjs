@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstBody, AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstBody, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
  * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -14,7 +14,7 @@
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Link, _Nodes } from './private.ts'
+ * @import { _Binding, _Link, _LowerResults, _LowerWork, _Nodes } from './private.ts'
  */
 
 import { anchors } from '../ast/module.f.mjs'
@@ -23,6 +23,7 @@ import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
 
@@ -86,15 +87,17 @@ const call = nodes => (callee, args) => {
 }
 
 /**
- * One entry's EDAG. A reference is the node it names — a `const` is one
- * node however many references reach it, which is how the sharing a module
- * spells survives into the graph — and an object's members are written as
- * they stand, a repeated key twice, since the constructor applies them in
- * order and the later wins.
+ * One entry's EDAG, its own operator/negation/bitwise-not chain excepted —
+ * every other node, lowered exactly as {@link lower} always did, recursing
+ * back into {@link lower} itself for whatever it holds: a container, a
+ * call, or a chain of accesses nests only as deep as the source that built
+ * it, a separate, narrower concern than an operator chain's unbounded
+ * length ({@link lower}'s own comment has why that one gets an explicit
+ * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary>) => Exp}
  */
-const lower = nodes => ast => {
+const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return undefinedNode() }
     if (ast === null || typeof ast !== 'object') { return ast }
     switch (ast[0]) {
@@ -107,34 +110,105 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
         case '()': { return call(nodes)(ast[1], ast[2]) }
-        // `op12` of one operand, the EDAG's unary minus, folded away over a
-        // numeric literal: negating one is exact arithmetic — total, and
-        // answered without knowing anything else about the program — so the
-        // graph holds the number and every reader sees the leaf it saw
-        // before there was an operator.
-        //
-        // A `-` over anything else stays a node. Folding one would mean
-        // saying what a string or a container converts to, which is
-        // `ToPrimitive`'s and depends on what the value holds; the readers
-        // that want a number work it out where a number is wanted.
-        case '-': {
-            if (ast.length === 3) { return ['-', lower(nodes)(ast[1]), lower(nodes)(ast[2])] }
-            const operand = lower(nodes)(ast[1])
-            return typeof operand === 'number' || typeof operand === 'bigint' ? -operand : ['-', operand]
-        }
-        // every other binary operator and the bitwise not: the EDAG's own
-        // `op1`/`op2` shapes already, both operands lowered and nothing
-        // folded — `-`'s own comment has why unary negation alone does
-        case '~': { return ['~', lower(nodes)(ast[1])] }
-        case '*': case '/': case '%': case '**':
-        case '+':
-        case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
-            return [ast[0], lower(nodes)(ast[1]), lower(nodes)(ast[2])]
-        }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
+}
+
+/**
+ * One entry's EDAG. A reference is the node it names — a `const` is one
+ * node however many references reach it, which is how the sharing a module
+ * spells survives into the graph — and an object's members are written as
+ * they stand, a repeated key twice, since the constructor applies them in
+ * order and the later wins.
+ *
+ * An operator, a negation or a bitwise not is walked with an explicit
+ * stack rather than recursion: a source expression nests a chain of these
+ * as deep as it is long, left-associative for every binary operator and
+ * right-associative for `-`/`~`/`**`, and {@link evaluate} in
+ * `../parser/module.f.mjs` already resolves the same shape this way, over
+ * its own `_Stack`, for the identical reason.
+ *
+ * `op12` of one operand, the EDAG's unary minus, folds away over a numeric
+ * literal: negating one is exact arithmetic — total, and answered without
+ * knowing anything else about the program — so the graph holds the number
+ * and every reader sees the leaf it saw before there was an operator. A
+ * `-` over anything else stays a node, and binary `-` never folds: folding
+ * one would mean saying what a string or a container converts to, which is
+ * `ToPrimitive`'s and depends on what the value holds — the readers that
+ * want a number work it out where a number is wanted. Every other binary
+ * operator and the bitwise not are the EDAG's own `op1`/`op2` shapes
+ * already, both operands lowered and nothing folded.
+ *
+ * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
+ */
+const lower = nodes => root => {
+    /** @type {_LowerWork} */
+    let work = { kind: 'expand', ast: root, rest: null }
+    /** @type {_LowerResults} */
+    let results = null
+    while (work !== null) {
+        if (work.kind === 'expand') {
+            /** @type {AstConst} */
+            const ast = work.ast
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            if (ast === null || typeof ast !== 'object') {
+                results = { top: lowerLeaf(nodes)(ast), rest: results }
+                work = rest
+                continue
+            }
+            switch (ast[0]) {
+                case '-': {
+                    if (ast.length !== 2) {
+                        work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
+                        break
+                    }
+                    work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }
+                    break
+                }
+                case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
+                case '*': case '/': case '%': case '**':
+                case '+':
+                case '===': case '!==': case '<': case '<=': case '>': case '>=':
+                case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+                    work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
+                    break
+                }
+                default: {
+                    results = { top: lowerLeaf(nodes)(ast), rest: results }
+                    work = rest
+                }
+            }
+            continue
+        }
+        if (work.kind === 'neg') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a negation', root])
+            /** @type {Exp} */
+            const value = typeof operand.top === 'number' || typeof operand.top === 'bigint' ? -operand.top : ['-', operand.top]
+            results = { top: value, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'bitnot') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
+            results = { top: ['~', operand.top], rest: operand.rest }
+            work = rest
+            continue
+        }
+        /** @type {_LowerWork} */
+        const rest = work.rest
+        const tag = work.tag
+        const right = assertNotNullish(results, ['no right operand for', tag, root])
+        const left = assertNotNullish(right.rest, ['no left operand for', tag, root])
+        results = { top: [tag, left.top, right.top], rest: left.rest }
+        work = rest
+    }
+    return assertNotNullish(results, ['no result lowering', root]).top
 }
 
 /**

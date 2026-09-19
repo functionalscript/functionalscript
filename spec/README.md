@@ -10,7 +10,8 @@ fjs compile <input> <output>
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
 Features the parser does not recognize yet — the lazy operators (`&& || ??`),
-the conditional (`?:`), the comma operator, and type annotations — and the
+loose equality (`== !=`), the remaining unary operators (`! + typeof`), the
+conditional (`?:`), the comma operator, and type annotations — and the
 design documents for the VM, I/O, serialization, and the rest of the roadmap
 live in [`spec/todo/`](./todo/README.md).
 
