@@ -1878,6 +1878,23 @@ export const proof = {
         assertEq(e.message, 'refs/heads/a is a directory; cannot create it')
         assertStructurallySame(fs, root)
     },
+    // The other loose direction: a **file** where the name's parent directory
+    // must go. The same `stat` answers it, because the ref's own path leads
+    // through that file — measured `ENOTDIR` on node 22.22.2 and here alike, so
+    // this is the one prefix case whose refusal is the host's code rather than
+    // `refPrefixCode`. Git refuses it too, with
+    // `'refs/heads/a' exists; cannot create 'refs/heads/a/b'`.
+    //
+    // The ref is still there afterwards, which is the point: nothing is created,
+    // and the `mkdir` that would replace the file with a directory on this runner
+    // (`../../effects/node/virtual/todo/mkdir-over-a-file.md`) is never reached.
+    writeLooseIsAFile: () => {
+        /** @type {Dir} */
+        const root = { refs: { heads: { a: ref(b) } } }
+        const [fs, r] = wrote(root, 'refs/heads/a/b', a)
+        assertEq(writeRefusal(r).code, 'ENOTDIR')
+        assertStructurallySame(fs, root)
+    },
     // And the cleanup itself, which now needs a host: the only failure left
     // *after* the exclusive write is the `rename`, and the virtual filesystem
     // cannot produce one — a directory at the path is refused by the `stat` above

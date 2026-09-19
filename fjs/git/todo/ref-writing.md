@@ -120,18 +120,31 @@ caller was told. One direction is policy and the other is a ref the write breaks
 both are refused, because the rule Git states is one rule and half of it would be
 harder to explain than either answer.
 
-The *loose* directions are the host's to refuse, and only one of them actually
-is. A loose file where the parent directory must go is `ENOTDIR` from the `mkdir`,
-and a real directory where the ref's file must go is `EISDIR` from the `rename`.
-A **symlink to a directory** at the ref's own path is neither: measured on node
+The *loose* directions looked like the host's to refuse where it happened to, and
+the check that covers them came from a third case neither `mkdir` nor `rename`
+catches. A **symlink to a directory** at the ref's own path: measured on node
 22.22.2, `fs.rename` over it succeeds, replaces the link, and leaves every ref
 inside the linked directory unreachable — while `update-ref` exits 128 and Git
 reads those refs through the link the whole time, `show-ref`, `for-each-ref` and
 `rev-parse` all answering them. So the write `stat`s the ref's path before taking
-the lock and refuses a directory, which covers the symlink and the real directory
-alike because `stat` follows links. Found by review of the write; the symlink
-itself has no fixture, since the virtual filesystem has no symlinks, and
-`writeRefIsADirectory` pins the branch through a real directory.
+the lock, which follows the link and so covers the symlink and a real directory
+alike (`refPrefixCode`).
+
+**That `stat` turned out to cover the file direction too**, which a later review
+round caught and an earlier revision of this file had wrong. A loose *file* where
+the name's parent directory must go puts that file in the ref's own path, so the
+`stat` is `ENOTDIR` — measured on node 22.22.2 and on the virtual runner, which
+agree, with `leadsNowhere` not swallowing it — and the `mkdir` is never reached.
+Git refuses the same write with `'refs/heads/a' exists; cannot create
+'refs/heads/a/b'`, exit 128, the ref intact. `writeLooseIsAFile` pins it and
+dropping the `stat` reddens it; the symlink itself still has no fixture, since the
+virtual filesystem has no symlinks, and `writeRefIsADirectory` pins that branch
+through a real directory.
+
+So one refusal of the four carries the host's code rather than `refPrefixCode`.
+Whether it should be `refPrefixCode` with Git's message is open: naming the file
+in the way means walking the path component by component, which is a `stat` per
+segment on a state the write is about to refuse anyway.
 
 That check is a snapshot, and `git pack-refs` can invalidate it under either
 writer's feet — Git's included. `refs/heads/a/b` is loose, so a write of
@@ -303,10 +316,9 @@ else in the name has moved DISOT semantics into Git's namespace.
 - [ ] Decide `core.sharedRepository`: honour the mode, or refuse such a
       repository. Needs a `core.*` read either way, and a mode on `mkdir` and on
       the write if it is honoured.
-- [ ] Give the loose `mkdir` direction a fixture, once
-      [`fjs/effects/node/virtual/todo/mkdir-over-a-file.md`](../../effects/node/virtual/todo/mkdir-over-a-file.md)
-      stops the virtual `mkdir` replacing a file with a directory — today a
-      fixture there would watch the writer delete a ref and pass.
+- [ ] Decide whether the `ENOTDIR` a loose file in the ref's path is refused
+      with becomes `refPrefixCode` carrying Git's message, which costs a `stat`
+      per path segment to name the file in the way.
 - [ ] Hold the `writeExclusive` rollback with a proof, if a way to fail a write
       after the `O_EXCL` open ever exists here — a fault-injecting host runner,
       or an `Fs` seam a proof can answer for. Deleting the `rm` is green today.
@@ -335,4 +347,4 @@ else in the name has moved DISOT semantics into Git's namespace.
 - [`fjs/git/store`](../store/module.f.mjs) — from an id to the object a ref
   keeps, and what an object-existence check would have to read.
 - [`fjs/effects/node/virtual/todo/mkdir-over-a-file.md`](../../effects/node/virtual/todo/mkdir-over-a-file.md)
-  — why the loose prefix direction has a node measurement and no fixture.
+  — the virtual `mkdir` this write no longer reaches, and why it is still wrong.

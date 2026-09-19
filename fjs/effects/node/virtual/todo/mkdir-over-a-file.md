@@ -12,15 +12,19 @@ bytes are gone and the operation answers `ok`.
 
 Measured, with the host beside it:
 
-| `refs/heads/a` is… | `mkdir('refs/heads/a/b', { recursive: true })` here | node 22.22.2 on Linux |
-| --- | --- | --- |
-| absent | `ok`, both directories created | `ok`, both created |
-| a directory | `ok`, nothing changed | `ok`, nothing changed |
-| **a file** | **`ok`, and `a` is now an empty directory** | **`ENOTDIR`** |
+| path, with `recursive: true` | `refs/heads/a` is… | here | node 22.22.2 on Linux |
+| --- | --- | --- | --- |
+| `refs/heads/a/b` | absent | `ok`, both created | `ok`, both created |
+| `refs/heads/a/b` | a directory | `ok`, nothing changed | `ok`, nothing changed |
+| `refs/heads/a/b` | **a file** | **`ok`, and `a` is now an empty directory** | **`ENOTDIR`** |
+| `refs/heads/a` | **a file** | **`ok`, and `a` is now an empty directory** | **`EEXIST`** |
 
-The first two rows agree, which is what makes the third easy to miss: every
+The first two rows agree, which is what makes the rest easy to miss: every
 ordinary use of the operation behaves, and the divergence appears only where a
-caller is relying on the failure.
+caller is relying on the failure. The last two rows are two codes and not one —
+a file *above* the directory being created is `ENOTDIR`, and a file *at* it is
+`EEXIST`, since `recursive` suppresses `EEXIST` for a directory and not for
+anything else.
 
 This is not the same shape as
 [reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md), and it is
@@ -32,41 +36,47 @@ it watches a destructive operation and calls it correct.
 ### Who notices
 
 [`fjs/git/refstore`](../../../../git/refstore/module.f.mjs)'s `tryWrite` is the
-caller today. It refuses a *packed* ref name that is a directory prefix of the
-name being written (`refPrefixCode`), and its doc says the two **loose**
-directions are the filesystem's to refuse: a loose file where the parent
-directory must go makes the `mkdir` answer `ENOTDIR`, and a directory where the
-ref's file must go makes the `rename` answer `EISDIR` — the second now behind a
-`stat` of the ref's path, which also catches the symlink-to-a-directory the
-`rename` would have replaced.
+caller today, and **it no longer reaches this bug** — which is a correction to
+what an earlier revision of this file claimed, found by review of
+[#2115](https://github.com/functionalscript/functionalscript/pull/2115). The
+`stat` of the ref's own path, added for the symlink-to-a-directory the `rename`
+would otherwise have replaced, answers both loose prefix directions before
+anything is created:
 
-Half of that is provable here and half is not. The `rename` direction is
-modelled — `insertEntityAt` refuses to overwrite a directory with a file — though
-what `tryWrite` now reaches first is a `stat` of the ref's path, which
-`writeRefIsADirectory` pins. The `mkdir` direction is this issue: a proof of
-it against this runner would show `tryWrite` **deleting the ref
-`refs/heads/a`** and answering success, which is the opposite of what a host
-does and of what the doc claims. So the claim rests on the node measurement
-alone, with no fixture behind it, and that is recorded here rather than left as
-a proof that passes for the wrong reason.
+| the write | what the `stat` of the ref's path sees | refusal |
+| --- | --- | --- |
+| `refs/heads/a` beside a directory `refs/heads/a` | a directory | `refPrefixCode` |
+| `refs/heads/a/b` beside a **file** `refs/heads/a` | `ENOTDIR`, since the path leads through the file | `ENOTDIR` |
 
-**This is not a reason for `tryWrite` to refuse the write.** Review of
-[#2115](https://github.com/functionalscript/functionalscript/pull/2115) asked for
-exactly that — the writer to refuse a loose prefix until this runner matches the
-host — and it inverts where the defect is. This runner holds the filesystem in a
-JavaScript object and its README calls it "primarily used for testing"; every
-importer of it in the repository is a `proof`, the one exception being
-`fjs/dev`'s own proof entries. No ref store runs on it. A production refusal
-added because a test double models one operation wrongly would let the double set
-the contract, and `tryWrite` cannot ask which runner it is on in any case: the
-only check available to it is an extra `stat` of the parent before the `mkdir`,
-which is racy on a real host, redundant there because the `mkdir` already answers
-`ENOTDIR`, and paid on every write for a mock's benefit. The fix is here.
+Measured on both sides: node 22.22.2 answers `ENOTDIR` for that `stat` and so
+does `statPath` here, `leadsNowhere` does not swallow it, and Git 2.43.0 refuses
+the same write with `'refs/heads/a' exists; cannot create 'refs/heads/a/b'`. Both
+rows have a fixture — `writeRefIsADirectory` and `writeLooseIsAFile` — and
+dropping the `stat` reddens both.
+
+So the `mkdir` below it never runs on a path whose parent is a file, and this
+issue is no longer load-bearing for that caller. It remains a defect of this
+runner: a write that **succeeds where a host refuses** and takes a file with it,
+rather than a read answering the wrong code for a path it cannot serve, which is
+[reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md). A proof built
+on this runner does not merely miss a branch — it watches a destructive
+operation and calls it correct.
+
+**It was never a reason for `tryWrite` to refuse the write, either.** Review of
+the same PR asked for that — the writer to refuse a loose prefix until this
+runner matches the host — and it inverts where the defect is. This runner holds
+the filesystem in a JavaScript object and its README calls it "primarily used for
+testing"; every importer of it in the repository is a `proof`, the one exception
+being `fjs/dev`'s own proof entries. No ref store runs on it. A production
+refusal added because a test double models one operation wrongly would let the
+double set the contract. The fix is here.
 
 ### Proposal
 
-Answer `ENOTDIR` where a remaining segment names something that is not a
-directory, and create nothing. The check has to come **before** anything is
+Answer the host's code where a remaining segment names something that is not a
+directory, and create nothing — `ENOTDIR` where the segment is above the
+directory being created, `EEXIST` where it *is* that directory, per the table
+above. The check has to come **before** anything is
 spread, and it has the guard-ordering hazard
 [reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md) sets out at
 length: `operation` hands the op the full remaining path both when the first
@@ -81,15 +91,13 @@ The non-recursive branch wants the same look: today it answers a bare
 
 ### Tasks
 
-- [ ] Refuse a remaining segment that exists and is not a directory, with
-      `enotdir`, creating nothing — presence checked before length.
-- [ ] Pin the three rows of the table above as fixtures, the **absent** one
+- [ ] Refuse a remaining segment that exists and is not a directory, creating
+      nothing — presence checked before length, and `EEXIST` rather than
+      `ENOTDIR` where that segment is the last one.
+- [ ] Pin all four rows of the table above as fixtures, the **absent** one
       included, so the ordering cannot be lost.
 - [ ] Decide whether the non-recursive failure becomes `ENOENT` with a code, and
       pin it either way.
-- [ ] Once the failure exists, add the `tryWrite` fixture this issue blocks: a
-      loose `refs/heads/a` beside a write of `refs/heads/a/b`, refused with the
-      ref intact.
 
 ### Related
 
@@ -100,5 +108,4 @@ The non-recursive branch wants the same look: today it answers a bare
   physical, which decides what a `..` in the path means before any of this is
   asked.
 - [`fjs/git/refstore`](../../../../git/refstore/module.f.mjs) — `tryWrite` and
-  `refPrefixCode`, the caller whose claim about `ENOTDIR` has no fixture until
-  this is fixed.
+  `refPrefixCode`, the caller that used to be blocked by this and is not.

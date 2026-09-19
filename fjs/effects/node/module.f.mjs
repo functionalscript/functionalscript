@@ -356,16 +356,10 @@ export const createExclusive = do_('createExclusive')
 const writeExclusiveOp = /** @type {Func<WriteExclusive>} */ (do_('writeExclusive'))
 
 /**
- * Creates `path` and writes `data` through that one open. A `Vec` that is not
- * whole bytes is refused here as `invalid buffer size`, before any host sees it,
- * for the reason {@link inflate} gives: `fromVec` pads the last byte, so the node
- * runner would create the file holding bytes the caller never gave while the
- * virtual runner stored the vector as it was — one effect, two contents, and a
- * `WriteExclusive` whose promise that the file holds `data` is false on the
- * runner that matters. Found by review of
- * [#2115](https://github.com/functionalscript/functionalscript/pull/2115);
- * `writeFile` has the same gap and no such guard, which
- * [`todo/vec-is-not-bytes.md`](./todo/vec-is-not-bytes.md) records.
+ * Creates `path` and writes `data` through that one open. A file holds bytes, so
+ * a `Vec` that is not whole bytes is refused here as `invalid buffer size`,
+ * before any host sees it, as {@link inflate} refuses one: a host's conversion
+ * would pad the last byte, and the file would not hold `data`.
  *
  * @type {Func<WriteExclusive>}
  */

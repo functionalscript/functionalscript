@@ -1900,11 +1900,14 @@ const prefixCollision = (packed, name) => packed.find(e => {
  *   the `stat` exists rather than relying on the `rename`: measured, `fs.rename`
  *   over such a link succeeds and leaves every ref inside the linked directory
  *   unreachable, where a real directory is `EISDIR`;
- * - a **loose file** where a parent directory must go, which the `mkdir` answers
- *   `ENOTDIR` for.
+ * - a **loose file** where a parent directory must go, which the *same* `stat`
+ *   answers `ENOTDIR` for, since the ref's own path leads through that file.
+ *   That one refusal carries the host's code rather than this one, and the
+ *   `mkdir` below it is never reached.
  *
- * The message names the *path* and not the ref in the way, unlike Git's, because
- * knowing which ref that is means walking the directory.
+ * Where the code is this one, the message names the *path* and not the ref in
+ * the way, unlike Git's, because knowing which ref that is means walking the
+ * directory.
  *
  * **It is a snapshot, and a concurrent `git pack-refs` can invalidate it —
  * under `git update-ref` too, which takes its lock before it verifies the name
