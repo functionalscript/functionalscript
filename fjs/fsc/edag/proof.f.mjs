@@ -10,6 +10,7 @@
 import { resolve, unresolved } from './module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
+import { vm } from '../../edag/amnesia/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
@@ -40,6 +41,9 @@ const expectEdag = (edag, expected) => {
     assertEq(validate(exp)(edag)[0], 'ok')
     assertStructurallySame(edag, expected)
 }
+
+/** Native JavaScript reference for the return value. */
+const bareReturn = () => { return; }
 
 export const proof = {
     // The issue's own example: one shared `const` is one node, reached from
@@ -231,10 +235,28 @@ export const proof = {
             ['() => 7', '() => { return 7; }'],
             ['() => () => 7', '() => { return () => { return 7; }; }'],
             ['(...a) => [a, a[0]]', '(...a) => { return [a, a[0]]; }'],
+            ['() => undefined', '() => { return; }'],
+            ['() => () => undefined', '() => { return () => { return; }; }'],
+            ['(...a) => { const x = a[0]; return undefined; }', '(...a) => { const x = a[0]; return; }'],
         ]) {
             const expected = compile(`export default ${expression};`).edag
             expectEdag(compile(`export default ${block};`).edag, expected)
         }
+    },
+    bareReturnExecution: () => {
+        for (const source of [
+            'const f = () => { return; }; export default f();',
+            'const f = (...a) => { const x = a[0]; return /* c */ ; }; export default f(7);',
+            'const f = () => { return () => { return; }; }; export default f()();',
+        ]) {
+            const { edag } = compile(source)
+            assertEq(vm({ frame: null, args: [] })(edag), bareReturn())
+        }
+    },
+    bareReturnKeepsInitializer: () => {
+        const { edag } = compile('const f = (...a) => { const x = a[0].x; return; }; export default f(null);')
+        // Compilation must succeed before the expected runtime failure.
+        return { throw: () => vm({ frame: null, args: [] })(edag) }
     },
     // A call takes the EDAG's two forms, and the callee picks which. A
     // property access as the callee is a method call — `a.b(c)` passes `a`

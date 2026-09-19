@@ -183,13 +183,13 @@ export type ParenGroup = readonly [number, typeof trivia, Group]
 
 /**
  * `{`, trivia, the body's `const` statements, `return`, same-line trivia,
- * the value, `;`, trivia, `}`, and the trivia after it.
+ * an optional value, `;`, trivia, `}`, and the trivia after it.
  *
  * The statements are {@link constStatement}, the module's own rule: a body
  * binds names the way a module does, and which scope a name lands in is the
  * fold's answer, not the grammar's.
  */
-export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
+export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Option<Value>, number, typeof trivia, number, typeof trivia]
 
 /**
  * The one rest parameter, when a function has one: `...`, trivia, the

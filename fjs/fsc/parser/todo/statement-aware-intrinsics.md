@@ -132,6 +132,11 @@ statement/expression recognition, before or after that expansion.
       ordered tagged declarations followed by a value-returning statement.
       Lowering retains the existing executable representation. Source-tree and
       EDAG proofs pin this first slice; accepted syntax is unchanged.
+- [x] Support explicit bare `return;`. Keep its absent expression in the source
+      AST and lower it to undefined, preserving preceding declarations and their
+      checks. Source/EDAG proofs cover the distinction from `return undefined;`,
+      execution and newline refusals. This syntax increment keeps the bare
+      semicolon on the same line; general ASI and extra statements remain open.
 - [ ] **P1:** implement this boundary before shipping pattern instructions.
       Preserve statements and binding syntax until their meaning is checked;
       do not require a second, fully validated FJS source AST.

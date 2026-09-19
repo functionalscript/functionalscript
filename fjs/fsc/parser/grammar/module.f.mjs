@@ -475,7 +475,7 @@ export const constStatement = /** @type {const} */ ([
 
 /**
  * A function's block body: `{ const x = 1; return value; }` — any number of
- * `const` statements and then the one `return`
+ * `const` statements and then the one `return`, with an optional value
  * ([spec: functions](../../../../spec/README.md#functions)).
  *
  * The `const` is {@link constStatement}, the module's own rule: the body
@@ -496,13 +496,13 @@ export const constStatement = /** @type {const} */ ([
  * two lines would return `undefined` in JavaScript and this value here.
  * The same reason {@link func} has `s` before `=>`.
  *
- * The `;` is required, as it is after every statement: this language ends a
- * statement at a `;` and never where an engine infers one.
+ * The `;` is required, as it is after every statement. A bare `return;`
+ * requires that semicolon on the same line too; ASI remains unsupported.
  *
  * @type {Block}
  */
 export const block = /** @type {const} */ ([
-    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, value, ...end, sym('}'), trivia,
+    sym('{'), trivia, repeatFrom0(constStatement), sym('return'), sameLine, option(value), ...end, sym('}'), trivia,
 ])
 
 /**

@@ -71,10 +71,13 @@ export type Node =
 
 /**
  * The block syntax currently understood: zero or more `const` declarations
- * followed by one explicit value-returning statement. The grammar enforces
- * this order; bare returns, extra statements and ASI remain unsupported.
+ * followed by one explicit return, with or without an expression. The grammar
+ * enforces this order; extra statements and ASI remain unsupported.
  */
-export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return', Node]]]
+export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], Return]]
+
+/** A bare return stays distinct from `return undefined;` until lowering. */
+export type Return = readonly ['return'] | readonly ['return', Node]
 
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =

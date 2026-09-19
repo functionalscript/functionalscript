@@ -54,6 +54,40 @@ export const proof = {
             assertStructurallySame(expression.exported, ['=>', null, ['primitive', 7]])
             assertStructurallySame(block.exported, ['=>', null, ['block', [['return', ['primitive', 7]]]]])
         },
+        bareReturn: () => {
+            const bare = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => { return; };')))
+            const explicit = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => { return undefined; };')))
+            assertStructurallySame(bare.exported, ['=>', null, ['block', [['return']]]])
+            assertStructurallySame(explicit.exported, ['=>', null, ['block', [['return', ['primitive', undefined]]]]])
+            assertStructurallySame(
+                unwrap(parseFromTokens(tokenizeString('export default () => { const x = 7; return; };'))),
+                [[], [['=>', [7, undefined]]]])
+        },
+        bareReturnChecksDeclarations: () => {
+            for (const source of [
+                'export default () => { const x = missing; return; };',
+                'export default () => { const x = 1; const x = 2; return; };',
+                'export default (...a) => { const a = 1; return; };',
+                'export default () => { const if = 1; return; };',
+                'const x = 1; export default () => { const y = x; return; };',
+                'export default () => { const x = {}.toString; return; };',
+            ]) {
+                assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'ok')
+                assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
+            }
+        },
+        returnLineTerminators: () => {
+            for (const newline of ['\n', '\r', '\r\n']) {
+                for (const trivia of [newline, `// c${newline}`, `/* c${newline} */`]) {
+                    for (const suffix of [';', '7;']) {
+                        const source = `export default () => { return ${trivia}${suffix} };`
+                        assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'error')
+                        assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
+                    }
+                }
+                assertEq(parseFromTokens(tokenizeString(`export default () => { return (${newline}7${newline}); };`))[0], 'ok')
+            }
+        },
         orderedDeclarations: () => {
             const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
                 'export default () => { const x = 1; const y = 2; return [x, y]; };')))
@@ -69,6 +103,7 @@ export const proof = {
             assertEq(first[1].name.metadata.column, 30)
             assertEq(second[1].name.metadata.column, 43)
             const returned = last[1]
+            assert(returned !== undefined)
             assert(returned[0] === 'array')
             const [x, y] = returned[1]
             assert(x[0] === 'ref' && y[0] === 'ref')
@@ -85,7 +120,10 @@ export const proof = {
         syntaxRefusals: () => {
             for (const source of [
                 'export default () => {};',
-                'export default () => { return; };',
+                'export default () => { return };',
+                'export default () => { return; const x = 1; };',
+                'export default () => { return; return 8; };',
+                'export default () => { return\n; };',
                 'export default () => { return 7 };',
                 'export default () => { return 7; const x = 1; };',
                 'export default () => { return 7; return 8; };',

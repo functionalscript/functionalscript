@@ -48,7 +48,7 @@
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
- * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
+ * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError, Return } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _Stack, _State, _TokenStream } from './private.ts'
@@ -416,7 +416,10 @@ const toNode = node => {
     if (node[0] === 'block') {
         const [, , consts, , , v] = unmapped(node[1])
         const statements = unmapped(consts).map(constAt).map(constNode)
-        return symbol({ id: 'value', node: ['block', [...statements, ['return', nodeAt(v)]]] })
+        const expression = unmapped(v)
+        /** @type {Return} */
+        const returned = expression.length === 0 ? ['return'] : ['return', nodeAt(expression[0])]
+        return symbol({ id: 'value', node: ['block', [...statements, returned]] })
     }
     const [, accesses] = unmapped(node[1])
     return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
@@ -799,14 +802,16 @@ const functionScope = name => {
  * The next step of a function's block body: the `const` at `index`, its name
  * checked before its value is entered — as a module's `const` is, so that a
  * statement wrong in both halves answers for the half a reader meets first
- * — or the expression of the explicit final `return`.
+ * — or the explicit final `return`, whose missing expression means undefined.
  *
  * @type {(stack: _Stack, env: _Env, frame: _BodyFrame) => _State}
  */
 const bodyRound = (stack, env, frame) => {
     const { statements, index } = frame
     const [kind, statement] = statements[index]
-    if (kind === 'return') { return [{ top: frame, rest: stack }, env, ['enter', statement]] }
+    if (kind === 'return') {
+        return [{ top: frame, rest: stack }, env, statement === undefined ? ok(undefined) : ['enter', statement]]
+    }
     const [tag, word] = bindable(env)(statement.name)
     return tag === 'error'
         ? [stack, env, error(word)]

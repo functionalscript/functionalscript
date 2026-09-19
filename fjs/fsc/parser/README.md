@@ -21,7 +21,7 @@ export ::= 'export' t 'default' t value ';' t
 value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
 body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
 unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
-block  ::= '{' t const* 'return' s value ';' t '}' t
+block  ::= '{' t const* 'return' s [ value ] ';' t '}' t
 paren  ::= '(' t (func | group)
 func   ::= [ '...' t id t ] ')' s '=>' t body
 group  ::= value ')' t access*
@@ -149,8 +149,11 @@ pattern [`fjs/media/datajs`](../../media/datajs/parser/module.f.mjs) set.
 Function blocks retain an ordered list of tagged `const` and `return`
 statements in this source tree. `() => 7` and `() => { return 7; }` therefore
 have different source bodies; the fold lowers them to the same executable
-body. The grammar still requires zero or more declarations followed by one
-value-returning statement. This representation change adds no syntax or ASI.
+body. A bare `return;` is `['return']`, distinct from a return whose expression
+is `undefined`; only the fold supplies its undefined result. The grammar
+requires zero or more declarations followed by one return. Semicolons remain
+explicit, and a bare return's semicolon must be on the same line. General ASI
+and additional statements remain unsupported.
 
 `_parseSyntaxFromTokens` exposes that internal tree for proofs before the
 fold. It does not establish binding validity, JavaScript early errors or FJS

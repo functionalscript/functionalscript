@@ -793,11 +793,13 @@ arguments alone:
   object is written in parentheses instead ([grouping](#grouping)) —
   `(...args) => ({ a: 1 })`, as in JavaScript. The block
   is any number of `const` statements and then one `return`, each with its
-  `;` as after every statement, and an object literal is an ordinary value
-  again, since after `return` JavaScript expects an expression. `return` and
-  the value share a line: a newline between them ends the statement in
-  JavaScript, which would return `undefined`, so it is refused here rather
-  than read another way, exactly as a newline before `=>` is.
+  explicit `;`. A bare `return;` returns `undefined`, as `return undefined;`
+  does; preceding declarations are still checked and evaluated. The bare
+  return's semicolon must be on the same line. When a return has an expression,
+  that expression starts on the same line, and an object literal is an ordinary
+  value again. A newline before the expression ends the return in JavaScript;
+  `return\nvalue;` remains refused here. ASI, empty blocks and statements after
+  the return remain unsupported.
 - A function **carries no name**. Its EDAG is `['=>', frame, body]`,
   name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
   `export default () => 0` compile to the same node whatever JavaScript

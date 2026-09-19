@@ -218,7 +218,11 @@ export const proof = {
         assertStructurallySame(read('export default (...a) => {};'), ['error', '}'])
         assertStructurallySame(read('export default (...a) => { a; };'), ['error', 'a'])
         assertStructurallySame(read('export default (...a) => { return a; return a; };'), ['error', 'return'])
-        assertStructurallySame(read('export default (...a) => { return; };'), ['error', ';'])
+        assertStructurallySame(read('export default (...a) => { return; };'), ['ok'])
+        assertStructurallySame(read('export default () => { const x = 1; return /* c */ ; };'), ['ok'])
+        assertStructurallySame(read('export default () => { return };'), ['error', '}'])
+        assertStructurallySame(read('export default () => { return; return 1; };'), ['error', 'return'])
+        assertStructurallySame(read('export default () => { return; const x = 1; };'), ['error', 'const'])
         // no line terminator between `return` and the value, where
         // JavaScript's automatic semicolon insertion would end the
         // statement and return `undefined`; a comment on the line is fine
