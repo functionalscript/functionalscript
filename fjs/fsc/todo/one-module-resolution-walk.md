@@ -51,7 +51,7 @@ parsed module becomes once its imports are bound:
 type _Context<T> = { readonly complete: OrderedMap<T>, readonly stack: List<string> }
 const _walk: <T>(
     onJson: (value: JsonUnknown) => T,
-    onModule: (source: _Source, bound: readonly T[], module: AstModule) => Effect<ReadFile | ResolveFileModule, T, ParseError>,
+    onModule: (source: _Source, bound: readonly (readonly [_Source, T])[], module: AstModule) => Effect<ReadFile | ResolveFileModule, T, ParseError>,
 ) => (source: _Source) => (context: _Context<T>) => Effect<ReadFile | ResolveFileModule, readonly [_Context<T>, T], ParseError>
 ```
 
@@ -62,7 +62,16 @@ transpiler's `T` is `ModuleDenotation`; its `onJson` is today's `jsonDone`
 body, `{ exports: jsonDenotation({ default: value }), default: jsonDenotation(value) }`,
 and its `onModule` the body that evaluates `values` and ends in `done`.
 The linker's `T` is `_Resolved`; its `onJson` is `completed` over
-`jsonEdag`, and its `onModule` is `lowered`. One `_Context<T>` replaces
+`jsonEdag`, and its `onModule` is `lowered`.
+
+`bound` pairs each resolved import with the `_Source` it came from, in
+import order, rather than handing over the `T`s alone: both paths today
+report an import with no default export against the **child's** resolved
+path — the transpiler's `missing.path`, the linker's `_Source.path` — and
+`fjs/fsc/proof.f.mjs` pins that diagnostic. Neither `ModuleDenotation` nor
+`_Resolved` carries a path, and the AST's specifier is not the
+host-resolved identity, so the arm needs the source beside the result to
+say which module was missing it. One `_Context<T>` replaces
 both context types, which already agree on the shape. `ParseContext`
 leaves `types.ts` in the same change.
 
