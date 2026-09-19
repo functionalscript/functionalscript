@@ -199,13 +199,18 @@ says no program observes the difference.
 
 What that decision leaves, and this epic records as its exception: the
 profile is the `.js` output read by a JavaScript consumer, the operation is
-`name`, and the consequence is that a hoisted function answers the writer's
-binding, there being no name in the EDAG to give back. At `186af0b`,
-`const f = (...a) => a; export default [f, f];` is written
+`name`, and the consequence is that a function answers the name JavaScript
+gives the *output's* spelling, there being no name in the EDAG to give
+back — the writer's binding where the function is hoisted, and the
+position it is written in where a single-use binding is inlined. At
+`186af0b`, `const f = (...a) => a; export default [f, f];` is written
 `const $0=(...$a)=>$a;export default [$0,$0];`, so that consumer reads `$0`
-where the source gives `f`, and a key or branch on it differs. A function
-written in place keeps its name, since the key or `default` names it
-again. The writer changes nothing. The function-source exception above
+where the source gives `f`; `const f = (...a) => a; export default f;` is
+written `export default (...$a)=>$a;` and reads `default`; and
+`export default [f];` reads `""`. A key or branch on any of them differs.
+Only a function the same position names in both texts — an object member
+under its key, `export default` written in place — reads the same. The
+writer changes nothing. The function-source exception above
 covers the text and [function text and
 serialization](../spec/todo/serialization.md#function-text-and-serialization)
 its open questions; this one covers the name. Unrelated differences remain

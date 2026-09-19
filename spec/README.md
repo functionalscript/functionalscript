@@ -837,9 +837,10 @@ arguments alone:
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property
   ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). A JavaScript
-  consumer of a compiled module can read a name, and reads the one the
-  writer bound the function under — the EDAG has none to give back — which
-  is this decision's consequence and no bug: the decision is
+  consumer of a compiled module can read a name, and reads the one
+  JavaScript gives the output's spelling — the writer's binding, or the
+  position an inlined function is written in; the EDAG has none to give
+  back — which is this decision's consequence and no bug: the decision is
   [`entry`](../fjs/edag/todo/entry.md)'s, which retired the proposals that
   would have exposed a name, and the
   [compatibility epic](../todo/fjs-javascript-compatibility.md#function-name--decided-with-entry-recorded-here-as-the-exception)
