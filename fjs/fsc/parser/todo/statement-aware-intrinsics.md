@@ -128,6 +128,10 @@ statement/expression recognition, before or after that expansion.
 - [x] Replace the token-bypass proposal with the statement-aware AST boundary.
 - [x] Clarify that the source AST is a JavaScript syntax subset; admission,
       visibility checks and pattern matching belong to AST-to-EDAG compilation.
+- [x] Preserve blocks and explicit returns in the existing source tree, as
+      ordered tagged declarations followed by a value-returning statement.
+      Lowering retains the existing executable representation. Source-tree and
+      EDAG proofs pin this first slice; accepted syntax is unchanged.
 - [ ] **P1:** implement this boundary before shipping pattern instructions.
       Preserve statements and binding syntax until their meaning is checked;
       do not require a second, fully validated FJS source AST.
