@@ -2,7 +2,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { _parseSyntaxFromTokens, parseFromTokens } from './module.f.mjs'
 import { run } from '../ast/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -46,6 +46,62 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
 export const proof = {
+    sourceBlocks: {
+        // Literal expectations pin syntax before lowering can erase it.
+        explicitReturn: () => {
+            const expression = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => 7;')))
+            const block = unwrap(_parseSyntaxFromTokens(tokenizeString('export default () => { return 7; };')))
+            assertStructurallySame(expression.exported, ['=>', null, ['primitive', 7]])
+            assertStructurallySame(block.exported, ['=>', null, ['block', [['return', ['primitive', 7]]]]])
+        },
+        orderedDeclarations: () => {
+            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
+                'export default () => { const x = 1; const y = 2; return [x, y]; };')))
+            assert(exported[0] === '=>')
+            const body = exported[2]
+            assert(body[0] === 'block')
+            const [first, second, last] = body[1]
+            assert(first[0] === 'const' && second[0] === 'const' && last[0] === 'return')
+            assertStructurallySame(first[1].name.token, { kind: 'id', value: 'x' })
+            assertStructurallySame(second[1].name.token, { kind: 'id', value: 'y' })
+            assertStructurallySame(first[1].value, ['primitive', 1])
+            assertStructurallySame(second[1].value, ['primitive', 2])
+            assertEq(first[1].name.metadata.column, 30)
+            assertEq(second[1].name.metadata.column, 43)
+            const returned = last[1]
+            assert(returned[0] === 'array')
+            const [x, y] = returned[1]
+            assert(x[0] === 'ref' && y[0] === 'ref')
+            assertStructurallySame(x[1].token, first[1].name.token)
+            assertStructurallySame(y[1].token, second[1].name.token)
+        },
+        nestedBlocks: () => {
+            const { exported } = unwrap(_parseSyntaxFromTokens(tokenizeString(
+                'export default () => { return () => { return 7; }; };')))
+            assertStructurallySame(exported, ['=>', null, ['block', [
+                ['return', ['=>', null, ['block', [['return', ['primitive', 7]]]]]],
+            ]]])
+        },
+        syntaxRefusals: () => {
+            for (const source of [
+                'export default () => {};',
+                'export default () => { return; };',
+                'export default () => { return 7 };',
+                'export default () => { return 7; const x = 1; };',
+                'export default () => { return 7; return 8; };',
+                'export default ()\n=> 7;',
+                'export default () => { return\n7; };',
+                'export default () => { return /*\n*/ 7; };',
+            ]) {
+                assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'error')
+                assertEq(parseFromTokens(tokenizeString(source))[0], 'error')
+            }
+            // A line break inside the returned group is still admitted.
+            const source = 'export default () => { return (\n7\n); };'
+            assertEq(_parseSyntaxFromTokens(tokenizeString(source))[0], 'ok')
+            assertEq(parseFromTokens(tokenizeString(source))[0], 'ok')
+        },
+    },
     // The corpus that proved parity against the hand-written state machine,
     // kept as fixed expectations now that the state machine is gone.
     //
@@ -770,10 +826,8 @@ export const proof = {
             expect('export default (...return) => 1;', 'reserved word', 20)
             expect('export default (...a) => a.__proto__;', 'prohibited property name', 28)
         },
-        // A block body with no statement is the value it returns and
-        // nothing more: `{ return v; }` and `v` are one function in
-        // JavaScript, so the fold gives them one node and nothing
-        // downstream sees a block at all.
+        // The fold lowers a return-only block to the same executable body
+        // as an expression, after the source tree has preserved its syntax.
         block: () => {
             /** @type {(source: string, expected: string) => void} */
             const expect = (source, expected) => {

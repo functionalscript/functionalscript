@@ -137,6 +137,16 @@ export const proof = {
         const root = { 'a.f.js': file('import m from "./m.f.js"; export default m.x;'), 'm.f.js': file('export default { x: 1 };') }
         expectEdag(program(root)('a.f.js'), ['.', ['{}', [[':', 'x', 1]]], 'x'])
     },
+    // Linking uses the same URL-path resolution as transpilation: an escaped
+    // spelling resolves to dep.f.js, not to a literal %64ep.f.js sibling.
+    percentEscapedImport: () => {
+        const root = {
+            'main.f.js': file('import value from "./%64ep.f.js"; export default value;'),
+            'dep.f.js': file('export default 1;'),
+            '%64ep.f.js': file('export default 2;'),
+        }
+        expectEdag(program(root)('main.f.js'), 1)
+    },
     // imports take their positions from the source, and one import is one
     // parameter node however many references reach it
     parameters: () => {
@@ -234,6 +244,18 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', null, ['=>', null, ['args']]])
+    },
+    // Source blocks and returns survive parsing, but lowering still gives
+    // equivalent bodies the same EDAG, including nested block functions.
+    explicitReturns: () => {
+        for (const [expression, block] of [
+            ['() => 7', '() => { return 7; }'],
+            ['() => () => 7', '() => { return () => { return 7; }; }'],
+            ['(...a) => [a, a[0]]', '(...a) => { return [a, a[0]]; }'],
+        ]) {
+            const expected = compile(`export default ${expression};`).edag
+            expectEdag(compile(`export default ${block};`).edag, expected)
+        }
     },
     // A call takes the EDAG's two forms, and the callee picks which. A
     // property access as the callee is a method call — `a.b(c)` passes `a`

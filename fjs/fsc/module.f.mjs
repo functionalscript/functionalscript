@@ -17,7 +17,7 @@
  * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect } from '../effects/types.ts'
- * @import { ReadFile } from '../effects/node/types.ts'
+ * @import { ReadFile, ResolveFileModule } from '../effects/node/types.ts'
  */
 
 import { transpile } from './transpiler/module.f.mjs'
@@ -221,7 +221,7 @@ const isFjs = named(['.js', '.mjs'])
  * hoisted into a `const` as any shared node is, so the document reads back
  * as the same graph. The writer refuses nothing an EDAG holds.
  *
- * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const edagText = path => mapStep(resolve(path), tryStringify)
 
@@ -230,7 +230,7 @@ const edagText = path => mapStep(resolve(path), tryStringify)
  * into one graph, the same as {@link edagText}, and printed against the
  * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
  *
- * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const rustText = path => mapStep(resolve(path), toRust)
 
@@ -243,14 +243,14 @@ const rustText = path => mapStep(resolve(path), toRust)
  * would refuse, a read of `null`, compiles too, the failure being the
  * program's to make when it runs.
  *
- * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const fjsText = path => mapStep(resolve(path), fjsStringify)
 
 /**
  * The module at `path` as the text `write` makes of what it denotes.
  *
- * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const denotedText = write => path => mapStep(transpile(path), write)
 
@@ -269,7 +269,7 @@ const denotedText = write => path => mapStep(transpile(path), write)
  * input is the effect's; and a name with no language here is neither, since
  * there is nothing to read the input for.
  *
- * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadFile, Result<string, string>, ParseError>) | null}
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>) | null}
  */
 const outputText = outputFileName => {
     if (outputFileName.endsWith('.json')) { return denotedText(jsonText) }

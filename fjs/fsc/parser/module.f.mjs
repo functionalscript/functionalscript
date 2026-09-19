@@ -506,12 +506,9 @@ const groupNode = node => {
  * carry, which is what tells this reader whether to call {@link applyTail}
  * at all.
  *
- * A block body is its `const` statements and the value it returns, at the
- * third and sixth positions of `{ t const* return s value ; t } t`. With no
- * statement it is that value and nothing more: `{ return v; }` and `v` are
- * one function in JavaScript, so they are one node here, and nothing
- * downstream sees a block at all — which is what keeps a body `const` from
- * costing anything where none is written.
+ * A block preserves its ordered `const` declarations and explicit `return`,
+ * including when no declaration precedes it. The source tree keeps that
+ * syntax until the fold lowers it to an executable function body.
  *
  * A negation and a bitwise not are `op t unary tail*`, `unary` at the
  * third position exactly as a binary layer's own round has it — negated or
@@ -533,9 +530,8 @@ const toNode = node => {
     }
     if (node[0] === 'block') {
         const [, , consts, , , v] = unmapped(node[1])
-        const statements = unmapped(consts).map(constAt)
-        const returns = nodeAt(v)
-        return symbol({ id: 'value', node: statements.length === 0 ? returns : ['block', statements, returns] })
+        const statements = unmapped(consts).map(constAt).map(constNode)
+        return symbol({ id: 'value', node: ['block', [...statements, ['return', nodeAt(v)]]] })
     }
     const x = unmapped(node[1])[0]
     const [, accesses] = unmapped(x)
@@ -570,6 +566,9 @@ const operandToNode = node => {
     const [, accesses] = unmapped(x)
     return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
 }
+
+/** A declaration in a block's ordered statement list. @type {(statement: Const) => readonly ['const', Const]} */
+const constNode = statement => ['const', statement]
 
 /**
  * The token a key is read from, the name it spells, and whether it is the
@@ -948,17 +947,18 @@ const functionScope = name => {
  * The next step of a function's block body: the `const` at `index`, its name
  * checked before its value is entered — as a module's `const` is, so that a
  * statement wrong in both halves answers for the half a reader meets first
- * — or, once the statements are done, the value the body returns.
+ * — or the expression of the explicit final `return`.
  *
  * @type {(stack: _Stack, env: _Env, frame: _BodyFrame) => _State}
  */
 const bodyRound = (stack, env, frame) => {
     const { statements, index } = frame
-    if (index >= statements.length) { return [{ top: frame, rest: stack }, env, ['enter', frame.result]] }
-    const [tag, word] = bindable(env)(statements[index].name)
+    const [kind, statement] = statements[index]
+    if (kind === 'return') { return [{ top: frame, rest: stack }, env, ['enter', statement]] }
+    const [tag, word] = bindable(env)(statement.name)
     return tag === 'error'
         ? [stack, env, error(word)]
-        : [{ top: { ...frame, word }, rest: stack }, env, ['enter', statements[index].value]]
+        : [{ top: { ...frame, word }, rest: stack }, env, ['enter', statement.value]]
 }
 
 /**
@@ -1006,7 +1006,7 @@ const enter = (stack, env, node) => {
             if (tag === 'error') { return [stack, env, error(inner)] }
             const body = node[2]
             return body[0] === 'block'
-                ? bodyRound(stack, inner, { outer: env, statements: body[1], index: 0, word: '', done: null, result: body[2] })
+                ? bodyRound(stack, inner, { outer: env, statements: body[1], index: 0, word: '', done: null })
                 : [{ top: { outer: env }, rest: stack }, inner, ['enter', body]]
         }
         // a block stands only as a function's body, which `'=>'` above
@@ -1043,7 +1043,7 @@ const returned = (stack, env, frame, value) => {
         return [stack, env, ok(binary)]
     }
     if ('statements' in frame) {
-        if (frame.index < frame.statements.length) {
+        if (frame.statements[frame.index][0] === 'const') {
             // the binding lands after the value, keeping the name out of its
             // own initializer's scope, and names entry `index` of this body
             return bodyRound(
@@ -1175,6 +1175,18 @@ const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */
 export const parseFromTokens = tokenList => {
+    const [tag, module] = _parseSyntaxFromTokens(tokenList)
+    return tag === 'error' ? error(module) : foldModule(module)
+}
+
+/**
+ * Internal syntax reader shared with source-tree proofs. Its result has not
+ * passed binding, JavaScript early-error or FunctionalScript admission checks;
+ * callers compiling source use `parseFromTokens`.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<Module, ParseError>}
+ */
+export const _parseSyntaxFromTokens = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
@@ -1189,5 +1201,5 @@ export const parseFromTokens = tokenList => {
         })
     }
     const [tree] = result
-    return foldModule(moduleAt(tree))
+    return ok(moduleAt(tree))
 }

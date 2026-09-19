@@ -249,7 +249,7 @@ Open for review before code:
       whole suite instead of one case.
 - [ ] `deno.json`: add `--allow-run` to the tasks that run the suite. `test`,
       `cov` and `cov-html` (`../../../../deno.json:4-6`) grant only
-      `--allow-read --allow-env --allow-sys`, and the `deno` CI job runs
+      `--allow-read --allow-write --allow-env --allow-sys`, and the `deno` CI job runs
       `deno task cov` (`../../../../.github/workflows/ci.yml:404`), so the
       first discovered proof to reach `node:child_process.spawn` fails there on
       a permission error before a single case runs. Scope the grant to what the

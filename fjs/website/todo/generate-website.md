@@ -14,8 +14,8 @@
       inheriting it; the reasoning is [`../README.md`](../README.md))
 - [x] Pages fit a phone screen (any line may break inside a word; the
       reasoning is [`../README.md`](../README.md))
-- [ ] Touch-sized links in a page's lists — see
-      [touch-targets](touch-targets.md)
+- [x] Touch-sized links in a page's lists, padded for `any-pointer: coarse`
+      (the reasoning is [`../README.md`](../README.md))
 - [x] A link looks the same once it has been followed, in the site's own
       green (`--link` in `fjs/website/style/module.f.mjs`)
 - [ ] A favicon, two committed files linked from every head — see

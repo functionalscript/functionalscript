@@ -48,7 +48,7 @@ export type ParseError = {
  * order written, a negation by its operand, a function by the token naming
  * its parameter — `null` where the list is empty, there being no token —
  * and its body,
- * a block body by its `const` statements and the value it returns, or a
+ * a block body by its ordered, tagged statements, or a
  * container of its items in the order written.
  *
  * A call carries no token of its own. It held the `(` while an error was
@@ -56,10 +56,9 @@ export type ParseError = {
  * and that refusal is gone, `-1()` being the negation of `1()` as
  * JavaScript reads it.
  *
- * A `block` stands only as a function's body, and only when it has a
- * statement: `{ return v; }` and `v` are one function in JavaScript, so the
- * mapping gives the empty block the node of its value and nothing else sees
- * a block at all.
+ * A `block` stands only as a function's body. Even `{ return v; }` keeps
+ * its block and return; only lowering may give it the same executable body
+ * as the expression `v`.
  *
  * A binary operator is `[tag, left, right]`, its tag the token itself —
  * Stage A of
@@ -79,8 +78,15 @@ export type Node =
     | readonly ['~', Node]
     | readonly [BinaryTag, Node, Node]
     | readonly ['=>', DjsTokenWithMetadata | null, Node]
-    | readonly ['block', readonly Const[], Node]
+    | Block
     | Container
+
+/**
+ * The block syntax currently understood: zero or more `const` declarations
+ * followed by one explicit value-returning statement. The grammar enforces
+ * this order; bare returns, extra statements and ASI remain unsupported.
+ */
+export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return', Node]]]
 
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =

@@ -12,5 +12,5 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    Any::own_property([(string_key("a"), (42f64).to_any())].to_object().to_any(), string_any("a")).unwrap()
+    Any::member_access([(string_key("a"), (42f64).to_any())].to_object().to_any(), string_any("a")).unwrap()
 }
