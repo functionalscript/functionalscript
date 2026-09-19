@@ -16,8 +16,8 @@ of dependency loading. A source module should be compilable before its imports a
 resolved, with imported values represented as parameters of its EDAG.
 
 EDAG alone is not enough to represent an unresolved parsed module: module resolution
-also needs the module paths imported by that source file. Keep that information in a
-small temporary wrapper rather than adding module metadata to EDAG itself.
+also needs the source import specifiers and attributes from that file. Keep that
+information in a small temporary wrapper rather than adding module metadata to EDAG itself.
 
 The AST preserves the ordered object-entry representation EDAG requires:
 `AstObject` is `['object', members]`, the members in the order written, a
@@ -48,6 +48,11 @@ functions are in the language
 call lowering belongs to
 [`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
 This task should reuse and cross-reference those decisions rather than duplicate them.
+The source AST/admission boundary belongs to
+[statement-aware compilation](../parser/todo/statement-aware-intrinsics.md).
+[Module-resolution compatibility](./module-resolution-compatibility.md) owns the
+**P1 correction** to filesystem-based resolution and module identity. The
+rollout below records existing work; it does not authorize retaining that defect.
 
 ### Stage 1: property access and unresolved modules
 
@@ -55,9 +60,11 @@ This task should reuse and cross-reference those decisions rather than duplicate
 [`fjs/edag`](../../edag/module.f.mjs)'s schema, `dot`, with the index
 restriction below — and so are the unresolved module and its resolution:
 [`fjs/fsc/edag`](../edag/module.f.mjs) compiles a parsed module to
-`Unresolved { imports, edag }`, refusing what the export does not reach, and
-`resolve` links a program from its root path into one EDAG, memoized by path
-within the link. The binding is done where a reference is lowered — the
+`Unresolved { imports, edag }`, anchoring required computations the export does
+not reach. The current `resolve` links from a root filesystem path, memoized by
+path within the link. That describes the implementation, not the required
+module-identity contract: its path-based resolver and keys still need the
+linked P1 correction. The binding is done where a reference is lowered — the
 importing module is lowered over the imported modules' EDAGs, its parameters
 never built — rather than by rewriting a finished `Unresolved`, which would
 need a memo keyed by node identity to keep sharing; a cache that stores
@@ -73,7 +80,8 @@ refused at the key, and the lowering carries the access as the EDAG's own
 `['.', base, key]`. On the value path an access reads an own property, never
 the prototype chain; `undefined` where there is none; and a `null` or
 `undefined` base fails the module as JavaScript's throw does, which is what
-made `run` fallible. **Stage 1 is done.**
+made `run` fallible. **The basic Stage 1 rollout shipped; module-resolution
+compatibility remains an open P1 correction.**
 
 The first missing EDAG operation was property access:
 
@@ -120,6 +128,9 @@ to access those parameters, for example:
 #### Temporary `Unresolved`
 
 Compile each FunctionalScript source module **without loading its imports**.
+The JavaScript-subset AST must pass checked AST-to-EDAG compilation; merely
+parsing a function or a protected operation does not admit it. Import records
+remain unresolved while local binding, early-error and FJS checks are applied.
 
 Use the temporary representation:
 
@@ -131,14 +142,15 @@ type Unresolved = {
 ```
 
 `imports` is an **array of import records, not a map**: each is the specifier as
-written and whether the import carries `with { type: "json" }`, which selects the
-JSON reader for that import — see [`ast/types.ts`](../ast/types.ts). Its order
+written and whether the import carries `with { type: "json" }` — see
+[`ast/types.ts`](../ast/types.ts). Preserve this declared module type for the
+resolver/loader to validate under the host contract, even on cache hits. Its order
 defines the import parameter positions in `edag`. `edag` is the parameterized computation for the module,
 with `export default` as its root/result.
 
 `Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
-imported module paths must not be embedded into EDAG merely to make an unresolved
-module self-contained.
+import specifiers and resolved loading locations must not be embedded into EDAG
+merely to make an unresolved module self-contained.
 
 For example:
 
@@ -205,11 +217,27 @@ compilation is deliberately a separate task; see
 
 #### Resolve unresolved modules to one EDAG
 
-Recursively resolve the records in `Unresolved.imports`: each specifier against the
-importer's path, and each file by the reader its `json` flag selects, refused where
-the flag disagrees with the extension. Each imported source is compiled to its own
-temporary `Unresolved`, then its imports are resolved in the same way; a JSON module
-is the tree its document denotes and has no imports.
+Recursively resolve `Unresolved.imports` through the shared
+[module-resolution contract](./module-resolution-compatibility.md):
+
+```text
+importer identity + source specifier + import attributes
+    → declared host resolver → resolved module identity
+    → loading location and reader
+```
+
+Validate module types/import attributes under that contract before reusing a
+module or selecting its reader. For filesystem loading, convert the resolved
+URL to a path only at that boundary; the current raw-specifier/path-extension
+checks are not the target algorithm. Each loaded JavaScript source passes
+checked compilation to its own temporary `Unresolved`; resolve its dependencies
+relative to its resolved identity. JSON is read as data and has no imports.
+
+A bare specifier such as `pkg` uses the declared host's package/import-map rules
+or is explicitly refused until that class is supported. It is never treated as
+a sibling filesystem path. Unsupported URL forms or attributes are refused,
+not silently normalized into another meaning. The CLI's root filesystem input
+also needs a host module identity before resolving its imports.
 
 Resolution binds the resolved imported module results to the corresponding import
 parameter positions in the importing module EDAG. The import array order therefore
@@ -225,12 +253,21 @@ there; Stage 2 uses the placeholder `null` for it anyway. Import reachability ch
 must use the same scope boundary so function-local `['args']` nodes cannot be mistaken
 for module import parameters.
 
-One link operation must memoize resolved modules by the resolver's canonical module
-path. If the same module is reached more than once, including through a diamond import,
-reuse the same resolved EDAG rather than resolving/splicing a fresh copy. EDAG node
-identity is semantic, so duplicating a shared dependency can change reference identity
-for exported arrays/objects. This in-memory link memo is required independently of the
-optional `.fjs/unresolved/` source cache.
+One link operation must memoize resolved modules by the **resolved module
+identity** supplied by that contract, not by their loading path or source hash.
+The same identity must govern in-progress/cycle tracking. Different accepted
+spellings of one identity, including diamond imports, reuse the same resolved
+EDAG. Conversely, distinct identities must not be merged merely because they
+load the same file: query/fragment variants remain distinct where the declared
+host makes them distinct. Import-attribute validation still applies to each
+request; a memo hit cannot bypass it.
+
+EDAG sharing affects exported array/object identity. Preserve the sharing
+required within one module instance without conflating distinct instances.
+The optional `.fjs/unresolved/` cache reuses compiled templates, not module
+instances; identical cached source can resolve its imports differently under
+different importer identities. Warm and cold linking use the same resolver
+contract. No resolved module identity or loading metadata is added to EDAG.
 
 After all module dependencies are resolved, the temporary unresolved wrappers
 disappear. The **final compilation result is an EDAG, not an `Unresolved`**:
@@ -562,9 +599,15 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       nested function-local `['args']` nodes are never interpreted as import parameters.
       Done by construction: reachability is read from the syntax (`unreached`), where
       an import is an `aref`, never from `['args']` nodes.
-- [x] Memoize resolved modules during one link operation by canonical module path so
-      repeated/diamond imports reuse the same resolved EDAG node identities. Done;
-      pinned by `resolve.diamond` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
+- [x] Add per-link memoization for repeated/diamond imports in the implemented
+      path-based domain; pinned by `resolve.diamond` in
+      [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs). This shipped mechanism
+      still uses filesystem-path keys; it does not complete the P1 identity fix.
+- [ ] **P1:** replace path-based resolution, memo keys and cycle tracking with the
+      shared [module-identity contract](./module-resolution-compatibility.md).
+      Preserve same-identity sharing and distinct-identity separation; test
+      escaped names, bare specifiers, URL variants and import attributes on
+      value/EDAG paths and warm/cold builds. Unsupported classes stay refused.
 - [x] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
       Done: `resolve` returns an `Exp`.
@@ -674,8 +717,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [x] An unused import is not discarded: `import b from './b.f.js'; export default 1`
       links to `[',', [<b's EDAG>, 1]]`, so a failure in `b.f.js` cannot disappear.
       Pinned by `resolve.anchored`.
-- [x] A diamond of imports resolves one module once and both paths bind the same EDAG
-      node. Pinned by `resolve.diamond` and `resolve.bound`.
+- [x] A diamond in the implemented path-based domain resolves one module once
+      and both paths bind the same EDAG node. Pinned by `resolve.diamond` and
+      `resolve.bound`; these do not establish URL/package identity compatibility.
 - [x] `-0`, `NaN`, `Infinity` and `-Infinity` round-trip through DataJS, and the JSON
       writer refuses what JSON cannot spell rather than approximating. Pinned in
       [`fjs/fsc/proof.f.mjs`](../proof.f.mjs) (`specialNumbers`, the `jsonRefused`
@@ -683,6 +727,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 ### Related
 
+- [Module-resolution compatibility](./module-resolution-compatibility.md) —
+  P1 owner of shared host resolution, module identity, loading and regressions.
 - [`fjs/fsc/transpiler/module.f.mjs`](../../fsc/transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`; keep its value-producing public
   contract until EDAG interpretation is integrated.
