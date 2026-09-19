@@ -22,7 +22,7 @@ import { drop, includes } from '../../types/list/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import { components, decode as decodeImportPath, _isAbsoluteFileUrl } from '../../path/import/module.f.mjs'
+import { decode as decodeImportPath } from '../../path/import/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { sharing, values } from '../ast/module.f.mjs'
@@ -103,23 +103,21 @@ const importSource = ({ id, path }) => ({ specifier, json }) => sources =>
 
 /**
  * Admit original source spellings before host resolution or dependency loading.
- * Both compiler paths share these restrictions. Encoded %3F/%23 remain filename
- * characters; literal ?/# delimit components retained in the host's identity.
+ * Both compiler paths accept portable URL-path spellings. Encoded %3F/%23
+ * remain filename characters.
  * The portable segment guard is admission only: the host receives the original
  * specifier and the importer identity, never a prejoined filesystem path.
- * Absolute file URLs are parsed and pathname-validated by the host, which owns
- * authorities and native drive roots. The path decoder never sees a whole URL.
  *
  * @type {(source: _Source) => (imports: readonly AstImport[]) => Effect<ResolveFileModule, readonly _Source[], ParseError>}
  */
 export const _importSources = source => imports => {
     const { path } = source
     const unsupported = imports.find(({ specifier }) =>
-        !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/') && !_isAbsoluteFileUrl(specifier))
+        !specifier.startsWith('./') && !specifier.startsWith('../') && !specifier.startsWith('/'))
     if (unsupported !== undefined) {
-        return pureError({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../, / or an absolute file: URL`, metadata: null, path })
+        return pureError({ message: `unsupported import specifier "${unsupported.specifier}": expected ./, ../, or /`, metadata: null, path })
     }
-    const invalid = imports.find(({ specifier }) => !_isAbsoluteFileUrl(specifier) && decodeImportPath(components(specifier).path) === null)
+    const invalid = imports.find(({ specifier }) => decodeImportPath(specifier) === null)
     if (invalid !== undefined) {
         return pureError({ message: `invalid module specifier: ${invalid.specifier}`, metadata: null, path })
     }
