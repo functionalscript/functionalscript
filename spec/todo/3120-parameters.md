@@ -96,7 +96,7 @@ serialization result, never truncation or padding of the argument list.
 Empty/rest-only functions retain their existing serialization behavior.
 
 For example, under the proposed format,
-`['=>', 2, ['[]'], ['.', ['args'], 'length']]` is a valid function EDAG:
+`['=>', 2, ['[]', []], ['.', ['args'], 'length']]` is a valid function EDAG:
 its callable has `length === 2`, but calling it with zero,
 one or three arguments returns `0`, `1` or `3`. This task's writer must
 refuse it. `(a, b, ...rest) => …` can retain extra arguments, but rebuilding

@@ -10,7 +10,7 @@ but limits source serialization of positive-arity functions to indexed reads
 of declared parameters. Valid EDAGs can also observe the complete actual
 argument list, which those source forms cannot reconstruct.
 
-Under the proposed format, `['=>', 2, ['[]'], ['.', ['args'], 'length']]`
+Under the proposed format, `['=>', 2, ['[]', []], ['.', ['args'], 'length']]`
 describes a callable `f` with `f.length === 2`, `f() === 0`, `f(undefined) === 1` and
 `f(1, 2, 3) === 3`. Returning `['args']` or forwarding it must likewise
 preserve omissions and extra arguments.
