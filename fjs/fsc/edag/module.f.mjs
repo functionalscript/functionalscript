@@ -219,18 +219,18 @@ const jsonEdag = value => {
 const boxed = edag => [edag]
 
 /**
- * A module's EDAG recorded under its path, and the chain of imports left as
+ * A module's EDAG recorded under its identity, and the chain of imports left as
  * it was before the module was entered.
  *
- * @type {(path: string) => (context: _Link) => (edag: Exp) => readonly [_Link, Exp]}
+ * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, Exp]}
  */
-const completed = path => context => edag => [{
-    complete: setReplace(path)(boxed(edag))(context.complete),
+const completed = id => context => edag => [{
+    complete: setReplace(id)(boxed(edag))(context.complete),
     stack: drop(1)(context.stack),
 }, edag]
 
-/** @type {(path: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, Exp]} */
-const completedJson = path => context => value => completed(path)(context)(jsonEdag(value))
+/** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, Exp]} */
+const completedJson = id => context => value => completed(id)(context)(jsonEdag(value))
 
 /** @type {(bound: readonly Exp[]) => (linked: readonly [_Link, Exp]) => _Binding} */
 const appended = bound => ([context, edag]) => ({ context, bound: [...bound, edag] })
@@ -244,14 +244,14 @@ const linkImport = source => ({ context, bound }) => mapStep(link(source)(contex
  * reference is lowered, so the graph is built once, with the imported
  * module's node where its parameter would be.
  *
- * @type {(path: string) => (context: _Link) => (module: AstModule) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
  */
-const linkModule = path => context => module => step(
+const linkModule = ({ id, path }) => context => module => step(
     foldStep(pure(_importSources(path)(module[0])), { context, bound: [] }, linkImport),
-    ({ context: linked, bound }) => pureOk(completed(path)(linked)(lowered(bound)(module))))
+    ({ context: linked, bound }) => pureOk(completed(id)(linked)(lowered(bound)(module))))
 
 /**
- * The file at `path` resolved to its EDAG within one link: a module met
+ * The source resolved to its EDAG within one link: a module identity met
  * again is the node it resolved to the first time, so a diamond of imports
  * joins at one node, and a module met again while it is still being entered
  * is a cycle. A JSON module is read as a document, as its import says with
@@ -260,18 +260,19 @@ const linkModule = path => context => module => step(
  *
  * @type {(source: _Source) => (context: _Link) => Effect<ReadFile, readonly [_Link, Exp], ParseError>}
  */
-const link = ({ path, json }) => context => {
+const link = source => context => {
+    const { id, path, json } = source
     // the import's own contract, checked before the file's state: a file
     // met before is refused all the same when this import misspells it
-    const mismatch = _attributeError({ path, json })
+    const mismatch = _attributeError(source)
     if (mismatch !== null) { return pureError(mismatch) }
-    if (includes(path)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
-    const done = at(path)(context.complete)
+    if (includes(id)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
+    const done = at(id)(context.complete)
     if (done !== null) { return pureOk([context, done[0]]) }
-    const entered = { ...context, stack: { first: path, tail: context.stack } }
+    const entered = { ...context, stack: { first: id, tail: context.stack } }
     return json
-        ? mapStep(_parseJson(path), completedJson(path)(entered))
-        : step(_parseModule(path), linkModule(path)(entered))
+        ? mapStep(_parseJson(path), completedJson(id)(entered))
+        : step(_parseModule(path), linkModule(source)(entered))
 }
 
 /** @type {(linked: readonly [_Link, Exp]) => Exp} */
@@ -293,4 +294,4 @@ const edagOf = ([, edag]) => edag
  *
  * @type {(path: string) => Effect<ReadFile, Exp, ParseError>}
  */
-export const resolve = path => mapStep(link({ path, json: path.endsWith('.json') })({ complete: null, stack: null }), edagOf)
+export const resolve = path => mapStep(link({ id: path, path, json: path.endsWith('.json') })({ complete: null, stack: null }), edagOf)

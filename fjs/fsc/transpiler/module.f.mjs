@@ -41,9 +41,9 @@ import { readUtf8File } from '../../effects/node/module.f.mjs'
 const notFound = path => e =>
     catchStep(e, () => pureError({ message: 'file not found', metadata: null, path }))
 
-/** @type {(context: ParseContext) => (path: string) => Denotation} */
-const mapDjs = context => path => {
-    const res = at(path)(context.complete)
+/** @type {(context: ParseContext) => (id: string) => Denotation} */
+const mapDjs = context => id => {
+    const res = at(id)(context.complete)
     if (res === null)
     {
         throw 'unexpected behaviour'
@@ -51,8 +51,8 @@ const mapDjs = context => path => {
     return res
 }
 
-/** @type {(context: ParseContext) => (path: string) => Import} */
-const importAt = context => path => ({ ...mapDjs(context)(path), id: path })
+/** @type {(context: ParseContext) => (id: string) => Import} */
+const importAt = context => id => ({ ...mapDjs(context)(id), id })
 
 /** A JSON value is a tree, so it shares nothing and reaches no module. @type {(value: JsonUnknown) => Denotation} */
 const jsonDenotation = value => ({ value, shared: false, reaches: [] })
@@ -177,7 +177,7 @@ export const _importSources = path => imports => {
     }
     const paths = imports.map(imported => _importPath(path)(imported.specifier))
     if (paths.every(resolved => resolved !== null)) {
-        return ok(paths.map((resolved, i) => ({ path: resolved, json: imports[i].json })))
+        return ok(paths.map((resolved, i) => ({ id: resolved, path: resolved, json: imports[i].json })))
     }
     const specifier = imports[paths.indexOf(null)].specifier
     return error({ message: `invalid module specifier: ${specifier}`, metadata: null, path })
@@ -185,16 +185,16 @@ export const _importSources = path => imports => {
 
 /**
  * The context once a module's body has run: what it denotes recorded under
- * its path — the last value, and what the sweep says of the graph given
+ * its identity — the last value, and what the sweep says of the graph given
  * every value — and the chain of imports left as it was before the module
  * was entered.
  *
- * @type {(path: string, module: AstModule, imports: readonly Import[], context: ParseContext) => (consts: readonly Unknown[]) => ParseContext}
+ * @type {(id: string, module: AstModule, imports: readonly Import[], context: ParseContext) => (consts: readonly Unknown[]) => ParseContext}
  */
-const done = (path, module, imports, context) => consts => ({
+const done = (id, module, imports, context) => consts => ({
     ...context,
     stack: drop(1)(context.stack),
-    complete: setReplace(path)({ value: consts[consts.length - 1], ...sharing(module[1])(imports)(consts) })(context.complete),
+    complete: setReplace(id)({ value: consts[consts.length - 1], ...sharing(module[1])(imports)(consts) })(context.complete),
 })
 
 /**
@@ -216,34 +216,34 @@ export const _attributeError = ({ path, json }) => {
 }
 
 /** @type {(source: _Source) => string} */
-const pathOf = ({ path }) => path
+const idOf = ({ id }) => id
 
-/** @type {(path: string) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
-const transpileWithImports = path => module => context => {
+/** @type {(source: _Source) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
+const transpileWithImports = ({ id, path }) => module => context => {
     const resolved = _importSources(path)(module[0])
     if (resolved[0] === 'error') { return pure(resolved) }
     const sources = resolved[1]
-    const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
+    const contextWithStack = { ...context, stack: { first: id, tail: context.stack } }
     const x0 = foldStep(pureOk(sources), contextWithStack, foldNextModuleOp)
     return step(
         x0,
         contextWithImports => {
-            const imports = sources.map(pathOf).map(importAt(contextWithImports))
+            const imports = sources.map(idOf).map(importAt(contextWithImports))
             // a body fails on a property read of `null` or `undefined`, as
             // JavaScript throws; the failure has no token, since the value
             // is the module's, not one statement's, and names the module
             const [tag, consts] = values(module[1])(imports.map(valueOf))
             return tag === 'error'
                 ? pureError({ message: consts, metadata: null, path })
-                : pureOk(done(path, module, imports, contextWithImports)(consts))
+                : pureOk(done(id, module, imports, contextWithImports)(consts))
         })
 }
 
-/** A JSON module's denotation recorded under its path. @type {(path: string, context: ParseContext) => (value: JsonUnknown) => ParseContext} */
-const jsonDone = (path, context) => value => ({ ...context, complete: setReplace(path)(jsonDenotation(value))(context.complete) })
+/** A JSON module's denotation recorded under its identity. @type {(id: string, context: ParseContext) => (value: JsonUnknown) => ParseContext} */
+const jsonDone = (id, context) => value => ({ ...context, complete: setReplace(id)(jsonDenotation(value))(context.complete) })
 
 /**
- * The next import of a module, or the root: a file met again while it is
+ * The next import of a module, or the root: an identity met again while it is
  * being entered is a cycle, one already done is done, a JSON module — its
  * import says so with `with { type: "json" }` — is read as a document, a
  * `.json` file imported without the attribute, or another file imported
@@ -252,31 +252,32 @@ const jsonDone = (path, context) => value => ({ ...context, complete: setReplace
  *
  * @type {(source: _Source) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>}
  */
-const foldNextModuleOp = ({ path, json }) => context => {
+const foldNextModuleOp = source => context => {
+    const { id, path, json } = source
     // the import's own contract, checked before the file's state: a file
     // met before is refused all the same when this import misspells it
-    const mismatch = _attributeError({ path, json })
+    const mismatch = _attributeError(source)
     if (mismatch !== null) { return pureError(mismatch) }
 
-    if (includes(path)(context.stack)) {
+    if (includes(id)(context.stack)) {
         return pureError({ message: 'circular dependency', metadata: null, path })
     }
 
-    if (at(path)(context.complete) !== null) {
+    if (at(id)(context.complete) !== null) {
         return pureOk(context)
     }
 
-    if (json) { return mapStep(_parseJson(path), jsonDone(path, context)) }
+    if (json) { return mapStep(_parseJson(path), jsonDone(id, context)) }
 
     return step(
         _parseModule(path),
-        module => transpileWithImports(path)(module)(context))
+        module => transpileWithImports(source)(module)(context))
 }
 
-/** @type {(path: string) => Effect<ReadFile, Denotation, ParseError>} */
-const transpileModule = path => mapStep(
-    foldNextModuleOp({ path, json: false })({ stack: null, complete: null }),
-    context => mapDjs(context)(path))
+/** @type {(source: _Source) => Effect<ReadFile, Denotation, ParseError>} */
+const transpileModule = source => mapStep(
+    foldNextModuleOp(source)({ stack: null, complete: null }),
+    context => mapDjs(context)(source.id))
 
 /**
  * A JSON document is a value, not a module: it imports nothing and names
@@ -319,13 +320,13 @@ const transpileJson = path => mapStep(_parseJson(path), jsonDenotation)
  */
 export const transpile = path => path.endsWith('.json')
     ? transpileJson(path)
-    : transpileModule(path)
+    : transpileModule({ id: path, path, json: false })
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 export const proof = {
     throw: {
-        // `mapDjs` is only ever called with an import path that `foldNextModuleOp`
+        // `mapDjs` is only ever called with an identity that `foldNextModuleOp`
         // has already resolved into `context.complete`, so the `res === null`
         // guard is an internal-invariant check unreachable through `transpile`'s
         // public API. Call it directly with an empty `complete` map to cover it.
