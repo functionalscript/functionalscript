@@ -168,14 +168,10 @@ or optimization state. Function allocation identity and arity are unchanged.
 Ordinary JavaScript execution retains the host's representation.
 
 **Observed at `186af0b`:** the `.js` output already renders every function
-from the graph — `() => 1` is written `(...$a)=>1`, and a function a `const`
-names is hoisted under a generated name — so a JavaScript consumer of that
-output sees different text, as adopted, and also a different `name`: a
-function the source bound as `const f` answers `$0` there where the source
-answers `f`. Inside FJS `f.name` is refused at the key, so no FJS program
-observes it, and the exception's text covers the string representation
-alone. Whether `name` is a consequence of this exception or its own
-observation is a decision to record here, not to infer.
+from the graph — `() => 1` is written `(...$a)=>1` — so a JavaScript
+consumer of that output sees different text, as adopted. The function's
+`name` differs too, which this exception does not cover; that is the
+correction below.
 
 [Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
 owns the three open questions: whether the FSC function serializer and `String`
@@ -184,6 +180,35 @@ preference is substituting captured values), and how each handles `self`.
 No exact spelling or closure/self strategy is selected by this exception.
 Earlier no-exception/refusal directions for authored-text differences are
 superseded; implementing the chosen rendering contract remains work.
+
+#### Function name — current implementation, rule 2
+
+A JavaScript function's `name` is set once, at creation, from the binding
+or key it is created for. The `.js` output loses it wherever the writer
+hoists a function: at `186af0b`, `const f = (...a) => 1; export default
+[f, f];` is written `const $0=(...$a)=>$a;export default [$0,$0];`, and
+`export const g = (...a) => a;` becomes `const $3=…;export const g=$3;`, so
+a JavaScript consumer reads `$0` and `$3` where the source gives `f` and
+`g`. A function written in place keeps its name — `{ f: … }.f`, `export
+default (…) => …` — since the key or `default` names it again.
+
+The function-source exception covers the string representation alone and
+says other function observations keep their contracts, so this is not its
+consequence. [The language](../spec/README.md#functions) erases the name
+from the graph and says no program observes the difference. That is true of
+an FJS program, where `f.name` is refused at the key, and false of the
+generated-JS execution this epic's corpus gate compares by exercising
+exported functions. A different successful result there is rule 2.
+
+**Root-cause correction, one of two, decided rather than inferred:** either
+the graph carries the name JavaScript gives at creation and the writer
+binds a hoisted function under it, with the clash against generated `$n`
+names and user bindings handled where hoisted names are chosen; or the
+existing name erasure becomes an explicit exception here, naming its
+profile (the `.js` output read by a JavaScript consumer), the operation
+(`name`) and the consequence (a key or branch on it). Until one is
+recorded, [function name in the writer](../fjs/fsc/serializer/todo/function-name.md)
+holds the concrete task and the current-implementation reproducer.
 
 #### Property reflection — incompatible alternatives withdrawn
 
@@ -289,6 +314,8 @@ requirements; compatibility alone would allow randomness and external mutation.
       serializer/`String`, frame and `self` questions in the owning documents.
 - [ ] **P1:** implement and test the chosen function-rendering contract across
       source, EDAG, coercion and execution; preserve other function observations.
+- [ ] **P1:** decide the function-name correction above and land it in the
+      writer, or record the exception with its consequences.
 - [ ] **P1:** preserve the property-observation and composition contract in
       each affected implementation. Missing support is refused, not guessed.
 - [ ] **P1:** extend the existing host harness with a shared compatibility
