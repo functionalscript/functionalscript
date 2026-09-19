@@ -16,13 +16,13 @@
  * is what a parsed value already carries: this walk reads it rather than
  * reconstructing it.
  *
- * **The layout ranks a node by when the walk first reaches it**, left to
- * right within a rank in the order discovered. A shared node keeps the rank
- * of whichever edge reaches it first, so a later edge to it may point
- * sideways or upward rather than only down — a real layout algorithm would
- * avoid that. This demo's graphs are small enough that a reader can follow
- * a slanted line, and the alternative is a layout engine for a page that
- * has none.
+ * **A node's rank is the longest path from the root, not the first one the
+ * walk happened to take**, left to right within a rank in creation order. A
+ * shared node reached again from a longer route moves down to match, so
+ * every edge points down by at least one rank — never sideways, never up.
+ * The first version ranked by first discovery instead, and a later edge to
+ * an already-placed node could still point backward across the page; this
+ * is the fix, not a second layout engine bolted beside the first.
  *
  * **It needs no operations.** Parsing and walking are pure functions of the
  * text, so `update` declares `never` and returns through `pureOk`.
@@ -42,18 +42,23 @@ import { pureOk } from '../../effects/module.f.mjs'
 const { is } = Object
 
 /**
+ * A node as the walk discovers it — everything but its rank, which is not
+ * yet known: a later edge from elsewhere in the document may still demand a
+ * longer route to it than the one that created it.
+ *
  * @typedef {{
  *   readonly id: number,
  *   readonly kind: 'array' | 'object' | 'leaf',
  *   readonly label: string,
- *   readonly rank: number,
- * }} _Node
+ * }} _Bare
+ *
+ * @typedef {_Bare & { readonly rank: number }} _Node
  *
  * @typedef {{ readonly from: number, readonly to: number, readonly label: string }} _Edge
  *
  * @typedef {{
  *   readonly refs: readonly (readonly [object, number])[],
- *   readonly nodes: readonly _Node[],
+ *   readonly nodes: readonly _Bare[],
  *   readonly edges: readonly _Edge[],
  *   readonly next: number,
  * }} _State
@@ -81,21 +86,26 @@ const findRef = state => ref => {
  * `value`'s node id, and the state with `value` and everything under it
  * added — or just the state, when `value` is a reference already walked.
  *
- * @type {(depth: number) => (state: _State) => (value: Unknown) => { readonly id: number, readonly state: _State }}
+ * Ranks nothing: which rank a node belongs to depends on every edge that
+ * reaches it, including ones this walk has not taken yet when it first
+ * creates the node, so {@link ranked} decides that afterward, once the
+ * whole graph is known.
+ *
+ * @type {(state: _State) => (value: Unknown) => { readonly id: number, readonly state: _State }}
  */
-const walk = depth => state => value => {
+const walk = state => value => {
     if (value === null || typeof value !== 'object') {
         const id = state.next
-        /** @type {_Node} */
-        const node = { id, kind: 'leaf', label: concat(leafSerialize(/** @type {Primitive} */ (value))), rank: depth }
+        /** @type {_Bare} */
+        const node = { id, kind: 'leaf', label: concat(leafSerialize(/** @type {Primitive} */ (value))) }
         return { id, state: { ...state, next: id + 1, nodes: [...state.nodes, node] } }
     }
     const existing = findRef(state)(value)
     if (existing !== null) { return { id: existing, state } }
     const id = state.next
     const isArray = value instanceof Array
-    /** @type {_Node} */
-    const node = { id, kind: isArray ? 'array' : 'object', label: isArray ? '[ ]' : '{ }', rank: depth }
+    /** @type {_Bare} */
+    const node = { id, kind: isArray ? 'array' : 'object', label: isArray ? '[ ]' : '{ }' }
     /** @type {readonly [object, number]} */
     const ref = [value, id]
     /** @type {_State} */
@@ -109,7 +119,7 @@ const walk = depth => state => value => {
     const walkEntries = entries => entries.reduce(
         /** @type {(acc: _State, entry: readonly [string, Unknown]) => _State} */
         (acc, [label, item]) => {
-            const step = walk(depth + 1)(acc)(item)
+            const step = walk(acc)(item)
             return { ...step.state, edges: [...step.state.edges, { from: id, to: step.id, label }] }
         },
         withNode)
@@ -117,6 +127,33 @@ const walk = depth => state => value => {
         ? walkEntries(value.map((item, index) => [String(index), item]))
         : walkEntries(Object.entries(value).map(([key, item]) => [concat(keySerialize(key)), item]))
     return { id, state: final }
+}
+
+/**
+ * Every node's rank: the longest path from the root, so every edge points
+ * down by at least one rank and never sideways or up. A node's id is its
+ * index here — `walk` assigns ids 0, 1, 2, … in creation order with no
+ * gaps — so `current[edge.from]` reads a node by id directly.
+ *
+ * **Bellman-Ford's relaxation, not a topological sort.** `nodes.length`
+ * rounds is more rounds than the longest possible simple path in a graph
+ * this size can have edges, which is the bound the algorithm needs; a
+ * demo-sized graph has nothing for a sort to save. Each round reads the
+ * previous one's ranks only, so the order edges happen to be in does not
+ * matter.
+ *
+ * @type {(nodes: readonly _Bare[], edges: readonly _Edge[]) => readonly _Node[]}
+ */
+const ranked = (nodes, edges) => {
+    /** @type {readonly _Node[]} */
+    const initial = nodes.map(n => ({ ...n, rank: n.id === 0 ? 0 : -Infinity }))
+    /** @type {(current: readonly _Node[]) => readonly _Node[]} */
+    const relax = current => current.map(node => {
+        const incoming = edges.filter(e => e.to === node.id)
+        const best = incoming.reduce((m, e) => Math.max(m, current[e.from].rank + 1), node.rank)
+        return best === node.rank ? node : { ...node, rank: best }
+    })
+    return Array.from({ length: nodes.length }, () => null).reduce(relax, initial)
 }
 
 /**
@@ -128,8 +165,8 @@ const walk = depth => state => value => {
 const graphOf = text => {
     const result = tryParse(text)
     if (result[0] === 'error') { return { ok: false, error: result[1] } }
-    const { state } = walk(0)({ refs: [], nodes: [], edges: [], next: 0 })(result[1])
-    return { ok: true, nodes: state.nodes, edges: state.edges }
+    const { state } = walk({ refs: [], nodes: [], edges: [], next: 0 })(result[1])
+    return { ok: true, nodes: ranked(state.nodes, state.edges), edges: state.edges }
 }
 
 const nodeHeight = 26

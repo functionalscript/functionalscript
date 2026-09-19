@@ -105,6 +105,21 @@ export const proof = {
                 assert(html.includes('d="M35,36 Q59,89 35,142"'), html)
                 assert(html.includes('d="M35,36 Q35,56 35,76"'), html)
             },
+            // The one case the first version of this demo got wrong: `$0` is
+            // reached at rank 1 via `"a"`, then again at rank 3 via
+            // `"b"."c"."d"` — the longer route. Rank by longest path moves
+            // it to rank 3, so `"a"` becomes the one that skips ranks and
+            // bows, and no edge is left pointing back up the page the way
+            // `"a"` would if `$0` had kept its first-seen rank of 1.
+            longestPathWins: () => {
+                const html = htmlToString(demo.view(
+                    'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};'))
+                assert(html.includes('d="M35,36 Q59,122 35,208"'), html)
+                assert(html.includes('d="M35,168 Q35,188 35,208"'), html)
+                assert(html.includes('d="M35,102 Q35,122 35,142"'), html)
+                assert(html.includes('d="M35,36 Q35,56 35,76"'), html)
+                assert(html.includes('d="M35,234 Q35,254 35,274"'), html)
+            },
             // A parse failure is shown, not swallowed, and draws no graph.
             error: () => {
                 const html = htmlToString(demo.view('{bad'))
