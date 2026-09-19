@@ -18,7 +18,7 @@
       [touch-targets](touch-targets.md)
 - [x] A link looks the same once it has been followed, in the site's own
       green (`--link` in `fjs/website/style/module.f.mjs`)
-- [x] A favicon, two committed files linked from every head (a lambda, the
+- [x] A favicon, two committed files linked from every head ("fs", the
       reasoning is [`../README.md`](../README.md))
 - [ ] Decide what the build owes its own leftovers — see
       [stale-generated-pages](stale-generated-pages.md)

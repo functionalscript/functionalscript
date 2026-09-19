@@ -3,6 +3,9 @@
         path { stroke: #137333 }
         @media (prefers-color-scheme: dark) { path { stroke: #81c995 } }
     </style>
-    <path d="M13 4 L6 20" fill="none" stroke-width="2.6" stroke-linecap="round" />
-    <path d="M10.1 10.6 L18 20" fill="none" stroke-width="2.6" stroke-linecap="round" />
+    <path d="M10 5 C11.5 3.3 8.5 2.7 7.5 5 C6.8 6.7 6.8 8.3 6.8 10 L6.8 18 C6.8 20 5.5 20.8 4 20.3"
+          fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M4.8 10.2 L9.5 10.2" fill="none" stroke-width="1.8" stroke-linecap="round" />
+    <path d="M17 8.5 C13 7 10.5 9.5 13.5 11 C16.5 12.5 18 14.5 15 16.5 C12.5 18.2 9.5 17.3 9.8 15.3"
+          fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
 </svg>

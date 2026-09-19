@@ -207,7 +207,7 @@ link in that same green would make one colour mean both "this went well" and
 values is coincidence, not aliasing: moving one later must not drag the other
 with it.
 
-## The favicon is a lambda, committed rather than generated
+## The favicon is "fs", committed rather than generated
 
 `favicon.ico` at the repository root, `favicon.svg` in
 [`fjs/website/`](./favicon.svg), next to the generator that links it. The site
@@ -215,15 +215,15 @@ serves the repository directory itself, so a file is served from where it
 sits — there is nothing to generate, and the mark will not change often
 enough for a build step to buy anything.
 
-**The mark is a lambda, drawn as two strokes rather than a character.** The
-site had no logo to inherit, and a `λ` set in a font renders as whatever the
-browser resolves that font to — a different shape depending on what is
-installed, unlike every other mark on this site drawn as geometry. Two round-
-capped strokes — one from the top down to the lower left, a shorter one
-branching partway down it to the lower right — read as the letter at 16px
-without spelling it in a typeface. It takes `--link`'s two colours, `#137333`
-light and `#81c995` dark, via the SVG's own `prefers-color-scheme` query: the
-one mark on the page that is this site's own colour and nothing else's.
+**The mark is "fs", drawn as strokes rather than characters.** The site had
+no logo to inherit, and text set in a font renders as whatever the browser
+resolves that font to — a different shape depending on what is installed,
+unlike every other mark on this site drawn as geometry. A handful of
+round-capped path strokes trace a script "fs" ligature — the project's own
+initials, in the flowing hand a font can't be relied on to reproduce — and
+read clearly down to 16px. It takes `--link`'s two colours, `#137333` light
+and `#81c995` dark, via the SVG's own `prefers-color-scheme` query: the one
+mark on the page that is this site's own colour and nothing else's.
 
 **Both files, because declaring one ends the implicit lookup.** `/favicon.ico`
 is what a browser asks for when a document declares no icon at all; once a
