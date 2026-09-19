@@ -100,7 +100,8 @@ see [serialization](./serialization.md).
    body and with either parameter list, `(...a) => expression`,
    `(...a) => { return expression; }` and `() => expression`
    ([functions](../README.md#functions))
-2. [ ] [parameters](./3120-parameters.md) — the named list is what is left
+2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
+   named lists, with declared arity preserved
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
@@ -133,10 +134,9 @@ see [serialization](./serialization.md).
 ### 3.4. Syntactic Sugar
 
 1. [ ] [expression](./3410-expression.md)
-2. [ ] [one-parameter](./3420-one-parameter.md)
-3. [ ] [assignments](./3430-assignments.md)
-4. [ ] [template-literals](./3440-template-literals.md)
-5. [ ] `async`/`await`. Depends on the implementation of promises.
+2. [ ] [assignments](./3430-assignments.md)
+3. [ ] [template-literals](./3440-template-literals.md)
+4. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ### 3.5. Priority 4
 
