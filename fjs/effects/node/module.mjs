@@ -25,6 +25,7 @@ import childProcess from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import process from 'node:process'
 import zlib from 'node:zlib'
 import { once } from 'node:events'
@@ -311,6 +312,18 @@ const runNodeEffect = asyncRun({
         return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
     mkdir: (path, options) => io(async () => { await mkdir(path, options) }),
+    resolveFileModule: (name, parent) => io(async () => {
+        const url = parent === null ? pathToFileURL(name) : new URL(name, parent)
+        if (url.protocol !== 'file:') {
+            throw new Error('only file modules are supported')
+        }
+        const path = await fs.promises.realpath(fileURLToPath(url))
+        const canonical = pathToFileURL(path)
+        // Match Node's default ESM realpath step, including empty components.
+        canonical.search = url.search
+        canonical.hash = url.hash
+        return { id: canonical.href, path }
+    }),
     readFile: path => io(async () => {
         const fileStats = await stat(path)
         // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.

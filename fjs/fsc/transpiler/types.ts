@@ -18,7 +18,7 @@ import type { OrderedMap } from '../../types/ordered_map/types.ts'
  * encountered, or `null` while everything is clean" — a hand-rolled error
  * channel that every step had to set, and that three separate places had to
  * test before doing any work. It is the effect's channel now
- * (`Effect<ReadFile, ParseContext, ParseError>`), so `step` short-circuits and
+ * (`Effect<ReadFile | ResolveFileModule, ParseContext, ParseError>`), so `step` short-circuits and
  * a context that exists is a context that is still good.
  */
 export type ParseContext = {
@@ -28,9 +28,8 @@ export type ParseContext = {
 
 /**
  * A resolved import or root. Identity governs reuse and cycles; path governs
- * loading and source diagnostics. The current resolver still assigns its
- * existing path key as the identity; host-defined URL identities remain in
- * `../todo/module-resolution-compatibility.md`.
+ * loading and source diagnostics. The host supplies both: Node uses canonical
+ * file URLs and real filesystem paths; the virtual host uses lexical identities.
  */
 export type _Source = {
     readonly id: string

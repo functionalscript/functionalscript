@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
+import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -35,7 +35,19 @@ const assertIoMessage = (e, message) => {
     assertEq(e[1].message, message)
 }
 
+/** @type {(name: string) => (parent: string | null) => import('../types.ts').IoResult<import('../types.ts').FileModule>} */
+const resolvedModule = name => parent => virtual(emptyState)(resolveFileModule(name, parent))[1]
+
 export const proof = {
+    resolveFileModule: () => {
+        assertStructurallySame(resolvedModule('./dir/../main.mjs')(null), ['ok', { id: 'main.mjs', path: './dir/../main.mjs' }])
+        assertStructurallySame(resolvedModule('./%64ep.mjs')('main.mjs'), ['ok', { id: 'dep.mjs', path: 'dep.mjs' }])
+        assertEq(resolvedModule('./bad%')('main.mjs')[0], 'error')
+        assertEq(resolvedModule('./dep.mjs')('bad%')[0], 'error')
+        assertStructurallySame(resolvedModule('./dep%3F%23%25.mjs?v=1#copy')('main.mjs?old'), ['ok', { id: 'dep%3F%23%25.mjs?v=1#copy', path: 'dep?#%.mjs' }])
+        assertStructurallySame(resolvedModule('./next.mjs')('dep%3F%23%25.mjs?v=1#copy'), ['ok', { id: 'next.mjs', path: 'next.mjs' }])
+        assertStructurallySame(resolvedModule('main?#%.mjs')(null), ['ok', { id: 'main%3F%23%25.mjs', path: 'main?#%.mjs' }])
+    },
     // The two ways a command can have no handler here, which are not the same
     // failure and must not answer alike.
     unimplemented: {

@@ -86,6 +86,24 @@ export type Mkdir = readonly['mkdir', (path: string, options?: MakeDirectoryOpti
  */
 export type ReadFile = readonly['readFile', (path: string) => IoResult<Vec>]
 
+/** A host-resolved file module: identity is independent of its loading path. */
+export type FileModule = {
+    readonly id: string
+    readonly path: string
+}
+
+/**
+ * Resolve a literal entry path (parent null), or an admitted path-like import
+ * against its parent identity. The Node host uses WHATWG file URLs and realpath,
+ * with default Node ESM symlink semantics, independent of preserve-symlinks flags.
+ * Callers admit supported import classes; URL parsing and filesystem identity
+ * belong to the host. Query/fragment components belong to identity, not the
+ * loading path; the default Node realpath step removes empty components.
+ * The virtual host declares lexical identities with opaque suffix text (no cwd
+ * or symlinks); it escapes pathname delimiters to keep filenames distinct.
+ */
+export type ResolveFileModule = readonly['resolveFileModule', (name: string, parent: string | null) => IoResult<FileModule>]
+
 // readdir
 
 /**
@@ -281,7 +299,7 @@ export type ReadWhole = readonly['readWhole', (path: string) => IoResult<readonl
 
 // Fs
 
-export type Fs = Mkdir | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
 
 // Server
 
