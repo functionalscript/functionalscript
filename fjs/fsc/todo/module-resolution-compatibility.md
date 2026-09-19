@@ -72,6 +72,15 @@ their host resolution is implemented; they never fall back to sibling files.
 This is a resolution restriction, not a JavaScript grammar restriction or a
 restriction on CLI input filenames. It does not complete URL identity handling.
 
+Literal `?` and `#` in a path-like import are also refused by `_importSources`
+before percent decoding. They delimit URL query/fragment components, not
+filename characters. Stripping them would incorrectly merge module identities;
+passing them to the filesystem would load a different file. Percent-encoded
+`%3F` and `%23` remain filename characters after decoding (where the filesystem
+supports them), and CLI entry paths are unaffected. Query/fragment support must
+wait for the resolved-identity/loading-location separation, not a suffix-removal
+patch. This refusal does not claim that URL identity handling is complete.
+
 ### Tasks
 
 - [ ] Specify and share the resolution contract between value compilation and
@@ -84,6 +93,10 @@ restriction on CLI input filenames. It does not complete URL identity handling.
       targets cannot be loaded, raw spelling is classified before decoding,
       and explicit relative controls still work; retain package resolution
       and URL identity as future work.
+- [x] Refuse literal query/fragment delimiters before decoding through the shared
+      compiler error channel; preserve encoded filename characters. Cover both
+      compilation paths, unused imports, misleading files and CLI no-output
+      behavior. Actual query/fragment module identities remain future work.
 - [ ] Add the shared differential FJS/native-ESM compatibility harness; the
       current proofs pin the FJS side while Node is the external oracle.
 - [ ] Cover equivalent URL spellings, escaped filenames, query/fragment
