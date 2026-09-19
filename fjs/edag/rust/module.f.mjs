@@ -192,7 +192,7 @@ const keyExpr = k => typeof k === 'string' ? ok(`string_key(${stringLiteral(k)})
  * literal `number` or `string`, the two `Index` variants `member_access`'s
  * own key type (`number | string`) already covers directly.
  *
- * `NumberCast` — `Index`'s third variant — names a sub-expression to
+ * `NumberCast` — the remaining `Index` variant — names a sub-expression to
  * evaluate and coerce at run time (`a[Number(k)]`), not a literal key this
  * printer can spell directly, and there is no `Number(...)` cast primitive
  * here to route it through (`op1Rust` has `String` but no `Number`), so it
@@ -222,21 +222,44 @@ const indexExpr = index => {
 const nullishBase = base => base === null || (base instanceof Array && base[0] === 'undefined')
 
 /**
+ * `true` for a JS number that denotes a valid array/string index: a
+ * non-negative integer. Mirrors `nanvm-lib`'s own `canonical_index`
+ * (`vm/member_access.rs`) exactly but for one omission that is provably
+ * harmless below: it does not cap the value at `u32::MAX`. Every caller
+ * only trusts a `true` result once the same number is also less than a real
+ * literal's `.length` — always far short of that cap — so a value beyond it
+ * still reads as an out-of-range miss below, the same outcome
+ * `canonical_index` gives it directly. `-0` passes (`Number.isInteger(-0)`
+ * and `-0 >= 0` both hold), matching `canonical_index`'s own `-0` case; a
+ * negative, fractional, `NaN`, or `Infinity` key fails, matching every
+ * other rejection `canonical_index` makes — each of those always misses
+ * below too, since a miss needs only "not a canonical in-range index",
+ * never this predicate specifically.
+ *
+ * @type {(n: number) => boolean}
+ */
+const isCanonicalIndex = n => Number.isInteger(n) && n >= 0
+
+/**
  * The `Exp` a `.` node's base denotes when every step folding it is
- * statically visible: a literal object base and a literal string key fold
- * to the property's own value, the same way `{ a: 1 }.a` is `1` at run time
- * — so a base that is nullish only after such a fold is still caught by
- * {@link nullishBase} rather than missed just because the nullish value sits
- * one or more hops further away than the node it is checked on: `{}.missing`
- * folds to the tagged `['undefined']` node the same way a key absent at run
- * time reads as `undefined`, and `{ a: null }.a.x` folds its base to a
- * literal `null` before `nullishBase` ever sees it. `fjs/fsc/ast/module.f.mjs`'s
- * `selected` does the same fold for the same reason, over the AST rather
- * than the EDAG, for the sharing sweep.
+ * statically visible: a literal receiver and a literal key fold to the
+ * property or element's own value, the same way `{ a: 1 }.a` is `1` and
+ * `[1][0]` is `1` at run time — so a base that is nullish only after such a
+ * fold is still caught by {@link nullishBase} rather than missed just
+ * because the nullish value sits one or more hops further away than the
+ * node it is checked on: `{}.missing` and `[][0]` both fold to the tagged
+ * `['undefined']` node the same way a missing property or an out-of-range
+ * index reads as `undefined` at run time, and `{ a: null }.a.x` and
+ * `[null][0].x` both fold their base to a literal `null` before
+ * `nullishBase` ever sees it — exactly mirroring `Any::member_access`'s own
+ * three receivers: an object's key (a string key directly, a number key
+ * stringified first, matching `Object::member_access`'s own `ToString`),
+ * and an array's or a string's canonical numeric index
+ * ({@link isCanonicalIndex}, matching `Array`/`String::member_access`).
  *
  * Stops and hands back `e` unresolved wherever it cannot see through: a
- * `const`, an import, another operation, an array, or an object holding a
- * spread — this is a fold over literal *object* chains only, not a general
+ * `const`, an import, another operation, or an object or array holding a
+ * spread — this is a fold over literal chains only, not a general
  * evaluator, so a shape it cannot prove is left opaque rather than guessed
  * at. Folding all the way through to a non-nullish literal — an array, a
  * string, another object — costs nothing and is harmless, but changes
@@ -251,11 +274,22 @@ const resolvedBase = e => {
     const [id, a, b, c] = /** @type {readonly any[]} */ (e)
     if (id !== '.' || c !== undefined) { return e }
     const base = resolvedBase(a)
-    if (!(base instanceof Array) || base[0] !== '{}' || typeof b !== 'string') { return e }
-    const props = /** @type {readonly any[]} */ (base[1])
-    if (props.some((/** @type {any} */ p) => p[0] !== ':')) { return e }
-    const prop = props.findLast((/** @type {any} */ p) => p[1] === b)
-    return resolvedBase(prop === undefined ? ['undefined'] : prop[2])
+    if (base instanceof Array && base[0] === '{}' && (typeof b === 'string' || typeof b === 'number')) {
+        const key = typeof b === 'number' ? String(b) : b
+        const props = /** @type {readonly any[]} */ (base[1])
+        if (props.some((/** @type {any} */ p) => p[0] !== ':')) { return e }
+        const prop = props.findLast((/** @type {any} */ p) => p[1] === key)
+        return resolvedBase(prop === undefined ? ['undefined'] : prop[2])
+    }
+    if (base instanceof Array && base[0] === '[]' && typeof b === 'number') {
+        const items = /** @type {readonly any[]} */ (base[1])
+        if (items.some((/** @type {any} */ p) => p instanceof Array && p[0] === '...')) { return e }
+        return resolvedBase(isCanonicalIndex(b) && b < items.length ? items[b] : ['undefined'])
+    }
+    if (typeof base === 'string' && typeof b === 'number') {
+        return resolvedBase(isCanonicalIndex(b) && b < base.length ? base[b] : ['undefined'])
+    }
+    return e
 }
 
 /**
