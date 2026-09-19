@@ -220,6 +220,14 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
  * So this is the operation a lock file wants, and `createExclusive` is for a
  * name claimed now and written later — the lock-free upload's staging file,
  * whose 256 random bits are what make the window uninteresting there.
+ *
+ * **Adding this to `Fs` widens `NodeOp`, which is a breaking change** and is
+ * declared as one: `NodeOperationMap` and `CommandSet<NodeOp>` are both checked
+ * for *completeness*, so a custom runner that annotates either has to grow a
+ * handler to compile, and an exhaustive `switch` over `NodeOp` has to grow an
+ * arm. `resolveFileModule` was added the same way in
+ * [#2117](https://github.com/functionalscript/functionalscript/pull/2117) and
+ * declared the same way.
  * [`fjs/git/refstore`](../../git/refstore/module.f.mjs)'s `tryWrite` is this
  * one's caller, where the name is `refs/heads/x.lock` and entirely predictable.
  */

@@ -26,42 +26,42 @@ effects — `packed-refs`, the directories above the file, the exclusive write o
 the id's hex digits and an LF, the rename — and gives the lock back where a
 failure of the **rename** would otherwise leave it, and never on any earlier
 failure: that write succeeding is the only evidence the lock is this writer's,
-and no error code is evidence of the same.
-
-Two revisions got that wrong in the same way and both were review findings. The
-first cleaned up over the whole sequence, so a `packed-refs` refusal deleted a
-live writer's lock. The second kept the write inside the span and carved out
-`EEXIST` as the one "not mine" error — also wrong: measured on node 22.22.2 with
-the process out of file descriptors, a `wx` open of a name another writer holds
-answers **`EMFILE`**, not `EEXIST`, against the same call with descriptors
-available which answers `EEXIST`. So the rollback for a write that fails *after*
-its open now lives in `fjs/effects/node`'s `writeExclusive`, where `O_EXCL`
-succeeding is known, and its contract is that the file either holds the data or
-is not there. Every refusal fixture holds a foreign lock, and
-`writeNotMineOnAnyError` drives an `EMFILE` host, so neither revision can come
-back.
-
-What is left of it: if the runner's `close` fails after a successful write the
-file is left behind, and the rollback unlinks by path rather than by descriptor,
-so a replacement in that window would be removed instead. Both are failures on a
-filesystem already failing, and both are `fjs/effects/node`'s to fix if a caller
-ever needs them fixed. The file is `oidBytes * 2 + 1`
-bytes and not a fixed 41 — measured, `update-ref` writes 41 bytes in a SHA-1
-repository and 65 in one created with `git init --object-format=sha256`, whose
-ids are sixty-four digits.
+and no error code is evidence of the same. The file is `oidBytes * 2 + 1` bytes
+and not a fixed 41 — measured, `update-ref` writes 41 bytes in a SHA-1 repository
+and 65 in one created with `git init --object-format=sha256`, whose ids are
+sixty-four digits.
 
 **The create and the fill are one effect**, which is a hole and not a round trip.
 `createExclusive` closes its descriptor, so a `writeFile` after it reopens the
 *pathname* with the flags `w` gives — `O_TRUNC`, and symlinks followed. Measured
 on node 22.22.2 with the name replaced by a symlink between the two calls: the
 `writeFile` succeeded and **overwrote the link's target**, and the name was still
-a symlink, so the rename would have published the link as the ref. One
-`writeFile` with `flag: 'wx'` answers `EEXIST` on that symlink — and on a
-dangling one, since `O_EXCL` refuses a link without following it — with the
-target untouched; the control is that `wx` on a free name creates and fills it
-and a second `wx` on the taken name is `EEXIST` with the bytes unchanged. That is
-`fjs/effects/node`'s `writeExclusive`, added for this and carrying the
-measurement. Found by review of the write.
+a symlink, so the rename would have published the link as the ref. `O_EXCL`
+answers `EEXIST` on that symlink — and on a dangling one, since it refuses a link
+without following it — with the target untouched; the control is that a free name
+is created and filled and a second attempt on the taken name is `EEXIST` with the
+bytes unchanged. That is `fjs/effects/node`'s `writeExclusive`, added for this.
+Adding it widens `NodeOp`, which a custom runner must implement, so the PR
+declares a breaking change.
+
+**And the rollback is the runner's, because that is where `O_EXCL` succeeding is
+known.** Three revisions decided ownership at the caller instead and each was a
+review finding. The first cleaned up over the whole sequence, so a `packed-refs`
+refusal deleted a live writer's lock. The second kept the write inside the span
+and carved out `EEXIST` as the one "not mine" error — also wrong: measured on node
+22.22.2 with the process out of file descriptors, a `wx` open of a name another
+writer holds answers **`EMFILE`**, not `EEXIST`, against the same call with
+descriptors available which answers `EEXIST`. So `writeExclusive` removes the file
+when its own write fails, and its contract is that the file either holds the data
+or is not there. Every refusal fixture holds a foreign lock, and
+`writeNotMineOnAnyError` drives an `EMFILE` host, so neither revision can come
+back.
+
+What is left of that: if the runner's `close` fails after a successful write the
+file is left behind, and the rollback unlinks by path rather than by descriptor,
+so a replacement in that window would be removed instead. Both are failures on a
+filesystem already failing, and both are `fjs/effects/node`'s to fix if a caller
+ever needs them fixed.
 
 `packed-refs` is read first because of the one collision no filesystem can
 refuse. Git will not let a ref name be a directory prefix of another: measured
