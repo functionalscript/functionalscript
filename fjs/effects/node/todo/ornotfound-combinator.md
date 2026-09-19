@@ -43,17 +43,24 @@ export const orElse: <E, T>(forgiven: (e: E) => boolean, fallback: T) => (e: E) 
 Each site then reads `catchStep(e, orElse(isNotFound, null))`. It is a
 continuation rather than a wrapper taking the effect for the reason the
 original issue gave: a wrapper nests the moment two policies chain, where
-a continuation chains flat and leaves `Effect` unextended. `fileCas.list`
-uses the same form with `[]` as its fallback.
+a continuation chains flat and leaves `Effect` unextended.
+
+`fileCas.list`, the site this issue was filed for, is **not** a consumer
+after all: `access` answers its `IoResult` as the effect's *success*
+payload, with `NotImplemented` alone on the error channel, so `list`
+inspects the result with `resultStep` and `catchStep` never sees the
+`ENOENT`. It keeps its `resultStep` form. A result-level twin of `orElse`
+is not proposed here: `list` is the only such site, and the
+second-consumer rule that held this issue applies to it in turn.
 
 ### Tasks
 
 - [ ] Add `orElse` beside `catchStep` in `fjs/effects/module.f.mjs`, with
       a proof of both branches — forgiven answers the fallback, anything
       else is re-raised unchanged.
-- [ ] Rewrite `list` in `fjs/cas/module.f.mjs` and the `fjs/git` sites in
-      `refstore`, `packstore`, `repo` and `store` on top of it; their proofs
-      pass unchanged.
+- [ ] Rewrite the `fjs/git` sites in `refstore`, `packstore`, `repo` and
+      `store` on top of it; their proofs pass unchanged. `fileCas.list`
+      is untouched.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

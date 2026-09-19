@@ -43,8 +43,14 @@ const valuesAt = node => { const out = outAt(node); assert(out.id === 'values');
 ```
 
 Every member of `Out` carries exactly one field besides `id`, which is the
-constraint `tagged` below requires, so all eight are instances of it and
-`outAt` — the widener they share — goes with them.
+constraint `tagged` below requires, so the eight `id`-and-field steps are
+instances of it. `outAt` is a different step and stays: a parser leaf's
+`meta` is `DjsTokenWithMetadata | Out`, and a token deliberately has no
+`id`, so `outAt`'s `assert('id' in meta)` is the narrowing from the
+grammar's input alphabet to its output one, which `Tagged.at` — typed over
+`{ readonly id: string }` — cannot perform. Each reader is then one line,
+`node => value.at(outAt(node))`, with `outAt` kept as the shared narrowing
+and the eight tag checks gone.
 
 ### Proposal
 
@@ -224,7 +230,8 @@ one-line follow-up rather than a design decision.
       wrap/read functions as typed `const` instances; the proof imports
       `_valueSymbol` instead of restating it.
 - [ ] `fjs/fsc/parser`: the eight readers become typed `tagged`
-      instances; `outAt` goes.
+      instances composed after `outAt`, which stays as the narrowing from
+      input to output metadata.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
