@@ -439,10 +439,11 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`refstore/`](refstore/module.f.mjs)'s `tryRoots`, `tryResolve` and
   `tryWrite` over the effects. A delete is the harder half of a write, because
   a name can be in a loose file *and* a `packed-refs` line, so the line has to
-  go with the file or it comes back as the ref; and the five ways `tryWrite` is
-  narrower than `git update-ref` — no object-existence check, no reflog line,
+  go with the file or it comes back as the ref; and every way `tryWrite` is
+  narrower than `git update-ref` — no check that the object is there or, under
+  `refs/heads/`, that it is a commit, no reflog line, no `packed-refs` rewrite,
   no dereference of a symbolic ref at the name, and a name outside `refs/`
-  refused — are measured and listed in that issue. Reading the
+  refused — is measured and listed in that issue. Reading the
   *reflog* is not done either, which is why `tryRoots` answers the refs and not
   everything the repository is keeping: a reflog entry keeps an object alive until it
   expires, and so does the *index* — a staged blob survives `gc --prune=now`

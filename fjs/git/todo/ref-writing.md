@@ -12,8 +12,7 @@ every ref a repository holds and the id one name resolves to.
 
 Writing one has started. `tryWrite` writes the loose file under Git's own
 `.lock`, which is the piece below that is checked; what is left is deleting a
-ref, the reflog, and the five ways the writer is narrower than
-`git update-ref`.
+ref, the reflog, and every way the writer is narrower than `git update-ref`.
 
 ### Proposal
 
@@ -51,9 +50,11 @@ that is now what its doc says; reading the reflog for the roots it holds is
 
 ### Where the writer is narrower than `git update-ref`
 
-Five, each measured against Git 2.43.0 and each named at `tryWrite`. None of
-them is a wrong answer — the writer refuses or leaves the file exactly as Git
-leaves it — so each is a task rather than a bug.
+Each measured against Git 2.43.0 and each named at `tryWrite`. None of them is a
+wrong answer — the writer refuses, or leaves the file exactly as Git leaves it —
+so each is a task rather than a bug. They are deliberately not counted: the
+object check turned out to be two constraints rather than one, and a number in
+the prose is the first thing a finding like that makes wrong.
 
 **It does not check that the object is there.** `git update-ref refs/heads/g`
 with a well-formed id no object has exits 128 with `trying to write ref … with
@@ -64,6 +65,33 @@ refs a reader of objects: the id would have to be looked up through
 [`fjs/git/store`](../store/module.f.mjs), which nothing in `refstore` imports
 today. A caller that wrote the object knows it is there, which is why this is
 deferred rather than done with the write.
+
+**And under `refs/heads/` the object has to be a commit**, which is a second,
+stronger constraint and not a corollary of the first — found by review of the
+write and measured across five namespaces and five object kinds on Git 2.43.0:
+
+| namespace | blob | tree | commit | tag → commit | tag → blob |
+| --- | --- | --- | --- | --- | --- |
+| `refs/heads/` | 128 | 128 | 0 | **128** | 128 |
+| `refs/tags/`, `refs/remotes/origin/`, `refs/notes/`, `refs/other/` | 0 | 0 | 0 | 0 | 0 |
+
+The refusal is `trying to write non-commit object … to branch`. Two things in
+that table are easy to get wrong: a **tag object whose own target is a commit**
+is refused as well, so the rule is "is a commit" and not "peels to one"; and no
+other namespace has the rule at all, not even an invented one. So this is one
+namespace's rule rather than a rule about refs, and answering it needs the
+object's *type* — its header — which is strictly more than asking whether it is
+there. Both go through the same reader, which is why they are one task.
+
+A branch written at a blob by hand is **not** a value the reading half answers
+wrongly, which is why this is recorded rather than refused. Measured:
+`rev-parse` prints the id at exit 0, `show-ref` and `for-each-ref` list the ref
+— `for-each-ref` naming its type as `blob` — `rev-list --all` exits 0, and
+`git branch --list` shows it; only `git fsck` reports
+`error: refs/heads/<n>: not a commit`. It is a retention root in fact too: with
+every reflog expired, `git gc --prune=now` printed `error: Object … not a
+commit` and kept the blob. So `tryRoots` listing it agrees with `show-ref`,
+`for-each-ref` and `gc`, and what is missing is the validation `fsck` does.
 
 **It writes no reflog line**, where `update-ref` writes one under
 `core.logAllRefUpdates` — measured, `logs/refs/heads/master` gains a line on
@@ -113,8 +141,10 @@ else in the name has moved DISOT semantics into Git's namespace.
       taken.
 - [ ] Delete a ref: the loose file *and* the `packed-refs` line, under
       `packed-refs`'s own lock, or the packed line comes back as the ref.
-- [ ] Decide whether a write checks that the object is there, and what that
-      costs — `refstore` would have to read objects.
+- [ ] Decide whether a write checks that the object is there **and, under
+      `refs/heads/`, that it is a commit**, and what that costs — `refstore`
+      would have to read objects, and the type check needs the header rather
+      than only the object's presence.
 - [ ] Decide whether dereferencing a symbolic ref at the name is a parameter,
       and whether a caller wants `HEAD` and the pseudorefs at all.
 - [ ] Append to the reflog, once there is a clock to write a timestamp with

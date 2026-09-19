@@ -186,7 +186,9 @@
  * one.** {@link tryWrite} writes the loose file below whichever of the two
  * directories the name belongs to, through the `.lock` name Git uses, and does
  * nothing else: it does not rewrite `packed-refs`, append a reflog line, follow
- * a symbolic ref already at the name, or check that the object is there. Each of
+ * a symbolic ref already at the name, or check that the object is there — nor,
+ * for a name under `refs/heads/`, that it is a commit, which Git constrains in
+ * that one namespace and nowhere else. Each of
  * those is measured against `git update-ref` and named at {@link tryWrite},
  * because each is a way this writer is *narrower* than Git rather than different
  * from it — the one place it is narrower on purpose is the name, which must be
@@ -1869,12 +1871,37 @@ const zeroIdWriteMessage = name => `${nameForMessage(name)} would hold the zero 
  * id makes `show-ref` answer `bad ref`, `for-each-ref` and `rev-list --all`
  * exit 128, and `fsck` report `invalid sha1 pointer`. The id is the caller's
  * claim and checking it here would make a writer of refs a reader of objects;
- * the task is in [`../todo/ref-writing.md`](../todo/ref-writing.md). The same
- * file lists what else this leaves to a caller: no reflog line, where
- * `update-ref` writes one under `core.logAllRefUpdates`; no `packed-refs`
- * rewrite, so a packed line of the same name is shadowed by the new loose file
- * rather than removed, which is what Git leaves too; and no dereference of a
- * symbolic ref already at the name, which is `update-ref --no-deref`.
+ * the task is in [`../todo/ref-writing.md`](../todo/ref-writing.md).
+ *
+ * **Nor what *kind* of object it is, which under `refs/heads/` Git also
+ * constrains, and only there.** Measured on Git 2.43.0 across five namespaces
+ * and five object kinds: `update-ref refs/heads/<n>` exits 128 with
+ * `trying to write non-commit object … to branch` for a blob, a tree, **and a
+ * tag object, including one whose own target is a commit** — the rule is
+ * "is a commit", not "peels to one" — while `refs/tags/`,
+ * `refs/remotes/origin/`, `refs/notes/` and an arbitrary `refs/other/` take
+ * every one of the five at exit 0. So this is one namespace's rule and not a
+ * rule about refs, and it is a stronger check than existence rather than a
+ * corollary of it: the type is in the object's header, so asking needs the same
+ * reader the paragraph above defers.
+ *
+ * A branch written at a blob by hand is **not** a value this module answers
+ * wrongly, which is why it is deferred rather than refused. Measured on the
+ * same version: `rev-parse` prints the id at exit 0, `show-ref` and
+ * `for-each-ref` both list the ref — `for-each-ref` naming its type as `blob` —
+ * `rev-list --all` exits 0, and `git branch --list` shows it; only `git fsck`
+ * reports `error: refs/heads/<n>: not a commit`. And it is a retention root in
+ * fact as well as in this module's listing: with every reflog expired,
+ * `git gc --prune=now` printed `error: Object … not a commit` and **kept the
+ * blob**. So {@link tryRoots} listing it agrees with `show-ref`, `for-each-ref`
+ * and what `gc` does, and what is missing is the validation `fsck` performs.
+ *
+ * [`../todo/ref-writing.md`](../todo/ref-writing.md) lists what else this
+ * leaves to a caller: no reflog line, where `update-ref` writes one under
+ * `core.logAllRefUpdates`; no `packed-refs` rewrite, so a packed line of the
+ * same name is shadowed by the new loose file rather than removed, which is
+ * what Git leaves too; and no dereference of a symbolic ref already at the
+ * name, which is `update-ref --no-deref`.
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<Mkdir | CreateExclusive | WriteFile | Rename | Rm, void, IoChannel>}
  */
