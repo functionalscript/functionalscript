@@ -71,8 +71,14 @@ Invariants:
   control flow and dispatch.
 - A natively compiled function still **carries its `Any` code description**
   (as static data), so content hashing and `toString(f)` apply uniformly to
-  all functions: the EDAG is the identity of a function; native code is a
-  cached acceleration of it. This invariant is **staged**: the MVP code
+  all functions. The EDAG is the stable **code/content identity** of a
+  function; native code is a cached acceleration of it. It is not the
+  allocation identity of a callable value. In a JS-compatible execution
+  profile, two separately created function objects remain distinct under
+  `===` even when their EDAGs and captured values are equal. A profile such
+  as CAVM may deliberately use content identity only when that profile
+  explicitly specifies the different identity semantics. This invariant is
+  **staged**: the MVP code
   generator omits the embedded description while the
   [edag-spec](../../todo/edag-spec.md) (P2) is not yet defined — it must not
   invent its own shapes ahead of the spec. Embedding becomes mandatory once
