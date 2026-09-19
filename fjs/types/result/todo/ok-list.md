@@ -1,4 +1,4 @@
-## ok-list. "The list, or its first error" has five private owners
+## ok-list. "The list, or its first error" has six private owners
 
 **Priority:** P3
 **Status:** open
@@ -6,7 +6,7 @@
 ### Problem
 
 Collapsing a list of `Result`s into a `Result` of the list, first error
-winning, is written five times, in four shapes, and `fjs/types/result` —
+winning, is written six times, in five shapes, and `fjs/types/result` —
 which owns `ok`, `error`, `unwrap`, `invert`, `mapOk` and `okThen` — does
 not export it:
 
@@ -31,9 +31,13 @@ const collect = (acc, item) => okThen(list => mapOk(append(list))(item))(acc)
 const all = items => items.reduce(collect, none)
 // fjs/fsc/ast/module.f.mjs, appended / collect / noValues / noMembers — the same fold again
 const collect = item => okThen(list => mapOk(appended(list))(item))
+// fjs/edag/rust/module.f.mjs, allOk — a right fold through map2, undefined on an empty list
+const allOk = results => results.length === 1
+    ? mapOk(x => [x])(results[0])
+    : map2((xs, x) => [...xs, x])(allOk(results.slice(0, -1)), results[results.length - 1])
 ```
 
-All five agree on the contract — the first error in list order, the later
+All six agree on the contract — the first error in list order, the later
 ones discarded — and `effects/common`'s doc says why that contract is the
 right one ("a chain has one error channel"). Every site finishes with an
 array, so the two `List`-building folds gain nothing from the `List`.
@@ -52,7 +56,10 @@ Then `effects/common` imports it instead of defining it; `fsc/serializer`'s
 `every` and `json/parser`'s `all` become the import; `fsc/module.f.mjs`
 drops `append`/`collect`/`none`/`all` and its `jsonValue` reads
 `mapOk(arrayWrap)(okList(value.map(jsonValue)))`; `fsc/ast`'s `toDjs` drops
-`collect`/`appended`/`noValues`/`noMembers` for the same call. The name is
+`collect`/`appended`/`noValues`/`noMembers` for the same call; `edag/rust`'s
+`allOk` goes too — its callers guard the empty list before calling it, and
+`okList([])` is `ok([])`, so nothing changes for them and the recursion
+that never terminates on `[]` is gone. The name is
 `okList` because that is what the one documented copy is called; a
 `List`-returning variant is not added until a site wants one.
 
@@ -60,7 +67,7 @@ drops `append`/`collect`/`none`/`all` and its `jsonValue` reads
 
 - [ ] `okList` in `fjs/types/result` with a proof: empty list, all ok,
       first of two errors wins.
-- [ ] Rewrite the five sites; proofs pass unchanged.
+- [ ] Rewrite the six sites; proofs pass unchanged.
 - [ ] `tsc`, `fjs test`.
 
 [`fjs/media/nix/todo/serializer-validation-split.md`](../../../media/nix/todo/serializer-validation-split.md)
