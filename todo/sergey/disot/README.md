@@ -8,8 +8,12 @@ A [document](./doc-def.md) is a finite sequence of bits. A hash is its immutable
 
 ```mermaid
 flowchart LR
-    A["Document"] -->|hash| H["sha256:abcd..."]
+    D["Document"] -->|input| F["Hash function: SHA-256"]
+    F -->|produces| H["Hash value: abcd..."]
+    H -->|identifies| D
 ```
+
+The permanent link includes both the algorithm and the value: `sha256:abcd...`.
 
 The same document may have different filenames, URLs, or storage locations. Its content stays the same, and so does its hash for a given hash algorithm. The hash identifier can therefore serve as a permanent link without specifying a storage location or transport protocol.
 
