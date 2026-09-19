@@ -42,7 +42,7 @@ import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
-import { stylesheet, stylesheetLink } from './style/module.f.mjs'
+import { faviconLinks, stylesheet, stylesheetLink } from './style/module.f.mjs'
 import { demoSection, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 
@@ -69,6 +69,7 @@ import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 const rootPage = commit => dir => htmlUtf8(
     ['title', 'FunctionalScript'],
     stylesheetLink,
+    ...faviconLinks,
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['p', ['a', { href: repository }, 'GitHub Repository']],
