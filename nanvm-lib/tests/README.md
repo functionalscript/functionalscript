@@ -8,7 +8,7 @@ twice, against a JavaScript engine and against `nanvm-lib`.
 | File | Role |
 |---|---|
 | [`test/main.rs`](test/main.rs) | Hand-written tests with no JavaScript counterpart. |
-| [`test/harness.rs`](test/harness.rs) | Value constructors and assertions the generated file calls. |
+| [`test/harness.rs`](test/harness.rs) | Assertions and the one value constructor the generated file calls that no literal spells; literals come from `nanvm_lib::vm::unstable`. |
 | [`test/generated.rs`](test/generated.rs) | **Generated. Do not edit.** One statement per case. |
 
 `test/main.rs` rather than `test.rs`: cargo makes every `tests/*.rs` its own

@@ -20,6 +20,7 @@ mod primitive_coercion;
 mod string;
 mod string_coercion;
 mod unpacked;
+pub mod unstable;
 
 pub use crate::vm::{
     any::{Any, JsonError, to_any::ToAny},

@@ -2,6 +2,7 @@
 // Do not edit: change the shared operator test data and regenerate.
 
 use super::harness::*;
+use nanvm_lib::vm::unstable::{bigint_any, f64_any, string_any, string_key};
 
 #[rustfmt::skip]
 fn eq<A: IVm>() {

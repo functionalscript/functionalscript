@@ -1,37 +1,15 @@
 //! Hand-written support for the generated operator tests.
 //!
-//! `generated.rs` contains one statement per case and nothing else; every
-//! value constructor and every assertion it uses lives here, so the printer in
-//! `fjs/nanvm/rust/module.f.mjs` only has to name them. Re-exports at the top are
-//! what the generated file's `use super::harness::*;` pulls in.
+//! `generated.rs` contains one statement per case and nothing else. The
+//! functions a literal becomes are `nanvm_lib::vm::unstable`'s, the same ones a
+//! compiled module calls; every assertion, and the one value constructor no
+//! literal spells, lives here, so the printer in `fjs/nanvm/rust/module.f.mjs`
+//! only has to name them. Re-exports at the top are what the generated file's
+//! `use super::harness::*;` pulls in.
 
 pub use nanvm_lib::vm::{Any, Array, IVm, Nullish, Object, ToAny, ToArray, ToObject};
 
-use nanvm_lib::vm::{BigInt, Function, IContainer, String, Unpacked};
-
-/// An `Any` holding the string `v`.
-pub fn string_any<A: IVm>(v: &str) -> Any<A> {
-    v.into()
-}
-
-/// An object property key.
-pub fn string_key<A: IVm>(v: &str) -> String<A> {
-    v.into()
-}
-
-/// An `Any` holding the bigint `v`.
-pub fn bigint_any<A: IVm>(v: i64) -> Any<A> {
-    Into::<BigInt<A>>::into(v).to_any()
-}
-
-/// An `Any` holding the number whose IEEE 754 bits are `v` — the one
-/// spelling `fjs/media/rust` gives every number, so a case's operand is the
-/// double a JavaScript engine held, bit for bit, except a `NaN`: the
-/// language has one, so every `NaN` arrives as the quiet, empty-payload one,
-/// whatever sign or payload the engine held it with.
-pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
-    f64::from_bits(v).to_any()
-}
+use nanvm_lib::vm::{Function, IContainer, Unpacked};
 
 /// An `Any` holding a function.
 ///
