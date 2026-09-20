@@ -159,8 +159,8 @@ bounds check to write:
 
 ```rust
 fn f<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = Any::member_access(args.clone().to_any(), (0f64).to_any())?;
-    let b = Any::member_access(args.clone().to_any(), (1f64).to_any())?;
+    let a = Any::member_access(args.clone().to_any(), Number::from(0.0).to_any())?;
+    let b = Any::member_access(args.clone().to_any(), Number::from(1.0).to_any())?;
     Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
 }
 ```
