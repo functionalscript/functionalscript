@@ -287,9 +287,30 @@ export const proof = {
             assert(!sharedNodesOf(root).includes(root), sharedNodesOf(root))
         },
     },
+    /**
+     * A literal the target type cannot hold — a string with a lone
+     * surrogate, a bigint outside `i64` — is refused where it is printed,
+     * with the reason this printer gives it, wherever a string literal
+     * stands: a primitive, an object key, an index.
+     */
+    literalRefusals: () => {
+        assertStructurallySame(
+            refusalReason('a\ud800b'),
+            ['no Rust string literal for a lone surrogate in', '"a\\ud800b"'])
+        assertStructurallySame(
+            refusalReason(['{}', [[':', '\udc00', 1]]]),
+            ['no Rust string literal for a lone surrogate in', '"\\udc00"'])
+        assertStructurallySame(
+            refusalReason(['.', ['{}', []], '\ud800']),
+            ['no Rust string literal for a lone surrogate in', '"\\ud800"'])
+        assertStructurallySame(refusalReason(2n ** 63n), ['no Rust i64 for', 2n ** 63n])
+    },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
         unknownOperation: () => printed(['!==', 1, 2]),
+        /** A string no Rust literal can hold, and a bigint no `i64` can. */
+        loneSurrogate: () => printed('\ud800'),
+        bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
         /** A lambda other than `() => undefined`. */
         lambdaBodyNotUndefined: () => printed(['=>', ['[]', []], ['args']]),
         /** An object key the printer cannot spell. */

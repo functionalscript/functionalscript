@@ -39,6 +39,13 @@ export type _Ref = {
 }
 
 /**
+ * The explicit stack `operandsOf` walks a chain of operator/negation/
+ * bitwise-not nodes with, in place of recursing through them: the node
+ * still to classify, and the rest of the stack under it.
+ */
+export type _OperandStack = { readonly top: AstConst, readonly rest: _OperandStack } | null
+
+/**
  * The sweep from the export downwards: which entries it has reached, as a
  * set of indices spelled as a bigint, and every reference those entries
  * make.

@@ -49,6 +49,27 @@ const expectEdag = (edag, expected) => {
     assertStructurallySame(edag, expected)
 }
 
+/**
+ * Confirms `exp` is a left-associative `+` chain `depth` terms deep, bottoming
+ * out at `1` — `((1+1)+1)+…`. `validate`/`assertStructurallySame` are
+ * themselves recursive (`fjs/edag/todo/stack-safety.md` tracks that, one
+ * layer down from this one), so a chain deep enough to prove `lower` stack-safe
+ * overflows them before it says anything about `lower`. This walks the same
+ * shape iteratively instead, the one comparison this proof needs at a depth
+ * the two shared helpers cannot reach.
+ * @type {(depth: number) => (exp: Exp) => void}
+ */
+const expectPlusChain = depth => exp => {
+    let node = exp
+    let remaining = depth
+    while (remaining > 0) {
+        assert(Array.isArray(node) && node[0] === '+' && node[2] === 1, node)
+        node = node[1]
+        remaining = remaining - 1
+    }
+    assertEq(node, 1)
+}
+
 /** @type {(graph: Exp) => unknown} */
 const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
 
@@ -403,6 +424,31 @@ export const proof = {
         expectEdag(compile('export default (-1).x;').edag, ['.', -1, 'x'])
         expectEdag(compile('export default -1 .x;').edag, ['-', ['.', 1, 'x']])
     },
+    // Stage A of `spec/todo/2340-operators.md`: arithmetic, strict
+    // comparison, and bitwise, each the EDAG's own `op2`/`op12`/`op1` shape
+    // with both operands lowered and nothing folded — the binary `-`
+    // included, told from the unary one the `group` block already covers
+    // by arity, never by this tag alone. Folding one would need to say
+    // what every operator computes over every value it might see, which is
+    // the EDAG's question and not the front end's.
+    operators: () => {
+        expectEdag(compile('export default 1 + 2 * 3;').edag, ['+', 1, ['*', 2, 3]])
+        expectEdag(compile('export default 5 - 2;').edag, ['-', 5, 2])
+        expectEdag(compile('export default 2 ** 3 ** 2;').edag, ['**', 2, ['**', 3, 2]])
+        expectEdag(compile('export default 1 < 2 << 3;').edag, ['<', 1, ['<<', 2, 3]])
+        expectEdag(compile('export default 1 === 2;').edag, ['===', 1, 2])
+        expectEdag(compile('export default 1 & 2 | 3 ^ 4;').edag, ['|', ['&', 1, 2], ['^', 3, 4]])
+        expectEdag(compile('export default ~1;').edag, ['~', 1])
+        // unary `-` still folds over a numeric literal, even nested inside
+        // a binary operator the lowering does not fold
+        expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])
+        // a `const` reached through two operands is one node, as through
+        // any other operator
+        const shared = compile('const a = [1]; export default a + a;').edag
+        expectEdag(shared, ['+', ['[]', [1]], ['[]', [1]]])
+        assert(shared instanceof Array && shared[0] === '+', shared)
+        assert(shared[1] === shared[2], shared)
+    },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many
     // references reach it, an alias is the node it names, and what the
@@ -524,5 +570,20 @@ export const proof = {
             expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['.', ['args'], 1], 'default'], ['[]', [['.', ['.', ['args'], 0], 'default']]]]])
             expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
         },
+    },
+    // A chain of operators, as deep as the source that built it: `lower`
+    // walks one with an explicit stack rather than recursion, so 5,000
+    // terms — the depth `fjs/fsc/parser/proof.f.mjs`'s own `stackSafety`
+    // uses — cost no call stack. Left-associative for a binary operator,
+    // the EDAG nests on its own left, `((1+1)+1)+…`, checked by
+    // `expectPlusChain` rather than `expectEdag` for the reason given on
+    // it; right-associative for `-`, on its right, `-(-(-…))`, folding away
+    // to the leaf it started from since 5,000 negations is even — a single
+    // number, so `expectEdag` never recurses into it.
+    stackSafety: () => {
+        const plus = `1${' + 1'.repeat(5000)}`
+        expectPlusChain(5000)(compile(`export default ${plus};`).edag)
+        const neg = `${'- '.repeat(5000)}1`
+        expectEdag(compile(`export default ${neg};`).edag, 1)
     },
 }

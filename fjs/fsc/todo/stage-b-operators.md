@@ -2,7 +2,7 @@
 
 **Priority:** P1
 **Status:** blocked
-**Blocked by:** [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090), [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092), and Stage A's precedence ladder landing on top of them (see "Not yet")
+**Blocked by:** Stage A's precedence ladder landing on `main` (see "Not yet"); [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090) and [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092) have landed
 
 ### Problem
 
@@ -58,12 +58,14 @@ for the eager half.
 
 This should not start before:
 
-1. [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090)
+1. ~~[`#2090`](https://github.com/functionalscript/functionalscript/pull/2090)
    (grouping) and
    [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092)
-   (unary minus as a grammar-level prefix) land on `main`. Both rewrite
+   (unary minus as a grammar-level prefix) land on `main`.~~ **Done:**
+   both are on `main`, as `f005d51` and `8446f9a`. Both rewrote
    `fjs/fsc/parser/grammar/module.f.mjs` and the surrounding parser/AST
-   files Stage B also touches.
+   files Stage B also touches, which is what the ladder below now has to
+   be restored over.
 2. Stage A's precedence ladder (arithmetic, comparison, bitwise) is restored
    on top of whatever grammar those two leave — [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s
    grammar half was dropped for exactly this reason (see that PR's thread).

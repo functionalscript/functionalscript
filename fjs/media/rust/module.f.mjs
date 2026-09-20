@@ -10,42 +10,83 @@
  *
  * The sibling of `fjs/media/nix`, which does the same for Nix expressions.
  *
+ * A literal the target type cannot hold — a string with a lone surrogate,
+ * which no Rust `&str` can hold, or a bigint outside `i64` — is refused as
+ * a `Result` rather than thrown or truncated, and the refusal carries the
+ * value itself under `unknown`: this layer commits to nothing about the
+ * shape of a reason, and the printer above it names one.
+ *
  * @module
+ *
+ * @import { Result } from '../../types/result/types.ts'
  *
  * @example
  *
  * ```js
  * import { f64Literal, i64Literal, stringLiteral } from './module.f.mjs'
  *
- * stringLiteral('a"b') // '"a\\"b"'
+ * stringLiteral('a"b') // ok('"a\\"b"')
  * f64Literal(-0)       // '-0f64'
- * i64Literal(-456n)    // '-456'
+ * i64Literal(-456n)    // ok('-456')
  * ```
  */
 
+import { error, ok } from '../../types/result/module.f.mjs'
+
 /**
- * A double-quoted Rust string literal.
+ * A character a Rust string literal cannot hold as it stands: a control
+ * character — U+0000 to U+001F, or U+007F — or one of the bidirectional
+ * controls, U+202A to U+202E and U+2066 to U+2069, which `rustc` refuses in
+ * a literal under its default `text_direction_codepoint_in_literal` deny.
+ * Each is spelled by its `\u{…}` escape instead. The comparisons are on
+ * one character, so they compare its code unit, and every character named
+ * here is one code unit.
  *
- * Any other control character is rejected rather than escaped: no caller needs
- * one, and a silently mangled literal is worse than a failed generation.
- *
- * @type {(v: string) => string}
+ * @type {(c: string) => boolean}
  */
-export const stringLiteral = v => `"${[...v].map(c => {
+const unspellable = c =>
+    c < ' ' || c === '\u007f' || (c >= '\u202a' && c <= '\u202e') || (c >= '\u2066' && c <= '\u2069')
+
+/**
+ * One character of a Rust string literal: the five escapes Rust and
+ * JavaScript spell alike, the `\u{…}` escape for what {@link unspellable}
+ * names, and every other character as it stands, Rust source being UTF-8.
+ *
+ * @type {(c: string) => string}
+ */
+const character = c => {
     switch (c) {
         case '\\': { return '\\\\' }
         case '"': { return '\\"' }
         case '\n': { return '\\n' }
         case '\r': { return '\\r' }
         case '\t': { return '\\t' }
-        default: {
-            if (c < ' ' || c === '\u007f') {
-                throw ['control character in a Rust string literal', v]
-            }
-            return c
-        }
+        default: { return unspellable(c) ? `\\u{${c.charCodeAt(0).toString(16)}}` : c }
     }
-}).join('')}"`
+}
+
+/**
+ * A lone surrogate: one code unit of a pair standing without its partner.
+ * Iterating a string yields a paired surrogate as one two-unit character,
+ * so a surrogate that arrives alone is the unpaired one.
+ *
+ * @type {(c: string) => boolean}
+ */
+const loneSurrogate = c => c.length === 1 && c >= '\ud800' && c <= '\udfff'
+
+/**
+ * A double-quoted Rust string literal, or the refusal of a string holding a
+ * lone surrogate: a Rust `&str` is UTF-8 and cannot hold one, and no escape
+ * spells it — `"\u{d800}"` is refused by `rustc` — so the string has no
+ * spelling in the API a printer targets, and is answered back as the
+ * refusal rather than written as bytes `rustc` then refuses to read.
+ *
+ * @type {(v: string) => Result<string, unknown>}
+ */
+export const stringLiteral = v => {
+    const chars = [...v]
+    return chars.some(loneSurrogate) ? error(v) : ok(`"${chars.map(character).join('')}"`)
+}
 
 /**
  * An `f64` literal.
@@ -69,15 +110,12 @@ const i64Min = -(2n ** 63n)
 const i64Max = 2n ** 63n - 1n
 
 /**
- * An `i64` literal. Throws for a value the type cannot hold, rather than
- * silently truncating it.
+ * An `i64` literal, or the refusal of a value the type cannot hold, rather
+ * than a silent truncation.
  *
- * @type {(v: bigint) => string}
+ * @type {(v: bigint) => Result<string, unknown>}
  */
-export const i64Literal = v => {
-    if (v < i64Min || v > i64Max) { throw ['bigint out of i64 range', v] }
-    return v.toString()
-}
+export const i64Literal = v => v < i64Min || v > i64Max ? error(v) : ok(v.toString())
 
 /**
  * A `snake_case` Rust identifier from a `camelCase` name.
