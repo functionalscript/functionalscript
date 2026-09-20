@@ -341,27 +341,35 @@ const browserProofOf = tree =>
  * with that is what lets its own "already in the graph" skip apply to every
  * proof and demo module too, rather than reading each a second time here.
  *
- * **The frontier still names every local import the seed already knows
- * about, not only `proofs` and `demos`.** `readGraph` discovers a module's
- * imports as the *result* of reading it — the one thing seeding skips. A
- * seeded module's own imports would otherwise never reach the frontier at
- * all: `readGraph` sees it is already in the graph, stops there, and a
- * `.mjs` dependency two hops from a proof — outside `scan`'s `.f.mjs`-only
- * reach — is never read, never refused if it cannot be, and never counted as
- * a blocker either. Seeding a module's presence has to come with seeding
- * where it already knows to look next.
+ * **The frontier also names each root's own local imports, not only
+ * `proofs` and `demos` themselves — and only theirs.** `readGraph`
+ * discovers a module's imports as the *result* of reading it — the one
+ * thing seeding skips. A seeded root's own imports would otherwise never
+ * reach the frontier at all: `readGraph` sees it is already in the graph,
+ * stops there, and a `.mjs` dependency two hops from a proof — outside
+ * `scan`'s `.f.mjs`-only reach — is never read, never refused if it cannot
+ * be, and never counted as a blocker either. Widening this to every
+ * module `scan` touched, not just the selected roots, would pull in a
+ * module that is neither a proof nor a demo nor reachable from one; if
+ * such a module imports something `readFile` refuses — over the 128 KiB
+ * cap, say — that refusal is not benign like a missing path is, and it
+ * would abort the whole build over an import nothing here was going to
+ * load anyway.
  *
  * @type {(proofs: readonly string[], demos: readonly string[]) => (graph: _Graph) => Effect<ReadFile, readonly [readonly Proof[], readonly Proof[]], IoChannel>}
  */
-const classify = (proofs, demos) => graph => step(
-    readGraph([...proofs, ...demos, ...toArray(entries(graph)).flatMap(([, imports]) => imports.local)])(graph),
-    graph => {
-        /** @type {(paths: readonly string[]) => readonly Proof[]} */
-        const classified = paths => paths
-            .toSorted()
-            .map(name => ({ name, blockers: blockersOf(graph)(name) }))
-        return pureOk(/** @type {const} */ ([classified(proofs), classified(demos)]))
-    })
+const classify = (proofs, demos) => graph => {
+    const roots = [...proofs, ...demos]
+    return step(
+        readGraph([...roots, ...roots.flatMap(path => at(path)(graph)?.local ?? [])])(graph),
+        graph => {
+            /** @type {(paths: readonly string[]) => readonly Proof[]} */
+            const classified = paths => paths
+                .toSorted()
+                .map(name => ({ name, blockers: blockersOf(graph)(name) }))
+            return pureOk(/** @type {const} */ ([classified(proofs), classified(demos)]))
+        })
+}
 
 /**
  * Says what will not run, and how much will.

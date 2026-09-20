@@ -233,6 +233,23 @@ export const proof = {
                 `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
         },
         /**
+         * **An unreadable import is only the build's problem when something
+         * selected can reach it.** `unrelated.f.mjs` exports neither a
+         * `proof` nor a `demo`, and nothing that does import it, so its own
+         * `big.mjs` is never on the frontier `classify` seeds — reading it
+         * would refuse the whole build over a file this run was never going
+         * to load, the same failure `anUnreadableModuleIsRefused` above
+         * proves happens when a *selected* module reaches one.
+         */
+        anUnreadableImportOffAnyPathIsIgnored: () => {
+            const { root } = generate({
+                'a.f.mjs': file('export const proof = []'),
+                'unrelated.f.mjs': file("import './big.mjs'\nexport const x = 1"),
+                'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)],
+            })
+            assertStructurallySame(listed(pageAt(root, [])), ['a.f.mjs'])
+        },
+        /**
          * **The browser proof takes its place in path order.** It is appended
          * after the walk's own findings rather than discovered among them, so
          * without a sort it lands last on every page that carries it — a list
