@@ -149,13 +149,13 @@ value does not reach anchored by the comma rather than dropped, which is the
 one place a comma stands outside a module's root. With no statement the block
 lowers to the value it returns, the two spellings being one function.
 A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
-— and the language's only operator. It is no part of the literal after it, so
-`-1` is the negation of `1` in the parser's tree, and the lowering folds that
-one case back into the leaf: negating a numeric literal is exact arithmetic,
-so the graph holds the number and [`rust`](rust/module.f.mjs) prints it. A
-negation of anything else stays a node — folding one would mean saying what a
-container converts to — and that route refuses one, `Neg for Any<A>` answering
-a `Result` a module cannot hold. It binds looser than a
+— and was once the language's only operator. It is no part of the literal
+after it, so `-1` is the negation of `1` in the parser's tree, and the
+lowering folds that one case back into the leaf: negating a numeric literal
+is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.mjs)
+prints it. A negation of anything else stays a node — folding one would mean
+saying what a container converts to — and that route refuses one, `Neg for
+Any<A>` answering a `Result` a module cannot hold. It binds looser than a
 step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
 — which is what retired the two refusals the old fold needed, an access and a
 call on a numeric literal alike. What it takes is JavaScript's
@@ -165,6 +165,25 @@ through one, `-((...a) => 1)`, and the refusal falls on the `...` where
 JavaScript's does rather than on the `(`. The writer still gives a negated
 function a `const` of its own, as it does an access base, until it spells a
 group.
+
+Stage A of [`spec/todo/2340-operators.md`](../../spec/todo/2340-operators.md)
+gave the language the rest: arithmetic, strict comparison, and bitwise —
+`+ - * / % **`, `=== !== > >= < <=`, `& | ^ ~ << >> >>>`. Each parses as
+`[tag, left, right]` (`['~', operand]` for the one other prefix), the tag
+the EDAG's own — `op2Id`, `op12Id`'s `-` at two operands this time, told
+from the unary one by length — so the lowering carries every one of them
+straight across, both operands lowered and nothing folded: only the unary
+`-` above is exact enough to fold without knowing anything else about the
+program, and a `.json` or DataJS output refuses the rest the same way it
+refuses a function or a call. A function is no operand of any of them
+unparenthesized, for the reason above; the grammar spells this without
+wrapping a shared primary the ladder above negation once tried and
+retired, since `func`'s body is unbounded and a wrapped primary would leak
+the ladder's own follow set into it — `unary`, negation's own narrow
+operand, is every layer's operand instead, `./parser/README.md` has the
+argument. [`rust`](rust/module.f.mjs) already spelled every one of these
+EDAG nodes but `!==`, which this front end had no path to produce before —
+the front end is what was missing, not the code generator.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
