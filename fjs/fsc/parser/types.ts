@@ -10,6 +10,7 @@
 import type { TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
+import type { BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 
 /**
@@ -58,6 +59,15 @@ export type ParseError = {
  * A `block` stands only as a function's body. Even `{ return v; }` keeps
  * its block and return; only lowering may give it the same executable body
  * as the expression `v`.
+ *
+ * A binary operator is `[tag, left, right]`, its tag the token itself —
+ * Stage A of
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
+ * arithmetic, strict comparison, and bitwise. `-` alone is both a prefix
+ * and an infix, told apart by arity exactly as `~`'s prefix and every
+ * infix are told apart from each other, by tag; `**` is right-associative,
+ * folded by the grammar rather than by this tree, so `2 ** 3 ** 2` is
+ * already `['**', 2, ['**', 3, 2]]` here.
  */
 export type Node =
     | readonly ['primitive', Primitive]
@@ -65,6 +75,8 @@ export type Node =
     | readonly ['.', Node, DjsTokenWithMetadata]
     | readonly ['()', Node, readonly Node[]]
     | readonly ['-', Node]
+    | readonly ['~', Node]
+    | readonly [BinaryTag, Node, Node]
     | readonly ['=>', DjsTokenWithMetadata | null, Node]
     | Block
     | Container
