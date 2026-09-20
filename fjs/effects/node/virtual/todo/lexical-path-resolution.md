@@ -66,5 +66,9 @@ Check what depends on the current behaviour first: `fjs/cas`'s staging paths and
 
 - `fjs/path/module.f.mjs` — `parse`, which is lexical by design and should stay
   that way; this is about where a file system uses it.
+- [trailing-separator-discarded](./trailing-separator-discarded.md) — the other
+  normalization `parse` performs that a host does not, and one that rides on this
+  issue's proposal: a trailing separator can only be honoured once the walk
+  decides where resolution failed.
 - [symlink-containment](../../../../web/todo/symlink-containment.md) — the same
   text-versus-walk gap, from the other end.

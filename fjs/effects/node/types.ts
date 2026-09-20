@@ -200,9 +200,13 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
  *   a partial one. No caller could do this for itself: `O_EXCL` succeeding is
  *   the only evidence the file is this call's, and it is on the runner's side of
  *   the boundary — an error code is not evidence of it, whatever the code.
- * - **A name already taken fails with `EEXIST`, by whatever holds it** — a file,
- *   a directory, or a symlink, which `O_EXCL` refuses without following, leaving
- *   its target untouched, dangling or not.
+ * - **A name already taken fails with `EEXIST` where the open reaches the
+ *   pathname**, by whatever holds it — a file, a directory, or a symlink, which
+ *   `O_EXCL` refuses without following, leaving its target untouched, dangling or
+ *   not. It is not the other way round: a failure *before* the pathname is
+ *   reached carries the host's own code, so `EEXIST` means the name is taken
+ *   while another code does not mean it is free. The same rule as the first
+ *   point — an error code is not evidence about the name.
  * - **Nothing can reach the pathname between the create and the write**, which
  *   is why this is not `createExclusive` followed by `writeFile`: that pair
  *   reopens the name with the flags `w` gives — `O_TRUNC`, and symlinks

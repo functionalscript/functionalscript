@@ -221,6 +221,9 @@ Whichever option is chosen, then:
   `stat`-then-`readFile` pair goes. It does **not** depend on this issue: its
   proposal is an `open`/`fstat`/bounded-read handle, and a root held open needs
   no `ENOTDIR` re-check at all.
+- [trailing-separator-discarded](./trailing-separator-discarded.md) — the third
+  of the three `parse` normalizations, and the one where this runner *creates*
+  something a host refuses rather than answering a different code.
 - [dirent-kinds](./dirent-kinds.md) and
   [jsmodule-read-policy](./jsmodule-read-policy.md) — two more places this
   runner answers something a host would not, both about entry *kind* rather
