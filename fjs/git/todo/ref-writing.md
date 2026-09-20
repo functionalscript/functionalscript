@@ -181,6 +181,28 @@ way a recursive `rm` behind a separate check could. Adding it widens `NodeOp`
 again, which is a second breaking change and its own proofs, so it is a task
 rather than a tail-end addition here.
 
+**The `.lock` costs five bytes of the name's length budget, and Git pays the same
+one.** A ref name has no length limit in Git's grammar — measured,
+`git check-ref-format` accepts a last component of 4096 bytes at exit 0 — but
+`update-ref` refuses one of 251 bytes:
+
+| last component | `git update-ref` | the host, `open(name, 'wx')` | the host, `open(name + '.lock', 'wx')` |
+| --- | --- | --- | --- |
+| 250 bytes | exit 0 | `ok` | `ok` (255) |
+| 251 bytes | 128, `Unable to create '….lock': File name too long` | `ok` | **`ENAMETOOLONG`** (256) |
+
+So the effective limit is `NAME_MAX` minus five, and the failure names the lock
+file rather than the ref. `tryWrite` inherits it from the same suffix, and the
+`writeExclusive` is where it surfaces — the host's `ENAMETOOLONG`, loud, before
+anything is created. Parity rather than narrowness, and it is the one place the
+lock protocol costs a caller something it would not otherwise pay.
+
+Two other bounds are not this one and are worth keeping apart. `nameText`
+refuses a name past `maxLengthBytes` because there is no string to build a path
+from at all — a crash before that guard, recorded above — and the virtual runner
+enforces *neither* limit, which is
+[`fjs/effects/node/virtual/todo/no-name-length-limit.md`](../../effects/node/virtual/todo/no-name-length-limit.md).
+
 **The lock protects against a concurrent writer, not against a process that can
 write in the ref's directory**, and two review rounds found the same window from
 two ends. Both are real, and both reproduce:

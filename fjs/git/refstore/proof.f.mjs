@@ -2002,8 +2002,10 @@ export const proof = {
     // over, and the control is one byte under it, which answers normally.
     //
     // A *write* is refused and a *lookup* answers `null`, which is each side's
-    // existing answer for a name no path spells — and true of this one on any
-    // host, where a component over 255 bytes is `ENAMETOOLONG`.
+    // existing answer for a name no path spells. The reason is the conversion and
+    // not a filesystem's limit: a shorter name over `NAME_MAX` *does* convert,
+    // spells a path, and is refused by the host instead — a different refusal,
+    // from a different place.
     writeNameTooLong: () => {
         /** @type {Dir} */
         const before = { refs: { heads: {} } }
@@ -2017,9 +2019,10 @@ export const proof = {
         assertStructurallySame(fs, before)
         assertEq(run(before, tryResolve(one(''), 20)(named(1))), null)
         // The control: one byte *under* the bound converts, so the length test is
-        // the only thing the case above can be catching. The write goes through —
-        // this runner has no path limit of its own, where a host would answer
-        // `ENAMETOOLONG` for a component over 255 bytes.
+        // the only thing the case above can be catching. The write goes through,
+        // because this runner has no length limit of its own — measured, a host
+        // refuses this ref at 251 bytes, not 256, since the `.lock` costs five
+        // (`../../effects/node/virtual/todo/no-name-length-limit.md`).
         const [grown, ok1] = ran(before, tryWrite(one(''), 20)(named(0))(idOf(a)))
         assertEq(ok1[0], 'ok')
         // and it is readable back under that name, so the write landed rather

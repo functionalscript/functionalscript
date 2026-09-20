@@ -578,14 +578,23 @@ const targetAllowed = (text, r) =>
  * {@link resolveWith}'s to state, and it is a refusal;
  * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) has the rest.
  *
- * **A name past `maxLengthBytes` is `null` for the same reason**, and the check
- * has to come before the conversion: `Bytes` is unbounded and `u8ListToVec`
- * asserts, so one byte over escaped both {@link tryWrite} and {@link tryResolve}
- * as a bare `'assertion failed'` rather than as an answer — measured, at 131,073
- * bytes. `null` rather than a code of its own, because it is the same fact: no
- * path carries such a name on any host either, a component over 255 bytes being
- * `ENAMETOOLONG`. Found by review of
+ * **A name past `maxLengthBytes` is `null` too**, and the check has to come
+ * before the conversion: `Bytes` is unbounded and `u8ListToVec` asserts, so one
+ * byte over escaped both {@link tryWrite} and {@link tryResolve} as a bare
+ * `'assertion failed'` rather than as an answer — measured, at 131,073 bytes.
+ * Found by review of
  * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
+ *
+ * `null` rather than a code of its own because it is the same *kind* of answer:
+ * there is no string to build a path from. It is **not** that the name is too
+ * long for a filesystem — that is a different refusal and comes from one. A
+ * name of 300 bytes converts, spells a path, and is refused by the host with
+ * `ENAMETOOLONG`; measured, `git update-ref` is refused the same way and five
+ * bytes earlier than `NAME_MAX` would suggest, because the lock file is what
+ * fails: a last component of 250 bytes succeeds and 251 gives
+ * `Unable to create '….lock': File name too long`. This writer inherits that
+ * limit from the same `.lock`, which is parity rather than narrowness. Neither
+ * bound is the other's, and only the conversion one is decided here.
  *
  * @type {(name: readonly number[]) => Nullable<string>}
  */

@@ -19,6 +19,12 @@ true of every operation that names an entry:
 | 256 bytes | `ENAMETOOLONG` | **`ok`, the entry is created** |
 | 131,061 bytes | `ENAMETOOLONG` | **`ok`, the entry is created** |
 
+For a *ref* the number that matters is five lower, because the writer opens
+`<name>.lock` first: measured, a 250-byte component and its lock both succeed
+while 251 plus `.lock` is `ENAMETOOLONG`, which is where `git update-ref` refuses
+too. So a `refstore` proof on this runner can write a ref that Git refuses at 251
+bytes, not only one at 256.
+
 Found while checking a review finding on
 [#2115](https://github.com/functionalscript/functionalscript/pull/2115) about
 ref names too long to convert to a `Vec`. That one is fixed in
