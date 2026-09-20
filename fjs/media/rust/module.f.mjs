@@ -109,14 +109,16 @@ const exponentOf = a => {
 const canonicalNan = 0x7ff8000000000000n
 
 /**
- * The IEEE 754 binary64 bits of a number, as JavaScript holds it, as a Rust
- * `u64` literal in sixteen hex digits — `f64::from_bits` reads it back as
- * the same number, `-0`, the infinities and subnormals included. Found in
- * exact arithmetic: scaling by a power of two is exact, so a significand is
- * read off as an integer rather than approximated, a normal number's
- * exponent being {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}:
- * JavaScript gives a program no way to tell one payload from another, so
- * one spelling is the whole of what the language means.
+ * The IEEE 754 binary64 bits of a number as a Rust `u64` literal in sixteen
+ * hex digits — `f64::from_bits` reads it back as the same number, `-0`, the
+ * infinities and subnormals included. Found in exact arithmetic: scaling by
+ * a power of two is exact, so a significand is read off as an integer
+ * rather than approximated, a normal number's exponent being
+ * {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}, whatever sign
+ * or payload an engine holds it with: FunctionalScript has one `NaN`
+ * ([spec](../../../spec/README.md#numbers)), a `NaN`'s bits being no
+ * observation the language admits, so one spelling is the whole of what
+ * the value means.
  *
  * @type {(v: number) => string}
  */

@@ -449,6 +449,16 @@ an `IdentifierReference`. `-Infinity` names nothing in either language: it is
 two tokens in both — the operator and the word — which no property name may
 be.
 
+**FunctionalScript has one `NaN`.** IEEE 754 gives a `NaN` a sign and a
+payload, and a JavaScript program can read them — through a typed array or a
+`DataView`, which FunctionalScript has none of. Nothing else tells two `NaN`s
+apart: every operator, coercion and comparison treats each the same,
+`Object.is` included, and each is written as the word `NaN`. So a `NaN`'s
+bits are not serializable data, hence not an observation and not a
+compatibility question ([principles](#principles)): every `NaN` is the one
+value, and a writer may spell them all as one — the Rust writer spells each
+as the quiet `NaN` with an empty payload.
+
 The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
 the first operator the language had; `~`, the **bitwise not operator**, is the
 other prefix, Stage A of the same operators document. Neither is part of the
