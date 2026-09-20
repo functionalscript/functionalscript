@@ -2044,9 +2044,21 @@ const collided = (packed, name, dense) => {
  * file, which is what Git leaves too; and it does not dereference a symbolic ref
  * already at the name, which is `update-ref --no-deref`.
  *
+ * **What the lock protects against is a concurrent *writer*, not a process that
+ * can write in the ref's directory.** Every check here is made before the
+ * `rename`, and the `rename` names a path, so a process able to create files
+ * beside the ref can replace either the lock or the destination in between and
+ * this will publish what it left. No check closes that — the window can be
+ * narrowed and not removed, since nothing in `fjs/effects/node` publishes an
+ * inode rather than a name — and such a process needs no race in any case: a ref
+ * file it writes directly is one Git reads. The damage is bounded to `refs/` by
+ * the `rename` replacing a symlink rather than following it. The measurements,
+ * and what an operation that closed it would have to be:
+ * [`../todo/ref-writing.md`](../todo/ref-writing.md).
+ *
  * Every measurement behind all of this, what each divergence would cost to
  * close, and which claims have fixtures and which rest on a measurement alone:
- * [`../todo/ref-writing.md`](../todo/ref-writing.md).
+ * that same file.
  *
  * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => (id: Oid) => Effect<ReadWhole | Stat | Mkdir | WriteExclusive | Rename | Rm, void, IoChannel>}
  */

@@ -181,6 +181,53 @@ way a recursive `rm` behind a separate check could. Adding it widens `NodeOp`
 again, which is a second breaking change and its own proofs, so it is a task
 rather than a tail-end addition here.
 
+**The lock protects against a concurrent writer, not against a process that can
+write in the ref's directory**, and two review rounds found the same window from
+two ends. Both are real, and both reproduce:
+
+- **After the `wx` open.** A process that unlinks the lock and creates a
+  replacement at that name makes the runner fill the *unlinked* inode; the write
+  reports `ok`, the name holds the replacement, and the `rename` publishes it.
+  Reproduced with the interleaving written out by hand: the ref ended up holding
+  `ATTACKER` where the caller asked for an id.
+- **After the `stat`.** A process that plants a symlink to a directory at the
+  ref's path once the `stat` has answered "absent" gets that link replaced by the
+  `rename`, which leaves every ref inside the linked directory unreachable — the
+  same measurement that motivated the `stat`, moved one step later in time.
+
+**No check closes either, and the reason is the publish primitive.** Every check
+is before the `rename`; the `rename` names a path; so any test can be invalidated
+between the test and the rename. Narrowing is all that is on offer — an `fstat` of
+the held descriptor compared against a `stat` of the lock's path is racy against
+the same interleaving — and nothing in `fjs/effects/node` publishes an *inode*
+rather than a name: node exposes `rename`, `link` and `symlink` over paths, with
+no `renameat2`, no `RENAME_*` or `AT_*` constants and no `linkat(AT_EMPTY_PATH)`
+(checked against node 22.22.2's `fs` surface). An operation that closed it would
+have to be a new `Fs` member built on one of those calls, so it is not a check
+this writer is missing.
+
+**And the threat model is what settles it.** Both windows need a process that can
+create a file in the directory holding the ref. Such a process needs no race:
+measured, a ref file written by hand into `.git/refs/heads/` is one `rev-parse`,
+`show-ref` and `for-each-ref` all answer. So the window is not the way in — it is
+a slower version of a door already open, and refusing to publish would not close
+it.
+
+What the design does owe, and does: the damage stays inside `refs/`. Measured, a
+`rename` over a symlink — to a file or to a directory — replaces the link rather
+than following it, and the target keeps its bytes. So neither window can write
+through a planted link to somewhere else in the filesystem, which is the property
+that would make this more than a namespace the attacker could already edit.
+
+Deferring rather than fixing is deliberate and is *not* silence in
+[DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)'s sense:
+each operation did what it promised, and what changed is the filesystem under it,
+not the answer given. A read-back-and-compare after the rename was considered and
+rejected — it cannot prevent the publication it would detect, it races on its own,
+and it would report a false failure whenever a *benign* concurrent writer replaced
+the ref immediately afterwards, which is a regression in ordinary use to chase an
+adversary who can write the ref directly.
+
 That check is a snapshot, and `git pack-refs` can invalidate it under either
 writer's feet — Git's included. `refs/heads/a/b` is loose, so a write of
 `refs/heads/a` sees no packed collision and is refused by the `rename` instead,
@@ -354,6 +401,10 @@ else in the name has moved DISOT semantics into Git's namespace.
 - [ ] Decide whether the `ENOTDIR` a loose file in the ref's path is refused
       with becomes `refPrefixCode` carrying Git's message, which costs a `stat`
       per path segment to name the file in the way.
+- [ ] Decide whether publication should bind to the inode the lock was opened
+      on, which needs an `Fs` operation over `renameat2` or
+      `linkat(AT_EMPTY_PATH)` rather than a check here — and whether it is worth
+      it, given that the window needs a process which can write the ref directly.
 - [ ] Publish over a **recursively empty** directory at the ref's path, as Git
       does, rather than refusing it — which needs an `Rmdir` operation in
       `fjs/effects/node` (a second `NodeOp` widening, so a breaking change), a
