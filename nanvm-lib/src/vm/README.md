@@ -20,6 +20,11 @@ struct String<T: IVm>;
 // ...
 ```
 
+A `Number` holds one `NaN`: `Unpacked::number` canonicalizes every `NaN` on
+the way in, whatever sign or payload a host operation left on it, because
+the language cannot tell two `NaN`s apart and a NaN-boxing VM keeps its
+boxed values in the negative quiet `NaN`s.
+
 ## EDAG
 
 The EDAG is VM-agnostic and is the stable, serializable representation of functions

@@ -12,8 +12,14 @@ use crate::{
 pub struct Naive(Unpacked<Naive>);
 
 impl<T: Into<Unpacked<Naive>>> From<T> for Naive {
+    /// Packs a value, canonicalizing a `NaN` on the way in: `Unpacked`'s own
+    /// conversions already do, but `Unpacked::Number` is a public variant a
+    /// caller can build with any bits, and the VM is what owes the invariant.
     fn from(value: T) -> Self {
-        Naive(value.into())
+        Naive(match value.into() {
+            Unpacked::Number(n) => Unpacked::number(n),
+            v => v,
+        })
     }
 }
 
