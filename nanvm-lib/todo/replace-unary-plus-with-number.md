@@ -49,14 +49,14 @@ and `nanvm-lib/src/vm/any/relational.rs` handles the mixed arms deliberately.) I
 through `ToNumeric` and, for a `BigInt`, converts it via `BigInt::toNumber` (a possibly
 lossy double conversion) instead of throwing. **Nothing in `nanvm-lib` implements that
 conversion today** — `NumberCoercion::bigint` unconditionally errors, and no other code
-converts a `BigInt<A>` to `f64`. So the `Number` EDAG node has no `nanvm-lib`
+converts a `BigInt<A>` to a `Number`. So the `Number` EDAG node has no `nanvm-lib`
 counterpart, and the corpus has no `Number` group to prove one against.
 
 ### Proposal
 
 - Add a distinct coercion entry point implementing the actual `Number(x)` algorithm:
   `ToNumeric` then, for a `BigInt`, `BigInt::toNumber` (lossy double conversion) instead of
-  an error. This needs a real `BigInt<A> → f64` conversion that doesn't exist anywhere in
+  an error. This needs a real `BigInt<A> → Number` conversion that doesn't exist anywhere in
   `nanvm-lib/src/vm/bigint/` today.
 - **Do not touch `NumberCoercion`/`to_number()` or `Any::unary_plus`.**
   `Any::unary_plus`'s own doc comment (`any/mod.rs:67-68`) already says `to_number` is
@@ -87,7 +87,7 @@ counterpart, and the corpus has no `Number` group to prove one against.
 
 ### Tasks
 
-- [ ] Implement the real `Number(x)` coercion, including a `BigInt<A> → f64` conversion.
+- [ ] Implement the real `Number(x)` coercion, including a `BigInt<A> → Number` conversion.
 - [ ] `fjs/nanvm/module.f.mjs`: add a `Group1` with `op: 'Number'`; its bigint case
       expects a converted number, not `throws`.
 - [ ] `fjs/nanvm/proof.f.mjs`: add `Number` to the `js` reference table; repoint
