@@ -153,4 +153,23 @@ textarea { vertical-align: top }
 @media (any-pointer: coarse) {
     [data-section] > ul a { display: inline-block; padding-block: .25rem }
 }
+/* SVG text does not inherit the page's font on its own, unlike every
+   ordinary element — the DataJS demo's graph is the first thing on the site
+   to draw one. */
+svg text { font: inherit }
+/* The DataJS demo's graph: a rect per array, object or leaf, a line per
+   index or key. A leaf is dashed rather than solid, since a leaf and a
+   container are the one distinction this graph draws beyond sharing itself.
+   An edge label is haloed in the page's own background rather than boxed,
+   so two crossing lines still read under it without a second shape per
+   label. */
+[data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+[data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
+[data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
+[data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+[data-graph-edge-label] {
+    dominant-baseline: middle; fill: var(--muted); font-size: .7rem;
+    paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; stroke-width: 3px;
+}
+[data-graph-arrow] { fill: var(--muted) }
 `
