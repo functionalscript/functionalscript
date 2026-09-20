@@ -11,15 +11,12 @@ impl Sub for Number {
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::{
-        Number,
-        number::{CANONICAL_NAN, tests::bits},
-    };
+    use crate::vm::{Number, number::tests::bits};
 
     /// `Infinity - Infinity` is a `NaN` the hardware made, and it comes out canonical.
     #[test]
     fn nan_is_canonical() {
         let inf = Number::from(f64::INFINITY);
-        assert_eq!(bits(inf - inf), CANONICAL_NAN);
+        assert_eq!(bits(inf - inf), bits(Number::NAN));
     }
 }

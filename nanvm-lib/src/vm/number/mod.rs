@@ -6,9 +6,6 @@ mod neg;
 mod rem;
 mod sub;
 
-/// The bits of the one `NaN`: quiet, positive, empty payload.
-const CANONICAL_NAN: u64 = 0x7ff8_0000_0000_0000;
-
 /// A JavaScript number: an `f64` that holds one `NaN`.
 ///
 /// FunctionalScript has one `NaN`: nothing in the language tells two apart,
@@ -22,9 +19,14 @@ const CANONICAL_NAN: u64 = 0x7ff8_0000_0000_0000;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Number(f64);
 
+impl Number {
+    /// The one `NaN`: quiet, positive, empty payload.
+    pub const NAN: Self = Self(f64::from_bits(0x7ff8_0000_0000_0000));
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CANONICAL_NAN, Number};
+    use super::Number;
     use crate::{
         naive::Naive,
         vm::{Any, ToAny, Unpacked, numeric::Numeric, primitive::Primitive},
@@ -46,7 +48,7 @@ mod tests {
             f64::from_bits(0x7ff0_0000_0000_0001),
         ] {
             assert!(v.is_nan());
-            assert_eq!(bits(v.into()), CANONICAL_NAN);
+            assert_eq!(bits(v.into()), bits(Number::NAN));
         }
     }
 
@@ -76,17 +78,20 @@ mod tests {
             _ => panic!("a number"),
         };
         let nan = -f64::NAN;
-        assert_ne!(nan.to_bits(), CANONICAL_NAN);
-        assert_eq!(unpacked_bits(nan.to_any::<Naive>().into()), CANONICAL_NAN);
+        assert_ne!(nan.to_bits(), bits(Number::NAN));
+        assert_eq!(
+            unpacked_bits(nan.to_any::<Naive>().into()),
+            bits(Number::NAN)
+        );
         assert_eq!(
             unpacked_bits(Numeric::<Naive>::Number(nan.into()).into()),
-            CANONICAL_NAN
+            bits(Number::NAN)
         );
         assert_eq!(
             unpacked_bits(Primitive::<Naive>::Number(nan.into()).into()),
-            CANONICAL_NAN
+            bits(Number::NAN)
         );
         let negated: Any<Naive> = (-f64::NAN.to_any::<Naive>()).unwrap();
-        assert_eq!(unpacked_bits(negated.into()), CANONICAL_NAN);
+        assert_eq!(unpacked_bits(negated.into()), bits(Number::NAN));
     }
 }

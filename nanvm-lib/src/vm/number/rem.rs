@@ -11,15 +11,12 @@ impl Rem for Number {
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::{
-        Number,
-        number::{CANONICAL_NAN, tests::bits},
-    };
+    use crate::vm::{Number, number::tests::bits};
 
     /// `1 % 0` is `NaN` in JavaScript, and the canonical one here.
     #[test]
     fn nan_is_canonical() {
         let r = Number::from(1.0) % Number::from(0.0);
-        assert_eq!(bits(r), CANONICAL_NAN);
+        assert_eq!(bits(r), bits(Number::NAN));
     }
 }

@@ -11,15 +11,12 @@ impl Div for Number {
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::{
-        Number,
-        number::{CANONICAL_NAN, tests::bits},
-    };
+    use crate::vm::{Number, number::tests::bits};
 
     /// `0 / 0`, which x86 answers with a negative `NaN`, comes out canonical.
     #[test]
     fn nan_is_canonical() {
         let zero = Number::from(0.0);
-        assert_eq!(bits(zero / zero), CANONICAL_NAN);
+        assert_eq!(bits(zero / zero), bits(Number::NAN));
     }
 }

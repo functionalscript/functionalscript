@@ -1,14 +1,10 @@
-use super::{CANONICAL_NAN, Number};
+use super::Number;
 
-/// The one way in: every `NaN` becomes the canonical `NaN`, everything else
+/// The one way in: every `NaN` becomes [`Number::NAN`], everything else
 /// keeps its bits.
 impl From<f64> for Number {
     fn from(v: f64) -> Self {
-        Number(if v.is_nan() {
-            f64::from_bits(CANONICAL_NAN)
-        } else {
-            v
-        })
+        if v.is_nan() { Self::NAN } else { Number(v) }
     }
 }
 
