@@ -1,4 +1,5 @@
 mod add;
+mod debug;
 mod div;
 mod from;
 mod mul;
@@ -16,7 +17,7 @@ mod sub;
 /// and a NaN-boxing VM, which keeps its boxed values in the negative quiet
 /// `NaN`s, can store the bits as they are.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Number(f64);
 
 impl Number {
