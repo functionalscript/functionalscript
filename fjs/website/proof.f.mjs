@@ -156,14 +156,30 @@ export const proof = {
         },
         /**
          * **A blocker is inherited through the whole import graph**, which is
-         * the reason the scan reads more than the proof modules themselves: a
-         * page links a module's imports too, so a proof that is clean on its
-         * own face and imports something that is not cannot be loaded either.
+         * the reason `readGraph` reads further than the modules that export a
+         * `proof` or a `demo`: a page links a module's imports too, so a proof
+         * that is clean on its own face and imports something that is not
+         * cannot be loaded either.
          */
         blockersReachThroughImports: () => {
             const { root } = generate({
                 'a.f.mjs': file("import './dep.f.mjs'\nexport const proof = []"),
                 'dep.f.mjs': file("import 'node:fs'\nexport const x = 1"),
+            })
+            assertStructurallySame(listed(pageAt(root, [])), [])
+        },
+        /**
+         * **A blocker reached only through a non-authored dependency still
+         * counts.** `scan` reads only `.f.mjs` files, so a `.mjs` a proof
+         * imports has no entry in the graph it seeds — `readGraph` has to
+         * discover and read it starting from the seeded proof module's own
+         * `local` imports, not from a walk that starts as if nothing were
+         * known yet.
+         */
+        blockerThroughANonAuthoredDependency: () => {
+            const { root } = generate({
+                'a.f.mjs': file("import './dep.mjs'\nexport const proof = []"),
+                'dep.mjs': file("import 'node:fs'\nexport const x = 1"),
             })
             assertStructurallySame(listed(pageAt(root, [])), [])
         },
@@ -199,8 +215,8 @@ export const proof = {
          * the outcome the selection exists to prevent.
          *
          * The oversized file here is a `.mjs`, because that is the case only
-         * this guard catches: an oversized `.f.mjs` is walked, so
-         * `proofModules` reads it and fails first.
+         * this guard catches: an oversized `.f.mjs` is walked, so `scan`
+         * reads it and fails first.
          */
         anUnreadableModuleIsRefused: () => {
             const [generated, code] = run({

@@ -12,13 +12,23 @@
  * out, no filesystem touched. What used to check this was running the command
  * and reading a `git diff`.
  *
- * **It costs 42 s where the script it replaced took 1.65 s**, and the whole
- * difference is one function: reading a file through the operation decodes it
- * with `text`'s `utf8ToString`, at ~23 ms per module against ~1 ms for a
- * native read. Nothing here is worth tuning for it — the walk is 0.14 s and
- * the reads themselves 0.1 s — so it is recorded where it belongs, in
+ * **It cost 42 s where the script it replaced took 1.65 s; it costs about
+ * 13 s now.** Reading a file through the operation decodes it with `text`'s
+ * `utf8ToString`, at ~23 ms per module against ~1 ms for a native read — the
+ * walk itself is 0.14 s and a bare read 0.1 s, so decode count was always the
+ * whole story. It is recorded where it belongs, in
  * [`../text/todo/utf8-to-string-cost.md`](../text/todo/utf8-to-string-cost.md),
  * with the measurements and with why fanning the reads out does not help.
+ *
+ * Every authored module used to be decoded three times over: twice by two
+ * near-identical folds, one asking whether it exports a `proof` and the
+ * other a `demo`, and a third time when the import graph — needed to find
+ * what would stop a browser linking it — was walked from an empty graph and
+ * read the same module again just for its specifiers. {@link scan} asks
+ * both export questions of one read and keeps the specifiers as a byproduct,
+ * and {@link readGraph} is seeded with that, so it reads only what a
+ * `.f.mjs`-only scan could not already have answered — a non-authored
+ * dependency, most often.
  *
  * **An empty page is probably a directory that no longer exists.** The
  * generator only ever writes: a page sits next to the source it describes, so
@@ -174,6 +184,21 @@ const authoredModules = tree => allFiles(tree).filter(authored).toSorted()
 const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
 
 /**
+ * `path`'s own {@link _Imports} record: which of the specifiers `source`
+ * names are local, resolved against `path`, and which are not and so would
+ * stop a browser linking whatever reaches them.
+ *
+ * @type {(path: string) => (source: string) => _Imports}
+ */
+const importsOf = path => source => {
+    const found = specifiers(source)
+    return {
+        blockers: found.filter(specifier => !local(specifier)),
+        local: found.filter(local).map(resolve(path)),
+    }
+}
+
+/**
  * Reads one module into the graph, and answers what it newly reaches.
  *
  * **A missing path leaves the graph alone.** The scan is textual, so a module
@@ -210,12 +235,7 @@ const readModule = path => ([graph, reached]) => step(
                 ? pureOk(/** @type {const} */ ([graph, reached]))
                 : pureError(read[1])
         }
-        const found = specifiers(read[1])
-        /** @type {_Imports} */
-        const imports = {
-            blockers: found.filter(specifier => !local(specifier)),
-            local: found.filter(local).map(resolve(path)),
-        }
+        const imports = importsOf(path)(read[1])
         return pureOk(/** @type {const} */ ([
             setReplace(path)(imports)(graph),
             [...reached, ...imports.local],
@@ -315,10 +335,26 @@ const browserProofOf = tree =>
  * loads a demo the way it loads a proof, so what would stop one would stop the
  * other. They are answered separately because only proofs are listed.
  *
- * @type {(proofs: readonly string[], demos: readonly string[]) => Effect<ReadFile, readonly [readonly Proof[], readonly Proof[]], IoChannel>}
+ * **`graph` is a starting point, not an empty one.** {@link scan} already read
+ * every authored module once and built its `_Imports` entry as a byproduct of
+ * deciding whether it exports a `proof` or a `demo`; seeding {@link readGraph}
+ * with that is what lets its own "already in the graph" skip apply to every
+ * proof and demo module too, rather than reading each a second time here.
+ *
+ * **The frontier still names every local import the seed already knows
+ * about, not only `proofs` and `demos`.** `readGraph` discovers a module's
+ * imports as the *result* of reading it — the one thing seeding skips. A
+ * seeded module's own imports would otherwise never reach the frontier at
+ * all: `readGraph` sees it is already in the graph, stops there, and a
+ * `.mjs` dependency two hops from a proof — outside `scan`'s `.f.mjs`-only
+ * reach — is never read, never refused if it cannot be, and never counted as
+ * a blocker either. Seeding a module's presence has to come with seeding
+ * where it already knows to look next.
+ *
+ * @type {(proofs: readonly string[], demos: readonly string[]) => (graph: _Graph) => Effect<ReadFile, readonly [readonly Proof[], readonly Proof[]], IoChannel>}
  */
-const classify = (proofs, demos) => step(
-    readGraph([...proofs, ...demos])(emptyMap),
+const classify = (proofs, demos) => graph => step(
+    readGraph([...proofs, ...demos, ...toArray(entries(graph)).flatMap(([, imports]) => imports.local)])(graph),
     graph => {
         /** @type {(paths: readonly string[]) => readonly Proof[]} */
         const classified = paths => paths
@@ -341,30 +377,28 @@ const reportClassification = proofs => {
 }
 
 /**
- * The proof modules to consider: every authored `.f.mjs` that exports a
- * `proof`, in the path order it was given.
+ * Every authored module, read once: which export a `proof`, which export a
+ * `demo`, both in the path order they were given, and each one's own
+ * {@link _Imports} entry in the graph {@link classify} would otherwise read
+ * it again to build.
  *
- * @type {(paths: readonly string[]) => Effect<ReadFile, readonly string[], IoChannel>}
- */
-const proofModules = paths => foldStep(
-    pureOk(paths),
-    /** @type {readonly string[]} */ ([]),
-    path => found => step(
-        readUtf8File(path),
-        source => pureOk(exportsProof(source) ? [...found, path] : found)))
-
-/**
- * The authored modules that export a `demo`, in the path order they were
- * given.
+ * **One read, not two.** `exportsProof` and `exportsDemo` are the same
+ * question with a different name — `exportsBinding`'s own doc says so — so
+ * asking both of one already-read source costs nothing a second read would
+ * not have cost twice.
  *
- * @type {(paths: readonly string[]) => Effect<ReadFile, readonly string[], IoChannel>}
+ * @type {(paths: readonly string[]) => Effect<ReadFile, readonly [readonly string[], readonly string[], _Graph], IoChannel>}
  */
-const demoModules = paths => foldStep(
+const scan = paths => foldStep(
     pureOk(paths),
-    /** @type {readonly string[]} */ ([]),
-    path => found => step(
+    /** @type {readonly [readonly string[], readonly string[], _Graph]} */ ([[], [], emptyMap]),
+    path => ([proofs, demos, graph]) => step(
         readUtf8File(path),
-        source => pureOk(exportsDemo(source) ? [...found, path] : found)))
+        source => pureOk(/** @type {const} */ ([
+            exportsProof(source) ? [...proofs, path] : proofs,
+            exportsDemo(source) ? [...demos, path] : demos,
+            setReplace(path)(importsOf(path)(source))(graph),
+        ]))))
 
 /**
  * Whether a name is the generator's own output rather than a file a reader
@@ -562,18 +596,17 @@ const linksNote = env => commit =>
 const program = commit => note => exitStep(mapStep(
     step(log(note), () => step(walk('.'), tree => {
         const authored = authoredModules(tree)
-        return step(proofModules(authored), foundProofs =>
-            step(demoModules(authored), foundDemos =>
-                // One graph over both: a page loads a demo the way it loads a
-                // proof, so what would stop one would stop the other.
-                step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos),
-                    ([proofs, demoProofs]) => {
-                        const [demos, refused] = resolveDemos(demoProofs)
-                        return step(reportClassification(proofs), () =>
-                            step(forEachStep(pureOk(refused), log), () =>
-                                step(writePages(commit)(tree)(proofs)(demos), () =>
-                                    writeUtf8File('_main.css', stylesheet))))
-                    })))
+        // One graph over both: a page loads a demo the way it loads a proof,
+        // so what would stop one would stop the other.
+        return step(scan(authored), ([foundProofs, foundDemos, graph]) =>
+            step(classify([...foundProofs, ...browserProofOf(tree)], foundDemos)(graph),
+                ([proofs, demoProofs]) => {
+                    const [demos, refused] = resolveDemos(demoProofs)
+                    return step(reportClassification(proofs), () =>
+                        step(forEachStep(pureOk(refused), log), () =>
+                            step(writePages(commit)(tree)(proofs)(demos), () =>
+                                writeUtf8File('_main.css', stylesheet))))
+                }))
     })),
     () => undefined))
 
