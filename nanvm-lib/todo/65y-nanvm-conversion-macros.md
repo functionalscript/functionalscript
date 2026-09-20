@@ -25,12 +25,13 @@ newtype repetition that [i159](./159-collapse-per-type-wrapper-traits.md)
 addresses for `SizedIndex` / `Index` / `PartialEq`, but the conversion
 traits are **not covered** there.
 
-#### `From<X> for Unpacked<A>` — 7 copies (`from.rs:42–87`)
+#### `From<X> for Unpacked<A>` — 8 copies, plus one that is not a copy (`from.rs`)
 
 ```rust
 impl<A: IVm> From<Nullish>     for Unpacked<A> { fn from(v: Nullish)     -> Self { Unpacked::Nullish(v) } }
 impl<A: IVm> From<bool>        for Unpacked<A> { fn from(v: bool)        -> Self { Unpacked::Boolean(v) } }
-impl<A: IVm> From<f64>         for Unpacked<A> { fn from(v: f64)         -> Self { Unpacked::Number(v) } }
+impl<A: IVm> From<Number>      for Unpacked<A> { fn from(v: Number)      -> Self { Unpacked::Number(v) } }
+impl<A: IVm> From<f64>         for Unpacked<A> { fn from(v: f64)         -> Self { Unpacked::Number(v.into()) } }
 impl<A: IVm> From<String<A>>   for Unpacked<A> { fn from(v: String<A>)   -> Self { Unpacked::String(v) } }
 impl<A: IVm> From<BigInt<A>>   for Unpacked<A> { fn from(v: BigInt<A>)   -> Self { Unpacked::BigInt(v) } }
 impl<A: IVm> From<Object<A>>   for Unpacked<A> { fn from(v: Object<A>)   -> Self { Unpacked::Object(v) } }
@@ -38,7 +39,7 @@ impl<A: IVm> From<Array<A>>    for Unpacked<A> { fn from(v: Array<A>)    -> Self
 impl<A: IVm> From<Function<A>> for Unpacked<A> { fn from(v: Function<A>) -> Self { Unpacked::Function(v) } }
 ```
 
-#### `TryFrom<Any<A>> for X` — 7 copies (`try_from.rs:7–85`)
+#### `TryFrom<Any<A>> for X` — 8 copies (`try_from.rs`)
 
 ```rust
 impl<A: IVm> TryFrom<Any<A>> for Nullish {
@@ -51,7 +52,15 @@ impl<A: IVm> TryFrom<Any<A>> for Nullish {
 // …repeated for bool, f64, Array<A>, BigInt<A>, Function<A>, Object<A>, String<A>
 ```
 
-Both groups share one axis-of-difference: `(wrapper, variant)`.
+Both groups share one axis-of-difference: `(wrapper, variant)` — with one
+exception the table has to carry explicitly. `Unpacked::Number` holds a
+`Number`, and the `(Number, Number)` row is an ordinary pair; but an `f64`
+also enters, through a second `From` that canonicalizes on the way in
+(`Number::from`), and it comes back out of `TryFrom<Any<A>>` as an `f64`.
+That `f64` conversion is a one-way entry of its own, not a pair a
+generator or a trait can derive from `(wrapper, variant)`: option B leaves
+it as the hand-written impl it is, and option C's table cannot express it
+as a row.
 
 ### Options without `macro_rules!`
 
@@ -139,7 +148,7 @@ which `lib.rs` then `include!`s. The table itself can live in
 const VARIANTS: &[(&str, &str)] = &[
     ("Nullish",     "Nullish"),
     ("bool",        "Boolean"),
-    ("f64",         "Number"),
+    ("Number",      "Number"),
     ("String<A>",   "String"),
     ("BigInt<A>",   "BigInt"),
     ("Object<A>",   "Object"),
@@ -248,8 +257,9 @@ rejected.
   the constraint surfaced here should be applied there too — update
   i159's "Proposal" sections to follow the same B / C / D / status-quo
   ladder before any code lands.
-- `nanvm-lib/src/vm/impls/from.rs:42–87` — seven `From<X> for Unpacked<A>` impls.
-- `nanvm-lib/src/vm/impls/try_from.rs:7–85` — seven `TryFrom<Any<A>> for X` impls.
+- `nanvm-lib/src/vm/impls/from.rs` — eight `From<X> for Unpacked<A>` impls,
+  and the one-way `From<f64>` beside them.
+- `nanvm-lib/src/vm/impls/try_from.rs` — eight `TryFrom<Any<A>> for X` impls.
 - `AGENTS.md` — the "avoid Rust macros" guidance referenced at the
   top of this file. Documents the constraint for parallel Rust work,
   including i159.
