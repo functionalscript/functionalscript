@@ -220,7 +220,7 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { length, msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { hexText } from '../oid/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
@@ -578,9 +578,19 @@ const targetAllowed = (text, r) =>
  * {@link resolveWith}'s to state, and it is a refusal;
  * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) has the rest.
  *
+ * **A name past `maxLengthBytes` is `null` for the same reason**, and the check
+ * has to come before the conversion: `Bytes` is unbounded and `u8ListToVec`
+ * asserts, so one byte over escaped both {@link tryWrite} and {@link tryResolve}
+ * as a bare `'assertion failed'` rather than as an answer — measured, at 131,073
+ * bytes. `null` rather than a code of its own, because it is the same fact: no
+ * path carries such a name on any host either, a component over 255 bytes being
+ * `ENAMETOOLONG`. Found by review of
+ * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
+ *
  * @type {(name: readonly number[]) => Nullable<string>}
  */
-const nameText = name => fromVec(toVec(name))
+const nameText = name =>
+    name.length > Number(maxLengthBytes) ? null : fromVec(toVec(name))
 
 /**
  * A chain that has its answer: the id, and no lookups left to spend and no name

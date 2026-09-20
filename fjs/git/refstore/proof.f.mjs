@@ -1995,6 +1995,37 @@ export const proof = {
         assertEq(e.message, '726566732f68656164732f80 is no path this host can spell')
         assertStructurallySame(fs, root)
     },
+    // A name too long to be a `Vec` at all. `Bytes` is unbounded and
+    // `u8ListToVec` asserts past `maxLengthBytes`, so before `nameText` checked
+    // the length this escaped as a bare `'assertion failed'` — not an `IoChannel`
+    // refusal, not even an `Effect`. Found by review; the bound below is one byte
+    // over, and the control is one byte under it, which answers normally.
+    //
+    // A *write* is refused and a *lookup* answers `null`, which is each side's
+    // existing answer for a name no path spells — and true of this one on any
+    // host, where a component over 255 bytes is `ENAMETOOLONG`.
+    writeNameTooLong: () => {
+        /** @type {Dir} */
+        const before = { refs: { heads: {} } }
+        /** @type {(extra: number) => readonly number[]} */
+        const named = extra => [
+            ...latin1('refs/heads/'),
+            ...Array.from({ length: Number(maxLengthBytes) - 11 + extra }, () => 0x61),
+        ]
+        const [fs, r] = ran(before, tryWrite(one(''), 20)(named(1))(idOf(a)))
+        assertEq(writeRefusal(r).code, unspellableNameCode)
+        assertStructurallySame(fs, before)
+        assertEq(run(before, tryResolve(one(''), 20)(named(1))), null)
+        // The control: one byte *under* the bound converts, so the length test is
+        // the only thing the case above can be catching. The write goes through —
+        // this runner has no path limit of its own, where a host would answer
+        // `ENAMETOOLONG` for a component over 255 bytes.
+        const [grown, ok1] = ran(before, tryWrite(one(''), 20)(named(0))(idOf(a)))
+        assertEq(ok1[0], 'ok')
+        // and it is readable back under that name, so the write landed rather
+        // than merely not refusing
+        assertStructurallySame(run(grown, tryResolve(one(''), 20)(named(0))), idOf(a))
+    },
     // A packed name that is a directory prefix of the name being written, and the
     // other way round. `git update-ref` refuses both — measured on 2.43.0, with
     // `refs/heads/a` packed it exits 128 with `'refs/heads/a' exists; cannot
