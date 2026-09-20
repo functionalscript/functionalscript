@@ -17,7 +17,7 @@ impl<A: IVm> From<Primitive<A>> for Unpacked<A> {
         match value {
             Primitive::Nullish(n) => Unpacked::Nullish(n),
             Primitive::Boolean(b) => Unpacked::Boolean(b),
-            Primitive::Number(n) => Unpacked::Number(n),
+            Primitive::Number(n) => Unpacked::number(n),
             Primitive::String(s) => Unpacked::String(s),
             Primitive::BigInt(i) => Unpacked::BigInt(i),
         }

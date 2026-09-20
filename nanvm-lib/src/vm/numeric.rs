@@ -32,7 +32,7 @@ pub enum Numeric<A: IVm> {
 impl<A: IVm> From<Numeric<A>> for Unpacked<A> {
     fn from(value: Numeric<A>) -> Self {
         match value {
-            Numeric::Number(value) => Unpacked::Number(value),
+            Numeric::Number(value) => Unpacked::number(value),
             Numeric::BigInt(value) => Unpacked::BigInt(value),
         }
     }
