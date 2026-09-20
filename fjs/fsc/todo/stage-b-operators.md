@@ -110,24 +110,33 @@ lookahead, never two competing productions that both start the same way.
 
 Stage A's shape is the frame: `tail` is a list of tail lists spread onto a
 branch, and a layer's round carries its own operand followed by the tails
-of every layer below it. Stage B adds two entries to `tail`, after
-`bitwiseOrTail`, in the same spelling — `operand` below is Stage A's whole
-operand, `unary` followed by the eight existing tails, which is what a
-`bitwiseOr`-level expression is on `main`:
+of every layer below it. A layer's operator is never a bare token but a
+tagged choice — `bitwiseOrOp` is `{ or: sym('|') }` — because `foldLayer`
+reads a round's operator by unmapping that choice and looking its tag up
+in `binaryOpTag`; a bare terminal is a leaf there and never reaches the
+map. Stage B's three operators are spelled the same way, `logicalAndOp`,
+`logicalOrOp` and `nullishOp`, each a one-branch choice keyed by a name no
+other layer uses. It adds two entries to `tail`, after `bitwiseOrTail`, in
+the same spelling — `operand` below is Stage A's whole operand, `unary`
+followed by the eight existing tails, which is what a `bitwiseOr`-level
+expression is on `main`:
 
 ```text
+logicalAndOp ::= { logicalAnd: '&&' }          -- tagged choices, as multiplicativeOp … bitwiseOrOp are
+logicalOrOp  ::= { logicalOr: '||' }
+nullishOp    ::= { nullish: '??' }
 operand      ::= unary multiplicativeTail … bitwiseOrTail
-circuitTail  ::= '&&' t operand andTail          -- committed to && (|| may still follow)
-               | '||' t operand logicalAndTail orTail   -- committed to || directly
-               | '??' t operand nullishTail      -- committed to ?? (no && or || can follow)
+circuitTail  ::= logicalAndOp t operand andTail          -- committed to && (|| may still follow)
+               | logicalOrOp t operand logicalAndTail orTail   -- committed to || directly
+               | nullishOp t operand nullishTail          -- committed to ?? (no && or || can follow)
                | ε
-andTail      ::= '&&' t operand andTail
-               | '||' t operand logicalAndTail orTail   -- `a && b || c` is `(a && b) || c`, still legal
-               | ε                               -- no '??' arm: already committed away from nullish
-orTail       ::= '||' t operand logicalAndTail orTail
+andTail      ::= logicalAndOp t operand andTail
+               | logicalOrOp t operand logicalAndTail orTail   -- `a && b || c` is `(a && b) || c`, still legal
+               | ε                                       -- no nullish arm: already committed away from it
+orTail       ::= logicalOrOp t operand logicalAndTail orTail
                | ε
-logicalAndTail ::= { '&&' t operand }
-nullishTail  ::= { '??' t operand }
+logicalAndTail ::= { logicalAndOp t operand }
+nullishTail  ::= { nullishOp t operand }
 conditionalTail ::= [ '?' t value ':' t value ]
 tail         ::= multiplicativeTail … bitwiseOrTail circuitTail conditionalTail
 ```
@@ -140,11 +149,14 @@ neither tail rule has an arm for the other's token, so `a && b ?? c` and
 the grammar shape itself, not a check layered on after. `logicalAndTail`
 and `nullishTail` — the two pieces that never have to choose between
 operators — are plain repeat lists exactly like the eight below them,
-each round `op t unary <lower tails>`, so `foldLayer` folds them unchanged
-once `binaryOpTag` knows their keys. The commit-to-one-branch tails
+each round `op t unary <lower tails>` with `op` a tagged choice, so
+`foldLayer` folds them unchanged once `binaryOpTag` maps `logicalAnd` and
+`nullish` to their tags. The commit-to-one-branch tails
 (`circuitTail`/`andTail`/`orTail`) are the new shape this task adds: a
 choice among named continuations, not a repeat, so they need a reader of
-their own beside `foldLayer`. `conditionalTail` is the one genuinely new
+their own beside `foldLayer` — one that takes the branch by the same
+operator tag, `logicalOr` included, and folds the operand and its
+continuation as `foldLayer` folds a round. `conditionalTail` is the one genuinely new
 shape beyond that: an optional `? value : value` after the short-circuit
 level, taking full `value`s (not stopping at the short-circuit level) for
 its two arms, matching JS's `ConditionalExpression` branches being
@@ -168,10 +180,10 @@ AST level: the flat `readonly [BinaryTag, Node, Node]` of
 AstConst, AstConst]` already cover them — no new shape, since laziness is
 not a shape difference at this layer any more than it is one in the EDAG.
 `binaryOpTag` ([`parser/module.f.mjs`](../parser/module.f.mjs)) gains a
-key per new operator, `logicalAnd`, `logicalOr` and `nullish`, each
+key per new operator choice, `logicalAnd`, `logicalOr` and `nullish`, each
 unique across the layers as every existing key is, and `foldLayer` then
 folds `logicalAndTail` and `nullishTail` rounds as it folds the eight
-below. The commit tails and `conditionalTail` are read by a reader of
+below, their operator being a tagged choice as every layer's is. The commit tails and `conditionalTail` are read by a reader of
 their own, applied after `applyTail`'s eight lists: a commit tail is a
 choice, so the reader takes the branch by its tag and folds the operand
 and its continuation left-associatively, the same fold `foldLayer` does,
@@ -312,9 +324,10 @@ above, not just new-syntax acceptance.
 ### Tasks
 
 - [ ] Tokenizer: `&&`, `||`, `??`, `?` as DJS operator tokens.
-- [ ] Grammar: `circuitTail`/`andTail`/`orTail`/`logicalAndTail`/
-      `nullishTail`/`conditionalTail` as `tail`'s two new entries above
-      `bitwiseOrTail`, right-factored so `fjs/ebnf/ll1` accepts it (the
+- [ ] Grammar: `logicalAndOp`/`logicalOrOp`/`nullishOp` as tagged choices
+      like every layer's operator, and `circuitTail`/`andTail`/`orTail`/
+      `logicalAndTail`/`nullishTail`/`conditionalTail` as `tail`'s two new
+      entries above `bitwiseOrTail`, right-factored so `fjs/ebnf/ll1` accepts it (the
       naive `logicalOr | nullish` split does not — see above), proven to
       refuse `a ?? b || c` and `a && b ?? c` without parentheses, and
       grammar-level accept/reject proofs matching Stage A's `operators`
