@@ -25,6 +25,7 @@
  *
  * @import { Edge, Graph, Node, Ranked } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
+ * @import { _Positioned } from './private.ts'
  */
 
 /**
@@ -82,12 +83,6 @@ const byRank = nodes => {
     const maxRank = nodes.reduce((m, n) => Math.max(m, n.rank), 0)
     return Array.from({ length: maxRank + 1 }, (_, rank) => nodes.filter(n => n.rank === rank))
 }
-
-/**
- * A {@link Ranked} node, placed — its own box.
- *
- * @typedef {Ranked & { readonly x: number, readonly y: number, readonly width: number, readonly height: number }} _Positioned
- */
 
 /** @type {(row: readonly Ranked[]) => (y: number) => readonly _Positioned[]} */
 const layoutRow = row => y => row.reduce((acc, node) => {

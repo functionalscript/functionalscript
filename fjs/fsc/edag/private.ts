@@ -1,5 +1,6 @@
 /**
- * Implementation-private types for `fjs/fsc/edag/module.f.mjs`.
+ * Implementation-private types for `fjs/fsc/edag/module.f.mjs` and the
+ * graph demo beside it, `./demo.f.mjs`.
  *
  * @module
  */
@@ -8,6 +9,7 @@ import type { Exp } from '../../edag/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { AstConst, BinaryTag } from '../ast/types.ts'
+import type { Edge, Node } from '../../website/demo/graph/types.ts'
 
 /** The nodes a reference can name: one per import, one per entry lowered so far, and the arguments of the function being lowered. */
 export type _Nodes = {
@@ -56,4 +58,23 @@ export type _LowerResults = { readonly top: Exp, readonly rest: _LowerResults } 
 export type _Resolved = {
     readonly exports: Exp
     readonly default: Exp | undefined
+}
+
+/**
+ * `demo.f.mjs`'s own walk state: every `Exp` reference seen so far and the
+ * node id it was given, the {@link Node}s and {@link Edge}s built from them,
+ * and the next id to hand out.
+ */
+export type _State = {
+    readonly refs: readonly (readonly [object, number])[]
+    readonly nodes: readonly Node[]
+    readonly edges: readonly Edge[]
+    readonly next: number
+}
+
+/** An `Exp`'s own label and its labeled children, as `_shapeOf` (`./demo.f.mjs`) reads them off before any node exists. */
+export type _Shape = {
+    readonly kind: string
+    readonly label: string
+    readonly children: readonly (readonly [string, Exp])[]
 }

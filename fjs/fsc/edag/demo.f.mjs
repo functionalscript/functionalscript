@@ -31,14 +31,17 @@
  *
  * @import { Exp } from '../../edag/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Edge } from '../../website/demo/graph/types.ts'
+ * @import { Edge, Node } from '../../website/demo/graph/types.ts'
  * @import { Element } from '../../media/html/types.ts'
+ * @import { _Shape, _State } from './private.ts'
  */
 
 import { parse } from '../transpiler/module.f.mjs'
 import { _defaultExport, unresolved } from './module.f.mjs'
 import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
+import { leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
 
 const { is } = Object
 
@@ -56,17 +59,6 @@ const op2 = new Set([
     '&&', '||', '??',
 ])
 const op12 = new Set(['+', '-'])
-
-/**
- * @typedef {{ readonly id: number, readonly kind: string, readonly label: string }} _Bare
- * @typedef {{
- *   readonly refs: readonly (readonly [object, number])[],
- *   readonly nodes: readonly _Bare[],
- *   readonly edges: readonly Edge[],
- *   readonly next: number,
- * }} _State
- * @typedef {{ readonly kind: string, readonly label: string, readonly children: readonly (readonly [string, Exp])[] }} _Shape
- */
 
 /** @type {(index: unknown) => string} */
 const dotLabel = index => typeof index === 'number' || typeof index === 'string'
@@ -180,15 +172,15 @@ const findRef = state => ref => {
 export const _walk = state => exp => {
     if (exp === null || typeof exp !== 'object') {
         const id = state.next
-        /** @type {_Bare} */
-        const node = { id, kind: 'leaf', label: typeof exp === 'bigint' ? `${exp}n` : String(exp) }
+        /** @type {Node} */
+        const node = { id, kind: 'leaf', label: concat(leafSerialize(exp)) }
         return { id, state: { ...state, next: id + 1, nodes: [...state.nodes, node] } }
     }
     const existing = findRef(state)(exp)
     if (existing !== null) { return { id: existing, state } }
     const shape = _shapeOf(exp)
     const id = state.next
-    /** @type {_Bare} */
+    /** @type {Node} */
     const node = shape === null
         ? { id, kind: 'unsupported', label: `${exp[0]} (not yet drawn)` }
         : { id, kind: shape.kind, label: shape.label }
@@ -207,7 +199,7 @@ export const _walk = state => exp => {
  * `text` as the EDAG its default export lowers to, or the parser's own
  * error if it does not compile.
  *
- * @type {(text: string) => { readonly ok: true, readonly nodes: readonly _Bare[], readonly edges: readonly Edge[] } | { readonly ok: false, readonly error: string }}
+ * @type {(text: string) => { readonly ok: true, readonly nodes: readonly Node[], readonly edges: readonly Edge[] } | { readonly ok: false, readonly error: string }}
  */
 const graphOf = text => {
     const result = parse('')(text)
