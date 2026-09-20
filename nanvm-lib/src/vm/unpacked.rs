@@ -97,8 +97,9 @@ mod test {
     }
 
     /// The paths a number takes into a VM value all canonicalize: a bare
-    /// `f64`, a `Numeric`, a `Primitive`, and an operator's result — here
-    /// `-NaN`, the program the sign flip comes from.
+    /// `f64`, a `Numeric`, a `Primitive`, an operator's result — here
+    /// `-NaN`, the program the sign flip comes from — and the raw variant a
+    /// caller builds around `Unpacked::number`, caught where the VM packs.
     #[test]
     fn every_way_in_canonicalizes() {
         let nan = -f64::NAN;
@@ -108,5 +109,8 @@ mod test {
         assert_eq!(bits(Primitive::<Naive>::Number(nan).into()), CANONICAL_NAN);
         let negated: Any<Naive> = (-f64::NAN.to_any::<Naive>()).unwrap();
         assert_eq!(bits(negated.into()), CANONICAL_NAN);
+        let raw = Unpacked::<Naive>::Number(nan);
+        assert_ne!(bits(raw.clone()), CANONICAL_NAN);
+        assert_eq!(bits(raw.to_any::<Naive>().into()), CANONICAL_NAN);
     }
 }
