@@ -33,16 +33,12 @@ pub fn strict_eq<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
 /// `NaN` matches `NaN`, and `0` does not match `-0`.
 ///
 /// `==` on `Any` is JavaScript's `===`, which gets both of those backwards, so
-/// numbers are compared by their bits instead.
+/// numbers are compared by their bits instead — and since a `Number` holds
+/// one `NaN`, equal bits is the whole of `Object.is` on numbers.
 fn same<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
     match (a.clone().into(), b.clone().into()) {
         (Unpacked::Number(x), Unpacked::Number(y)) => {
-            let (x, y): (f64, f64) = (x.into(), y.into());
-            if x.is_nan() || y.is_nan() {
-                x.is_nan() && y.is_nan()
-            } else {
-                x.to_bits() == y.to_bits()
-            }
+            f64::from(x).to_bits() == f64::from(y).to_bits()
         }
         _ => a == b,
     }

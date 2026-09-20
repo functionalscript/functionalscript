@@ -7,7 +7,6 @@ mod dispatch;
 mod ecma_whitespace;
 mod function;
 mod impls;
-mod int32_coercion;
 mod internal;
 mod join;
 mod member_access;
@@ -52,6 +51,6 @@ mod test {
 
     fn _any_test<A: IVm>() {
         let x: Any<A> = Number::from(0.5).to_any();
-        let _: f64 = x.try_into().unwrap();
+        let _: Number = x.try_into().unwrap();
     }
 }

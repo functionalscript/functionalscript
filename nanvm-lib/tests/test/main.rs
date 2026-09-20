@@ -34,12 +34,13 @@ fn conversions<A: IVm>() {
     let s: String<A> = s.try_into().unwrap();
     assert_eq!(s, String::from("Hello"));
 
-    let nan: Any<A> = Number::from(f64::NAN).to_any();
-    let nan: f64 = nan.try_into().unwrap();
+    let nan: Any<A> = Number::NAN.to_any();
+    let nan: Number = nan.try_into().unwrap();
     assert!(nan.is_nan());
 
     let nz: Any<A> = Number::from(-0.0).to_any();
-    let nz: f64 = nz.try_into().unwrap();
+    let nz: Number = nz.try_into().unwrap();
+    let nz: f64 = nz.into();
     assert_eq!(format!("{nz}"), "-0");
     assert_eq!(1.0 / nz, -f64::INFINITY);
 

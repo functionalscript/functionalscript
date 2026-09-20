@@ -1,8 +1,10 @@
 mod add;
 mod div;
 mod from;
+mod int32_coercion;
 mod mul;
 mod neg;
+mod pow;
 mod rem;
 mod sub;
 
@@ -15,13 +17,35 @@ mod sub;
 /// conversion. The field is private, so there is no other way to build one,
 /// and a NaN-boxing VM, which keeps its boxed values in the negative quiet
 /// `NaN`s, can store the bits as they are.
+///
+/// This is the VM's number: a literal or a parsed string becomes one once,
+/// and the VM computes on it from there — the ECMAScript operations on a
+/// `Number` are its methods and operators. An `f64` is read back out only
+/// where a leaf needs IEEE 754 arithmetic Rust already has, and at a
+/// test's edge to look at the bits.
+///
+/// `PartialOrd` is IEEE 754's: a `NaN` compares with nothing, which is
+/// exactly the `undefined` a relational operator's abstract comparison
+/// answers.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Number(f64);
 
+/// The names are JavaScript's, in Rust's casing: `Number.NaN` is `NAN`,
+/// `Number.isFinite` is `is_finite`, and each does what its original does.
 impl Number {
-    /// The one `NaN`: quiet, positive, empty payload.
+    /// `Number.NaN` — the one `NaN`: quiet, positive, empty payload.
     pub const NAN: Self = Self(f64::from_bits(0x7ff8_0000_0000_0000));
+
+    /// `Number.isNaN(self)`.
+    pub fn is_nan(self) -> bool {
+        self.0.is_nan()
+    }
+
+    /// `Number.isFinite(self)`: neither a `NaN` nor an infinity.
+    pub fn is_finite(self) -> bool {
+        self.0.is_finite()
+    }
 }
 
 #[cfg(test)]
@@ -67,6 +91,13 @@ mod tests {
         ] {
             assert_eq!(bits(v.into()), v.to_bits());
         }
+    }
+
+    /// `ToNumber` of a boolean is exact: `true` is `1`, `false` is `0`.
+    #[test]
+    fn from_bool() {
+        assert_eq!(bits(true.into()), 1.0f64.to_bits());
+        assert_eq!(bits(false.into()), 0.0f64.to_bits());
     }
 
     /// The paths a number takes into a VM value all go through `Number`: a

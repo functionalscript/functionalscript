@@ -37,14 +37,13 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
 
     fn nullish(self, v: Nullish) -> Self::Result {
         Ok(match v {
-            Nullish::Null => 0.0,
-            Nullish::Undefined => f64::NAN,
-        }
-        .into())
+            Nullish::Null => 0.into(),
+            Nullish::Undefined => Number::NAN,
+        })
     }
 
     fn bool(self, v: bool) -> Self::Result {
-        Ok(to_f64(v).into())
+        Ok(v.into())
     }
 
     fn number(self, v: Number) -> Self::Result {
@@ -71,10 +70,6 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
     fn function(self, v: Function<A>) -> Self::Result {
         any_to_number(v.to_any())
     }
-}
-
-fn to_f64(v: bool) -> f64 {
-    v as u8 as f64
 }
 
 /// `StringToNumber` on an already-trimmed string: `""` is `0`, `0x`/`0o`/`0b`
@@ -233,16 +228,7 @@ fn is_str_decimal_literal(s: &str) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::vm::{
-        ecma_whitespace::is_ecma_whitespace,
-        number_coercion::{string_to_number, to_f64},
-    };
-
-    #[test]
-    fn test() {
-        assert_eq!(to_f64(true), 1.0);
-        assert_eq!(to_f64(false), 0.0);
-    }
+    use crate::vm::{ecma_whitespace::is_ecma_whitespace, number_coercion::string_to_number};
 
     #[test]
     fn empty_and_decimal() {

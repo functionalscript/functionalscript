@@ -29,7 +29,7 @@ impl<A: IVm> String<A> {
     pub(crate) fn member_access(&self, key: Any<A>) -> Option<Any<A>> {
         let len = self.length();
         match Unpacked::from(key) {
-            Unpacked::Number(n) => canonical_index(n.into())
+            Unpacked::Number(n) => canonical_index(n)
                 .filter(|&i| i < len)
                 .map(|i| [self[i]].to_string::<A>().to_any()),
             Unpacked::String(s) => {

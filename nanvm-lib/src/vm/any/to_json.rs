@@ -23,16 +23,30 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub enum JsonError {
     Undefined,
-    NonFiniteNumber(f64),
+    NonFiniteNumber(Number),
     BigInt,
     Function,
+}
+
+/// `String(v)` for the three numbers `NonFiniteNumber` can hold — the
+/// spellings `Number::toString` gives them, needing no VM to build.
+fn non_finite_spelling(v: Number) -> &'static str {
+    if v.is_nan() {
+        "NaN"
+    } else if v > 0.into() {
+        "Infinity"
+    } else {
+        "-Infinity"
+    }
 }
 
 impl Display for JsonError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             JsonError::Undefined => write!(f, "`undefined` has no JSON representation"),
-            JsonError::NonFiniteNumber(v) => write!(f, "{v} has no JSON representation"),
+            JsonError::NonFiniteNumber(v) => {
+                write!(f, "{} has no JSON representation", non_finite_spelling(*v))
+            }
             JsonError::BigInt => write!(f, "a BigInt has no JSON representation"),
             JsonError::Function => write!(f, "a function has no JSON representation"),
         }
@@ -119,7 +133,6 @@ impl<A: IVm> Dispatch<A> for ToJson {
     }
 
     fn number(self, v: Number) -> Self::Result {
-        let v: f64 = v.into();
         if !v.is_finite() {
             return Err(JsonError::NonFiniteNumber(v));
         }
@@ -257,14 +270,29 @@ mod tests {
     #[test]
     fn non_finite_number_errors() {
         // `NaN != NaN`, so this checks the variant by pattern rather than
-        // `assert_eq!` against a `JsonError::NonFiniteNumber(f64::NAN)`.
+        // `assert_eq!` against a `JsonError::NonFiniteNumber(Number::NAN)`.
         assert!(matches!(
             f64::NAN.to_any::<A>().to_json(),
             Err(super::JsonError::NonFiniteNumber(v)) if v.is_nan()
         ));
         assert_eq!(
             f64::INFINITY.to_any::<A>().to_json(),
-            Err(super::JsonError::NonFiniteNumber(f64::INFINITY))
+            Err(super::JsonError::NonFiniteNumber(f64::INFINITY.into()))
+        );
+    }
+
+    /// The error spells its number as JavaScript's `String(v)` would.
+    #[test]
+    fn non_finite_number_error_message() {
+        let message = |v: f64| format!("{}", v.to_any::<A>().to_json().unwrap_err());
+        assert_eq!(message(f64::NAN), "NaN has no JSON representation");
+        assert_eq!(
+            message(f64::INFINITY),
+            "Infinity has no JSON representation"
+        );
+        assert_eq!(
+            message(f64::NEG_INFINITY),
+            "-Infinity has no JSON representation"
         );
     }
 

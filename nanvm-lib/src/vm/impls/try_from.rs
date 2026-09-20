@@ -1,4 +1,6 @@
-use crate::vm::{Any, Array, BigInt, Function, IVm, Object, String, Unpacked, nullish::Nullish};
+use crate::vm::{
+    Any, Array, BigInt, Function, IVm, Number, Object, String, Unpacked, nullish::Nullish,
+};
 
 fn error<A: IVm, T>() -> Result<T, Any<A>> {
     Err("Type Error".into())
@@ -24,13 +26,13 @@ impl<A: IVm> TryFrom<Any<A>> for bool {
     }
 }
 
-impl<A: IVm> TryFrom<Any<A>> for f64 {
+impl<A: IVm> TryFrom<Any<A>> for Number {
     type Error = Any<A>;
     fn try_from(value: Any<A>) -> Result<Self, Self::Error> {
         let Unpacked::Number(result) = value.into() else {
             return error();
         };
-        Ok(result.into())
+        Ok(result)
     }
 }
 

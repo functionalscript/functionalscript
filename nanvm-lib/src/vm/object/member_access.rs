@@ -19,7 +19,7 @@ impl<A: IVm> Object<A> {
     /// accepting both here is the contract, not a relaxation of `own`'s.
     pub(crate) fn member_access(&self, key: Any<A>) -> Option<Any<A>> {
         match Unpacked::from(key) {
-            Unpacked::Number(n) => self.own_property(&number_to_string(n.into())),
+            Unpacked::Number(n) => self.own_property(&number_to_string(n)),
             Unpacked::String(s) => self.own_property(&s),
             _ => None,
         }

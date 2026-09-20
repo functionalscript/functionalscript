@@ -25,8 +25,7 @@ impl<A: IVm> Dispatch<A> for BooleanCoercion {
     }
 
     fn number(self, v: Number) -> Self::Result {
-        let v: f64 = v.into();
-        v != 0.0 && !v.is_nan()
+        !v.is_nan() && v != 0.into()
     }
 
     fn string(self, v: String<A>) -> Self::Result {

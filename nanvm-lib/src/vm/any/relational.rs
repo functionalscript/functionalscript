@@ -1,8 +1,8 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, BigInt, IVm, ToAny, Unpacked, ecma_whitespace::is_ecma_whitespace, numeric::Numeric,
-    primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
+    Any, BigInt, IVm, Number, ToAny, Unpacked, ecma_whitespace::is_ecma_whitespace,
+    numeric::Numeric, primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
 };
 
 impl<A: IVm> Any<A> {
@@ -75,17 +75,12 @@ fn primitive_to_numeric<A: IVm>(p: Primitive<A>) -> Result<Numeric<A>, Any<A>> {
 
 fn numeric_less_than<A: IVm>(nx: Numeric<A>, ny: Numeric<A>) -> Option<bool> {
     match (nx, ny) {
-        (Numeric::Number(a), Numeric::Number(b)) => {
-            let (a, b): (f64, f64) = (a.into(), b.into());
-            if a.is_nan() || b.is_nan() {
-                None
-            } else {
-                Some(a < b)
-            }
-        }
+        // `Number`'s partial order is IEEE 754's: a `NaN` compares with
+        // nothing, which is the `undefined` this returns as `None`.
+        (Numeric::Number(a), Numeric::Number(b)) => a.partial_cmp(&b).map(|o| o == Ordering::Less),
         (Numeric::BigInt(a), Numeric::BigInt(b)) => Some(a < b),
-        (Numeric::Number(a), Numeric::BigInt(b)) => number_lt_bigint(a.into(), &b),
-        (Numeric::BigInt(a), Numeric::Number(b)) => bigint_lt_number(&a, b.into()),
+        (Numeric::Number(a), Numeric::BigInt(b)) => number_lt_bigint(a, &b),
+        (Numeric::BigInt(a), Numeric::Number(b)) => bigint_lt_number(&a, b),
     }
 }
 
@@ -146,23 +141,23 @@ fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Option<BigInt<A>> {
 /// `Number < BigInt`, per steps (g)-(k): `NaN` and the infinities are
 /// decided by the `Number` side alone; everything else needs the exact
 /// mathematical comparison `compare_bigint_number` gives.
-fn number_lt_bigint<A: IVm>(a: f64, b: &BigInt<A>) -> Option<bool> {
+fn number_lt_bigint<A: IVm>(a: Number, b: &BigInt<A>) -> Option<bool> {
     if a.is_nan() {
         return None;
     }
-    if a.is_infinite() {
-        return Some(a.is_sign_negative());
+    if !a.is_finite() {
+        return Some(a < 0.into());
     }
     Some(compare_bigint_number(b, a) == Ordering::Greater)
 }
 
 /// `BigInt < Number`, the mirror of [`number_lt_bigint`].
-fn bigint_lt_number<A: IVm>(a: &BigInt<A>, b: f64) -> Option<bool> {
+fn bigint_lt_number<A: IVm>(a: &BigInt<A>, b: Number) -> Option<bool> {
     if b.is_nan() {
         return None;
     }
-    if b.is_infinite() {
-        return Some(b.is_sign_positive());
+    if !b.is_finite() {
+        return Some(b > 0.into());
     }
     Some(compare_bigint_number(a, b) == Ordering::Less)
 }
@@ -174,7 +169,8 @@ fn bigint_lt_number<A: IVm>(a: &BigInt<A>, b: f64) -> Option<bool> {
 /// `f.floor()` (itself exact, via [`whole_f64_to_bigint`]) settles it,
 /// except when they're equal: `f` is still strictly greater whenever it has
 /// a fractional part.
-fn compare_bigint_number<A: IVm>(bi: &BigInt<A>, f: f64) -> Ordering {
+fn compare_bigint_number<A: IVm>(bi: &BigInt<A>, f: Number) -> Ordering {
+    let f: f64 = f.into();
     let floor = f.floor();
     let floor_bi = whole_f64_to_bigint::<A>(floor);
     match bi.cmp(&floor_bi) {

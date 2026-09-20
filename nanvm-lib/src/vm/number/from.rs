@@ -14,14 +14,22 @@ impl From<Number> for f64 {
     }
 }
 
-/// Exact: every `i32` is an `f64`. `ToInt32`'s results come back this way.
+/// `Number(true)` is `1` and `Number(false)` is `0`: `ToNumber` of a
+/// boolean.
+impl From<bool> for Number {
+    fn from(v: bool) -> Self {
+        Number(v as u8 as f64)
+    }
+}
+
+/// Exact: every `i32` is a `Number`. `ToInt32`'s results come back this way.
 impl From<i32> for Number {
     fn from(v: i32) -> Self {
         Number(v as f64)
     }
 }
 
-/// Exact: every `u32` is an `f64`. `ToUint32`'s results come back this way.
+/// Exact: every `u32` is a `Number`. `ToUint32`'s results come back this way.
 impl From<u32> for Number {
     fn from(v: u32) -> Self {
         Number(v as f64)

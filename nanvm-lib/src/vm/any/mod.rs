@@ -143,7 +143,7 @@ impl<A: IVm> Any<A> {
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
-        let Ok(n): Result<f64, _> = self.try_into() else {
+        let Ok(n): Result<Number, _> = self.try_into() else {
             return false;
         };
         n.is_nan()

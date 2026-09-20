@@ -24,7 +24,11 @@ struct String<T: IVm>;
 constructor canonicalizes, whatever sign or payload a host operation left on
 a `NaN`, and every operator's result passes back through it, because the
 language cannot tell two `NaN`s apart and a NaN-boxing VM keeps its boxed
-values in the negative quiet `NaN`s.
+values in the negative quiet `NaN`s. The VM computes on it from there: the
+ECMAScript operations on a number are its methods and operators, under
+JavaScript's names in Rust's casing (`Number.isNaN` is `is_nan`, `ToInt32`
+is `to_int32`, `**` is `pow`), and an `f64` is read back out only where a
+leaf needs IEEE 754 arithmetic Rust already has.
 
 ## EDAG
 

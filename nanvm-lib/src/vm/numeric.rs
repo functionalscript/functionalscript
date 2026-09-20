@@ -1,9 +1,6 @@
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Shl, Shr, Sub};
 
-use crate::vm::{
-    Any, BigInt, IVm, Number, Unpacked,
-    int32_coercion::{to_int32, to_uint32},
-};
+use crate::vm::{Any, BigInt, IVm, Number, Unpacked};
 
 const CANNOT_MIX_NUMBER_AND_BIGINT: &str =
     "TypeError: Cannot mix BigInt and other types, use explicit conversions";
@@ -16,8 +13,8 @@ const NO_UNSIGNED_RIGHT_SHIFT_FOR_BIGINT: &str =
 /// `0..=31`, so it can never panic Rust's own `<<`/`>>` on `i32`/`u32`
 /// (which requires a shift strictly less than the type's 32-bit width, i.e.
 /// at most 31).
-fn shift_count(rhs: f64) -> u32 {
-    to_uint32(rhs) & 0x1F
+fn shift_count(rhs: Number) -> u32 {
+    rhs.to_uint32() & 0x1F
 }
 
 /// <https://tc39.es/ecma262/#sec-tonumeric>
@@ -115,7 +112,7 @@ impl<A: IVm> BitAnd for Numeric<A> {
     fn bitand(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((to_int32(a.into()) & to_int32(b.into())).into())
+                Numeric::Number((a.to_int32() & b.to_int32()).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a & b),
             _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
@@ -129,7 +126,7 @@ impl<A: IVm> BitOr for Numeric<A> {
     fn bitor(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((to_int32(a.into()) | to_int32(b.into())).into())
+                Numeric::Number((a.to_int32() | b.to_int32()).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a | b),
             _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
@@ -143,7 +140,7 @@ impl<A: IVm> BitXor for Numeric<A> {
     fn bitxor(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((to_int32(a.into()) ^ to_int32(b.into())).into())
+                Numeric::Number((a.to_int32() ^ b.to_int32()).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a ^ b),
             _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
@@ -157,7 +154,7 @@ impl<A: IVm> Shl for Numeric<A> {
     fn shl(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((to_int32(a.into()) << shift_count(b.into())).into())
+                Numeric::Number((a.to_int32() << shift_count(b)).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a << b)?),
             _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
@@ -171,27 +168,12 @@ impl<A: IVm> Shr for Numeric<A> {
     fn shr(self, rhs: Self) -> Self::Output {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => {
-                Numeric::Number((to_int32(a.into()) >> shift_count(b.into())).into())
+                Numeric::Number((a.to_int32() >> shift_count(b)).into())
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a >> b)?),
             _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
         })
     }
-}
-
-/// `Number::exponentiate`. Diverges from `f64::powf` (and C99's `pow`, which
-/// `powf` follows) in exactly two spots: a `NaN` exponent is `NaN`
-/// regardless of the base (C99 special-cases `pow(1, y) = 1` even for a
-/// `NaN` `y`), and an infinite exponent against a base of magnitude 1 is
-/// `NaN` (C99 gives `pow(±1, ±∞) = 1`). Every other case — zero/infinite
-/// base or exponent, the sign and parity rules, a negative base with a
-/// non-integer exponent giving `NaN` — already matches `powf` exactly, so
-/// only these two get a special case.
-fn number_exponentiate(base: f64, exponent: f64) -> f64 {
-    if exponent.is_nan() || (exponent.is_infinite() && base.abs() == 1.0) {
-        return f64::NAN;
-    }
-    base.powf(exponent)
 }
 
 impl<A: IVm> Numeric<A> {
@@ -200,9 +182,7 @@ impl<A: IVm> Numeric<A> {
     /// one level up.
     pub fn pow(self, rhs: Self) -> Result<Self, Any<A>> {
         match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(
-                number_exponentiate(a.into(), b.into()).into(),
-            )),
+            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a.pow(b))),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt(a.pow(b)?)),
             _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
         }
@@ -216,7 +196,7 @@ impl<A: IVm> Numeric<A> {
     /// two's-complement algorithm.
     pub fn bitwise_not(self) -> Self {
         match self {
-            Numeric::Number(v) => Numeric::Number((!to_int32(v.into())).into()),
+            Numeric::Number(v) => Numeric::Number((!v.to_int32()).into()),
             Numeric::BigInt(v) => Numeric::BigInt(-v - BigInt::from(1u64)),
         }
     }
@@ -230,9 +210,9 @@ impl<A: IVm> Numeric<A> {
     /// "unsigned" shift to be relative to.
     pub fn unsigned_right_shift(self, rhs: Self) -> Result<Self, Any<A>> {
         match (self, rhs) {
-            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(
-                (to_uint32(a.into()) >> shift_count(b.into())).into(),
-            )),
+            (Numeric::Number(a), Numeric::Number(b)) => {
+                Ok(Numeric::Number((a.to_uint32() >> shift_count(b)).into()))
+            }
             (Numeric::BigInt(_), Numeric::BigInt(_)) => {
                 Err(NO_UNSIGNED_RIGHT_SHIFT_FOR_BIGINT.into())
             }

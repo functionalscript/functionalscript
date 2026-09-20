@@ -50,7 +50,7 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
     }
 
     fn number(self, v: Number) -> Self::Result {
-        Ok(number_to_string(v.into()))
+        Ok(number_to_string(v))
     }
 
     fn string(self, v: String<A>) -> Self::Result {
@@ -91,8 +91,8 @@ fn to_result<A: IVm>(s: &str) -> Result<String<A>, Any<A>> {
 /// `"1e+21"`, and `(1e-7).to_string()` is `"0.0000001"` where JS gives
 /// `"1e-7"`. `js_digits_to_string` below applies the spec's own notation
 /// rule to the digits Rust already computes.
-pub(crate) fn number_to_string<A: IVm>(v: f64) -> String<A> {
-    match v {
+pub(crate) fn number_to_string<A: IVm>(v: Number) -> String<A> {
+    match f64::from(v) {
         f64::INFINITY => "Infinity".into(),
         f64::NEG_INFINITY => "-Infinity".into(),
         v if v.is_nan() => "NaN".into(),
@@ -297,7 +297,7 @@ mod tests {
 
     fn check(v: f64, expected: &str) {
         assert_eq!(
-            std::string::String::from(number_to_string::<A>(v)),
+            std::string::String::from(number_to_string::<A>(v.into())),
             expected,
             "number_to_string({v:e})"
         );
