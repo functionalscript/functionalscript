@@ -95,7 +95,7 @@ export const proof = {
         assertEq(valueExpr(undefined), 'Nullish::Undefined.to_any()')
         assertEq(valueExpr(true), 'true.to_any()')
         assertEq(valueExpr(false), 'false.to_any()')
-        assertEq(valueExpr(-0.3), '(-0.3f64).to_any()')
+        assertEq(valueExpr(-0.3), '(f64::from_bits(0xbfd3333333333333)).to_any()')
         assertEq(valueExpr('a'), 'string_any("a")')
         assertEq(valueExpr(-1n), 'bigint_any(-1)')
         assertEq(valueExpr([]), 'Array::default().to_any()')

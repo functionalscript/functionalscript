@@ -42,7 +42,7 @@ export const proof = {
         assertEq(printed(null), 'Nullish::Null.to_any()')
         assertEq(printed(true), 'true.to_any()')
         assertEq(printed(false), 'false.to_any()')
-        assertEq(printed(-0.3), '(-0.3f64).to_any()')
+        assertEq(printed(-0.3), '(f64::from_bits(0xbfd3333333333333)).to_any()')
         assertEq(printed('a'), 'string_any("a")')
         assertEq(printed(-1n), 'bigint_any(-1)')
         assertEq(printed(['undefined']), 'Nullish::Undefined.to_any()')

@@ -10,10 +10,6 @@
 //! array/object/function comes back as the very same object, since it lowers
 //! every operand to a node of its own and compares by value, not identity.
 
-// A case's expected value is the number a JavaScript engine computed for
-// the same expression, `2 ** 0.5` among them: a corpus fact, not a constant
-// to name, and not this crate's to rewrite — the file is generated.
-#[allow(clippy::approx_constant)]
 mod generated;
 mod harness;
 

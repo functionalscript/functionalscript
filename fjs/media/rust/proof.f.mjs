@@ -33,15 +33,33 @@ export const proof = {
         assertStructurallySame(stringLiteral('\udc00'), error('\udc00'))
     },
     f64Literal: () => {
-        assertEq(f64Literal(NaN), 'f64::NAN')
-        assertEq(f64Literal(Infinity), 'f64::INFINITY')
-        assertEq(f64Literal(-Infinity), 'f64::NEG_INFINITY')
-        assertEq(f64Literal(-0), '-0f64')
+        // A safe integer other than `-0` is its digits.
         assertEq(f64Literal(0), '0f64')
-        assertEq(f64Literal(2.3), '2.3f64')
+        assertEq(f64Literal(1), '1f64')
         assertEq(f64Literal(-239), '-239f64')
-        // Rust's exponent accepts a `+`, which is how `toString` prints it.
-        assertEq(f64Literal(1e21), '1e+21f64')
+        assertEq(f64Literal(9007199254740991), '9007199254740991f64')
+        // Everything else is its bits: the values a decimal literal has no
+        // spelling for are ordinary here.
+        assertEq(f64Literal(NaN), 'f64::from_bits(0x7ff8000000000000)')
+        assertEq(f64Literal(-NaN), 'f64::from_bits(0x7ff8000000000000)')
+        assertEq(f64Literal(Infinity), 'f64::from_bits(0x7ff0000000000000)')
+        assertEq(f64Literal(-Infinity), 'f64::from_bits(0xfff0000000000000)')
+        assertEq(f64Literal(-0), 'f64::from_bits(0x8000000000000000)')
+        assertEq(f64Literal(2.3), 'f64::from_bits(0x4002666666666666)')
+        assertEq(f64Literal(-0.3), 'f64::from_bits(0xbfd3333333333333)')
+        assertEq(f64Literal(9007199254740992), 'f64::from_bits(0x4340000000000000)')
+        assertEq(f64Literal(1e21), 'f64::from_bits(0x444b1ae4d6e2ef50)')
+        // Either side of a power of two, where `Math.log2` alone would
+        // misplace the exponent, and the two neighbours of 1.
+        assertEq(f64Literal(0.9999999999999999), 'f64::from_bits(0x3fefffffffffffff)')
+        assertEq(f64Literal(1.0000000000000002), 'f64::from_bits(0x3ff0000000000001)')
+        assertEq(f64Literal(2 ** 60 + 0.5), 'f64::from_bits(0x43b0000000000000)')
+        // The largest and the smallest normal, and two subnormals down to
+        // the smallest double there is.
+        assertEq(f64Literal(1.7976931348623157e308), 'f64::from_bits(0x7fefffffffffffff)')
+        assertEq(f64Literal(2.2250738585072014e-308), 'f64::from_bits(0x0010000000000000)')
+        assertEq(f64Literal(2.225073858507201e-308), 'f64::from_bits(0x000fffffffffffff)')
+        assertEq(f64Literal(5e-324), 'f64::from_bits(0x0000000000000001)')
     },
     i64Literal: () => {
         assertStructurallySame(i64Literal(0n), ok('0'))
