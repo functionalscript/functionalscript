@@ -303,11 +303,11 @@ above, not just new-syntax acceptance.
 - `nanvm-lib`'s own "Complete all basic FunctionalScript operators... including
   the short-circuit operators" P1 task — *implementing* `&&`/`||`/`??`/`?:`
   lazily in Rust — stays out of scope: a separate, already-tracked line of
-  work against `fjs/nanvm/module.f.mjs`'s shared operator-test data. But the
-  **existing** `fjs/edag/rust` printer is not out of scope the way the doc's
-  first draft claimed — see the Rust-codegen task below, which this task does
-  own: not implementing laziness in Rust, but making sure this task doesn't
-  let the existing eager printer silently miscompile it.
+  work against `fjs/nanvm/module.f.mjs`'s shared operator-test data. The
+  `.rs` route of `fjs compile` is this task's to keep honest, though — see
+  the Rust-codegen task below: not implementing laziness in Rust, but
+  making sure the one node shape `fjs/fsc/rust` does not refuse yet, `?:`,
+  is refused once the grammar can produce it.
 - The FunctionalScript writer (`fjs/fsc/serializer`): stays silent on Stage B
   the same way it already is on Stage A. `entry`'s ``default: { return
   error(`a ${node[0]} node`) }`` already refuses every Stage A operator node,
@@ -341,30 +341,29 @@ above, not just new-syntax acceptance.
 - [ ] `fjs/fsc/ast`/`fjs/fsc/edag`: `AstConditional`; `lower`'s `case` list
       gains the three tags and a `ternary` work item for `?:`; keep the
       plain-data evaluator's refusal.
-- [ ] `fjs/edag/rust`: `op2Rust`'s `&&`/`||`/`??` entries and `op3Rust`'s `?:`
-      entry print `Any::logical_and(${a}, ${b})` /
-      `Any::conditional(${a}, ${b}, ${c})` today, where `a`/`b`/`c` are
-      already-printed Rust value expressions — and `nanvm-lib`'s
-      `Any::logical_and`/`logical_or`/`nullish_coalescing`/`conditional`
-      (`nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs`) take
-      `Self` by value, not a closure, so Rust evaluates every operand before
-      the call — confirmed by reading those signatures, not assumed. Today
-      that's inert: nothing in the source language reaches these node kinds,
-      so the printer never emits them for a real program. Stage B makes them
-      reachable from `fjs compile <input> <output>.rs`, and at that point the
-      existing entries stop being inert and start silently miscompiling any
-      program whose correctness depends on the laziness this whole task is
-      about — `false && (1n + 1)` must not evaluate `1n + 1`, but the
-      generated Rust would. This task must not leave that: either gate
-      `op2Rust`/`op3Rust`'s four entries to refuse (the same `Result`-based
-      "not yet implemented in `nanvm-lib`" refusal this file already uses for
-      operators the corpus marks with a `rust` reason, so the `.rs` route
-      declines the same way the plain-data evaluator already does) until
-      `nanvm-lib`'s own lazy-operator task lands, or land in lockstep with
-      whatever Rust shape that task produces. Silently emitting the current
-      eager calls once these nodes are reachable is exactly the outcome
-      DESIGN.md §10 rules out — a plausible wrong value where a refusal
-      belongs.
+- [ ] `fjs/fsc/rust`: extend `resultOperator` to the length-4 `?:` node.
+      The shared printer's `op2Rust` entries for `&&`/`||`/`??` and
+      `op3Rust`'s `?:` print `Any::logical_and(${a}, ${b})` /
+      `Any::conditional(${a}, ${b}, ${c})` over already-printed operands,
+      and `nanvm-lib`'s `Any::logical_and`/`logical_or`/`nullish_coalescing`/
+      `conditional` (`nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs`)
+      take `Self` by value, not a closure, so Rust evaluates every operand
+      before the call — right for the operator corpus, whose cases hand the
+      `Result` to a checker, and a silent miscompile for a module whose
+      correctness rests on the laziness this task is about: `false && (1n +
+      1)` must not evaluate `1n + 1`, but that Rust would. The compile route
+      already refuses the binary three: `fjs/fsc/rust`'s `resultOperator`
+      matches every length-3 node whose tag is in `op2Rust`, and `bodyLines`
+      answers `no Rust for an operator in a module` before `expExpr` runs,
+      so `&&`/`||`/`??` are covered the moment they parse. `?:` is not: it
+      is a length-4 node, `resultOperator` checks only lengths 2 and 3, and
+      its own comment defers the `op3Rust` check to "the ternary landing in
+      the grammar" because a branch no module could reach would fail the
+      coverage rule. This task lands that check with the grammar, and proves
+      a module holding `?:` is refused on the `.rs` route. The shared
+      `fjs/edag/rust` entries stay as they are: `fjs/nanvm/rust` unwraps the
+      shared printer to write the corpus, so gating them there would break
+      generating the very tests the lazy Rust operators will be checked by.
 - [ ] `refsOf`: add the eager-restricted variant and switch **both** `reach`
       and `anchors`' own `within` computation to it, leaving `sharing`'s use
       of the unrestricted one unchanged; proofs for the sharing behavior,
@@ -401,8 +400,9 @@ above, not just new-syntax acceptance.
   Parser task (this) and the separate Rust short-circuit-operators task that
   the `fjs/edag/rust` refusal/gate above waits on.
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — `op2Rust`/
-  `op3Rust`, whose `&&`/`||`/`??`/`?:` entries this task must gate; see the
-  Tasks entry above.
+  `op3Rust`, whose `&&`/`||`/`??`/`?:` entries the corpus printer needs as
+  they are; [`fjs/fsc/rust`](../rust/module.f.mjs)'s `resultOperator` is
+  where the compile route refuses them, see the Tasks entry above.
 - `nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
   `Any` methods those entries call, confirming they take already-evaluated
   operands, not closures.
