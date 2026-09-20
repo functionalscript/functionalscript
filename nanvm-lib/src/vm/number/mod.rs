@@ -1,4 +1,10 @@
-use core::ops::{Add, Div, Mul, Neg, Rem, Sub};
+mod add;
+mod div;
+mod from;
+mod mul;
+mod neg;
+mod rem;
+mod sub;
 
 /// The bits of the one `NaN`: quiet, positive, empty payload.
 const CANONICAL_NAN: u64 = 0x7ff8_0000_0000_0000;
@@ -16,87 +22,15 @@ const CANONICAL_NAN: u64 = 0x7ff8_0000_0000_0000;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Number(f64);
 
-impl From<f64> for Number {
-    fn from(v: f64) -> Self {
-        Number(if v.is_nan() {
-            f64::from_bits(CANONICAL_NAN)
-        } else {
-            v
-        })
-    }
-}
-
-impl From<Number> for f64 {
-    fn from(v: Number) -> Self {
-        v.0
-    }
-}
-
-/// Exact: every `i32` is an `f64`. `ToInt32`'s results come back this way.
-impl From<i32> for Number {
-    fn from(v: i32) -> Self {
-        Number(v as f64)
-    }
-}
-
-/// Exact: every `u32` is an `f64`. `ToUint32`'s results come back this way.
-impl From<u32> for Number {
-    fn from(v: u32) -> Self {
-        Number(v as f64)
-    }
-}
-
-impl Neg for Number {
-    type Output = Self;
-    fn neg(self) -> Self {
-        (-self.0).into()
-    }
-}
-
-impl Add for Number {
-    type Output = Self;
-    fn add(self, rhs: Self) -> Self {
-        (self.0 + rhs.0).into()
-    }
-}
-
-impl Sub for Number {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self {
-        (self.0 - rhs.0).into()
-    }
-}
-
-impl Mul for Number {
-    type Output = Self;
-    fn mul(self, rhs: Self) -> Self {
-        (self.0 * rhs.0).into()
-    }
-}
-
-impl Div for Number {
-    type Output = Self;
-    fn div(self, rhs: Self) -> Self {
-        (self.0 / rhs.0).into()
-    }
-}
-
-impl Rem for Number {
-    type Output = Self;
-    fn rem(self, rhs: Self) -> Self {
-        (self.0 % rhs.0).into()
-    }
-}
-
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{CANONICAL_NAN, Number};
     use crate::{
         naive::Naive,
         vm::{Any, ToAny, Unpacked, numeric::Numeric, primitive::Primitive},
     };
 
-    fn bits(v: Number) -> u64 {
+    pub(super) fn bits(v: Number) -> u64 {
         f64::from(v).to_bits()
     }
 
@@ -131,19 +65,6 @@ mod test {
         ] {
             assert_eq!(bits(v.into()), v.to_bits());
         }
-    }
-
-    /// An operator's result is canonical too: `-NaN`, the program the sign
-    /// flip comes from, and `0 / 0`, which x86 answers with a negative
-    /// `NaN`.
-    #[test]
-    fn operators_canonicalize() {
-        let nan = Number::from(f64::NAN);
-        let zero = Number::from(0.0);
-        assert_eq!(bits(-nan), CANONICAL_NAN);
-        assert_eq!(bits(zero / zero), CANONICAL_NAN);
-        assert_eq!(bits(nan + zero), CANONICAL_NAN);
-        assert_eq!(bits(Number::from(-1) * zero), (-0.0f64).to_bits());
     }
 
     /// The paths a number takes into a VM value all go through `Number`: a
