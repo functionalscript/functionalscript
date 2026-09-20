@@ -71,9 +71,11 @@ unary-minus coercion, number and string round trips, sharing across
 through Node and compared with the `.data.js` and `.js` outputs, and a
 sample with the `.rs` output on the naive VM. No accepted program computed
 a different result and no invalid program was accepted; every difference
-was a refusal. The one output defect found is a wrong kind of failure, not
-a wrong value: [strings a Rust literal cannot
-spell](../fjs/media/rust/todo/strings-rust-cannot-spell.md).
+was a refusal. The one output defect found was a wrong kind of failure,
+not a wrong value — a string the `.rs` writer could not spell was thrown
+past the compiler or written as a file `rustc` refused — and
+[`fjs/media/rust`](../fjs/media/rust/module.f.mjs) now spells or refuses
+each such literal.
 
 #### Module resolution — current implementation, rule 2
 
