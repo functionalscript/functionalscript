@@ -10,6 +10,13 @@ use crate::{
     },
 };
 
+/// A VM's value representation.
+///
+/// `From<f64>` owes what `Unpacked::number` gives: every `NaN` is the one
+/// canonical `NaN`, since the language has one and a NaN-boxing VM reads a
+/// negative quiet `NaN` as a boxed value. A VM built on `Unpacked`, as
+/// `Naive` is, inherits that from `From<f64> for Unpacked`; one that packs
+/// an `f64` itself canonicalizes it first.
 pub trait IVm:
     Sized
     + Clone

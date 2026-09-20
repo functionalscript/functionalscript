@@ -52,7 +52,7 @@ impl<A: IVm> From<bool> for Unpacked<A> {
 }
 impl<A: IVm> From<f64> for Unpacked<A> {
     fn from(value: f64) -> Self {
-        Unpacked::Number(value)
+        Unpacked::number(value)
     }
 }
 

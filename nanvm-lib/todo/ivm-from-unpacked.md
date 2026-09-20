@@ -67,6 +67,11 @@ registered.
 
 ### Related
 
+- `Unpacked::number` (`src/vm/unpacked.rs`) canonicalizes every `NaN`, and
+  the trait doc asks each VM's `From<f64>` to match it. Routing `ToAny`
+  through `Unpacked`, as proposed here, would make that structural: no VM
+  could pack an `f64` without passing the canonicalization.
+
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — targets
   the `From<X> for Unpacked` / `TryFrom` copies themselves; complementary,
   and both reduce the per-variant registration count.
