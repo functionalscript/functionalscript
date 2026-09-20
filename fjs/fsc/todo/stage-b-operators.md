@@ -1,7 +1,12 @@
 ## Stage B operators: `&&`, `||`, `??`, `?:`
 
 **Priority:** P1
-**Status:** open — Stage A is on `main` (see "Landed"), so nothing blocks this
+**Status:** open — Stage A is on `main` (see "Landed"); this proposal is
+written against it and awaits approval
+**Blocked by:** another language designer's explicit approval of this
+proposal, which a new language feature needs before implementation
+([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions),
+[AGENTS.md](../../../AGENTS.md)); record it here when given
 
 ### Problem
 
@@ -397,8 +402,8 @@ above, not just new-syntax acceptance.
   the staging plan and the anchoring-subtraction rule this task implements
   one instance of.
 - [`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md) —
-  Parser task (this) and the separate Rust short-circuit-operators task that
-  the `fjs/edag/rust` refusal/gate above waits on.
+  Parser task (this) and the separate Rust short-circuit-operators task,
+  after which the `.rs` route can stop refusing these nodes.
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — `op2Rust`/
   `op3Rust`, whose `&&`/`||`/`??`/`?:` entries the corpus printer needs as
   they are; [`fjs/fsc/rust`](../rust/module.f.mjs)'s `resultOperator` is
