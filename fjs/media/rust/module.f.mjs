@@ -92,9 +92,7 @@ export const stringLiteral = v => {
 /**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
  * found by bisection over the exponent range, every step an exact
- * comparison against a power of two — `Math.log2` was set aside, since it
- * may round to the integer at a power of two and would need a correction
- * whose other half no input reaches.
+ * comparison against a power of two.
  *
  * @type {(a: number) => number}
  */
@@ -130,17 +128,14 @@ const f64Bits = v => {
 }
 
 /**
- * An `f64` literal. `NaN`, the two infinities and `-0` are the constants
- * Rust names them by, `-0` being the one zero `toString` loses; a safe
- * integer is its digits, `42f64`, which is exact, reads as the value, and
- * is never one of the constants clippy's `approx_constant` names; every
- * other number — a fraction, an integer past `2 ** 53` — is its bits,
- * `f64::from_bits(0x…)`, sixteen hex digits, exact by construction, with
- * nothing for clippy to read as an approximation and no reliance on the
- * two languages agreeing on shortest round-trip printing. A single
- * all-bits spelling was weighed and set aside: it made the generated
- * operator corpus outgrow the 128 KiB a `writeUtf8File` can write, where
- * integers are most of its numbers.
+ * An `f64` literal, in one of three spellings, each exact: `NaN`, the two
+ * infinities and `-0` are the constants Rust names them by; a safe
+ * integer, `Number.isSafeInteger`, is its digits, `42f64`; every other
+ * finite number — a fraction, or an integer of magnitude `2 ** 53` or
+ * more, negative ones included — is its bits, `f64::from_bits(0x…)`,
+ * sixteen hex digits. No spelling here is a decimal that could be read as
+ * an approximation of a named constant, which is what clippy's
+ * `approx_constant` looks for.
  *
  * @type {(v: number) => string}
  */
