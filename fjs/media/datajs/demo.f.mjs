@@ -31,7 +31,7 @@
  * @import { Primitive, Unknown } from './types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Node } from '../../website/demo/graph/types.ts'
- * @import { _Edge, _Graph, _State } from './private.ts'
+ * @import { _Graph, _State } from './private.ts'
  */
 
 import { tryParse } from './module.f.mjs'
