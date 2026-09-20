@@ -1,4 +1,5 @@
 mod add;
+mod debug;
 mod div;
 mod from;
 mod int32_coercion;
@@ -28,7 +29,7 @@ mod sub;
 /// exactly the `undefined` a relational operator's abstract comparison
 /// answers.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Number(f64);
 
 /// The names are JavaScript's, in Rust's casing: `Number.NaN` is `NAN`,
