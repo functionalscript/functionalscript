@@ -59,7 +59,19 @@ const del = /** @type {const} */ (0x7F)
 /** The bytes a ref name may not hold, besides the control characters. */
 const forbidden = ascii(' ~^:?*[\\')
 
-const lock = ascii('.lock')
+/**
+ * The suffix no component of a ref name may end in, and so the one a writer's
+ * lock file may safely carry: `refs/heads/x.lock` is a file the walk of `refs/`
+ * skips and a name {@link isWholeName} refuses, which is what makes it a
+ * write in progress rather than a ref.
+ *
+ * Exported as the text a path is built from, with the bytes below derived from
+ * it, so the two spellings cannot drift —
+ * [`fjs/git/refstore`](../refstore/module.f.mjs)'s writer names the lock.
+ */
+export const lockSuffix = /** @type {const} */ ('.lock')
+
+const lock = ascii(lockSuffix)
 
 /**
  * Whether two bytes sit next to each other in a name, in that order.
