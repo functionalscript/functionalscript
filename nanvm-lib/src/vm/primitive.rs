@@ -1,4 +1,4 @@
-use crate::vm::{BigInt, IVm, String, Unpacked, nullish::Nullish};
+use crate::vm::{BigInt, IVm, Number, String, Unpacked, nullish::Nullish};
 
 /// <https://developer.mozilla.org/en-US/docs/Glossary/Primitive>
 /// A primitive value is a subset of Unpacked that excludes Object, Array, and Function.
@@ -7,7 +7,7 @@ use crate::vm::{BigInt, IVm, String, Unpacked, nullish::Nullish};
 pub enum Primitive<A: IVm> {
     Nullish(Nullish),
     Boolean(bool),
-    Number(f64),
+    Number(Number),
     String(String<A>),
     BigInt(BigInt<A>),
 }
@@ -17,7 +17,7 @@ impl<A: IVm> From<Primitive<A>> for Unpacked<A> {
         match value {
             Primitive::Nullish(n) => Unpacked::Nullish(n),
             Primitive::Boolean(b) => Unpacked::Boolean(b),
-            Primitive::Number(n) => Unpacked::number(n),
+            Primitive::Number(n) => Unpacked::Number(n),
             Primitive::String(s) => Unpacked::String(s),
             Primitive::BigInt(i) => Unpacked::BigInt(i),
         }

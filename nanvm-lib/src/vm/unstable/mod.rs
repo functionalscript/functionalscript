@@ -50,7 +50,7 @@ mod test {
     #[test]
     fn numbers_by_their_bits() {
         let bits = |v: Any<Naive>| match v.into() {
-            Unpacked::Number(x) => x.to_bits(),
+            Unpacked::Number(x) => f64::from(x).to_bits(),
             _ => panic!("a number"),
         };
         assert_eq!(bits(f64_any(0x4002666666666666)), 2.3f64.to_bits());

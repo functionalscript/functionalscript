@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Array, BigInt, Function, IVm, Object, String, ToAny, any::Any, dispatch::Dispatch,
+    Array, BigInt, Function, IVm, Number, Object, String, ToAny, any::Any, dispatch::Dispatch,
     nullish::Nullish, primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
 };
 
@@ -49,8 +49,8 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
         })
     }
 
-    fn number(self, v: f64) -> Self::Result {
-        Ok(number_to_string(v))
+    fn number(self, v: Number) -> Self::Result {
+        Ok(number_to_string(v.into()))
     }
 
     fn string(self, v: String<A>) -> Self::Result {

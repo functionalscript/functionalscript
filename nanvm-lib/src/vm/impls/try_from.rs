@@ -30,7 +30,7 @@ impl<A: IVm> TryFrom<Any<A>> for f64 {
         let Unpacked::Number(result) = value.into() else {
             return error();
         };
-        Ok(result)
+        Ok(result.into())
     }
 }
 

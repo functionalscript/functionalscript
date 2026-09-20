@@ -12,6 +12,7 @@ mod internal;
 mod join;
 mod member_access;
 mod nullish;
+mod number;
 mod number_coercion;
 mod numeric;
 mod object;
@@ -29,6 +30,7 @@ pub use crate::vm::{
     function::{Function, header::FunctionHeader},
     internal::{IContainer, IVm},
     nullish::Nullish,
+    number::Number,
     object::{Object, property::Property, to_object::ToObject},
     string::{String, to_string::ToString},
     unpacked::Unpacked,

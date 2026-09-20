@@ -37,6 +37,7 @@ pub fn strict_eq<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
 fn same<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
     match (a.clone().into(), b.clone().into()) {
         (Unpacked::Number(x), Unpacked::Number(y)) => {
+            let (x, y): (f64, f64) = (x.into(), y.into());
             if x.is_nan() || y.is_nan() {
                 x.is_nan() && y.is_nan()
             } else {

@@ -1,6 +1,8 @@
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish},
+    vm::{
+        Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, nullish::Nullish,
+    },
 };
 
 /// Coerces the value to a `bool`. Unlike `NumberCoercion`/`StringCoercion`,
@@ -22,7 +24,8 @@ impl<A: IVm> Dispatch<A> for BooleanCoercion {
         v
     }
 
-    fn number(self, v: f64) -> Self::Result {
+    fn number(self, v: Number) -> Self::Result {
+        let v: f64 = v.into();
         v != 0.0 && !v.is_nan()
     }
 

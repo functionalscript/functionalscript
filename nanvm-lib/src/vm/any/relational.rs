@@ -76,6 +76,7 @@ fn primitive_to_numeric<A: IVm>(p: Primitive<A>) -> Result<Numeric<A>, Any<A>> {
 fn numeric_less_than<A: IVm>(nx: Numeric<A>, ny: Numeric<A>) -> Option<bool> {
     match (nx, ny) {
         (Numeric::Number(a), Numeric::Number(b)) => {
+            let (a, b): (f64, f64) = (a.into(), b.into());
             if a.is_nan() || b.is_nan() {
                 None
             } else {
@@ -83,8 +84,8 @@ fn numeric_less_than<A: IVm>(nx: Numeric<A>, ny: Numeric<A>) -> Option<bool> {
             }
         }
         (Numeric::BigInt(a), Numeric::BigInt(b)) => Some(a < b),
-        (Numeric::Number(a), Numeric::BigInt(b)) => number_lt_bigint(a, &b),
-        (Numeric::BigInt(a), Numeric::Number(b)) => bigint_lt_number(&a, b),
+        (Numeric::Number(a), Numeric::BigInt(b)) => number_lt_bigint(a.into(), &b),
+        (Numeric::BigInt(a), Numeric::Number(b)) => bigint_lt_number(&a, b.into()),
     }
 }
 

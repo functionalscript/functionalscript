@@ -3,8 +3,8 @@ use core::fmt::{self, Display, Formatter, Write};
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
-        string_coercion::number_to_string,
+        Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch,
+        nullish::Nullish, string_coercion::number_to_string,
     },
 };
 
@@ -118,7 +118,8 @@ impl<A: IVm> Dispatch<A> for ToJson {
         Ok(if v { "true" } else { "false" }.into())
     }
 
-    fn number(self, v: f64) -> Self::Result {
+    fn number(self, v: Number) -> Self::Result {
+        let v: f64 = v.into();
         if !v.is_finite() {
             return Err(JsonError::NonFiniteNumber(v));
         }

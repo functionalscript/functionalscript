@@ -20,10 +20,11 @@ struct String<T: IVm>;
 // ...
 ```
 
-A `Number` holds one `NaN`: `Unpacked::number` canonicalizes every `NaN` on
-the way in, whatever sign or payload a host operation left on it, because
-the language cannot tell two `NaN`s apart and a NaN-boxing VM keeps its
-boxed values in the negative quiet `NaN`s.
+`Number` is the VM's number: an `f64` that holds one `NaN`. Its only
+constructor canonicalizes, whatever sign or payload a host operation left on
+a `NaN`, and every operator's result passes back through it, because the
+language cannot tell two `NaN`s apart and a NaN-boxing VM keeps its boxed
+values in the negative quiet `NaN`s.
 
 ## EDAG
 
