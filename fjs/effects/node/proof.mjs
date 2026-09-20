@@ -4,17 +4,18 @@
  * `NodeProgram` run through `runEffect`, answering `0` where the host did
  * what the operation promises and a code naming what it did instead.
  *
- * File-module proofs own temporary trees and remove them in `finally`. They
- * exercise the sibling host runner; compiler traversal and diagnostics are
- * proved synchronously in `fsc/transpiler/proof.f.mjs`.
+ * Proofs that need a filesystem own a temporary tree and remove it in
+ * `finally`, through {@link withTemporary}. They exercise the sibling host
+ * runner; compiler traversal and diagnostics are proved synchronously in
+ * `fsc/transpiler/proof.f.mjs`.
  *
  * @import { NodeProgram, NodeOp } from './types.ts'
- * @import { Effect } from '../types.ts'
+ * @import { Effect, IoChannel } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import zlib from 'node:zlib'
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -27,7 +28,7 @@ import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
-import { inflate, inflateTrailingCode, resolveFileModule } from './module.f.mjs'
+import { inflate, inflateTrailingCode, resolveFileModule, writeExclusive } from './module.f.mjs'
 import { runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
@@ -55,6 +56,22 @@ const hostCheck = async (effect, check) => {
     })), 0)
 }
 
+/**
+ * `O_EXCL` refusing a name something already holds. The code is the host's,
+ * unwrapped, so that a change of flag shows up as a missing refusal rather than
+ * as a different message.
+ *
+ * @type {(result: Result<void, IoChannel>) => void}
+ */
+const refusedTaken = result => {
+    assert(result[0] === 'error')
+    assert(result[1][0] === 'ioError')
+    assertEq(result[1][1].code, 'EEXIST')
+}
+
+/** @type {(n: number) => Uint8Array} */
+const payload = n => Uint8Array.from({ length: 8 }, (_, i) => n + i & 0xFF)
+
 const fixtures = {
     'dep #%.mjs': 'export const url = import.meta.url; export default [42];',
     'other.mjs': 'export default [42];',
@@ -65,28 +82,38 @@ const fixtures = {
 }
 
 /**
- * Each proof owns a unique temporary tree, including native module-cache keys.
- * Keep deliberately unusual filenames out of the repository/site, and clean up
- * even when writing a fixture, importing it or an assertion fails.
+ * A unique temporary directory for one proof, removed even when writing a
+ * fixture, importing it or an assertion fails. Nothing a proof leaves behind
+ * reaches the repository, its npm declarations or Cloudflare's asset manifest.
  *
- * @type {(check: (directory: URL) => Promise<void>) => Promise<void>}
+ * @type {(prefix: string, check: (root: string) => Promise<void>) => Promise<void>}
  */
-const withFixtures = async check => {
-    const temporary = await mkdtemp(join(tmpdir(), 'fjs-module-url-'))
+const withTemporary = async (prefix, check) => {
+    const temporary = await mkdtemp(join(tmpdir(), prefix))
     try {
-        const path = join(temporary, 'url%23identity')
-        await mkdir(path)
-        for (const [name, source] of Object.entries(fixtures)) {
-            await writeFile(join(path, name), source)
-        }
-        // The temporary root may itself be reached through a symlink. Expected
-        // identities use its canonical location, independently of this loader.
-        const directory = pathToFileURL(`${await realpath(path)}${sep}`)
-        await check(directory)
+        await check(temporary)
     } finally {
         await rm(temporary, { recursive: true, force: true })
     }
 }
+
+/**
+ * The module-resolution tree, in a directory of its own so that native
+ * module-cache keys differ between proofs. Deliberately unusual filenames stay
+ * out of the repository.
+ *
+ * @type {(check: (directory: URL) => Promise<void>) => Promise<void>}
+ */
+const withFixtures = check => withTemporary('fjs-module-url-', async temporary => {
+    const path = join(temporary, 'url%23identity')
+    await mkdir(path)
+    for (const [name, source] of Object.entries(fixtures)) {
+        await writeFile(join(path, name), source)
+    }
+    // The temporary root may itself be reached through a symlink. Expected
+    // identities use its canonical location, independently of this loader.
+    await check(pathToFileURL(`${await realpath(path)}${sep}`))
+})
 
 const expectedValue = [[42], [42], [42], [42]]
 const expectedSharing = [true, true, true]
@@ -233,5 +260,48 @@ export const proof = {
             const fits = () => resultMapStep(inflate(toVec(deflated(new Uint8Array(most)))), r => r[0] === 'ok' ? ok(0) : error(1))
             assertEq(await exitCode(fits), 0)
         },
+    },
+    // The operation exists for one property the host holds and no runner here
+    // models: the file is created by *this* call or not at all. `O_EXCL` is the
+    // whole of it, and these are what fail if the flag goes back to `w`.
+    writeExclusive: {
+        // A free name is created holding exactly the bytes given, and the same
+        // name a second time is refused with the bytes it held left alone. `w`
+        // would answer `ok` and truncate.
+        exclusive: () => withTemporary('fjs-write-exclusive-', async root => {
+            const path = join(root, 'ref')
+            const first = payload(1)
+            await hostCheck(writeExclusive(path, toVec(first)), result => assertEq(result[0], 'ok'))
+            assertStructurallySame([...await readFile(path)], [...first])
+            await hostCheck(writeExclusive(path, toVec(payload(100))), refusedTaken)
+            assertStructurallySame([...await readFile(path)], [...first])
+        }),
+        // A symlink planted at the name is refused without being followed: the
+        // link is still a link and its target still holds what it held. This is
+        // the hole the `createExclusive` + `writeFile` pair had — that write
+        // followed the link and overwrote the target — so it is the case the
+        // operation was added for.
+        //
+        // A file symlink needs a privilege on Windows, where the two directory
+        // junctions this repository already plants are what is available; the
+        // refusal above is platform-independent and covers the flag on its own.
+        symlink: () => withTemporary('fjs-write-exclusive-link-', async root => {
+            if (process.platform === 'win32') { return }
+            const target = join(root, 'target')
+            const held = payload(2)
+            await writeFile(target, held)
+            const link = join(root, 'link')
+            await symlink(target, link)
+            await hostCheck(writeExclusive(link, toVec(payload(200))), refusedTaken)
+            assertStructurallySame([...await readFile(target)], [...held])
+            assert((await lstat(link)).isSymbolicLink())
+            // A dangling link is refused the same way, rather than creating the
+            // target it names — `w` through one of those is how a planted link
+            // writes a file anywhere the process can reach.
+            const dangling = join(root, 'dangling')
+            await symlink(join(root, 'absent'), dangling)
+            await hostCheck(writeExclusive(dangling, toVec(payload(300))), refusedTaken)
+            assert(!(await readdir(root)).includes('absent'))
+        }),
     },
 }

@@ -45,10 +45,14 @@ mismatch from `rustc` to this module's own type.
 ### Tasks
 
 - [ ] Decide the generated module's own failure contract (see Proposal).
-- [ ] Spell every `op1Rust`/`op2Rust` entry `resultOperator` currently
-      refuses, against that contract, in `fjs/fsc/rust/module.f.mjs` — and
-      give `!==`/`===` a real `nanvm-lib` spelling first, since neither
-      has one to reuse yet (see Problem).
+- [ ] Spell Stage A's own operators — the eighteen binary ones and `~`,
+      every one eager — against that contract, in
+      `fjs/fsc/rust/module.f.mjs`, and give `!==`/`===` a real `nanvm-lib`
+      spelling first, since neither has one to reuse yet (see Problem).
+      `op2Rust` also holds `&&`, `||` and `??`, and `op3Rust` holds `?:`:
+      those four stay refused here, whatever this task does, since their
+      by-value spelling evaluates an operand JavaScript would not — they
+      are [`lazy-operators.md`](./lazy-operators.md)'s, after this one.
 - [ ] New proof coverage per operator, alongside the refusal proofs
       already in `../proof.f.mjs`'s `rustOutput.operators`.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check` on the
@@ -66,3 +70,5 @@ mismatch from `rustc` to this module's own type.
   Stage A itself.
 - [`../../serializer/todo/stage-a-operators.md`](../../serializer/todo/stage-a-operators.md) —
   the same gap in the `.js`/`.mjs` output, filed alongside this one.
+- [`lazy-operators.md`](./lazy-operators.md) — `&&`, `||`, `??` and `?:`,
+  which this task leaves refused.

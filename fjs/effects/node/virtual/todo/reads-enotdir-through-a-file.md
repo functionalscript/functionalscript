@@ -33,6 +33,23 @@ reached and proven here. The reads and `writeBytes` do not, so **one runner
 answers two different codes for one path shape**: `stat('a/b')` says `ENOTDIR`
 and `readFile('a/b')` says `ENOENT`, for the same `a` and the same `b`.
 
+**The exclusive creates are a third spelling of the same guard.** `exclusiveOp`
+answers `invalid path` — no code at all — for a remaining path of more than one
+segment, where a host answers `ENOENT`:
+
+| `createExclusive(p)` / `writeExclusive(p, …)` where… | this runner | node 22.22.2 |
+| --- | --- | --- |
+| `a` is absent, `p = 'a/b'` | `invalid path`, no code | `ENOENT` |
+| `a` is a file, `p = 'a/b'` | `invalid path`, no code | `ENOTDIR` |
+| `p` names a directory | `EEXIST` | `EEXIST` |
+
+The last row was the same divergence until review of
+[#2115](https://github.com/functionalscript/functionalscript/pull/2115) — it
+answered `invalid path` where a `wx` open of a directory is `EEXIST`, measured —
+and it is fixed. The first two are this issue's shape and are left to whatever it
+decides, so that one change settles the code for every operation rather than each
+one drifting to its own answer.
+
 The consequence is the one `statPath` names: a caller that branches on `ENOTDIR`
 after a *read* — or on `EISDIR` after reading a directory, which is the more
 common guard — has no fixture that reaches it. The branch cannot be proven
@@ -183,6 +200,10 @@ Whichever option is chosen, then:
       only from odd path strings would miss.
 - [ ] If the codes change, update the `*NestedThroughFile` fixtures and the
       comment above them in the same commit.
+- [ ] Give `exclusiveOp` the same answer for `path.length > 1`, and pin it —
+      today it is `invalid path` with no code for both the absent and the
+      through-a-file shapes, which `createExclusiveNestedMissing` and
+      `writeExclusiveStates` assert only as "an error".
 
 ### Related
 
@@ -200,6 +221,9 @@ Whichever option is chosen, then:
   `stat`-then-`readFile` pair goes. It does **not** depend on this issue: its
   proposal is an `open`/`fstat`/bounded-read handle, and a root held open needs
   no `ENOTDIR` re-check at all.
+- [trailing-separator-discarded](./trailing-separator-discarded.md) — the third
+  of the three `parse` normalizations, and the one where this runner *creates*
+  something a host refuses rather than answering a different code.
 - [dirent-kinds](./dirent-kinds.md) and
   [jsmodule-read-policy](./jsmodule-read-policy.md) — two more places this
   runner answers something a host would not, both about entry *kind* rather

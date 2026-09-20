@@ -187,6 +187,43 @@ export type Access = readonly['access', (path: string) => IoResult<void>]
  */
 export type CreateExclusive = readonly['createExclusive', (path: string) => IoResult<void>]
 
+// writeExclusive
+
+/**
+ * Creates `path` with `O_CREAT|O_EXCL` **and writes `data` through that same
+ * open**.
+ *
+ * Three things hold, and a caller may rely on each:
+ *
+ * - **Either the file exists holding `data`, or it does not exist.** A write
+ *   that fails after the open takes the file with it, so a failure never leaves
+ *   a partial one. No caller could do this for itself: `O_EXCL` succeeding is
+ *   the only evidence the file is this call's, and it is on the runner's side of
+ *   the boundary — an error code is not evidence of it, whatever the code.
+ * - **A name already taken fails with `EEXIST` where the open reaches the
+ *   pathname**, by whatever holds it — a file, a directory, or a symlink, which
+ *   `O_EXCL` refuses without following, leaving its target untouched, dangling or
+ *   not. It is not the other way round: a failure *before* the pathname is
+ *   reached carries the host's own code, so `EEXIST` means the name is taken
+ *   while another code does not mean it is free. The same rule as the first
+ *   point — an error code is not evidence about the name.
+ * - **Nothing can reach the pathname between the create and the write**, which
+ *   is why this is not `createExclusive` followed by `writeFile`: that pair
+ *   reopens the name with the flags `w` gives — `O_TRUNC`, and symlinks
+ *   followed — so a symlink planted in the window is written *through*.
+ *
+ * `createExclusive` remains for a name claimed now and written later, which is
+ * the lock-free upload's staging file. This one is what a **lock file** wants,
+ * and [`fjs/git/refstore`](../../git/refstore/module.f.mjs)'s `tryWrite` is that
+ * caller.
+ *
+ * **A custom runner must implement it**: `NodeOperationMap` and
+ * `CommandSet<NodeOp>` are both checked for *completeness*, so annotating
+ * either without a handler does not compile, and an exhaustive `switch` over
+ * `NodeOp` needs an arm.
+ */
+export type WriteExclusive = readonly['writeExclusive', (path: string, data: Vec) => IoResult<void>]
+
 // writeBytes
 
 /**
@@ -298,7 +335,7 @@ export type ReadWhole = readonly['readWhole', (path: string) => IoResult<readonl
 
 // Fs
 
-export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteBytes | Stat
+export type Fs = Mkdir | ResolveFileModule | ReadFile | ReadBytes | ReadWhole | Readdir | WriteFile | Rm | Rename | Exec | Access | CreateExclusive | WriteExclusive | WriteBytes | Stat
 
 // Server
 
