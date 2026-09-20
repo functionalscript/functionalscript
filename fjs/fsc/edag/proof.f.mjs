@@ -5,18 +5,22 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
 import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
+import { _shapeOf, _walk, demo } from './demo.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
 
 /** The default export's computation through the front end and lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */
 const compile = source => {
@@ -585,5 +589,198 @@ export const proof = {
         expectPlusChain(5000)(compile(`export default ${plus};`).edag)
         const neg = `${'- '.repeat(5000)}1`
         expectEdag(compile(`export default ${neg};`).edag, 1)
+    },
+    demo: {
+        /**
+         * `_shapeOf` against hand-built `Exp` values, not source text: most
+         * of these tags — every `Op1`, most of `Op2`, the ternary, a
+         * spread, a computed object key — have no `export default <text>;`
+         * that reaches them yet, so this is the only way to the whole
+         * walker rather than only its currently-reachable half. A chain
+         * continuation and optional chaining's own tags are refused the
+         * same way, and that path is tested here too, for the same reason.
+         */
+        shapeOf: {
+            array: {
+                plain: () => {
+                    const shape = assertNotNullish(_shapeOf(['[]', [1, 2]]), 'expected a shape')
+                    assertEq(shape.label, '[]')
+                    assertStructurallySame(shape.children, [['0', 1], ['1', 2]])
+                },
+                // A spread item is one child, named by its position rather
+                // than by an index that would claim it names one array slot.
+                spread: () => {
+                    const shape = assertNotNullish(_shapeOf(['[]', [['...', ['a']]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['...0', ['a']]])
+                },
+            },
+            object: {
+                // A literal string key becomes the edge label; no separate
+                // node for it, the same economy the DataJS demo spends on
+                // object keys.
+                literalKey: () => {
+                    const shape = assertNotNullish(_shapeOf(['{}', [[':', 'x', 1]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['x', 1]])
+                },
+                // A computed key is itself an `Exp` with nothing to fold
+                // into a label, so it gets a node of its own, alongside the
+                // value's.
+                computedKey: () => {
+                    const shape = assertNotNullish(_shapeOf(['{}', [[':', ['a'], 1]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['key0', ['a']], ['value0', 1]])
+                },
+                spread: () => {
+                    const shape = assertNotNullish(_shapeOf(['{}', [['...', ['a']]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['...0', ['a']]])
+                },
+            },
+            dot: {
+                // A string index folds into the node's own label; nothing
+                // about it needs a child edge to say what it is.
+                literalString: () => {
+                    const shape = assertNotNullish(_shapeOf(['.', ['a'], 'x']), 'expected a shape')
+                    assertEq(shape.label, '.x')
+                    assertStructurallySame(shape.children, [['obj', ['a']]])
+                },
+                literalNumber: () => {
+                    const shape = assertNotNullish(_shapeOf(['.', ['a'], 0]), 'expected a shape')
+                    assertEq(shape.label, '[0]')
+                },
+                // A computed index — `Number(x)`, the one shape `Index`
+                // allows beyond a bare literal — is an `Exp`, so it gets a
+                // child edge the way a computed object key does.
+                computed: () => {
+                    const shape = assertNotNullish(_shapeOf(['.', ['a'], ['Number', ['b']]]), 'expected a shape')
+                    assertEq(shape.label, '.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']]]])
+                },
+                // A chain continuation is a fourth element past the
+                // ordinary two- or three-element form — not yet drawn, so
+                // refused rather than misread as an extra plain operand.
+                continuation: () => assertEq(_shapeOf(['.', ['a'], 'x', ['|()', 1]]), null),
+            },
+            call: () => {
+                const shape = assertNotNullish(_shapeOf(['()', ['a'], ['b']]), 'expected a shape')
+                assertEq(shape.label, '()')
+                assertStructurallySame(shape.children, [['callee', ['a']], ['arg', ['b']]])
+            },
+            comma: () => {
+                const shape = assertNotNullish(_shapeOf([',', [1, 2, 3]]), 'expected a shape')
+                assertStructurallySame(shape.children, [['0', 1], ['1', 2], ['2', 3]])
+            },
+            ternary: () => {
+                const shape = assertNotNullish(_shapeOf(['?:', ['a'], 1, 2]), 'expected a shape')
+                assertEq(shape.label, '?:')
+                assertStructurallySame(shape.children, [['cond', ['a']], ['then', 1], ['else', 2]])
+            },
+            // Every Op0 name renders with no children — a leaf in shape, if
+            // not in this walk's own vocabulary for one.
+            op0: () => {
+                for (const tag of ['undefined', 'args', 'frame']) {
+                    const shape = assertNotNullish(_shapeOf([tag]), tag)
+                    assertEq(shape.label, tag)
+                    assertStructurallySame(shape.children, [])
+                }
+            },
+            op1: () => {
+                for (const tag of ['String', 'Number', '!', '~', 'typeof']) {
+                    const shape = assertNotNullish(_shapeOf([tag, ['a']]), tag)
+                    assertEq(shape.label, tag)
+                    assertStructurallySame(shape.children, [['operand', ['a']]])
+                }
+            },
+            // A sample across Op2's range, not all twenty-one tags: the
+            // dispatch is one membership test per group, so one tag from
+            // each syntactic corner — comparison, arithmetic, bitwise,
+            // logical, and the two named rather than symbolic ones — is
+            // what could vary.
+            op2: () => {
+                for (const tag of ['===', '*', '&', '&&', 'own', 'is']) {
+                    const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
+                    assertEq(shape.label, tag)
+                    assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
+                }
+            },
+            op12: {
+                unary: () => {
+                    const shape = assertNotNullish(_shapeOf(['-', ['a']]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['operand', ['a']]])
+                },
+                binary: () => {
+                    const shape = assertNotNullish(_shapeOf(['-', ['a'], ['b']]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
+                },
+            },
+            // A tag naming none of the recognized shapes — optional
+            // chaining's own, here — is refused the same way a chain
+            // continuation is.
+            unrecognizedTag: () => assertEq(_shapeOf(['?.', ['a'], 'x']), null),
+        },
+        // `_shapeOf` refusing a shape does not drop the node: `_walk` still
+        // draws it, labeled by its own tag, with no outgoing edges. No
+        // source the parser accepts today reaches this — optional chaining
+        // does not parse yet — so it needs the same hand-built `Exp` the
+        // `shapeOf.unrecognizedTag` test above refuses, carried one level up
+        // to where a node is actually built rather than only described.
+        walk: {
+            unsupported: () => {
+                const exp = /** @type {Exp} */ (/** @type {unknown} */ (['?.', ['a'], 'x']))
+                const { id, state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(exp)
+                assertEq(id, 0)
+                assertStructurallySame(state.nodes, [{ id: 0, kind: 'unsupported', label: '?. (not yet drawn)' }])
+                assertStructurallySame(state.edges, [])
+            },
+        },
+        // The initial source is the demo's whole reason for being: `a` is
+        // one `+` node reached by three edges, not three nodes that happen
+        // to match.
+        sharing: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assertEq(html.split('data-graph-kind="op"').length - 1, 3) // [], *, +
+            assert(html.includes('>0, 1<'), html) // the array's two direct refs, merged
+            assert(html.includes('>left<'), html) // a*3's left operand, the third edge to +
+        },
+        // Arithmetic, comparison, a call and property access, all through
+        // real source — the parser accepts this much today.
+        realSource: () => {
+            const html = htmlToString(demo.view(
+                'const a = {x: 1}; const f = a.x; export default [f(2), a.x === 1];'))
+            assert(html.includes('>()<'), html)
+            assert(html.includes('>.x<'), html)
+            assert(html.includes('>===<'), html)
+        },
+        // A bigint leaf carries its own suffix into the label rather than
+        // being coerced like every other leaf `String(exp)` already covers.
+        bigintLeaf: () => {
+            const html = htmlToString(demo.view('export default 5n;'))
+            assert(html.includes('>5n<'), html)
+        },
+        // An unused const is anchored as a comma's first operand rather
+        // than dropped, so the export default is not the whole EDAG.
+        commaAnchorsAnUnusedConst: () => {
+            const html = htmlToString(demo.view('const unused = 5; export default 1;'))
+            assert(html.includes('>,<'), html)
+            assert(html.includes('>5<'), html)
+            assert(html.includes('>1<'), html)
+        },
+        // A parse failure is shown, not swallowed, and draws no graph.
+        error: () => {
+            const html = htmlToString(demo.view('export default {bad'))
+            assert(html.includes('Error:'), html)
+            assert(!html.includes('<svg'), html)
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(step({ kind: 'input', name: 'edag', value: '1' })(''), '1')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="edag"'), html)
+        },
     },
 }

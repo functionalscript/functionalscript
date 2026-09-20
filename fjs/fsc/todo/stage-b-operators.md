@@ -1,34 +1,49 @@
 ## Stage B operators: `&&`, `||`, `??`, `?:`
 
 **Priority:** P1
-**Status:** blocked
-**Blocked by:** Stage A's precedence ladder landing on `main` (see "Not yet"); [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090) and [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092) have landed
+**Status:** open — Stage A is on `main` (see "Landed"); this proposal is
+written against it and awaits approval
+**Blocked by:** another language designer's explicit approval of this
+proposal, which a new language feature needs before implementation
+([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions),
+[AGENTS.md](../../../AGENTS.md)); record it here when given
 
 ### Problem
 
-**This doc is written against [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s tree, not against `main` as it stands.** `#2089` is what stages the operator rollout into Stage A/B/C, adds `2340-operators.md`'s `Landed` column, and lands the ladder this task stacks on
-([`the-operator-ladder`](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/parser/README.md#the-operator-ladder),
-at its head commit) — none of it is on `main` yet, and `#2089` itself is
-paused pending coordination with `#2090`/`#2092` (see "Not yet" below), so
-every reference below to something Stage A already has (`Op2Tag`,
-`leftAssocNode`, `unaryNode`, `bitwiseOr`, `AstOperation`, `lowerBase`, the
-ladder README section) names what lands with `#2089`, not what exists at
-this file's own base commit today. Once Stage A actually merges — in
-whatever form the sequencing below leaves it — those references become
-ordinary same-tree links; until then, treat every relative link into
-`fjs/fsc/parser/`, `fjs/fsc/ast/`, or `fjs/fsc/edag/` below as a forward
-reference, and the pinned-commit links as the ones that resolve today.
+**Stage A is on `main` since [`#2106`](https://github.com/functionalscript/functionalscript/pull/2106), and this proposal is written against it.** An
+earlier draft was written against
+[`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s
+tree, whose ladder landed in a different shape; that draft's names
+(`Op2Tag`, `leftAssocNode`, `unaryNode`, `AstOperation`, `lowerBase`) are
+gone with it. What `main` has, and what the proposal below extends:
 
-Once Stage A lands, [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)
-stages the operator rollout in three parts, and Stage A — arithmetic, strict
-comparison, bitwise, all eager — is the only one landed. Stage B — `&&`,
-`||`, `??`, `?:` — is the next stage `2340-operators.md` itself names; Stage
-C (comma) is explicitly deferred until Stage B "has proven the general
-approach" for lazy positions, so it is not this task's. (`main`'s current
-`2340-operators.md` and
-[`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)'s
-Parser task are both bare stubs without this staging language yet — `#2089`
-is what adds it.)
+- the ladder is `tail` in
+  [`grammar/module.f.mjs`](../parser/grammar/module.f.mjs): eight repeat
+  lists, `multiplicativeTail` through `bitwiseOrTail`, spread onto every
+  branch of `value`/`body` but `func` and `block`; a round of any layer is
+  `op t unary <the tails of every layer below it>`, and `unary` — `func`
+  excluded — is every binary operator's operand;
+- the parser's [`foldLayer`](../parser/module.f.mjs) folds a layer's rounds
+  onto a base left-associatively, reading the operator through the flat
+  `binaryOpTag` map, and `applyTail` folds the eight lists in order; the
+  node is the flat `readonly [BinaryTag, Node, Node]` of
+  [`parser/types.ts`](../parser/types.ts), `BinaryTag` being
+  [`ast/types.ts`](../ast/types.ts)'s, where `AstBinary` is
+  `readonly [BinaryTag, AstConst, AstConst]`;
+- [`edag/module.f.mjs`](../edag/module.f.mjs)'s `lower` walks operators
+  with an explicit stack and dispatches on the tag, one `case` per
+  operator, so a new tag is a new `case`, never a fall-through by arity;
+- `2340-operators.md`'s "Stage A is in the language" paragraph is the
+  record that Stage A landed, and says the lazy operators, the
+  conditional and the comma wait on `bitwiseOr` being the ladder's top.
+
+The three-part staging — Stage A eager, Stage B the lazy operators
+`&&`/`||`/`??`/`?:`, Stage C the comma — is this doc's own framing, not
+[`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)'s,
+which lists the operators by priority and names no stages. Stage C is
+sequenced after Stage B here because the anchoring rule Stage B
+implements one instance of is the comma's to generalize, so it is not
+this task's.
 
 Unlike Stage A, Stage B is not a matter of widening the grammar and reusing
 the existing eager lowering. Its operators are **lazy**: `a && b`'s `b` is
@@ -54,25 +69,18 @@ tokenizer, grammar, parser AST, and `fjs/fsc/edag`/`fjs/fsc/ast` lowering
 that reach that existing schema — the same shape of work Stage A already did
 for the eager half.
 
-### Not yet
+### Landed
 
-This should not start before:
+What this once waited on is on `main`:
 
-1. ~~[`#2090`](https://github.com/functionalscript/functionalscript/pull/2090)
+1. [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090)
    (grouping) and
    [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092)
-   (unary minus as a grammar-level prefix) land on `main`.~~ **Done:**
-   both are on `main`, as `f005d51` and `8446f9a`. Both rewrote
-   `fjs/fsc/parser/grammar/module.f.mjs` and the surrounding parser/AST
-   files Stage B also touches, which is what the ladder below now has to
-   be restored over.
-2. Stage A's precedence ladder (arithmetic, comparison, bitwise) is restored
-   on top of whatever grammar those two leave — [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s
-   grammar half was dropped for exactly this reason (see that PR's thread).
-   Stage B's new layers sit directly above the ladder's current top,
-   `bitwiseOr`, so there has to be a `bitwiseOr` to sit on.
-
-Until then this file records the plan; it is not a task to pick up.
+   (unary minus as a grammar-level prefix), as `f005d51` and `8446f9a`.
+2. Stage A's precedence ladder, restored over that grammar by
+   [`#2106`](https://github.com/functionalscript/functionalscript/pull/2106)
+   as `tail`, the shape the proposal below is written against. Stage B's
+   new lists sit directly above its last, `bitwiseOrTail`.
 
 ### Proposal
 
@@ -95,87 +103,118 @@ b || c` is a `SyntaxError`, not a precedence question — by giving the two
 their own productions rather than one shared ladder rung
 (`ShortCircuitExpression: LogicalORExpression | CoalesceExpression` in the
 spec). Naively splitting that into `shortCircuit ::= logicalOr | nullish`
-is **not** LL(1): both alternatives start by parsing a `bitwiseOr` (`nullish`
-directly, `logicalOr` through `logicalAnd`), so a parser reading the first
-token cannot tell which alternative it is in — exactly the first/first
-conflict `fjs/ebnf/ll1` would refuse before parsing any input, the same
-class Stage A's own tokenizer/parser table in
-[`fjs/fsc/README.md`](../README.md#both-grammars-are-ll1) already lists
-several instances of. It needs the same fix that table's `delimited` row
-used for the trailing comma: spelled right-recursively, so the shared
+is **not** LL(1): both alternatives start by parsing a bitwise-or-level
+operand, so a parser reading the first token cannot tell which alternative
+it is in — exactly the first/first conflict `fjs/ebnf/ll1` would refuse
+before parsing any input, the same class Stage A's own tokenizer/parser
+table in [`fjs/fsc/README.md`](../README.md#both-grammars-are-ll1) already
+lists several instances of. It needs the same fix that table's `delimited`
+row used for the trailing comma: spelled right-recursively, so the shared
 prefix is parsed exactly once and every later choice reads one token of
 lookahead, never two competing productions that both start the same way.
 
+Stage A's shape is the frame: `tail` is a list of tail lists spread onto a
+branch, and a layer's round carries its own operand followed by the tails
+of every layer below it. A layer's operator is never a bare token but a
+tagged choice — `bitwiseOrOp` is `{ or: sym('|') }` — because `foldLayer`
+reads a round's operator by unmapping that choice and looking its tag up
+in `binaryOpTag`; a bare terminal is a leaf there and never reaches the
+map. Stage B's three operators are spelled the same way, `logicalAndOp`,
+`logicalOrOp` and `nullishOp`, each a one-branch choice keyed by a name no
+other layer uses. It adds two entries to `tail`, after `bitwiseOrTail`, in
+the same spelling — `operand` below is Stage A's whole operand, `unary`
+followed by the eight existing tails, which is what a `bitwiseOr`-level
+expression is on `main`:
+
 ```text
-shortCircuit ::= bitwiseOr circuitTail
-circuitTail  ::= '&&' bitwiseOr andTail      -- committed to && (|| may still follow)
-               | '||' logicalAnd orTail      -- committed to || directly
-               | '??' bitwiseOr nullishTail  -- committed to ?? (no && or || can follow)
+logicalAndOp ::= { logicalAnd: '&&' }          -- tagged choices, as multiplicativeOp … bitwiseOrOp are
+logicalOrOp  ::= { logicalOr: '||' }
+nullishOp    ::= { nullish: '??' }
+operand      ::= unary multiplicativeTail … bitwiseOrTail
+circuitTail  ::= logicalAndOp t operand andTail          -- committed to && (|| may still follow)
+               | logicalOrOp t operand logicalAndTail orTail   -- committed to || directly
+               | nullishOp t operand nullishTail          -- committed to ?? (no && or || can follow)
                | ε
-andTail      ::= '&&' bitwiseOr andTail
-               | '||' logicalAnd orTail      -- `a && b || c` is `(a && b) || c`, still legal
-               | ε                           -- no '??' arm: already committed away from nullish
-orTail       ::= '||' logicalAnd orTail
+andTail      ::= logicalAndOp t operand andTail
+               | logicalOrOp t operand logicalAndTail orTail   -- `a && b || c` is `(a && b) || c`, still legal
+               | ε                                       -- no nullish arm: already committed away from it
+orTail       ::= logicalOrOp t operand logicalAndTail orTail
                | ε
-nullishTail  ::= '??' bitwiseOr nullishTail
-               | ε
-logicalAnd   ::= bitwiseOr ('&&' bitwiseOr)*
-conditional  ::= shortCircuit ('?' value ':' value)?
+logicalAndTail ::= { logicalAndOp t operand }
+nullishTail  ::= { nullishOp t operand }
+conditionalTail ::= [ '?' t value ':' t value ]
+tail         ::= multiplicativeTail … bitwiseOrTail circuitTail conditionalTail
 ```
 
 Each nonterminal's alternatives are distinguished by exactly one lookahead
-token (`&&`, `||`, `??`, or none of those), and once a chain has committed to
-`&&`/`||` (`andTail`/`orTail`) or to `??` (`nullishTail`) neither tail rule
-has an arm for the other's token, so `a && b ?? c` and `a ?? b || c` both
-fail to parse at the unconsumed operator — refused by the grammar shape
-itself, not a check layered on after. `logicalAnd` — the one piece that
-never has to choose between operators, since `&&` is its only one — stays
-the plain left-associative chain every Stage A layer above `unary` already
-is, and reuses `leftAssocNode`
-([`fjs/fsc/parser/module.f.mjs`](../parser/module.f.mjs)) directly wherever
-it's read (inside `circuitTail`/`andTail`'s `||`-branches, and as
-`nullishTail`'s `??`-chain reduces to the same shape). The
-commit-to-one-branch tails above it (`circuitTail`/`andTail`/`orTail`/
-`nullishTail`) are the new fold machinery this task actually adds — a
-choice among named continuations, not a single operator repeated.
-`conditional` is the one genuinely new shape beyond that: an optional,
-right-nested `? value : value` after the short-circuit level, taking full
-`value`s (not stopping at `shortCircuit`) for its two arms, matching JS's
-`ConditionalExpression` branches being `AssignmentExpression`-level (this
-language has no assignment expression, so `value` — the ladder's own top —
-is the nearest equivalent) rather than another `conditional`; right
-associativity of nested `?:`s falls out of the arms recursing into `value`
-without needing a repeat construct. `conditional` becomes the new top of
-`value`/`body`'s ladder, replacing today's direct route into `bitwiseOr`.
+token (`&&`, `||`, `??`, `?`, or none of those), and once a chain has
+committed to `&&`/`||` (`andTail`/`orTail`) or to `??` (`nullishTail`)
+neither tail rule has an arm for the other's token, so `a && b ?? c` and
+`a ?? b || c` both fail to parse at the unconsumed operator — refused by
+the grammar shape itself, not a check layered on after. `logicalAndTail`
+and `nullishTail` — the two pieces that never have to choose between
+operators — are plain repeat lists exactly like the eight below them,
+each round `op t unary <lower tails>` with `op` a tagged choice, so
+`foldLayer` folds them unchanged once `binaryOpTag` maps `logicalAnd` and
+`nullish` to their tags. The commit-to-one-branch tails
+(`circuitTail`/`andTail`/`orTail`) are the new shape this task adds: a
+choice among named continuations, not a repeat, so they need a reader of
+their own beside `foldLayer` — one that takes the branch by the same
+operator tag, `logicalOr` included, and folds the operand and its
+continuation as `foldLayer` folds a round. `conditionalTail` is the one genuinely new
+shape beyond that: an optional `? value : value` after the short-circuit
+level, taking full `value`s (not stopping at the short-circuit level) for
+its two arms, matching JS's `ConditionalExpression` branches being
+`AssignmentExpression`-level (this language has no assignment expression,
+so `value` — the ladder's own top — is the nearest equivalent) rather than
+another conditional; right associativity of nested `?:`s falls out of the
+arms recursing into `value` without needing a repeat construct. Both new
+entries ride on the same branches the eight existing tails do, `func` and
+`block` still excepted, and `?` is a token of its own beside `??` and
+`?.`, so the choice stays one symbol wide. An arm is a `value`, so it may
+be a function, and `:` then follows `body` — `fjs/ebnf/ll1` decides
+whether that follow set costs a conflict, before any input, the same way
+it decided the `func` leak the parser README records.
 
 #### Parser / AST
 
-`Op2Tag`
-([`fjs/fsc/parser/types.ts`](../parser/types.ts)) gains `'&&' | '||' |
-'??'`, mechanically identical to Stage A's other binary operators at the AST
-level (`readonly [Op2Tag, readonly [Node, Node]]` already covers them — no
-new `Node` shape, since laziness is not a shape difference at this layer any
-more than it is one in the EDAG). A new `Op3Tag = '?:'` and a matching
-`readonly ['?:', readonly [Node, Node, Node]]` case cover the conditional,
-the AST's own arity-3 shape (`op3`'s three real operands, condition/then/else
-— note this is three EDAG operands after the tag, distinct from `op12`'s
-node-length-decides-arity trick, which does not apply here: `?:` is always
-ternary, nothing else uses tag `'?:'` at another arity).
+`BinaryTag` ([`ast/types.ts`](../ast/types.ts)) gains `'&&' | '||' |
+'??'`, mechanically identical to Stage A's other binary operators at the
+AST level: the flat `readonly [BinaryTag, Node, Node]` of
+`parser/types.ts`'s `Node` and `AstBinary`'s `readonly [BinaryTag,
+AstConst, AstConst]` already cover them — no new shape, since laziness is
+not a shape difference at this layer any more than it is one in the EDAG.
+`binaryOpTag` ([`parser/module.f.mjs`](../parser/module.f.mjs)) gains a
+key per new operator choice, `logicalAnd`, `logicalOr` and `nullish`, each
+unique across the layers as every existing key is, and `foldLayer` then
+folds `logicalAndTail` and `nullishTail` rounds as it folds the eight
+below, their operator being a tagged choice as every layer's is. The commit tails and `conditionalTail` are read by a reader of
+their own, applied after `applyTail`'s eight lists: a commit tail is a
+choice, so the reader takes the branch by its tag and folds the operand
+and its continuation left-associatively, the same fold `foldLayer` does,
+walking the right-recursive continuation as a loop rather than a call.
+
+The conditional is a new node shape, the AST's own arity-3 one: `readonly
+['?:', Node, Node, Node]` in `Node`, and `AstConditional = readonly ['?:',
+AstConst, AstConst, AstConst]` in `ast/types.ts` — condition, then, else,
+three operands after the tag, matching the EDAG's `op3` exactly. This is
+distinct from `-`'s length-decides-arity trick, which does not apply here:
+`?:` is always ternary, nothing else uses tag `'?:'` at another arity.
+`evaluate`'s explicit `_Stack`, which resolves a value's references
+without recursion, gets the new frame the three operands need.
 
 #### `fjs/fsc/ast` and `fjs/fsc/edag` lowering
 
-`AstOperation` and the EDAG `lower`/`lowerBase` dispatch
-([`fjs/fsc/ast/types.ts`](../ast/types.ts),
-[`fjs/fsc/edag/module.f.mjs`](../edag/module.f.mjs)) extend the same way
-Stage A's did: `&&`/`||`/`??` fall into the existing length-3 (two-operand)
-dispatch case, since nothing about that dispatch reads the tag itself, only
-the node's arity — confirm this rather than assume it, since it was written
-against Stage A's tag set. `?:` needs a genuinely new length-4 case (three
-operands plus the tag), the first arity `fjs/fsc/edag`'s lowering has not
-had to handle since Stage A never went past two. The plain-data evaluator
-(`fjs/fsc/ast/module.f.mjs`'s `run`) keeps refusing every operator, Stage B's
-new ones included — same policy Stage A already established, since
-evaluating one is the EDAG interpreter's job
+`lower` ([`edag/module.f.mjs`](../edag/module.f.mjs)) dispatches on the
+tag, one `case` per Stage A operator, never on a node's arity: `&&`, `||`
+and `??` join that `case` list and take the existing two-operand `binary`
+work item, since the EDAG's `op2` shape is the same for an eager and a
+lazy operator. `?:` needs a genuinely new work item — three operands
+expanded, then a `ternary` step building `['?:', c, t, e]` — the first
+arity `lower` has not had to handle, since Stage A never went past two.
+The plain-data evaluator (`fjs/fsc/ast/module.f.mjs`'s `run`) keeps
+refusing every operator, Stage B's new ones included — same policy Stage
+A already established, since evaluating one is the EDAG interpreter's job
 ([`interpret-edag.md`](./interpret-edag.md)), not this one's.
 
 #### The eager/lazy split — the part that is not just plumbing
@@ -216,7 +255,7 @@ stops rather than descends at exactly the positions
 `2340-operators.md` already names as lazy — `&&`/`||`/`??`'s right operand,
 either arm of `?:` — while continuing through everything already eager today
 (container items, an access base, an operator's other operand(s), a `**`'s
-growing side, everything `leftAssocNode` folds).
+growing side, everything `foldLayer` folds).
 
 That variant is not only `reach`'s. `anchors`
 ([`fjs/fsc/ast/module.f.mjs`](../ast/module.f.mjs)) calls `refsOf` a second
@@ -266,14 +305,17 @@ above, not just new-syntax acceptance.
 - Stage C (comma): explicitly sequenced after Stage B; the anchoring
   subtraction rule this task implements one instance of is Stage C's to
   generalize, not to pull forward.
-- `nanvm-lib`'s own "Complete all basic FunctionalScript operators... including
-  the short-circuit operators" P1 task — *implementing* `&&`/`||`/`??`/`?:`
-  lazily in Rust — stays out of scope: a separate, already-tracked line of
-  work against `fjs/nanvm/module.f.mjs`'s shared operator-test data. But the
-  **existing** `fjs/edag/rust` printer is not out of scope the way the doc's
-  first draft claimed — see the Rust-codegen task below, which this task does
-  own: not implementing laziness in Rust, but making sure this task doesn't
-  let the existing eager printer silently miscompile it.
+- A lazy `.rs` spelling for `&&`/`||`/`??`/`?:`. `nanvm-lib` has the four
+  operations, taking evaluated operands, and the corpus checks them; a
+  compiled module needs operands that are not evaluated before the call,
+  which nothing spells yet —
+  [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md),
+  blocked on the generated module's failure contract in
+  [`stage-a-operators.md`](../rust/todo/stage-a-operators.md). The `.rs`
+  route of `fjs compile` is this task's to keep honest, though — see the
+  Rust-codegen task below: not implementing laziness in Rust, but making
+  sure the one node shape `fjs/fsc/rust` does not refuse yet, `?:`, is
+  refused once the grammar can produce it.
 - The FunctionalScript writer (`fjs/fsc/serializer`): stays silent on Stage B
   the same way it already is on Stage A. `entry`'s ``default: { return
   error(`a ${node[0]} node`) }`` already refuses every Stage A operator node,
@@ -290,43 +332,50 @@ above, not just new-syntax acceptance.
 ### Tasks
 
 - [ ] Tokenizer: `&&`, `||`, `??`, `?` as DJS operator tokens.
-- [ ] Grammar: `shortCircuit`/`circuitTail`/`andTail`/`orTail`/`nullishTail`/
-      `logicalAnd`/`conditional` layered above `bitwiseOr`, right-factored so
-      `fjs/ebnf/ll1` accepts it (the naive `logicalOr | nullish` split does
-      not — see above), proven to refuse `a ?? b || c` and `a && b ?? c`
-      without parentheses, and grammar-level accept/reject proofs matching
-      Stage A's `operators` block in
+- [ ] Grammar: `logicalAndOp`/`logicalOrOp`/`nullishOp` as tagged choices
+      like every layer's operator, and `circuitTail`/`andTail`/`orTail`/
+      `logicalAndTail`/`nullishTail`/`conditionalTail` as `tail`'s two new
+      entries above `bitwiseOrTail`, right-factored so `fjs/ebnf/ll1` accepts it (the
+      naive `logicalOr | nullish` split does not — see above), proven to
+      refuse `a ?? b || c` and `a && b ?? c` without parentheses, and
+      grammar-level accept/reject proofs matching Stage A's `operators`
+      block in
       [`fjs/fsc/parser/grammar/proof.f.mjs`](../parser/grammar/proof.f.mjs).
-- [ ] Parser: `Op2Tag` gains `&&`/`||`/`??`; new `Op3Tag`/`?:` `Node` shape;
-      `leftAssocNode` reused for `logicalAnd`'s inner loop; new fold for
-      `conditional`.
-- [ ] `fjs/fsc/ast`/`fjs/fsc/edag`: extend `AstOperation`/`lower`/`lowerBase`
-      for the new tags and the new arity-3 (`?:`) case; keep the plain-data
-      evaluator's refusal.
-- [ ] `fjs/edag/rust`: `op2Rust`'s `&&`/`||`/`??` entries and `op3Rust`'s `?:`
-      entry print `Any::logical_and(${a}, ${b})` /
-      `Any::conditional(${a}, ${b}, ${c})` today, where `a`/`b`/`c` are
-      already-printed Rust value expressions — and `nanvm-lib`'s
-      `Any::logical_and`/`logical_or`/`nullish_coalescing`/`conditional`
-      (`nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs`) take
-      `Self` by value, not a closure, so Rust evaluates every operand before
-      the call — confirmed by reading those signatures, not assumed. Today
-      that's inert: nothing in the source language reaches these node kinds,
-      so the printer never emits them for a real program. Stage B makes them
-      reachable from `fjs compile <input> <output>.rs`, and at that point the
-      existing entries stop being inert and start silently miscompiling any
-      program whose correctness depends on the laziness this whole task is
-      about — `false && (1n + 1)` must not evaluate `1n + 1`, but the
-      generated Rust would. This task must not leave that: either gate
-      `op2Rust`/`op3Rust`'s four entries to refuse (the same `Result`-based
-      "not yet implemented in `nanvm-lib`" refusal this file already uses for
-      operators the corpus marks with a `rust` reason, so the `.rs` route
-      declines the same way the plain-data evaluator already does) until
-      `nanvm-lib`'s own lazy-operator task lands, or land in lockstep with
-      whatever Rust shape that task produces. Silently emitting the current
-      eager calls once these nodes are reachable is exactly the outcome
-      DESIGN.md §10 rules out — a plausible wrong value where a refusal
-      belongs.
+- [ ] Parser: `BinaryTag` gains `&&`/`||`/`??` and `binaryOpTag` their
+      keys, so `foldLayer` folds the two repeat lists unchanged; a reader
+      for the commit tails and `conditionalTail` beside `applyTail`; the
+      `['?:', Node, Node, Node]` shape in `Node` and its frame in
+      `evaluate`'s `_Stack`.
+- [ ] `fjs/fsc/ast`/`fjs/fsc/edag`: `AstConditional`; `lower`'s `case` list
+      gains the three tags and a `ternary` work item for `?:`; keep the
+      plain-data evaluator's refusal.
+- [ ] `fjs/fsc/rust`: extend `resultOperator` to the length-4 `?:` node.
+      The shared printer's `op2Rust` entries for `&&`/`||`/`??` and
+      `op3Rust`'s `?:` print `Any::logical_and(${a}, ${b})` /
+      `Any::conditional(${a}, ${b}, ${c})` over already-printed operands,
+      and `nanvm-lib`'s `Any::logical_and`/`logical_or`/`nullish_coalescing`/
+      `conditional` (`nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs`)
+      take `Self` by value, not a closure, so Rust evaluates every operand
+      before the call — right for the operator corpus, whose cases hand the
+      `Result` to a checker, and a silent miscompile for a module whose
+      correctness rests on the laziness this task is about: `false && (1n +
+      1)` must not evaluate `1n + 1`, but that Rust would. The compile route
+      already refuses the binary three: `fjs/fsc/rust`'s `resultOperator`
+      matches every length-3 node whose tag is in `op2Rust`, and `bodyLines`
+      answers `no Rust for an operator in a module` before `expExpr` runs,
+      so `&&`/`||`/`??` are covered the moment they parse. `?:` is not: it
+      is a length-4 node, `resultOperator` checks only lengths 2 and 3, and
+      its own comment defers the `op3Rust` check to "the ternary landing in
+      the grammar" because a branch no module could reach would fail the
+      coverage rule. This task lands that check with the grammar, and proves
+      a module holding `?:` is refused on the `.rs` route. The shared
+      `fjs/edag/rust` entries stay as they are: `fjs/nanvm/rust` unwraps the
+      shared printer to write the corpus, so gating them there would break
+      generating the very tests the lazy Rust operators will be checked by.
+      Lifting the refusal is
+      [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md)'s,
+      after the failure contract in
+      [`stage-a-operators.md`](../rust/todo/stage-a-operators.md).
 - [ ] `refsOf`: add the eager-restricted variant and switch **both** `reach`
       and `anchors`' own `within` computation to it, leaving `sharing`'s use
       of the unrestricted one unchanged; proofs for the sharing behavior,
@@ -334,24 +383,25 @@ above, not just new-syntax acceptance.
       the transitive case — an unreached entry's own lazy operand naming a
       second unreached entry, which must still get its own anchor — matching
       `2340-operators.md`'s worked examples and the `d`/`c` case above.
-- [ ] Stack-safety: `logicalAnd`/`andTail`/`orTail`/`nullishTail`/`circuitTail`'s
-      chains reuse or match `leftAssocNode`'s iterative shape, already proven safe
-      from Stage A's own stack-overflow fix, but a chain-length stress proof
-      at the same 20,000-deep bar Stage A used is still worth adding rather
-      than assumed. `conditional`'s arms recurse into `value`, so a source
-      program can nest `?:` right-associatively (`a ? b : c ? d : e ? ...`)
-      the same way `**`'s chain nested before Stage A's fix — one JS call
-      per `?:` unless the parser, the AST reference sweep, and EDAG lowering
-      each walk it with the same pending-list-loop technique `unaryNode` and
-      `lower` already use for `**`. Treating it as bounded by "what a human
+- [ ] Stack-safety: `logicalAndTail`/`nullishTail` are folded by
+      `foldLayer`'s `reduce`, iterative as Stage A's own stack-overflow fix
+      left it, and the commit tails' reader must walk its right-recursive
+      continuation as a loop the same way; a chain-length stress proof at
+      the same 20,000-deep bar Stage A used is still worth adding rather
+      than assumed. `conditionalTail`'s arms recurse into `value`, so a
+      source program can nest `?:` right-associatively (`a ? b : c ? d : e
+      ? ...`) the same way `**`'s chain nested before Stage A's fix — one JS
+      call per `?:` unless the parser, the AST reference sweep, and EDAG
+      lowering each walk it with the same explicit-stack technique
+      `evaluate` and `lower` already use for `**`. Treating it as bounded by "what a human
       writes" was Stage A's own mistake before the 20,000-deep test found
       it; do not repeat it here — add the same stress proof across all three
       layers rather than exempt `conditional` on the same reasoning.
-- [ ] `spec/README.md`'s Operators section, `2340-operators.md`'s `Landed`
-      column, and `fjs/fsc/parser/README.md`'s operator-ladder section —
-      which documents `value`/`body` ending at whatever Stage A's ladder top
-      turns out to be and would otherwise go stale the moment `conditional`
-      replaces it — all checked off/updated for Stage B once done.
+- [ ] `spec/README.md`'s Operators section, `2340-operators.md`'s "Stage A
+      is in the language" paragraph, and `fjs/fsc/parser/README.md`'s `tail`
+      passage — which documents `value`/`body` ending at Stage A's ladder
+      top and would otherwise go stale the moment `conditional` replaces it
+      — all updated for Stage B once done.
 
 ### Related
 
@@ -359,11 +409,14 @@ above, not just new-syntax acceptance.
   the staging plan and the anchoring-subtraction rule this task implements
   one instance of.
 - [`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md) —
-  Parser task (this) and the separate Rust short-circuit-operators task that
-  the `fjs/edag/rust` refusal/gate above waits on.
+  the Parser task, which this is. Its operators item is done and its `?:`
+  item is the VM's; neither is what the `.rs` route waits on, which is
+  [the failure contract](../rust/todo/stage-a-operators.md) and then
+  [a lazy spelling](../rust/todo/lazy-operators.md).
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — `op2Rust`/
-  `op3Rust`, whose `&&`/`||`/`??`/`?:` entries this task must gate; see the
-  Tasks entry above.
+  `op3Rust`, whose `&&`/`||`/`??`/`?:` entries the corpus printer needs as
+  they are; [`fjs/fsc/rust`](../rust/module.f.mjs)'s `resultOperator` is
+  where the compile route refuses them, see the Tasks entry above.
 - `nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
   `Any` methods those entries call, confirming they take already-evaluated
   operands, not closures.
@@ -372,19 +425,23 @@ above, not just new-syntax acceptance.
   to (`op2Id`, `op3Id`).
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   subject 3 — where that EDAG-level laziness design was settled.
-- `fjs/fsc/parser/README.md`, once `#2089` (or whatever supersedes its
-  grammar half) lands — Stage A's ladder this stacks on top of; not yet a
-  resolvable link, see the Problem section's note above.
+- [`fjs/fsc/parser/README.md`](../parser/README.md) — the `tail` passage,
+  Stage A's ladder this stacks on top of.
 - [`fjs/fsc/ast/module.f.mjs`](../ast/module.f.mjs) — `refsOf`, `reach`,
   `anchors`: the eager/lazy split.
 - `fjs/fsc/ast/todo/refs-stack-safety.md`
-  ([as of `#2089`'s head](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/ast/todo/refs-stack-safety.md)) —
-  the pre-existing, unrelated `.`-chain recursion limit in the same file;
-  not this task's to fix, noted so it is not conflated with the new
-  eager-only variant's own stack safety.
+  ([as of `#2089`'s head](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/ast/todo/refs-stack-safety.md);
+  no such file is on `main`, where `#2106`'s
+  [`fjs/edag/todo/stack-safety.md`](../../edag/todo/stack-safety.md) is
+  the nearest) — the pre-existing, unrelated `.`-chain recursion limit in
+  the same file; not this task's to fix, noted so it is not conflated with
+  the new eager-only variant's own stack safety.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — owns
   optional chaining (`?.`), a different feature sharing the `?` token.
-- PRs [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089),
+- PRs [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)
+  (the tree this doc was written against),
   [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090),
-  [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092) —
-  the in-flight grammar work this task sequences after.
+  [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092) and
+  [`#2106`](https://github.com/functionalscript/functionalscript/pull/2106)
+  (Stage A as it landed) — the grammar work this task sequences after, all
+  on `main`.

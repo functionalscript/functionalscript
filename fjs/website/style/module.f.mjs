@@ -37,6 +37,24 @@ export const stylesheetPath = '/_main.css'
 export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
+ * The two `<link rel="icon">` elements every page carries, so that no page
+ * spells the paths itself.
+ *
+ * Both, because declaring one ends the implicit lookup: `/favicon.ico` is
+ * what a browser asks for when a document declares no icon at all, and once
+ * a page declares the SVG, a browser that recognizes `rel="icon"` but cannot
+ * render SVG has no reason to go looking for the `.ico` — the fallback would
+ * never be requested in the one case it exists for. The `type` on the SVG
+ * link is what lets a browser that can use it skip the other.
+ *
+ * @type {readonly [Element, Element]}
+ */
+export const faviconLinks = [
+    ['link', { rel: 'icon', href: '/favicon.ico', sizes: '32x32' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fjs/website/favicon.svg' }],
+]
+
+/**
  * The stylesheet, verbatim.
  *
  * @type {string}
@@ -127,6 +145,17 @@ pre { white-space: pre-wrap }
    bottom of the box beside it rather than the top. A single-line input has
    no such seam: its one line of text already sits on the label's baseline. */
 textarea { vertical-align: top }
+/* A browser's own default width for a textarea is about twenty characters —
+   a sliver of the page's column, for a field meant to hold a document.
+   box-sizing keeps the 100% to the content width regardless of the border
+   and padding a browser gives a textarea by default, so it does not overflow
+   its own line. Resizable in height only: width has one right answer here,
+   the column, so there is nothing to drag it away from — a browser's own
+   resize otherwise sets an inline size the next render does not carry
+   (nothing here re-renders a resize into what it drew, the same way it
+   redraws focus and the caret), and a field a reader just widened would
+   silently narrow back on the next keystroke. */
+textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
@@ -153,4 +182,23 @@ textarea { vertical-align: top }
 @media (any-pointer: coarse) {
     [data-section] > ul a { display: inline-block; padding-block: .25rem }
 }
+/* SVG text does not inherit the page's font on its own, unlike every
+   ordinary element — the DataJS demo's graph is the first thing on the site
+   to draw one. */
+svg text { font: inherit }
+/* The DataJS demo's graph: a rect per array, object or leaf, a line per
+   index or key. A leaf is dashed rather than solid, since a leaf and a
+   container are the one distinction this graph draws beyond sharing itself.
+   An edge label is haloed in the page's own background rather than boxed,
+   so two crossing lines still read under it without a second shape per
+   label. */
+[data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+[data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
+[data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
+[data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+[data-graph-edge-label] {
+    dominant-baseline: middle; fill: var(--muted); font-size: .7rem;
+    paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; stroke-width: 3px;
+}
+[data-graph-arrow] { fill: var(--muted) }
 `
