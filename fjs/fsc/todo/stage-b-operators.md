@@ -1,34 +1,34 @@
 ## Stage B operators: `&&`, `||`, `??`, `?:`
 
 **Priority:** P1
-**Status:** blocked
-**Blocked by:** Stage A's precedence ladder landing on `main` (see "Not yet"); [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090) and [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092) have landed
+**Status:** open — Stage A is on `main` (see "Landed"), so nothing blocks this
 
 ### Problem
 
-**This doc is written against [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s tree, not against `main` as it stands.** `#2089` is what stages the operator rollout into Stage A/B/C, adds `2340-operators.md`'s `Landed` column, and lands the ladder this task stacks on
-([`the-operator-ladder`](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/parser/README.md#the-operator-ladder),
-at its head commit) — none of it is on `main` yet, and `#2089` itself is
-paused pending coordination with `#2090`/`#2092` (see "Not yet" below), so
-every reference below to something Stage A already has (`Op2Tag`,
-`leftAssocNode`, `unaryNode`, `bitwiseOr`, `AstOperation`, `lowerBase`, the
-ladder README section) names what lands with `#2089`, not what exists at
-this file's own base commit today. Once Stage A actually merges — in
-whatever form the sequencing below leaves it — those references become
-ordinary same-tree links; until then, treat every relative link into
-`fjs/fsc/parser/`, `fjs/fsc/ast/`, or `fjs/fsc/edag/` below as a forward
-reference, and the pinned-commit links as the ones that resolve today.
+**This doc was written against [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s tree; Stage A landed on `main` in [`#2106`](https://github.com/functionalscript/functionalscript/pull/2106) in a different shape.** The ladder is
+there — `tail`, threaded inline onto every branch of `value`/`body`, its
+layers `multiplicativeOp` through `bitwiseOrOp` in
+[`grammar/module.f.mjs`](../parser/grammar/module.f.mjs) — but under other
+names than the ones this doc's proposal below still uses, which are
+`#2089`'s. Read them through this table rather than searching for them:
 
-Once Stage A lands, [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)
+| Named below, from `#2089` | On `main`, from `#2106` |
+|---|---|
+| `Op2Tag` in `parser/types.ts` | `BinaryTag` in [`ast/types.ts`](../ast/types.ts), which `parser/types.ts`'s `Node` imports |
+| `AstOperation` | `AstBinary`, `readonly [BinaryTag, AstConst, AstConst]` |
+| `leftAssocNode` | `toNode` and its `binaryOpTag` map in [`parser/module.f.mjs`](../parser/module.f.mjs), reading a `tail` round from any layer |
+| `unaryNode`'s pending-list loop | `evaluate`'s explicit `_Stack` in the parser, and `lower`'s explicit stack in [`edag/module.f.mjs`](../edag/module.f.mjs) |
+| `lowerBase` | `lower` in `edag/module.f.mjs` |
+| `bitwiseOr` | `bitwiseOrOp`, the ladder's own top |
+| the README's "operator ladder" section | the `tail` passage of [`parser/README.md`](../parser/README.md)'s "The grammar is written down" |
+| `2340-operators.md`'s `Landed` column | its "Stage A is in the language" paragraph |
+
+[`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)
 stages the operator rollout in three parts, and Stage A — arithmetic, strict
 comparison, bitwise, all eager — is the only one landed. Stage B — `&&`,
 `||`, `??`, `?:` — is the next stage `2340-operators.md` itself names; Stage
 C (comma) is explicitly deferred until Stage B "has proven the general
-approach" for lazy positions, so it is not this task's. (`main`'s current
-`2340-operators.md` and
-[`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)'s
-Parser task are both bare stubs without this staging language yet — `#2089`
-is what adds it.)
+approach" for lazy positions, so it is not this task's.
 
 Unlike Stage A, Stage B is not a matter of widening the grammar and reusing
 the existing eager lowering. Its operators are **lazy**: `a && b`'s `b` is
@@ -54,25 +54,18 @@ tokenizer, grammar, parser AST, and `fjs/fsc/edag`/`fjs/fsc/ast` lowering
 that reach that existing schema — the same shape of work Stage A already did
 for the eager half.
 
-### Not yet
+### Landed
 
-This should not start before:
+What this once waited on is on `main`:
 
-1. ~~[`#2090`](https://github.com/functionalscript/functionalscript/pull/2090)
+1. [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090)
    (grouping) and
    [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092)
-   (unary minus as a grammar-level prefix) land on `main`.~~ **Done:**
-   both are on `main`, as `f005d51` and `8446f9a`. Both rewrote
-   `fjs/fsc/parser/grammar/module.f.mjs` and the surrounding parser/AST
-   files Stage B also touches, which is what the ladder below now has to
-   be restored over.
-2. Stage A's precedence ladder (arithmetic, comparison, bitwise) is restored
-   on top of whatever grammar those two leave — [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)'s
-   grammar half was dropped for exactly this reason (see that PR's thread).
-   Stage B's new layers sit directly above the ladder's current top,
-   `bitwiseOr`, so there has to be a `bitwiseOr` to sit on.
-
-Until then this file records the plan; it is not a task to pick up.
+   (unary minus as a grammar-level prefix), as `f005d51` and `8446f9a`.
+2. Stage A's precedence ladder, restored over that grammar by
+   [`#2106`](https://github.com/functionalscript/functionalscript/pull/2106)
+   as `tail` — the shape the table above maps `#2089`'s names onto.
+   Stage B's new layers sit directly above its top, `bitwiseOrOp`.
 
 ### Proposal
 
@@ -347,11 +340,11 @@ above, not just new-syntax acceptance.
       writes" was Stage A's own mistake before the 20,000-deep test found
       it; do not repeat it here — add the same stress proof across all three
       layers rather than exempt `conditional` on the same reasoning.
-- [ ] `spec/README.md`'s Operators section, `2340-operators.md`'s `Landed`
-      column, and `fjs/fsc/parser/README.md`'s operator-ladder section —
-      which documents `value`/`body` ending at whatever Stage A's ladder top
-      turns out to be and would otherwise go stale the moment `conditional`
-      replaces it — all checked off/updated for Stage B once done.
+- [ ] `spec/README.md`'s Operators section, `2340-operators.md`'s "Stage A
+      is in the language" paragraph, and `fjs/fsc/parser/README.md`'s `tail`
+      passage — which documents `value`/`body` ending at Stage A's ladder
+      top and would otherwise go stale the moment `conditional` replaces it
+      — all updated for Stage B once done.
 
 ### Related
 
@@ -372,19 +365,23 @@ above, not just new-syntax acceptance.
   to (`op2Id`, `op3Id`).
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   subject 3 — where that EDAG-level laziness design was settled.
-- `fjs/fsc/parser/README.md`, once `#2089` (or whatever supersedes its
-  grammar half) lands — Stage A's ladder this stacks on top of; not yet a
-  resolvable link, see the Problem section's note above.
+- [`fjs/fsc/parser/README.md`](../parser/README.md) — the `tail` passage,
+  Stage A's ladder this stacks on top of.
 - [`fjs/fsc/ast/module.f.mjs`](../ast/module.f.mjs) — `refsOf`, `reach`,
   `anchors`: the eager/lazy split.
 - `fjs/fsc/ast/todo/refs-stack-safety.md`
-  ([as of `#2089`'s head](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/ast/todo/refs-stack-safety.md)) —
-  the pre-existing, unrelated `.`-chain recursion limit in the same file;
-  not this task's to fix, noted so it is not conflated with the new
-  eager-only variant's own stack safety.
+  ([as of `#2089`'s head](https://github.com/functionalscript/functionalscript/blob/853faaf88a7adad39460926da58369d87b18691e/fjs/fsc/ast/todo/refs-stack-safety.md);
+  no such file is on `main`, where `#2106`'s
+  [`fjs/edag/todo/stack-safety.md`](../../edag/todo/stack-safety.md) is
+  the nearest) — the pre-existing, unrelated `.`-chain recursion limit in
+  the same file; not this task's to fix, noted so it is not conflated with
+  the new eager-only variant's own stack safety.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — owns
   optional chaining (`?.`), a different feature sharing the `?` token.
-- PRs [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089),
+- PRs [`#2089`](https://github.com/functionalscript/functionalscript/pull/2089)
+  (the tree this doc was written against),
   [`#2090`](https://github.com/functionalscript/functionalscript/pull/2090),
-  [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092) —
-  the in-flight grammar work this task sequences after.
+  [`#2092`](https://github.com/functionalscript/functionalscript/pull/2092) and
+  [`#2106`](https://github.com/functionalscript/functionalscript/pull/2106)
+  (Stage A as it landed) — the grammar work this task sequences after, all
+  on `main`.
