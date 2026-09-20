@@ -49,18 +49,18 @@ impl<A: IVm> TryFrom<Any<A>> for Nullish {
         Ok(result)
     }
 }
-// …repeated for bool, f64, Array<A>, BigInt<A>, Function<A>, Object<A>, String<A>
+// …repeated for bool, Number, Array<A>, BigInt<A>, Function<A>, Object<A>, String<A>
 ```
 
 Both groups share one axis-of-difference: `(wrapper, variant)` — with one
 exception the table has to carry explicitly. `Unpacked::Number` holds a
 `Number`, and the `(Number, Number)` row is an ordinary pair; but an `f64`
 also enters, through a second `From` that canonicalizes on the way in
-(`Number::from`), and it comes back out of `TryFrom<Any<A>>` as an `f64`.
-That `f64` conversion is a one-way entry of its own, not a pair a
-generator or a trait can derive from `(wrapper, variant)`: option B leaves
-it as the hand-written impl it is, and option C's table cannot express it
-as a row.
+(`Number::from`), and nothing comes back out as an `f64`: `TryFrom<Any<A>>`
+hands back the `Number`. That `f64` conversion is a one-way entry of its
+own, not a pair a generator or a trait can derive from `(wrapper, variant)`:
+option B leaves it as the hand-written impl it is, and option C's table
+cannot express it as a row.
 
 ### Options without `macro_rules!`
 
