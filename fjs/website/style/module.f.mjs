@@ -127,6 +127,17 @@ pre { white-space: pre-wrap }
    bottom of the box beside it rather than the top. A single-line input has
    no such seam: its one line of text already sits on the label's baseline. */
 textarea { vertical-align: top }
+/* A browser's own default width for a textarea is about twenty characters —
+   a sliver of the page's column, for a field meant to hold a document.
+   box-sizing keeps the 100% to the content width regardless of the border
+   and padding a browser gives a textarea by default, so it does not overflow
+   its own line. Resizable in height only: width has one right answer here,
+   the column, so there is nothing to drag it away from — a browser's own
+   resize otherwise sets an inline size the next render does not carry
+   (nothing here re-renders a resize into what it drew, the same way it
+   redraws focus and the caret), and a field a reader just widened would
+   silently narrow back on the next keystroke. */
+textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
