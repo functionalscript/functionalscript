@@ -37,6 +37,24 @@ export const stylesheetPath = '/_main.css'
 export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
+ * The two `<link rel="icon">` elements every page carries, so that no page
+ * spells the paths itself.
+ *
+ * Both, because declaring one ends the implicit lookup: `/favicon.ico` is
+ * what a browser asks for when a document declares no icon at all, and once
+ * a page declares the SVG, a browser that recognizes `rel="icon"` but cannot
+ * render SVG has no reason to go looking for the `.ico` — the fallback would
+ * never be requested in the one case it exists for. The `type` on the SVG
+ * link is what lets a browser that can use it skip the other.
+ *
+ * @type {readonly [Element, Element]}
+ */
+export const faviconLinks = [
+    ['link', { rel: 'icon', href: '/favicon.ico', sizes: '32x32' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fjs/website/favicon.svg' }],
+]
+
+/**
  * The stylesheet, verbatim.
  *
  * @type {string}
