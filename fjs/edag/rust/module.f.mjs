@@ -22,7 +22,7 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { f64Literal, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
+import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
 
 /**
@@ -194,7 +194,7 @@ const primitiveExpr = v => {
     if (v === null) { return ok('Nullish::Null.to_any()') }
     switch (typeof v) {
         case 'boolean': { return ok(`${v}.to_any()`) }
-        case 'number': { return ok(`(${f64Literal(v)}).to_any()`) }
+        case 'number': { return ok(`f64_any(${f64Bits(v)})`) }
         case 'string': { return mapOk(s => `string_any(${s})`)(stringExpr(v)) }
         case 'bigint': { return mapOk(s => `bigint_any(${s})`)(bigintExpr(v)) }
     }
@@ -229,7 +229,7 @@ const keyExpr = k => typeof k === 'string' ? mapOk(s => `string_key(${s})`)(stri
  */
 const indexExpr = index => {
     if (typeof index === 'string') { return mapOk(s => `string_any(${s})`)(stringExpr(index)) }
-    if (typeof index === 'number') { return ok(`(${f64Literal(index)}).to_any()`) }
+    if (typeof index === 'number') { return ok(`f64_any(${f64Bits(index)})`) }
     return error(['no Rust for a Number(...) cast index', index])
 }
 

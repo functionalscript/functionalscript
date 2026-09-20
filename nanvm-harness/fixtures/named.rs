@@ -6,8 +6,12 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
     v.into()
 }
 
+fn f64_any<A: IVm>(v: u64) -> Any<A> {
+    f64::from_bits(v).to_any()
+}
+
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    let c0: Any<A> = [(5f64).to_any()].to_array().to_any();
+    let c0: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
     [(string_key("a"), c0.clone()), (string_key("default"), c0.clone()), (string_key("z"), c0.clone())].to_object().to_any()
 }

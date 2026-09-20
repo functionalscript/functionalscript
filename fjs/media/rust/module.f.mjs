@@ -23,10 +23,10 @@
  * @example
  *
  * ```js
- * import { f64Literal, i64Literal, stringLiteral } from './module.f.mjs'
+ * import { f64Bits, i64Literal, stringLiteral } from './module.f.mjs'
  *
  * stringLiteral('a"b') // ok('"a\\"b"')
- * f64Literal(-0)       // '-0f64'
+ * f64Bits(2.3)         // '0x4002666666666666'
  * i64Literal(-456n)    // ok('-456')
  * ```
  */
@@ -89,21 +89,53 @@ export const stringLiteral = v => {
 }
 
 /**
- * An `f64` literal.
+ * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
+ * found by bisection over the exponent range, every step an exact
+ * comparison against a power of two.
  *
- * `toString` already prints the shortest round-tripping decimal and Rust
- * parses decimal float literals the same way JavaScript does, so the digits
- * carry over unchanged. Only the three non-finite values and `-0` — which
- * `toString` prints as `0` — need spelling out. The `f64` suffix keeps whole
- * numbers from lexing as integers.
+ * @type {(a: number) => number}
+ */
+const exponentOf = a => {
+    let low = -1022
+    let high = 1024
+    while (high - low > 1) {
+        const mid = Math.floor((low + high) / 2)
+        if (2 ** mid <= a) { low = mid } else { high = mid }
+    }
+    return low
+}
+
+/** The one `NaN` this writer spells: the quiet `NaN` with an empty payload. @type {bigint} */
+const canonicalNan = 0x7ff8000000000000n
+
+/**
+ * The IEEE 754 binary64 bits of a number as a Rust `u64` literal in sixteen
+ * hex digits — `f64::from_bits` reads it back as the same number, `-0`, the
+ * infinities and subnormals included. Found in exact arithmetic: scaling by
+ * a power of two is exact, so a significand is read off as an integer
+ * rather than approximated, a normal number's exponent being
+ * {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}, whatever sign
+ * or payload an engine holds it with: FunctionalScript has one `NaN`
+ * ([spec](../../../spec/README.md#numbers)), a `NaN`'s bits being no
+ * observation the language admits, so one spelling is the whole of what
+ * the value means.
  *
  * @type {(v: number) => string}
  */
-export const f64Literal = v => {
-    if (Number.isNaN(v)) { return 'f64::NAN' }
-    if (v === Infinity) { return 'f64::INFINITY' }
-    if (v === -Infinity) { return 'f64::NEG_INFINITY' }
-    return `${Object.is(v, -0) ? '-0' : v.toString()}f64`
+export const f64Bits = v => `0x${bitsOf(v).toString(16).padStart(16, '0')}`
+
+/** @type {(v: number) => bigint} */
+const bitsOf = v => {
+    if (Number.isNaN(v)) { return canonicalNan }
+    const sign = v < 0 || Object.is(v, -0) ? 1n << 63n : 0n
+    const a = Math.abs(v)
+    if (a === Infinity) { return sign | 0x7ff0000000000000n }
+    if (a === 0) { return sign }
+    // scaled in two exact steps: `2 ** 1074` itself is past the largest double
+    if (a < 2 ** -1022) { return sign | BigInt(a * 2 ** 1023 * 2 ** 51) }
+    const exponent = exponentOf(a)
+    const fraction = BigInt((a / 2 ** exponent - 1) * 2 ** 52)
+    return sign | BigInt(exponent + 1023) << 52n | fraction
 }
 
 const i64Min = -(2n ** 63n)

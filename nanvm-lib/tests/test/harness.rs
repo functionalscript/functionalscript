@@ -24,6 +24,15 @@ pub fn bigint_any<A: IVm>(v: i64) -> Any<A> {
     Into::<BigInt<A>>::into(v).to_any()
 }
 
+/// An `Any` holding the number whose IEEE 754 bits are `v` — the one
+/// spelling `fjs/media/rust` gives every number, so a case's operand is the
+/// double a JavaScript engine held, bit for bit, except a `NaN`: the
+/// language has one, so every `NaN` arrives as the quiet, empty-payload one,
+/// whatever sign or payload the engine held it with.
+pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
+    f64::from_bits(v).to_any()
+}
+
 /// An `Any` holding a function.
 ///
 /// Which function does not matter: every operator covered by the shared data

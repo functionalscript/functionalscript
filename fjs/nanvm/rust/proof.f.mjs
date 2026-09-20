@@ -68,13 +68,13 @@ fn unary_plus<A: IVm>() {
 
 #[rustfmt::skip]
 fn conditional<A: IVm>() {
-    check::<A>("pick", Any::conditional(true.to_any(), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("pick", Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
 }
 
 #[rustfmt::skip]
 fn mul<A: IVm>() {
-    check::<A>("oneByTwo", (1f64).to_any() * (2f64).to_any(), (2f64).to_any());
-    check::<A>("oneByTwoSwapped", (2f64).to_any() * (1f64).to_any(), (2f64).to_any());
+    check::<A>("oneByTwo", f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000), f64_any(0x4000000000000000));
+    check::<A>("oneByTwoSwapped", f64_any(0x4000000000000000) * f64_any(0x3ff0000000000000), f64_any(0x4000000000000000));
 }
 
 pub fn all<A: IVm>() {
@@ -95,7 +95,7 @@ export const proof = {
         assertEq(valueExpr(undefined), 'Nullish::Undefined.to_any()')
         assertEq(valueExpr(true), 'true.to_any()')
         assertEq(valueExpr(false), 'false.to_any()')
-        assertEq(valueExpr(-0.3), '(-0.3f64).to_any()')
+        assertEq(valueExpr(-0.3), 'f64_any(0xbfd3333333333333)')
         assertEq(valueExpr('a'), 'string_any("a")')
         assertEq(valueExpr(-1n), 'bigint_any(-1)')
         assertEq(valueExpr([]), 'Array::default().to_any()')
@@ -114,12 +114,12 @@ export const proof = {
      * and the ids are the canonical ones.
      */
     nodeExpr: () => {
-        assertEq(nodeExpr(['-', 1]), '-((1f64).to_any())')
-        assertEq(nodeExpr(['+', 1]), 'Any::unary_plus((1f64).to_any())')
-        assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_((1f64).to_any())')
+        assertEq(nodeExpr(['-', 1]), '-(f64_any(0x3ff0000000000000))')
+        assertEq(nodeExpr(['+', 1]), 'Any::unary_plus(f64_any(0x3ff0000000000000))')
+        assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_(f64_any(0x3ff0000000000000))')
         assertEq(
             nodeExpr(['?:', true, 1, 2]),
-            'Any::conditional(true.to_any(), (1f64).to_any(), (2f64).to_any())')
+            'Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))')
         // The one `=>` with a spelling: the corpus's function value, printed
         // as the harness's stand-in, and atomic as an operand.
         assertEq(nodeExpr(lambdaExp()), 'function_any()')
@@ -127,9 +127,9 @@ export const proof = {
         assertEq(
             nodeExpr(['String', 'a']),
             'string_any("a").to_string().map(|v| v.to_any())')
-        assertEq(nodeExpr(['*', 1, 2]), '(1f64).to_any() * (2f64).to_any()')
-        assertEq(nodeExpr(['-', 1, 2]), '(1f64).to_any() - (2f64).to_any()')
-        assertEq(nodeExpr(['+', 1, 2]), '(1f64).to_any() + (2f64).to_any()')
+        assertEq(nodeExpr(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
+        assertEq(nodeExpr(['-', 1, 2]), 'f64_any(0x3ff0000000000000) - f64_any(0x4000000000000000)')
+        assertEq(nodeExpr(['+', 1, 2]), 'f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000)')
         assertEq(nodeExpr(['undefined']), 'Nullish::Undefined.to_any()')
     },
     /**
@@ -157,13 +157,13 @@ export const proof = {
     nestedOperation: () => {
         assertEq(
             nodeExpr(['*', 1, ['*', 2, 3]]),
-            '(1f64).to_any() * ((2f64).to_any() * (3f64).to_any())')
+            'f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))')
         assertEq(
             nodeExpr(['String', ['*', 1, 2]]),
-            '((1f64).to_any() * (2f64).to_any()).to_string().map(|v| v.to_any())')
+            '(f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)).to_string().map(|v| v.to_any())')
         assertEq(
             nodeExpr(['-', ['*', 1, 2]]),
-            '-(((1f64).to_any() * (2f64).to_any()))')
+            '-((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)))')
         // An array, an object and `['undefined']` are atomic renderings, so
         // they are operands as written.
         assertEq(nodeExpr(['-', ['undefined']]), '-(Nullish::Undefined.to_any())')
