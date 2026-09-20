@@ -2,7 +2,7 @@ use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, IVm, ToAny, Unpacked,
+        Any, IVm, Number, ToAny, Unpacked,
         member_access::{canonical_index, string_to_index},
     },
 };
@@ -30,7 +30,7 @@ impl<A: IVm> Array<A> {
                 .map(|i| self[i].clone()),
             Unpacked::String(s) => {
                 if s == "length".into() {
-                    Some((len as f64).to_any())
+                    Some(Number::from(len).to_any())
                 } else {
                     string_to_index(&s)
                         .filter(|&i| i < len)

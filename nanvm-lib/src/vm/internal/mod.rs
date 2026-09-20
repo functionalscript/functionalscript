@@ -12,15 +12,15 @@ use crate::{
 
 /// A VM's value representation.
 ///
-/// A number reaches a VM as a [`Number`], which holds one `NaN` by
-/// construction, so a NaN-boxing VM, which reads a negative quiet `NaN` as
-/// a boxed value, can store its bits as they are.
+/// A number reaches a VM only as a [`Number`], which holds one `NaN` by
+/// construction — there is no `From<f64>` here on purpose — so a NaN-boxing
+/// VM, which reads a negative quiet `NaN` as a boxed value, can store its
+/// bits as they are.
 pub trait IVm:
     Sized
     + Clone
     + From<Nullish>
     + From<bool>
-    + From<f64>
     + From<Number>
     + From<String<Self>>
     + From<BigInt<Self>>

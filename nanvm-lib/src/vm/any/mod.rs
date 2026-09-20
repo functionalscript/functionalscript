@@ -44,13 +44,13 @@ const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, Nullish, BigInt},
+///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, Nullish, Number, BigInt},
 ///     naive::Naive
 /// };
 /// fn any_test<A: IVm>() {
 ///     let b: Any<A> = true.to_any();
 ///     let n: Any<A> = Nullish::Null.to_any();
-///     let n: Any<A> = 42.0.to_any();
+///     let n: Any<A> = Number::from(42.0).to_any();
 ///     let c: String<A> = "Hello".into();
 ///     let m: Any<A> = c.to_any();
 ///     let a: Array<A> = [].to_array();

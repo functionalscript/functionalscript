@@ -1,6 +1,6 @@
 #![doc = include_str!("README.md")]
 
-use crate::vm::{Any, BigInt, IVm, String, ToAny};
+use crate::vm::{Any, BigInt, IVm, Number, String, ToAny};
 
 /// An `Any` holding the string `v`.
 pub fn string_any<A: IVm>(v: &str) -> Any<A> {
@@ -23,7 +23,7 @@ pub fn bigint_any<A: IVm>(v: i64) -> Any<A> {
 /// `NaN`: the language has one, so every `NaN` arrives as the quiet,
 /// empty-payload one, whatever sign or payload the engine held it with.
 pub fn f64_any<A: IVm>(v: u64) -> Any<A> {
-    f64::from_bits(v).to_any()
+    Number::from(f64::from_bits(v)).to_any()
 }
 
 #[cfg(test)]
