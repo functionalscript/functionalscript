@@ -540,8 +540,23 @@ const exclusiveOp = chunks => (dir, path) => {
     return [{ ...dir, [name]: chunks }, okVoid]
 }
 
+/**
+ * `exclusiveOp` behind the descent, with the one question `parse` throws away
+ * asked first: **an empty path names nothing, and `.` is the root**. Both
+ * collapse to no segments at all, so the handler cannot tell them apart, and a
+ * host answers differently — measured on node 22.22.2, a `wx` open of `''` is
+ * `ENOENT` where one of `.` is `EEXIST`. {@link statOp} carves the same case out
+ * for the same reason.
+ *
+ * @type {(chunks: readonly Vec[]) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
+ */
+const exclusive = chunks => {
+    const op = operation(exclusiveOp(chunks))
+    return path => path === '' ? state => [state, enoent] : op(path)
+}
+
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
-const createExclusive = operation(exclusiveOp([]))
+const createExclusive = exclusive([])
 
 /**
  * `createExclusive` and `writeFile` in one step, which is what the operation is:
@@ -551,7 +566,7 @@ const createExclusive = operation(exclusiveOp([]))
  *
  * @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
  */
-const writeExclusive = payload => operation(exclusiveOp([payload]))
+const writeExclusive = payload => exclusive([payload])
 
 // The lock-free upload only ever writes sequentially at the current end of the
 // staging file (`offset === size`), so the virtual model implements that append

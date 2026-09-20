@@ -405,6 +405,21 @@ export const proof = {
         assert(isDir2[0] === 'error')
         assertIoCode(isDir2[1], 'EEXIST')
         assertStructurallySame(kept2.root, held)
+        // An **empty** path is not the root, though `parse` collapses both to no
+        // segments — so the `EEXIST` above must not reach it. Measured, node
+        // 22.22.2 answers `ENOENT` for a `wx` open of `''` and `EEXIST` for one
+        // of `.`; `statOnEmptyPath` pins the same pair for `stat`.
+        const [, noName] = virtual({ ...emptyState, root: held })(writeExclusive('', payload))
+        assert(noName[0] === 'error')
+        assertIoCode(noName[1], 'ENOENT')
+        const [, noName2] = virtual({ ...emptyState, root: held })(createExclusive(''))
+        assert(noName2[0] === 'error')
+        assertIoCode(noName2[1], 'ENOENT')
+        // `.` *is* the root, and the root is a directory a name cannot be created
+        // over — the control that keeps the carve-out from swallowing it.
+        const [, dot] = virtual({ ...emptyState, root: held })(writeExclusive('.', payload))
+        assert(dot[0] === 'error')
+        assertIoCode(dot[1], 'EEXIST')
         // a name whose directory is not there: the operation wrapper falls
         // through with the whole remaining path, and nothing is created. A
         // non-empty root, so a mutant that answered the right error beside a
