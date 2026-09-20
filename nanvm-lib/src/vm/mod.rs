@@ -39,9 +39,12 @@ mod test {
 
     use super::*;
 
+    /// Compiles only: `Any<A>` is `PartialEq` for a generic VM. The two
+    /// sides differ, a value and its clone, so clippy's `eq_op` does not
+    /// read the comparison as a tautology under `--all-targets`.
     fn _eq_test<A: IVm>() {
         let x: Any<A> = 0.5.to_any();
-        assert_eq!(x, x);
+        assert_eq!(x.clone(), x);
     }
 
     fn _any_test<A: IVm>() {
