@@ -295,7 +295,7 @@ export const demo = {
         return ['div',
             ['p',
                 ['label', { for: 'datajs' }, 'DataJS '],
-                ['textarea', { id: 'datajs', name: 'datajs', rows: '3' }, text],
+                ['textarea', { id: 'datajs', name: 'datajs', rows: '8' }, text],
             ],
             g.ok ? graphSvg(g) : ['p', `Error: ${g.error}`],
         ]
