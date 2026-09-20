@@ -112,6 +112,15 @@ export const proof = {
         assertStructurallySame(read('export default [NaN, Infinity, -Infinity];'), ['ok'])
         assertStructurallySame(read('export default { -Infinity: 1 };'), ['error', '-'])
     },
+    namedExports: () => {
+        for (const source of [
+            'export const a=1;',
+            'const b=1; export const a=b; const c=a; export const z=c; export default z;',
+            'export const a=1; const b=a;',
+        ]) { assertStructurallySame(read(source), ['ok']) }
+        assertStructurallySame(read('export const a=1; export default 2; const b=3;'), ['error', 'const'])
+        assertStructurallySame(read('export const a=1; import b from "./b";'), ['error', 'import'])
+    },
     accepted: () => {
         assertStructurallySame(read('export default 1;'), ['ok'])
         assertStructurallySame(read(' /* c */ export default [1, [2,], {a: 1, "b": 2, ["c"]: 3,},] ; // c\n'), ['ok'])
@@ -367,7 +376,8 @@ export const proof = {
     // Statements end with `;`, so a repetition of any statement is LL(1)
     // too — the order is the module's rule, not lookahead's.
     statements: () => {
-        parser(/** @type {Rule} */ (repeatFrom0({ importStatement, constStatement, exportStatement })))
+        parser(/** @type {Rule} */ (repeatFrom0({ importStatement, constStatement })))
+        parser(/** @type {Rule} */ (exportStatement))
     },
     throw: {
         eofRejected: () => symbolOf({ token: { kind: 'eof' }, metadata: { path: 'a.js', line: 1, column: 1 } }),

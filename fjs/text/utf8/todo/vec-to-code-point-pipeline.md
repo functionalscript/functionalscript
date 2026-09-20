@@ -35,9 +35,9 @@ same decoder" — evidence the pipeline is being re-derived in several places.
 The byte-list level below the `Vec` has the same fan-out, outside `text/`:
 
 ```ts
-// fjs/web/module.f.mjs:71 — tryUtf8's inner pipeline, re-derived
+// fjs/text/percent/module.f.mjs, utf8Bytes — tryUtf8's inner pipeline, re-derived
 const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
-// fjs/web/module.f.mjs:77-83 — fromVec minus the alignment check, over bytes
+// fjs/text/percent/module.f.mjs, utf8String — fromVec minus the alignment check, over bytes
 const utf8String = bytes => { /* toCodePointList + isValidCodePoint loop + codePointListToString */ }
 // fjs/effects/common/module.f.mjs:174-175 — utf8ToString's inner pipeline
 const utf8ListToString = bytes => codePointListToString(toCodePointList(bytes))
@@ -82,10 +82,10 @@ with every importer updated in the same PR; a re-export left in
       if so.
 - [ ] Export the byte-list helpers in both directions, beside `fromVec`:
       the decoder pair (unchecked and code-point-validated
-      `bytes → string`) replaces `fjs/web`'s `utf8String` and
+      `bytes → string`) replaces `fjs/text/percent`'s `utf8String` and
       `fjs/effects/common`'s `utf8ListToString`; a byte-list encoder
       (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
-      `fjs/web`'s `utf8Bytes`. Then those modules stop importing the
+      `fjs/text/percent`'s `utf8Bytes`. Then those modules stop importing the
       utf8/utf16 primitives directly.
 - [ ] Drop the three unused imports at `fjs/effects/node/module.f.mjs:27-29`.
 - [ ] `tsc`, `fjs t`.

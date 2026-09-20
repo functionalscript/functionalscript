@@ -20,6 +20,15 @@
  * [`../text/todo/utf8-to-string-cost.md`](../text/todo/utf8-to-string-cost.md),
  * with the measurements and with why fanning the reads out does not help.
  *
+ * **An empty page is probably a directory that no longer exists.** The
+ * generator only ever writes: a page sits next to the source it describes, so
+ * switching away from a branch that added a directory can leave its generated
+ * `index.html` behind — git will not remove a directory that still holds a
+ * file it does not track — and the next build walks that leftover directory
+ * and gives it a page with nothing in it. This is a working-tree condition
+ * only; a deploy builds from a fresh checkout, so no stale page ever ships.
+ * `git clean -Xd` removes the leftover.
+ *
  * @module
  *
  * @import { All, Env, NodeProgramOptions, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'

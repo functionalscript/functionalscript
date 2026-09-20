@@ -64,6 +64,19 @@ Implementation observations were inspected at
 `1b4d0218ab93f2abc812b5e79f7fe4cb8d91b3d7`. Proposed conflicts are not claims
 that those features already execute in FJS.
 
+Re-inspected at `186af0b` with a differential corpus of a few hundred
+modules — lexical edge cases, key order and duplicates, property access,
+unary-minus coercion, number and string round trips, sharing across
+`const`, imports, symlinks and JSON modules, and function arity — each run
+through Node and compared with the `.data.js` and `.js` outputs, and a
+sample with the `.rs` output on the naive VM. No accepted program computed
+a different result and no invalid program was accepted; every difference
+was a refusal. The one output defect found was a wrong kind of failure,
+not a wrong value — a string the `.rs` writer could not spell was thrown
+past the compiler or written as a file `rustc` refused — and
+[`fjs/media/rust`](../fjs/media/rust/module.f.mjs) now spells or refuses
+each such literal.
+
 #### Module resolution — current implementation, rule 2
 
 [Module-resolution compatibility](../fjs/fsc/todo/module-resolution-compatibility.md)
@@ -156,6 +169,12 @@ the surrounding conversion rules, and do not derive it from mutable execution
 or optimization state. Function allocation identity and arity are unchanged.
 Ordinary JavaScript execution retains the host's representation.
 
+**Observed at `186af0b`:** the `.js` output already renders every function
+from the graph — `() => 1` is written `(...$a)=>1` — so a JavaScript
+consumer of that output sees different text, as adopted. The function's
+`name` differs too, which this exception does not cover; that is the
+correction below.
+
 [Function text and serialization](../spec/todo/serialization.md#function-text-and-serialization)
 owns the three open questions: whether the FSC function serializer and `String`
 are the same function, whether `String` instantiates a frame (the owner's
@@ -163,6 +182,29 @@ preference is substituting captured values), and how each handles `self`.
 No exact spelling or closure/self strategy is selected by this exception.
 Earlier no-exception/refusal directions for authored-text differences are
 superseded; implementing the chosen rendering contract remains work.
+
+#### Function name — not a compatibility observation
+
+A compatibility issue exists only where the same program returns different
+serializable data on an FJS VM and a JavaScript engine
+([principles](../spec/README.md#principles)). What a JavaScript engine
+reports about `fsc`'s *written* output is the writer's spelling, not a
+result of the program, so the `.js` writer's names — a hoisted function
+bound as `$0`, an inlined one taking the name of the position it is written
+in — are no compatibility question, and neither is the function text the
+exception above covers. No FJS program reads a function's name at all:
+[`entry`](../fjs/edag/todo/entry.md) replaced the own-property read with
+the enumerable-entry helper so that it cannot — `person.name` is enumerable
+where `f.name` and `f.length` are not — and retired the proposals that would
+have exposed it, `own-access.md` and `function-name.md`, in `4f4da828`;
+`f.name` is refused at the key, `entry(f, 'name')` is `undefined`, and
+[the language](../spec/README.md#functions) carries no name in the graph.
+The property-access and presence plans,
+[2330](../spec/todo/2330-property-accessor.md) and
+[2345](../spec/todo/2345-has-own-property.md), hold the same boundary from
+the source side. The corpus gate below compares the serializable data each
+execution returns, never the written text or what an engine reports about
+it.
 
 #### Property reflection — incompatible alternatives withdrawn
 
@@ -268,12 +310,17 @@ requirements; compatibility alone would allow randomness and external mutation.
       serializer/`String`, frame and `self` questions in the owning documents.
 - [ ] **P1:** implement and test the chosen function-rendering contract across
       source, EDAG, coercion and execution; preserve other function observations.
+- [x] Record that a function's name is no compatibility observation: no
+      FJS program reads one, by `entry`'s decision, and what an engine
+      reports about the written output is the writer's spelling.
 - [ ] **P1:** preserve the property-observation and composition contract in
       each affected implementation. Missing support is refused, not guessed.
 - [ ] **P1:** extend the existing host harness with a shared compatibility
       corpus. Check accepted original text as JavaScript module source, then
-      compare original-JS, EDAG, generated-JS and supported native executions.
-      Exercise exported functions; do not compare only normalized source.
+      compare the serializable data original-JS, EDAG, generated-JS and
+      supported native executions return. Exercise exported functions; do
+      not compare only normalized source, and do not compare the written
+      text or what an engine reports about it.
 - [ ] **P1:** compare number distinctions such as `-0` and `NaN`, bigint,
       string code units, property order, aliasing and allowed function
       observations. JSON stringification alone is not a sufficient comparator.

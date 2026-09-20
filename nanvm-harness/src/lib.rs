@@ -13,6 +13,10 @@
 pub mod array;
 #[path = "../fixtures/boolean.rs"]
 pub mod boolean;
+#[path = "../fixtures/escapes.rs"]
+pub mod escapes;
+#[path = "../fixtures/named.rs"]
+pub mod named;
 #[path = "../fixtures/number.rs"]
 pub mod number;
 #[path = "../fixtures/object.rs"]
@@ -30,7 +34,8 @@ use nanvm_lib::vm::{Any, IVm, JsonError};
 ///
 /// `module` is exactly the shape `mvp-roadmap.md`'s Rust code generator
 /// section says generated modules expose: `pub fn module<A: IVm>() ->
-/// Any<A>`, not a `main`.
+/// Any<A>`, returning the object of all exports. The harness selects its
+/// `default` property for the JSON result.
 ///
 /// A real generated module's default export may be a function, which the
 /// harness's job is to run before printing its result
@@ -41,14 +46,38 @@ use nanvm_lib::vm::{Any, IVm, JsonError};
 /// out of [`Any::to_json`] as [`JsonError::Function`], the same as every
 /// other value this minimal serializer doesn't (yet) handle.
 pub fn run<A: IVm>(module: fn() -> Any<A>) -> Result<std::string::String, JsonError> {
-    module().to_json()
+    module()
+        .member_access("default".into())
+        .expect("a compiled module returns its export object")
+        .to_json()
 }
 
 #[cfg(test)]
 mod tests {
     use nanvm_lib::naive::Naive;
 
-    use crate::{array, boolean, number, object, property, run, sharing, string};
+    use crate::{array, boolean, escapes, named, number, object, property, run, sharing, string};
+
+    #[test]
+    fn module_result_contains_exports() {
+        assert_eq!(
+            number::module::<Naive>().to_json(),
+            Ok(r#"{"default":42}"#.into())
+        );
+        assert_eq!(
+            object::module::<Naive>().to_json(),
+            Ok(r#"{"default":{"a":1,"b":"two"}}"#.into())
+        );
+    }
+
+    #[test]
+    fn named_exports() {
+        assert_eq!(
+            named::module::<Naive>().to_json(),
+            Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
+        );
+        assert_eq!(run::<Naive>(named::module), Ok("[5]".into()));
+    }
 
     #[test]
     fn number_constant() {
@@ -94,5 +123,17 @@ mod tests {
     #[test]
     fn property_access() {
         assert_eq!(run::<Naive>(property::module), Ok("42".into()));
+    }
+
+    #[test]
+    fn escaped_characters() {
+        // `escapes.rs` spells each of these as a `\u{…}` escape, since a
+        // control character or a bidirectional control cannot stand in a
+        // Rust literal as it is; the VM reads back the character itself.
+        // `to_json` escapes the two control characters and prints the rest.
+        assert_eq!(
+            run::<Naive>(escapes::module),
+            Ok("[\"\\u0000\",\"\\u001f\",\"\u{7f}\",\"\u{202e}\",\"\u{2069}\"]".into())
+        );
     }
 }

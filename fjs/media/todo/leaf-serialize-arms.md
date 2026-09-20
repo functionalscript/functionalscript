@@ -90,6 +90,13 @@ only its `numberSerialize` and `{}`; extended adds `bigint`; DataJS adds
 ### Tasks
 
 - [ ] Add the builder with a proof; rewrite the three switches through it.
+- [ ] In the same pass, publish the codec tail beside `treeSerialize`: both
+      `fjs/media/json` and `fjs/media/json/extended` end with the identical
+      `serialize = treeSerialize(primitiveSerialize)` and
+      `stringify = sort => compose(serialize(sort))(concat)`, importing
+      `compose` and `concat` only to say so. A `codec(leafSerialize)`
+      returning `{ serialize, stringify }` leaves each dialect with its leaf
+      spelling and nothing else.
 - [ ] `tsc`, `fjs test`; serializer proofs pass unchanged.
 
 ### Related

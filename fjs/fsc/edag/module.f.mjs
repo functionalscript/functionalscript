@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstBody, AstConst, AstImport, AstMember, AstModule } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstBody, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
  * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -14,7 +14,7 @@
  * @import { Unknown as JsonUnknown } from '../../media/json/types.ts'
  * @import { Entry } from '../../types/object/types.ts'
  * @import { Unresolved } from './types.ts'
- * @import { _Binding, _Link, _Nodes } from './private.ts'
+ * @import { _Binding, _Link, _LowerResults, _LowerWork, _Nodes, _Resolved } from './private.ts'
  */
 
 import { anchors } from '../ast/module.f.mjs'
@@ -23,6 +23,7 @@ import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 const args = /** @type {const} */ (['args'])
 
@@ -48,7 +49,7 @@ const args = /** @type {const} */ (['args'])
 const undefinedNode = () => ['undefined']
 
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
-const parameter = (_, i) => ['.', args, i]
+const parameter = (_, i) => ['.', ['.', args, i], 'default']
 
 /** @type {(lower: (ast: AstConst) => Exp) => (member: AstMember) => readonly [':', string, Exp]} */
 const property = lower => ([key, value]) => [':', key, lower(value)]
@@ -86,15 +87,17 @@ const call = nodes => (callee, args) => {
 }
 
 /**
- * One entry's EDAG. A reference is the node it names — a `const` is one
- * node however many references reach it, which is how the sharing a module
- * spells survives into the graph — and an object's members are written as
- * they stand, a repeated key twice, since the constructor applies them in
- * order and the later wins.
+ * One entry's EDAG, its own operator/negation/bitwise-not chain excepted —
+ * every other node, lowered exactly as {@link lower} always did, recursing
+ * back into {@link lower} itself for whatever it holds: a container, a
+ * call, or a chain of accesses nests only as deep as the source that built
+ * it, a separate, narrower concern than an operator chain's unbounded
+ * length ({@link lower}'s own comment has why that one gets an explicit
+ * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary>) => Exp}
  */
-const lower = nodes => ast => {
+const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return undefinedNode() }
     if (ast === null || typeof ast !== 'object') { return ast }
     switch (ast[0]) {
@@ -107,23 +110,105 @@ const lower = nodes => ast => {
         case '=>': { return ['=>', null, scope(ast[1])] }
         case 'args': { return nodes.args }
         case '()': { return call(nodes)(ast[1], ast[2]) }
-        // `op12` of one operand, the EDAG's unary minus, folded away over a
-        // numeric literal: negating one is exact arithmetic — total, and
-        // answered without knowing anything else about the program — so the
-        // graph holds the number and every reader sees the leaf it saw
-        // before there was an operator.
-        //
-        // A `-` over anything else stays a node. Folding one would mean
-        // saying what a string or a container converts to, which is
-        // `ToPrimitive`'s and depends on what the value holds; the readers
-        // that want a number work it out where a number is wanted.
-        case '-': {
-            const operand = lower(nodes)(ast[1])
-            return typeof operand === 'number' || typeof operand === 'bigint' ? -operand : ['-', operand]
-        }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
     }
+}
+
+/**
+ * One entry's EDAG. A reference is the node it names — a `const` is one
+ * node however many references reach it, which is how the sharing a module
+ * spells survives into the graph — and an object's members are written as
+ * they stand, a repeated key twice, since the constructor applies them in
+ * order and the later wins.
+ *
+ * An operator, a negation or a bitwise not is walked with an explicit
+ * stack rather than recursion: a source expression nests a chain of these
+ * as deep as it is long, left-associative for every binary operator and
+ * right-associative for `-`/`~`/`**`, and {@link evaluate} in
+ * `../parser/module.f.mjs` already resolves the same shape this way, over
+ * its own `_Stack`, for the identical reason.
+ *
+ * `op12` of one operand, the EDAG's unary minus, folds away over a numeric
+ * literal: negating one is exact arithmetic — total, and answered without
+ * knowing anything else about the program — so the graph holds the number
+ * and every reader sees the leaf it saw before there was an operator. A
+ * `-` over anything else stays a node, and binary `-` never folds: folding
+ * one would mean saying what a string or a container converts to, which is
+ * `ToPrimitive`'s and depends on what the value holds — the readers that
+ * want a number work it out where a number is wanted. Every other binary
+ * operator and the bitwise not are the EDAG's own `op1`/`op2` shapes
+ * already, both operands lowered and nothing folded.
+ *
+ * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
+ */
+const lower = nodes => root => {
+    /** @type {_LowerWork} */
+    let work = { kind: 'expand', ast: root, rest: null }
+    /** @type {_LowerResults} */
+    let results = null
+    while (work !== null) {
+        if (work.kind === 'expand') {
+            /** @type {AstConst} */
+            const ast = work.ast
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            if (ast === null || typeof ast !== 'object') {
+                results = { top: lowerLeaf(nodes)(ast), rest: results }
+                work = rest
+                continue
+            }
+            switch (ast[0]) {
+                case '-': {
+                    if (ast.length !== 2) {
+                        work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
+                        break
+                    }
+                    work = { kind: 'expand', ast: ast[1], rest: { kind: 'neg', rest } }
+                    break
+                }
+                case '~': { work = { kind: 'expand', ast: ast[1], rest: { kind: 'bitnot', rest } }; break }
+                case '*': case '/': case '%': case '**':
+                case '+':
+                case '===': case '!==': case '<': case '<=': case '>': case '>=':
+                case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+                    work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
+                    break
+                }
+                default: {
+                    results = { top: lowerLeaf(nodes)(ast), rest: results }
+                    work = rest
+                }
+            }
+            continue
+        }
+        if (work.kind === 'neg') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a negation', root])
+            /** @type {Exp} */
+            const value = typeof operand.top === 'number' || typeof operand.top === 'bigint' ? -operand.top : ['-', operand.top]
+            results = { top: value, rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'bitnot') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
+            results = { top: ['~', operand.top], rest: operand.rest }
+            work = rest
+            continue
+        }
+        /** @type {_LowerWork} */
+        const rest = work.rest
+        const tag = work.tag
+        const right = assertNotNullish(results, ['no right operand for', tag, root])
+        const left = assertNotNullish(right.rest, ['no left operand for', tag, root])
+        results = { top: [tag, left.top, right.top], rest: left.rest }
+        work = rest
+    }
+    return assertNotNullish(results, ['no result lowering', root]).top
 }
 
 /**
@@ -196,6 +281,40 @@ const over = imports => edag => ({ imports, edag })
  */
 export const unresolved = module => over(module[0])(lowered(module[0].map(parameter))(module))
 
+/**
+ * The statically known exports at a module boundary, past its evaluation
+ * sequence. A malformed boundary is an internal compiler error.
+ *
+ * @type {(module: Exp) => readonly (readonly [':', string, Exp])[]}
+ */
+export const _moduleExports = module => {
+    if (module instanceof Array) {
+        if (module[0] === ',') { return _moduleExports(module[1][module[1].length - 1]) }
+        if (module[0] === '{}' && module[1].every(p => p[0] === ':' && typeof p[1] === 'string')) {
+            return /** @type {readonly (readonly [':', string, Exp])[]} */ (module[1])
+        }
+    }
+    throw 'expected a module export object'
+}
+
+/**
+ * Select a default value while evaluating the whole module. The default-only
+ * shape keeps its normalized spelling; a named module keeps its complete
+ * computation under the access, including unselected initializers. A missing
+ * default projects to undefined here; import linking checks presence separately.
+ *
+ * @type {(module: Exp) => Exp}
+ */
+export const _defaultExport = module => {
+    const members = _moduleExports(module)
+    if (members.length !== 1 || members[0][1] !== 'default') { return ['.', module, 'default'] }
+    if (module instanceof Array && module[0] === ',') {
+        const operands = module[1]
+        return [',', [...operands.slice(0, -1), _defaultExport(operands[operands.length - 1])]]
+    }
+    return members[0][2]
+}
+
 // ── resolution ────────────────────────────────────────────────────────────────
 
 /** @type {(member: Entry<JsonUnknown>) => readonly [':', string, Exp]} */
@@ -215,28 +334,28 @@ const jsonEdag = value => {
         : ['{}', definedEntries(value).map(jsonMember)]
 }
 
-/** An EDAG boxed for the record of resolved modules, which cannot hold a bare `null`. @type {(edag: Exp) => readonly [Exp]} */
-const boxed = edag => [edag]
-
 /**
  * A module's EDAG recorded under its identity, and the chain of imports left as
  * it was before the module was entered.
  *
- * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, Exp]}
+ * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
  */
-const completed = id => context => edag => [{
-    complete: setReplace(id)(boxed(edag))(context.complete),
-    stack: drop(1)(context.stack),
-}, edag]
+const completed = id => context => edag => {
+    const resolved = { exports: edag, default: _moduleExports(edag).some(([, key]) => key === 'default') ? _defaultExport(edag) : undefined }
+    return [{
+        complete: setReplace(id)(resolved)(context.complete),
+        stack: drop(1)(context.stack),
+    }, resolved]
+}
 
-/** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, Exp]} */
-const completedJson = id => context => value => completed(id)(context)(jsonEdag(value))
+/** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
+const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonEdag(value)]]])
 
-/** @type {(bound: readonly Exp[]) => (linked: readonly [_Link, Exp]) => _Binding} */
-const appended = bound => ([context, edag]) => ({ context, bound: [...bound, edag] })
-
-/** One import resolved and its EDAG appended to the module's bound imports. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => mapStep(link(source)(context), appended(bound))
+/** One import resolved, with a default export required even if its binding is unused. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
+const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) =>
+    resolved.default === undefined
+        ? pureError({ message: 'module has no default export', metadata: null, path: source.path })
+        : pureOk({ context: linked, bound: [...bound, resolved.default] }))
 
 /**
  * A parsed module linked: its imports resolved in source order, each to its
@@ -244,7 +363,7 @@ const linkImport = source => ({ context, bound }) => mapStep(link(source)(contex
  * reference is lowered, so the graph is built once, with the imported
  * module's node where its parameter would be.
  *
- * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadFile | ResolveFileModule, readonly [_Link, Exp], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => (module: AstModule) => Effect<ReadFile | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
  */
 const linkModule = source => context => module => step(
     foldStep(_importSources(source)(module[0]), { context, bound: [] }, linkImport),
@@ -258,7 +377,7 @@ const linkModule = source => context => module => step(
  * `with { type: "json" }`; a `.json` file imported without it, or another
  * file imported with it, is refused as JavaScript refuses it.
  *
- * @type {(source: _Source) => (context: _Link) => Effect<ReadFile | ResolveFileModule, readonly [_Link, Exp], ParseError>}
+ * @type {(source: _Source) => (context: _Link) => Effect<ReadFile | ResolveFileModule, readonly [_Link, _Resolved], ParseError>}
  */
 const link = source => context => {
     const { id, path, json } = source
@@ -268,15 +387,15 @@ const link = source => context => {
     if (mismatch !== null) { return pureError(mismatch) }
     if (includes(id)(context.stack)) { return pureError({ message: 'circular dependency', metadata: null, path }) }
     const done = at(id)(context.complete)
-    if (done !== null) { return pureOk([context, done[0]]) }
+    if (done !== null) { return pureOk([context, done]) }
     const entered = { ...context, stack: { first: id, tail: context.stack } }
     return json
         ? mapStep(_parseJson(path), completedJson(id)(entered))
         : step(_parseModule(path), linkModule(source)(entered))
 }
 
-/** @type {(linked: readonly [_Link, Exp]) => Exp} */
-const edagOf = ([, edag]) => edag
+/** @type {(linked: readonly [_Link, _Resolved]) => Exp} */
+const edagOf = ([, resolved]) => resolved.exports
 
 /**
  * The program at `path` as one EDAG: the module read and parsed, each of

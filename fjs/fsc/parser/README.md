@@ -1,7 +1,8 @@
 # DJS Parser
 
 Reads a DJS token stream as a FunctionalScript module: `import` statements, then
-`const` statements, then one `export default`, each ended by `;`.
+ordinary and exported `const` statements, with an optional final `export default`.
+Every statement ends with `;`, and at least one export is required.
 
 It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
@@ -17,14 +18,29 @@ symbols here.
 module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
-export ::= 'export' t 'default' t value ';' t
-value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
-body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
-unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
+export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
+value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
+         | (primitive t | id t | array | object) access* powTail tail
+         | '(' t (func | group tail)
+body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
+         | (primitive t | id t | array) access* powTail tail
+         | '(' t (func | group tail) | block
+unary  ::= '-' t unaryOperand | '~' t unaryOperand
+         | (primitive t | id t | array | object) access* powTail
+         | '(' t group
+unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
+         | (primitive t | id t | array | object) access*
+         | '(' t groupOperand
 block  ::= '{' t const* 'return' s value ';' t '}' t
-paren  ::= '(' t (func | group)
 func   ::= [ '...' t id t ] ')' s '=>' t body
-group  ::= value ')' t access*
+group  ::= value ')' t access* powTail
+groupOperand ::= value ')' t access*
+powTail ::= [ '**' t unary ]
+tail   ::= { mulOp t unary }
+           { addOp t unary <the multiplicative repeat above> }
+           …six more layers, each repeating over every layer below it the
+           same way — shift, relational, equality, bitwiseAnd, bitwiseXor,
+           bitwiseOr, JavaScript's own order
 access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
@@ -47,10 +63,33 @@ parenthesized parameters will
 It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
 is a group, and nothing may follow a value there.
 
-A `-` takes the group under its `(` and not `paren`, the two differing by
-the function: `-(...a) => 1` is a syntax error in JavaScript and
-`-((...a) => 1)` is not, so the operand is the group alone and the `...` is
-refused where JavaScript refuses it rather than at the `(`.
+A `-` or a `~` takes the group under its `(` and not `paren`, the two
+differing by the function: `-(...a) => 1` is a syntax error in JavaScript
+and `-((...a) => 1)` is not, so the operand is the group alone and the
+`...` is refused where JavaScript refuses it rather than at the `(`. Every
+binary operator's operand is `unary` — see the next section for why it
+can be no wider a rule — but `-`/`~`'s own operand is `unaryOperand`, a
+narrower rule still: JavaScript refuses `**` immediately after a
+unary-prefixed operand, full stop, at any depth (`- -2 ** 2` exactly as
+`- 2 ** 2`), so `unaryOperand` is every alternative `unary` has minus
+`powTail`, recursing through itself rather than `unary` for a nested
+`-`/`~`. Only `(-2) ** 2` and `-(2 ** 2)` write either reading:
+parentheses that move the `**` to where it no longer immediately follows
+the prefix.
+
+`tail`, the Stage A binary-operator suffix
+([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)), is
+threaded onto every branch of `value`/`body` that may carry one, inline,
+rather than wrapping a shared primary the way a textbook precedence ladder
+would. That wrapping was tried first and rejected: `func`'s body is
+unbounded, reading everything to its right as its own, so a primary the
+ladder also wrapped would leak the ladder's own follow set down into the
+body and manufacture an LL(1) conflict with no real ambiguity behind it —
+a greedy reader never needs the choice the checker flags, but the checker
+cannot see that. Spelling `tail` inline, with `unary` — narrow, `func`
+excluded — as every operand throughout, avoids the leak entirely: `func`
+is reachable only where `value`/`body` put it directly, never as a repeated
+operand any layer wraps.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had
@@ -72,8 +111,10 @@ the backtracking grammar this replaced had
   nothing follows.
 
 Two rules that were once code are shape. Statement ordering — every `import`
-before every `const` — is `import* const* export`, and a late `import` is a
-token the grammar cannot use. A reserved literal — `true`, `false`, `null`,
+before every ordinary or exported `const` — is in the grammar, and a late
+`import` is a token it cannot use. The `export` rule factors the common keyword:
+`default` ends the module, while `const` can be followed by ordinary declarations
+and another export. Its optional tail permits a named-only module. A reserved literal — `true`, `false`, `null`,
 `undefined`, `NaN`, `Infinity` — has its own symbol, never `id`'s, and the
 rules take it wherever a *name* may stand: `{ NaN: 1 }` and `a.NaN` are a
 key and an access, and `const NaN = 1;` reaches the fold and is refused

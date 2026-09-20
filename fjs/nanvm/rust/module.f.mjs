@@ -156,10 +156,20 @@ const emit = reason => statement => reason === undefined
     ? [`${indent}${statement}`]
     : [`${indent}// TODO: ${reason}: ${statement}`]
 
+/**
+ * A case's name as the Rust string literal `check` takes. The names are the
+ * corpus's own, so one `stringLiteral` refuses is a defect in the corpus,
+ * not an input to report: unwrapped, as {@link nodeExpr} above unwraps the
+ * printer for the same reason.
+ *
+ * @type {(name: string) => string}
+ */
+const nameLiteral = name => unwrap(stringLiteral(name))
+
 /** @type {(expected: Expectation) => (name: string) => (result: string) => string} */
 const assertion = expected => name => result => isThrows(expected)
-    ? `check_throws::<A>(${stringLiteral(name)}, ${result});`
-    : `check::<A>(${stringLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
+    ? `check_throws::<A>(${nameLiteral(name)}, ${result});`
+    : `check::<A>(${nameLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
 
 /**
  * `true` when `e` reaches `n` — the arrays are the graph, so this is the

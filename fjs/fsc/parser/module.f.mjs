@@ -16,7 +16,8 @@
  * the whole module. Each `import` binds its name, each `const` resolves its
  * value against the names bound so far and then binds its own — so
  * `const a = a` is `const not found`, as it is a reference before its
- * declaration in JavaScript — and the export is the module's last value.
+ * declaration in JavaScript. Export names select those bindings into the
+ * module result, with an optional final default expression.
  *
  * The grammar sees symbols and the fold sees text, which is the line that
  * decides where a check belongs: every check that has to read a *word* is
@@ -47,15 +48,16 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
- * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
- * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
+ * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
+import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
@@ -63,8 +65,8 @@ import { prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, unary, value,
-    values,
+    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, unary,
+    unaryOperand, value, values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -176,11 +178,11 @@ const constAt = node => {
     return out.statement
 }
 
-/** @type {(node: _Leaf) => Node} */
+/** @type {(node: _Leaf) => Extract<Out, { readonly id: 'export' }>} */
 const exportAt = node => {
     const out = outAt(node)
     assert(out.id === 'export')
-    return out.node
+    return out
 }
 
 /** @type {(node: _Leaf) => Module} */
@@ -337,31 +339,136 @@ const accessed = (base, round) => {
 const steps = (base, accesses) => accesses.reduce(accessed, base)
 
 /**
- * The node a value's own part makes, before the accesses after it: a
- * primitive converted from its token, a reference by its token, and a
- * container of the items its list returned — `[ open t [ items ] close t
- * ]`, the list at the third position. What a `(` opens, a block and a
- * negation are not here: a function, a block and a negation take no access,
- * so each node is made whole, and a group's value is reached through
- * {@link parenNode}.
+ * `**`'s round, when a primitive, a reference, an array, an object or a
+ * group is raised to a power: the operand at the third position of `'**' t
+ * unary`, under the one round the option holds.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg', unknown]>) => Node}
+ * @type {(base: Node, powTail: _PowTailNode) => Node}
+ */
+const withPow = (base, powTail) => {
+    const rounds = unmapped(powTail)
+    if (rounds.length === 0) { return base }
+    const [, , v] = unmapped(rounds[0])
+    return ['**', base, nodeAt(v)]
+}
+
+/**
+ * Every binary layer's own tag, read to its operator, in one flat map:
+ * `multiplicativeOp` through `bitwiseOrOp` (`./grammar/module.f.mjs`) each
+ * key their own rounds by a name none of the other seven use, so one map
+ * serves a round from any layer — no per-layer reader, and so no branch for
+ * a tag no round can carry: a plain lookup has no branch to leave
+ * unreachable where a `switch`'s `default` would.
+ *
+ * @type {{ readonly [tag: string]: '*' | '/' | '%' | '+' | '-' | '<<' | '>>' | '>>>' | '<' | '<=' | '>' | '>=' | '===' | '!==' | '&' | '^' | '|' }}
+ */
+const binaryOpTag = {
+    mul: '*', div: '/', mod: '%',
+    add: '+', sub: '-',
+    left: '<<', right: '>>', unsigned: '>>>',
+    lt: '<', le: '<=', gt: '>', ge: '>=',
+    eq: '===', ne: '!==',
+    and: '&',
+    xor: '^',
+    or: '|',
+}
+
+/**
+ * One binary layer's rounds folded onto `base`, left-associative: each
+ * round is `op t unary tail*`, its own trailing tail lists — one per layer
+ * below this one — read the same way {@link applyTail} reads a value's own,
+ * so a round's right operand is its `unary` with everything below this
+ * layer already applied to it, `1 + 2 * 3` folding `2 * 3` before `+`
+ * ever sees it.
+ *
+ * @type {(base: Node, rounds: readonly _TailRound[]) => Node}
+ */
+const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
+    const [opChoice, , v, ...lowerTails] = unmapped(round)
+    const [opTag] = unmapped(opChoice)
+    const right = applyTail(nodeAt(v), lowerTails)
+    return [binaryOpTag[opTag], left, right]
+}, base)
+
+/**
+ * `base` through every binary layer above it, `multiplicative` first and
+ * `bitwiseOr` last — the eight tail lists `value`/`body` spread onto every
+ * branch that may carry one, `func` and `block` excepted. Reused for a
+ * round's own right operand, whose trailing tail lists are the same shape
+ * one layer down.
+ *
+ * @type {(base: Node, tailLists: readonly _Leaf[]) => Node}
+ */
+const applyTail = (base, tailLists) => tailLists.reduce(tailStep, base)
+
+/**
+ * One tail list applied to the accumulator so far.
+ *
+ * `unmapped` infers its return type from `_Leaf`'s own array member here,
+ * `readonly unknown[]`, rather than from `foldLayer`'s expected one: a
+ * generic call's type argument is inferred from its own argument before
+ * the position it is handed to is considered. The round shape this reads
+ * is `_TailRound`'s, unmapped one level further in by {@link foldLayer}
+ * itself, so the cast states what {@link _TailRound} already documents,
+ * rather than a new claim.
+ *
+ * @type {(acc: Node, rounds: _Leaf) => Node}
+ */
+const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[]} */ (unmapped(rounds)))
+
+/**
+ * The node a value's own part makes, before the accesses, the power and the
+ * binary layers above it: a primitive converted from its token, a reference
+ * by its token, and a container of the items its list returned — `[ open t
+ * [ items ] close t ]`, the list at the third position, under the
+ * `[thing, accesses]` pair every one of these branches opens with, at the
+ * first position of the branch itself. What a `(` opens, a block, a
+ * negation and a bitwise not are not here: each of those takes no access of
+ * its own, so its node is made whole in {@link toNode}, and a group's value
+ * is reached through {@link parenNode}.
+ *
+ * Takes the whole node, tag and branch together, rather than a pre-peeled
+ * `x`: the branch narrows by `tag` only inside the discriminated union
+ * `Children<Unary | UnaryOperand | Value | Body, …>` still is at this
+ * position, which is what lets the second `unmapped` below see a precise
+ * shape instead of `unknown`. `UnaryOperand`'s own four leaves are wrapped
+ * one tuple deep for exactly this reason — see its own comment in
+ * `./grammar/module.f.mjs` — so the same reads serve both rules.
+ *
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
-        case 'primitive': { return ['primitive', primitiveOf(unmapped(unmapped(unmapped(branch)[0])[0]))] }
-        case 'ref': { return ['ref', tokenAt(unmapped(unmapped(unmapped(branch)[0])[0])[1])] }
-        case 'array': { return ['array', toArray(valueItems(unmapped(unmapped(branch)[0])[2]))] }
-        case 'object': { return ['object', toArray(memberItems(unmapped(unmapped(branch)[0])[2]))] }
+        case 'primitive': {
+            const x = unmapped(branch)[0]
+            const p = unmapped(x)[0]
+            return ['primitive', primitiveOf(unmapped(unmapped(p)[0]))]
+        }
+        case 'ref': {
+            const x = unmapped(branch)[0]
+            const p = unmapped(x)[0]
+            return ['ref', tokenAt(unmapped(unmapped(p)[0])[1])]
+        }
+        case 'array': {
+            const x = unmapped(branch)[0]
+            const a = unmapped(x)[0]
+            return ['array', toArray(valueItems(unmapped(a)[2]))]
+        }
+        case 'object': {
+            const x = unmapped(branch)[0]
+            const o = unmapped(x)[0]
+            return ['object', toArray(memberItems(unmapped(o)[2]))]
+        }
     }
 }
 
 /**
  * What a `(` opened, at the third position of `( t (func | group)`: a
  * function, by its parameter list at the first position of
- * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group,
- * the value at the first position of `value ) t access*` and the steps
- * after the `)` at the fourth.
+ * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group
+ * through the binary layers above it, {@link applyTail} — a function takes
+ * none, nothing following one unparenthesized (`unary`'s own comment in
+ * `./grammar/module.f.mjs` has why).
  *
  * A group is no node of its own: `(x)` is whatever `x` is, and the steps
  * after the `)` apply to that same node, so nothing downstream can tell a
@@ -376,29 +483,39 @@ const parenNode = ([tag, branch]) => {
         const [p, , , , , b] = unmapped(branch)
         return ['=>', parameterOf(p), nodeAt(b)]
     }
-    return groupNode(branch)
+    const [g, ...tailLists] = unmapped(branch)
+    return applyTail(groupNode(g), tailLists)
 }
 
 /**
- * A group's node, from `value ) t access*`: the value at the first position
- * with the steps after the `)`, at the fourth, applied to it.
+ * A group's node, from `value ) t access* '**' t unary`: the value at the
+ * first position, the steps after the `)` at the fourth applied to it, and
+ * the power at the fifth raised over that.
  *
  * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
  */
 const groupNode = node => {
-    const [v, , , accesses] = unmapped(node)
-    return steps(nodeAt(v), unmapped(accesses))
+    const [v, , , accesses, powTail] = unmapped(node)
+    return withPow(steps(nodeAt(v), unmapped(accesses)), powTail)
 }
 
 /**
- * A value is the node its branch made, with each access after it applied
- * in turn — the accesses at the second position of every branch, after
- * the value's own part — or what a `(` opened, {@link parenNode}. A body is
- * a value less the object, and its node is made the same way.
+ * A value is the node its branch made, with each access after it, the
+ * power over it and the binary layers above it applied in turn — or what a
+ * `(` opened, {@link parenNode}. A body is a value less the object, and its
+ * node is made the same way; `unary` is a value less every binary layer,
+ * its every branch the same but for the trailing tail lists none of them
+ * carry, which is what tells this reader whether to call {@link applyTail}
+ * at all.
  *
  * A block preserves its ordered `const` declarations and explicit `return`,
  * including when no declaration precedes it. The source tree keeps that
  * syntax until the fold lowers it to an executable function body.
+ *
+ * A negation and a bitwise not are `op t unary tail*`, `unary` at the
+ * third position exactly as a binary layer's own round has it — negated or
+ * complemented first, then the tail lists above that, `-2 * 3` reading
+ * `(-2) * 3` and not `-(2 * 3)`.
  *
  * @type {(node: Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -409,16 +526,46 @@ const toNode = node => {
     if (node[0] === 'group') {
         return symbol({ id: 'value', node: groupNode(unmapped(node[1])[2]) })
     }
-    if (node[0] === 'neg') {
-        const [, , v] = unmapped(node[1])
-        return symbol({ id: 'value', node: ['-', nodeAt(v)] })
+    if (node[0] === 'neg' || node[0] === 'bitnot') {
+        const [, , v, ...tailLists] = unmapped(node[1])
+        return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists) })
     }
     if (node[0] === 'block') {
         const [, , consts, , , v] = unmapped(node[1])
         const statements = unmapped(consts).map(constAt).map(constNode)
         return symbol({ id: 'value', node: ['block', [...statements, ['return', nodeAt(v)]]] })
     }
-    const [, accesses] = unmapped(node[1])
+    const x = unmapped(node[1])[0]
+    const [, accesses] = unmapped(x)
+    const [, powTail, ...tailLists] = unmapped(node[1])
+    const withSteps = steps(baseOf(node), unmapped(accesses))
+    return symbol({ id: 'value', node: applyTail(withPow(withSteps, powTail), tailLists) })
+}
+
+/**
+ * A `-`/`~`'s own operand: {@link unaryOperand}'s branches, read the same
+ * way {@link toNode} reads {@link unary}'s but for the power and the
+ * binary layers above it, neither of which this rule's grammar admits — a
+ * further `-`/`~`, recursing through this same reader by way of
+ * {@link nodeAt}, {@link unaryOperand} mapped here exactly as {@link
+ * unary} is by `toNode`; a group, whose own steps apply with no power past
+ * the `)`; or the base itself, through {@link baseOf}, with only the
+ * accesses after it applied.
+ *
+ * @type {(node: Children<UnaryOperand, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const operandToNode = node => {
+    if (node[0] === 'neg' || node[0] === 'bitnot') {
+        const [, , v] = unmapped(node[1])
+        return symbol({ id: 'value', node: [node[0] === 'neg' ? '-' : '~', nodeAt(v)] })
+    }
+    if (node[0] === 'group') {
+        const [, , g] = unmapped(node[1])
+        const [v, , , accesses] = unmapped(g)
+        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses)) })
+    }
+    const x = unmapped(node[1])[0]
+    const [, accesses] = unmapped(x)
     return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
 }
 
@@ -477,18 +624,40 @@ const toImport = ([, , name, , , , module, , attribute]) =>
 const toConst = ([, , name, , , , v]) =>
     symbol({ id: 'const', statement: { name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
 
+/** @type {(node: _Leaf) => ModuleConst} */
+const ordinaryConst = node => ({ declaration: constAt(node), exported: false })
+
 /** @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toExport = ([, , , , v]) => symbol({ id: 'export', node: nodeAt(v) })
+const toExport = ([, , choice]) => {
+    const [kind, branch] = unmapped(choice)
+    if (kind === 'default') {
+        return symbol({ id: 'export', consts: null, default: nodeAt(unmapped(branch)[2]) })
+    }
+    const [declaration, consts, tail] = unmapped(branch)
+    const next = unmapped(tail)
+    const rest = next.length === 0 ? null : exportAt(next[0])
+    return symbol({
+        id: 'export',
+        consts: concat([
+            { declaration: constAt(declaration), exported: true },
+            ...unmapped(consts).map(ordinaryConst),
+        ])(rest === null ? null : rest.consts),
+        default: rest === null ? null : rest.default,
+    })
+}
 
 /** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toModule = ([, imports, consts, exported]) => symbol({
-    id: 'module',
-    module: {
-        imports: unmapped(imports).map(importAt),
-        consts: unmapped(consts).map(constAt),
-        exported: exportAt(exported),
-    },
-})
+const toModule = ([, imports, consts, exported]) => {
+    const result = exportAt(exported)
+    return symbol({
+        id: 'module',
+        module: {
+            imports: unmapped(imports).map(importAt),
+            consts: [...unmapped(consts).map(ordinaryConst), ...toArray(result.consts)],
+            exported: result.default,
+        },
+    })
+}
 
 /** @type {Mappings<DjsTokenWithMetadata, Out>} */
 const map = mapping
@@ -513,6 +682,9 @@ export const mappings = [
     // what a `-` takes is a rule of its own, and its branches are the
     // value's, so the same reader serves it
     map(unary, toNode),
+    // a `-`/`~`'s own operand is a further rule of its own, its branches
+    // `unary`'s minus the power, so it takes a reader of its own too
+    map(unaryOperand, operandToNode),
     map(values, toValues),
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
@@ -841,7 +1013,18 @@ const enter = (stack, env, node) => {
         }
         case '.': { return [{ top: { key: node[2] }, rest: stack }, env, ['enter', node[1]]] }
         case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
-        case '-': { return [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]] }
+        case '-': {
+            return node.length === 2
+                ? [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]]
+                : [{ top: { tag: node[0], right: node[2] }, rest: stack }, env, ['enter', node[1]]]
+        }
+        case '~': { return [{ top: { bitnot: true }, rest: stack }, env, ['enter', node[1]]] }
+        case '*': case '/': case '%': case '**':
+        case '+':
+        case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+            return [{ top: { tag: node[0], right: node[2] }, rest: stack }, env, ['enter', node[1]]]
+        }
         case '=>': {
             const [tag, inner] = functionScope(node[1])
             if (tag === 'error') { return [stack, env, error(inner)] }
@@ -871,6 +1054,17 @@ const returned = (stack, env, frame, value) => {
         /** @type {AstNeg} */
         const negated = ['-', value]
         return [stack, env, ok(negated)]
+    }
+    if ('bitnot' in frame) {
+        /** @type {AstBitnot} */
+        const complemented = ['~', value]
+        return [stack, env, ok(complemented)]
+    }
+    if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, env, ['enter', frame.right]] }
+    if ('left' in frame) {
+        /** @type {AstBinary} */
+        const binary = [frame.tag, frame.left, value]
+        return [stack, env, ok(binary)]
     }
     if ('statements' in frame) {
         if (frame.statements[frame.index][0] === 'const') {
@@ -946,8 +1140,9 @@ const extended = env => (word, ref) => setReplace(word)(ref)(env)
  * The statements of a module, in order: each `import` binds its name to
  * the next argument, each `const` resolves its value against the names
  * bound so far — itself not among them, so a `cref` always names an earlier
- * entry — and then binds its name, and the export is resolved against them
- * all.
+ * entry — and then binds its name. The default export is resolved against
+ * them all and placed in the module's result object. Ordinary function bodies
+ * keep their own return values.
  *
  * @type {(module: Module) => Result<AstModule, ParseError>}
  */
@@ -958,6 +1153,8 @@ const foldModule = ({ imports, consts, exported }) => {
     let modules = []
     /** @type {readonly AstConst[]} */
     let body = []
+    /** @type {readonly AstMember[]} */
+    let exports = []
     for (const statement of imports) {
         const [tag, word] = bindable(env)(statement.name)
         if (tag === 'error') { return error(word) }
@@ -966,22 +1163,27 @@ const foldModule = ({ imports, consts, exported }) => {
         env = extended(env)(word, ['aref', modules.length])
         modules = [...modules, record]
     }
-    for (const { name, value: node } of consts) {
+    for (const { declaration: { name, value: node }, exported: named } of consts) {
         // the name first: a statement wrong in both halves answers for the
         // half a reader meets first
         const [tag, word] = bindable(env)(name)
         if (tag === 'error') { return error(word) }
+        if (named && word === 'then') { return error({ message: 'reserved export name then', metadata: name.metadata }) }
         const [resolved, value] = evaluate(env)(node)
         if (resolved === 'error') { return error(value) }
         env = extended(env)(word, ['cref', body.length])
+        if (named) { exports = [...exports, [word, ['cref', body.length]]] }
         body = [...body, value]
     }
-    const [resolved, last] = evaluate(env)(exported)
-    if (resolved === 'error') { return error(last) }
+    if (exported !== null) {
+        const [resolved, last] = evaluate(env)(exported)
+        if (resolved === 'error') { return error(last) }
+        exports = [...exports, ['default', last]]
+    }
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [modules, [...body, last]]
+    const astModule = [modules, [...body, ['object', toArray(sort(exports))]]]
     return ok(astModule)
 }
 
@@ -992,7 +1194,8 @@ const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
 
 /**
  * Reads the token list as a FunctionalScript module: `import` statements, then
- * `const` statements, then one `export default`, each ended by `;`.
+ * `const` and `export const` statements, with an optional final `export default`.
+ * At least one export is required; every statement ends with `;`.
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader

@@ -4,7 +4,7 @@
  * @import { Exp } from '../../edag/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { generate, toRust } from './module.f.mjs'
 
 export const proof = {
@@ -129,6 +129,24 @@ pub fn module<A: IVm>() -> Any<A> {
         refusedNullishBase: () => {
             const result = toRust(['.', null, 'a'])
             assertEq(result[0], 'error')
+        },
+        /**
+         * A string no Rust literal can hold and a bigint no `i64` can are
+         * refused against the output, naming what could not be spelled,
+         * where they once threw past the compiler uncaught or wrote a file
+         * `rustc` could not read.
+         */
+        refusedLoneSurrogate: () => {
+            const result = toRust('\ud800')
+            assertStructurallySame(
+                result,
+                ['error', 'no Rust spelling for this module: no Rust string literal for a lone surrogate in: "\\ud800"'])
+        },
+        refusedBigintOutOfRange: () => {
+            const result = toRust(2n ** 63n)
+            assertStructurallySame(
+                result,
+                ['error', 'no Rust spelling for this module: no Rust i64 for: 9223372036854775808'])
         },
     },
 }

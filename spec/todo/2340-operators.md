@@ -4,26 +4,26 @@
 |-----------|---------|-----------|
 |Comparison |`==`     |not allowed|
 |           |`!=`     |not allowed|
-|           |`===`    |1          |
-|           |`!==`    |1          |
-|           |`>`      |1          |
-|           |`>=`     |1          |
-|           |`<`      |1          |
-|           |`<=`     |1          |
-|Arithmetics|`+`      |1          |
-|           |`-`      |1          |
-|           |`*`      |1          |
-|           |`/`      |1          |
-|           |`%`      |1          |
+|           |`===`    |**done**   |
+|           |`!==`    |**done**   |
+|           |`>`      |**done**   |
+|           |`>=`     |**done**   |
+|           |`<`      |**done**   |
+|           |`<=`     |**done**   |
+|Arithmetics|`+`      |**done**   |
+|           |`-`      |**done**   |
+|           |`*`      |**done**   |
+|           |`/`      |**done**   |
+|           |`%`      |**done**   |
 |           |unary `-`|**done**   |
-|           |`**`     |1          |
-|Bitwise    |`&`      |1          |
-|           |`\|`     |1          |
-|           |`^`      |1          |
-|           |`~`      |1          |
-|           |`<<`     |1          |
-|           |`>>`     |1          |
-|           |`>>>`    |1          |
+|           |`**`     |**done**   |
+|Bitwise    |`&`      |**done**   |
+|           |`\|`     |**done**   |
+|           |`^`      |**done**   |
+|           |`~`      |**done**   |
+|           |`<<`     |**done**   |
+|           |`>>`     |**done**   |
+|           |`>>>`    |**done**   |
 |Logical    |`&&`     |1          |
 |           |`\|\|`   |1          |
 |           |`??`     |1          |
@@ -31,6 +31,40 @@
 |Conditional|`?:`     |1          |
 |Comma      |`,`      |1          |
 |Type       |`typeof` |EDAG only  |
+
+**Stage A is in the language**: arithmetic (`+ - * / % **`), strict
+comparison (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) —
+every operator above but unary `-` is new, `-` itself now dual-arity, told
+from the prefix by the number of operands rather than by a tag of its own,
+exactly as the EDAG's `op12Id` already reads it. `==`/`!=` stay refused, and
+the remaining priority-1 rows — the lazy operators, the conditional, and the
+comma — wait on Stage A's own top, `bitwiseOr`, being where the next
+precedence layer attaches.
+
+The front end reads every one and computes none of them: the grammar builds
+`[tag, left, right]` (`[tag, operand]` for `~`), and the lowering carries
+that straight to the EDAG's own `op2`/`op12`/`op1` shape, which already
+admits every one of these tags. Unary `-` alone still folds over a numeric
+literal — exact, total arithmetic, so the graph holds the leaf rather than a
+node — and nothing else does: `+` alone would need `ToPrimitive` to decide
+number or string, and folding the rest while leaving `+` a node draws an
+inconsistent line the front end refuses to draw. The `.json` and DataJS
+outputs answer `an operator has no value` for all nineteen — the eighteen
+binary tags plus unary `~` — the same refusal a function or a call already
+earns — a value for them is the EDAG's question, once an interpreter is
+written for it
+([`fjs/fsc/todo/interpret-edag.md`](../../fjs/fsc/todo/interpret-edag.md)).
+
+Precedence follows JavaScript's own order, arithmetic above comparison above
+bitwise. `-`/`~` immediately before `**` are refused, exactly as in
+JavaScript: `-2 ** 2` and `~2 ** 2` are syntax errors, at any depth of
+`-`/`~` nesting, and parentheses are the only way to write either reading —
+`(-2) ** 2` raises the negation, `-(2 ** 2)` negates the power. A function
+is no operand of any of these, unparenthesized:
+`(...a) => body` reads everything to its right as `body`, so `1 * (...a) =>
+2` is refused exactly where `-(...a) => 1` already is, and an extra pair of
+parentheses is what turns a function into an ordinary operand, as it always
+was for `-`.
 
 **Unary `-` is in the language.** It is the first operator, and the one the
 front end needed first: the tokenizer used to fold a `-` into the number,
