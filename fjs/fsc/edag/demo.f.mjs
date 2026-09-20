@@ -33,7 +33,7 @@
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Edge, Node } from '../../website/demo/graph/types.ts'
  * @import { Element } from '../../media/html/types.ts'
- * @import { _Shape, _State } from './private.ts'
+ * @import { _Shape, _State } from './types.ts'
  */
 
 import { parse } from '../transpiler/module.f.mjs'
