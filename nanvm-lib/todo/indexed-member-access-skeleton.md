@@ -13,12 +13,12 @@ with the element read swapped:
 // Array::member_access                          // String::member_access
 let len = self.length();                         let len = self.length();
 match Unpacked::from(key) {                      match Unpacked::from(key) {
-    Unpacked::Number(n) => canonical_index(n)        Unpacked::Number(n) => canonical_index(n)
+    Unpacked::Number(n) => canonical_index(n.into()) Unpacked::Number(n) => canonical_index(n.into())
         .filter(|&i| i < len)                            .filter(|&i| i < len)
         .map(|i| self[i].clone()),                       .map(|i| [self[i]].to_string::<A>().to_any()),
     Unpacked::String(s) => {                         Unpacked::String(s) => {
         if s == "length".into() {                        if s == "length".into() {
-            Some((len as f64).to_any())                      Some((len as f64).to_any())
+            Some(Number::from(len).to_any())                 Some(Number::from(len).to_any())
         } else {                                         } else {
             string_to_index(&s)                              string_to_index(&s)
                 .filter(|&i| i < len)                            .filter(|&i| i < len)
