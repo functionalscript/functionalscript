@@ -70,5 +70,8 @@ Check what depends on the current behaviour first: `fjs/cas`'s staging paths and
   normalization `parse` performs that a host does not, and one that rides on this
   issue's proposal: a trailing separator can only be honoured once the walk
   decides where resolution failed.
+- [no-name-length-limit](./no-name-length-limit.md) — how long a name may be,
+  a path divergence of a different kind: not what it means, but whether a host
+  would accept it at all.
 - [symlink-containment](../../../../web/todo/symlink-containment.md) — the same
   text-versus-walk gap, from the other end.

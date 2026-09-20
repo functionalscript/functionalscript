@@ -74,5 +74,7 @@ separator. All three are decided by *where* the walk happens.
   moves resolution into the descent. This issue rides on that change.
 - [reads-enotdir-through-a-file](./reads-enotdir-through-a-file.md) — which code
   an unservable path answers, the third of the three.
+- [no-name-length-limit](./no-name-length-limit.md) — how long a name may be,
+  the fourth of this runner's path divergences and the mildest.
 - [`fjs/path`](../../../../path/module.f.mjs) — `parse`, which is lexical by
   design and should stay that way; this is about what a file system may ask of it.
