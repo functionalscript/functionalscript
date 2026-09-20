@@ -305,14 +305,17 @@ above, not just new-syntax acceptance.
 - Stage C (comma): explicitly sequenced after Stage B; the anchoring
   subtraction rule this task implements one instance of is Stage C's to
   generalize, not to pull forward.
-- `nanvm-lib`'s own "Complete all basic FunctionalScript operators... including
-  the short-circuit operators" P1 task — *implementing* `&&`/`||`/`??`/`?:`
-  lazily in Rust — stays out of scope: a separate, already-tracked line of
-  work against `fjs/nanvm/module.f.mjs`'s shared operator-test data. The
-  `.rs` route of `fjs compile` is this task's to keep honest, though — see
-  the Rust-codegen task below: not implementing laziness in Rust, but
-  making sure the one node shape `fjs/fsc/rust` does not refuse yet, `?:`,
-  is refused once the grammar can produce it.
+- A lazy `.rs` spelling for `&&`/`||`/`??`/`?:`. `nanvm-lib` has the four
+  operations, taking evaluated operands, and the corpus checks them; a
+  compiled module needs operands that are not evaluated before the call,
+  which nothing spells yet —
+  [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md),
+  blocked on the generated module's failure contract in
+  [`stage-a-operators.md`](../rust/todo/stage-a-operators.md). The `.rs`
+  route of `fjs compile` is this task's to keep honest, though — see the
+  Rust-codegen task below: not implementing laziness in Rust, but making
+  sure the one node shape `fjs/fsc/rust` does not refuse yet, `?:`, is
+  refused once the grammar can produce it.
 - The FunctionalScript writer (`fjs/fsc/serializer`): stays silent on Stage B
   the same way it already is on Stage A. `entry`'s ``default: { return
   error(`a ${node[0]} node`) }`` already refuses every Stage A operator node,
@@ -369,6 +372,10 @@ above, not just new-syntax acceptance.
       `fjs/edag/rust` entries stay as they are: `fjs/nanvm/rust` unwraps the
       shared printer to write the corpus, so gating them there would break
       generating the very tests the lazy Rust operators will be checked by.
+      Lifting the refusal is
+      [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md)'s,
+      after the failure contract in
+      [`stage-a-operators.md`](../rust/todo/stage-a-operators.md).
 - [ ] `refsOf`: add the eager-restricted variant and switch **both** `reach`
       and `anchors`' own `within` computation to it, leaving `sharing`'s use
       of the unrestricted one unchanged; proofs for the sharing behavior,
@@ -402,8 +409,10 @@ above, not just new-syntax acceptance.
   the staging plan and the anchoring-subtraction rule this task implements
   one instance of.
 - [`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md) —
-  Parser task (this) and the separate Rust short-circuit-operators task,
-  after which the `.rs` route can stop refusing these nodes.
+  the Parser task, which this is. Its operators item is done and its `?:`
+  item is the VM's; neither is what the `.rs` route waits on, which is
+  [the failure contract](../rust/todo/stage-a-operators.md) and then
+  [a lazy spelling](../rust/todo/lazy-operators.md).
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — `op2Rust`/
   `op3Rust`, whose `&&`/`||`/`??`/`?:` entries the corpus printer needs as
   they are; [`fjs/fsc/rust`](../rust/module.f.mjs)'s `resultOperator` is
