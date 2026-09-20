@@ -54,7 +54,7 @@ export const demo = {
     view: text => ['div',
         ['p',
             ['label', { for: 'json' }, 'JSON '],
-            ['textarea', { id: 'json', name: 'json', rows: '6' }, text],
+            ['textarea', { id: 'json', name: 'json', rows: '8' }, text],
         ],
         ['p', 'Parsed, then written back:'],
         ['pre', roundTrip(text)],
