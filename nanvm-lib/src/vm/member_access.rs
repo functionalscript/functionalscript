@@ -6,7 +6,7 @@
 
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{IVm, String},
+    vm::{IVm, Number, String},
 };
 
 /// A `Number` key that denotes a valid array/string index: a non-negative
@@ -15,7 +15,8 @@ use crate::{
 /// stringifies to `"0"` and indexes element `0`, unlike the *string* key
 /// `"-0"`, which `string_to_index` below rejects (it round-trips to `"0"`,
 /// not back to itself, so it never denotes an index).
-pub(crate) fn canonical_index(n: f64) -> Option<u32> {
+pub(crate) fn canonical_index(n: Number) -> Option<u32> {
+    let n: f64 = n.into();
     if !n.is_finite() || n < 0.0 || n.fract() != 0.0 || n > u32::MAX as f64 {
         return None;
     }

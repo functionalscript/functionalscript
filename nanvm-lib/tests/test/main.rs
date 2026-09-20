@@ -17,7 +17,7 @@ use nanvm_lib::{
     common::default::default,
     naive,
     sign::Sign,
-    vm::{Any, Array, BigInt, Function, IContainer, IVm, Nullish, Object, String, ToAny},
+    vm::{Any, Array, BigInt, Function, IContainer, IVm, Nullish, Number, Object, String, ToAny},
 };
 
 /// `try_into` out of `Any`, for each type that supports it.
@@ -34,12 +34,13 @@ fn conversions<A: IVm>() {
     let s: String<A> = s.try_into().unwrap();
     assert_eq!(s, String::from("Hello"));
 
-    let nan: Any<A> = f64::NAN.to_any();
-    let nan: f64 = nan.try_into().unwrap();
+    let nan: Any<A> = Number::NAN.to_any();
+    let nan: Number = nan.try_into().unwrap();
     assert!(nan.is_nan());
 
-    let nz: Any<A> = (-0.0).to_any();
-    let nz: f64 = nz.try_into().unwrap();
+    let nz: Any<A> = Number::from(-0.0).to_any();
+    let nz: Number = nz.try_into().unwrap();
+    let nz: f64 = nz.into();
     assert_eq!(format!("{nz}"), "-0");
     assert_eq!(1.0 / nz, -f64::INFINITY);
 
@@ -162,7 +163,7 @@ fn unary_plus_bigint_message<A: IVm>() {
 /// The generated mixed-numeric cases assert only that they throw; this pins
 /// the message owned by `nanvm-lib`.
 fn mixed_numeric_operands_message<A: IVm>() {
-    let number: Any<A> = 1.0.to_any();
+    let number: Any<A> = Number::from(1.0).to_any();
     let bigint: Any<A> = BigInt::from(1u64).to_any();
     let expected =
         Err("TypeError: Cannot mix BigInt and other types, use explicit conversions".into());
@@ -253,7 +254,7 @@ fn reference_identity_selection<A: IVm>() {
     // `||`: always-truthy on the left selects itself; on the right it is
     // selected whenever the left is falsy.
     assert_eq!(
-        Any::logical_or(object.clone(), 0.0.to_any()).unwrap(),
+        Any::logical_or(object.clone(), Number::from(0.0).to_any()).unwrap(),
         object
     );
     assert_eq!(
@@ -264,7 +265,7 @@ fn reference_identity_selection<A: IVm>() {
     // `??`: never-nullish on the left selects itself; on the right it is
     // selected whenever the left is nullish.
     assert_eq!(
-        Any::nullish_coalescing(array.clone(), 0.0.to_any()).unwrap(),
+        Any::nullish_coalescing(array.clone(), Number::from(0.0).to_any()).unwrap(),
         array
     );
     assert_eq!(

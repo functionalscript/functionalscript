@@ -15,7 +15,7 @@ pub trait IVm:
     + Clone
     + From<Nullish>
     + From<bool>
-    + From<f64>
+    + From<Number>
     + From<String<Self>>
     + From<BigInt<Self>>
     + From<Object<Self>>
@@ -67,10 +67,9 @@ registered.
 
 ### Related
 
-- `Unpacked::number` (`src/vm/unpacked.rs`) canonicalizes every `NaN`, and
-  the trait doc asks each VM's `From<f64>` to match it. Routing `ToAny`
-  through `Unpacked`, as proposed here, would make that structural: no VM
-  could pack an `f64` without passing the canonicalization.
+- `From<Number>` (`src/vm/number/mod.rs`) took `From<f64>`'s place among
+  the eight, since a number reaches a VM only as a `Number`; the collapse
+  absorbs it like the rest.
 
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — targets
   the `From<X> for Unpacked` / `TryFrom` copies themselves; complementary,

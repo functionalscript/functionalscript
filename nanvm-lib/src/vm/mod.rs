@@ -7,11 +7,11 @@ mod dispatch;
 mod ecma_whitespace;
 mod function;
 mod impls;
-mod int32_coercion;
 mod internal;
 mod join;
 mod member_access;
 mod nullish;
+mod number;
 mod number_coercion;
 mod numeric;
 mod object;
@@ -29,6 +29,7 @@ pub use crate::vm::{
     function::{Function, header::FunctionHeader},
     internal::{IContainer, IVm},
     nullish::Nullish,
+    number::Number,
     object::{Object, property::Property, to_object::ToObject},
     string::{String, to_string::ToString},
     unpacked::Unpacked,
@@ -44,12 +45,12 @@ mod test {
     /// sides differ, a value and its clone, so clippy's `eq_op` does not
     /// read the comparison as a tautology under `--all-targets`.
     fn _eq_test<A: IVm>() {
-        let x: Any<A> = 0.5.to_any();
+        let x: Any<A> = Number::from(0.5).to_any();
         assert_eq!(x.clone(), x);
     }
 
     fn _any_test<A: IVm>() {
-        let x: Any<A> = 0.5.to_any();
-        let _: f64 = x.try_into().unwrap();
+        let x: Any<A> = Number::from(0.5).to_any();
+        let _: Number = x.try_into().unwrap();
     }
 }

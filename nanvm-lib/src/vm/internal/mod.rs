@@ -5,26 +5,23 @@ pub use icontainer::IContainer;
 use crate::{
     sign::Sign,
     vm::{
-        Any, Array, BigInt, Function, FunctionHeader, Object, Property, String, Unpacked,
+        Any, Array, BigInt, Function, FunctionHeader, Number, Object, Property, String, Unpacked,
         nullish::Nullish,
     },
 };
 
 /// A VM's value representation.
 ///
-/// A VM owes what `Unpacked::number` gives, wherever it packs a number: every
-/// `NaN` is the one canonical `NaN`, since the language has one and a
-/// NaN-boxing VM reads a negative quiet `NaN` as a boxed value. `Unpacked`'s
-/// conversions from an `f64` canonicalize, but `Unpacked::Number` is a public
-/// variant a caller can build with any bits, so the VM's own `From` is where
-/// the invariant holds — `Naive`'s does — and one that packs an `f64` itself
-/// canonicalizes it first.
+/// A number reaches a VM only as a [`Number`], which holds one `NaN` by
+/// construction — there is no `From<f64>` here on purpose — so a NaN-boxing
+/// VM, which reads a negative quiet `NaN` as a boxed value, can store its
+/// bits as they are.
 pub trait IVm:
     Sized
     + Clone
     + From<Nullish>
     + From<bool>
-    + From<f64>
+    + From<Number>
     + From<String<Self>>
     + From<BigInt<Self>>
     + From<Object<Self>>
