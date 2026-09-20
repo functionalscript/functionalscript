@@ -10,7 +10,11 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
     v.into()
 }
 
+fn f64_any<A: IVm>(v: u64) -> Any<A> {
+    f64::from_bits(v).to_any()
+}
+
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    [(string_key("default"), [(string_key("a"), (1f64).to_any()), (string_key("b"), string_any("two"))].to_object().to_any())].to_object().to_any()
+    [(string_key("default"), [(string_key("a"), f64_any(0x3ff0000000000000)), (string_key("b"), string_any("two"))].to_object().to_any())].to_object().to_any()
 }

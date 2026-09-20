@@ -310,10 +310,10 @@ and already does its own bounds and canonical-index checking internally
 non-canonical key answers `None`, which `Any::member_access` turns into
 `undefined`, and the string key `"length"` reads the length the same
 generic way). `indexExpr` already accepts a literal number key directly
-(`(${f64Literal(index)}).to_any()`) alongside a string one. So once bare
+(`f64_any(${f64Bits(index)})`) alongside a string one. So once bare
 `['args']` prints as an `Any<A>`, an ordinary `['.', ['args'], i]` node
 needs no new code at all: it reaches the *existing* general `.` dispatch,
-which prints `Any::member_access(args.clone().to_any(), (0f64).to_any()).unwrap()`
+which prints `Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000)).unwrap()`
 for `a[0]` — correct, bounds-checked, and generic enough to also cover
 `a.length` and a non-canonical numeric key with no separate handling:
 

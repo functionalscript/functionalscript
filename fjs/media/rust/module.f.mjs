@@ -23,11 +23,10 @@
  * @example
  *
  * ```js
- * import { f64Literal, i64Literal, stringLiteral } from './module.f.mjs'
+ * import { f64Bits, i64Literal, stringLiteral } from './module.f.mjs'
  *
  * stringLiteral('a"b') // ok('"a\\"b"')
- * f64Literal(-0)       // '-0f64'
- * f64Literal(2.3)      // 'f64::from_bits(0x4002666666666666)'
+ * f64Bits(2.3)         // '0x4002666666666666'
  * i64Literal(-456n)    // ok('-456')
  * ```
  */
@@ -106,47 +105,35 @@ const exponentOf = a => {
     return low
 }
 
+/** The one `NaN` this writer spells: the quiet `NaN` with an empty payload. @type {bigint} */
+const canonicalNan = 0x7ff8000000000000n
+
 /**
- * The IEEE 754 binary64 bits of a finite, non-zero number, as JavaScript
- * holds it, in exact arithmetic: scaling by a power of two is exact, so
- * the significand is read off as an integer rather than approximated. A
- * subnormal has no leading bit and is scaled straight to its integer
- * significand; a normal number's exponent is {@link exponentOf}. `NaN`,
- * the infinities and the zeros never reach this: each has a spelling of
- * its own in {@link f64Literal}.
+ * The IEEE 754 binary64 bits of a number, as JavaScript holds it, as a Rust
+ * `u64` literal in sixteen hex digits — `f64::from_bits` reads it back as
+ * the same number, `-0`, the infinities and subnormals included. Found in
+ * exact arithmetic: scaling by a power of two is exact, so a significand is
+ * read off as an integer rather than approximated, a normal number's
+ * exponent being {@link exponentOf}'s. Every `NaN` is {@link canonicalNan}:
+ * JavaScript gives a program no way to tell one payload from another, so
+ * one spelling is the whole of what the language means.
  *
- * @type {(v: number) => bigint}
+ * @type {(v: number) => string}
  */
-const f64Bits = v => {
-    const sign = v < 0 ? 1n << 63n : 0n
+export const f64Bits = v => `0x${bitsOf(v).toString(16).padStart(16, '0')}`
+
+/** @type {(v: number) => bigint} */
+const bitsOf = v => {
+    if (Number.isNaN(v)) { return canonicalNan }
+    const sign = v < 0 || Object.is(v, -0) ? 1n << 63n : 0n
     const a = Math.abs(v)
+    if (a === Infinity) { return sign | 0x7ff0000000000000n }
+    if (a === 0) { return sign }
     // scaled in two exact steps: `2 ** 1074` itself is past the largest double
     if (a < 2 ** -1022) { return sign | BigInt(a * 2 ** 1023 * 2 ** 51) }
     const exponent = exponentOf(a)
     const fraction = BigInt((a / 2 ** exponent - 1) * 2 ** 52)
     return sign | BigInt(exponent + 1023) << 52n | fraction
-}
-
-/**
- * An `f64` literal, in one of three spellings, each exact: `NaN`, the two
- * infinities and `-0` are the constants Rust names them by; a safe
- * integer, `Number.isSafeInteger`, is its digits, `42f64`; every other
- * finite number — a fraction, or an integer of magnitude `2 ** 53` or
- * more, negative ones included — is its bits, `f64::from_bits(0x…)`,
- * sixteen hex digits. No spelling here is a decimal that could be read as
- * an approximation of a named constant, which is what clippy's
- * `approx_constant` looks for.
- *
- * @type {(v: number) => string}
- */
-export const f64Literal = v => {
-    if (Number.isNaN(v)) { return 'f64::NAN' }
-    if (v === Infinity) { return 'f64::INFINITY' }
-    if (v === -Infinity) { return 'f64::NEG_INFINITY' }
-    if (Object.is(v, -0)) { return '-0f64' }
-    return Number.isSafeInteger(v)
-        ? `${v}f64`
-        : `f64::from_bits(0x${f64Bits(v).toString(16).padStart(16, '0')})`
 }
 
 const i64Min = -(2n ** 63n)

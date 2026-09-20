@@ -24,9 +24,13 @@ export const proof = {
 
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray};
 
+fn f64_any<A: IVm>(v: u64) -> Any<A> {
+    f64::from_bits(v).to_any()
+}
+
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    let c0: Any<A> = [(1f64).to_any(), (2f64).to_any()].to_array().to_any();
+    let c0: Any<A> = [f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)].to_array().to_any();
     [c0.clone(), c0.clone()].to_array().to_any()
 }
 `)
@@ -98,9 +102,13 @@ pub fn module<A: IVm>() -> Any<A> {
 
 use nanvm_lib::vm::{Any, Array, IVm, ToAny};
 
+fn f64_any<A: IVm>(v: u64) -> Any<A> {
+    f64::from_bits(v).to_any()
+}
+
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    { let _: Any<A> = Array::default().to_any(); (42f64).to_any() }
+    { let _: Any<A> = Array::default().to_any(); f64_any(0x4045000000000000) }
 }
 `)
     },

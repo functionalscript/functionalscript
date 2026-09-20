@@ -64,6 +64,14 @@ const helperCatalog = [
             '}',
         ],
     },
+    {
+        marker: 'f64_any(',
+        lines: [
+            'fn f64_any<A: IVm>(v: u64) -> Any<A> {',
+            `${indent}f64::from_bits(v).to_any()`,
+            '}',
+        ],
+    },
 ]
 
 /** The helper definitions the printed body needs, each followed by a blank line. @type {(body: string) => readonly string[]} */

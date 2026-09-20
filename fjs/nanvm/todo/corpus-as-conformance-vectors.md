@@ -45,7 +45,8 @@ impl<A: IVm> Mul for Any<A> {
 `check` takes that `Result` at the top of a statement, which is why every flat
 case compiles. An operation nested as an operand hands the outer one a
 `Result` where it needs an `Any`, so `['*', 1, ['*', 2, 3]]` prints as
-`(1f64).to_any() * ((2f64).to_any() * (3f64).to_any())` and fails to compile
+`f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))`
+and fails to compile
 with E0308.
 
 Grouping is already right — an operation nested as an operand is

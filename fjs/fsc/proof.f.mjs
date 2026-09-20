@@ -622,9 +622,13 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
     v.into()
 }
 
+fn f64_any<A: IVm>(v: u64) -> Any<A> {
+    f64::from_bits(v).to_any()
+}
+
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    [(string_key("default"), Any::member_access([(string_key("b"), (1f64).to_any())].to_object().to_any(), string_any("b")).unwrap())].to_object().to_any()
+    [(string_key("default"), Any::member_access([(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("b")).unwrap())].to_object().to_any()
 }
 `)
         },
@@ -641,9 +645,13 @@ fn string_key<A: IVm>(v: &str) -> String<A> {
     v.into()
 }
 
+fn f64_any<A: IVm>(v: u64) -> Any<A> {
+    f64::from_bits(v).to_any()
+}
+
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Any<A> {
-    [(string_key("default"), Any::member_access([(1f64).to_any()].to_array().to_any(), (0f64).to_any()).unwrap())].to_object().to_any()
+    [(string_key("default"), Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).unwrap())].to_object().to_any()
 }
 `)
         },
@@ -676,7 +684,7 @@ pub fn module<A: IVm>() -> Any<A> {
             // and the folded ones print, `-1` as the leaf it lowers to
             assertEq(
                 compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
-                '    [(string_key("default"), [(-1f64).to_any(), bigint_any(-1), (1f64).to_any(), (f64::NEG_INFINITY).to_any(), (-0f64).to_any()].to_array().to_any())].to_object().to_any()')
+                '    [(string_key("default"), [f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any())].to_object().to_any()')
         },
         // Stage A's binary operators, and `~`, are every one of them a node
         // `fjs/edag/rust` has a `nanvm-lib` spelling for — but every one of
