@@ -25,7 +25,11 @@ Nothing tracked this: the roadmap's operator item is done, the operations
 being what it asked for, and `?:` is its own item there, about the VM.
 Until this issue closes, `fjs/fsc/rust`'s `resultOperator` refuses these
 nodes in a module, as it refuses every operator in one today, and Stage B
-extends that refusal to the length-4 `?:` node.
+extends that refusal to the length-4 `?:` node. The Stage A task, which
+spells the eager operators against the failure contract, leaves these
+four refused by its own terms: their entries sit in the same `op2Rust`
+table, and spelling them there would be exactly the eager miscompile
+above.
 
 ### Proposal
 
