@@ -61,7 +61,7 @@ import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
-import { indexPage, releasePage, releasePath } from './changelog/module.f.mjs'
+import { indexPage, isVersion, releasePage, releasePath } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { faviconLinks, stylesheet, stylesheetLink } from './style/module.f.mjs'
 import { demoSection, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
@@ -570,7 +570,7 @@ const changelogDir = 'changelog'
 const versionOf = name => {
     if (!name.endsWith('.md')) { return null }
     const version = name.slice(0, -'.md'.length)
-    return version.length !== 0 && !isNaN(Number(version[0])) ? version : null
+    return isVersion(version) ? version : null
 }
 
 /**

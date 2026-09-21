@@ -11,7 +11,7 @@ import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { _group, _linked, _reference, descending, entryNode, indexPage, linked, numbers, releaseHref, releasePage, spanNode } from './module.f.mjs'
+import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, numbers, releaseHref, releasePage, spanNode } from './module.f.mjs'
 
 const pull = /** @type {(n: string) => string} */(n => `${repository}/pull/${n}`)
 
@@ -81,6 +81,24 @@ const core = {
      * before `0.11.2` and strands `0.1.608` among the `0.10.x` files, so the
      * index compares numbers.
      */
+    /**
+     * **A version is the whole shape, not a leading digit.** `0.51.O` begins
+     * with one, and taking it would publish a release whose last number is
+     * `NaN` — ordering against every other version as neither before nor
+     * after, so a typo becomes a misplaced page instead of a refusal.
+     */
+    isVersion: {
+        three: () => assertEq(isVersion('0.50.0'), true),
+        long: () => assertEq(isVersion('0.1.608'), true),
+        letterForAZero: () => assertEq(isVersion('0.51.O'), false),
+        twoParts: () => assertEq(isVersion('0.51'), false),
+        fourParts: () => assertEq(isVersion('0.51.0.1'), false),
+        emptyPart: () => assertEq(isVersion('0..1'), false),
+        empty: () => assertEq(isVersion(''), false),
+        // The one that motivated the check: it would have passed a test that
+        // only asked whether the name begins with a digit.
+        beginsWithADigit: () => assertEq(isVersion('0.51.O'), false),
+    },
     order: {
         numbers: () => assertStructurallySame(numbers('0.11.10'), [0, 11, 10]),
         descending: () => assertStructurallySame(
@@ -144,7 +162,7 @@ const render = {
             assert(html.indexOf('_0.11.10.html') < html.indexOf('_0.11.2.html'), html)
         },
         linksEvery: () => assertEq(
-            (utf8ToString(indexPage(['0.1.0', '0.2.0', '0.3.0'])).match(/changelog\/_/g) ?? []).length, 3),
+            utf8ToString(indexPage(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),
     },
 }
 

@@ -503,6 +503,20 @@ export const proof = {
             assert(index.includes('_0.2.0.html'), index)
             assert(!index.includes('README'), index)
         },
+        // A name that begins with a digit but is no version is not one.
+        // Publishing it would put a release whose numbers include `NaN` in
+        // the index, ordered against the rest as neither before nor after.
+        skipsAMisspeltVersion: () => {
+            const { root } = generate({
+                changelog: {
+                    '0.2.0.md': file('- `a`: two\n'),
+                    '0.51.O.md': file('- `b`: a typo for a zero\n'),
+                },
+            })
+            const index = pageAt(root, ['changelog'])
+            assert(index.includes('_0.2.0.html'), index)
+            assert(!index.includes('0.51.O'), index)
+        },
         // An empty file records a release that shipped no notable change,
         // which the page says rather than showing an empty list.
         anEmptyReleaseSaysSo: () => {

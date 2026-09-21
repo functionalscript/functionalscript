@@ -147,6 +147,24 @@ export const linked = entry => _merged(entry.flatMap(
     span => span[0] === 'text' ? _linked(span[1]) : [span]))
 
 /**
+ * Whether a name is a version: three numbers separated by dots, which is
+ * what Semantic Versioning defines and what all 103 released files are.
+ *
+ * **A leading digit is not enough.** `0.51.O.md` — a letter for the last
+ * zero — begins with one, and accepting it publishes a release whose last
+ * number is `NaN`, which orders against every other version as neither
+ * before nor after. A typo would become a page rather than a refusal, which
+ * is the plausible wrong value `DESIGN.md` §10 rules out.
+ *
+ * @type {(name: string) => boolean}
+ */
+export const isVersion = name => {
+    const parts = name.split('.')
+    return parts.length === 3
+        && parts.every(part => part.length !== 0 && [...part].every(isDigit))
+}
+
+/**
  * A version as its numbers, for ordering.
  *
  * **Releases do not sort by their names.** `0.11.10` precedes `0.11.2` as
@@ -163,7 +181,7 @@ export const numbers = version => version.split('.').map(Number)
  *
  * @type {(versions: readonly string[]) => readonly string[]}
  */
-export const descending = versions => [...versions].sort((x, y) => {
+export const descending = versions => versions.toSorted((x, y) => {
     const [p, q] = [numbers(x), numbers(y)]
     const n = Math.max(p.length, q.length)
     for (let i = 0; i < n; i++) {
