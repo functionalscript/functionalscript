@@ -53,15 +53,15 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 
 | Operator | Description         | `Any<A>` | Notes |
 |----------|---------------------|----------|-------|
-| `&&`     | Logical AND         | [x]      | [`any/and.rs`](src/vm/any/and.rs) — `Any::logical_and()` method (no `core::ops` trait fits: Rust's own `&&` takes `bool` and short-circuits evaluation) |
-| `\|\|`   | Logical OR          | [x]      | [`any/or.rs`](src/vm/any/or.rs) — `Any::logical_or()` method, same reason |
-| `??`     | Nullish coalescing  | [x]      | [`any/nullish_coalescing.rs`](src/vm/any/nullish_coalescing.rs) — `Any::nullish_coalescing()` method, checked by matching on `Unpacked::Nullish` directly (allocation-free), not `ToBoolean` |
+| `&&`     | Logical AND         | [x]      | [`any/and.rs`](src/vm/any/and.rs) — `Any::logical_and()` method (no `core::ops` trait fits: Rust's own `&&` takes `bool`); the right operand is a thunk, `impl FnOnce() -> Result<Any<A>, Any<A>>`, established only if the left is truthy, so `false && (1n / 0n)` is `false` as in JS |
+| `\|\|`   | Logical OR          | [x]      | [`any/or.rs`](src/vm/any/or.rs) — `Any::logical_or()` method, same reason and same thunk, established only if the left is falsy |
+| `??`     | Nullish coalescing  | [x]      | [`any/nullish_coalescing.rs`](src/vm/any/nullish_coalescing.rs) — `Any::nullish_coalescing()` method, checked by matching on `Unpacked::Nullish` directly (allocation-free), not `ToBoolean`; the same thunk, established only if the left is nullish |
 
 ### Other
 
 | Operator   | Description         | `Any<A>` | Notes |
 |------------|---------------------|----------|-------|
-| `?:`       | Conditional         | [x]      | [`any/conditional.rs`](src/vm/any/conditional.rs) — `Any::conditional()` method; the EDAG's `["?:", c, t, e]` (`op3Id`), covered by the corpus as a `Group3`. The arms reach `nanvm-lib` already established, so the node's laziness — exactly one arm established — is proven on the FunctionalScript side alone |
+| `?:`       | Conditional         | [x]      | [`any/conditional.rs`](src/vm/any/conditional.rs) — `Any::conditional()` method; the EDAG's `["?:", c, t, e]` (`op3Id`), covered by the corpus as a `Group3`. Both arms are thunks, `impl FnOnce() -> Result<Any<A>, Any<A>>`, and exactly the selected one is established — the corpus's `unreached` cases prove it on this side as amnesia's proof does on the FunctionalScript side |
 | `own`      | Own-property lookup | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) / [`object/own_property.rs`](src/vm/object/own_property.rs) — `Any::own_property()` method, exactly `Object.getOwnPropertyDescriptor(object, key)?.value`: no getter invocation, no prototype chain (`nanvm-lib` objects have none), last-duplicate-wins flat key lookup on `Object<A>`; the key must already be a `String<A>` (`Result::Err`, not a coercion); a non-object, non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`, a function) always answers `undefined`; a nullish one throws |
 | `.` / `[]` | Member access       | [x]      | [`any/member_access.rs`](src/vm/any/member_access.rs) — `Any::member_access` dispatches to [`array/member_access.rs`](src/vm/array/member_access.rs), [`string/member_access.rs`](src/vm/string/member_access.rs), and [`object/member_access.rs`](src/vm/object/member_access.rs); `Number`/`Boolean`/`BigInt`/`Function` have no own properties, so every key on one answers `undefined`; still no prototype chain or built-in methods (`.map`, `.push`, `.slice`, getters), which is out of scope, same as the EDAG's chain-step nodes (`|.`, `?.`, etc.) |
 | `in`       | Property check      | [ ]      | |

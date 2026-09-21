@@ -20,13 +20,11 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { Node } from '../../edag/analysis/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { error, mapOk, ok, okThen, unwrap } from '../../types/result/module.f.mjs'
-import { sharedNodesOf, valueExpr } from '../../edag/rust/module.f.mjs'
-import { analysis } from '../../edag/analysis/module.f.mjs'
+import { eagerNodesOf, sharedNodesOf, valueExpr } from '../../edag/rust/module.f.mjs'
 
 const indent = '    '
 
@@ -97,9 +95,9 @@ const importsFor = text => [...new Set([
  * module reports that failure where JavaScript reports the earlier one.
  * The two are one outcome — `spec/README.md`, "Failure is one outcome",
  * names the first failing operation as no language-level observation and
- * allows exactly this reordering — and every binding is reached eagerly by
- * the root, so no failure a program skips is run: that limit is what
- * `lazyOperator`'s refusal keeps.
+ * allows exactly this reordering. Every binding is reached eagerly by the
+ * root — {@link bodyLines} refuses a module where one is not — so no
+ * failure the program skips is run here.
  *
  * @type {(bindings: readonly (readonly [Exp, string])[]) => (i: number) => Result<readonly string[], readonly unknown[]>}
  */
@@ -110,71 +108,45 @@ const letLines = bindings => i => {
 }
 
 /**
- * The binary operators whose right operand JavaScript establishes
- * conditionally: `&&` and `||` only if the left decides nothing, `??` only
- * if the left is nullish. Named as `op2Id` names the binary vocabulary.
- *
- * @type {readonly string[]}
- */
-const lazyOp2 = ['&&', '||', '??']
-
-/**
- * The ternary operator, whose one selected arm is established: `?:`, the
- * whole of `op3Id`.
- *
- * @type {readonly string[]}
- */
-const lazyOp3 = ['?:']
-
-/**
- * Whether a node is one of {@link lazyOp2} or {@link lazyOp3}. Each has a
- * `nanvm-lib` spelling, but a by-value one — `Any::logical_and(a, b)` takes
- * both operands already established — so printing it into a module would
- * establish an operand the program does not, and throw where the program
- * does not. No syntax this compiler's parser admits produces any of the
- * four yet, but `toRust` takes any EDAG, so the check is here and proven
- * directly — without it, a `?:` handed in would print as a call
- * establishing both arms, a wrong value in silence.
- *
- * An interim, and not a design: the guard belongs in the operations'
- * signatures. Once a lazy operand is a thunk the eager spelling does not
- * compile, the printer prints `|| Ok(…)`, and this check is deleted with
- * nothing left to refuse — [`./todo/lazy-operators.md`](./todo/lazy-operators.md).
- *
- * The chains are the other conditional forms — a `?.` region establishes
- * the rest of the chain only when its base is not nullish, and the
- * optional-call steps likewise — and need no entry here: the printer
- * refuses every chain step already, having no spelling for one.
- *
- * Every other operator prints, followed by `?`, since `pub fn module`
- * answers the `Result` a throw lands in — `fjs/edag/rust`'s `valueExpr`.
- *
- * @type {(node: Node) => boolean}
- */
-const lazyOperator = node => node instanceof Array && (
-    (node.length === 3 && lazyOp2.includes(node[0]))
-    || (node.length === 4 && lazyOp3.includes(node[0]))
-)
-
-/**
  * The module's value as `Ok(…)` of a Rust expression of type `Any<A>` — a
  * `?` inside it propagates a throw out of `module` — and the `let` bindings
  * its implicitly shared nodes need first — or the refusal.
  *
- * `analysis(root)` recurses once per operand ({@link ../../edag/analysis/module.f.mjs}),
- * so this refusal is itself reached only up to the depth that walk survives:
- * a module deep enough overflows the call stack before this function can
- * report the clean refusal below. Tracked, not fixed here — the walk is
- * shared infrastructure every EDAG consumer depends on, and a rewrite has
- * to preserve its merge/scope semantics exactly, which is a bigger and
- * riskier change than this refusal's own scope:
+ * Every operator prints, the lazy four included: `&&`, `||`, `??` and `?:`
+ * take each conditionally established operand as a thunk, the
+ * `impl FnOnce() -> Result<Any<A>, Any<A>>` their `nanvm-lib` signatures
+ * ask for — `fjs/edag/rust`'s `valueExpr` — so `false && (1n / 0n)` answers
+ * `false` here as it does in JavaScript. Nothing here polices that: the
+ * signature does, since an operand printed as a value where a thunk is due
+ * does not compile.
+ *
+ * A shared node is hoisted into a `let` binding before the root, which
+ * establishes it unconditionally — right where the root reaches it eagerly
+ * at least once, and wrong where it is reached only through lazy operands:
+ * `true ? 1 : [c, c]` answers `1` without establishing `c`, and a binding
+ * would establish it first. That shape is refused rather than bound. A
+ * module the lowering links never has it: an implicitly shared node is a
+ * `const` referenced twice, JavaScript establishes a `const` at its
+ * declaration whatever the operators around its uses do, and
+ * [Stage B](../todo/stage-b-operators.md)'s eager-restricted `refsOf`
+ * anchors a `const` reached only lazily through the comma root — an eager
+ * reach, so the binding is right again. The refusal is the check that the
+ * anchoring happened, for an EDAG handed in directly.
+ *
+ * `sharedNodesOf` and `eagerNodesOf` recurse once per operand, so a module
+ * deep enough overflows the call stack before this function prints
+ * anything — tracked with the other EDAG walks' recursion, not fixed here:
  * `fjs/edag/todo/stack-safety.md`.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
 const bodyLines = root => {
-    if (analysis(root).nodes.some(lazyOperator)) { return error(['no Rust for a lazy operator in a module', root]) }
     const shared = sharedNodesOf(root)
+    const eager = eagerNodesOf(root)
+    const lazyOnly = shared.find(node => !eager.includes(node))
+    if (lazyOnly !== undefined) {
+        return error(['no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not', lazyOnly])
+    }
     /** @type {readonly (readonly [Exp, string])[]} */
     const bindings = shared.map((node, i) => [node, `c${i}.clone()`])
     return okThen(lines => mapOk(s => [...lines, `${indent}Ok(${s})`])(valueExpr(bindings)(root)))(letLines(bindings)(bindings.length))

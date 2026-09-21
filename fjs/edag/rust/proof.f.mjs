@@ -12,7 +12,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { expExpr, nodeExpr, sharedNodesOf, valueExpr } from './module.f.mjs'
+import { eagerNodesOf, expExpr, nodeExpr, sharedNodesOf, valueExpr } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
@@ -64,9 +64,78 @@ export const proof = {
         assertEq(printed(['+', 1]), 'Any::unary_plus(f64_any(0x3ff0000000000000))')
         assertEq(
             printed(['?:', true, 1, 2]),
-            'Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))')
+            'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
         assertEq(printed(['=>', ['[]', []], ['undefined']]), 'function_any()')
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
+    },
+    /**
+     * A lazy operation's operands after the first are thunks, in either
+     * mode: a value answers `|| Ok(…)`, and an operation answers its own
+     * `Result` bare, and either body prints propagating, so a throw
+     * anywhere inside it lands in the closure — which is what lets a bare
+     * corpus statement hold an operation in a lazy position, nested however
+     * it is, where an eager position still cannot (see `nesting`). The
+     * first operand prints as the mode prints any operand.
+     */
+    lazy: () => {
+        assertEq(
+            printed(['&&', false, 1]),
+            'Any::logical_and(false.to_any(), || Ok(f64_any(0x3ff0000000000000)))')
+        assertEq(
+            printed(['||', true, 1]),
+            'Any::logical_or(true.to_any(), || Ok(f64_any(0x3ff0000000000000)))')
+        assertEq(
+            printed(['??', null, 1]),
+            'Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000)))')
+        // `false && (1n / 0n)`: the throwing operation is the closure's own
+        // answer, whether the statement is bare or propagating.
+        assertEq(
+            printed(['&&', false, ['/', 1n, 0n]]),
+            'Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0))')
+        assertEq(
+            valued(['&&', false, ['/', 1n, 0n]]),
+            '(Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0)))?')
+        // Inside the thunk everything propagates, whatever the statement's
+        // mode: the operation's own operands, and an operation inside a
+        // container the thunk answers — `false && [1n / 0n]`.
+        const nestedThunk = '|| (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))? * f64_any(0x4008000000000000)'
+        assertEq(
+            printed(['&&', false, ['*', ['*', 1, 2], 3]]),
+            `Any::logical_and(false.to_any(), ${nestedThunk})`)
+        assertEq(
+            valued(['&&', false, ['*', ['*', 1, 2], 3]]),
+            `(Any::logical_and(false.to_any(), ${nestedThunk}))?`)
+        const arrayThunk = '|| Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any())'
+        assertEq(
+            printed(['&&', false, ['[]', [['/', 1n, 0n]]]]),
+            `Any::logical_and(false.to_any(), ${arrayThunk})`)
+        assertEq(
+            valued(['&&', false, ['[]', [['/', 1n, 0n]]]]),
+            `(Any::logical_and(false.to_any(), ${arrayThunk}))?`)
+        // A `.` read is an operation too, and a container is a value.
+        assertEq(
+            valued(['||', true, ['.', ['{}', []], 'a']]),
+            '(Any::logical_or(true.to_any(), || Any::member_access(Object::default().to_any(), string_any("a"))))?')
+        assertEq(
+            printed(['||', true, ['[]', [['-', 1]]]]),
+            'Any::logical_or(true.to_any(), || Ok([(-(f64_any(0x3ff0000000000000)))?].to_array().to_any()))')
+        // Both arms of `?:`, and a nested lazy operation in an arm, which
+        // is a thunk inside a thunk; a lazy operation as the eager first
+        // operand is composed like any operator there.
+        assertEq(
+            valued(['?:', true, 1, ['/', 1n, 0n]]),
+            '(Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0)))?')
+        assertEq(
+            printed(['?:', ['&&', true, false], ['||', false, 1], 2]),
+            'Any::conditional((Any::logical_and(true.to_any(), || Ok(false.to_any()))), || Any::logical_or(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), || Ok(f64_any(0x4000000000000000)))')
+        // The first operand is eager, and composed where its rendering
+        // would otherwise re-associate — exactly as an eager operator's.
+        assertEq(
+            printed(['&&', ['*', 1, 2], 3]),
+            'Any::logical_and((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)), || Ok(f64_any(0x4008000000000000)))')
+        assertEq(
+            valued(['&&', ['*', 1, 2], 3]),
+            '(Any::logical_and((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?, || Ok(f64_any(0x4008000000000000))))?')
     },
     /** A composed operand keeps its parentheses; an atomic one does not. */
     nesting: () => {
@@ -269,6 +338,18 @@ export const proof = {
         const shared = /** @type {readonly (readonly [Exp, string])[]} */ ([[base, 'x.clone()']])
         assertEq(printedWith(shared)(base), 'x.clone()')
         assertEq(printedWith(shared)(['[]', [base]]), '[x.clone()].to_array().to_any()')
+        // In a lazy position too: the binding is established before the
+        // root, as a `const` is at its declaration, and the thunk clones it
+        // — a shared operation included, which is its binding there, not
+        // the operation.
+        assertEq(
+            printedWith(shared)(['??', null, base]),
+            'Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(x.clone()))')
+        /** @type {Exp} */
+        const op = ['*', 1, 2]
+        assertEq(
+            printedWith([[op, 'y.clone()']])(['??', null, op]),
+            'Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(y.clone()))')
     },
     sharedNodesOf: {
         /** A node reached from only one place is never a binding candidate. */
@@ -319,6 +400,39 @@ export const proof = {
      * with the reason this printer gives it, wherever a string literal
      * stands: a primitive, an object key, an index.
      */
+    /**
+     * The nodes a root establishes unconditionally: through every eager
+     * position, and a lazy operation's first operand, never its others —
+     * however a node is also reached lazily.
+     */
+    eagerNodesOf: () => {
+        /** @type {Exp} */
+        const c = ['[]', []]
+        // Through an array item, an object value, a comma operand, an eager
+        // operator's operands, a `.` base, and a lazy operation's first
+        // operand.
+        assertEq(eagerNodesOf(['[]', [c]]).includes(c), true)
+        assertEq(eagerNodesOf(['{}', [[':', 'k', c]]]).includes(c), true)
+        assertEq(eagerNodesOf([',', [c, 1]]).includes(c), true)
+        assertEq(eagerNodesOf(['*', 1, c]).includes(c), true)
+        assertEq(eagerNodesOf(['.', c, 'length']).includes(c), true)
+        assertEq(eagerNodesOf(['&&', c, 1]).includes(c), true)
+        assertEq(eagerNodesOf(['?:', c, 1, 2]).includes(c), true)
+        // Not through a lazy operand, at any depth below it.
+        assertEq(eagerNodesOf(['&&', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['||', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['??', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['?:', true, c, 2]).includes(c), false)
+        assertEq(eagerNodesOf(['?:', true, 1, ['[]', [c, c]]]).includes(c), false)
+        // One eager reach is enough, wherever the lazy ones are.
+        assertEq(eagerNodesOf(['[]', [['&&', true, c], c]]).includes(c), true)
+        // A list whose first item spells a lazy tag is a list: both `c`s
+        // are items, reached.
+        assertEq(eagerNodesOf(['[]', ['&&', c, ['&&', true, c]]]).includes(c), true)
+        // The root comes first, and a primitive root reaches nothing.
+        assertStructurallySame(eagerNodesOf(c), [c])
+        assertStructurallySame(eagerNodesOf(1), [])
+    },
     literalRefusals: () => {
         assertStructurallySame(
             refusalReason('a\ud800b'),

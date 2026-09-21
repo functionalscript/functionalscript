@@ -277,7 +277,8 @@ fn bigint_negative_zero<A: IVm>() {
 /// `Array`/`Object`/`Function` equality is `ptr_eq` (their `partial_eq.rs`),
 /// so comparing the result against the very `Any` handed in — not a fresh,
 /// equal-content one — is what actually proves the selected operand comes
-/// back unchanged rather than reconstructed.
+/// back unchanged rather than reconstructed. A lazy operand is a thunk, so
+/// the one handed in is what the thunk answers.
 fn reference_identity_selection<A: IStaticFunction>() {
     let array: Any<A> = Array::default().to_any();
     let object: Any<A> = Object::default().to_any();
@@ -287,40 +288,71 @@ fn reference_identity_selection<A: IStaticFunction>() {
     // the discarded left or the selected right — never returned via the
     // "falsy self" branch, which no reference type can take.
     assert_eq!(
-        Any::logical_and(true.to_any(), array.clone()).unwrap(),
+        Any::logical_and(true.to_any(), || Ok(array.clone())).unwrap(),
         array
     );
 
     // `||`: always-truthy on the left selects itself; on the right it is
     // selected whenever the left is falsy.
     assert_eq!(
-        Any::logical_or(object.clone(), Number::from(0.0).to_any()).unwrap(),
+        Any::logical_or(object.clone(), || Ok(Number::from(0.0).to_any())).unwrap(),
         object
     );
     assert_eq!(
-        Any::logical_or(false.to_any(), function.clone()).unwrap(),
+        Any::logical_or(false.to_any(), || Ok(function.clone())).unwrap(),
         function
     );
 
     // `??`: never-nullish on the left selects itself; on the right it is
     // selected whenever the left is nullish.
     assert_eq!(
-        Any::nullish_coalescing(array.clone(), Number::from(0.0).to_any()).unwrap(),
+        Any::nullish_coalescing(array.clone(), || Ok(Number::from(0.0).to_any())).unwrap(),
         array
     );
     assert_eq!(
-        Any::nullish_coalescing(Nullish::Null.to_any(), object.clone()).unwrap(),
+        Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(object.clone())).unwrap(),
         object
     );
 
     // `?:`: both branches.
     assert_eq!(
-        Any::conditional(true.to_any(), function.clone(), array.clone()).unwrap(),
+        Any::conditional(true.to_any(), || Ok(function.clone()), || Ok(array.clone())).unwrap(),
         function
     );
     assert_eq!(
-        Any::conditional(false.to_any(), array.clone(), object.clone()).unwrap(),
+        Any::conditional(false.to_any(), || Ok(array.clone()), || Ok(object.clone())).unwrap(),
         object
+    );
+}
+
+/// The unselected operand is never established: each thunk below answers
+/// `Err`, which `unwrap` would panic on, and the value that comes back is
+/// the left operand or the selected arm. The corpus proves the same through
+/// its `unreached` operand (`fjs/nanvm/module.f.mjs`); this is the
+/// hand-written statement of the contract the four signatures carry.
+fn unselected_operand_not_established<A: IVm>() {
+    let boom = || -> Result<Any<A>, Any<A>> { Err("not established".into()) };
+    assert_eq!(
+        Any::logical_and(false.to_any(), boom).unwrap(),
+        false.to_any()
+    );
+    assert_eq!(Any::logical_or(true.to_any(), boom).unwrap(), true.to_any());
+    assert_eq!(
+        Any::nullish_coalescing(false.to_any(), boom).unwrap(),
+        false.to_any()
+    );
+    assert_eq!(
+        Any::conditional(true.to_any(), || Ok(Number::from(1.0).to_any()), boom).unwrap(),
+        Number::from(1.0).to_any()
+    );
+    assert_eq!(
+        Any::conditional(false.to_any(), boom, || Ok(Number::from(2.0).to_any())).unwrap(),
+        Number::from(2.0).to_any()
+    );
+    // And the selected one is: its throw is the operation's.
+    assert_eq!(
+        Any::logical_and(true.to_any(), boom),
+        Err("not established".into())
     );
 }
 
@@ -341,6 +373,7 @@ fn gen_test<A: IStaticFunction>() {
     static_function_call::<A>();
     function_identity::<A>();
     reference_identity_selection::<A>();
+    unselected_operand_not_established::<A>();
 }
 
 #[test]

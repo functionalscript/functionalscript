@@ -330,12 +330,10 @@ as a generic `Any` facility, post-MVP.
 - [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
       described by the EDAG spec and executes it; behind a cargo feature
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
-- [x] **Basic control operator `?:`** (Rust) — `Any::conditional`, covered
+- [x] **Basic control operator `?:`** (Rust) — `Any::conditional`, its arms
+      thunks so a compiled module establishes only the selected one, covered
       by the corpus as a `Group3`; the operator table in
-      [`nanvm-lib/README.md`](../README.md) has the record. A compiled
-      module's lazy spelling of it is
-      [`fjs/fsc/rust/todo/lazy-operators.md`](../../fjs/fsc/rust/todo/lazy-operators.md)'s,
-      not this item's.
+      [`nanvm-lib/README.md`](../README.md) has the record.
 - [ ] **Nested functions** (function frame) (Rust).
       See [functions](../../spec/README.md#functions),
       [function-frame](../../spec/todo/3111-function-frame.md). The staged
