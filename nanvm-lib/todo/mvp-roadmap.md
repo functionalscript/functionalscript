@@ -92,7 +92,7 @@ command group is dropped.
 
 One FJS module compiles to one Rust file, and the generated file is a Rust
 **module** — exposing the module's value via the `nanvm-lib` API (e.g.
-`pub fn module<A: IVm>() -> Any<A>`) — not a `main`. A thin, hand-written
+`pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`) — not a `main`. A thin, hand-written
 `main` lives in the consumer: the test harness in this repo, the `nanvm`
 crate, or a user's own crate. This way the same generated output serves
 testing, self-hosting, and AOT embedding.

@@ -110,9 +110,34 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
         const result = generate(root)
         assert(result.includes('[((_args.clone().to_any()) + (1f64).to_any())?].to_array().to_any()'), result)
     },
+    generateNestedProperty: () => {
+        /** @type {Exp} */
+        const root = ['=>', null, ['.', ['.', ['{}', [[':', 'a', ['{}', [[':', 'b', 1]]]]]], 'a'], 'b']]
+        const result = generate(root)
+        assert(result.includes('Any::own_property(Any::own_property('), result)
+        assert(result.includes('string_any("a"))?'), result)
+    },
+    generateCommaFunction: () => {
+        /** @type {Exp} */
+        const root = [',', [['[]', []], ['=>', null, 42]]]
+        const result = generate(root)
+        assert(result.includes('let _: Any<A> = Array::default().to_any();'), result)
+        assert(result.includes('fn f0<A: IVm>'), result)
+        assert(result.includes('f0(&_args)'), result)
+    },
     refuseNestedFunctionValue: () => {
         const result = toRust(['=>', null, ['[]', [['=>', ['[]', []], ['undefined']]]]])
         assertEq(result[0], 'error')
+    },
+    refuseCapture: () => {
+        const result = toRust(['=>', ['[]', [1]], ['frame']])
+        assertEq(result[0], 'error')
+        assert(result[1].includes('function value'), result)
+    },
+    refuseDynamicCall: () => {
+        const result = toRust(['()', ['=>', null, 1], ['[]', []]])
+        assertEq(result[0], 'error')
+        assert(result[1].includes('no Rust spelling'), result)
     },
     /**
      * A module with an unreached `const` — `const unused = []; export default

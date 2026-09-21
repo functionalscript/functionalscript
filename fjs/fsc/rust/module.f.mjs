@@ -152,12 +152,38 @@ const bodyLines = root => {
 }
 
 /** @type {(root: Exp) => boolean} */
-const functionRoot = root => root instanceof Array && root[0] === '=>' && root[1] === null
+const functionRoot = root => {
+    if (!(root instanceof Array)) { return false }
+    if (root[0] === '=>') { return root[1] === null }
+    if (root[0] !== ',' || root[1].length === 0) { return false }
+    return functionRoot(root[1][root[1].length - 1])
+}
+
+/** @type {(root: Exp) => Exp} */
+const functionNode = root => root instanceof Array && root[0] === ','
+    ? root[1][root[1].length - 1]
+    : root
+
+/** @type {(root: Exp) => Result<readonly string[], readonly unknown[]>} */
+const functionPrelude = root => {
+    if (!(root instanceof Array) || root[0] !== ',') { return ok([]) }
+    const comma = /** @type {readonly Exp[]} */ (/** @type {any} */ (root)[1])
+    const prefix = comma.slice(0, -1)
+    const lines = prefix.map(node => mapOk(s => `${indent}let _: Any<A> = ${s};`)(expExpr([], { fallible: true })(node)))
+    return lines.length === 0
+        ? ok([])
+        : okThen(first => mapOk(rest => [first, ...rest])(functionPreludeLines(lines, 1)))(lines[0])
+}
+
+/** @type {(lines: readonly Result<string, readonly unknown[]>[], index: number) => Result<readonly string[], readonly unknown[]>} */
+const functionPreludeLines = (lines, index) => index === lines.length
+    ? ok([])
+    : okThen(first => mapOk(rest => [first, ...rest])(functionPreludeLines(lines, index + 1)))(lines[index])
 
 /** @type {(root: Exp) => Result<readonly string[], readonly unknown[]>} */
 const functionLines = root => {
     if (!functionRoot(root)) { return error(['not a capture-free function', root]) }
-    const body = /** @type {readonly any[]} */ (root)[2]
+    const body = /** @type {readonly any[]} */ (functionNode(root))[2]
     const resultBody = body instanceof Array && (
         body[0] === '.' || ['+', '-', '*', '/', '**', '%', '&', '|', '^', '<<', '>>', '>>>',
             '<', '<=', '>', '>=', '&&', '||', '??', 'own', 'typeof', 'String', '!', '~'].includes(body[0])
@@ -187,8 +213,8 @@ const functionLines = root => {
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
-const generateResult = root => mapOk(body => {
-    const bodyText = body.join('\n')
+const generateResult = root => mapOk(({ lines, prelude }) => {
+    const bodyText = lines.join('\n')
     const helpers = helpersFor(bodyText)
     const uses = importsFor(`${bodyText}\n${helpers.join('\n')}\n${functionRoot(root) ? 'Array::default()' : ''}`)
     return [
@@ -197,16 +223,18 @@ const generateResult = root => mapOk(body => {
         `use nanvm_lib::vm::{${uses.join(', ')}};`,
         '',
         ...helpers,
-        ...(functionRoot(root) ? body : []),
+        ...(functionRoot(root) ? lines : []),
         '#[rustfmt::skip]',
         'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
         ...(functionRoot(root)
-            ? [`${indent}let _args: Array<A> = Array::default();`, `${indent}f0(&_args)`]
-            : body),
+            ? [`${indent}let _args: Array<A> = Array::default();`, ...prelude, `${indent}f0(&_args)`]
+            : lines),
         '}',
         '',
     ].join('\n')
-})(functionRoot(root) ? functionLines(root) : bodyLines(root))
+})(functionRoot(root)
+    ? okThen(prelude => mapOk(lines => ({ lines, prelude }))(functionLines(root)))(functionPrelude(root))
+    : mapOk(lines => ({ lines, prelude: [] }))(bodyLines(root)))
 
 /**
  * {@link generateResult} as a throwing convenience, for direct use and for

@@ -357,7 +357,7 @@ intentionally narrower than the final callable-function design: no runtime
 `Any<A>`.
 
 **Accepted source shapes.** The Rust backend must accept a capture-free arrow
-whose EDAG is `['=>', [], body]`. `body` may contain the literals, arrays,
+ whose EDAG is `['=>', null, body]`. `body` may contain the literals, arrays,
 objects, property reads, shared nodes, and operators that the existing Rust
 expression printer already supports, plus `['args']` and a static call. A
 body may read `['args']` more than once and may return it directly. It must
@@ -375,7 +375,7 @@ and therefore must not change this ABI.
 generic item in the generated module:
 
 ```rust
-fn f0<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
+fn f0<A: IVm>(_args: &Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(/* generated body */)
 }
 ```
@@ -387,8 +387,8 @@ must not capture Rust state, use `dyn Fn`, or require `A` to be `Naive`:
 are ordinary Rust `let` bindings of `Any<A>`; they are not entries in a new
 runtime frame.
 
-`['args']` lowers to the `args` parameter itself. A rest parameter therefore
-returns or consumes the complete caller-supplied array. A positional read
+`['args']` lowers to the argument array as an `Any<A>` value. A rest parameter
+therefore returns or consumes the complete caller-supplied array. A positional read
 introduced by future parameter lowering must use the existing safe rule: if
 the index is outside `args.length()`, use `Nullish::Undefined.to_any()`;
 otherwise clone the indexed value. Extra arguments are ignored when no source

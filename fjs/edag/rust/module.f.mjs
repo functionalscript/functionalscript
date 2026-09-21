@@ -347,7 +347,7 @@ export const expExpr = (shared, options = {}) => {
             if (nonObjectLiteralBase(base)) { return error(['no nanvm-lib own-property read for this receiver type yet', e]) }
             return map2((fa, k) => options.fallible
                 ? `Any::own_property(${fa}, ${k})`
-                : `Any::own_property(${fa}, ${k}).unwrap()`)(f(a), indexExpr(b))
+                : `Any::own_property(${fa}, ${k}).unwrap()`)(options.fallible ? nested(a) : f(a), indexExpr(b))
         }
         if (id === ',') {
             // `Exps` admits an empty operand list in the schema (shape-only,
