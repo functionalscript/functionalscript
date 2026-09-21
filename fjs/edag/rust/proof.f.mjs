@@ -93,15 +93,20 @@ export const proof = {
         assertEq(
             printed(['&&', false, ['/', 1n, 0n]]),
             'Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0))')
+        // In a scope a thunk with a body of its own is a temporary too,
+        // `let cN = || …;`, and the operation's line names it.
         assertStructurallySame(
             scoped(['&&', false, ['/', 1n, 0n]]),
-            ['Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0))'])
+            [
+                'let c0 = || bigint_any(1) / bigint_any(0);',
+                'Any::logical_and(false.to_any(), c0)',
+            ])
         // Inside the thunk every node with operands is a temporary of the
         // thunk's own block, whatever the statement's mode — established
         // only when the thunk is — and the block is the closure's body,
         // one line under another: the operation's own operand, and an
         // operation inside a container the thunk answers, `false && [1n /
-        // 0n]`.
+        // 0n]`. The names follow the lines: the thunk's before its own.
         const nestedThunk = [
             '|| {',
             '    let c0: Any<A> = (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?;',
@@ -113,7 +118,13 @@ export const proof = {
             `Any::logical_and(false.to_any(), ${nestedThunk.join('\n')})`)
         assertStructurallySame(
             scoped(['&&', false, ['*', ['*', 1, 2], 3]]),
-            [`Any::logical_and(false.to_any(), ${nestedThunk[0]}`, ...nestedThunk.slice(1, -1), '})'])
+            [
+                'let c0 = || {',
+                '    let c1: Any<A> = (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?;',
+                '    c1 * f64_any(0x4008000000000000)',
+                '};',
+                'Any::logical_and(false.to_any(), c0)',
+            ])
         const arrayThunk = [
             '|| {',
             '    let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;',
@@ -123,23 +134,36 @@ export const proof = {
         assertEq(
             printed(['&&', false, ['[]', [['/', 1n, 0n]]]]),
             `Any::logical_and(false.to_any(), ${arrayThunk})`)
-        assertEq(
-            scoped(['&&', false, ['[]', [['/', 1n, 0n]]]]).join('\n'),
-            `Any::logical_and(false.to_any(), ${arrayThunk})`)
+        assertStructurallySame(
+            scoped(['&&', false, ['[]', [['/', 1n, 0n]]]]),
+            [
+                'let c0 = || {',
+                '    let c1: Any<A> = (bigint_any(1) / bigint_any(0))?;',
+                '    Ok([c1].to_array().to_any())',
+                '};',
+                'Any::logical_and(false.to_any(), c0)',
+            ])
         // A `.` read is an operation too, and a container is a value.
         assertStructurallySame(
             scoped(['||', true, ['.', ['{}', []], 'a']]),
-            ['Any::logical_or(true.to_any(), || Any::member_access(Object::default().to_any(), string_any("a")))'])
+            [
+                'let c0 = || Any::member_access(Object::default().to_any(), string_any("a"));',
+                'Any::logical_or(true.to_any(), c0)',
+            ])
         assertEq(
             printed(['||', true, ['[]', [['-', 1]]]]),
             'Any::logical_or(true.to_any(), || {\n    let c0: Any<A> = (-(f64_any(0x3ff0000000000000)))?;\n    Ok([c0].to_array().to_any())\n})')
         // Both arms of `?:`, and a nested lazy operation in an arm, which
-        // is a thunk inside a thunk; a lazy operation as the eager first
-        // operand is composed like any operator there, bare, and a
-        // temporary in a scope.
+        // is a thunk inside a thunk — in a scope, a thunk temporary inside
+        // another's block; a lazy operation as the eager first operand is
+        // composed like any operator there, bare, and a temporary in a
+        // scope. A thunk over an atom stands where its operation is.
         assertStructurallySame(
             scoped(['?:', true, 1, ['/', 1n, 0n]]),
-            ['Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0))'])
+            [
+                'let c0 = || bigint_any(1) / bigint_any(0);',
+                'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c0)',
+            ])
         assertEq(
             printed(['?:', ['&&', true, false], ['||', false, 1], 2]),
             'Any::conditional((Any::logical_and(true.to_any(), || Ok(false.to_any()))), || Any::logical_or(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), || Ok(f64_any(0x4000000000000000)))')
@@ -147,10 +171,14 @@ export const proof = {
             scoped(['?:', ['&&', true, false], ['||', false, ['[]', [['-', 1]]]], 2]),
             [
                 'let c0: Any<A> = (Any::logical_and(true.to_any(), || Ok(false.to_any())))?;',
-                'Any::conditional(c0, || Any::logical_or(false.to_any(), || {',
-                '    let c1: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
-                '    Ok([c1].to_array().to_any())',
-                '}), || Ok(f64_any(0x4000000000000000)))',
+                'let c1 = || {',
+                '    let c2 = || {',
+                '        let c3: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
+                '        Ok([c3].to_array().to_any())',
+                '    };',
+                '    Any::logical_or(false.to_any(), c2)',
+                '};',
+                'Any::conditional(c0, c1, || Ok(f64_any(0x4000000000000000)))',
             ])
         // The first operand is eager, and composed where its rendering
         // would otherwise re-associate — exactly as an eager operator's.
