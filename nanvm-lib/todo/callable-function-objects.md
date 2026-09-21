@@ -57,7 +57,7 @@ variables that the generated code and `nanvm-lib` agree on.
   forms. This document's representation is written for `["args"]` (an
   array), which named parameters still read positionally. The pending
   parameter-count proposal also changes the function EDAG and requires AOT
-  lowering to preserve the count in the callable header; parser work being
+  lowering to preserve the count in the function value; parser work being
   separate does not put that runtime obligation out of scope.
 
 #### Grounding: what is already decided
@@ -215,16 +215,16 @@ and its length off `self_`. `naive`'s `InternalFunction` is an `Rc` over
 the `fn` pointer, the `length` and the frame. The stages below are written
 against that shape.
 
-Use the existing header's length for declared arity and expose it as
-`f.length` when callable support lands. Today's
-[`Any::member_access`](../src/vm/any/member_access.rs) returns `undefined`
-for functions, so storing the count alone does not meet this requirement.
-Empty and rest-only parameter lists have length `0`. If the named-parameter
-proposal is approved, each generated callable must carry the function node's
-`parameterCount` in that header, including unused parameters and capturing
-or non-capturing functions. Do not infer it from argument reads or the
-caller's array length. The complete actual argument array still crosses the
-call boundary unchanged.
+The declared arity is the `length` `static_function` is given, and a
+program reads it as `f.length` once callable support lands — Stage 2's,
+and how it reaches the program is decided there
+([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md),
+"Direction, not detail"). Empty and rest-only parameter lists have length
+`0`. If the named-parameter proposal is approved, each generated callable
+carries the function node's `parameterCount`, including unused parameters,
+capturing or not; it is never inferred from argument reads or the caller's
+array length. The complete actual argument array still crosses the call
+boundary unchanged.
 
 The piece that turns this from data into something callable: a function
 value needs, alongside its existing name/length header
@@ -450,8 +450,8 @@ mvp-roadmap already stages this: a natively compiled function must
 eventually still carry its `Any<A>` EDAG description, so hashing and
 `toString(f)` apply uniformly to interpreted and AOT-compiled functions
 alike, but the MVP code generator is explicitly allowed to omit it until the
-[edag-spec](../../todo/edag-spec.md) exists. Once it does, extend the header
-(or an out-of-band association, per
+[edag-spec](../../todo/edag-spec.md) exists. Once it does, the VM's own
+function object carries it (or an out-of-band association, per
 [associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)'s
 Effect-based alternative if that is the direction chosen) to carry it, for
 every `Function<A>` this plan's stages produce — including capturing

@@ -165,6 +165,22 @@ self-reference, the generator — is written against this shape, and so is
 the Stage 1 compiler plan,
 [compile-noncapturing-functions-to-rust.md](../../fjs/fsc/todo/compile-noncapturing-functions-to-rust.md).
 
+### Direction, not detail
+
+This todo sets a direction: the contract, the traits, the shape. It does
+not decide how the implementation meets them, and it will not — every
+implementation detail is decided in the pull request that implements it,
+by the implementer, against the code as it is then. How a program comes
+to read `f.length` (a `member_access` arm, a property table, something
+else), how a VM's object is laid out, what `Debug` prints, which test
+proves what: there are several ways to do each, and the right one is
+visible only with the code in hand. A review of this document asking it
+to fix one of them asks for what the document deliberately leaves open —
+[REVIEW.md](../../doc/REVIEW.md) leaves such a question to the implementer,
+and this section is where it is left. What a review of this document can
+raise is the direction itself: a contract that is wrong, a trait that
+cannot exist, a document that contradicts another.
+
 ### Tasks
 
 - [ ] `IComplex`, `IContainer: IComplex`, `IFunction: IComplex`; `IVm`
