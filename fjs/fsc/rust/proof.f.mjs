@@ -134,6 +134,23 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assert(typeof result[1] === 'string' && result[1].length > 0, result)
         },
         /**
+         * A lazy operator is refused: its `nanvm-lib` spelling establishes
+         * every operand, which the program does not. No source reaches this
+         * yet — the grammar has none of the four — so each node comes in
+         * directly, the ternary among them: unrefused, it would print as a
+         * call establishing both arms and throw where JavaScript answers
+         * the selected one.
+         */
+        refusedLazyOperator: () => {
+            const result = toRust(['&&', 1, 2])
+            assertStructurallySame(
+                result,
+                ['error', 'no Rust spelling for this module: no Rust for a lazy operator in a module: &&,1,2'])
+            assertEq(toRust(['||', 1, 2])[0], 'error')
+            assertEq(toRust(['??', 1, 2])[0], 'error')
+            assertEq(toRust(['?:', true, 1, ['/', 1n, 0n]])[0], 'error')
+        },
+        /**
          * A property read on a nullish base compiles to a `Result` error
          * instead of Rust that panics at run time.
          */
