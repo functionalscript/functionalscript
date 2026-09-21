@@ -204,9 +204,11 @@ length check, only the enclosing scope's *construction* of the frame does.
 **Decided elsewhere**: the representation is
 [function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
 — `Function<A>` is callable, not a container, so neither option below is
-the one; both are kept as the record of the question. What follows about
-the calling convention, `Code<A>`'s shape and the captured array still
-holds, and is what that design's native-construction capability takes.
+the one; both are kept as the record of the question. `naive`'s object
+holds the static `fn` pointer, the `length` and the captured frame behind
+an `Rc`, and every static function has the one signature
+`fn(frame: &Array<Naive>, length: u32, self_: &Function<Naive>, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
+the arguments by value. The stages below are written against that shape.
 
 Use the existing header's length for declared arity and expose it as
 `f.length` when callable support lands. Today's
@@ -279,24 +281,13 @@ caller observes.
 `toString`/hashing implications of a natively compiled function are a
 pre-existing, separately tracked question
 ([object-identity](../../spec/todo/object-identity.md), Stage 7 below).
-Equality is not separately tracked, and option 1 changes it in a way worth
-being explicit about: `PartialEq for Function<A>` today delegates entirely
-to `IContainer::ptr_eq`, which is an **items**-allocation check
-(`naive::Container::ptr_eq` compares `Rc::ptr_eq(&self.items, &other.items)`
-alongside header equality). Under option 1, `items` is always empty and
-carries no real state — the captured array moved into the header — so two
-`Function<A>` values are equal only if they additionally happen to share the
-same (vestigial, always-empty) items allocation, which two independently
-constructed values have no reason to. Two closures built from unrelated
-creation events *should* compare unequal (JS gives two closures from two
+Equality is settled with the representation: `PartialEq for Function<A>`
+is identity, `ptr_eq` on `naive`'s `Rc`, so two closures built from
+unrelated creation events compare unequal — JS gives two closures from two
 calls to the same closure-returning function distinct identity even with
-identical code and content — matching `Array<A>`'s own identity-based
-`PartialEq`, `vm/array/partial_eq.rs`), so that default is correct for
-ordinary closures (Stage 3). It is wrong for exactly one case: **the same
-function's own `self`**, which must compare equal to itself across every
-place it is read — see [Self-reference](#self-reference), which resolves
-this by never reconstructing `self` in the first place, sidestepping the
-`items`-allocation question entirely rather than depending on it.
+identical code and content, matching `Array<A>`'s own identity-based
+`PartialEq` (`vm/array/partial_eq.rs`) — and a function and its clone
+compare equal, since a clone shares the object.
 
 #### Self-reference
 
@@ -345,13 +336,11 @@ precisely.
    runs, `f`'s own canonical value already exists to be passed in — nothing
    about it depends on that activation's own result.
 
-   Only functions whose body actually reads `["self"]` in value position
-   need this extra parameter — one that only ever calls itself (case 1)
-   does not, so `Code<A>` is not one universal signature but a family
-   (matching how [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
-   already gives variadic and non-variadic functions different calling
-   conventions); working that out to a concrete type-level shape is
-   Stage 5's task, not settled here.
+   Every static function receives `self_`, whether or not its body reads
+   `["self"]`: one signature for all, an unused parameter costing nothing,
+   as [function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
+   settles it. A body that reads `["self"]` reads that parameter; one that
+   only ever calls itself (case 1) may still recurse at the Rust level.
 
 Mutual recursion between two independently-hashed functions (`a` calls `b`
 calls `a`) stays out of scope, exactly as the language spec currently scopes
@@ -388,13 +377,15 @@ scope-unaware node-sharing hazard need fixing — in
 [compile-noncapturing-functions-to-rust](../../fjs/fsc/todo/compile-noncapturing-functions-to-rust.md).
 
 **Stage 2 — `Function<A>` as a real, callable first-class value.**
-Add the header code pointer (and, under option 1 above, the captured
-`Array<A>` field) plus `Function::call`. A non-capturing function used as a
-value (assigned, stored in an array or object property, or returned) now
-gets a real `Function<A>` with an empty captured array, callable
-generically — this is what lets `export default` be evaluated uniformly by
-the harness whether or not it happens to be a function, closing the gap the
-harness currently special-cases.
+With `IFunction` landed
+([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)),
+the generator emits each function's body as a static function of the one
+signature and constructs `naive`'s object from it with an empty frame. A
+non-capturing function used as a value (assigned, stored in an array or
+object property, or returned) now gets a real `Function<A>`, callable
+through `Function::call` — this is what lets `export default` be evaluated
+uniformly by the harness whether or not it happens to be a function,
+closing the gap the harness currently special-cases.
 
 Preserve the declared length from the first callable value this stage
 constructs. When named parameters are admitted, compare exported and
@@ -406,8 +397,8 @@ or Stage 7's EDAG embedding.
 Extend the generator to lower the approved function-node shape for a body
 that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
-`Function<A>` value with that as its captured field. The nested body reads
-`captured[i]` exactly as it reads `args[i]`. Proof surface: a two-level
+`Function<A>` value with that as its frame. The nested body reads
+`frame[i]` exactly as it reads `args[i]`. Proof surface: a two-level
 closure fixture over an ordinary (non-`self`) captured value — e.g.
 `a => b => a + b`, the outer parameter captured into the inner function's
 frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
@@ -424,7 +415,7 @@ element, a parameter — anything the EDAG's `exp` can produce), not already a
 already exists — `TryFrom<Any<A>> for Function<A>`
 ([`vm/impls/try_from.rs`](../src/vm/impls/try_from.rs)) returns
 `Result<Function<A>, Any<A>>`, `Err` exactly the not-a-function case — so a
-dynamic call compiles to `Function::try_from(callee)?.call(&args)?`, no new
+dynamic call compiles to `Function::try_from(callee)?.call(args)?`, no new
 conversion to design, only to wire up. Both call forms (Stage 1's static
 form and this one) must be observably identical, per the core invariant
 that source behavior is call-site-representation-independent; nail this
@@ -434,12 +425,9 @@ through a value) rather than trusting it by inspection.
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:
 `self`-as-callee needs no new runtime support (Stage 1 already gives
-Rust-level recursion); `self`-as-a-value needs the generator to recognize
-which functions read `["self"]` outside call position, build each such
-function's canonical `Function<A>` once wherever its enclosing scope already
-builds one, and thread a handle to it into that function's calling
-convention. This is where the calling-convention family from
-[Self-reference](#self-reference) gets a concrete Rust shape. Proof surface:
+Rust-level recursion); `self`-as-a-value needs nothing in the calling
+convention either — every static function receives `self_` — only the
+generator reading `["self"]` as that parameter. Proof surface:
 edag-stage1-discussion's own outer-`f`/nested-`b` snippet cited in
 [Self-reference](#self-reference) above — an enclosing function's `["self"]`
 captured into a nested closure's frame and called back out through it —
@@ -482,20 +470,13 @@ generated-Rust test from one source of cases.
 
 ### Open questions
 
-1. **Does option 2 of [the code-pointer sketch](#the-functiona-value-and-its-code-pointer)
-   type-check?** Repurposing `InternalFunction::Items` for captured values,
-   rather than adding a field to the header (option 1), needs
-   `FunctionHeader<A>` to name `<A::InternalFunction as IContainer<A>>::Items`
-   — an associated type referring to a sibling associated type of the same
-   `InternalFunction`, at the exact spot `IVm`'s own bound
-   (`Header = FunctionHeader<Self>`) is declared. Verifying this (or
-   confirming it does not compile and option 1 stands permanently, not just
-   as a first cut) is Stage 2's first task.
-2. **Allocation cost of an empty captured `Array<A>`.** Under option 1,
-   every function value carries a captured `Array<A>` field, even a
-   non-capturing ("static") one, where it is always empty. Whether
-   `naive::Container`'s `Rc<[I]>` avoids allocating for a zero-length
-   collection, and whether that matters enough to special-case, is a
+1. ~~Does option 2 of the code-pointer sketch type-check?~~ Moot: neither
+   container option is the representation
+   ([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)).
+2. **Allocation cost of an empty captured `Array<A>`.** Every function
+   value carries a frame, even a non-capturing one, where it is empty;
+   since identity is the object's and not the frame's, every non-capturing
+   function may share one empty frame. Whether that is worth doing is a
    `naive`-backend efficiency question, not a representation question, and
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
@@ -518,18 +499,17 @@ generated-Rust test from one source of cases.
       harness fixtures whose `export default` is an already-applied call
       (a bare function-valued `export default` stays out of scope until
       Stage 2's `Function<A>` value exists).
-- [ ] Stage 2: `FunctionHeader<A>` gains a code pointer (option 1: plus a
-      captured `Array<A>` field); preserve observable declared length;
-      `Function::call`; resolve open question 1.
-- [ ] Stage 3: capturing closures — approved function-node lowering, frame
-      built as the captured `Array<A>`.
+- [ ] Stage 2: after `IFunction`, emit each body as a static function of
+      the one signature and construct `naive`'s object with an empty frame;
+      preserve observable declared length; `Function::call`.
+- [ ] Stage 3: capturing closures — approved function-node lowering, the
+      frame built as an `Array<A>` and handed to `naive`'s constructor.
 - [ ] Stage 4: dynamic call sites through `TryFrom<Any<A>> for Function<A>` +
       `Function::call`; paired static/dynamic fixtures proving observable
       equivalence.
 - [ ] Stage 5: self-reference — `self`-as-callee needs nothing new;
-      `self`-as-a-value needs a canonical, once-built `Function<A>` threaded
-      into that function's calling convention, plus a `self === self`
-      fixture.
+      `self`-as-a-value reads the `self_` every static function receives,
+      plus a `self === self` fixture.
 - [ ] Stage 6: arity/variadic edge-case audit against
       call-like-instructions §6.
 - [ ] Stage 7: EDAG embedding on natively compiled functions, once

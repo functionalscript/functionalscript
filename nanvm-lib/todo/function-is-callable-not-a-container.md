@@ -18,8 +18,11 @@ language erased it ([spec](../../spec/README.md#functions): a function
 carries no name, and no program observes one) — and today it is read only
 by `Debug`, which prints it beside invented parameter names and the unused
 bytes in hex. The only constructions of a function value are the corpus
-harness's `function_any` and two tests, each stuffing an empty container to
-have something a function-shaped `Any` can refuse.
+harness's `function_any`, two tests in `tests/test/main.rs`, and one in
+`any/to_json.rs` — each stuffing an empty container to have something a
+function-shaped `Any` can refuse. (`to_json` does not belong under `vm/` at
+all; [to-json-fjs-migration.md](./to-json-fjs-migration.md) retires it, and
+its test goes with it.)
 
 What a program can observe of a function is what the contract should be:
 it can be called, it has a `length`, it has a `String(f)` spelling, and it
@@ -67,14 +70,14 @@ extensions they are; `'static` is on neither trait, since nothing stores a
 value where it would be needed and `IVm` itself carries no such bound.
 
 **No constructor on `IFunction`.** A holder of a `Function<A>` can only run
-it, which is the language's own rule. Construction is a *capability of a
-VM*, in a trait of its own:
+it, which is the language's own rule. Construction is each VM's own:
 
-- Generated code is generic over the VM and must build the function values
-  a compiled module holds, so a compiled module bounds on a capability
-  trait whose one method makes a function from a static `fn` pointer and
-  its captured `Array<A>` — the compiled kind. `naive` implements it. The
-  corpus harness's `function_any` needs the same bound, and says so.
+- `naive` binds a static Rust function, usually a generated one, through a
+  constructor of its own. That is the whole of the MVP: no EDAG
+  interpreter, a VM that can only link static functions, and a compiler
+  that produces them. A generic trait for binding a Rust static function,
+  which a module generic over the VM would bound on, may come later; it is
+  not this design's.
 - A VM that interprets may build a function from an EDAG. That is its own
   API, reached from a program only through an effect — `createFunction(e:
   Edag) => Function`, with `getEdag(f: Function) => Edag` beside it — which
@@ -89,28 +92,34 @@ VM*, in a trait of its own:
   handed, and a dynamic one calls a compiled one it captured.
 
 **`naive` holds a static function.** Its `InternalFunction` is an `Rc`
-over one object: the generated `fn` pointer, the `length`, and the captured
+over one object: the static `fn` pointer, the `length`, and the captured
 `frame: Array<Naive>`. The object's pointer is the function's identity —
 `ptr_eq` compares the `Rc` — so identity depends on nothing the generator
 does: every construction is a new object, and every non-capturing function
-may share one empty frame. The generated function receives `self`, `frame`
-and `args`:
+may share one empty frame. The static function receives the frame, the
+length, the function value itself and the arguments, the arguments by
+value, as every operator on `Any` takes its operands:
 
 ```rust
-type Code<A> = fn(self_: &Function<A>, frame: &Array<A>, args: Array<A>) -> Result<Any<A>, Any<A>>;
+type Code = fn(frame: &Array<Naive>, length: u32, self_: &Function<Naive>, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>;
 ```
 
-`call` reads the frame out of the object and passes it, so `Function<A>`
-exposes no `frame()` — that would be the access to internals this design
-refuses — and passes the function value itself, which is what the body's
-`["self"]` names for recursion
-([callable-function-objects.md](./callable-function-objects.md)). The body
-knows its own arity statically, so `length` is not passed; it lives in the
-object for `IFunction::length`. `to_string` answers `() => {}` until a
-spelling exists — low priority, and honest: the VM knows the value is a
-function and nothing more. `naive` holds no EDAG: it stays the simple VM
-an AOT target wants, and every headache of interpreting or building code
-stays in the compiler.
+One signature for every function, whether or not its body uses each
+parameter: an unused `self_` costs nothing, and one convention is simpler
+than a family. `call` reads the frame and the length out of the object and
+passes them, so `Function<A>` exposes no `frame()` — that would be the
+access to internals this design refuses — and passes the function value
+itself, which is what the body's `["self"]` names for recursion
+([callable-function-objects.md](./callable-function-objects.md)). All of
+this is `naive`'s own; nothing of it reaches `IFunction`.
+
+`to_string` is owed before the MVP: `String(f)` is source reconstructed
+from the function's EDAG ([spec](../../spec/README.md)), serializable data
+a program returns, so the object will carry the text the generator prints
+from the EDAG. Until then `naive`'s `to_string` panics as unimplemented — a
+loud gap, never a plausible value in its place. `naive` holds no EDAG: it
+stays the simple VM an AOT target wants, and every headache of
+interpreting or building code stays in the compiler.
 
 This is also the shape a NaN-boxing VM needs: an `Any` there is one word,
 so a function value is one pointer to an object holding everything else.
@@ -125,20 +134,25 @@ self-reference, the generator — is unchanged and builds on this shape.
 
 - [ ] `IComplex`, `IContainer: IComplex`, `IFunction: IComplex`; `IVm`
       binds `InternalFunction: IFunction<Self>`.
-- [ ] The native-construction capability trait; `naive` implements it and
-      `IFunction`, as an `Rc` over the `fn` pointer, the `length` and the
-      captured frame, identity the `Rc`'s; `call` passes `self`, the frame
-      and the arguments; `to_string` answers `() => {}`.
+- [ ] `naive` implements `IFunction` as an `Rc` over the `fn` pointer, the
+      `length` and the captured frame, identity the `Rc`'s, with a
+      constructor of its own; `call` passes the frame, the length, `self`
+      and the arguments; `to_string` panics as unimplemented.
 - [ ] `Function<A>`: `call`, `length`, `to_string`, identity; `name`, the
       header and the `pub` field go; `Debug` prints `to_string`.
-- [ ] `function_any` in the corpus harness and the two test constructions
-      go through the capability trait; the corpus's generated functions
-      carry its bound.
+- [ ] `function_any` in the corpus harness and the three test
+      constructions go through `naive`'s constructor. `function_any` is
+      generic over the VM today and the corpus's generated functions call
+      it; with construction `naive`'s own, either the generated corpus
+      binds to `naive` — it runs on `naive` alone today — or the binding
+      trait comes with this change. Decided at implementation, the smaller
+      change preferred.
 - [ ] A test that `call` runs the code with its frame, its arguments and
       itself, that two functions made from the same code and frame are not
       `===`, and that a function and its clone are.
-- [ ] `callable-function-objects.md`: reduce its representation section to
-      a pointer here; declare the `IVm` break.
+- [ ] `to_string` carries the text the generator prints from the EDAG,
+      before the MVP.
+- [ ] Declare the `IVm` break.
 - [ ] `cargo test`, `cargo clippy --all-targets`, `cargo fmt -- --check`;
       `npm run gen` with no drift.
 
