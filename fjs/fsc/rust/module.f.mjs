@@ -92,6 +92,15 @@ const importsFor = text => [...new Set([
  * for. Recursive rather than a fold, so that a refusal partway through short
  * -circuits the rest without a mutable accumulator.
  *
+ * A binding is established before the root, so a shared operation that
+ * throws does so before an operation that precedes it in the source: the
+ * module reports that failure where JavaScript reports the earlier one.
+ * The two are one outcome — `spec/README.md`, "Failure is one outcome",
+ * names the first failing operation as no language-level observation and
+ * allows exactly this reordering — and every binding is reached eagerly by
+ * the root, so no failure a program skips is run: that limit is what
+ * `lazyOperator`'s refusal keeps.
+ *
  * @type {(bindings: readonly (readonly [Exp, string])[]) => (i: number) => Result<readonly string[], readonly unknown[]>}
  */
 const letLines = bindings => i => {
