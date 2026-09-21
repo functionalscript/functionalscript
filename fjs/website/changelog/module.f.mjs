@@ -21,10 +21,14 @@
  *
  * @module
  *
- * @import { Entry, Inline } from '../../media/markdown/types.ts'
+ * @import { Document, Entry, Inline } from '../../media/markdown/types.ts'
+ * @import { Element, Node } from '../../media/html/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
+import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { repository } from '../page/module.f.mjs'
+import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 
 const zero = 0x30
 const nine = 0x39
@@ -168,3 +172,99 @@ export const descending = versions => [...versions].sort((x, y) => {
     }
     return 0
 })
+
+/**
+ * One span as the element it denotes. `text` is a string rather than an
+ * element: a span of prose has no tag of its own, and wrapping it in one
+ * would put a `span` around two thirds of every entry.
+ *
+ * @type {(span: Inline) => Node}
+ */
+export const spanNode = span => {
+    const kind = span[0]
+    if (kind === 'code') { return ['code', span[1]] }
+    if (kind === 'strong') { return ['strong', span[1]] }
+    if (kind === 'em') { return ['em', span[1]] }
+    if (kind === 'link') { return ['a', { href: span[2] }, span[1]] }
+    return span[1]
+}
+
+/**
+ * One entry as a list item, its references linked.
+ *
+ * @type {(entry: Entry) => Element}
+ */
+export const entryNode = entry => ['li', ...linked(entry).map(spanNode)]
+
+/**
+ * A release's page path, and the URL that reaches it.
+ *
+ * **Underscore-prefixed, because that is what a generated file is called
+ * here.** `.gitignore` keeps `index.html` and the `_`-prefixed files out of
+ * the tree, and those are the only two names a generator may write — the
+ * site serves the repository folder itself, so anything else it emitted
+ * would be an untracked file a contributor has to notice. A release is not a
+ * directory and cannot take the `index.html` name, so it takes the other
+ * one, as `_main.css` does.
+ *
+ * @type {(version: string) => string}
+ */
+export const releasePath = version => `changelog/_${version}.html`
+
+/** @type {(version: string) => string} */
+export const releaseHref = version => `/${releasePath(version)}`
+
+/** The breadcrumb every changelog page carries. @type {(tail: readonly Node[]) => Element} */
+const nav = tail => ['nav',
+    ['a', { href: '/index.html' }, 'root'],
+    ' / ',
+    ['a', { href: '/changelog/index.html' }, 'changelog'],
+    ...tail,
+]
+
+/**
+ * One release's page: its entries, in the order the file writes them, which
+ * `changelog/README.md` fixes as order of importance rather than of merge.
+ *
+ * An empty file is a release that shipped no notable change — the README
+ * says so — and says that rather than showing an empty list, which would
+ * read as a page that failed to load.
+ *
+ * @type {(version: string) => (document: Document) => Vec}
+ */
+export const releasePage = version => document => htmlUtf8(
+    ['title', `FunctionalScript ${version}`],
+    stylesheetLink,
+    ...faviconLinks,
+)(
+    ['main',
+        nav([' / ', version]),
+        ['h1', version],
+        ...(document.length === 0
+            ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
+            : [/** @type {Element} */(['ul', ...document.map(entryNode)])]),
+    ],
+)
+
+/**
+ * The release index: every release, newest first.
+ *
+ * It is the `changelog/` directory's own page, replacing the file listing a
+ * directory would otherwise get. A reader who opens the changelog wants the
+ * releases, not the file names they are stored under, and the files are one
+ * click away on GitHub where every other file of the repository is.
+ *
+ * @type {(versions: readonly string[]) => Vec}
+ */
+export const indexPage = versions => htmlUtf8(
+    ['title', 'FunctionalScript releases'],
+    stylesheetLink,
+    ...faviconLinks,
+)(
+    ['main',
+        nav([]),
+        ['h1', 'Releases'],
+        ['ul', ...descending(versions).map(version =>
+            /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],
+    ],
+)

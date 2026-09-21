@@ -61,6 +61,8 @@ import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
+import { indexPage, releasePage, releasePath } from './changelog/module.f.mjs'
+import { tryParse } from '../media/markdown/module.f.mjs'
 import { faviconLinks, stylesheet, stylesheetLink } from './style/module.f.mjs'
 import { demoSection, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
@@ -93,6 +95,11 @@ const rootPage = commit => dir => htmlUtf8(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['p', ['a', { href: repository }, 'GitHub Repository']],
         ['h1', 'FunctionalScript'],
+        // The releases are linked here as well as in the catalogue below,
+        // where 'changelog/' is a directory among twenty. A reader looking
+        // for what changed in the version they have is looking for a
+        // release note, not for the folder it is filed in.
+        ['p', ['a', { href: '/changelog/index.html' }, 'Releases']],
         .../** @type {readonly Node[]} */ (sections(commit)(dir)),
         .../** @type {readonly Node[]} */ (dir.demo === null ? [] : demoSection(dir.demo)),
         .../** @type {readonly Node[]} */ (testSection(dir)([
@@ -543,6 +550,75 @@ const toDir = tree => proofs => demos => walked => ({
 })
 
 /**
+ * The directory the release history is kept in. Its page is written by
+ * {@link writeChangelog} rather than by {@link writePages}: a reader who
+ * opens the changelog wants the releases, not the names of the files they
+ * are stored under, and those files are one click away on GitHub where every
+ * other file of the repository is.
+ */
+const changelogDir = 'changelog'
+
+/**
+ * A release file's version, or `null` for a file that is not one.
+ *
+ * The version is the file name, which is why no release file carries a
+ * heading. `README.md` and `RELEASE.md` describe the format rather than
+ * record a release, and are not versions.
+ *
+ * @type {(name: string) => string | null}
+ */
+const versionOf = name => {
+    if (!name.endsWith('.md')) { return null }
+    const version = name.slice(0, -'.md'.length)
+    return version.length !== 0 && !isNaN(Number(version[0])) ? version : null
+}
+
+/**
+ * The release index, and one page per release.
+ *
+ * **A release page is `_`-prefixed**, because `index.html` and the
+ * `_`-prefixed names are the only two a generator may write here: the site
+ * serves the repository folder itself, and `.gitignore` keeps exactly those
+ * out of the tree. A release is not a directory and cannot take the first
+ * name, so it takes the second, as `_main.css` does.
+ *
+ * **A file that does not parse stops the build**, rather than being skipped
+ * into a page that quietly lacks a release. The entry format is a convention
+ * the repository keeps ([`changelog/README.md`](../../changelog/README.md)),
+ * so a file that breaks it is a mistake to report, not a case to handle.
+ *
+ * `unreleased/` is not read. It is a directory rather than a release file,
+ * so it is passed over by the same rule that passes over `README.md` —
+ * nothing here assumes it exists, and nothing assumes it is gone.
+ *
+ * **The walk is what says which files are there**, rather than a second
+ * `readdir` of the same directory. It has already listed them, it lists
+ * only files — so `unreleased/`, a directory, is passed over without a rule
+ * of its own — and a tree that holds no changelog at all simply is not in
+ * it, which is how a build over one gets no release pages rather than no
+ * build. The generator's own proofs run it over exactly such a tree.
+ *
+ * @type {(tree: readonly _Walked[]) => Effect<ReadFile | WriteFile | Write, void, IoChannel>}
+ */
+const writeChangelog = tree => {
+    const dir = tree.find(walked => walked.path === changelogDir)
+    if (dir === undefined) { return pureOk(undefined) }
+    const versions = dir.files.map(versionOf).filter(v => v !== null)
+    return step(
+        forEachStep(pureOk(versions), version => step(
+            readUtf8File(`${changelogDir}/${version}.md`),
+            text => {
+                const document = tryParse(text)
+                return document[0] === 'error'
+                    ? pureError(`changelog/${version}.md: ${document[1]}`)
+                    : writeFile(releasePath(version), releasePage(version)(document[1]))
+            })),
+        () => step(
+            writeFile(`${changelogDir}/index.html`, indexPage(versions)),
+            () => log(`releases: ${versions.length}`)))
+}
+
+/**
  * One `index.html` per directory, so the tree is walkable from the root.
  *
  * The root's page is the site's own — it carries the heading and the test
@@ -555,7 +631,9 @@ const writePages = commit => tree => proofs => demos => {
     const byPath = tree.reduce(
         (map, walked) => setReplace(walked.path)(walked)(map),
         /** @type {_Tree} */ (emptyMap))
-    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath)(proofs)(demos))
+    const dirs = tree
+        .filter(walked => !isTodoDir(walked.path) && walked.path !== changelogDir)
+        .map(toDir(byPath)(proofs)(demos))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pathConcat(dir.path)('index.html'),
@@ -614,7 +692,8 @@ const program = commit => note => exitStep(mapStep(
                     return step(reportClassification(proofs), () =>
                         step(forEachStep(pureOk(refused), log), () =>
                             step(writePages(commit)(tree)(proofs)(demos), () =>
-                                writeUtf8File('_main.css', stylesheet))))
+                                step(writeChangelog(tree), () =>
+                                    writeUtf8File('_main.css', stylesheet)))))
                 }))
     })),
     () => undefined))
