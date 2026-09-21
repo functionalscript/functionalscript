@@ -10,8 +10,10 @@ eighteen binary operators and `~` reachable from source. `fjs/edag/rust`
 has a `nanvm-lib` spelling for every one of them — it is shared with the
 operator-conformance corpus generator, which needed them first; `===` and
 `!==` call `strict_eq` and `strict_ne` in `nanvm_lib::vm::unstable`. Every
-spelling answers `Result<Any<A>, Any<A>>`, and
-`pub fn module<A: IVm>() -> Any<A>` has nowhere to put the `Err`. Before
+spelling answers `Result<Any<A>, Any<A>>`, and so does
+`pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>` now — but the printer
+does not yet append the `?` that would hand an operator's `Err` to it, and
+a `let` binding and the body's `Ok(…)` each want a bare `Any<A>`. Before
 this refuses cleanly (see below), compiling one of these operators to
 `.rs` exited `0` and wrote Rust `rustc` rejects with a type mismatch.
 
@@ -27,20 +29,18 @@ succeed instead.
 `nanvm-lib`'s own operators throw because the language's do — division by
 a BigInt zero, a numeric overflow the target type cannot hold, `ToPrimitive`
 recursing into an object whose `Symbol.toPrimitive` this VM does not run.
-A generated module has no caller to hand a `Result` to today, so the
-question this issue actually owns is what `pub fn module` should do when
-an operator throws: return `Result<Any<A>, Any<A>>` itself (a signature
-change every caller of a generated module would need), or `.unwrap()`/
-`panic!` (which turns an ordinary language failure into a Rust panic,
-which [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-is unlikely to accept as silence-free). Settle that question before
-writing the spelling `resultOperator`'s refusal stands in for; changing
-`bodyLines`'s own return type without an answer would just move the
-mismatch from `rustc` to this module's own type.
+The failure contract is decided: `pub fn module` answers
+`Result<Any<A>, Any<A>>`, the `Err` the thrown value, the same shape every
+operator has, so a language failure stays a value the caller receives and
+never becomes a Rust panic
+([DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle));
+a `.` read already propagates with `?`, and the harness reports a throw as
+the value it is. What remains is the spelling: an operator's text followed
+by `?`, in the body and in a `let` binding alike.
 
 ### Tasks
 
-- [ ] Decide the generated module's own failure contract (see Proposal).
+- [x] Decide the generated module's own failure contract (see Proposal).
 - [ ] Spell Stage A's own operators — the eighteen binary ones and `~`,
       every one eager — against that contract, in
       `fjs/fsc/rust/module.f.mjs`. `op2Rust` also holds `&&`, `||` and `??`, and `op3Rust` holds `?:`:

@@ -12,8 +12,8 @@
  * operator conformance corpus the same way. What is specific to this module:
  * finding a whole module's implicitly shared nodes ({@link sharedNodesOf}
  * over the linked EDAG, rather than a corpus's explicit named `shared`),
- * naming them, assembling the `pub fn module<A: IVm>() -> Any<A>` a harness
- * can call, and picking exactly the `nanvm_lib` imports the printed text
+ * naming them, assembling the `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`
+ * a harness can call, and picking exactly the `nanvm_lib` imports the printed text
  * actually needs — the crate is the output's one dependency, so the
  * functions a literal becomes are `vm::unstable`'s, never copied here.
  *
@@ -110,12 +110,16 @@ const letLines = bindings => i => {
  *
  * Every `op1Rust`/`op2Rust` spelling answers `Result<Any<A>, Any<A>>`:
  * each `nanvm-lib` operator on `Any<A>` throws where its JavaScript
- * original does, and every place this module writes a value wants a bare
- * `Any<A>` instead — the `let` bindings and the body alike. So the text an
- * operator node prints does not compile *here*, though it is right where
- * that printer's other caller puts it — a generated operator test hands
- * the `Result` to a checker, `fjs/edag/rust/module.f.mjs`'s own comment on
- * `op2Rust` has why.
+ * original does. `pub fn module` answers the same `Result` now, so a throw
+ * has somewhere to go — a `.` read already propagates with `?` — but the
+ * printer does not yet append the `?` an operator's spelling needs, and
+ * every place this module writes a value still wants a bare `Any<A>`: the
+ * `let` bindings and the body's `Ok(…)` alike. So the text an operator
+ * node prints does not compile *here* yet, though it is right where that
+ * printer's other caller puts it — a generated operator test hands the
+ * `Result` to a checker, `fjs/edag/rust/module.f.mjs`'s own comment on
+ * `op2Rust` has why. `fjs/fsc/rust/todo/stage-a-operators.md` is the
+ * spelling.
  *
  * The lowering folds a negated numeric literal into the leaf, so `-1`
  * reaches this as a number and never as a node at all, printing as it
@@ -131,8 +135,9 @@ const resultOperator = node => node instanceof Array && (
 )
 
 /**
- * The module's value as a Rust expression of type `Any<A>`, and the `let`
- * bindings its implicitly shared nodes need first — or the refusal.
+ * The module's value as `Ok(…)` of a Rust expression of type `Any<A>` — a
+ * `?` inside it propagates a throw out of `module` — and the `let` bindings
+ * its implicitly shared nodes need first — or the refusal.
  *
  * `analysis(root)` recurses once per operand ({@link ../../edag/analysis/module.f.mjs}),
  * so this refusal is itself reached only up to the depth that walk survives:
@@ -150,7 +155,7 @@ const bodyLines = root => {
     const shared = sharedNodesOf(root)
     /** @type {readonly (readonly [Exp, string])[]} */
     const bindings = shared.map((node, i) => [node, `c${i}.clone()`])
-    return okThen(lines => mapOk(s => [...lines, `${indent}${s}`])(expExpr(bindings)(root)))(letLines(bindings)(bindings.length))
+    return okThen(lines => mapOk(s => [...lines, `${indent}Ok(${s})`])(expExpr(bindings)(root)))(letLines(bindings)(bindings.length))
 }
 
 /**
@@ -180,7 +185,7 @@ const generateResult = root => mapOk(body => {
         `use nanvm_lib::vm::{${uses.join(', ')}};`,
         '',
         '#[rustfmt::skip]',
-        'pub fn module<A: IVm>() -> Any<A> {',
+        'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
         ...body,
         '}',
         '',

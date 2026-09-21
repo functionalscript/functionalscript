@@ -103,7 +103,7 @@ via the `Function` constructor — no rustc at the user's run time.
 
 - [x] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
       exposing the compiled module's value (e.g.
-      `pub fn module<A: IVm>() -> Any<A>`), not a `main`. Covers literals,
+      `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`), not a `main`. Covers literals,
       arrays, objects, `const` sharing (generalized from the operator-test
       printer's explicit named `shared` to a linked EDAG's implicit,
       identity-based sharing), and property access (`.`, via

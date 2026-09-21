@@ -190,6 +190,12 @@ deferred by choice:**
 
 #### Task 1 — make the whole `.rs` pipeline properly fallible
 
+**Landed**, ahead of the rest: `pub fn module` answers
+`Result<Any<A>, Any<A>>`, `.` propagates with `?` through its base as
+well as its own read, every fixture is regenerated, and `nanvm-harness`'s
+`run` reports a thrown value as `RunError::Thrown`. The design below is
+kept as the record of why.
+
 `pub fn module<A: IVm>() -> Any<A>` becomes
 `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`, and every node-printing
 path that currently panics on failure switches to propagating a `Result`.
@@ -619,7 +625,7 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
 
 ### Tasks
 
-- [ ] Task 1: `pub fn module` returns `Result<Any<A>, Any<A>>`; replace the
+- [x] Task 1: `pub fn module` returns `Result<Any<A>, Any<A>>`; replace the
       `.` node's `.unwrap()` with `?`, propagating through a fallible node's
       *operand* positions too (a `.` chain's base, not just its own read);
       regenerate every committed fixture; update `nanvm-harness`'s `run` and
@@ -645,8 +651,8 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
       a discovered function and `args` is a fresh array literal; add the
       bare-`Array<A>`-without-`.to_any()` printer helper this needs; refuse
       every other argument-list shape explicitly.
-- [ ] Task 7: update `nanvm-harness`'s `run`/tests for the `Result`-returning
-      `module()`; add the four fixtures above end to end (`.mjs`, generated
+- [ ] Task 7: (`run`'s `Result`-returning `module()` landed with Task 1)
+      add the four fixtures above end to end (`.mjs`, generated
       `.rs`, `#[path]` include, `#[test]`, `package.json`'s `gen` entry).
 
 ### Related

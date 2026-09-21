@@ -4,6 +4,6 @@ use nanvm_lib::vm::unstable::{string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    [(string_key("default"), string_any("hello"))].to_object().to_any()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok([(string_key("default"), string_any("hello"))].to_object().to_any())
 }

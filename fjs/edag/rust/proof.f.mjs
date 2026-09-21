@@ -79,12 +79,12 @@ export const proof = {
     dot: () => {
         assertEq(
             printed(['.', ['{}', [[':', 'a', 1]]], 'a']),
-            'Any::member_access([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("a")).unwrap()')
+            'Any::member_access([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("a"))?')
         // Atomic as an operand: the method chain binds tighter than any
         // infix operator, so no parentheses are needed around it.
         assertEq(
             printed(['-', ['.', ['{}', []], 'b']]),
-            '-(Any::member_access(Object::default().to_any(), string_any("b")).unwrap())')
+            '-(Any::member_access(Object::default().to_any(), string_any("b"))?)')
     },
     /**
      * `Any::member_access` reads an array, a string, a boolean, a number, and
@@ -97,25 +97,25 @@ export const proof = {
     dotOnNonObjectLiteral: () => {
         assertEq(
             printed(['.', ['[]', [1]], 'length']),
-            'Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("length")).unwrap()')
+            'Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("length"))?')
         assertEq(
             printed(['.', 'ab', '0']),
-            'Any::member_access(string_any("ab"), string_any("0")).unwrap()')
+            'Any::member_access(string_any("ab"), string_any("0"))?')
         assertEq(
             printed(['.', true, 'x']),
-            'Any::member_access(true.to_any(), string_any("x")).unwrap()')
+            'Any::member_access(true.to_any(), string_any("x"))?')
         assertEq(
             printed(['.', 5, 'x']),
-            'Any::member_access(f64_any(0x4014000000000000), string_any("x")).unwrap()')
+            'Any::member_access(f64_any(0x4014000000000000), string_any("x"))?')
         assertEq(
             printed(['.', 5n, 'x']),
-            'Any::member_access(bigint_any(5), string_any("x")).unwrap()')
+            'Any::member_access(bigint_any(5), string_any("x"))?')
     },
     /** A literal `number` index prints the same way a numeric primitive does elsewhere in this file. */
     numericIndex: () => {
         assertEq(
             printed(['.', ['{}', []], 0]),
-            'Any::member_access(Object::default().to_any(), f64_any(0x0000000000000000)).unwrap()')
+            'Any::member_access(Object::default().to_any(), f64_any(0x0000000000000000))?')
     },
     /**
      * A `.` base folds through a literal object chain before `nullishBase`
@@ -130,7 +130,7 @@ export const proof = {
         // Resolves to an object two hops away: printed, not refused.
         assertEq(
             printed(['.', ['.', ['{}', [[':', 'a', ['{}', [[':', 'c', 5]]]]]], 'a'], 'c']),
-            'Any::member_access(Any::member_access([(string_key("a"), [(string_key("c"), f64_any(0x4014000000000000))].to_object().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("c")).unwrap()')
+            'Any::member_access(Any::member_access([(string_key("a"), [(string_key("c"), f64_any(0x4014000000000000))].to_object().to_any())].to_object().to_any(), string_any("a"))?, string_any("c"))?')
         // The fold can just as well resolve to a non-object literal (an
         // array, here) two hops away. `nullishBase` treats that the same as
         // if the fold had left it opaque — neither is a literal `null` nor
@@ -139,7 +139,7 @@ export const proof = {
         // nothing, not that some refusal is being dodged.
         assertEq(
             printed(['.', ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], 'length']),
-            'Any::member_access(Any::member_access([(string_key("a"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any(), string_any("a")).unwrap(), string_any("length")).unwrap()')
+            'Any::member_access(Any::member_access([(string_key("a"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any(), string_any("a"))?, string_any("length"))?')
         // `resolvedBase` folds through a `.` node only as far as an actual
         // literal object — a chain whose middle step resolves to something
         // else (an empty array, here) stops there, unresolved, rather than
@@ -164,7 +164,7 @@ export const proof = {
         // were the only thing standing in the way.
         assertEq(
             printed(['.', ['.', ['[]', []], 'length'], 'toString']),
-            'Any::member_access(Any::member_access(Array::default().to_any(), string_any("length")).unwrap(), string_any("toString")).unwrap()')
+            'Any::member_access(Any::member_access(Array::default().to_any(), string_any("length"))?, string_any("toString"))?')
     },
     /**
      * `resolvedBase` also folds a literal array's or string's own canonical
@@ -186,7 +186,7 @@ export const proof = {
         // exactly as it would one property access away.
         assertEq(
             printed(['.', ['.', ['[]', [['{}', [[':', 'a', 1]]]]], 0], 'a']),
-            'Any::member_access(Any::member_access([[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), f64_any(0x0000000000000000)).unwrap(), string_any("a")).unwrap()')
+            'Any::member_access(Any::member_access([[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), f64_any(0x0000000000000000))?, string_any("a"))?')
         // A numeric key into an object literal is stringified first, the
         // same way `{0:'x'}[0]` and `{0:'x'}['0']` read the same property
         // in real JS: the fold matches the string-keyed property `"0"`
@@ -194,14 +194,14 @@ export const proof = {
         // opaque to a numeric key.
         assertEq(
             printed(['.', ['.', ['{}', [[':', '0', 'x']]], 0], 'length']),
-            'Any::member_access(Any::member_access([(string_key("0"), string_any("x"))].to_object().to_any(), f64_any(0x0000000000000000)).unwrap(), string_any("length")).unwrap()')
+            'Any::member_access(Any::member_access([(string_key("0"), string_any("x"))].to_object().to_any(), f64_any(0x0000000000000000))?, string_any("length"))?')
         // A string literal's in-bounds index resolves to the single-unit
         // string at that position, the same way `{@link
         // dotOnStringOutOfRangeIndex}` (`throw`, below) resolves an
         // out-of-range one to `undefined` instead.
         assertEq(
             printed(['.', ['.', 'ab', 0], 'length']),
-            'Any::member_access(Any::member_access(string_any("ab"), f64_any(0x0000000000000000)).unwrap(), string_any("length")).unwrap()')
+            'Any::member_access(Any::member_access(string_any("ab"), f64_any(0x0000000000000000))?, string_any("length"))?')
         // `[1]["0"]` reads element `0` exactly as `[1][0]` does: `"0"` is
         // the canonical decimal form of the index `0`, which
         // `Array::member_access` accepts as an alternative spelling of the
@@ -209,14 +209,14 @@ export const proof = {
         // (never nullish), so this prints two hops in.
         assertEq(
             printed(['.', ['.', ['[]', [1]], '0'], 'x']),
-            'Any::member_access(Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("0")).unwrap(), string_any("x")).unwrap()')
+            'Any::member_access(Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("0"))?, string_any("x"))?')
         // `.length` on a string literal is a number, never nullish, so it
         // is left opaque here exactly as an array's `.length` is above —
         // proving the string branch's own `b === 'length'` guard behaves
         // the same way.
         assertEq(
             printed(['.', ['.', 'ab', 'length'], 'toString']),
-            'Any::member_access(Any::member_access(string_any("ab"), string_any("length")).unwrap(), string_any("toString")).unwrap()')
+            'Any::member_access(Any::member_access(string_any("ab"), string_any("length"))?, string_any("toString"))?')
     },
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
@@ -347,7 +347,7 @@ export const proof = {
          * see through, the same as its string-keyed object fold already
          * does for {@link dotOnNestedMissingKey} above. Before that fold
          * covered these shapes, `indexExpr` accepting a numeric literal let
-         * each of these compile to a call chain that panics at `.unwrap()`
+         * each of these compile to a call chain that throws at run time
          * instead of refusing — the exact failure this refusal replaces.
          */
         dotOnArrayOutOfRangeIndex: () => printed(['.', ['.', ['[]', []], 0], 'x']),

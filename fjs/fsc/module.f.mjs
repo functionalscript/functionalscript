@@ -342,7 +342,7 @@ export const _stringifyTree = value => concat(treeValue(value))
  * is the linked graph written back as source, so it holds a function, which no value does; the EDAG output is
  * that graph, including the module's complete export object, as a DataJS
  * document; and the `.rs` output prints it as `let`
- * bindings and a `pub fn module<A: IVm>() -> Any<A>`.
+ * bindings and a `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.
  *
  * Returns the process exit code: `0` once the output file is written, `1` on
  * every failure — too few arguments, an output extension naming no language,

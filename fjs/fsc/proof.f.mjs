@@ -616,8 +616,8 @@ use nanvm_lib::vm::unstable::{f64_any, string_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    [(string_key("default"), Any::member_access([(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("b")).unwrap())].to_object().to_any()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok([(string_key("default"), Any::member_access([(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("b"))?)].to_object().to_any())
 }
 `)
         },
@@ -632,8 +632,8 @@ use nanvm_lib::vm::unstable::{f64_any, string_key};
 use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
-pub fn module<A: IVm>() -> Any<A> {
-    [(string_key("default"), Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000)).unwrap())].to_object().to_any()
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
+    Ok([(string_key("default"), Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000))?)].to_object().to_any())
 }
 `)
         },
@@ -665,8 +665,8 @@ pub fn module<A: IVm>() -> Any<A> {
             expect('export default -"a";', '-,a')
             // and the folded ones print, `-1` as the leaf it lowers to
             assertEq(
-                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    ['))[0],
-                '    [(string_key("default"), [f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any())].to_object().to_any()')
+                compileSource('export default [-1, -1n, - -1, -Infinity, -0];')('output.rs').split('\n').filter(line => line.startsWith('    Ok(['))[0],
+                '    Ok([(string_key("default"), [f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any())].to_object().to_any())')
         },
         // Stage A's binary operators, and `~`, are every one of them a node
         // `fjs/edag/rust` has a `nanvm-lib` spelling for — but every one of

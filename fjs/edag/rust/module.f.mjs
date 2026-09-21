@@ -13,7 +13,7 @@
  * What stays with each caller: naming shared nodes (the corpus's own names via
  * `data.shared`, or synthetic names for a compiled module's implicit sharing),
  * and everything about *why* a printer is invoked — a test case, a whole
- * module's `pub fn module<A: IVm>() -> Any<A>`.
+ * module's `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.
  *
  * @module
  *
@@ -236,8 +236,8 @@ const indexExpr = index => {
 
 /**
  * `true` for a `.` base a property read on always throws: `null` and the
- * tagged `['undefined']` node. Printing `Any::member_access(…).unwrap()` for
- * either would compile to a Rust panic in place of the compile-time refusal
+ * tagged `['undefined']` node. Printing `Any::member_access(…)?` for
+ * either would compile to a run-time throw in place of the compile-time refusal
  * every other DJS output gives the same input (`fjs/fsc/README.md`: "a
  * `null` or `undefined` base is the one failure a data module can make").
  * Provable only from the base's own literal shape: a `const`, an import, or
@@ -388,8 +388,9 @@ export const expExpr = shared => {
      * operand as written. An operator expression does not: Rust parses
      * `a * b * c` to the left and binds a method call tighter than `*`, so an
      * unparenthesized composed operand is a different program from the node
-     * it was printed from. A `.` node is a method chain (`Any::member_access(
-     * …).unwrap()`), which already binds tighter than any infix operator, so
+     * it was printed from. A `.` node is a call with a postfix `?`
+     * (`Any::member_access(…)?`), which already binds tighter than any infix
+     * operator, so
      * it needs no parentheses either. A `,` node is a brace-delimited block
      * (`{ …; last }`), atomic the same way a parenthesized group is. A shared
      * node is a lowered value and so never an operation, which is why the tag
@@ -421,7 +422,7 @@ export const expExpr = shared => {
             if (c !== undefined) { return error(['no Rust for a property-access chain step', e]) }
             const base = resolvedBase(a)
             if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
-            return map2((fa, k) => `Any::member_access(${fa}, ${k}).unwrap()`)(f(a), indexExpr(b))
+            return map2((fa, k) => `Any::member_access(${fa}, ${k})?`)(f(a), indexExpr(b))
         }
         if (id === ',') {
             // `Exps` admits an empty operand list in the schema (shape-only,
