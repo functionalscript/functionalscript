@@ -1,7 +1,10 @@
 use core::fmt::Debug;
 use std::rc::Rc;
 
-use crate::{naive::Naive, vm::IContainer};
+use crate::{
+    naive::Naive,
+    vm::{IComplex, IContainer},
+};
 
 #[derive(Clone, PartialEq)]
 pub struct Container<H, I> {
@@ -9,9 +12,13 @@ pub struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone + PartialEq + 'static, I: Clone + Debug + 'static> IContainer<Naive>
-    for Container<H, I>
-{
+impl<H: Clone + PartialEq, I: Clone + Debug> IComplex<Naive> for Container<H, I> {
+    fn ptr_eq(&self, other: &Self) -> bool {
+        self.header == other.header && Rc::ptr_eq(&self.items, &other.items)
+    }
+}
+
+impl<H: Clone + PartialEq, I: Clone + Debug> IContainer<Naive> for Container<H, I> {
     type Header = H;
     type Item = I;
     type Items = [I];
@@ -32,9 +39,5 @@ impl<H: Clone + PartialEq + 'static, I: Clone + Debug + 'static> IContainer<Naiv
 
     fn items(&self) -> &Self::Items {
         self.items.as_ref()
-    }
-
-    fn ptr_eq(&self, other: &Self) -> bool {
-        self.header == other.header && Rc::ptr_eq(&self.items, &other.items)
     }
 }

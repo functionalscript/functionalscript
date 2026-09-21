@@ -5,7 +5,7 @@ use super::harness::*;
 use nanvm_lib::vm::unstable::{bigint_any, f64_any, strict_eq, strict_ne, string_any, string_key};
 
 #[rustfmt::skip]
-fn eq<A: IVm>() {
+fn eq<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
     let string_array: Any<A> = [string_any("0")].to_array().to_any();
     let object: Any<A> = [(string_key("0"), string_any("0"))].to_object().to_any();
@@ -70,7 +70,7 @@ fn eq<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn ne<A: IVm>() {
+fn ne<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
     let string_array: Any<A> = [string_any("0")].to_array().to_any();
     let object: Any<A> = [(string_key("0"), string_any("0"))].to_object().to_any();
@@ -135,7 +135,7 @@ fn ne<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn unary_plus<A: IVm>() {
+fn unary_plus<A: IStaticFunction>() {
     check::<A>("null", Any::unary_plus(Nullish::Null.to_any()), f64_any(0x0000000000000000));
     check::<A>("undefined", Any::unary_plus(Nullish::Undefined.to_any()), f64_any(0x7ff8000000000000));
     check::<A>("booleanFalse", Any::unary_plus(false.to_any()), f64_any(0x0000000000000000));
@@ -165,7 +165,7 @@ fn unary_plus<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn neg<A: IVm>() {
+fn neg<A: IStaticFunction>() {
     check::<A>("null", -(Nullish::Null.to_any()), f64_any(0x8000000000000000));
     check::<A>("undefined", -(Nullish::Undefined.to_any()), f64_any(0x7ff8000000000000));
     check::<A>("booleanFalse", -(false.to_any()), f64_any(0x8000000000000000));
@@ -196,7 +196,7 @@ fn neg<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn bitwise_not<A: IVm>() {
+fn bitwise_not<A: IStaticFunction>() {
     check::<A>("null", Any::bitwise_not(Nullish::Null.to_any()), f64_any(0xbff0000000000000));
     check::<A>("undefined", Any::bitwise_not(Nullish::Undefined.to_any()), f64_any(0xbff0000000000000));
     check::<A>("booleanFalse", Any::bitwise_not(false.to_any()), f64_any(0xbff0000000000000));
@@ -224,7 +224,7 @@ fn bitwise_not<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn mul<A: IVm>() {
+fn mul<A: IStaticFunction>() {
     check::<A>("nullByNull", Nullish::Null.to_any() * Nullish::Null.to_any(), f64_any(0x0000000000000000));
     check::<A>("nullByNullSwapped", Nullish::Null.to_any() * Nullish::Null.to_any(), f64_any(0x0000000000000000));
     check::<A>("nullByZero", Nullish::Null.to_any() * f64_any(0x0000000000000000), f64_any(0x0000000000000000));
@@ -300,7 +300,7 @@ fn mul<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn div<A: IVm>() {
+fn div<A: IStaticFunction>() {
     check::<A>("nullDividedByFour", Nullish::Null.to_any() / f64_any(0x4010000000000000), f64_any(0x0000000000000000));
     check::<A>("undefinedDividedByFour", Nullish::Undefined.to_any() / f64_any(0x4010000000000000), f64_any(0x7ff8000000000000));
     check::<A>("trueDividedByFour", true.to_any() / f64_any(0x4010000000000000), f64_any(0x3fd0000000000000));
@@ -352,7 +352,7 @@ fn div<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn pow<A: IVm>() {
+fn pow<A: IStaticFunction>() {
     check::<A>("nullToThePowerOfTwo", Any::pow(Nullish::Null.to_any(), f64_any(0x4000000000000000)), f64_any(0x0000000000000000));
     check::<A>("undefinedToThePowerOfTwo", Any::pow(Nullish::Undefined.to_any(), f64_any(0x4000000000000000)), f64_any(0x7ff8000000000000));
     check::<A>("trueToThePowerOfTwo", Any::pow(true.to_any(), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
@@ -405,7 +405,7 @@ fn pow<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn sub<A: IVm>() {
+fn sub<A: IStaticFunction>() {
     check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), f64_any(0x0000000000000000));
     check::<A>("nullMinusZero", Nullish::Null.to_any() - f64_any(0x0000000000000000), f64_any(0x0000000000000000));
     check::<A>("negativeZeroMinusZero", f64_any(0x8000000000000000) - f64_any(0x0000000000000000), f64_any(0x8000000000000000));
@@ -433,7 +433,7 @@ fn sub<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn add<A: IVm>() {
+fn add<A: IStaticFunction>() {
     check::<A>("nullPlusOne", Nullish::Null.to_any() + f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000));
     check::<A>("undefinedPlusOne", Nullish::Undefined.to_any() + f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
     check::<A>("truePlusTrue", true.to_any() + true.to_any(), f64_any(0x4000000000000000));
@@ -456,7 +456,7 @@ fn add<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn rem<A: IVm>() {
+fn rem<A: IStaticFunction>() {
     check::<A>("nullModThree", Nullish::Null.to_any() % f64_any(0x4008000000000000), f64_any(0x0000000000000000));
     check::<A>("undefinedModThree", Nullish::Undefined.to_any() % f64_any(0x4008000000000000), f64_any(0x7ff8000000000000));
     check::<A>("trueModThree", true.to_any() % f64_any(0x4008000000000000), f64_any(0x3ff0000000000000));
@@ -498,7 +498,7 @@ fn rem<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn bitand<A: IVm>() {
+fn bitand<A: IStaticFunction>() {
     check::<A>("nullBitAndSix", Nullish::Null.to_any() & f64_any(0x4018000000000000), f64_any(0x0000000000000000));
     check::<A>("nullBitAndSixSwapped", f64_any(0x4018000000000000) & Nullish::Null.to_any(), f64_any(0x0000000000000000));
     check::<A>("undefinedBitAndSix", Nullish::Undefined.to_any() & f64_any(0x4018000000000000), f64_any(0x0000000000000000));
@@ -558,7 +558,7 @@ fn bitand<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn bitor<A: IVm>() {
+fn bitor<A: IStaticFunction>() {
     check::<A>("nullBitOrSix", Nullish::Null.to_any() | f64_any(0x4018000000000000), f64_any(0x4018000000000000));
     check::<A>("nullBitOrSixSwapped", f64_any(0x4018000000000000) | Nullish::Null.to_any(), f64_any(0x4018000000000000));
     check::<A>("undefinedBitOrSix", Nullish::Undefined.to_any() | f64_any(0x4018000000000000), f64_any(0x4018000000000000));
@@ -616,7 +616,7 @@ fn bitor<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn bitxor<A: IVm>() {
+fn bitxor<A: IStaticFunction>() {
     check::<A>("nullBitXorSix", Nullish::Null.to_any() ^ f64_any(0x4018000000000000), f64_any(0x4018000000000000));
     check::<A>("nullBitXorSixSwapped", f64_any(0x4018000000000000) ^ Nullish::Null.to_any(), f64_any(0x4018000000000000));
     check::<A>("undefinedBitXorSix", Nullish::Undefined.to_any() ^ f64_any(0x4018000000000000), f64_any(0x4018000000000000));
@@ -676,7 +676,7 @@ fn bitxor<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn shl<A: IVm>() {
+fn shl<A: IStaticFunction>() {
     check::<A>("nullShlThree", Nullish::Null.to_any() << f64_any(0x4008000000000000), f64_any(0x0000000000000000));
     check::<A>("undefinedShlThree", Nullish::Undefined.to_any() << f64_any(0x4008000000000000), f64_any(0x0000000000000000));
     check::<A>("trueShlThree", true.to_any() << f64_any(0x4008000000000000), f64_any(0x4020000000000000));
@@ -710,7 +710,7 @@ fn shl<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn shr<A: IVm>() {
+fn shr<A: IStaticFunction>() {
     check::<A>("nullShrThree", Nullish::Null.to_any() >> f64_any(0x4008000000000000), f64_any(0x0000000000000000));
     check::<A>("undefinedShrThree", Nullish::Undefined.to_any() >> f64_any(0x4008000000000000), f64_any(0x0000000000000000));
     check::<A>("trueShrThree", true.to_any() >> f64_any(0x4008000000000000), f64_any(0x0000000000000000));
@@ -745,7 +745,7 @@ fn shr<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn unsigned_right_shift<A: IVm>() {
+fn unsigned_right_shift<A: IStaticFunction>() {
     check::<A>("nullUshrThree", Any::unsigned_right_shift(Nullish::Null.to_any(), f64_any(0x4008000000000000)), f64_any(0x0000000000000000));
     check::<A>("undefinedUshrThree", Any::unsigned_right_shift(Nullish::Undefined.to_any(), f64_any(0x4008000000000000)), f64_any(0x0000000000000000));
     check::<A>("trueUshrThree", Any::unsigned_right_shift(true.to_any(), f64_any(0x4008000000000000)), f64_any(0x0000000000000000));
@@ -773,7 +773,7 @@ fn unsigned_right_shift<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn lt<A: IVm>() {
+fn lt<A: IStaticFunction>() {
     check::<A>("nullLessThanFive", Any::lt(Nullish::Null.to_any(), f64_any(0x4014000000000000)), true.to_any());
     check::<A>("undefinedLessThanFive", Any::lt(Nullish::Undefined.to_any(), f64_any(0x4014000000000000)), false.to_any());
     check::<A>("trueLessThanFive", Any::lt(true.to_any(), f64_any(0x4014000000000000)), true.to_any());
@@ -827,7 +827,7 @@ fn lt<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn le<A: IVm>() {
+fn le<A: IStaticFunction>() {
     check::<A>("nullLessOrEqualFive", Any::le(Nullish::Null.to_any(), f64_any(0x4014000000000000)), true.to_any());
     check::<A>("undefinedLessOrEqualFive", Any::le(Nullish::Undefined.to_any(), f64_any(0x4014000000000000)), false.to_any());
     check::<A>("trueLessOrEqualFive", Any::le(true.to_any(), f64_any(0x4014000000000000)), true.to_any());
@@ -881,7 +881,7 @@ fn le<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn gt<A: IVm>() {
+fn gt<A: IStaticFunction>() {
     check::<A>("nullGreaterThanFive", Any::gt(Nullish::Null.to_any(), f64_any(0x4014000000000000)), false.to_any());
     check::<A>("undefinedGreaterThanFive", Any::gt(Nullish::Undefined.to_any(), f64_any(0x4014000000000000)), false.to_any());
     check::<A>("trueGreaterThanFive", Any::gt(true.to_any(), f64_any(0x4014000000000000)), false.to_any());
@@ -935,7 +935,7 @@ fn gt<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn ge<A: IVm>() {
+fn ge<A: IStaticFunction>() {
     check::<A>("nullGreaterOrEqualFive", Any::ge(Nullish::Null.to_any(), f64_any(0x4014000000000000)), false.to_any());
     check::<A>("undefinedGreaterOrEqualFive", Any::ge(Nullish::Undefined.to_any(), f64_any(0x4014000000000000)), false.to_any());
     check::<A>("trueGreaterOrEqualFive", Any::ge(true.to_any(), f64_any(0x4014000000000000)), false.to_any());
@@ -989,7 +989,7 @@ fn ge<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn not<A: IVm>() {
+fn not<A: IStaticFunction>() {
     check::<A>("null", !(Nullish::Null.to_any()), true.to_any());
     check::<A>("undefined", !(Nullish::Undefined.to_any()), true.to_any());
     check::<A>("booleanFalse", !(false.to_any()), true.to_any());
@@ -1010,7 +1010,7 @@ fn not<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn logical_and<A: IVm>() {
+fn logical_and<A: IStaticFunction>() {
     check::<A>("falseAndTrue", Any::logical_and(false.to_any(), true.to_any()), false.to_any());
     check::<A>("trueAndFalse", Any::logical_and(true.to_any(), false.to_any()), false.to_any());
     check::<A>("trueAndTrue", Any::logical_and(true.to_any(), true.to_any()), true.to_any());
@@ -1030,7 +1030,7 @@ fn logical_and<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn logical_or<A: IVm>() {
+fn logical_or<A: IStaticFunction>() {
     check::<A>("falseOrTrue", Any::logical_or(false.to_any(), true.to_any()), true.to_any());
     check::<A>("trueOrFalse", Any::logical_or(true.to_any(), false.to_any()), true.to_any());
     check::<A>("falseOrFalse", Any::logical_or(false.to_any(), false.to_any()), false.to_any());
@@ -1050,7 +1050,7 @@ fn logical_or<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn nullish_coalescing<A: IVm>() {
+fn nullish_coalescing<A: IStaticFunction>() {
     check::<A>("nullCoalesceOne", Any::nullish_coalescing(Nullish::Null.to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
     check::<A>("undefinedCoalesceOne", Any::nullish_coalescing(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
     check::<A>("zeroCoalesceOne", Any::nullish_coalescing(f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)), f64_any(0x0000000000000000));
@@ -1066,7 +1066,7 @@ fn nullish_coalescing<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn conditional<A: IVm>() {
+fn conditional<A: IStaticFunction>() {
     check::<A>("truePicksConsequent", Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
     check::<A>("falsePicksAlternate", Any::conditional(false.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
     check::<A>("nullPicksAlternate", Any::conditional(Nullish::Null.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
@@ -1085,7 +1085,7 @@ fn conditional<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn typeof_<A: IVm>() {
+fn typeof_<A: IStaticFunction>() {
     check::<A>("undefined", Any::typeof_(Nullish::Undefined.to_any()), string_any("undefined"));
     check::<A>("null", Any::typeof_(Nullish::Null.to_any()), string_any("object"));
     check::<A>("booleanTrue", Any::typeof_(true.to_any()), string_any("boolean"));
@@ -1104,7 +1104,7 @@ fn typeof_<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn string_coercion<A: IVm>() {
+fn string_coercion<A: IStaticFunction>() {
     check::<A>("number", f64_any(0x405ec00000000000).to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", f64_any(0xc07c800000000000).to_string().map(|v| v.to_any()), string_any("-456"));
     check::<A>("zero", f64_any(0x0000000000000000).to_string().map(|v| v.to_any()), string_any("0"));
@@ -1129,7 +1129,7 @@ fn string_coercion<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn own_property<A: IVm>() {
+fn own_property<A: IStaticFunction>() {
     check::<A>("presentProperty", Any::own_property([(string_key("a"), f64_any(0x401c000000000000))].to_object().to_any(), string_any("a")), f64_any(0x401c000000000000));
     check::<A>("missingProperty", Any::own_property([(string_key("a"), f64_any(0x401c000000000000))].to_object().to_any(), string_any("b")), Nullish::Undefined.to_any());
     check::<A>("emptyObject", Any::own_property(Object::default().to_any(), string_any("a")), Nullish::Undefined.to_any());
@@ -1151,7 +1151,7 @@ fn own_property<A: IVm>() {
     check_throws::<A>("nonStringKeyThrows", Any::own_property([(string_key("1"), f64_any(0x4045000000000000))].to_object().to_any(), f64_any(0x3ff0000000000000)));
 }
 
-pub fn all<A: IVm>() {
+pub fn all<A: IStaticFunction>() {
     eq::<A>();
     ne::<A>();
     unary_plus::<A>();

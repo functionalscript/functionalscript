@@ -54,7 +54,7 @@ use super::harness::*;
 use nanvm_lib::vm::unstable::{bigint_any, f64_any, strict_eq, strict_ne, string_any, string_key};
 
 #[rustfmt::skip]
-fn eq<A: IVm>() {
+fn eq<A: IStaticFunction>() {
     let empty_array: Any<A> = Array::default().to_any();
     check::<A>("itself", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
     check::<A>("itselfSwapped", strict_eq(empty_array.clone(), empty_array.clone()), true.to_any());
@@ -63,22 +63,22 @@ fn eq<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn unary_plus<A: IVm>() {
+fn unary_plus<A: IStaticFunction>() {
     check_throws::<A>("bigint", Any::unary_plus(bigint_any(0)));
 }
 
 #[rustfmt::skip]
-fn conditional<A: IVm>() {
+fn conditional<A: IStaticFunction>() {
     check::<A>("pick", Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
 }
 
 #[rustfmt::skip]
-fn mul<A: IVm>() {
+fn mul<A: IStaticFunction>() {
     check::<A>("oneByTwo", f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000), f64_any(0x4000000000000000));
     check::<A>("oneByTwoSwapped", f64_any(0x4000000000000000) * f64_any(0x3ff0000000000000), f64_any(0x4000000000000000));
 }
 
-pub fn all<A: IVm>() {
+pub fn all<A: IStaticFunction>() {
     eq::<A>();
     unary_plus::<A>();
     conditional::<A>();
@@ -214,10 +214,10 @@ export const proof = {
         // asserted here: its contents are checked by `cargo test`.
         const result = generate(data)
         assert(result.endsWith('}\n'), result)
-        assert(result.includes('pub fn all<A: IVm>() {'), result)
+        assert(result.includes('pub fn all<A: IStaticFunction>() {'), result)
         for (const g of data.groups) {
             const n = rustName[groupKey(g)]
-            assert(result.includes(`fn ${n}<A: IVm>() {`), n)
+            assert(result.includes(`fn ${n}<A: IStaticFunction>() {`), n)
             assert(result.includes(`${n}::<A>();`), n)
             // Every case reaches the output, commented out or not.
             for (const c of casesOf(g)) { assert(result.includes(`"${c.name}"`), c.name) }
