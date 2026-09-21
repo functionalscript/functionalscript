@@ -1,5 +1,14 @@
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+/**
+ * @import { DemoEvent } from '../demo/types.ts'
+ * @import { Inline } from '../../media/markdown/types.ts'
+ */
+
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { repository } from '../page/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
+import { tryParse } from '../../media/markdown/module.f.mjs'
+import { demo } from './demo.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { _group, _linked, _reference, descending, entryNode, indexPage, linked, numbers, releaseHref, releasePage, spanNode } from './module.f.mjs'
@@ -139,5 +148,57 @@ const render = {
     },
 }
 
-/** Everything this module owes: what it reads, and what it draws. */
-export const proof = { ...core, render }
+/**
+ * The demo's initial text carries the four cases the derivation has to tell
+ * apart, so a reader meets all of them before changing anything.
+ */
+const demoCases = {
+    // One bare reference, a group of three, one link already written out,
+    // and a parenthesis that is prose.
+    everyCase: () => {
+        const document = unwrap(tryParse(demo.init))
+        assertEq(document.length, 4)
+        const links = document.flatMap(linked).filter(
+            /** @type {(span: Inline) => boolean} */(span => span[0] === 'link'))
+        assertEq(links.length, 5)
+        // Four of the five are this module's work; the fifth was published
+        // with its link and keeps it.
+        assertEq(links.filter(
+            /** @type {(l: Inline) => boolean} */(l => l[0] === 'link' && l[2].endsWith('/pull/1553'))).length, 1)
+    },
+    // A group of three becomes three links with its commas left as text.
+    aGroupOfThree: () => {
+        const html = htmlToString(demo.view(demo.init))
+        for (const n of ['1807', '1813', '1825']) { assert(html.includes(`/pull/${n}">#${n}</a>`), n) }
+    },
+    // The rule a half-linked parenthesis would break: all references or none.
+    proseIsLeftAlone: () => {
+        const html = htmlToString(demo.view(demo.init))
+        assert(html.includes('(e.g. one nobody imports)'), html)
+    },
+    // The count is the module's job, said rather than left to be spotted.
+    saysWhatItDerived: () => {
+        const html = htmlToString(demo.view(demo.init))
+        assert(html.includes('4 references derived'), html)
+        assert(html.includes('1 link already written out'), html)
+    },
+    // A file that does not parse is shown, not swallowed, and draws no list.
+    error: () => {
+        const html = htmlToString(demo.view('- x\ny'))
+        assert(html.includes('Error:'), html)
+        assert(!html.includes('<ul>'), html)
+    },
+    view: () => assert(htmlToString(demo.view(demo.init)).includes('name="release"')),
+    // Typing replaces the text; every other event leaves it alone.
+    update: () => {
+        /** @type {(event: DemoEvent) => (state: string) => string} */
+        const step = event => state => unwrap(assertNotNullish(
+            runPure(demo.update(state)(event))[0],
+            'expected the demo to reach a value without asking for an operation'))
+        assertEq(step({ kind: 'input', name: 'release', value: '- a' })(''), '- a')
+        assertEq(step({ kind: 'start' })('kept'), 'kept')
+    },
+}
+
+/** Everything this module owes: what it reads, what it draws, and its demo. */
+export const proof = { ...core, render, demo: demoCases }
