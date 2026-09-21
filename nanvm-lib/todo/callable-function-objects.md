@@ -15,9 +15,13 @@ with `InternalFunction: IContainer<Self, Header = FunctionHeader<Self>, Item = u
 — a name, a declared length, and a bag of bytes nothing ever executes
 ([`function/mod.rs`](../src/vm/function/mod.rs),
 [`internal/mod.rs`](../src/vm/internal/mod.rs)). The `Item = u8` bytes are
-unused; the only producer of a `Function` value today is
-[`any/to_json.rs`](../src/vm/any/to_json.rs), which builds an empty one purely
-so `to_json` has something to refuse. There is no `call`. The Rust code
+unused; the constructions of a `Function` value today are the corpus
+harness's `function_any`, two tests in `tests/test/main.rs`, and one in
+[`any/to_json.rs`](../src/vm/any/to_json.rs) — each building an empty one
+purely to have something a function-shaped `Any` can refuse; the one
+inventory is
+[function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)'s.
+There is no `call`. The Rust code
 generator that `fjs compile <module> <output>.rs` drives
 ([mvp-roadmap](./mvp-roadmap.md)) accepts exactly one hard-coded closure
 placeholder (`() => undefined`) and refuses every real one, "since
