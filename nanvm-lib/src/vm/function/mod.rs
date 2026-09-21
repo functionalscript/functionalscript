@@ -1,4 +1,5 @@
 mod debug;
+mod member_access;
 mod partial_eq;
 
 use crate::vm::{Any, Array, IFunction, IVm};

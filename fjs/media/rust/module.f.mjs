@@ -89,6 +89,34 @@ export const stringLiteral = v => {
 }
 
 /**
+ * Rust text with the contents of every string literal removed, the quotes
+ * kept: `f("a\"b", x)` becomes `f("", x)`. What a scan of generated text
+ * for the names it uses reads, so that data spelling a name — a string
+ * literal holding `Array::default` — is not mistaken for a use of it.
+ * Knows only the literals {@link stringLiteral} prints: `"` opens and
+ * closes one, and inside it `\` escapes the character after it, `"` and
+ * `\` themselves included.
+ *
+ * @type {(text: string) => string}
+ */
+export const withoutStringLiterals = text =>
+    [...text].reduce(blank, /** @type {readonly [string, boolean, boolean]} */ (['', false, false]))[0]
+
+/**
+ * One character of {@link withoutStringLiterals}'s walk over its state: the
+ * text kept so far, whether the walk is inside a literal, and whether the
+ * character is escaped by the backslash before it.
+ *
+ * @type {(state: readonly [out: string, inside: boolean, escaped: boolean], c: string) => readonly [out: string, inside: boolean, escaped: boolean]}
+ */
+const blank = ([out, inside, escaped], c) =>
+    escaped ? [out, inside, false]
+    : inside && c === '\\' ? [out, inside, true]
+    : c === '"' ? [`${out}"`, !inside, false]
+    : inside ? [out, inside, false]
+    : [`${out}${c}`, inside, false]
+
+/**
  * The exponent of a normal number: the `e` with `2 ** e <= a < 2 ** (e + 1)`,
  * found by bisection over the exponent range, every step an exact
  * comparison against a power of two.

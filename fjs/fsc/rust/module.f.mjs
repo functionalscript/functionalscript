@@ -5,17 +5,17 @@
  * [mvp-roadmap](../../../nanvm-lib/todo/mvp-roadmap.md),
  * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
  *
- * The node printer and its `let`-binding sharing mechanism are not this
- * module's own: they live in
+ * The node printer, its `let`-binding sharing mechanism and the statements
+ * of a scope are not this module's own: they live in
  * [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared with
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs), which prints the
  * operator conformance corpus the same way. What is specific to this module:
- * finding a whole module's implicitly shared nodes ({@link sharedNodesOf}
- * over the linked EDAG, rather than a corpus's explicit named `shared`),
- * naming them, assembling the `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`
- * a harness can call, and picking exactly the `nanvm_lib` imports the printed text
- * actually needs — the crate is the output's one dependency, so the
- * functions a literal becomes are `vm::unstable`'s, never copied here.
+ * laying a module's scope out as the body of the
+ * `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>` a harness can call —
+ * `A: IStaticFunction` once the module holds a function, the capability its
+ * closures bind through — and picking exactly the `nanvm_lib` imports the
+ * printed text actually needs — the crate is the output's one dependency,
+ * so the functions a literal becomes are `vm::unstable`'s, never copied here.
  *
  * @module
  *
@@ -23,8 +23,9 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { error, mapOk, ok, okThen, unwrap } from '../../types/result/module.f.mjs'
-import { eagerNodesOf, sharedNodesOf, valueExpr } from '../../edag/rust/module.f.mjs'
+import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
+import { holdsFunction, readsArgs, scope } from '../../edag/rust/module.f.mjs'
+import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
 
 const indent = '    '
 
@@ -32,8 +33,10 @@ const indent = '    '
  * The `nanvm_lib::vm::unstable` functions the printed body calls — the same
  * ones the operator corpus calls, since both are printed by
  * `fjs/edag/rust`'s one printer — found by the call text that names them,
- * so a module imports only what it uses. A helper added there to shorten generated code gets a row here
- * once the printer calls it.
+ * so a module imports only what it uses. A helper added there to shorten
+ * generated code gets a row here once the printer calls it. The text
+ * scanned has its string literals blanked, `withoutStringLiterals`, so a
+ * literal spelling a marker is data and not a use.
  *
  * @type {readonly (readonly [string, string])[]}
  */
@@ -59,11 +62,21 @@ const helpersFor = body => {
 }
 
 /**
+ * The bound on the module's VM parameter: `IVm`, or `IStaticFunction` —
+ * which is `IVm` and the capability to bind a Rust static function — once
+ * the module holds a function, read off the EDAG (`holdsFunction`) and not
+ * the text: the bound is the output's public API, and no data may change it.
+ *
+ * @type {(root: Exp) => string}
+ */
+const vmBound = root => holdsFunction(root) ? 'IStaticFunction' : 'IVm'
+
+/**
  * The `nanvm_lib::vm` names a piece of generated text needs, found the same
- * way {@link helpersFor} finds which constructors to import: `Any` and
- * `IVm` are always needed — every value is an `Any<A>` and every function is
- * generic over it — and the rest are included only where the text actually
- * spells them, so an empty module never imports `Array`.
+ * way {@link helpersFor} finds which constructors to import: `Any` and the
+ * VM bound are always needed — every value is an `Any<A>` and every function
+ * is generic over it — and the rest are included only where the text
+ * actually spells them, so an empty module never imports `Array`.
  *
  * @type {readonly (readonly [string, string])[]}
  */
@@ -76,81 +89,27 @@ const importCatalog = [
     ['.to_object()', 'ToObject'],
 ]
 
-/** @type {(text: string) => readonly string[]} */
-const importsFor = text => [...new Set([
+/** @type {(text: string, bound: string) => readonly string[]} */
+const importsFor = (text, bound) => [...new Set([
     'Any',
-    'IVm',
+    bound,
     ...importCatalog.filter(([marker]) => text.includes(marker)).map(([, name]) => name),
 ])].sort()
 
 /**
- * The `let` binding lines for the first `i` of `bindings`, each printed
- * against the bindings established before it — or the refusal, from
- * whichever one `valueExpr` meets first that it has no `nanvm-lib` spelling
- * for. Recursive rather than a fold, so that a refusal partway through short
- * -circuits the rest without a mutable accumulator.
- *
- * A binding is established before the root, so a shared operation that
- * throws does so before an operation that precedes it in the source: the
- * module reports that failure where JavaScript reports the earlier one.
- * The two are one outcome — `spec/README.md`, "Failure is one outcome",
- * names the first failing operation as no language-level observation and
- * allows exactly this reordering. Every binding is reached eagerly by the
- * root — {@link bodyLines} refuses a module where one is not — so no
- * failure the program skips is run here.
- *
- * @type {(bindings: readonly (readonly [Exp, string])[]) => (i: number) => Result<readonly string[], readonly unknown[]>}
- */
-const letLines = bindings => i => {
-    if (i === 0) { return ok([]) }
-    const [node] = bindings[i - 1]
-    return okThen(prev => mapOk(s => [...prev, `${indent}let c${i - 1}: Any<A> = ${s};`])(valueExpr(bindings.slice(0, i - 1))(node)))(letLines(bindings)(i - 1))
-}
-
-/**
- * The module's value as `Ok(…)` of a Rust expression of type `Any<A>` — a
- * `?` inside it propagates a throw out of `module` — and the `let` bindings
- * its implicitly shared nodes need first — or the refusal.
- *
- * Every operator prints, the lazy four included: `&&`, `||`, `??` and `?:`
- * take each conditionally established operand as a thunk, the
- * `impl FnOnce() -> Result<Any<A>, Any<A>>` their `nanvm-lib` signatures
- * ask for — `fjs/edag/rust`'s `valueExpr` — so `false && (1n / 0n)` answers
- * `false` here as it does in JavaScript. Nothing here polices that: the
- * signature does, since an operand printed as a value where a thunk is due
- * does not compile.
- *
- * A shared node is hoisted into a `let` binding before the root, which
- * establishes it unconditionally — right where the root reaches it eagerly
- * at least once, and wrong where it is reached only through lazy operands:
- * `true ? 1 : [c, c]` answers `1` without establishing `c`, and a binding
- * would establish it first. That shape is refused rather than bound. A
- * module the lowering links never has it: an implicitly shared node is a
- * `const` referenced twice, JavaScript establishes a `const` at its
- * declaration whatever the operators around its uses do, and
- * [Stage B](../todo/stage-b-operators.md)'s eager-restricted `refsOf`
- * anchors a `const` reached only lazily through the comma root — an eager
- * reach, so the binding is right again. The refusal is the check that the
- * anchoring happened, for an EDAG handed in directly.
- *
- * `sharedNodesOf` and `eagerNodesOf` recurse once per operand, so a module
- * deep enough overflows the call stack before this function prints
- * anything — tracked with the other EDAG walks' recursion, not fixed here:
- * `fjs/edag/todo/stack-safety.md`.
+ * The module's scope, one statement per line: its `let` bindings and its
+ * `Ok(…)` — `fjs/edag/rust`'s {@link scope}, which also prints every
+ * function's body the module holds, each a scope of its own inside its
+ * closure — or the refusal. A module has no arguments, so an `['args']`
+ * node in its own scope — a function body's node, which the lowering
+ * never puts here, handed in directly — is refused rather than printed as
+ * a name nothing binds.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
-const bodyLines = root => {
-    const shared = sharedNodesOf(root)
-    const eager = eagerNodesOf(root)
-    const lazyOnly = shared.find(node => !eager.includes(node))
-    if (lazyOnly !== undefined) {
-        return error(['no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not', lazyOnly])
-    }
-    /** @type {readonly (readonly [Exp, string])[]} */
-    const bindings = shared.map((node, i) => [node, `c${i}.clone()`])
-    return okThen(lines => mapOk(s => [...lines, `${indent}Ok(${s})`])(valueExpr(bindings)(root)))(letLines(bindings)(bindings.length))
-}
+const bodyLines = root => readsArgs(root)
+    ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
+    : mapOk((/** @type {readonly string[]} */ statements) => statements.map(s => `${indent}${s}`))(scope(root))
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
@@ -170,16 +129,16 @@ const bodyLines = root => {
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
 const generateResult = root => mapOk(body => {
-    const bodyText = body.join('\n')
-    const uses = importsFor(bodyText)
+    const code = withoutStringLiterals(body.join('\n'))
+    const bound = vmBound(root)
     return [
         '// @generated by `fjs compile`. Do not edit: recompile the source module instead.',
         '',
-        ...helpersFor(bodyText),
-        `use nanvm_lib::vm::{${uses.join(', ')}};`,
+        ...helpersFor(code),
+        `use nanvm_lib::vm::{${importsFor(code, bound).join(', ')}};`,
         '',
         '#[rustfmt::skip]',
-        'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
+        `pub fn module<A: ${bound}>() -> Result<Any<A>, Any<A>> {`,
         ...body,
         '}',
         '',

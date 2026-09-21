@@ -12,7 +12,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { eagerNodesOf, expExpr, nodeExpr, sharedNodesOf, valueExpr } from './module.f.mjs'
+import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, readsArgs, scope, sharedNodesOf, valueExpr } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
@@ -393,6 +393,129 @@ export const proof = {
             const root = ['[]', [1]]
             assert(!sharedNodesOf(root).includes(root), sharedNodesOf(root))
         },
+        /**
+         * A function's body is a scope of its own: nothing inside it is
+         * shared at the scope around it — `scope` walks the body afresh
+         * — while its frame is that scope's.
+         */
+        stopsAtAFunctionBody: () => {
+            /** @type {Exp} */
+            const x = ['[]', []]
+            assertEq(sharedNodesOf(['=>', null, ['[]', [x, x]]]).length, 0)
+            const found = sharedNodesOf(['[]', [['=>', x, 1], x]])
+            assertEq(found.length, 1)
+            assert(found[0] === x, found)
+        },
+    },
+    /**
+     * The statements of one scope: a `let` per shared node, then the root
+     * as the `Result` the scope's function answers — an operation's own,
+     * `Ok(…)` of any other value — or the refusal of a shared node the root
+     * reaches only through lazy operands.
+     */
+    scope: {
+        statements: () => {
+            /** @type {Exp} */
+            const x = ['[]', []]
+            assertStructurallySame(unwrap(scope(['[]', [x, x]])), [
+                'let c0: Any<A> = Array::default().to_any();',
+                'Ok([c0.clone(), c0.clone()].to_array().to_any())',
+            ])
+        },
+        operationRoot: () => {
+            assertStructurallySame(
+                unwrap(scope(['.', ['{}', []], 'a'])),
+                ['Any::member_access(Object::default().to_any(), string_any("a"))'])
+        },
+        refusedSharedOnlyThroughLazyOperands: () => {
+            /** @type {Exp} */
+            const c = ['[]', []]
+            const result = scope(['?:', true, 1, ['[]', [c, c]]])
+            assert(result[0] === 'error', result)
+        },
+    },
+    /**
+     * Functions: a `null`-frame `=>` node — the compiler's every function —
+     * is a closure bound through `IStaticFunction`, its body a scope of its
+     * own; `['args']` is the closure's parameter as a value; a call is
+     * `Any::call` over two values, an operation in either mode.
+     */
+    functions: {
+        args: () => {
+            assertEq(printed(['args']), 'args.clone().to_any()')
+        },
+        call: () => {
+            /** @type {Exp} */
+            const e = ['()', ['args'], ['[]', [1]]]
+            assertEq(printed(e), 'Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any())')
+            assertEq(valued(e), '(Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?')
+        },
+        /**
+         * A body that reads its arguments names the parameter; one that
+         * never does leaves it `_args`, unused.
+         */
+        closure: () => {
+            assertEq(
+                printed(['=>', null, ['args']]),
+                'A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()')
+            assertEq(
+                printed(['=>', null, 1]),
+                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()')
+        },
+        /** A nested function's `args` are its own: the outer body reads none. */
+        nested: () => {
+            assertEq(
+                printed(['=>', null, ['=>', null, ['args']]]),
+                'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()) }, 0, Array::default()).to_any()')
+        },
+        /** A body whose root is an operation answers that operation's own `Result`, as a thunk does. */
+        operationBody: () => {
+            assertEq(
+                printed(['=>', null, ['.', ['args'], 0]]),
+                'A::static_function(|_self, args| { Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000)) }, 0, Array::default()).to_any()')
+        },
+        /** Sharing inside a body is the body's own: bound in the closure, numbered from `c0`. */
+        sharingInside: () => {
+            /** @type {Exp} */
+            const first = ['.', ['args'], 0]
+            assertEq(
+                printed(['=>', null, ['[]', [first, first]]]),
+                'A::static_function(|_self, args| { let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?; Ok([c0.clone(), c0.clone()].to_array().to_any()) }, 0, Array::default()).to_any()')
+        },
+        /** Any frame but `null` and the corpus's empty one is refused. */
+        otherFrame: () => {
+            assertEq(refusalReason(['=>', ['[]', [1]], 1])[0], 'no Rust for')
+        },
+        /**
+         * A `null`-frame function anywhere — an item, a call's callee, a
+         * body inside another function — is held; the corpus's own lambda
+         * binds nothing, and a primitive holds nothing.
+         */
+        holdsFunction: () => {
+            assertEq(holdsFunction(['=>', null, 1]), true)
+            assertEq(holdsFunction(['[]', [1, ['=>', null, 1]]]), true)
+            assertEq(holdsFunction(['()', ['=>', null, ['args']], ['[]', []]]), true)
+            assertEq(holdsFunction(['=>', ['[]', []], ['=>', null, 1]]), true)
+            assertEq(holdsFunction(['=>', ['[]', []], ['undefined']]), false)
+            assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
+            assertEq(holdsFunction(1), false)
+        },
+        /**
+         * Every question asked of a graph walks it once per distinct node:
+         * a sharing chain forty levels deep, each level reaching the one
+         * before it twice, is answered as fast as its forty nodes and not
+         * as the trillion paths through them.
+         */
+        walksSharedNodesOnce: () => {
+            /** @type {(depth: number, node: Exp) => Exp} */
+            const chain = (depth, node) => depth === 0 ? node : chain(depth - 1, ['[]', [node, node]])
+            const deep = chain(40, ['[]', []])
+            assertEq(readsArgs(deep), false)
+            assertEq(readsArgs(chain(40, ['args'])), true)
+            assertEq(holdsFunction(deep), false)
+            assertEq(holdsFunction(chain(40, ['=>', null, 1])), true)
+            assertEq(sharedNodesOf(deep).length, 40)
+        },
     },
     /**
      * A literal the target type cannot hold — a string with a lone
@@ -418,6 +541,8 @@ export const proof = {
         assertEq(eagerNodesOf(['.', c, 'length']).includes(c), true)
         assertEq(eagerNodesOf(['&&', c, 1]).includes(c), true)
         assertEq(eagerNodesOf(['?:', c, 1, 2]).includes(c), true)
+        // Not through a function's body, established only when it is called.
+        assertEq(eagerNodesOf(['=>', null, ['[]', [c]]]).includes(c), false)
         // Not through a lazy operand, at any depth below it.
         assertEq(eagerNodesOf(['&&', true, c]).includes(c), false)
         assertEq(eagerNodesOf(['||', true, c]).includes(c), false)
