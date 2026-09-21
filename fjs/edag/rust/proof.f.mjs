@@ -12,7 +12,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, scope, sharedNodesOf, valueExpr } from './module.f.mjs'
+import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, readsArgs, scope, sharedNodesOf, valueExpr } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
@@ -499,6 +499,22 @@ export const proof = {
             assertEq(holdsFunction(['=>', ['[]', []], ['undefined']]), false)
             assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
             assertEq(holdsFunction(1), false)
+        },
+        /**
+         * Every question asked of a graph walks it once per distinct node:
+         * a sharing chain forty levels deep, each level reaching the one
+         * before it twice, is answered as fast as its forty nodes and not
+         * as the trillion paths through them.
+         */
+        walksSharedNodesOnce: () => {
+            /** @type {(depth: number, node: Exp) => Exp} */
+            const chain = (depth, node) => depth === 0 ? node : chain(depth - 1, ['[]', [node, node]])
+            const deep = chain(40, ['[]', []])
+            assertEq(readsArgs(deep), false)
+            assertEq(readsArgs(chain(40, ['args'])), true)
+            assertEq(holdsFunction(deep), false)
+            assertEq(holdsFunction(chain(40, ['=>', null, 1])), true)
+            assertEq(sharedNodesOf(deep).length, 40)
         },
     },
     /**

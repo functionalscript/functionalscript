@@ -261,6 +261,16 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(toRust(['[]', [['&&', true, c], ['&&', false, c]]])[0], 'error')
         },
         /**
+         * `args` in the module's own scope — a function body's node handed
+         * in directly — is refused: nothing binds it there. Inside a
+         * function it is the closure's parameter, as every fixture shows.
+         */
+        refusedArgsInModuleScope: () => {
+            assertEq(toRust(['args'])[0], 'error')
+            assertEq(toRust(['[]', [['args']]])[0], 'error')
+            assertEq(toRust(['=>', null, ['args']])[0], 'ok')
+        },
+        /**
          * A property read on a nullish base compiles to a `Result` error
          * instead of Rust that panics at run time.
          */

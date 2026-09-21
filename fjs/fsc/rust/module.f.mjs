@@ -24,7 +24,7 @@
  */
 
 import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
-import { holdsFunction, scope } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, readsArgs, scope } from '../../edag/rust/module.f.mjs'
 import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
 
 const indent = '    '
@@ -100,11 +100,16 @@ const importsFor = (text, bound) => [...new Set([
  * The module's scope, one statement per line: its `let` bindings and its
  * `Ok(…)` — `fjs/edag/rust`'s {@link scope}, which also prints every
  * function's body the module holds, each a scope of its own inside its
- * closure — or the refusal.
+ * closure — or the refusal. A module has no arguments, so an `['args']`
+ * node in its own scope — a function body's node, which the lowering
+ * never puts here, handed in directly — is refused rather than printed as
+ * a name nothing binds.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
-const bodyLines = root => mapOk((/** @type {readonly string[]} */ statements) => statements.map(s => `${indent}${s}`))(scope(root))
+const bodyLines = root => readsArgs(root)
+    ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
+    : mapOk((/** @type {readonly string[]} */ statements) => statements.map(s => `${indent}${s}`))(scope(root))
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this

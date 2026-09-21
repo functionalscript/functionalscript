@@ -673,28 +673,51 @@ export const nodeExpr = expExpr([])
  * ordinary expressions over immutable arrays, the same idiom
  * {@link expExpr}'s own `shared.find` already reads by.
  *
- * @type {(visited: readonly (readonly [node: Exp, count: number])[]) => (root: unknown) => readonly (readonly [node: Exp, count: number])[]}
+ * `operands` says which of a node's items the walk descends into: a
+ * scope's own, {@link operandsOf}, or every function body's too,
+ * {@link withBodies}. Every question asked of a graph is asked of this
+ * one walk — sharing, an `args` read, a function held — since any other
+ * walk over a shared graph pays that exponential.
+ *
+ * @type {(operands: (node: readonly unknown[]) => readonly unknown[]) => (visited: readonly (readonly [node: Exp, count: number])[]) => (root: unknown) => readonly (readonly [node: Exp, count: number])[]}
  */
-const visit = visited => root => {
+const visit = operands => visited => root => {
     if (!(root instanceof Array)) { return visited }
     const self = /** @type {unknown} */ (root)
     const i = visited.findIndex(([n]) => n === self)
     if (i !== -1) {
         return visited.map((v, j) => j === i ? /** @type {readonly [Exp, number]} */ ([v[0], v[1] + 1]) : v)
     }
-    const withChildren = operandsOf(root).reduce((/** @type {readonly (readonly [Exp, number])[]} */ v, child) => visit(v)(child), visited)
+    const withChildren = operands(root).reduce((/** @type {readonly (readonly [Exp, number])[]} */ v, child) => visit(operands)(v)(child), visited)
     return [...withChildren, /** @type {readonly [Exp, number]} */ ([/** @type {Exp} */ (self), 1])]
 }
 
 /**
- * Whether a scope reads its own arguments: an `['args']` node reached
- * through {@link operandsOf}, which stops at a nested function's body —
- * that one's `args` is its own.
+ * Whether a scope reads its own arguments: an `['args']` node among the
+ * distinct nodes {@link visit} reaches through {@link operandsOf}, which
+ * stops at a nested function's body — that one's `args` is its own. A
+ * module's own scope reading them is refused by `fjs/fsc/rust`: a module
+ * has no arguments.
  *
- * @type {(node: unknown) => boolean}
+ * @type {(root: Exp) => boolean}
  */
-const readsArgs = node => node instanceof Array
-    && (node[0] === 'args' || operandsOf(node).some(readsArgs))
+export const readsArgs = root => visit(operandsOf)([])(root).some(([node]) => tagOf(node) === 'args')
+
+/**
+ * The tag of a node {@link visit} listed — every one an array, a primitive
+ * never being listed — as the walk's callers read it.
+ *
+ * @type {(node: Exp) => unknown}
+ */
+const tagOf = node => /** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[0]
+
+/**
+ * {@link operandsOf} and a function's body too: the walk over a whole
+ * module, scopes and all.
+ *
+ * @type {(node: readonly unknown[]) => readonly unknown[]}
+ */
+const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
 
 /**
  * Whether an EDAG holds a function the printer binds — a `null`-frame `=>`
@@ -702,11 +725,10 @@ const readsArgs = node => node instanceof Array
  * printed from it bounds on `IStaticFunction`, and not the text, which a
  * string literal could spell.
  *
- * @type {(node: unknown) => boolean}
+ * @type {(root: Exp) => boolean}
  */
-export const holdsFunction = node => node instanceof Array
-    && ((node[0] === '=>' && node[1] === null)
-        || (node[0] === '=>' ? node.slice(1) : operandsOf(node)).some(holdsFunction))
+export const holdsFunction = root => visit(withBodies)([])(root)
+    .some(([node]) => tagOf(node) === '=>' && /** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1] === null)
 
 /**
  * The operands a walk descends into, read from a node's shape rather than
@@ -746,7 +768,7 @@ const operandsOf = node => {
  *
  * @type {(root: Exp) => readonly Exp[]}
  */
-export const sharedNodesOf = root => visit([])(root)
+export const sharedNodesOf = root => visit(operandsOf)([])(root)
     .filter(([, count]) => count >= 2)
     .map(([node]) => node)
 
