@@ -35,7 +35,7 @@ trait Unary<Tag> {
 }
 
 struct UnaryPlus;
-impl Unary<UnaryPlus> for f64 {
+impl Unary<UnaryPlus> for Number {
     type Result = Any;
     fn do(self) -> Self::Result;
 }

@@ -4,9 +4,16 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { f64Literal, i64Literal, snakeCase, stringLiteral } from './module.f.mjs'
+import { f64Bits, i64Literal, snakeCase, stringLiteral, withoutStringLiterals } from './module.f.mjs'
 
 export const proof = {
+    /** Every literal's contents go, an escaped quote or backslash inside one included; the code around them stays. */
+    withoutStringLiterals: () => {
+        assertEq(withoutStringLiterals('f("a", x)'), 'f("", x)')
+        assertEq(withoutStringLiterals('f("a\\"b", "c\\\\", x)'), 'f("", "", x)')
+        assertEq(withoutStringLiterals('f(x)'), 'f(x)')
+        assertEq(withoutStringLiterals(''), '')
+    },
     stringLiteral: () => {
         assertStructurallySame(stringLiteral(''), ok('""'))
         assertStructurallySame(stringLiteral('abc'), ok('"abc"'))
@@ -32,16 +39,31 @@ export const proof = {
         assertStructurallySame(stringLiteral('a\ud800b'), error('a\ud800b'))
         assertStructurallySame(stringLiteral('\udc00'), error('\udc00'))
     },
-    f64Literal: () => {
-        assertEq(f64Literal(NaN), 'f64::NAN')
-        assertEq(f64Literal(Infinity), 'f64::INFINITY')
-        assertEq(f64Literal(-Infinity), 'f64::NEG_INFINITY')
-        assertEq(f64Literal(-0), '-0f64')
-        assertEq(f64Literal(0), '0f64')
-        assertEq(f64Literal(2.3), '2.3f64')
-        assertEq(f64Literal(-239), '-239f64')
-        // Rust's exponent accepts a `+`, which is how `toString` prints it.
-        assertEq(f64Literal(1e21), '1e+21f64')
+    f64Bits: () => {
+        // One spelling for every number, its own bits: the values a decimal
+        // literal cannot spell are ordinary here.
+        assertEq(f64Bits(0), '0x0000000000000000')
+        assertEq(f64Bits(-0), '0x8000000000000000')
+        assertEq(f64Bits(1), '0x3ff0000000000000')
+        assertEq(f64Bits(-1), '0xbff0000000000000')
+        assertEq(f64Bits(2.3), '0x4002666666666666')
+        assertEq(f64Bits(-0.3), '0xbfd3333333333333')
+        assertEq(f64Bits(-239), '0xc06de00000000000')
+        assertEq(f64Bits(1e21), '0x444b1ae4d6e2ef50')
+        assertEq(f64Bits(NaN), '0x7ff8000000000000')
+        assertEq(f64Bits(-NaN), '0x7ff8000000000000')
+        assertEq(f64Bits(Infinity), '0x7ff0000000000000')
+        assertEq(f64Bits(-Infinity), '0xfff0000000000000')
+        // Either side of a power of two, and the two neighbours of 1.
+        assertEq(f64Bits(1024), '0x4090000000000000')
+        assertEq(f64Bits(0.9999999999999999), '0x3fefffffffffffff')
+        assertEq(f64Bits(1.0000000000000002), '0x3ff0000000000001')
+        // The largest and the smallest normal, and two subnormals down to
+        // the smallest double there is.
+        assertEq(f64Bits(1.7976931348623157e308), '0x7fefffffffffffff')
+        assertEq(f64Bits(2.2250738585072014e-308), '0x0010000000000000')
+        assertEq(f64Bits(2.225073858507201e-308), '0x000fffffffffffff')
+        assertEq(f64Bits(5e-324), '0x0000000000000001')
     },
     i64Literal: () => {
         assertStructurallySame(i64Literal(0n), ok('0'))

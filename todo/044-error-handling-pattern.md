@@ -6,7 +6,7 @@
 ```rust
 trait Any {
     type Result<T> = Result<T, Self>;
-    fn to_number(Self) -> Self::Result<(Self, f64)> { ... }
+    fn to_number(Self) -> Self::Result<(Self, Number)> { ... }
     fn add(self, b: Self) -> Self::Result<Self> {
         ....
         let (b, num) = self.to_number()?;

@@ -94,7 +94,7 @@ export const deno = '2.8.3'
 export const node = /** @type {const} */({
     default: '26.8.2',
     node22: '22.23.2',
-    node24: '24.19.0',
+    node24: '24.21.0',
 })
 
 // The TypeScript this repository type-checks with, and the one `package-check`
@@ -146,7 +146,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: '4c7870105e7f1fdf9c48688c8d7efc21abf0688a',
+    commit: '6d663c0533ff269008fb84e45930151e37c99db9',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -165,7 +165,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: 'fbdb2de9e7619d660ae7e8f752f38b261020b701',
+    commit: '2776e42828203ec89511699c8dcdedec69ab98e1',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to

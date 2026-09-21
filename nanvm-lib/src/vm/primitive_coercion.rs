@@ -1,5 +1,5 @@
 use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, join::Join,
+    Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, join::Join,
     nullish::Nullish, primitive::Primitive,
 };
 
@@ -149,7 +149,7 @@ impl<A: IVm> Dispatch<A> for PrimitiveCoercionOp {
         Ok(Primitive::Boolean(v))
     }
 
-    fn number(self, v: f64) -> Self::Result {
+    fn number(self, v: Number) -> Self::Result {
         Ok(Primitive::Number(v))
     }
 

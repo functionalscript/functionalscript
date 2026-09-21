@@ -3,13 +3,14 @@ use crate::vm::{Any, IVm, ToAny, Unpacked, nullish::Nullish};
 
 impl<A: IVm> Any<A> {
     /// The EDAG's `.` / `[]` (`['.', receiver, index]`). An `Array`,
-    /// `String`, or `Object` receiver is dispatched to its own
+    /// `String`, `Object` or `Function` receiver is dispatched to its own
     /// `member_access` (`vm/array/member_access.rs`,
-    /// `vm/string/member_access.rs`, `vm/object/member_access.rs`), the
-    /// same split `own_property` has between this dispatcher and
-    /// `Object::own_property`. Every remaining receiver — `Number`,
-    /// `Boolean`, `BigInt`, a function — has no own properties, so it
-    /// always answers `undefined`, the same fallback `own_property` has.
+    /// `vm/string/member_access.rs`, `vm/object/member_access.rs`,
+    /// `vm/function/member_access.rs` — a function's one property is its
+    /// `length`), the same split `own_property` has between this
+    /// dispatcher and `Object::own_property`. Every remaining receiver —
+    /// `Number`, `Boolean`, `BigInt` — has no own properties, so it always
+    /// answers `undefined`, the same fallback `own_property` has.
     /// No prototype chain and no built-in methods (`.map`, `.push`,
     /// `.slice`, getters) on any receiver — out of scope, since
     /// `nanvm-lib` objects have no `__proto__` to walk in the first place
@@ -35,6 +36,9 @@ impl<A: IVm> Any<A> {
             Unpacked::Object(o) => o
                 .member_access(key)
                 .unwrap_or_else(|| Nullish::Undefined.to_any()),
+            Unpacked::Function(f) => f
+                .member_access(key)
+                .unwrap_or_else(|| Nullish::Undefined.to_any()),
             _ => Nullish::Undefined.to_any(),
         })
     }
@@ -44,7 +48,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
@@ -94,9 +98,19 @@ mod tests {
         );
     }
 
-    /// `Number`, `Boolean`, `BigInt`, and `Function` receivers have no own
-    /// properties at all, so every key on one reads `undefined` — the same
-    /// fallback `own_property` has.
+    /// The dispatch wiring itself, as opposed to `Function::member_access`'s
+    /// own behavior, which is tested in `vm/function/member_access.rs`.
+    #[test]
+    fn function_receiver_dispatches_to_function_member_access() {
+        let f: Any<A> =
+            A::static_function(|_, _| Ok(Nullish::Undefined.to_any()), 0, [].to_array()).to_any();
+        assert_eq!(f.clone().member_access("length".into()), Ok(0.0.to_any()));
+        assert_eq!(f.member_access("a".into()), Ok(Nullish::Undefined.to_any()));
+    }
+
+    /// `Number`, `Boolean` and `BigInt` receivers have no own properties at
+    /// all, so every key on one reads `undefined` — the same fallback
+    /// `own_property` has.
     #[test]
     fn primitive_receiver_has_no_properties() {
         assert_eq!(

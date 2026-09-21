@@ -186,15 +186,25 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
    ordinary element — the DataJS demo's graph is the first thing on the site
    to draw one. */
 svg text { font: inherit }
-/* The DataJS demo's graph: a rect per array, object or leaf, a line per
-   index or key. A leaf is dashed rather than solid, since a leaf and a
-   container are the one distinction this graph draws beyond sharing itself.
+/* A demo's graph: a rect per node, a line per index, key or operand role.
+   Three looks, for the three things a node can be. A container or an
+   operator is hollow — it is computed from what the edges below it reach.
+   A leaf is dashed: a constant, reaching nothing because there is nothing
+   to reach. A terminal is filled: it reaches nothing either, but for the
+   opposite reason — a value arrives there from outside the scope, as the
+   EDAG demo's args and frame do, and drawing it dashed would file an
+   input with the constants. Two looks were enough while the DataJS demo
+   was the only reader and a leaf and a container were the whole world.
    An edge label is haloed in the page's own background rather than boxed,
    so two crossing lines still read under it without a second shape per
-   label. */
+   label, and an edge is cased in it — a wide background stroke under the
+   line — so that where an edge crosses a node it passes visibly in front
+   of the box rather than merging into its border. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
+[data-graph-kind="terminal"] { fill: var(--border) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
+[data-graph-edge-casing] { fill: none; stroke: var(--bg); stroke-width: 5 }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-label] {
     dominant-baseline: middle; fill: var(--muted); font-size: .7rem;

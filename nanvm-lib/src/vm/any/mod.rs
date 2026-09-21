@@ -3,6 +3,7 @@ mod and;
 mod bitand;
 mod bitor;
 mod bitxor;
+mod call;
 mod conditional;
 mod div;
 mod from;
@@ -25,7 +26,7 @@ pub mod to_any;
 pub use to_json::JsonError;
 
 use crate::vm::{
-    IVm, String, ToAny, Unpacked,
+    IVm, Number, String, ToAny, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
     nullish::Nullish,
@@ -44,13 +45,13 @@ const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, Nullish, BigInt},
+///     vm::{Any, IVm, ToAny, String, Array, ToArray, ToObject, Object, Nullish, Number, BigInt},
 ///     naive::Naive
 /// };
 /// fn any_test<A: IVm>() {
 ///     let b: Any<A> = true.to_any();
 ///     let n: Any<A> = Nullish::Null.to_any();
-///     let n: Any<A> = 42.0.to_any();
+///     let n: Any<A> = Number::from(42.0).to_any();
 ///     let c: String<A> = "Hello".into();
 ///     let m: Any<A> = c.to_any();
 ///     let a: Array<A> = [].to_array();
@@ -70,7 +71,7 @@ impl<A: IVm> Any<A> {
     /// Unary plus is nothing but coercion to number.
     /// We use unary_plus as ECMAScript unary plus operator, and we use coerce_to_number for
     /// internals in places where ECMAScript's abstract function ToNumber is needed, and also when
-    /// we need Result<f64, Any<A>> result type; here unary_plus returns Result<Any<A>, Any<A>> to
+    /// we need Result<Number, Any<A>> result type; here unary_plus returns Result<Any<A>, Any<A>> to
     /// match public API type of unary plus operator.
     /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Unary_plus>
     /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
@@ -143,7 +144,7 @@ impl<A: IVm> Any<A> {
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
-        let Ok(n): Result<f64, _> = self.try_into() else {
+        let Ok(n): Result<Number, _> = self.try_into() else {
             return false;
         };
         n.is_nan()
@@ -153,7 +154,7 @@ impl<A: IVm> Any<A> {
         self.dispatch(StringCoercion)
     }
 
-    pub fn to_number(self) -> Result<f64, Any<A>> {
+    pub fn to_number(self) -> Result<Number, Any<A>> {
         self.dispatch(NumberCoercion)
     }
 

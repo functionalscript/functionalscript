@@ -1,5 +1,5 @@
 use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
+    Any, Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, nullish::Nullish,
 };
 
 /// The tag `Any::typeof_` returns, one per `Unpacked` variant.
@@ -20,7 +20,7 @@ impl<A: IVm> Dispatch<A> for TypeOf {
         "boolean"
     }
 
-    fn number(self, _: f64) -> Self::Result {
+    fn number(self, _: Number) -> Self::Result {
         "number"
     }
 

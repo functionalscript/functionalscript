@@ -25,15 +25,11 @@ defers generic `Any` serialization to post-MVP, and this repository's
 cross-language bridge is generated Rust, so until the interpreter exists there
 is nothing to hand them to.
 
-**Three operators the roadmap needs are uncovered.** `&&`, `||`, and `??` are
-already in `op2Id`, with laziness that is positional rather than nodal, so
-they need no new node kind — only cases.
-
 ### A nested operation does not yet print as compilable Rust
 
-Both lazy-operator halves nest — `['&&', a, ['throw', e]]` is an operation as
-another's operand — and the printer cannot emit that yet, which makes this the
-first thing the work below runs into.
+An operation nested in an eager position — `['*', 1, ['*', 2, 3]]` — does
+not print as compilable Rust for the corpus; a lazy position is the one
+exception, below.
 
 Every `nanvm-lib` operator returns `Result<Any<A>, Any<A>>`:
 
@@ -45,56 +41,47 @@ impl<A: IVm> Mul for Any<A> {
 `check` takes that `Result` at the top of a statement, which is why every flat
 case compiles. An operation nested as an operand hands the outer one a
 `Result` where it needs an `Any`, so `['*', 1, ['*', 2, 3]]` prints as
-`(1f64).to_any() * ((2f64).to_any() * (3f64).to_any())` and fails to compile
+`f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))`
+and fails to compile
 with E0308.
 
 Grouping is already right — an operation nested as an operand is
 parenthesized, so the printed text is the tree the node is, and
 `nestedOperation` in [`../rust/proof.f.mjs`](../rust/proof.f.mjs) pins that.
 What is missing is propagation. No corpus case reaches it today: a case is one
-operation over lowered values, so `generated.rs` nests nothing and `cargo
-test` has never had the chance to fail. The exported `nodeExpr` does reach it —
+operation over lowered values, and the one operation a value lowers to,
+`unreached`, sits in a lazy position, so `generated.rs` nests nothing in an
+eager one and `cargo test` has never had the chance to fail. The exported
+`nodeExpr` does reach it —
 it takes an arbitrary `Exp`, so a caller outside the corpus can print a nested
 operation and get text that fails with E0308.
 
-Deciding the shape is part of this issue rather than a detail of it, because
-it sets what every emitted statement looks like. `?` inside a closure, an
-`and_then` chain, or a harness helper that takes the operands already
-unwrapped are the obvious candidates; whichever is chosen, the flat statements
-should keep their present shape, since `generated.rs` staying byte-stable
-across a change like this is what makes the change reviewable.
+A compiled module already has its answer: `fjs/edag/rust`'s `valueExpr`
+prints every operation as `(…)?`, since `pub fn module` answers the
+`Result` a throw lands in. So does a lazy position in either printer: a
+lazy operand is a thunk whose body prints propagating, however deeply an
+operation nests inside it, so a `?` there lands in the closure's own
+`Result` — which is how the corpus's `unreached` operand, an operation,
+prints in a bare `check` statement today. The corpus's eager positions
+print through `expExpr`,
+whose statements hand each `Result` to `check` bare, so their shape is
+still to decide. Deciding it is part of this issue rather than a detail of
+it, because it sets what every emitted statement looks like. `?` inside a
+closure — the thunk's answer, generalized — an `and_then` chain, or a
+harness helper that takes the operands already unwrapped are the obvious
+candidates; whichever is chosen, the flat statements should keep their
+present shape, since `generated.rs` staying byte-stable across a change
+like this is what makes the change reviewable.
 
 ### Proposal
 
-**The lazy operators.** Add `Group2`s for `&&`, `||`, and `??` pinning their
-*value* results. With constant operands a case cannot observe
-non-establishment, so that half waits: once `['throw', exp]` is in the schema
-(the stage-1 discussion's node, not the corpus's `throws` marker, which
-describes an outcome and never appears in an expression), a case whose lazy
-operand is a `['throw', …]` proves the operand was not established.
-
-A `rust` reason is not enough on its own, which is worth stating because the
-first draft of this plan assumed it was. The marker defers the *assertion*:
-`emit` comments a statement out, and it is only ever handed one that already
-rendered. An unprintable id never gets that far, through two gates in turn:
-
-- `fnName(groupKey(g))` names the group's Rust function, and `rustName` has no
-  entry for any of the three, so `generate` throws `['no Rust for', '&&']`
-  building the function header — before a single case is walked. A group whose
-  `cases` array is *empty* throws just the same, which is what shows the
-  header rather than any statement is what fails.
-- `op2Rust` has no entry either, so once a name exists the next throw comes
-  from `result` rendering the statement. Both tables are gaps for all three
-  ids, so filling in either one alone still never reaches `emit`.
-
-The entries cannot be written ahead of the operator. `lookup` refuses an
-unmapped id precisely so the generated file does not carry a plausible wrong
-statement, and there is nothing to map `&&` to until `nanvm-lib` has an API
-for it — a guessed `a && b` would be that wrong statement, commented out or
-not. So the Rust spelling lands with the operator, and a group is added when
-its spelling exists rather than in advance of it. What a `rust` reason defers
-is a case `nanvm-lib` cannot yet *pass*, not one the printer cannot yet
-*print*.
+**The lazy operators** are covered: `&&`, `||`, `??` and `?:` have their
+groups, and the `unreached` operand proves non-establishment through the
+value — it lowers to an operation that throws when established, and the
+case answers a value only because the operator left it alone — with no
+throw node in the schema. The second proof, a thunk that panics as a set of
+tests that must fail, is
+[should-panic-per-vm](./should-panic-per-vm.md)'s.
 
 **The transport.** When the interpreter lands, the printer grows a second
 output beside the direct-operator statements it prints today: one that
@@ -115,12 +102,11 @@ not a second one beside it.
 
 - [ ] Decide and implement how a nested operation propagates its `Result` in
       the printed Rust, keeping the flat statements as they are.
-- [ ] Add a `rustName` and an `op2Rust` entry for each of `&&`, `||`, and
-      `??`, spelling the `nanvm-lib` API as it is implemented — a group
-      cannot be added before its id is printable.
-- [ ] Add `&&`, `||`, and `??` groups with their value results, each case
-      carrying a `rust` reason while `nanvm-lib` cannot yet pass it.
-- [ ] Add non-establishment cases once `['throw', exp]` is in the schema.
+- [x] Add a `rustName` and an `op2Rust` entry for each of `&&`, `||`, and
+      `??`, spelling the `nanvm-lib` API as it is implemented.
+- [x] Add `&&`, `||`, and `??` groups with their value results.
+- [x] Add non-establishment cases: the `unreached` operand, no throw node
+      needed.
 - [ ] Replace `amnesia` with the `interpret-edag` interpreter when it lands,
       and register the corpus as its test suite.
 - [ ] Extend the printer to construct each case's expression as an `Any` and
@@ -142,8 +128,7 @@ not a second one beside it.
 - [`../../fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md) — the
   FunctionalScript executor that replaces `amnesia` here.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
-  — positional laziness, and the future `throw` node the non-establishment
-  cases need.
+  — positional laziness.
 - `comparisonCases` in [`../module.f.mjs`](../module.f.mjs) (shipped) — the
   four relational groups derived from one table, so an argument pair reaches
   all of them or none.
