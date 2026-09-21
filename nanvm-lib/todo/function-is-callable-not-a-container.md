@@ -88,11 +88,14 @@ VM*, in a trait of its own:
   that composes freely — a compiled function calls a dynamic one it was
   handed, and a dynamic one calls a compiled one it captured.
 
-**`naive` holds a static function.** Its `InternalFunction` is a plain
-struct: a `fn(captured: &Array<Naive>, args: &Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
-the captured `Array<Naive>` and the `length`. No allocation of its own: a
-`fn` pointer is `Copy` and `PartialEq`, and the captured array already
-carries the function's identity. Each evaluation of an arrow evaluates its
+**`naive` holds a static function.** Everything about a function's *code*
+is a constant: the `fn(captured: &Array<Naive>, args: &Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
+its `length`, and — once a spelling exists — the source text `to_string`
+answers. So generated code emits them once, as a `static` code descriptor
+per function, and `naive`'s `InternalFunction` is two words: a `&'static`
+reference to that descriptor and the captured `Array<Naive>`. No
+allocation of its own: a `&'static` is `Copy` and `PartialEq` by address,
+and the captured array already carries the function's identity. Each evaluation of an arrow evaluates its
 frame node afresh in the enclosing scope, so every function value is born
 with its own captured array, a fresh allocation even when empty; two
 evaluations of the same arrow have two, one function cloned shares one.
@@ -117,9 +120,9 @@ self-reference, the generator — is unchanged and builds on this shape.
 - [ ] `IComplex`, `IContainer: IComplex`, `IFunction: IComplex`; `IVm`
       binds `InternalFunction: IFunction<Self>`.
 - [ ] The native-construction capability trait; `naive` implements it and
-      `IFunction`, as a plain struct of a `fn` pointer, a captured array
-      and a length, identity the captured array's; `to_string` answers
-      `() => {}`.
+      `IFunction`, as a `&'static` code descriptor — the `fn` pointer and
+      the `length`, the source text later — beside the captured array,
+      identity the captured array's; `to_string` answers `() => {}`.
 - [ ] `Function<A>`: `call`, `length`, `to_string`, identity; `name`, the
       header and the `pub` field go; `Debug` prints `to_string`.
 - [ ] `function_any` in the corpus harness and the two test constructions
