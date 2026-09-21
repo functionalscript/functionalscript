@@ -5,233 +5,206 @@
 
 ### Problem
 
-The one-node proposal that preceded this one, `own-access.md`, folded
-`own` into `.` and made every access an own read, and that decision dragged
-a second one behind it: once `name` is readable through an own read, a
-function's `name` has to mean something, so a second proposal,
-`function-name.md`, gave `=>` a name operand, the graph stopped being
-name-erased, and the writer grew a pattern to restore names it would rather
-not know. The cost was out of proportion to the value, which is
-`person.name` on a plain object. Both proposals are retired in favor of
-this one; their text is in git history.
+The preceding `own-access.md` proposal made every access an own read. Exposing
+function `name` then led `function-name.md` to add a name operand to `=>` and
+a writer pattern to restore names. Both proposals are retired; their history
+records why the cost exceeded the value of reading `person.name`.
 
-A static rule cannot separate `f.name` from `person.name`, since it sees the
-key and not the base. A guard on the base's type can, and was weighed: it
-throws on a function, but also on a string, and a guard narrowed to
-functions and `name` is a special case bolted onto a general read. The
-criterion that separates the two without looking at the base is
-enumerability: `person.name` is an enumerable own property, `f.name` is
-not, and neither is `length` on anything.
+Enumerable own properties provide a clearer data-entry boundary:
+`person.name` can be enumerable, while a function's `name` and `length` are not.
+Keep static access and a runtime data-entry read as different operations.
+Do not redefine JavaScript's standard own-property operations to implement it.
 
 ### Proposal
 
-An object's data is its enumerable own properties — exactly what
-`Object.entries` lists — and the run-time read is a read of one entry. Keep
-two operators, each with one job.
+#### Static access
 
-- **`['.', a, key]` — a known name.** The key is a literal or a constant the
-  compiler resolves, so every check is static: the prohibited names refused
-  at the key, `name` among them, `length` allowed. `a.b`, `a["b"]`, `a[0]`
-  and `a[Number(k)]` are its spellings. The executor reads it as an own
-  property, `undefined` where there is none, as the specification defines
-  an access ([`spec/README.md`](../../../spec/README.md), Property Access)
-  and as the value path already reads it through `hasOwn`; what this
-  proposal changes is the run-time read and `name`. The writer's `a.b`
-  agrees with that read under the assumption
-  every FunctionalScript file run by a JavaScript engine already relies on,
-  a realm whose prototypes are the standard's, since every standard
-  prototype name is refused at the key. `f.name` and `person.name` are both
-  refused here; the second has the other spelling.
-- **`entry(a, b)` — an entry, at run time.** A call of the `entry`
-  function, `['()', E, ['[]', [a, b]]]` with `E` the node holding
-  `['entry']` from the next bullet; both arguments are expressions, and the
-  call is the value of `a`'s entry `b`, or `undefined` if `a` has no such
-  entry:
+`['.', a, key]` uses a known name: a literal or a constant resolved by the
+compiler. Keep the prohibited-name check static, including `name`, with
+`length` allowed. The existing constant-key spellings are `a.b`, `a["b"]`
+and `a[0]`; other computed forms remain subject to their own parser work.
 
-  | read | result |
-  |-|-|
-  | `entry(person, "name")`, `entry([1], "0")`, `entry("abc", "0")` | the value — an enumerable own property, a string's characters included, as `Object.entries` lists them |
-  | `entry(f, "name")`, `entry(f, "length")`, `entry([1], "length")` | `undefined` — own but not enumerable, so not an entry |
-  | `entry(5, "x")`, `entry(f, "x")`, `entry({}, "x")` | `undefined` — no such entry, so no descriptor; a primitive boxes as in JavaScript |
-  | `entry(o, 0)`, `entry(o, true)`, `entry(o, null)`, `entry(o, [1])`, `entry(o, {})` | the entry `"0"`, `"true"`, `"null"`, `"1"`, `"[object Object]"` — the key converted as JavaScript converts a property key |
-  | `entry(null, b)`, `entry(undefined, b)` | throws, as JavaScript's read throws |
+The executor reads an own property. Emitted ordinary JavaScript agrees under
+the existing standard-prototype realm assumption because prototype names are
+refused at the key. `f.name` and `person.name` are both refused here; the
+latter has the runtime entry spelling below.
 
-  The semantics are exactly JavaScript's behavior of the function in the
-  next bullet, and the table only spells them out. So the key is any value,
-  converted to a property key as JavaScript converts one: a string as is, a
-  number by ECMAScript's `Number::toString`, a boolean, `null` and
-  `undefined` by their names, and an object or an array through
-  `ToPrimitive`, which calls a `toString` the value carries —
-  `entry(o, { toString: () => 'k' })` reads `k`, and `entry(o, f)` and
-  `entry(o, [f])` read the entry named `String(f)`. `String(f)` is defined
-  by [`serialization.md`](../../../spec/todo/serialization.md), the
-  writer's rendering of the function's graph, one text per graph, while a
-  JavaScript engine returns the source as written; the two agree exactly
-  when the source is the writer's spelling, which the `.f.js` output is,
-  and a hand-written definition names its own text until it is normalized.
-  That is `String(f)`'s property and `entry` adds nothing to it, `entry`
-  itself included: the writer's spelling of `['entry']` is the pattern's
-  one line below, so `String(entry)` is that line in the VMs and in the
-  `.f.js` output, and an engine running a hand-written definition returns
-  the authored text, as for any function. No guard on the base
-  or the key is needed: a function has no entries, so `entry` on one is
-  `undefined` for every key, which is the right answer for "a function has
-  no data", and nothing throws that JavaScript would not throw.
-- **`['entry']` is the function, and the source form is its definition.**
-  The node is nullary: its value is the function `(a, b) => …` with the
-  semantics above and arity `2`, the first node whose value is a function
-  the language defines rather than one the program builds. A developer
-  defines the read once and calls it, so the pattern is the definition,
-  recognized whole and lowered to the node:
+#### Runtime entry read
 
-  ```js
-  const entry = (a, b) => {const x = Object.getOwnPropertyDescriptor(a, b);return x?.enumerable ? x.value : undefined}
-  // ['entry']
-  entry(o, k)
-  // ['()', E, ['[]', [o, k]]], E the node the `const` holds
-  ```
+The source defines a JavaScript function whose meaning is explicit:
 
-  `a`, `b` and `x` are identifier placeholders, each the same identifier at
-  every occurrence, and whitespace is free; `x?.enumerable` because a
-  missing property has no descriptor. Both executors follow this function
-  exactly, since it is JavaScript and JavaScript runs it as written; the
-  one line above is the writer's spelling, and `String(entry)` in the VMs
-  and in the output. The pattern fixes the whole body, so the descriptor is
-  declared and consumed inside it and never becomes a value of the
-  language — `Object.getOwnPropertyDescriptor` exists nowhere but inside
-  this pattern, and a function that does anything else with the
-  descriptor, returns it, reads `writable`, is not the pattern and is
-  refused. The parser matches the definition as a fixed token shape, as
-  `["__proto__"]` is one token, so it needs none of named parameters, a
-  block body, a body constant or `return` in general; a use site is an
-  ordinary call, which is the one real dependency. The node mints identity
-  as `=>` does — each evaluation is a function object, so two definitions
-  in one program are two functions, as two `const` definitions are in
-  JavaScript, and the analysis counts it as a constructor. It can stand
-  anywhere a value can, `[entry, entry]`, an argument, an export, and the
-  writer spells it as the pattern's text wherever it stands, hoisted when
-  shared, so it round-trips from any position; the executor maps it to one
-  host function of arity `2`, and `entry.length` is `2` by definition.
-  JavaScript reads the definition as the function it is, so the text means
-  the same in both.
-- **The technique is general, and `entry` is its first instance.** A
-  built-in the program cannot name — a global object is a namespace, never
-  a value — is delivered as a function the program defines, in three parts
-  that are the same every time: the source form is a definition matched
-  whole as a fixed token shape with identifier placeholders, so the parser
-  needs none of the general features the definition uses and nothing
-  inside the fixed body can leak; the node is nullary and its value is the
-  function, arity by definition, identity like `=>`, standing anywhere a
-  value can, every use an ordinary call, one host function in the executor
-  and one operation in the native VM; and the built-in it wraps exists
-  nowhere else, which makes the wrapped semantics the only semantics. The
-  next such function — an existence test over the same descriptor read,
-  once `2345` settles it, the `Number` cast, the string and array functions
-  [`2360-built-in.md`](../../../spec/todo/2360-built-in.md) lists as
-  allowed — is one pattern, one `op0` node and one row in the table, and no
-  new rule.
-- **`name` is unobservable.** `.` refuses it statically, and `entry` reads
-  `undefined` because `name` is not an entry, so no FunctionalScript program
-  reads a function's `name`. `=>` carries no name, the graph stays
-  name-erased, and the writer's `$0` is invisible. `Object.entries`,
-  `keys` and `values` list entries only, so they
-  agree with JavaScript as they are — `Object.keys(f)` is `[]`,
-  `Object.keys([1, 2])` is `['0', '1']`. The functions that see
-  non-enumerable properties, `getOwnPropertyNames` and
-  `getOwnPropertyDescriptors`, leave the allowed list or are redefined over
-  entries. `Object.hasOwn` as it stands would reveal `name`'s existence
-  where `entry` reads `undefined`, so if it is kept it follows the same
-  enumerability rule; whether `{ a: undefined }` has an entry `a` is
-  [`1010-undefined-property.md`](../../../spec/todo/1010-undefined-property.md)'s
-  question and [`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)'s
-  to settle, and this todo decides nothing about it.
-- **`a[b]` with an unknown `b` stays refused.** It cannot lower to `entry`:
-  JavaScript's `a[b]` walks the prototype chain and `entry` does not, and
-  `b` may be `"constructor"` at run time. The `entry` function is the
-  source form for a run-time key, and it means the same in both.
-- **Both executors, one answer.** `own` stays in the schema as the
-  internal two-operand operation, `['own', a, b]`, redefined with the entry
-  semantics: it is what `['entry']`'s function performs on its two
-  arguments, in amnesia and in the native VM alike. The compiler never
-  emits it, since the source form lowers to the call of `['entry']`, so the
-  writer refuses it by name, as it refuses any node compiled graphs never
-  hold; there is no second arity of `entry` and no second round trip. The
-  native VM's `own` is pinned today by the conformance corpus in
-  [`fjs/nanvm`](../../nanvm/module.f.mjs) (`ownCases`), which generates the
-  Rust vectors and documents `Any::own_property` in `nanvm-lib`, and it
-  keeps that shape. Its answers for a primitive or a function receiver,
-  `undefined`, already match `entry`; what changes is that an array and a
-  string are receivers with their items as entries and `length` no longer
-  read, and that a key is converted rather than refused.
-  A primitive key converts with no call into user code; an object or an
-  array key converts through `ToPrimitive`, which can call a function the
-  program wrote, so the native operation needs a native call for that
-  class, and until the VM can call, the corpus pins the keys whose
-  conversion calls nothing. The corpus, the generated vectors,
-  `Any::own_property` and its documentation change with amnesia, in the
-  same PR, so the JavaScript and native executions keep agreeing on every
-  listed input.
-- **Unchanged.** The analysis merges `.` as a plain read, since it mints
-  no identity, and a call of `entry` as any call; `?.` and `|.` stay
-  control flow.
+```js
+const entry = (a, b) => {
+    const x = Object.getOwnPropertyDescriptor(a, b);
+    return x?.enumerable ? x.value : undefined;
+};
+```
+
+`['entry']` is the proposed nullary node denoting this function of arity `2`.
+A use is an ordinary call, `['()', E, ['[]', [a, b]]]`, where `E` denotes
+that node. The descriptor remains inside the recognized function body.
+
+| Read | Result |
+|------|--------|
+| `entry(person, "name")`, `entry([1], "0")`, `entry("abc", "0")` | The enumerable own value |
+| `entry(f, "name")`, `entry(f, "length")`, `entry([1], "length")` | `undefined`: own but not enumerable |
+| `entry(5, "x")`, `entry(f, "x")`, `entry({}, "x")` | `undefined`: no such entry |
+| `entry(o, 0)`, `entry(o, true)`, `entry(o, null)` | Read `"0"`, `"true"`, `"null"` respectively |
+| `entry(o, [1])`, `entry(o, {})` | Read `"1"`, `"[object Object]"` under ordinary conversion |
+| `entry(null, b)`, `entry(undefined, b)` | Failure, as in the source helper |
+
+Primitive boxing and property-key conversion follow the source helper. Objects
+and arrays can invoke user-defined conversion; numeric keys require
+ECMAScript's number-to-string conversion, not a host-specific approximation.
+An unsupported receiver or conversion must be refused, not silently answered
+with a plausible value. Default function text follows the explicitly adopted
+exception described below, including when reached through key conversion.
+
+#### Recognition after statements
+
+**Every pattern instruction MUST be recognized at a level where statements
+and expressions have already been recognized correctly.** This replaces the
+former proposal to recognize `entry` as a fixed token shape before its body
+syntax was supported.
+
+Follow [statement-aware AST recognition](../../fsc/parser/todo/statement-aware-intrinsics.md).
+The parser constructs a JavaScript-subset AST with statement and expression
+structure intact, not an already-admitted FJS AST. AST-to-EDAG compilation
+resolves bindings and const visibility, checks early errors, recognizes this
+complete pattern and enforces FJS restrictions. The matcher does not inspect
+newlines, perform semicolon insertion or repair syntax. A newline after
+`return` cannot be ignored to recover this pattern.
+
+The parser must understand the [named parameters](../../../spec/todo/3120-parameters.md),
+local declaration, return, optional access and conditional expression inside
+the helper before it can be matched. Syntactic support is the dependency;
+general EDAG lowering for every use of those constructs is not. A descriptor
+returned from the function, another descriptor field read, or an unmatched
+descriptor use may be represented in the AST but is refused by FJS admission.
+Resolve `Object` as the intrinsic namespace, not a shadowing binding; identifier
+placeholders preserve binding relationships, not merely repeated spelling.
+Do not implement a second parser in the matcher.
+
+A later JavaScript-compatible ASI extension may accept equivalent source with
+omitted semicolons. Canonical output may still emit them. Whether semicolons
+were explicit is not a matcher concern once the AST is correct.
+
+#### Function identity, output and reflection
+
+Each evaluation of an `entry` definition mints a function identity as `=>` does.
+Two definitions remain distinct in the JS-compatible profile. The function
+may be exported, passed as an argument, or shared in `[entry, entry]`; the
+writer must hoist shared definitions as needed and preserve arity `2`.
+
+The [function-source representation exception](../../../spec/README.md#function-source-representation-exception)
+is now adopted: FJS VMs reconstruct default function text from associated EDAG,
+not authored source. It covers `String(entry)`, `entry(o, f)`, `entry(o, [f])`
+and other conversions that reach that representation, including resulting
+lookup/branch differences. Ordinary source execution on a JavaScript host
+retains its host representation; source-text reflection through exports is
+covered by the same exception. Do not ban exporting `entry` merely to hide it.
+
+[Function text and serialization](../../../spec/todo/serialization.md#function-text-and-serialization)
+owns the remaining open questions: whether `String(f)` and the FSC function
+serializer are the same function, frame instantiation, and `self`. The displayed
+helper defines the computation, not its exact serialized spelling. Earlier
+requirements to refuse every authored-text difference are superseded; the
+implementation must instead follow the adopted conversion contract. This
+neither merges function identities nor changes arity or ordinary property
+semantics, and it does not claim the helper is implemented today.
+
+#### Enumerable presence, not `Object.hasOwn`
+
+**`Object.hasOwn` is prohibited in FJS source, not redefined.** The
+[enumerable-presence proposal](../../../spec/todo/2345-has-own-property.md)
+replaces direct standard-call recognition with an explicit descriptor pattern,
+working name `hasEntity`:
+
+```js
+const hasEntity = (a, b) =>
+    Object.getOwnPropertyDescriptor(a, b)?.enumerable;
+```
+
+That exact source yields `true`, `false` or `undefined`. A boolean-only API
+must explicitly use `=== true`; the linked TODO records the remaining API
+choice. Neither alternative confuses a property's value with enumerability:
+`{ a: undefined }` still has an enumerable `a`. An `entry` value read cannot
+distinguish it from absence, but a presence operation can.
+
+`Object.getOwnPropertyNames` and `Object.getOwnPropertyDescriptors` also stay
+outside the admitted reflection surface; do not redefine them over entries.
+`getOwnPropertyDescriptor` is available only inside complete approved patterns,
+not as a descriptor-producing value API. Align the
+[built-in plan](../../../spec/todo/2360-built-in.md) with this restriction.
+Existing host implementation helpers are not source-language admissions.
+
+`Object.keys`, `Object.entries` and `Object.values` describe enumerable data;
+any further source restrictions belong to their own plans. This proposal does
+not silently remove the filtering restrictions in the undefined-property TODO.
+Likewise, it does not assert universal equivalence between `{ a: undefined }`
+and `{}`: the [observation constraints](../../../spec/todo/1010-undefined-property.md)
+apply through composition.
+
+#### Boundaries and native execution
+
+An unknown runtime `a[b]` stays refused: JavaScript walks prototypes there, so
+it cannot lower to `entry`. The explicitly written helper is the runtime-key
+source form. Restricting `name` through `.` and reading data entries through
+`entry` does not by itself close all indirect function reflection.
+
+The existing internal `['own', a, b]` operation is planned to implement the
+entry read, not a second source spelling. The compiler emits the `entry`
+function and its ordinary calls; the writer refuses the internal `own` form.
+Changing that operation's semantics requires updating both executors, its
+schema documentation, the conformance corpus and generated Rust vectors in
+the same implementation PR. Do not change an existing internal opcode silently.
+
+The [native corpus](../../nanvm/module.f.mjs)'s `ownCases` currently pins the
+operation. Primitive-key conversion needs no user call; object/array conversion
+may need one. Until native calls exist, explicitly refuse unsupported keys
+instead of pretending conversion found no entry. Native callable support and
+call-shaped conformance cases land with the necessary execution support.
+
+Number conversion follows ECMAScript `Number::toString`: `1e21` names
+`"1e+21"`, `0.1` names `"0.1"`, and `-0` names `"0"`. These belong in the
+shared corpus. Arity, per-definition identity and actual use as a callable
+need tests in addition to direct internal-operation tests.
 
 ### Tasks
 
-- [ ] `['entry']` joins the `op0` ids as the function value, and `own` stays
-      an `op2` id as the internal operation it calls, redefined with the
-      enumerable-own semantics; the README's table says which read each
-      node is and why, that `['entry']`'s value is a function the language
-      defines, and that `own` is the operation the compiler never emits.
-- [ ] Amnesia evaluates `['entry']` to one host function of arity `2` that
-      reads the descriptor and its `enumerable` flag, with
-      proofs for an object, an array, a string, `null`, a number and a
-      function as the base; a number, a boolean, `null`, `undefined`, an
-      array, an object carrying `toString` and a function as the key
-      converting; a missing property; and `name` and `length` on a function
-      reading `undefined`.
-- [ ] The native VM follows in the same PR. It implements the function's
-      semantics as the `own` operation, the successor of `Any::own_property`,
-      and the conformance corpus in `fjs/nanvm` keeps pinning it as
-      `ownCases` does today, `['own', a, b]`, a group over an `Op2Id` as
-      `types.ts` requires, since the Rust emitter has no call yet; a call of
-      `['entry']` joins the corpus once it can. The node's value as a
-      callable in Rust and an object or array key, whose conversion can
-      call user code, wait on native calls. The answers change to the entry
-      answers — an array
-      and a string receivers with their items, `length` and `name`
-      `undefined`, a primitive key converted as JavaScript converts it —
-      and the number conversion is ECMAScript's `Number::toString`, the
-      shortest round-trip spelling the DataJS specification already defines,
-      not Rust's `f64::to_string`: `1e21` reads `"1e+21"`, `0.1` reads
-      `"0.1"`, `-0` reads `"0"`, each pinned as a boundary case.
-- [ ] The parser recognizes the `entry` function as a fixed token shape with
-      identifier placeholders and lowers it to `['entry']`, refuses
-      `Object.getOwnPropertyDescriptor` anywhere else, and keeps `name`
-      prohibited for `.`; proofs for the definition in any whitespace, a
-      call of it once calls land, `entry.length` reading `2`, two
-      definitions being two functions, a function that returns the
-      descriptor refused, and `f.name` refused through `.`; the writer
-      spells the node as the pattern's one line from any position, and
-      `String(entry)` is that line.
-- [x] `own-access.md` and `function-name.md` retired in favor of this, and the
-      references to them in `analysis.md`, `is-operator.md`,
-      `functionalscript-output.md` and `interpret-edag.md` repointed.
-- [ ] `2360-built-in.md` removes `getOwnPropertyNames` and
-      `getOwnPropertyDescriptors` from the allowed list, or redefines them over
-      entries, and marks `hasOwn` as following `2345`.
-- [ ] The spec todos updated in the same migration:
-      [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
-      spells `own_property` as the `entry` function, and
-      [`2345-has-own-property.md`](../../../spec/todo/2345-has-own-property.md)
-      takes `entry`'s enumerability rule in place of the `Object`-only scope
-      it inherits from the current `own`, and keeps the `{ a: undefined }`
-      question it defers to `1015`.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [x] Replace the fixed-token bypass with mandatory statement-aware AST matching.
+- [x] Prohibit `Object.hasOwn`; direct presence to the separate enumerable pattern.
+- [x] Retire `own-access.md` and `function-name.md`; history holds their designs.
+- [ ] Add `['entry']` to the schema and document the function/internal-operation
+      distinction, subject to the P1 compatibility gates above.
+- [ ] Implement recognition in AST-to-EDAG compilation once the complete helper
+      syntax, including [named parameters](../../../spec/todo/3120-parameters.md),
+      is representable. Validate its bindings and keep protected uses outside
+      matched patterns refused; general lowering of functions with named
+      parameters may follow.
+- [ ] Implement the JavaScript and native operation changes together with the
+      corpus, generated vectors and documentation. Refuse unsupported calls
+      or key conversions rather than invent results.
+- [ ] Add a writer spelling from every supported value position, preserving
+      sharing, identity and arity. Use the adopted EDAG-derived function-text
+      contract; resolve the linked open questions for each implemented case.
+- [ ] Test objects, arrays, strings, primitives, functions, missing entries,
+      undefined-valued entries, non-enumerable properties, nullish failures,
+      coercion, binding shadowing, statement boundaries and equivalent layouts.
+- [ ] Reconcile the property-access and built-in plans with this complete AST
+      pattern; no raw-token shortcut and no redefined standard reflection API.
+- [ ] `tsc`, `fjs test`, `npm run cov` at 100% with the implementation.
 
 ### Related
 
-- [`../amnesia/README.md`](../amnesia/README.md) — the `own` read this
-  redefines as `entry`.
-- [`spec/todo/2360-built-in.md`](../../../spec/todo/2360-built-in.md) —
-  `Object.getOwnPropertyDescriptor` and the reflection functions this
-  constrains.
+- [Statement-aware intrinsics](../../fsc/parser/todo/statement-aware-intrinsics.md).
+- [Enumerable presence](../../../spec/todo/2345-has-own-property.md).
+- [Property access](../../../spec/todo/2330-property-accessor.md).
+- [Built-ins](../../../spec/todo/2360-built-in.md).
+- [Amnesia](../amnesia/README.md) — the existing internal read.
+- [Functions](../../../spec/README.md#functions) — the language rule that a
+  function carries no name, which this proposal's retirement of
+  `own-access.md` and `function-name.md` decided.
+- [Compatibility epic](../../../todo/fjs-javascript-compatibility.md#function-name--not-a-compatibility-observation)
+  — records that a function's name is therefore no compatibility
+  observation, whatever the `.js` writer binds it under.

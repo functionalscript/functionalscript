@@ -12,10 +12,10 @@
  * operator conformance corpus the same way. What is specific to this module:
  * finding a whole module's implicitly shared nodes ({@link sharedNodesOf}
  * over the linked EDAG, rather than a corpus's explicit named `shared`),
- * naming them, assembling the `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>` a harness
- * can call, and picking exactly the `nanvm_lib` imports and private helpers
- * the printed text actually needs — no harness crate to `use`, since this
- * output is meant to compile inside whatever crate a caller drops it into.
+ * naming them, assembling the `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`
+ * a harness can call, and picking exactly the `nanvm_lib` imports the printed text
+ * actually needs — the crate is the output's one dependency, so the
+ * functions a literal becomes are `vm::unstable`'s, never copied here.
  *
  * @module
  *
@@ -25,58 +25,45 @@
  */
 
 import { error, mapOk, ok, okThen, unwrap } from '../../types/result/module.f.mjs'
-import { expExpr, sharedNodesOf } from '../../edag/rust/module.f.mjs'
+import { expExpr, op1Rust, op2Rust, sharedNodesOf } from '../../edag/rust/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 
 const indent = '    '
 
 /**
- * The private helpers {@link expExpr} names but does not itself define — the
- * operator-test corpus gets them from `nanvm-lib/tests/test/harness.rs` via
- * `use super::harness::*;`, but a compiled module has no such crate to
- * depend on, so it carries its own copies. Each is included only when the
- * printed body actually calls it, keyed by the call text that says so.
+ * The `nanvm_lib::vm::unstable` functions the printed body calls — the same
+ * ones the operator corpus calls, since both are printed by {@link expExpr}
+ * — found by the call text that names them, so a module imports only what
+ * it uses. A helper added there to shorten generated code gets a row here
+ * once the printer calls it.
  *
- * @type {readonly { readonly marker: string, readonly lines: readonly string[] }[]}
+ * @type {readonly (readonly [string, string])[]}
  */
 const helperCatalog = [
-    {
-        marker: 'string_any(',
-        lines: [
-            'fn string_any<A: IVm>(v: &str) -> Any<A> {',
-            `${indent}v.into()`,
-            '}',
-        ],
-    },
-    {
-        marker: 'string_key(',
-        lines: [
-            'fn string_key<A: IVm>(v: &str) -> String<A> {',
-            `${indent}v.into()`,
-            '}',
-        ],
-    },
-    {
-        marker: 'bigint_any(',
-        lines: [
-            'fn bigint_any<A: IVm>(v: i64) -> Any<A> {',
-            `${indent}Into::<BigInt<A>>::into(v).to_any()`,
-            '}',
-        ],
-    },
+    ['bigint_any(', 'bigint_any'],
+    ['f64_any(', 'f64_any'],
+    ['string_any(', 'string_any'],
+    ['string_key(', 'string_key'],
 ]
 
-/** The helper definitions the printed body needs, each followed by a blank line. @type {(body: string) => readonly string[]} */
-const helpersFor = body => helperCatalog
-    .filter(({ marker }) => body.includes(marker))
-    .flatMap(({ lines }) => [...lines, ''])
+/**
+ * The `use nanvm_lib::vm::unstable::…;` line the body needs, or none, spelled
+ * as rustfmt spells it: one name bare, several braced.
+ *
+ * @type {(body: string) => readonly string[]}
+ */
+const helpersFor = body => {
+    const names = helperCatalog.filter(([marker]) => body.includes(marker)).map(([, name]) => name)
+    return names.length === 0 ? []
+        : [`use nanvm_lib::vm::unstable::${names.length === 1 ? names[0] : `{${names.join(', ')}}`};`]
+}
 
 /**
  * The `nanvm_lib::vm` names a piece of generated text needs, found the same
- * way {@link helpersFor} finds which helper to define: `Any` and `IVm` are
- * always needed — every value is an `Any<A>` and every function is generic
- * over it — and the rest are included only where the text actually spells
- * them, so an empty module never imports `BigInt`.
+ * way {@link helpersFor} finds which constructors to import: `Any` and
+ * `IVm` are always needed — every value is an `Any<A>` and every function is
+ * generic over it — and the rest are included only where the text actually
+ * spells them, so an empty module never imports `Array`.
  *
  * @type {readonly (readonly [string, string])[]}
  */
@@ -84,8 +71,6 @@ const importCatalog = [
     ['Nullish::', 'Nullish'],
     ['Array::default', 'Array'],
     ['Object::default', 'Object'],
-    ['String<A>', 'String'],
-    ['BigInt<A>', 'BigInt'],
     ['.to_any()', 'ToAny'],
     ['.to_array()', 'ToArray'],
     ['.to_object()', 'ToObject'],
@@ -114,37 +99,59 @@ const letLines = bindings => i => {
 }
 
 /**
- * Whether a node is `op12` of one operand — unary minus, the one operation
- * a FunctionalScript source can reach today.
+ * Whether a node is one of `op1Rust`/`op2Rust`'s own — every operator
+ * [`../../edag/rust`](../../edag/rust/module.f.mjs) knows a `nanvm-lib`
+ * spelling for and a parseable module can reach today, unary minus among
+ * them. `op3Rust` has none yet: its one entry, `?:`, is no syntax this
+ * compiler's parser admits, so no module this function's caller hands it
+ * can hold one — a check for it here would be a branch this repository's
+ * own coverage rule refuses to leave unreachable, not a correctness gap.
+ * Revisit alongside the ternary landing in the grammar.
  *
- * `Neg for Any<A>` answers `Result<Any<A>, Any<A>>`, unary minus throwing
- * where `ToNumeric` does, and every place this module writes a value wants
- * an `Any<A>`: the `let` bindings and the body alike. So the text `-(a)`
- * that [`../../edag/rust`](../../edag/rust/module.f.mjs) prints does not
- * compile *here*, though it is right where that printer's other caller puts
- * it — a generated operator test hands the `Result` to a checker.
+ * Every `op1Rust`/`op2Rust` spelling answers `Result<Any<A>, Any<A>>`:
+ * each `nanvm-lib` operator on `Any<A>` throws where its JavaScript
+ * original does. `pub fn module` answers the same `Result` now, so a throw
+ * has somewhere to go — a `.` read already propagates with `?` — but the
+ * printer does not yet append the `?` an operator's spelling needs, and
+ * every place this module writes a value still wants a bare `Any<A>`: the
+ * `let` bindings and the body's `Ok(…)` alike. So the text an operator
+ * node prints does not compile *here* yet, though it is right where that
+ * printer's other caller puts it — a generated operator test hands the
+ * `Result` to a checker, `fjs/edag/rust/module.f.mjs`'s own comment on
+ * `op2Rust` has why. `fjs/fsc/rust/todo/stage-a-operators.md` is the
+ * spelling.
  *
  * The lowering folds a negated numeric literal into the leaf, so `-1`
- * reaches this as a number and prints as it always did; what is left is a
- * negation of something else, which this refuses rather than write a module
- * that does not build. The shape that would serve it is a throwing
- * operation the printer can spell. `'+'`, `typeof`, `String` and the binary
- * operations
- * answer with a `Result` too; giving them a module is a shape for a
- * throwing operation, not a spelling.
+ * reaches this as a number and never as a node at all, printing as it
+ * always did; every other operator node is refused here rather than
+ * written into a module that does not build. The shape that would serve
+ * one is a throwing operation the printer can spell, not a value.
  *
  * @type {(node: Node) => boolean}
  */
-const negation = node => node instanceof Array && node[0] === '-' && node.length === 2
+const resultOperator = node => node instanceof Array && (
+    (node.length === 2 && node[0] in op1Rust)
+    || (node.length === 3 && node[0] in op2Rust)
+)
 
 /**
- * The module's value as a Rust expression of type `Any<A>`, and the `let`
- * bindings its implicitly shared nodes need first — or the refusal.
+ * The module's value as `Ok(…)` of a Rust expression of type `Any<A>` — a
+ * `?` inside it propagates a throw out of `module` — and the `let` bindings
+ * its implicitly shared nodes need first — or the refusal.
+ *
+ * `analysis(root)` recurses once per operand ({@link ../../edag/analysis/module.f.mjs}),
+ * so this refusal is itself reached only up to the depth that walk survives:
+ * a module deep enough overflows the call stack before this function can
+ * report the clean refusal below. Tracked, not fixed here — the walk is
+ * shared infrastructure every EDAG consumer depends on, and a rewrite has
+ * to preserve its merge/scope semantics exactly, which is a bigger and
+ * riskier change than this refusal's own scope:
+ * `fjs/edag/todo/stack-safety.md`.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
 const bodyLines = root => {
-    if (analysis(root).nodes.some(negation)) { return error(['no Rust for a negation in a module', root]) }
+    if (analysis(root).nodes.some(resultOperator)) { return error(['no Rust for an operator in a module', root]) }
     const shared = sharedNodesOf(root)
     /** @type {readonly (readonly [Exp, string])[]} */
     const bindings = shared.map((node, i) => [node, `c${i}.clone()`])
@@ -155,6 +162,11 @@ const bodyLines = root => {
 const functionRoot = root => {
     if (!(root instanceof Array)) { return false }
     if (root[0] === '=>') { return root[1] === null }
+    if (root[0] === '{}' && root[1].length === 1) {
+        const property = root[1][0]
+        return property instanceof Array && property[0] === ':' && property[1] === 'default'
+            && functionRoot(property[2])
+    }
     if (root[0] !== ',' || root[1].length === 0) { return false }
     return functionRoot(root[1][root[1].length - 1])
 }
@@ -162,32 +174,26 @@ const functionRoot = root => {
 /** @type {(root: Exp) => Exp} */
 const functionNode = root => root instanceof Array && root[0] === ','
     ? root[1][root[1].length - 1]
+    : root instanceof Array && root[0] === '{}' && root[1].length === 1
+        ? functionNode(/** @type {any} */ (root[1][0])[2])
     : root
 
 /** @type {(root: Exp) => Result<readonly string[], readonly unknown[]>} */
 const functionPrelude = root => {
     if (!(root instanceof Array) || root[0] !== ',') { return ok([]) }
-    const comma = /** @type {readonly Exp[]} */ (/** @type {any} */ (root)[1])
-    const prefix = comma.slice(0, -1)
+    const prefix = /** @type {readonly Exp[]} */ (root[1].slice(0, -1))
     const lines = prefix.map(node => mapOk(s => `${indent}let _: Any<A> = ${s};`)(expExpr([], { fallible: true })(node)))
-    return lines.length === 0
-        ? ok([])
-        : okThen(first => mapOk(rest => [first, ...rest])(functionPreludeLines(lines, 1)))(lines[0])
+    /** @type {(index: number, result: readonly string[]) => Result<readonly string[], readonly unknown[]>} */
+    const collect = (index, result) => index === lines.length
+        ? ok(result)
+        : okThen(first => collect(index + 1, [...result, first]))(lines[index])
+    return collect(0, [])
 }
-
-/** @type {(lines: readonly Result<string, readonly unknown[]>[], index: number) => Result<readonly string[], readonly unknown[]>} */
-const functionPreludeLines = (lines, index) => index === lines.length
-    ? ok([])
-    : okThen(first => mapOk(rest => [first, ...rest])(functionPreludeLines(lines, index + 1)))(lines[index])
 
 /** @type {(root: Exp) => Result<readonly string[], readonly unknown[]>} */
 const functionLines = root => {
-    if (!functionRoot(root)) { return error(['not a capture-free function', root]) }
     const body = /** @type {readonly any[]} */ (functionNode(root))[2]
-    const resultBody = body instanceof Array && (
-        body[0] === '.' || ['+', '-', '*', '/', '**', '%', '&', '|', '^', '<<', '>>', '>>>',
-            '<', '<=', '>', '>=', '&&', '||', '??', 'own', 'typeof', 'String', '!', '~'].includes(body[0])
-    )
+    const resultBody = body instanceof Array && (body[0] === '.' || body[0] in op1Rust || body[0] in op2Rust)
     return mapOk(s => [
         'fn f0<A: IVm>(_args: &Array<A>) -> Result<Any<A>, Any<A>> {',
         `${indent}${resultBody ? s : `Ok(${s})`}`,
@@ -215,17 +221,16 @@ const functionLines = root => {
  */
 const generateResult = root => mapOk(({ lines, prelude }) => {
     const bodyText = lines.join('\n')
-    const helpers = helpersFor(bodyText)
-    const uses = importsFor(`${bodyText}\n${helpers.join('\n')}\n${functionRoot(root) ? 'Array::default()' : ''}`)
+    const uses = importsFor(`${bodyText}\n${functionRoot(root) ? 'Array::default()' : ''}`)
     return [
         '// @generated by `fjs compile`. Do not edit: recompile the source module instead.',
         '',
+        ...helpersFor(bodyText),
         `use nanvm_lib::vm::{${uses.join(', ')}};`,
         '',
-        ...helpers,
-        ...(functionRoot(root) ? lines : []),
         '#[rustfmt::skip]',
         'pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {',
+        ...(functionRoot(root) ? lines : []),
         ...(functionRoot(root)
             ? [`${indent}let _args: Array<A> = Array::default();`, ...prelude, `${indent}f0(&_args)`]
             : lines),

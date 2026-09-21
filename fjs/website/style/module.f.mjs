@@ -37,14 +37,38 @@ export const stylesheetPath = '/_main.css'
 export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
+ * The two `<link rel="icon">` elements every page carries, so that no page
+ * spells the paths itself.
+ *
+ * Both, because declaring one ends the implicit lookup: `/favicon.ico` is
+ * what a browser asks for when a document declares no icon at all, and once
+ * a page declares the SVG, a browser that recognizes `rel="icon"` but cannot
+ * render SVG has no reason to go looking for the `.ico` — the fallback would
+ * never be requested in the one case it exists for. The `type` on the SVG
+ * link is what lets a browser that can use it skip the other.
+ *
+ * @type {readonly [Element, Element]}
+ */
+export const faviconLinks = [
+    ['link', { rel: 'icon', href: '/favicon.ico', sizes: '32x32' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fjs/website/favicon.svg' }],
+]
+
+/**
  * The stylesheet, verbatim.
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6 }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --muted: #5f6368; --border: #dadce0; --link: #137333; --pass: #137333; --pass-bg: #e6f4ea; --fail: #b3261e; --fail-bg: #fce8e6 }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
+    :root { --bg: #121212; --text: #f1f1f1; --muted: #9aa0a6; --border: #3c4043; --link: #81c995; --pass: #81c995; --pass-bg: #0f2417; --fail: #f28b82; --fail-bg: #2a1414 }
 }
+/* Every link on the site is coloured the same whether or not it has been
+   opened: nearly every word here is a link into the tree, and the visited
+   distinction says only where this reader has been, not what a file holds.
+   --link is its own token, not an alias for --pass, even though it starts at
+   the same values — moving one later must not drag the other with it. */
+a, a:visited { color: var(--link) }
 /* Nearly every word on this site is a path, and a path has no space for a line
    to break at. On a phone a page's title, a proof's name or a digest is wider
    than the screen, and with nowhere to break it the whole page scrolls
@@ -114,8 +138,24 @@ li[data-status="passed"] { color: var(--muted) }
    input, and it was Arial the moment the first demo landed. A list that has to
    be extended for each new control is a rule that is wrong between the element
    arriving and somebody noticing. */
-button, input, pre { font: inherit }
+button, input, textarea, pre { font: inherit }
 pre { white-space: pre-wrap }
+/* A textarea's own baseline sits at its bottom edge, so a label before a
+   multi-line field — the JSON demo's, the first of its kind — floated to the
+   bottom of the box beside it rather than the top. A single-line input has
+   no such seam: its one line of text already sits on the label's baseline. */
+textarea { vertical-align: top }
+/* A browser's own default width for a textarea is about twenty characters —
+   a sliver of the page's column, for a field meant to hold a document.
+   box-sizing keeps the 100% to the content width regardless of the border
+   and padding a browser gives a textarea by default, so it does not overflow
+   its own line. Resizable in height only: width has one right answer here,
+   the column, so there is nothing to drag it away from — a browser's own
+   resize otherwise sets an inline size the next render does not carry
+   (nothing here re-renders a resize into what it drew, the same way it
+   redraws focus and the caret), and a field a reader just widened would
+   silently narrow back on the next keystroke. */
+textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
@@ -133,4 +173,32 @@ pre { white-space: pre-wrap }
 [data-demo-working] button { cursor: default }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 [data-section] > ul { margin-top: .5rem }
+/* A section's list is one link per line with nothing under WCAG 2.2's 24px
+   minimum to tap: at d05b70ce, rendered at 390px, a listed link was 19px
+   tall. any-pointer, not pointer: a touch-screen laptop's primary pointer is
+   its trackpad, which pointer: coarse would read as fine and leave the list
+   untouched for the screen's own finger. A desktop with no coarse pointer at
+   all keeps the dense list. */
+@media (any-pointer: coarse) {
+    [data-section] > ul a { display: inline-block; padding-block: .25rem }
+}
+/* SVG text does not inherit the page's font on its own, unlike every
+   ordinary element — the DataJS demo's graph is the first thing on the site
+   to draw one. */
+svg text { font: inherit }
+/* The DataJS demo's graph: a rect per array, object or leaf, a line per
+   index or key. A leaf is dashed rather than solid, since a leaf and a
+   container are the one distinction this graph draws beyond sharing itself.
+   An edge label is haloed in the page's own background rather than boxed,
+   so two crossing lines still read under it without a second shape per
+   label. */
+[data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+[data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
+[data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
+[data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+[data-graph-edge-label] {
+    dominant-baseline: middle; fill: var(--muted); font-size: .7rem;
+    paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; stroke-width: 3px;
+}
+[data-graph-arrow] { fill: var(--muted) }
 `

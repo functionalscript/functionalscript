@@ -17,14 +17,14 @@
  * @import { Denotation } from './ast/types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect } from '../effects/types.ts'
- * @import { ReadFile } from '../effects/node/types.ts'
+ * @import { ReadFile, ResolveFileModule } from '../effects/node/types.ts'
  */
 
-import { transpile } from './transpiler/module.f.mjs'
+import { _transpileDefault } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
 import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
-import { tryStringify as fjsStringify } from './serializer/module.f.mjs'
+import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { empty, flat, map } from '../types/list/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
@@ -221,7 +221,7 @@ const isFjs = named(['.js', '.mjs'])
  * hoisted into a `const` as any shared node is, so the document reads back
  * as the same graph. The writer refuses nothing an EDAG holds.
  *
- * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const edagText = path => mapStep(resolve(path), tryStringify)
 
@@ -230,7 +230,7 @@ const edagText = path => mapStep(resolve(path), tryStringify)
  * into one graph, the same as {@link edagText}, and printed against the
  * `nanvm-lib` API by `./rust` rather than serialized as a DataJS document.
  *
- * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
 const rustText = path => mapStep(resolve(path), toRust)
 
@@ -243,16 +243,17 @@ const rustText = path => mapStep(resolve(path), toRust)
  * would refuse, a read of `null`, compiles too, the failure being the
  * program's to make when it runs.
  *
- * @type {(path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const fjsText = path => mapStep(resolve(path), fjsStringify)
+const fjsText = path => mapStep(resolve(path), graph => path.endsWith('.json') ? fjsStringify(graph) : tryModuleStringify(graph))
 
 /**
- * The module at `path` as the text `write` makes of what it denotes.
+ * Write the default export of a module, or the whole document for a direct
+ * JSON input. Input language decides the boundary, never an object's keys.
  *
- * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile, Result<string, string>, ParseError>}
+ * @type {(write: (denotation: Denotation) => Result<string, string>) => (path: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>}
  */
-const denotedText = write => path => mapStep(transpile(path), write)
+const denotedText = write => path => mapStep(_transpileDefault(path), write)
 
 /**
  * The text an output name asks for, from the input, or `null` when the name
@@ -269,7 +270,7 @@ const denotedText = write => path => mapStep(transpile(path), write)
  * input is the effect's; and a name with no language here is neither, since
  * there is nothing to read the input for.
  *
- * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadFile, Result<string, string>, ParseError>) | null}
+ * @type {(outputFileName: string) => ((inputFileName: string) => Effect<ReadFile | ResolveFileModule, Result<string, string>, ParseError>) | null}
  */
 const outputText = outputFileName => {
     if (outputFileName.endsWith('.json')) { return denotedText(jsonText) }
@@ -336,10 +337,11 @@ export const _stringifyTree = value => concat(treeValue(value))
  * `.mjs`.
  * Each of the three module outputs is in normalized form — one line, shared
  * nodes hoisted into `$0`, `$1`, … and an object's members in the order the
- * module gave them. The DataJS and JSON outputs are the value the program
- * denotes; the FunctionalScript output is the linked graph written back as
- * source, so it holds a function, which no value does; the EDAG output is
- * that graph as a DataJS document; and the `.rs` output prints it as `let`
+ * module gave them. The DataJS and JSON outputs are the default export
+ * (the document itself for a direct JSON input); the FunctionalScript output
+ * is the linked graph written back as source, so it holds a function, which no value does; the EDAG output is
+ * that graph, including the module's complete export object, as a DataJS
+ * document; and the `.rs` output prints it as `let`
  * bindings and a `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`.
  *
  * Returns the process exit code: `0` once the output file is written, `1` on

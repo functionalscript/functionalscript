@@ -1,28 +1,16 @@
 //! Hand-written support for the generated operator tests.
 //!
-//! `generated.rs` contains one statement per case and nothing else; every
-//! value constructor and every assertion it uses lives here, so the printer in
-//! `fjs/nanvm/rust/module.f.mjs` only has to name them. Re-exports at the top are
-//! what the generated file's `use super::harness::*;` pulls in.
+//! `generated.rs` contains one statement per case and nothing else. The
+//! functions a literal becomes, and `===`/`!==` as operator results, are
+//! `nanvm_lib::vm::unstable`'s, the same ones a compiled module calls; every
+//! assertion, and the one value constructor no literal spells, lives here, so
+//! the printer in `fjs/nanvm/rust/module.f.mjs` only has to name them.
+//! Re-exports at the top are what the generated file's `use super::harness::*;`
+//! pulls in.
 
 pub use nanvm_lib::vm::{Any, Array, IVm, Nullish, Object, ToAny, ToArray, ToObject};
 
-use nanvm_lib::vm::{BigInt, Function, IContainer, String, Unpacked};
-
-/// An `Any` holding the string `v`.
-pub fn string_any<A: IVm>(v: &str) -> Any<A> {
-    v.into()
-}
-
-/// An object property key.
-pub fn string_key<A: IVm>(v: &str) -> String<A> {
-    v.into()
-}
-
-/// An `Any` holding the bigint `v`.
-pub fn bigint_any<A: IVm>(v: i64) -> Any<A> {
-    Into::<BigInt<A>>::into(v).to_any()
-}
+use nanvm_lib::vm::{Function, IContainer, Unpacked};
 
 /// An `Any` holding a function.
 ///
@@ -32,29 +20,16 @@ pub fn function_any<A: IVm>() -> Any<A> {
     Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any()
 }
 
-/// Strict equality (`===`) as an operator result.
-///
-/// `==` on `Any` is exactly JavaScript's `===`, but it yields a `bool` and so
-/// pins neither operand's `A`; this gives both the same one and lifts the
-/// answer into the `Result` every other operator returns, so the generated
-/// statement for a `===` case is an ordinary `check`.
-pub fn strict_eq<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
-    Ok((a == b).to_any())
-}
-
 /// `Object.is`, the comparison the shared data's expectations are written in:
 /// `NaN` matches `NaN`, and `0` does not match `-0`.
 ///
 /// `==` on `Any` is JavaScript's `===`, which gets both of those backwards, so
-/// numbers are compared by their bits instead.
+/// numbers are compared by their bits instead — and since a `Number` holds
+/// one `NaN`, equal bits is the whole of `Object.is` on numbers.
 fn same<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
     match (a.clone().into(), b.clone().into()) {
         (Unpacked::Number(x), Unpacked::Number(y)) => {
-            if x.is_nan() || y.is_nan() {
-                x.is_nan() && y.is_nan()
-            } else {
-                x.to_bits() == y.to_bits()
-            }
+            f64::from(x).to_bits() == f64::from(y).to_bits()
         }
         _ => a == b,
     }

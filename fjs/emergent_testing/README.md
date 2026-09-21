@@ -118,7 +118,10 @@ Then invoke the runner:
 
 - `node --test`
 - `bun test`
-- `deno test --allow-read --allow-env --allow-sys`
+- `deno test --allow-read --allow-write --allow-env --allow-sys`
+
+This repository's filesystem proofs need write permission to create and remove
+their temporary fixtures; `deno task test` and the coverage tasks grant it.
 
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.
@@ -287,7 +290,7 @@ surprising.
 As a consequence, **exporting a function named `then` from a proof module is
 forbidden**: the module namespace object would become a thenable, corrupting
 dynamic `import()` resolution. See
-[spec/todo/3240-export.md](../../spec/todo/3240-export.md).
+[spec/README.md#exporting-a-value](../../spec/README.md#exporting-a-value).
 
 ## The two runners, and what sharing them cost
 

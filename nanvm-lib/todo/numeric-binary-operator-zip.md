@@ -44,7 +44,7 @@ impl<A: IVm> Numeric<A> {
     fn zip(
         self,
         rhs: Self,
-        number: impl FnOnce(f64, f64) -> Result<Self, Any<A>>,
+        number: impl FnOnce(Number, Number) -> Result<Self, Any<A>>,
         bigint: impl FnOnce(BigInt<A>, BigInt<A>) -> Result<Self, Any<A>>,
     ) -> Result<Self, Any<A>>
 }

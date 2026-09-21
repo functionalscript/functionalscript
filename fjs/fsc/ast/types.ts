@@ -20,14 +20,15 @@ export type AstImport = {
 }
 
 /**
- * A parsed DJS module: its imports, in source order, and its body.
+ * A parsed DJS module: its imports, in source order, and its body. The last
+ * body entry constructs the object of exports, with its keys in JavaScript namespace order.
  *
- * The import list indexes `['aref', i]`.
+ * The import list indexes `['aref', i]`, each a selected default binding.
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a function, or a function's arguments. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstFunction|AstArgs
 
 /**
  * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
@@ -55,7 +56,7 @@ export type AstArgs = readonly ['args']
  * A reference to a value defined outside this `AstConst`.
  *
  * - `['aref', i]` — the `i`-th argument of the body, i.e. the `i`-th imported
- *   module of the enclosing `AstModule`.
+ *   module's default export in the enclosing `AstModule`.
  * - `['cref', i]` — the `i`-th entry of the enclosing `AstBody`, which is the
  *   module's body or a function's, whichever the reference is written in.
  *
@@ -127,6 +128,37 @@ export type AstCall = readonly ['()', AstConst, readonly AstConst[]]
 export type AstNeg = readonly ['-', AstConst]
 
 /**
+ * A bitwise not, `~v`: the EDAG's `['~', exp]`, `op1Id`. Unlike {@link AstNeg}
+ * it folds nothing — `~` is exact only over an integer already reduced to
+ * one, which is `ToInt32`'s question and not this tree's — so it always
+ * reaches `run` as a node, refused the same way a container is.
+ */
+export type AstBitnot = readonly ['~', AstConst]
+
+/**
+ * A binary operator, Stage A of
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
+ * arithmetic, strict comparison, and bitwise — the EDAG's `op2Id`, and `-`
+ * again at two operands, `op12Id`'s other arity, told from {@link AstNeg}
+ * by length.
+ *
+ * `run` computes no value for one, the same refusal a function or a call
+ * earns: JavaScript's `+` alone needs `ToPrimitive` to decide number or
+ * string, and folding the rest piecemeal while leaving `+` a node would be
+ * an inconsistent line to draw, so every operator here waits on that
+ * question rather than answering half of it. The EDAG is where each is
+ * exact, over the graph's own values.
+ */
+export type AstBinary = readonly [BinaryTag, AstConst, AstConst]
+
+/** Every binary operator Stage A admits, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
+export type BinaryTag =
+    | '*' | '/' | '%' | '**'
+    | '+' | '-'
+    | '===' | '!==' | '<' | '<=' | '>' | '>='
+    | '&' | '|' | '^' | '<<' | '>>' | '>>>'
+
+/**
  * The constants of a body, in declaration order. The **last** entry is the
  * value the body yields; the preceding entries exist to be named by
  * `['cref', i]`.
@@ -137,7 +169,8 @@ export type AstNeg = readonly ['-', AstConst]
  * (...args) => { const c0 = ...; const c1 = ...; return <last> }
  * ```
  *
- * A module's body is that function with `args` the imported modules; a
+ * A module's body is that function with `args` the selected import bindings
+ * and the last value its export object; a
  * function's body ({@link AstFunction}) is that function literally, `args`
  * its rest parameter.
  */
@@ -160,7 +193,8 @@ export type Sharing = {
 }
 
 /**
- * What a module denotes: the value the front end built for it, and what the
+ * What an input denotes: a module's export object or a direct JSON document,
+ * and what the
  * sweep says of its graph. The sweep's answer is known from the module's
  * syntax — a `const` or a module referenced twice — and is carried beside
  * the value because nothing about a plain object says it afterwards without

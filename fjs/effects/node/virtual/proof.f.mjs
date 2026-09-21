@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
+import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
@@ -35,7 +35,19 @@ const assertIoMessage = (e, message) => {
     assertEq(e[1].message, message)
 }
 
+/** @type {(name: string) => (parent: string | null) => import('../types.ts').IoResult<import('../types.ts').FileModule>} */
+const resolvedModule = name => parent => virtual(emptyState)(resolveFileModule(name, parent))[1]
+
 export const proof = {
+    resolveFileModule: () => {
+        assertStructurallySame(resolvedModule('./dir/../main.mjs')(null), ['ok', { id: 'main.mjs', path: './dir/../main.mjs' }])
+        assertStructurallySame(resolvedModule('./%64ep.mjs')('main.mjs'), ['ok', { id: 'dep.mjs', path: 'dep.mjs' }])
+        assertEq(resolvedModule('./bad%')('main.mjs')[0], 'error')
+        assertStructurallySame(resolvedModule('./dep.mjs')('bad%'), ['ok', { id: 'dep.mjs', path: 'dep.mjs' }])
+        assertStructurallySame(resolvedModule('./dep%3F%23%25.mjs')('main.mjs'), ['ok', { id: 'dep?#%.mjs', path: 'dep?#%.mjs' }])
+        assertStructurallySame(resolvedModule('./next.mjs')('dep?#%.mjs'), ['ok', { id: 'next.mjs', path: 'next.mjs' }])
+        assertStructurallySame(resolvedModule('main?#%.mjs')(null), ['ok', { id: 'main?#%.mjs', path: 'main?#%.mjs' }])
+    },
     // The two ways a command can have no handler here, which are not the same
     // failure and must not answer alike.
     unimplemented: {
@@ -356,6 +368,76 @@ export const proof = {
         const [state, result] = virtual({ ...emptyState, root })(createExclusive('a/b'))
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
+    },
+    // `writeExclusive` is `createExclusive` and `writeFile` in one step, so it
+    // has both of their answers and one of its own: the name is taken, or the
+    // path names nothing this runner can write, or it is created holding the
+    // payload. All three, because the operation is what a lock file rests on —
+    // see `WriteExclusive` in `../types.ts` for what the two separate calls let
+    // through on a real host.
+    writeExclusiveStates: () => {
+        const payload = vec8(0x2An)
+        // a free name: created, holding the payload and nothing else
+        const [made, ok1] = virtual(emptyState)(writeExclusive('x.lock', payload))
+        assert(ok1[0] === 'ok')
+        assertStructurallySame(made.root, { 'x.lock': [payload] })
+        // the same name again: `EEXIST`, and the bytes already there are kept,
+        // which is the half a plain `writeFile` would get wrong
+        const [again, taken] = virtual(made)(writeExclusive('x.lock', vec8(0x7Fn)))
+        assert(taken[0] === 'error')
+        assertIoCode(taken[1], 'EEXIST')
+        assertStructurallySame(again.root, { 'x.lock': [payload] })
+        // a name held by a *directory*: `EEXIST` as well, since `O_EXCL` fails on
+        // the name being taken and looks no further — measured, node 22.22.2
+        // answers `EEXIST` for a `wx` open of a directory where a plain `w` open
+        // answers `EISDIR`. The directory is left as it was, and the payload goes
+        // nowhere inside it, which is what a handler reached with an empty path
+        // could otherwise do.
+        /** @type {Dir} */
+        const held = { 'x.lock': { inside: [payload] } }
+        const [intact, isDir] = virtual({ ...emptyState, root: held })(writeExclusive('x.lock', vec8(0x7Fn)))
+        assert(isDir[0] === 'error')
+        assertIoCode(isDir[1], 'EEXIST')
+        assertStructurallySame(intact.root, held)
+        // and the same for `createExclusive`, which shares the handler because
+        // the two differ in what the file holds and not in when they refuse
+        const [kept2, isDir2] = virtual({ ...emptyState, root: held })(createExclusive('x.lock'))
+        assert(isDir2[0] === 'error')
+        assertIoCode(isDir2[1], 'EEXIST')
+        assertStructurallySame(kept2.root, held)
+        // An **empty** path is not the root, though `parse` collapses both to no
+        // segments — so the `EEXIST` above must not reach it. Measured, node
+        // 22.22.2 answers `ENOENT` for a `wx` open of `''` and `EEXIST` for one
+        // of `.`; `statOnEmptyPath` pins the same pair for `stat`.
+        const [, noName] = virtual({ ...emptyState, root: held })(writeExclusive('', payload))
+        assert(noName[0] === 'error')
+        assertIoCode(noName[1], 'ENOENT')
+        const [, noName2] = virtual({ ...emptyState, root: held })(createExclusive(''))
+        assert(noName2[0] === 'error')
+        assertIoCode(noName2[1], 'ENOENT')
+        // `.` *is* the root, and the root is a directory a name cannot be created
+        // over — the control that keeps the carve-out from swallowing it.
+        const [, dot] = virtual({ ...emptyState, root: held })(writeExclusive('.', payload))
+        assert(dot[0] === 'error')
+        assertIoCode(dot[1], 'EEXIST')
+        // a name whose directory is not there: the operation wrapper falls
+        // through with the whole remaining path, and nothing is created. A
+        // non-empty root, so a mutant that answered the right error beside a
+        // wiped directory would be caught.
+        /** @type {Dir} */
+        const root = { keep: [vec8(0x1n)] }
+        const [state, nested] = virtual({ ...emptyState, root })(writeExclusive('a/b', payload))
+        assert(nested[0] === 'error')
+        assertStructurallySame(state.root, root)
+        // And a `Vec` that is not whole bytes never reaches this runner at all:
+        // `writeExclusive` refuses it in `../module.f.mjs`, because the node
+        // runner's `fromVec` would pad the last byte and create a file holding
+        // a byte the caller never gave while this one stored the vector as it
+        // was. The refusal is the same one `inflate` makes.
+        const [kept, unaligned] = virtual({ ...emptyState, root })(writeExclusive('x.lock', vec(4n)(0b1010n)))
+        assert(unaligned[0] === 'error')
+        assertIoMessage(unaligned[1], 'invalid buffer size')
+        assertStructurallySame(kept.root, root)
     },
     writeBytesNestedMissing: () => {
         // writeBytes('a/b', ...) where 'a' doesn't exist. Non-empty root, as above.

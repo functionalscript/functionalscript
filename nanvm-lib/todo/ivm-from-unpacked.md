@@ -15,7 +15,7 @@ pub trait IVm:
     + Clone
     + From<Nullish>
     + From<bool>
-    + From<f64>
+    + From<Number>
     + From<String<Self>>
     + From<BigInt<Self>>
     + From<Object<Self>>
@@ -66,6 +66,10 @@ registered.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related
+
+- `From<Number>` (`src/vm/number/mod.rs`) took `From<f64>`'s place among
+  the eight, since a number reaches a VM only as a `Number`; the collapse
+  absorbs it like the rest.
 
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — targets
   the `From<X> for Unpacked` / `TryFrom` copies themselves; complementary,

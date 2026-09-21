@@ -170,6 +170,101 @@ is built from the repository path and never from where the page sits. The
 exception is a page's own proof sources, which are relative *by design*: that
 is what makes their names the ones `fjs t` uses.
 
+## A link keeps its colour, whether or not it has been followed
+
+`a, a:visited { color: var(--link) }` in
+[`style/module.f.mjs`](./style/module.f.mjs). Nearly every word on this site is
+a link into the tree — a breadcrumb, a file, a subdirectory, an issue — so a
+list of them turned two-toned as it was read, and the second colour said only
+*where this reader has been*, nothing about the file it names. That distinction
+earns its keep in a bibliography, deciding what is left to read; these lists
+are a directory's contents, navigated by structure, and a reader returns to one
+to go somewhere else from it. The underline stays, so nothing about *being* a
+link depends on the colour.
+
+**`--link` is green, and its own token even though it starts at `--pass`'s
+values.** The site names every other colour in `:root` — background, text,
+muted text, border, pass, fail — and left links to the browser's blue, the one
+colour it never chose. Green reads as this site's own: everything is set in a
+monospace face already ([One face, the whole site](#one-face-the-whole-site)),
+and green is the colour that face suggests, a terminal's.
+
+One green cannot serve both colour schemes. The terminal green this was after,
+`#00ff00`, is 13.65:1 against the dark background and 1.37:1 against white,
+where WCAG AA asks 4.5:1 for text — unreadable in the light scheme. So, like
+every other colour here, it is a pair: `#137333` (5.95:1) in `:root`,
+`#81c995` (9.56:1) under `prefers-color-scheme: dark`. Quieter candidates
+toward the terminal green were considered for the dark value — `#3fb950`
+(7.37:1) — and set aside for the same reason the light value was never
+`#0f5132` (9.36:1, the darkest that still passes): the pair the site already
+had, `--pass`, passed both, and taking it was the decision to make
+deliberately rather than by reaching for the nearest green.
+
+That is also why `--link` is not simply `--pass`. In the test report green
+means *passed* — a module's dot and counts are green, red is a failure — and a
+link in that same green would make one colour mean both "this went well" and
+"go here" on the page where both appear. `--link` keeping `--pass`'s starting
+values is coincidence, not aliasing: moving one later must not drag the other
+with it.
+
+## The favicon is "fs", committed rather than generated
+
+`favicon.ico` at the repository root, `favicon.svg` in
+[`fjs/website/`](./favicon.svg), next to the generator that links it. The site
+serves the repository directory itself, so a file is served from where it
+sits — there is nothing to generate, and the mark will not change often
+enough for a build step to buy anything.
+
+**The mark is "fs", drawn as strokes rather than characters.** The site had
+no logo to inherit, and text set in a font renders as whatever the browser
+resolves that font to — a different shape depending on what is installed,
+unlike every other mark on this site drawn as geometry. A handful of
+round-capped path strokes trace a script "fs" ligature — the project's own
+initials, in the flowing hand a font can't be relied on to reproduce — and
+read clearly down to 16px. It takes `--link`'s two colours, `#137333` light
+and `#81c995` dark, via the SVG's own `prefers-color-scheme` query: the one
+mark on the page that is this site's own colour and nothing else's.
+
+**Both files, because declaring one ends the implicit lookup.** `/favicon.ico`
+is what a browser asks for when a document declares no icon at all; once a
+page declares the SVG, a browser that recognizes `rel="icon"` but cannot
+render SVG has no reason to go looking for the `.ico` — the fallback would
+never be requested in the one case it exists for. So both are declared, and
+the SVG's `type` tells a browser which one it can skip. The `.ico` cannot
+carry the `prefers-color-scheme` query itself, so it is fixed to the light
+value — the fallback for a browser that reads neither the SVG nor the
+scheme it would have picked.
+
+## A section's list pads its links for a finger, not a mouse
+
+```css
+@media (any-pointer: coarse) {
+    [data-section] > ul a { display: inline-block; padding-block: .25rem }
+}
+```
+
+A page lists its files, directories and issues one link per line with nothing
+under it, and at `d05b70ce`, rendered at 390px, every listed link measured
+19px tall — under the 24px minimum WCAG 2.2's Target Size (Minimum, AA) sets.
+These lists are exactly how a reader moves through the tree, so a target a
+finger cannot pick without risking its neighbour is the site's own navigation
+working against the reader.
+
+**`any-pointer`, not `pointer`.** `pointer: coarse` reads only the *primary*
+pointer, and a touch-screen laptop's primary pointer is its trackpad — fine,
+even though the screen a reader might tap is right there. That query would
+leave the laptop's lists at 19px for the one input the padding exists for.
+`any-pointer: coarse` asks whether a coarse pointer is available at all, so
+the laptop's touchscreen gets the same padding its trackpad doesn't need, and
+a device with no coarse pointer — an ordinary desktop and mouse — keeps the
+list exactly as dense as it was.
+
+Padded, a link measures 27px, confirmed by rendering the generated site at
+390px with a touch-capable viewport; an ordinary 1280px desktop viewport
+measured the original 19px, unchanged. Like the phone-fit rule
+([One face, the whole site](#one-face-the-whole-site)), no proof holds this —
+target size is layout, which only a rendering browser can measure.
+
 ## A file opens on GitHub, at the commit the site was built from
 
 A listed file or issue links to

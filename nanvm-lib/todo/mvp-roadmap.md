@@ -71,8 +71,14 @@ Invariants:
   control flow and dispatch.
 - A natively compiled function still **carries its `Any` code description**
   (as static data), so content hashing and `toString(f)` apply uniformly to
-  all functions: the EDAG is the identity of a function; native code is a
-  cached acceleration of it. This invariant is **staged**: the MVP code
+  all functions. The EDAG is the stable **code/content identity** of a
+  function; native code is a cached acceleration of it. It is not the
+  allocation identity of a callable value. In a JS-compatible execution
+  profile, two separately created function objects remain distinct under
+  `===` even when their EDAGs and captured values are equal. A profile such
+  as CAVM may deliberately use content identity only when that profile
+  explicitly specifies the different identity semantics. This invariant is
+  **staged**: the MVP code
   generator omits the embedded description while the
   [edag-spec](../../todo/edag-spec.md) (P2) is not yet defined — it must not
   invent its own shapes ahead of the spec. Embedding becomes mandatory once
@@ -92,7 +98,8 @@ command group is dropped.
 
 One FJS module compiles to one Rust file, and the generated file is a Rust
 **module** — exposing the module's value via the `nanvm-lib` API (e.g.
-`pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`) — not a `main`. A thin, hand-written
+`pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`, the `Err` a thrown
+value) — not a `main`. A thin, hand-written
 `main` lives in the consumer: the test harness in this repo, the `nanvm`
 crate, or a user's own crate. This way the same generated output serves
 testing, self-hosting, and AOT embedding.
@@ -323,7 +330,12 @@ as a generic `Any` facility, post-MVP.
 - [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
       described by the EDAG spec and executes it; behind a cargo feature
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
-- [ ] **Basic control operator `?:`** (Rust).
+- [x] **Basic control operator `?:`** (Rust) — `Any::conditional`, covered
+      by the corpus as a `Group3`; the operator table in
+      [`nanvm-lib/README.md`](../README.md) has the record. A compiled
+      module's lazy spelling of it is
+      [`fjs/fsc/rust/todo/lazy-operators.md`](../../fjs/fsc/rust/todo/lazy-operators.md)'s,
+      not this item's.
 - [ ] **Nested functions** (function frame) (Rust).
       See [functions](../../spec/README.md#functions),
       [function-frame](../../spec/todo/3111-function-frame.md). The staged

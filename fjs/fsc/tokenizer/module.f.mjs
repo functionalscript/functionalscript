@@ -16,14 +16,19 @@
  * to an identifier but the literals — `true`, `false`, `null`,
  * `undefined`, `NaN`, `Infinity` — which stay reserved, since a key or the
  * name after `.` may be any word and the parser refuses a keyword where
- * JavaScript wants an identifier; and every operator but `-` and the four
- * a function is written with — `(`, `)`, `...`, `=>` — is an error, since
- * the language has no other.
+ * JavaScript wants an identifier; and every operator but the four a
+ * function is written with — `(`, `)`, `...`, `=>` — `-`, and Stage A's
+ * arithmetic, strict-comparison and bitwise operators
+ * ([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md))
+ * is an error, since the language has no other.
  *
- * This layer holds no state. A `-` is a token like any other and the
- * grammar reads it as the prefix it is, so that `-1 .x` and `-1()` are the
- * negation of the access and of the call, as JavaScript reads them, rather
- * than an access and a call on a negative literal.
+ * This layer holds no state. An operator is a token like any other and the
+ * grammar reads it, so that `-1 .x` and `-1()` are the negation of the
+ * access and of the call, as JavaScript reads them, rather than an access
+ * and a call on a negative literal — recognized is not accepted, and the
+ * same is true of every operator token `fjs/js/tokenizer` already carries
+ * that this layer does not admit, `&&`/`||`/`??`/`?:`/`,` and the rest of
+ * `spec/todo/2340-operators.md`'s later stages among them.
  *
  * @module
  *
@@ -44,6 +49,24 @@ const keywordSet = new Set(keywords)
 const mapDjsToken = input => {
     switch (input.kind) {
         case '-':
+        case '+':
+        case '*':
+        case '/':
+        case '%':
+        case '**':
+        case '===':
+        case '!==':
+        case '>':
+        case '>=':
+        case '<':
+        case '<=':
+        case '&':
+        case '|':
+        case '^':
+        case '~':
+        case '<<':
+        case '>>':
+        case '>>>':
         case 'id':
         case 'bigint':
         case '{':

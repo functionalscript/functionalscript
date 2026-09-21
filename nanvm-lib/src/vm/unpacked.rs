@@ -1,12 +1,12 @@
 use crate::vm::{
-    Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
+    Array, BigInt, Function, IVm, Number, Object, String, dispatch::Dispatch, nullish::Nullish,
 };
 
 #[derive(Clone)]
 pub enum Unpacked<A: IVm> {
     Nullish(Nullish),
     Boolean(bool),
-    Number(f64),
+    Number(Number),
     String(String<A>),
     BigInt(BigInt<A>),
     Object(Object<A>),

@@ -55,8 +55,10 @@ variables that the generated code and `nanvm-lib` agree on.
   [3120-parameters](../../spec/todo/3120-parameters.md)) at the *parser*
   level — today the language has only the rest-parameter and no-parameter
   forms. This document's representation is written for `["args"]` (an
-  array), which named parameters lower to positionally once 3120 lands, so
-  nothing here needs to change when it does.
+  array), which named parameters still read positionally. The pending
+  parameter-count proposal also changes the function EDAG and requires AOT
+  lowering to preserve the count in the callable header; parser work being
+  separate does not put that runtime obligation out of scope.
 
 #### Grounding: what is already decided
 
@@ -66,12 +68,16 @@ This is not a green field. The EDAG semantics
 function value must respect, and this plan is an implementation of that
 shape, not an alternative to it:
 
-- A function is `["=>", frame, body]`. `frame` is one node, evaluated in the
-  *enclosing* scope, that yields an array of captured values; `body` is the
-  function's own closed graph.
+- The current function node is `["=>", frame, body]`. The
+  [named-parameter proposal](../../spec/todo/3120-parameters.md), pending
+  language-designer approval, would replace it with
+  `["=>", parameterCount, frame, body]`. If approved, this plan must migrate
+  its generator and callable construction with that format. `frame` remains
+  one node, evaluated in the *enclosing* scope, that yields an array of
+  captured values; `body` remains the function's own closed graph.
 - `["args"]` is the arguments array — always an array, positionally indexed;
-  declared parameters are compiler-side sugar over it, not a separate
-  mechanism (subject 2).
+  parameter names are compiler-side sugar over it. Declared arity is
+  observable metadata, distinct from the actual argument count (subject 2).
 - `["frame"]` is the captured-values array inside the body, read the same
   way `["args"]` is (`[".", ["frame"], i]`).
 - `["self"]` is direct self-reference, primitive because a top-level
@@ -136,23 +142,25 @@ these same operators already would.
 
 Represented as `&Array<A>` at the call boundary — the same wrapper every
 array-valued `Any<A>` already uses
-([`vm/array/mod.rs`](../src/vm/array/mod.rs)), read through the same
-`SizedIndex<u32>` / `Index<u32>` interface every other consumer of an array
-uses
-([`vm/array/sized_index.rs`](../src/vm/array/sized_index.rs),
-[`vm/array/index.rs`](../src/vm/array/index.rs)). A generated function
-destructures declared positions at the top of its body, but it must check
-length before indexing rather than lean on `Index` alone:
-`Array<A>::Index<u32>` panics out of bounds today
-([`vm/array/index.rs`](../src/vm/array/index.rs) already carries a `TODO` to
-return `Nullish::Undefined` instead), while
-[call-like-instructions §6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)
-requires a missing argument to read as `undefined`, never panic:
+([`vm/array/mod.rs`](../src/vm/array/mod.rs)). A generated function reads a
+declared position through `Any::member_access`
+([`vm/member_access.rs`](../src/vm/member_access.rs),
+[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — the same
+call the Rust code generator already prints for every other `.`/`[]` read
+([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs)) — rather
+than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
+bounds ([`vm/array/index.rs`](../src/vm/array/index.rs)), while
+`Array::member_access` already does its own length and canonical-index
+check internally and answers `None` (which `Any::member_access` turns into
+`undefined`) for an out-of-range or otherwise non-canonical key, matching
+[call-like-instructions §6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
+"a missing argument reads as `undefined`, never panics" with no separate
+bounds check to write:
 
 ```rust
 fn f<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = if 0 < args.length() { args[0].clone() } else { Nullish::Undefined.into() };
-    let b = if 1 < args.length() { args[1].clone() } else { Nullish::Undefined.into() };
+    let a = Any::member_access(args.clone().to_any(), Number::from(0.0).to_any())?;
+    let b = Any::member_access(args.clone().to_any(), Number::from(1.0).to_any())?;
     Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
 }
 ```
@@ -161,9 +169,7 @@ Extra arguments are simply never read — matching
 [§6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
 "the callee does not do anything with extra arguments" exactly. A rest
 parameter (today's only parameter form) needs no destructuring at all — it
-*is* `args`. Should the `Nullish::Undefined` `TODO` land first, generated
-code drops the length check and indexes directly; the two are independent
-and either order works.
+*is* `args`.
 
 #### Local variables and temporaries
 
@@ -189,11 +195,22 @@ reusing the very type Arguments uses above, rather than inventing a second
 "indexed sequence of `Any<A>`" container: a captured frame and an arguments
 list are the same *shape*, so they should be the same *type*. It is read
 inside the body the same way `args` is, by index — a well-formed
-`["=>", frame, body]`'s frame size is fixed by the compiler, so unlike
+function node's frame size is fixed by the compiler, so unlike
 `args` (caller-supplied, arbitrary length) the body's own reads need no
 length check, only the enclosing scope's *construction* of the frame does.
 
 #### The `Function<A>` value and its code pointer
+
+Use the existing header's length for declared arity and expose it as
+`f.length` when callable support lands. Today's
+[`Any::member_access`](../src/vm/any/member_access.rs) returns `undefined`
+for functions, so storing the count alone does not meet this requirement.
+Empty and rest-only parameter lists have length `0`. If the named-parameter
+proposal is approved, each generated callable must carry the function node's
+`parameterCount` in that header, including unused parameters and capturing
+or non-capturing functions. Do not infer it from argument reads or the
+caller's array length. The complete actual argument array still crosses the
+call boundary unchanged.
 
 The piece that turns this from data into something callable: a function
 value needs, alongside its existing name/length header
@@ -287,9 +304,15 @@ precisely.
    constructed for this case at all — a call needs a code path and
    arguments, not an identity.
 2. **`self` used as a value** — returned, stored, compared, or captured
-   into a nested closure's frame (the mutual-helper pattern in
-   [function-frame](../../spec/todo/3111-function-frame.md)'s worked
-   example, and subject 10's `a`/`b` example). Here a real `Function<A>`
+   into a nested closure's frame. edag-stage1-discussion has the worked
+   snippet for exactly this shape: an outer function puts its own
+   `["self"]` into a nested closure's frame, and the nested closure calls
+   back out through it — `const f = x => { … const b = y => { … f(y) … };
+   … b(…) … }`, under its `["frame"]`-and-closed-scope-model discussion
+   (not [function-frame](../../spec/todo/3111-function-frame.md)'s own
+   `a`/`b` — that one is two independent *top-level* consts with no
+   enclosing function and no `["self"]`, exactly the out-of-scope mutual
+   recursion case below, not this one). Here a real `Function<A>`
    value for the *enclosing* function is observable, and it must be **the
    same value, by identity, every time** — in JS, a given function is one
    object with one stable identity for its entire lifetime, not a new one
@@ -342,12 +365,20 @@ representation above. Call sites where the callee is known at compile time
 (a module-level `const`, `export default` itself) compile to a direct Rust
 call — [call-like-instructions §2](../../spec/todo/9100-call-like-instructions.md#2-static-calls-into-user-defined-functions)'s
 "static call" — with no `Function<A>` runtime value in play yet. This is the
-smallest change that makes any generated function body actually run, and it
-unblocks the harness invoking a function-valued `export default` for the
-first time (today the harness only evaluates data). Proof surface: extend
-`nanvm-harness/fixtures/` with a function-valued `export default` of no
-arguments and of a rest parameter, mirroring the existing
-literal/array/object fixtures.
+smallest change that makes any generated function body actually run: the
+call happens inside the generated `module()` itself, at Rust compile time
+for the callee, so the harness needs no new logic to detect and invoke a
+function-valued export — it only ever sees the already-applied result.
+Proof surface: extend `nanvm-harness/fixtures/` with an already-applied call
+to a function of no arguments and to one taking a rest parameter — a bare,
+uninvoked function-valued `export default` is explicitly out of scope (no
+`Function<A>` value exists yet to hand the harness) — mirroring the existing
+literal/array/object fixtures. Worked out in full against the actual
+generator — the one closure shape the printer already accepts is live only
+for a separate corpus-generator path, not `fjs/fsc`'s own lowering, which
+needs its own new case, and four separate refusal points plus a
+scope-unaware node-sharing hazard need fixing — in
+[compile-noncapturing-functions-to-rust](../../fjs/fsc/todo/compile-noncapturing-functions-to-rust.md).
 
 ##### Stage 1 implementation specification
 
@@ -494,15 +525,23 @@ generically — this is what lets `export default` be evaluated uniformly by
 the harness whether or not it happens to be a function, closing the gap the
 harness currently special-cases.
 
+Preserve the declared length from the first callable value this stage
+constructs. When named parameters are admitted, compare exported and
+returned functions' `length` with native JavaScript, including unused
+parameters. This obligation is not deferred to Stage 6's call-edge audit
+or Stage 7's EDAG embedding.
+
 **Stage 3 — capturing closures.**
-Extend the generator to lower `["=>", frame, body]` for a body that actually
-references `["frame"]`: build the `frame` operand (an array literal over the
+Extend the generator to lower the approved function-node shape for a body
+that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
 `Function<A>` value with that as its captured field. The nested body reads
-`captured[i]` exactly as it reads `args[i]`. Proof surface: the two-level
-closure fixture already used as a worked example in
-[function-frame](../../spec/todo/3111-function-frame.md) and
-edag-stage1-discussion (`a => b => a + b`).
+`captured[i]` exactly as it reads `args[i]`. Proof surface: a two-level
+closure fixture over an ordinary (non-`self`) captured value — e.g.
+`a => b => a + b`, the outer parameter captured into the inner function's
+frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
+and edag-stage1-discussion's `["frame"]` design are built around, though
+neither document spells this particular example.
 
 **Stage 4 — dynamic calls and higher-order functions.**
 Add the call-site form for when the callee is *not* known at compile time —
@@ -530,9 +569,9 @@ function's canonical `Function<A>` once wherever its enclosing scope already
 builds one, and thread a handle to it into that function's calling
 convention. This is where the calling-convention family from
 [Self-reference](#self-reference) gets a concrete Rust shape. Proof surface:
-the mutually-referencing-helper fixture from
-[function-frame](../../spec/todo/3111-function-frame.md) (`a`/`b` calling
-each other where one captures `["self"]` of the other's enclosing function),
+edag-stage1-discussion's own outer-`f`/nested-`b` snippet cited in
+[Self-reference](#self-reference) above — an enclosing function's `["self"]`
+captured into a nested closure's frame and called back out through it —
 plus a fixture asserting `self === self` across two separate reads.
 
 **Stage 6 — arity and variadic edge cases.**
@@ -605,10 +644,13 @@ generated-Rust test from one source of cases.
 ### Tasks
 
 - [ ] Stage 1: non-capturing generated function bodies + static call sites;
-      harness fixtures for a function-valued `export default`.
+      harness fixtures whose `export default` is an already-applied call
+      (a bare function-valued `export default` stays out of scope until
+      Stage 2's `Function<A>` value exists).
 - [ ] Stage 2: `FunctionHeader<A>` gains a code pointer (option 1: plus a
-      captured `Array<A>` field); `Function::call`; resolve open question 1.
-- [ ] Stage 3: capturing closures — `["=>", frame, body]` lowering, frame
+      captured `Array<A>` field); preserve observable declared length;
+      `Function::call`; resolve open question 1.
+- [ ] Stage 3: capturing closures — approved function-node lowering, frame
       built as the captured `Array<A>`.
 - [ ] Stage 4: dynamic call sites through `TryFrom<Any<A>> for Function<A>` +
       `Function::call`; paired static/dynamic fixtures proving observable

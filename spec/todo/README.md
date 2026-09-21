@@ -10,28 +10,64 @@ When the parser recognizes a feature, its document is folded into the single
 the compiler accepts today — and this file's entry is removed. The numbering
 below is this directory's own; the specification has no section numbers.
 
+## Compatibility invariants — P1
+
+The [language principles](../README.md#principles) define source inclusion,
+successful-result agreement, purity and indistinguishable execution failures.
+[Preserve JavaScript compatibility](../../todo/fjs-javascript-compatibility.md)
+tracks the current and proposed P1 violations and their root-cause corrections.
+These rules apply at every stage, regardless of a feature's priority below.
+
+[Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+requires every instruction pattern to match already-recognized statements and
+expressions, never raw token sequences. It also plans JavaScript-compatible
+statement termination and optional semicolons as a separate syntax expansion;
+canonical output and DataJS's required-semicolon format need not change.
+
+### TypeScript boundary
+
+**TypeScript is not a FunctionalScript source dialect.** Drop the active plan
+to accept TypeScript-only syntax and erase it before execution. This covers
+`import type`, `export type`, inline type annotations, type assertions and
+other TypeScript-only declarations, not merely one import spelling. The shared
+front end parses JavaScript; neither a filename nor a host's TypeScript loader
+may enable a stripping/transpilation path around the original-source rule.
+Accepting such syntax remains a **P1 compatibility violation**.
+
+TypeScript remains an external checker for JavaScript with JSDoc and separate
+`types.ts`/`.d.ts` companions; these are tooling, not an additional FJS source
+language. Existing type-check commands, declarations and implementation type
+files remain in place. [RTTI comment annotations](./3360-type-annotations.md)
+are a separate design written inside JavaScript comments, not TypeScript syntax;
+this decision neither implements nor retires that design.
+
+Reconsider inline erasable syntax only after it is part of ECMAScript and
+supported by the declared execution environment. The
+[blocked standard-annotations task](../../todo/blocked/js-extension-type-annotations.md)
+records that trigger; it does not direct or block current development. A future
+proposal must use the actual standardized syntax, not assume that all of
+TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript.
+
 ## 1. JSON
 
-1. [ ] [undefined-property](./1010-undefined-property.md).
+1. [ ] [undefined-property](./1010-undefined-property.md) — P1 observation and
+   composition constraints, not universal undefined-as-absence equivalence.
 2. [ ] [undefined-property-vm-layer](./1015-undefined-property-vm-layer.md)
-   — open question; whether `undefined-property`'s equivalence is a
-   language-surface restriction or reaches the VM's own representation.
+   — representation choices must preserve those observations.
 
 ## 2. DJS
 
 ### 2.1. Priority 1
 
-We need it to use JSDoc and TypeScript.
-
-1. [ ] [namespace-import](./2220-namespace-import.md).
+1. [ ] [namespace-import](./2220-namespace-import.md) — runtime JavaScript
+   namespaces, not type-only imports. JSDoc type references need no runtime import.
 
 ### 2.2. Priority 2
 
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [operators](./2340-operators.md),
-3. [ ] [has-own-property](./2345-has-own-property.md) — open; argues
-   against adding `in` and for a pattern-recognized `hasOwn` alongside
-   `own_property` instead,
+3. [ ] [enumerable presence](./2345-has-own-property.md) — prohibit
+   `Object.hasOwn`; propose a separate `hasEntity` AST pattern,
 4. [ ] [built-in](./2360-built-in.md),
 5. [ ] [global-names](./2365-global-names.md) — a name ECMAScript defines
    globally is never a module's to bind; lands before `built-in`, since
@@ -64,26 +100,30 @@ see [serialization](./serialization.md).
    body and with either parameter list, `(...a) => expression`,
    `(...a) => { return expression; }` and `() => expression`
    ([functions](../README.md#functions))
-2. [ ] [parameters](./3120-parameters.md) — the named list is what is left
+2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
+   named lists, with declared arity preserved
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
 4. [ ] [forward-references](./3140-forward-references.md)
+5. [x] `export const`, named-only and mixed modules
+   ([exports](../README.md#exporting-a-value)). The selected `types/range`
+   candidate now reaches the named-parameter blocker above.
 
 ### 3.2. Priority 2
 
 1. [ ] `if`. See https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 2. [ ] [let](./3220-let.md)
 3. [ ] `while`
-4. [ ] [export](./3240-export.md)
-5. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
+4. [ ] Ownership of Mutable Objects (Singletons). Wanted for local mutability
    ([mutability](./mutability.md)), **not** for I/O: effects keep I/O state in
    the runner ([io-effects](./io-effects.md)).
 
 ### 3.3. Priority 3
 
 1. [ ] Regular Expressions.
-2. [ ] [type-annotations](./3360-type-annotations.md)
+2. [ ] [RTTI comment annotations](./3360-type-annotations.md) — JavaScript
+   comments naming schemas, not inline TypeScript syntax.
 3. [ ] [type inference](./3370-type-inference.md)
 4. [ ] [promise](./3380-promise.md). Needed for JavaScript interop only —
    I/O is done with effects and requires no promises
@@ -94,23 +134,21 @@ see [serialization](./serialization.md).
 ### 3.4. Syntactic Sugar
 
 1. [ ] [expression](./3410-expression.md)
-2. [ ] [one-parameter](./3420-one-parameter.md)
-3. [ ] [assignments](./3430-assignments.md)
-4. [ ] [template-literals](./3440-template-literals.md)
-5. [ ] `async`/`await`. Depends on the implementation of promises.
+2. [ ] [assignments](./3430-assignments.md)
+3. [ ] [template-literals](./3440-template-literals.md)
+4. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ### 3.5. Priority 4
 
 1. [ ] [shadowing](./3150-shadowing.md) — a nested function must not reuse a
    name an enclosing scope binds; a warning or an error, undecided.
+2. [ ] [export lists](./export-lists.md) — investigate options for `export { ... }`.
 
 ## 4. ECMAScript Proposals
 
-1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations), Stage 1:
-   - [Node.js](https://nodejs.org/en/learn/typescript/run-natively),
-   - `Deno` supports TypeScript,
-   - `Bun` supports TypeScript,
-   - most browsers don't support the feature.
+1. [ ] [Type Annotations](https://github.com/tc39/proposal-type-annotations)
+   — [blocked on ECMAScript standardization and runtime support](../../todo/blocked/js-extension-type-annotations.md).
+   A host's TypeScript loader or stripping option is not ECMAScript support.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), **withdrawn**
    (the repository was archived in April 2025):

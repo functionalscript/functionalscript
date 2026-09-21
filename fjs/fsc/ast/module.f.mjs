@@ -6,8 +6,8 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
- * @import { _Node, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, Import, Sharing, Anchors } from './types.ts'
+ * @import { _Node, _OperandStack, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
 import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
@@ -30,14 +30,14 @@ const { isInteger } = Number
  *
  * @type {(base: Unknown, key: string | number) => Unknown}
  */
-const own = (base, key) => {
+export const _own = (base, key) => {
     /** @type {{ readonly [k in string]?: Unknown }} */
     const object = Object(base)
     return hasOwn(object, key) ? object[key] : undefined
 }
 
 /**
- * A property access on a value: the own property, as {@link own} reads it,
+ * A property access on a value: the own property, as {@link _own} reads it,
  * of a base that has properties — a `null` or `undefined` base is the
  * failure JavaScript throws for, and the one failure a data module can
  * make.
@@ -46,7 +46,7 @@ const own = (base, key) => {
  */
 const ownProperty = key => base => base === null || base === undefined
     ? error(`cannot read property "${key}" of ${base}`)
-    : ok(own(base, key))
+    : ok(_own(base, key))
 
 /** @type {<T>(list: List<T>) => (value: T) => List<T>} */
 const appended = list => value => ({ head: list, tail: [value] })
@@ -112,6 +112,17 @@ const noFunctionValue = 'a function has no value'
 const noCallValue = 'a call has no value'
 
 /**
+ * The refusal of a binary operator or a bitwise not where a value is
+ * wanted: `+` alone needs `ToPrimitive` to decide number or string, and
+ * folding every other operator while leaving `+` a node would draw an
+ * inconsistent line, so this evaluator answers none of them — see
+ * {@link AstBinary}'s own comment in `./types.ts`. `run` reaches this
+ * exactly where it reaches {@link noFunctionValue}/{@link noCallValue}: a
+ * node whose value is the EDAG's to give, not this reader's.
+ */
+const noOperatorValue = 'an operator has no value'
+
+/**
  * The refusal of a value this evaluator has no number for: a container.
  *
  * Converting one is `ToPrimitive`, JavaScript's own machinery — `valueOf`,
@@ -163,7 +174,12 @@ const toDjs = state => ast => {
         case '=>':
         case 'args': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
-        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
+        case '-': { return ast.length === 2 ? okThen(negated)(toDjs(state)(ast[1])) : error(noOperatorValue) }
+        case '~':
+        case '*': case '/': case '%': case '**':
+        case '+':
+        case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>': { return error(noOperatorValue) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -223,6 +239,64 @@ const memberValues = members => [...new Map(members).values()]
 const memberValuesWritten = members => members.map(([, value]) => value)
 
 /**
+ * The operands a chain of operator/negation/bitwise-not nodes bottoms out
+ * at, `ast` itself included when it is none of them — every branch
+ * {@link refsOf} would otherwise recurse straight through to reach its
+ * operands, and so the one shape a source expression can nest arbitrarily
+ * deep through, left-associative chains of `+`/`*`/… and right-associative
+ * ones of `-`/`~`/`**` alike.
+ *
+ * A heap-allocated cons-list stack in place of the recursion every one of
+ * those nodes would otherwise call {@link refsOf} through, so a chain
+ * however many terms long costs stack frames on the heap rather than the JS
+ * call stack — the shape {@link evaluate} in `../parser/module.f.mjs`
+ * already resolves a value's own operators with, over its own `_Stack`. A
+ * `while` loop reassigning `stack`/`bottom` rather than a recursive walk:
+ * nothing here is mutated in place, only rebound, `stack`'s own cons cells
+ * each built once and never revisited.
+ *
+ * @type {(view: _View) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary>>}
+ */
+const operandsOf = view => ast => {
+    /** @type {_OperandStack} */
+    let stack = { top: ast, rest: null }
+    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary>>} */
+    let bottom = empty
+    while (stack !== null) {
+        const node = stack.top
+        /** @type {_OperandStack} */
+        const rest = stack.rest
+        if (node === null || typeof node !== 'object') { bottom = concat(bottom)([node]); stack = rest; continue }
+        switch (node[0]) {
+            case '-': {
+                if (node.length !== 2) { stack = { top: node[1], rest: { top: node[2], rest } }; break }
+                // the view's own read of a negation's operand —
+                // `written`'s is one operand, `value`'s none, negation
+                // being a primitive
+                stack = view.negated(node[1]).reduceRight(
+                    /** @type {(s: _OperandStack, operand: AstConst) => _OperandStack} */
+                    ((s, operand) => ({ top: operand, rest: s })),
+                    rest,
+                )
+                break
+            }
+            case '~': { stack = { top: node[1], rest }; break }
+            case '*': case '/': case '%': case '**':
+            case '+':
+            case '===': case '!==': case '<': case '<=': case '>': case '>=':
+            case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+                // the left operand on top, so it is the next popped — the
+                // order the recursive walk read the two in
+                stack = { top: node[1], rest: { top: node[2], rest } }
+                break
+            }
+            default: { bottom = concat(bottom)([node]); stack = rest }
+        }
+    }
+    return bottom
+}
+
+/**
  * The references one entry makes directly: its `cref`s and `aref`s, however
  * deep inside its own literals, and nothing behind them — a referenced
  * `const` is an entry of its own, visited once as such, which is what keeps
@@ -234,7 +308,18 @@ const memberValuesWritten = members => members.map(([, value]) => value)
  *
  * @type {(view: _View) => (ast: AstConst) => List<_Ref>}
  */
-const refsOf = view => ast => {
+const refsOf = view => ast => flat(map(refsOfOperand(view))(operandsOf(view)(ast)))
+
+/**
+ * One operand {@link operandsOf} bottomed out at: never itself an operator,
+ * negation or bitwise not, so every branch here may recurse through
+ * {@link refsOf} exactly as it always did — a container, a call, or an
+ * access chain nests only as deep as the source that built it, which is a
+ * separate, narrower concern than an operator chain's unbounded length.
+ *
+ * @type {(view: _View) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary>) => List<_Ref>}
+ */
+const refsOfOperand = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf(view))) }
@@ -251,9 +336,6 @@ const refsOf = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
-        // what a negation's operand leaves is the view's: the graph holds it
-        // and the value does not, a negation being a primitive
-        case '-': { return flat(view.negated(ast[1]).map(refsOf(view))) }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }
@@ -372,7 +454,7 @@ const repeats = xs => new Set(xs).size !== xs.length
 const byId = m => [m.id, m]
 
 /** The value a chain of keys reaches from a value, by own-property reads; `undefined` past the data. @type {(keys: readonly string[]) => (value: Unknown) => Unknown} */
-const valueAt = keys => value => keys.reduce(own, value)
+const valueAt = keys => value => keys.reduce(_own, value)
 
 /** Whether a literal is a container literal — an array or an object written out — rather than a primitive or a reference. @type {(ast: AstConst) => ast is AstArray | AstObject} */
 const isContainerLiteral = ast => ast !== null && typeof ast === 'object' && (ast[0] === 'array' || ast[0] === 'object')

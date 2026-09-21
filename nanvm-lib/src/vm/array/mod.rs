@@ -9,16 +9,16 @@ use crate::vm::IVm;
 
 /// ```
 /// use nanvm_lib::{
-///     vm::{ToArray, IVm, Array, Any, ToAny},
+///     vm::{ToArray, IVm, Array, Any, Number, ToAny},
 ///     common::{sized_index::SizedIndex, default::default},
 ///     naive::Naive
 /// };
 /// fn array_test<A: IVm>() {
-///     let b: Array<A> = [1.0.to_any(), true.to_any()].to_array();
+///     let b: Array<A> = [Number::from(1.0).to_any(), true.to_any()].to_array();
 ///     assert_eq!(b.length(), 2);
-///     assert_eq!(b[0], 1.0.to_any());
+///     assert_eq!(b[0], Number::from(1.0).to_any());
 ///     assert_eq!(b[1], true.to_any());
-///     let b1: Array<A> = [1.0.to_any(), true.to_any()].to_array();
+///     let b1: Array<A> = [Number::from(1.0).to_any(), true.to_any()].to_array();
 ///     assert_eq!(b, b);
 ///     assert_ne!(b, b1);
 ///     let ac: Any<A> = b.clone().to_any();

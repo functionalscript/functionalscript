@@ -9,10 +9,11 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — every operator but unary `-`,
-type annotations — and the design documents for the VM, I/O,
-serialization, and the rest of the roadmap live in
-[`spec/todo/`](./todo/README.md).
+Features the parser does not recognize yet — the lazy operators (`&& || ??`),
+loose equality (`== !=`), the remaining unary operators (`! + typeof`), the
+conditional (`?:`), the comma operator, and type annotations — and the
+design documents for the VM, I/O, serialization, and the rest of the roadmap
+live in [`spec/todo/`](./todo/README.md).
 
 Those documents sort planned features into two layers, and use the names here.
 **DJS** — data JS — is the data subset: a module denotes a graph of values,
@@ -36,18 +37,33 @@ subset as a DataJS document, through DataJS's own writer.
 ## Principles
 
 **Compatibility with JavaScript.** FunctionalScript is a subset of JavaScript,
-not a language that resembles it. Every FunctionalScript module is an ES
-module, and it denotes in FunctionalScript the value that a JavaScript engine
-gives it. Nothing has to be stripped, preprocessed, or interpreted specially
-for `node`, `deno`, `bun`, or a browser to load a `.f.js` file: the file is
-already JavaScript.
+not a language that resembles it. Every accepted FunctionalScript module must
+be valid JavaScript ES module source, including lexical restrictions and early
+errors. Check the original text, not text repaired or stripped by a transpiler.
+Nothing has to be preprocessed for `node`, `deno`, `bun`, or a browser to parse
+a `.f.js` file: the file is already JavaScript.
 
-Two rules follow, and they outrank everything else:
+Source inclusion and the following requirements hold at every development
+stage and outrank everything else:
 
-1. if FS code passes validation/compilation, then it doesn't have
-   side-effects;
-2. the code that passed validation/compilation should behave on the
-   FunctionalScript VM the same way as on any other modern JavaScript engine.
+1. code that passes FunctionalScript validation/compilation has no side effects;
+2. for the same admitted inputs and dependency environment, successful
+   FunctionalScript and JavaScript executions have the same observable result,
+   except for explicitly specified semantic exceptions. This includes later
+   observations through exported functions, not just the initial module value.
+
+The observable result is the serializable data the program returns. What a
+JavaScript engine reports about the *written* output of a compiler — a
+function's `name` or its text after `fsc` has serialized a module — is the
+writer's spelling, not a result of the program, and no compatibility
+question: a compatibility issue exists only where the same program returns
+different serializable data on a FunctionalScript VM and a JavaScript engine.
+
+The execution profile declares its ECMAScript and host-resolution environment.
+An exception names its profile, affected operations and observable consequences;
+an identity exception is not an excuse for arbitrary differences in another
+profile. Missing support may be refused, but accepted source must not silently
+receive a different successful meaning.
 
 Compatibility runs one way only. Every FunctionalScript module is JavaScript;
 most JavaScript is not FunctionalScript. So the language is a **whitelist**,
@@ -57,13 +73,67 @@ component of a recognized pattern that lowers to a FunctionalScript primitive
 — the bracketed `__proto__` key ([below](#the-__proto__-key)) is the current
 example.
 
-Rule 2 also decides what to do when JavaScript gives one text a meaning
-FunctionalScript cannot reproduce: the text is a compilation error. Giving it
-a second, more convenient meaning would make a module mean one thing here and
-another thing in a browser.
+**Every pattern instruction must be recognized after statement and expression
+structure is known.** The parser owns JavaScript's syntax, line-terminator
+restrictions and statement boundaries. Pattern recognition operates on that
+parsed structure with validated binding relationships; it never reinterprets
+source tokens, joins statements or repairs syntax. Syntactic recognition does
+not by itself admit a construct into FunctionalScript: the complete pattern
+must pass the whitelist, and protected operations cannot escape it.
+
+Outside the explicitly specified exceptions, rule 2 also decides what to do
+when JavaScript gives one text a meaning FunctionalScript cannot reproduce:
+the text is a compilation error, not an invitation to give it a second,
+more convenient meaning.
+
+### Function-source representation exception
+
+**Adopted:** in FJS VM execution, the default string representation of an FJS
+function is source reconstructed from its associated EDAG, not the original
+source text. Original comments, formatting and identifier spellings need not
+survive. This applies to `String(f)` and every admitted indirect conversion
+that reaches the same default function representation, including conversions
+inside complete instruction patterns. It applies to exported functions too.
+
+Running source directly on a JavaScript engine retains that host's function
+representation. Its text can differ from the FJS VM's, including when a
+JavaScript consumer reflects on an exported function. Differences caused by
+using that text as a key, comparing it or branching on it are consequences of
+this exception, not a blanket waiver for unrelated results. Non-function
+conversion, other admitted function observations and source syntax retain
+their existing contracts. The exception alone admits no new syntax or API.
+
+[Function text and serialization](./todo/serialization.md#function-text-and-serialization)
+owns the remaining questions: whether the FSC function serializer and
+`String(f)` are the same operation, whether `String(f)` instantiates captured
+frames, and how each handles `self`. Adopting EDAG-derived text does not settle
+those questions or claim that the conversion is implemented today.
+
+### Failure is one outcome
+
+All execution failures are one indistinguishable semantic outcome:
+
+```text
+throw A ≡ throw B ≡ memory failure ≡ time failure
+```
+
+Error types, messages, stacks, source positions, the first failing operation
+and the work performed before failure are not language-level observations.
+Operational diagnostics may report a cause, but cannot become program values
+that distinguish failures. Syntax rejection remains a compiler property:
+accepting invalid JavaScript is not excused by failure equivalence.
+
+This deliberately allows reordering failing EDAG computations to fail earlier.
+Do not impose source-order barriers, identical evaluation counts or identical
+resource thresholds merely to preserve failure behavior. Preserve successful
+paths: failure equivalence does not authorize executing an otherwise skipped
+failure on such a path or inventing a successful value by deleting a required
+failure. Different executors may exhaust different memory or time limits; a
+more efficient one may finish where another stops. A stopped run is a failure,
+not a guessed result.
 
 When we implement features of FunctionalScript, the first priority is a
-simplification of the VM.
+simplification of the VM, subject to these requirements.
 
 ## Exporting a Value
 
@@ -73,24 +143,45 @@ This is a complete module:
 export default 5;
 ```
 
-A module denotes exactly one value, and `export default` is how it says which.
-The statement is **required** and **last**: only comments and whitespace may
-follow it. A module without one is an error.
+The module function returns an object of its exports: this module returns
+`{ default: 5 }`. The default export is `5`, which a default import binds and
+JSON/DataJS value output serializes. If the default export is an object, it
+remains inside that property; its members do not become module exports.
 
-Every module is this shape, however large the value gets:
+Named constants are exports and local bindings:
+
+```js
+export const z = [5];
+export const a = z;
+export default a;
+```
+
+This module returns `{ a: z, default: z, z: z }`, with all three properties
+sharing the same array. Export keys follow JavaScript namespace order
+(lexicographic, including `default`). Initializers use the existing `const`
+rules: earlier bindings are available, and duplicate bindings are errors.
+The name `then` is reserved for exports, regardless of its value.
+
+At least one export is required. A named-only module needs no default:
+`export const a = 5;` returns `{ a: 5 }`. When present, `export default` is
+**last**; only comments and whitespace may follow it. Ordinary and exported
+constants may appear together after all imports.
+
+A default export can be any supported value:
 
 ```js
 export default { "name": "fjs", "tags": ["data", "config"] };
 ```
 
 `export default` alone already expresses everything JSON expresses — the value
-that follows it is the whole content of the module. What takes a module past a
+that follows it is the module's default export. What takes a module past a
 tree, and past what JSON can hold at all, is the rest of the language:
 [constants](#shared-values-constants) and [imports](#importing-other-modules)
 name shared parts, and [`bigint`](#supported-value-types) and
 [`undefined`](#supported-value-types) are values JSON has no spelling for.
 
-Named exports are not recognized yet ([export](./todo/3240-export.md)).
+`export { ... }` and re-exports remain unsupported. Export-list options are
+tracked separately in [export-lists](./todo/export-lists.md).
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#using_the_default_export>.
@@ -220,11 +311,23 @@ module under `.rs`. They are compiler artifacts, and
 of the five is refused, rather than written in a language the name does not
 declare.
 
+For a FunctionalScript input, JSON and DataJS output serialize the module
+result's `default` property, with sharing checked for that selected value.
+A named-only root projects to `undefined`: DataJS writes
+`export default undefined;`, while JSON refuses `undefined`. FunctionalScript
+output preserves each named export as `export const` and writes `export default`
+last when present. Dependencies and shared values are declared before use;
+recompilation does not add another wrapper. EDAG and Rust
+output compute the complete export object. A direct `.json` input remains a
+document: its value is used without projection, even when it contains a property
+named `default`. Imported JSON instead exposes `{ default: document }` at the
+module boundary, from which a default import selects the document.
+
 - A DataJS document is written in
   [normalized form](./datajs/README.md#normalized-form): one line, and a
   value referenced more than once hoisted into a `const` named `$0`, `$1`, …
   so it stays shared ([shared values](#shared-values-constants)). Every value
-  a module denotes has a document.
+  default export in the data subset has a document.
 - JSON is a tree, and the compiler refuses what JSON cannot spell rather than
   write a file that reads back as a different value: a shared value, which
   written twice reads back as two; `bigint`, `undefined`, `NaN`, `Infinity`
@@ -256,7 +359,10 @@ declare.
 
 ## Comments
 
-Comments are trivia. They may appear between any two tokens and are ignored.
+Comments are trivia. Their text does not become an AST value, but the parser
+preserves line-terminator information needed by JavaScript's grammar. A line
+break inside a block comment counts at a restricted boundary too, such as
+after `return` or before `=>` ([functions](#functions)).
 
 ```js
 // a line comment runs to the end of the line
@@ -274,9 +380,10 @@ Block comments carry JSDoc/TypeScript type declarations, which is why the
 language has them: a `.f.js` file is type-checked as JavaScript, and JSDoc is
 how it says what its types are.
 
-A comment is trivia, as whitespace is: it neither ends a statement nor keeps
-one open, so the `;` that ends a statement may follow a comment, on the same
-line or a later one ([module structure](#module-structure)).
+A comment can separate tokens where whitespace can. At unrestricted boundaries,
+the `;` that ends a statement may follow a comment on the same line or a later
+one ([module structure](#module-structure)). This does not make newlines
+interchangeable with spaces at restricted boundaries.
 
 Comments belong to the module language. A `.json` input containing one is an
 error, because JSON has no comments.
@@ -287,8 +394,8 @@ See
 ## Supported Value Types
 
 An expression is a data expression, a property access, a function, a call, a
-negation, or any of those in parentheses ([grouping](#grouping)). Unary `-` is
-the one operator — see the [roadmap](./todo/README.md).
+negation, a binary operator ([operators](#operators)), or any of those in
+parentheses ([grouping](#grouping)).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -342,15 +449,30 @@ an `IdentifierReference`. `-Infinity` names nothing in either language: it is
 two tokens in both — the operator and the word — which no property name may
 be.
 
+**FunctionalScript has one `NaN`.** IEEE 754 gives a `NaN` a sign and a
+payload, and a JavaScript program can read them — through a typed array or a
+`DataView`, which FunctionalScript has none of. Nothing else tells two `NaN`s
+apart: every operator, coercion and comparison treats each the same,
+`Object.is` included, and each is written as the word `NaN`. So a `NaN`'s
+bits are not serializable data, hence not an observation and not a
+compatibility question ([principles](#principles)): every `NaN` is the one
+value, and a writer may spell them all as one — the Rust writer spells each
+as the quiet `NaN` with an empty payload.
+
 The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
-and the only operator the language has. It is not part of the literal after
-it: `-42.5` is the negation of `42.5`, `- 42.5` is the same value written with
-a space, and `-NaN` and `-Infinity` are values as JavaScript has them. It binds
-looser than a property access or a call, as it does in JavaScript, so `-1 .x`
-is `-(1 .x)` and `-1()` is `-(1())`. What it takes is JavaScript's
-`UnaryExpression`, which an arrow function is not, so `-(...a) => 1` is a
-syntax error in both. Two adjacent `-` characters are the decrement operator,
-which the language has no rule for: a negation of a negation is `- -1`.
+the first operator the language had; `~`, the **bitwise not operator**, is the
+other prefix, Stage A of the same operators document. Neither is part of the
+literal after it: `-42.5` is the negation of `42.5`, `- 42.5` is the same
+value written with a space, and `-NaN` and `-Infinity` are values as
+JavaScript has them. Each binds looser than a property access or a call, as
+in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`. What either
+takes is JavaScript's `UnaryExpression`, which an arrow function is not, so
+`-(...a) => 1` and `~(...a) => 1` are syntax errors in both, and neither
+stands immediately before `**` — `-2 ** 2` is refused, matching JavaScript,
+where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized readings. Two
+adjacent `-` characters are the decrement operator, which the language has
+no rule for: a negation of a negation is `- -1`, and likewise `~ ~1` for
+bitwise not. [Operators](#operators) has the rest of them.
 
 A negative number is therefore an expression rather than a literal *in the
 syntax*. The graph is another matter: lowering folds a negation of a numeric
@@ -527,6 +649,41 @@ recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
 tells one from the other only past the `)`, so `(a) => 1` is read as a group
 and refused at the `=>`.
 
+## Operators
+
+```js
+export default 1 + 2 * 3;
+```
+
+Beyond unary `-` ([supported value types](#supported-value-types)), the
+language has arithmetic (`+ - * / % **`), strict comparison
+(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
+[operators](./todo/2340-operators.md). `==`/`!=` stay refused, since neither
+language reads them the same way twice. The lazy operators (`&& || ??`), the
+conditional (`?:`), and the comma operator are not recognized yet.
+
+Precedence and associativity follow JavaScript's own: arithmetic binds
+tighter than comparison, which binds tighter than bitwise, `**` is
+right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), and every other
+operator here is left-associative. `-`/`~` immediately before `**` are
+refused, matching JavaScript exactly: `-2 ** 2` and `~2 ** 2` are syntax
+errors here as there, at any depth of `-`/`~` nesting, and parentheses are
+the only way to write either reading — `(-2) ** 2` raises the negation,
+`-(2 ** 2)` negates the power.
+
+A function is an operand of none of these, unparenthesized: `(...a) => body`
+reads everything to its right as `body`, exactly as in JavaScript, so
+`1 * (...a) => 2` is refused where `1 * (...a)` runs out of value to read. A
+group makes it one, the same way it does for `-`: `1 * ((...a) => 2)` is a
+value, however little multiplying by a function is worth.
+
+The front end computes none of these — it builds the operation and passes
+it on. Unary `-` alone folds over a numeric literal, exact and total
+arithmetic; every other operator here reaches the EDAG as a node, and a
+`.json` or DataJS output — the readers that compute a value — refuses one
+the same way it refuses a function or a call, until an interpreter answers
+for the rest of them ([roadmap](./todo/README.md)).
+
 ## Property Access
 
 ```js
@@ -564,20 +721,37 @@ computed at run time is not recognized yet.
 import a from "./a.f.js";
 ```
 
-An `import` statement binds the exported value of another module to a name, so
+An `import` statement binds another module's `default` export to a name, so
 modules can be shared and reused — a common configuration, a shared table of
 constants, a fragment that several outputs include.
 
+- A default import requires an actual default export; a missing default is
+  an error, while `export default undefined;` is valid.
 - Only the **default import** form is recognized. Named imports and namespace
   imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
-- The path is a [string literal](#strings), resolved relative to the importing
-  module.
-- Each module is parsed and evaluated once per resolved path, and its value is
-  shared by every importer. A circular dependency is an error.
+- The module specifier is a [string literal](#strings), resolved using the
+  declared host environment's module-resolution rules. Relative specifiers
+  resolve against the importing module's identity; bare specifiers follow the
+  host's package or import-map rules. Unsupported specifier classes are
+  refused, not reinterpreted as sibling filesystem paths.
+- Within one program load, imports resolving to the same module identity
+  share its evaluation and exported value. Distinct module identities remain
+  distinct even when they load the same file; loading paths are not cache
+  keys. A circular dependency is an error.
 - The name is a JavaScript identifier that JavaScript does not reserve:
   `import class from "./a.f.js";` is an error here as there.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
+
+**Current supported host profile:** the Node runner resolves admitted file imports
+against the importing file URL, canonicalizes symlinks, and reuses modules by the
+resulting file URL identity. Imports use portable URL-path spellings beginning
+with `./`, `../`, or `/`. Absolute `file:` imports and query/fragment components
+are outside the supported grammar, as are bare packages and other URL schemes.
+Encoded filename characters such as `%23` still work. This is the default Node
+file-module profile; preserve-symlinks modes are not supported profiles. The existing
+[module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
+records the host boundary, tests, and remaining support work.
 
 A JSON document is imported with the attribute JavaScript requires of it, and
 denotes the value `JSON.parse` gives it:
@@ -636,7 +810,8 @@ written.
   recognized yet ([forward-references](./todo/3140-forward-references.md)).
 - Imported and constant names share one namespace: declaring the same name
   twice is an error.
-- Every `const` comes after every `import` and before `export default`
+- Every ordinary or exported `const` comes after every `import` and before
+  `export default`, when present
   ([module structure](#module-structure)).
 - `let` and `var` are not part of the language ([let](./todo/3220-let.md)).
 
@@ -719,8 +894,12 @@ arguments alone:
   would name them, and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property
-  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). Nor is the arity
-  observable, which is what leaves the two parameter lists nothing to be
+  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)), which is the
+  decision that retired the proposals that would have exposed a name. The
+  name a JavaScript engine gives a function it loads from the written
+  output is the writer's spelling, not a result of the program
+  ([principles](#principles)).
+  Nor is the arity observable, which is what leaves the two parameter lists nothing to be
   told apart by: `f.length` is `0` for a rest parameter as it is for none,
   a rest parameter not counting towards it in JavaScript.
 - A body `const` is the body's, and binds as a module's does: it names a
@@ -815,6 +994,7 @@ so every DataJS document parses here.
 |default import|`import name from "./path";`|
 |JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
+|named export|`export const name = expression;`|
 |default export|`export default expression;`|
 
 ```js
@@ -822,10 +1002,10 @@ import base from "./base.f.js";    // imports first
 
 const extra = { "debug": true };   // then constants
 
-export default [base, extra];      // exactly one, last
+export default [base, extra];      // optional, at most one, last
 ```
 
-These three forms are the whole language. A statement begins with `import`,
+These statement forms are the whole language. A statement begins with `import`,
 `const`, or `export`, and never with a value; more forms land as the language
 grows ([`spec/todo/`](./todo/README.md)).
 

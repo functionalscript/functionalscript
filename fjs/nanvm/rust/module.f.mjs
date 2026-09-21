@@ -124,6 +124,7 @@ export const rustName = {
     '??': 'nullish_coalescing',
     own: 'own_property',
     '===': 'eq',
+    '!==': 'ne',
     typeof: 'typeof_',
     String: 'string_coercion',
 }
@@ -156,10 +157,20 @@ const emit = reason => statement => reason === undefined
     ? [`${indent}${statement}`]
     : [`${indent}// TODO: ${reason}: ${statement}`]
 
+/**
+ * A case's name as the Rust string literal `check` takes. The names are the
+ * corpus's own, so one `stringLiteral` refuses is a defect in the corpus,
+ * not an input to report: unwrapped, as {@link nodeExpr} above unwraps the
+ * printer for the same reason.
+ *
+ * @type {(name: string) => string}
+ */
+const nameLiteral = name => unwrap(stringLiteral(name))
+
 /** @type {(expected: Expectation) => (name: string) => (result: string) => string} */
 const assertion = expected => name => result => isThrows(expected)
-    ? `check_throws::<A>(${stringLiteral(name)}, ${result});`
-    : `check::<A>(${stringLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
+    ? `check_throws::<A>(${nameLiteral(name)}, ${result});`
+    : `check::<A>(${nameLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
 
 /**
  * `true` when `e` reaches `n` — the arrays are the graph, so this is the
@@ -218,6 +229,7 @@ export const generate = data => {
         '// Do not edit: change the shared operator test data and regenerate.',
         '',
         'use super::harness::*;',
+        'use nanvm_lib::vm::unstable::{bigint_any, f64_any, strict_eq, strict_ne, string_any, string_key};',
         '',
         ...data.groups.flatMap(groupFn(shared)),
         'pub fn all<A: IVm>() {',

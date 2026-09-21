@@ -10,6 +10,7 @@
 import type { TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { Primitive } from '../../media/datajs/types.ts'
+import type { BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 
 /**
@@ -47,7 +48,7 @@ export type ParseError = {
  * order written, a negation by its operand, a function by the token naming
  * its parameter — `null` where the list is empty, there being no token —
  * and its body,
- * a block body by its `const` statements and the value it returns, or a
+ * a block body by its ordered, tagged statements, or a
  * container of its items in the order written.
  *
  * A call carries no token of its own. It held the `(` while an error was
@@ -55,10 +56,18 @@ export type ParseError = {
  * and that refusal is gone, `-1()` being the negation of `1()` as
  * JavaScript reads it.
  *
- * A `block` stands only as a function's body, and only when it has a
- * statement: `{ return v; }` and `v` are one function in JavaScript, so the
- * mapping gives the empty block the node of its value and nothing else sees
- * a block at all.
+ * A `block` stands only as a function's body. Even `{ return v; }` keeps
+ * its block and return; only lowering may give it the same executable body
+ * as the expression `v`.
+ *
+ * A binary operator is `[tag, left, right]`, its tag the token itself —
+ * Stage A of
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
+ * arithmetic, strict comparison, and bitwise. `-` alone is both a prefix
+ * and an infix, told apart by arity exactly as `~`'s prefix and every
+ * infix are told apart from each other, by tag; `**` is right-associative,
+ * folded by the grammar rather than by this tree, so `2 ** 3 ** 2` is
+ * already `['**', 2, ['**', 3, 2]]` here.
  */
 export type Node =
     | readonly ['primitive', Primitive]
@@ -66,9 +75,18 @@ export type Node =
     | readonly ['.', Node, DjsTokenWithMetadata]
     | readonly ['()', Node, readonly Node[]]
     | readonly ['-', Node]
+    | readonly ['~', Node]
+    | readonly [BinaryTag, Node, Node]
     | readonly ['=>', DjsTokenWithMetadata | null, Node]
-    | readonly ['block', readonly Const[], Node]
+    | Block
     | Container
+
+/**
+ * The block syntax currently understood: zero or more `const` declarations
+ * followed by one explicit value-returning statement. The grammar enforces
+ * this order; bare returns, extra statements and ASI remain unsupported.
+ */
+export type Block = readonly ['block', readonly [...(readonly ['const', Const])[], readonly ['return', Node]]]
 
 /** An array of its items, or an object of its members, each in the order written. */
 export type Container =
@@ -105,11 +123,17 @@ export type Const = {
     readonly value: Node
 }
 
-/** A whole module as matched: its statements in order, the export's value last. */
+/** A module declaration, with its source export marker retained. */
+export type ModuleConst = {
+    readonly declaration: Const
+    readonly exported: boolean
+}
+
+/** A whole module as matched: declarations in order and an optional final default. */
 export type Module = {
     readonly imports: readonly Import[]
-    readonly consts: readonly Const[]
-    readonly exported: Node
+    readonly consts: readonly ModuleConst[]
+    readonly exported: Node | null
 }
 
 /**
@@ -125,5 +149,5 @@ export type Out =
     | { readonly id: 'members', readonly items: List<Entry> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
-    | { readonly id: 'export', readonly node: Node }
+    | { readonly id: 'export', readonly consts: List<ModuleConst>, readonly default: Node | null }
     | { readonly id: 'module', readonly module: Module }

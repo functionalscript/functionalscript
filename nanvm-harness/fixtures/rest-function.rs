@@ -2,12 +2,12 @@
 
 use nanvm_lib::vm::{Any, Array, IVm, ToAny};
 
+#[rustfmt::skip]
+pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 fn f0<A: IVm>(_args: &Array<A>) -> Result<Any<A>, Any<A>> {
     Ok(_args.clone().to_any())
 }
 
-#[rustfmt::skip]
-pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let _args: Array<A> = Array::default();
     f0(&_args)
 }

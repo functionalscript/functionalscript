@@ -4,26 +4,26 @@
 |-----------|---------|-----------|
 |Comparison |`==`     |not allowed|
 |           |`!=`     |not allowed|
-|           |`===`    |1          |
-|           |`!==`    |1          |
-|           |`>`      |1          |
-|           |`>=`     |1          |
-|           |`<`      |1          |
-|           |`<=`     |1          |
-|Arithmetics|`+`      |1          |
-|           |`-`      |1          |
-|           |`*`      |1          |
-|           |`/`      |1          |
-|           |`%`      |1          |
+|           |`===`    |**done**   |
+|           |`!==`    |**done**   |
+|           |`>`      |**done**   |
+|           |`>=`     |**done**   |
+|           |`<`      |**done**   |
+|           |`<=`     |**done**   |
+|Arithmetics|`+`      |**done**   |
+|           |`-`      |**done**   |
+|           |`*`      |**done**   |
+|           |`/`      |**done**   |
+|           |`%`      |**done**   |
 |           |unary `-`|**done**   |
-|           |`**`     |1          |
-|Bitwise    |`&`      |1          |
-|           |`\|`     |1          |
-|           |`^`      |1          |
-|           |`~`      |1          |
-|           |`<<`     |1          |
-|           |`>>`     |1          |
-|           |`>>>`    |1          |
+|           |`**`     |**done**   |
+|Bitwise    |`&`      |**done**   |
+|           |`\|`     |**done**   |
+|           |`^`      |**done**   |
+|           |`~`      |**done**   |
+|           |`<<`     |**done**   |
+|           |`>>`     |**done**   |
+|           |`>>>`    |**done**   |
 |Logical    |`&&`     |1          |
 |           |`\|\|`   |1          |
 |           |`??`     |1          |
@@ -31,6 +31,40 @@
 |Conditional|`?:`     |1          |
 |Comma      |`,`      |1          |
 |Type       |`typeof` |EDAG only  |
+
+**Stage A is in the language**: arithmetic (`+ - * / % **`), strict
+comparison (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) —
+every operator above but unary `-` is new, `-` itself now dual-arity, told
+from the prefix by the number of operands rather than by a tag of its own,
+exactly as the EDAG's `op12Id` already reads it. `==`/`!=` stay refused, and
+the remaining priority-1 rows — the lazy operators, the conditional, and the
+comma — wait on Stage A's own top, `bitwiseOr`, being where the next
+precedence layer attaches.
+
+The front end reads every one and computes none of them: the grammar builds
+`[tag, left, right]` (`[tag, operand]` for `~`), and the lowering carries
+that straight to the EDAG's own `op2`/`op12`/`op1` shape, which already
+admits every one of these tags. Unary `-` alone still folds over a numeric
+literal — exact, total arithmetic, so the graph holds the leaf rather than a
+node — and nothing else does: `+` alone would need `ToPrimitive` to decide
+number or string, and folding the rest while leaving `+` a node draws an
+inconsistent line the front end refuses to draw. The `.json` and DataJS
+outputs answer `an operator has no value` for all nineteen — the eighteen
+binary tags plus unary `~` — the same refusal a function or a call already
+earns — a value for them is the EDAG's question, once an interpreter is
+written for it
+([`fjs/fsc/todo/interpret-edag.md`](../../fjs/fsc/todo/interpret-edag.md)).
+
+Precedence follows JavaScript's own order, arithmetic above comparison above
+bitwise. `-`/`~` immediately before `**` are refused, exactly as in
+JavaScript: `-2 ** 2` and `~2 ** 2` are syntax errors, at any depth of
+`-`/`~` nesting, and parentheses are the only way to write either reading —
+`(-2) ** 2` raises the negation, `-(2 ** 2)` negates the power. A function
+is no operand of any of these, unparenthesized:
+`(...a) => body` reads everything to its right as `body`, so `1 * (...a) =>
+2` is refused exactly where `-(...a) => 1` already is, and an extra pair of
+parentheses is what turns a function into an ordinary operand, as it always
+was for `-`.
 
 **Unary `-` is in the language.** It is the first operator, and the one the
 front end needed first: the tokenizer used to fold a `-` into the number,
@@ -66,11 +100,32 @@ The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Ref
 const f = a => (assert(a >= 0), a + 2)
 ```
 
-Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8), which is where the exact semantics live: every operand is evaluated before the result is revealed, but the order among the discarded operands is not observable.
+Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8, for the graph representation). The [failure contract](../README.md#failure-is-one-outcome) governs execution: each required operand's success must be established before the result is revealed, without requiring a fixed evaluation order or computation count.
 
 A written comma lowers under the rule the compiler already applies to an unused `const` ([`fjs/fsc/edag`](../../fjs/fsc/edag/module.f.mjs)): the `","` anchors exactly the code the graph would not otherwise hold, so an operand whose node the result or another operand reaches is dropped, and a comma left with its result alone is the result. `const a = []; const b = a; export default (b, a.length);` is `['.', A, 'length']` with no comma, since `b` is `a`'s node and the access reaches it, where `const b = a.x; export default (b, a.length);` keeps `[',', [['.', A, 'x'], ['.', A, 'length']]]`, `b` being a node of its own that the result does not reach.
 
-Once the operators bring lazy positions, the anchoring rule is best read as a subtraction. Every `const` and every import starts as an operand of the comma, in source order, with the export last; then each operand is deleted that a later operand is guaranteed to evaluate through eager edges alone — a container item, an access base, an operator's left operand, a comma operand — and never through a lazy one: the right operand of `&&`, `||` or `??`, a conditional's arm. A function body is not lazy for this purpose, since constructing the function evaluates its frame. So `const c = null.x; export default [a && c, b && c];` keeps `c`, `[',', [c, ['[]', [['&&', a, c], ['&&', b, c]]]]]`, and throws at load as JavaScript does, where `[c, a && c]` deletes it, the array evaluating it first. What the subtraction does not preserve is the order between two failing constants: with `const a = null.x; const b = undefined.y; export default [b, a];` both are deleted and `b` throws first, where JavaScript's `a` does. Whether a module loads is preserved exactly; which error surfaces when two could is a question for the specification to answer once.
+Once the operators bring lazy positions, the anchoring rule is best read as a subtraction. Every `const` and every import starts as an operand of the comma, in source order, with the export last; then each operand is deleted that a later operand is guaranteed to evaluate through eager edges alone — a container item, an access base, an operator's left operand, a comma operand — and never through a lazy one: the right operand of `&&`, `||` or `??`, a conditional's arm. A function body is not lazy for this purpose, since constructing the function evaluates its frame. So `const c = null.x; export default [a && c, b && c];` keeps `c`, `[',', [c, ['[]', [['&&', a, c], ['&&', b, c]]]]]`, and throws at load as JavaScript does, where `[c, a && c]` deletes it, the array evaluating it first.
+
+**Failure order is already decided**, not an open operator-design question:
+
+```js
+const a = null.x;
+const b = undefined.y;
+export default [b, a];
+```
+
+The redundant anchors for `a` and `b` can be removed because the result graph
+reaches both computations; the failing computations themselves are not deleted.
+A graph traversal may encounter `b`'s failure first, where source JavaScript
+encounters `a`'s. Under the [specification](../README.md#failure-is-one-outcome),
+both are the same failure outcome. Source-order execution remains legal, but
+no source-order barrier is required merely to preserve the first failure.
+
+Preserve semantic success/failure subject to runner interruption, not identical
+module-loading behavior at identical resource limits. Required failures cannot
+be discarded to invent a successful result, and skipped failures cannot be
+introduced on an otherwise successful path. Different memory/time thresholds
+and fail-fast schedules do not distinguish failure outcomes.
 
 Asserts express **internal contract breaches**, not input validation: untrusted input must be validated with values (`Result` / `Nullable`), since a program that throws on user input can be crashed by any user.
 

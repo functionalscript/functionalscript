@@ -33,7 +33,7 @@
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { stylesheetLink } from '../style/module.f.mjs'
+import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 
 /**
  * The repository the site is built from, which is where a file is read when
@@ -315,6 +315,7 @@ const ancestors = path => {
 export const page = commit => dir => htmlUtf8(
     ['title', dir.path],
     stylesheetLink,
+    ...faviconLinks,
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['nav', ...ancestors(dir.path).flatMap(([path, name], at) => {

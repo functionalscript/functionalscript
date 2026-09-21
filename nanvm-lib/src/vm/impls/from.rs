@@ -1,5 +1,6 @@
 use crate::vm::{
-    Any, Array, BigInt, Function, IVm, Object, String, ToAny, ToString, Unpacked, nullish::Nullish,
+    Any, Array, BigInt, Function, IVm, Number, Object, String, ToAny, ToString, Unpacked,
+    nullish::Nullish,
 };
 
 impl<A: IVm> From<Unpacked<A>> for Any<A> {
@@ -50,9 +51,15 @@ impl<A: IVm> From<bool> for Unpacked<A> {
         Unpacked::Boolean(value)
     }
 }
+impl<A: IVm> From<Number> for Unpacked<A> {
+    fn from(value: Number) -> Self {
+        Unpacked::Number(value)
+    }
+}
+
 impl<A: IVm> From<f64> for Unpacked<A> {
     fn from(value: f64) -> Self {
-        Unpacked::Number(value)
+        Unpacked::Number(value.into())
     }
 }
 
