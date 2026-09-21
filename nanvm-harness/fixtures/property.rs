@@ -5,5 +5,7 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), Any::member_access([(string_key("a"), f64_any(0x4045000000000000))].to_object().to_any(), string_any("a"))?)].to_object().to_any())
+    let c0: Any<A> = [(string_key("a"), f64_any(0x4045000000000000))].to_object().to_any();
+    let c1: Any<A> = Any::member_access(c0, string_any("a"))?;
+    Ok([(string_key("default"), c1)].to_object().to_any())
 }
