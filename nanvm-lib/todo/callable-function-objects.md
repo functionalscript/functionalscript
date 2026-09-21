@@ -140,9 +140,10 @@ these same operators already would.
 
 #### Arguments — `["args"]`
 
-Represented as `&Array<A>` at the call boundary — the same wrapper every
-array-valued `Any<A>` already uses
-([`vm/array/mod.rs`](../src/vm/array/mod.rs)). A generated function reads a
+Represented as `Array<A>`, passed by value at the call boundary — the
+same wrapper every array-valued `Any<A>` already uses
+([`vm/array/mod.rs`](../src/vm/array/mod.rs)), built for the call and
+owned by nothing else. A generated function reads a
 declared position through `Any::member_access`
 ([`vm/member_access.rs`](../src/vm/member_access.rs),
 [`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — the same
@@ -158,7 +159,7 @@ check internally and answers `None` (which `Any::member_access` turns into
 bounds check to write:
 
 ```rust
-fn f<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
+fn f<A: IStaticFunction>(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Any::member_access(args.clone().to_any(), Number::from(0.0).to_any())?;
     let b = Any::member_access(args.clone().to_any(), Number::from(1.0).to_any())?;
     Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
@@ -204,12 +205,15 @@ length check, only the enclosing scope's *construction* of the frame does.
 **Decided elsewhere**: the representation is
 [function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
 — `Function<A>` is callable, not a container, so neither option below is
-the one; both are kept as the record of the question. `naive`'s object
-holds the static `fn` pointer, the `length` and the captured frame behind
-an `Rc`, and every static function has the one signature
-`fn(self_: &naive::Function, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
-the arguments by value; the body reads its frame and its length off
-`self_`. The stages below are written against that shape.
+the one; both are kept as the record of the question, and neither is
+implemented. A VM that binds static functions implements
+`IStaticFunction` — `static_function(code, length, frame)` and `frame` —
+and every static function has the one signature `StaticCode<A>`,
+`fn(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>>`,
+the arguments by value; the body reads its frame through `A::frame(self_)`
+and its length off `self_`. `naive`'s `InternalFunction` is an `Rc` over
+the `fn` pointer, the `length` and the frame. The stages below are written
+against that shape.
 
 Use the existing header's length for declared arity and expose it as
 `f.length` when callable support lands. Today's
@@ -273,12 +277,6 @@ compiled as part of writing this document:
    `Self::Assoc` projections allow a good deal of this, but this document
    does not assert it compiles.
 
-Option 1 is the one to implement first: it is the one guaranteed to compile
-with today's trait definitions, and nothing about `Function::call`'s
-signature depends on the choice — switching to option 2 later, if it works
-out, is an internal representation change behind `call`, not something a
-caller observes.
-
 `toString`/hashing implications of a natively compiled function are a
 pre-existing, separately tracked question
 ([object-identity](../../spec/todo/object-identity.md), Stage 7 below).
@@ -327,9 +325,9 @@ precisely.
    The fix is to never reconstruct it: build `f`'s canonical `Function<A>`
    **once** — at the point its enclosing scope already builds one for any
    other reason (closure creation, `export default`, being stored in a
-   value) — and thread a *handle* to that one object, `self_:
-   &naive::Function`, into every activation, beside `args`. Reading
-   `["self"]` is then a clone of `self_` into an `Any`: an
+   value) — and thread a *handle* to that one value, `self_:
+   &A::InternalFunction`, into every activation, beside `args`. Reading
+   `["self"]` is then `Function::from(self_.clone())`: an
    `Rc`-cheap clone of the *same* underlying object, so identity is
    trivially preserved with no dependence on how `Function<A>`'s equality
    happens to be implemented. This needs no cyclic or lazy construction
@@ -381,7 +379,9 @@ scope-unaware node-sharing hazard need fixing — in
 With `IFunction` landed
 ([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)),
 the generator emits each function's body as a static function of the one
-signature and constructs `naive`'s object from it with an empty frame. A
+signature, `StaticCode<A>`, and constructs the value through
+`A::static_function` with an empty frame — so a module holding a function
+bounds on `IStaticFunction` where it bounds on `IVm` today. A
 non-capturing function used as a value (assigned, stored in an array or
 object property, or returned) now gets a real `Function<A>`, callable
 through `Function::call` — this is what lets `export default` be evaluated
@@ -398,8 +398,9 @@ or Stage 7's EDAG embedding.
 Extend the generator to lower the approved function-node shape for a body
 that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
-`Function<A>` value with that as its frame. The nested body reads the
-frame off `self_`, slot `i` exactly as it reads `args[i]`. Proof surface: a two-level
+`Function<A>` value through `A::static_function` with that as its frame.
+The nested body reads slot `i` of `A::frame(self_)` exactly as it reads
+`args[i]`. Proof surface: a two-level
 closure fixture over an ordinary (non-`self`) captured value — e.g.
 `a => b => a + b`, the outer parameter captured into the inner function's
 frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
@@ -501,10 +502,11 @@ generated-Rust test from one source of cases.
       (a bare function-valued `export default` stays out of scope until
       Stage 2's `Function<A>` value exists).
 - [ ] Stage 2: after `IFunction`, emit each body as a static function of
-      the one signature and construct `naive`'s object with an empty frame;
+      `StaticCode<A>` and construct the value through `A::static_function`
+      with an empty frame, the module bounding on `IStaticFunction`;
       preserve observable declared length; `Function::call`.
 - [ ] Stage 3: capturing closures — approved function-node lowering, the
-      frame built as an `Array<A>` and handed to `naive`'s constructor.
+      frame built as an `Array<A>` and handed to `A::static_function`.
 - [ ] Stage 4: dynamic call sites through `TryFrom<Any<A>> for Function<A>` +
       `Function::call`; paired static/dynamic fixtures proving observable
       equivalence.

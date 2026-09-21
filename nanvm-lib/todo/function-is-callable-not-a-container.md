@@ -72,12 +72,12 @@ value where it would be needed and `IVm` itself carries no such bound.
 **No constructor on `IFunction`.** A holder of a `Function<A>` can only run
 it, which is the language's own rule. Construction is each VM's own:
 
-- `naive` binds a static Rust function, usually a generated one, through a
-  constructor of its own. That is the whole of the MVP: no EDAG
-  interpreter, a VM that can only link static functions, and a compiler
-  that produces them. A generic trait for binding a Rust static function,
-  which a module generic over the VM would bound on, may come later; it is
-  not this design's.
+- A VM that binds Rust static functions — usually generated ones — says
+  so through `IStaticFunction`, below, which generated and hand-written
+  code bound on: `A: IStaticFunction` names `IVm` and that capability.
+  That is the whole of the MVP: no EDAG interpreter, `naive` implementing
+  `IStaticFunction` and nothing more, and a compiler that produces the
+  static functions.
 - A VM that interprets may build a function from an EDAG. That is its own
   API, reached from a program only through an effect — `createFunction(e:
   Edag) => Function`, with `getEdag(f: Function) => Edag` beside it — which
@@ -91,35 +91,55 @@ it, which is the language's own rule. Construction is each VM's own:
   that composes freely — a compiled function calls a dynamic one it was
   handed, and a dynamic one calls a compiled one it captured.
 
-**`naive` holds a static function.** Its `InternalFunction` is an `Rc`
-over one object: the static `fn` pointer, the `length`, and the captured
-`frame: Array<Naive>`. The object's pointer is the function's identity —
-`ptr_eq` compares the `Rc` — so identity depends on nothing the generator
-does: every construction is a new object, and every non-capturing function
-may share one empty frame. The static function receives that object and
-the arguments, the arguments by value, as every operator on `Any` takes
-its operands:
+**`IStaticFunction`.** A static function receives the function value it
+is the code of and the arguments, the arguments by value, as every
+operator on `Any` takes its operands:
 
 ```rust
-type Code = fn(self_: &naive::Function, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>;
+/// A VM that makes a function out of a Rust static function.
+pub trait IStaticFunction: IVm {
+    fn static_function(code: StaticCode<Self>, length: u32, frame: Array<Self>) -> Function<Self>;
+    /// The frame `static_function` was given, read by the code through its `self_`.
+    fn frame(self_: &Self::InternalFunction) -> &Array<Self>;
+}
+
+pub type StaticCode<A> = fn(self_: &<A as IVm>::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>>;
 ```
 
-`naive::Function` is the object behind the `Rc`, and it is where the body
-finds everything else: its frame and its length are the object's fields,
-read through `self_`, and a clone of `self_` into an `Any` is what the
-body's `["self"]` names for recursion
+`self_` is the VM's own function value — an `IFunction`, so `Clone` and
+`length` are its — and everything else the body needs is read through
+it: the frame by `A::frame(self_)`, and `Function::from(self_.clone())`,
+an `Rc`-cheap clone of the same value, is what the body's `["self"]`
+names for recursion
 ([callable-function-objects.md](./callable-function-objects.md)). One
 signature for every function, whether or not its body reads `self_`: an
 unused parameter costs nothing, and one convention is simpler than a
-family. The generic `Function<A>` exposes no `frame()` — that would be the
-access to internals this design refuses; the field is `naive`'s own, read
-by code `naive` links, and nothing of it reaches `IFunction`.
+family. The generic `Function<A>` exposes no `frame()` — that would be
+the access to internals this design refuses. `IStaticFunction::frame` is
+asked only by static code about itself, which is why it lives on the
+binding trait and not on `IFunction`; a VM holding both kinds behind an
+enum answers it for the static variant, the only one with code to ask.
+
+**`naive` holds a static function.** Its `InternalFunction`,
+`naive::Function`, is an `Rc` over one object: the static `fn` pointer,
+the `length`, and the captured `frame: Array<Naive>`. `Clone` is the
+`Rc`'s, and so is identity — `ptr_eq` compares the `Rc` — so identity
+depends on nothing the generator does: every construction is a new
+object, and every non-capturing function may share one empty frame.
+`naive` implements `IStaticFunction`, and no other way to make a
+function: `static_function` makes the object, `frame` reads its field,
+and `call` is one line, the code with `self` and the arguments.
 
 `to_string` is owed before the MVP: `String(f)` is source reconstructed
 from the function's EDAG ([spec](../../spec/README.md)), serializable data
 a program returns, so the object will carry the text the generator prints
 from the EDAG. Until then `naive`'s `to_string` panics as unimplemented — a
-loud gap, never a plausible value in its place. `naive` holds no EDAG: it
+loud gap, never a plausible value in its place. `String(f)`'s own path,
+`fn_to_string` in `vm/primitive_coercion.rs`, answers a placeholder
+`"function"` today, which is that plausible value; it routes through
+`IFunction::to_string` with this change and the placeholder goes. No
+corpus case coerces a function to a string — `typeof` is its own,
+correct path — so nothing observes the interim panic. `naive` holds no EDAG: it
 stays the simple VM an AOT target wants, and every headache of
 interpreting or building code stays in the compiler.
 
@@ -135,24 +155,26 @@ self-reference, the generator — is unchanged and builds on this shape.
 ### Tasks
 
 - [ ] `IComplex`, `IContainer: IComplex`, `IFunction: IComplex`; `IVm`
-      binds `InternalFunction: IFunction<Self>`.
-- [ ] `naive` implements `IFunction` as an `Rc` over the `fn` pointer, the
-      `length` and the captured frame, identity the `Rc`'s, with a
-      constructor of its own; `call` passes the object and the arguments;
-      `to_string` panics as unimplemented.
+      binds `InternalFunction: IFunction<Self>`; `IStaticFunction: IVm`
+      and `StaticCode<A>`.
+- [ ] `naive::Function`, an `Rc` over the `fn` pointer, the `length` and
+      the captured frame, identity the `Rc`'s; `naive` implements
+      `IFunction` — `call` passes `self` and the arguments, `to_string`
+      panics as unimplemented — and `IStaticFunction`.
 - [ ] `Function<A>`: `call`, `length`, `to_string`, identity; `name`, the
-      header and the `pub` field go; `Debug` prints `to_string`.
+      header and the `pub` field go, `From<A::InternalFunction>` in the
+      field's place; `Debug` prints `to_string`.
 - [ ] `function_any` in the corpus harness and the three test
-      constructions go through `naive`'s constructor. `function_any` is
-      generic over the VM today and the corpus's generated functions call
-      it; with construction `naive`'s own, either the generated corpus
-      binds to `naive` — it runs on `naive` alone today — or the binding
-      trait comes with this change. Decided at implementation, the smaller
-      change preferred.
-- [ ] A test that `call` runs the code with its object and its arguments,
-      and the code reads its frame and length off the object; that two
-      functions made from the same code and frame are not
-      `===`, and that a function and its clone are.
+      constructions go through `IStaticFunction::static_function`, and
+      the corpus bounds on `IStaticFunction` where it bounds on `IVm`
+      today — `fjs/nanvm/rust` prints the bound — so the generated tests
+      stay generic over the VM and run on `naive` as they do now.
+- [ ] `fn_to_string` in `vm/primitive_coercion.rs` routes through
+      `IFunction::to_string`; the placeholder goes.
+- [ ] A test that `call` runs the code with `self` and its arguments, and
+      the code reads its frame through `IStaticFunction::frame`; that two
+      functions made from the same code and frame are not `===`, and
+      that a function and its clone are.
 - [ ] `to_string` carries the text the generator prints from the EDAG,
       before the MVP.
 - [ ] Declare the `IVm` break.
