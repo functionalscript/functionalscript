@@ -88,26 +88,32 @@ VM*, in a trait of its own:
   that composes freely — a compiled function calls a dynamic one it was
   handed, and a dynamic one calls a compiled one it captured.
 
-**`naive` holds a static function.** Everything about a function's *code*
-is a constant: the `fn(captured: &Array<Naive>, args: &Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
-its `length`, and — once a spelling exists — the source text `to_string`
-answers. So generated code emits them once, as a `static` code descriptor
-per function, and `naive`'s `InternalFunction` is two words: a `&'static`
-reference to that descriptor and the captured `Array<Naive>`. No
-allocation of its own: a `&'static` is `Copy` and `PartialEq` by address,
-and the captured array already carries the function's identity. Each evaluation of an arrow evaluates its
-frame node afresh in the enclosing scope, so every function value is born
-with its own captured array, a fresh allocation even when empty; two
-evaluations of the same arrow have two, one function cloned shares one.
-So `ptr_eq` compares the captured arrays by pointer, and `Clone` copies the
-pointer and clones the array's reference. What that asks of the generator
-and of `Array::default` is that a non-capturing function still gets a fresh
-empty array at each creation, never a shared empty singleton, or two such
-functions would compare equal. `to_string` answers `() => {}` until a
+**`naive` holds a static function.** Its `InternalFunction` is an `Rc`
+over one object: the generated `fn` pointer, the `length`, and the captured
+`frame: Array<Naive>`. The object's pointer is the function's identity —
+`ptr_eq` compares the `Rc` — so identity depends on nothing the generator
+does: every construction is a new object, and every non-capturing function
+may share one empty frame. The generated function receives `self`, `frame`
+and `args`:
+
+```rust
+type Code<A> = fn(self_: &Function<A>, frame: &Array<A>, args: Array<A>) -> Result<Any<A>, Any<A>>;
+```
+
+`call` reads the frame out of the object and passes it, so `Function<A>`
+exposes no `frame()` — that would be the access to internals this design
+refuses — and passes the function value itself, which is what the body's
+`["self"]` names for recursion
+([callable-function-objects.md](./callable-function-objects.md)). The body
+knows its own arity statically, so `length` is not passed; it lives in the
+object for `IFunction::length`. `to_string` answers `() => {}` until a
 spelling exists — low priority, and honest: the VM knows the value is a
 function and nothing more. `naive` holds no EDAG: it stays the simple VM
 an AOT target wants, and every headache of interpreting or building code
 stays in the compiler.
+
+This is also the shape a NaN-boxing VM needs: an `Any` there is one word,
+so a function value is one pointer to an object holding everything else.
 
 This decides the representation question
 [callable-function-objects.md](./callable-function-objects.md) left open
@@ -120,18 +126,17 @@ self-reference, the generator — is unchanged and builds on this shape.
 - [ ] `IComplex`, `IContainer: IComplex`, `IFunction: IComplex`; `IVm`
       binds `InternalFunction: IFunction<Self>`.
 - [ ] The native-construction capability trait; `naive` implements it and
-      `IFunction`, as a `&'static` code descriptor — the `fn` pointer and
-      the `length`, the source text later — beside the captured array,
-      identity the captured array's; `to_string` answers `() => {}`.
+      `IFunction`, as an `Rc` over the `fn` pointer, the `length` and the
+      captured frame, identity the `Rc`'s; `call` passes `self`, the frame
+      and the arguments; `to_string` answers `() => {}`.
 - [ ] `Function<A>`: `call`, `length`, `to_string`, identity; `name`, the
       header and the `pub` field go; `Debug` prints `to_string`.
 - [ ] `function_any` in the corpus harness and the two test constructions
       go through the capability trait; the corpus's generated functions
       carry its bound.
-- [ ] A test that `call` runs the code with its captured array and the
-      arguments, that two functions made from the same code with their own
-      empty captured arrays are not `===`, and that a function and its
-      clone are.
+- [ ] A test that `call` runs the code with its frame, its arguments and
+      itself, that two functions made from the same code and frame are not
+      `===`, and that a function and its clone are.
 - [ ] `callable-function-objects.md`: reduce its representation section to
       a pointer here; declare the `IVm` break.
 - [ ] `cargo test`, `cargo clippy --all-targets`, `cargo fmt -- --check`;
