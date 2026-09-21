@@ -28,14 +28,60 @@ pub mod sharing;
 #[path = "../fixtures/string.rs"]
 pub mod string;
 
+use core::fmt::{self, Debug, Display, Formatter};
+
 use nanvm_lib::vm::{Any, IVm, JsonError};
+
+/// Why a run produced no JSON: the module threw, or its value has no JSON.
+///
+/// A throw is the language's own failure — `1n / 0n`, a property read on a
+/// nullish base the compiler could not see — and the thrown value is an
+/// ordinary `Any<A>`, reported as the value it is rather than turned into a
+/// panic.
+///
+/// `Debug` and `PartialEq` are written out rather than derived: a derive
+/// would ask them of `A` itself, which no VM promises, where `Any<A>` has
+/// both for every VM.
+pub enum RunError<A: IVm> {
+    Thrown(Any<A>),
+    Json(JsonError),
+}
+
+impl<A: IVm> Display for RunError<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            RunError::Thrown(v) => write!(f, "uncaught {v:?}"),
+            RunError::Json(e) => Display::fmt(e, f),
+        }
+    }
+}
+
+impl<A: IVm> Debug for RunError<A> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            RunError::Thrown(v) => f.debug_tuple("Thrown").field(v).finish(),
+            RunError::Json(e) => f.debug_tuple("Json").field(e).finish(),
+        }
+    }
+}
+
+impl<A: IVm> PartialEq for RunError<A> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (RunError::Thrown(a), RunError::Thrown(b)) => a == b,
+            (RunError::Json(a), RunError::Json(b)) => a == b,
+            _ => false,
+        }
+    }
+}
 
 /// Evaluates a module's `export default` and renders it as JSON.
 ///
 /// `module` is exactly the shape `mvp-roadmap.md`'s Rust code generator
 /// section says generated modules expose: `pub fn module<A: IVm>() ->
-/// Any<A>`, returning the object of all exports. The harness selects its
-/// `default` property for the JSON result.
+/// Result<Any<A>, Any<A>>`, returning the object of all exports, or the
+/// value the module threw. The harness selects the object's `default`
+/// property for the JSON result.
 ///
 /// A real generated module's default export may be a function, which the
 /// harness's job is to run before printing its result
@@ -45,35 +91,58 @@ use nanvm_lib::vm::{Any, IVm, JsonError};
 /// so there is no way to call one here. A function export therefore comes
 /// out of [`Any::to_json`] as [`JsonError::Function`], the same as every
 /// other value this minimal serializer doesn't (yet) handle.
-pub fn run<A: IVm>(module: fn() -> Any<A>) -> Result<std::string::String, JsonError> {
+pub fn run<A: IVm>(
+    module: fn() -> Result<Any<A>, Any<A>>,
+) -> Result<std::string::String, RunError<A>> {
     module()
+        .map_err(RunError::Thrown)?
         .member_access("default".into())
         .expect("a compiled module returns its export object")
         .to_json()
+        .map_err(RunError::Json)
 }
 
 #[cfg(test)]
 mod tests {
-    use nanvm_lib::naive::Naive;
+    use nanvm_lib::{
+        naive::Naive,
+        vm::{Any, IVm},
+    };
 
-    use crate::{array, boolean, escapes, named, number, object, property, run, sharing, string};
+    use crate::{
+        RunError, array, boolean, escapes, named, number, object, property, run, sharing, string,
+    };
 
     #[test]
     fn module_result_contains_exports() {
         assert_eq!(
-            number::module::<Naive>().to_json(),
+            number::module::<Naive>().unwrap().to_json(),
             Ok(r#"{"default":42}"#.into())
         );
         assert_eq!(
-            object::module::<Naive>().to_json(),
+            object::module::<Naive>().unwrap().to_json(),
             Ok(r#"{"default":{"a":1,"b":"two"}}"#.into())
         );
+    }
+
+    /// No committed fixture throws yet — no operator compiles to `.rs` — so
+    /// the throwing module is written by hand, in the shape the generator
+    /// prints.
+    fn throwing<A: IVm>() -> Result<Any<A>, Any<A>> {
+        Err("boom".into())
+    }
+
+    #[test]
+    fn thrown_value_is_reported_not_panicked() {
+        let error = run::<Naive>(throwing).unwrap_err();
+        assert!(matches!(&error, RunError::Thrown(v) if *v == "boom".into()));
+        assert_eq!(error.to_string(), "uncaught \"boom\"");
     }
 
     #[test]
     fn named_exports() {
         assert_eq!(
-            named::module::<Naive>().to_json(),
+            named::module::<Naive>().unwrap().to_json(),
             Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
         );
         assert_eq!(run::<Naive>(named::module), Ok("[5]".into()));
