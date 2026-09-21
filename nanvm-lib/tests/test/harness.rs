@@ -8,16 +8,20 @@
 //! Re-exports at the top are what the generated file's `use super::harness::*;`
 //! pulls in.
 
-pub use nanvm_lib::vm::{Any, Array, IVm, Nullish, Object, ToAny, ToArray, ToObject};
+pub use nanvm_lib::vm::{
+    Any, Array, IStaticFunction, IVm, Nullish, Object, ToAny, ToArray, ToObject,
+};
 
-use nanvm_lib::vm::{Function, IContainer, Unpacked};
+use nanvm_lib::vm::Unpacked;
 
 /// An `Any` holding a function.
 ///
 /// Which function does not matter: every operator covered by the shared data
 /// coerces a function through `ToPrimitive`, which never inspects its body.
-pub fn function_any<A: IVm>() -> Any<A> {
-    Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any()
+/// A function is a VM's own to construct, so the corpus bounds on
+/// `IStaticFunction`, the capability `naive` has.
+pub fn function_any<A: IStaticFunction>() -> Any<A> {
+    A::static_function(|_, _| Ok(Nullish::Undefined.to_any()), 0, [].to_array()).to_any()
 }
 
 /// `Object.is`, the comparison the shared data's expectations are written in:

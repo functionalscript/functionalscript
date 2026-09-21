@@ -17,7 +17,10 @@ use nanvm_lib::{
     common::default::default,
     naive,
     sign::Sign,
-    vm::{Any, Array, BigInt, Function, IContainer, IVm, Nullish, Number, Object, String, ToAny},
+    vm::{
+        Any, Array, BigInt, Function, IFunction, IStaticFunction, IVm, Nullish, Number, Object,
+        String, ToAny, ToArray, unstable::strict_eq,
+    },
 };
 
 /// `try_into` out of `Any`, for each type that supports it.
@@ -141,13 +144,50 @@ fn bigint_display_format<A: IVm>() {
     assert_eq!(negative.to_string(), "-18446744073709551616");
 }
 
-fn format_fn<A: IVm>() {
-    let f = Function::<A>(A::InternalFunction::new_ok(
-        ("myfunc".into(), 2),
-        [0xDE, 0xAD, 0xBE, 0xEF],
-    ));
-    let x = format!("{f:?}");
-    assert_eq!(x, "function myfunc(a0,a1) {DEADBEEF}");
+/// `Debug` prints a fixed marker: a diagnostic, not a program value, so it
+/// carries no text a program could observe.
+fn format_fn<A: IStaticFunction>() {
+    let f: Function<A> = harness::function_any().try_into().unwrap();
+    assert_eq!(format!("{f:?}"), "[Function]");
+}
+
+/// `call` runs the code with `self` and the arguments; the code reads its
+/// frame through `IStaticFunction::frame` and its `length` off `self`.
+fn static_function_call<A: IStaticFunction>() {
+    let frame: Array<A> = [Number::from(10.0).to_any()].to_array();
+    let f = A::static_function(
+        |self_, args| {
+            let captured = A::frame(self_)[0].clone();
+            let length = Number::from(f64::from(self_.length())).to_any();
+            (captured + args[0].clone())? + length
+        },
+        2,
+        frame,
+    );
+    assert_eq!(f.length(), 2);
+    let args: Array<A> = [Number::from(1.0).to_any()].to_array();
+    assert_eq!(f.call(args), Ok(Number::from(13.0).to_any()));
+}
+
+/// A function is compared by identity: every construction is a new object,
+/// even from the same code and frame, and a clone is the same one.
+fn function_identity<A: IStaticFunction>() {
+    fn code<A: IVm>(_: &A::InternalFunction, _: Array<A>) -> Result<Any<A>, Any<A>> {
+        Ok(Nullish::Undefined.to_any())
+    }
+    let frame: Array<A> = [].to_array();
+    let f = A::static_function(code, 0, frame.clone());
+    let g = A::static_function(code, 0, frame);
+    assert_ne!(f, g);
+    assert_eq!(f.clone(), f);
+    assert_eq!(
+        strict_eq::<A>(f.clone().to_any(), g.to_any()),
+        Ok(false.to_any())
+    );
+    assert_eq!(
+        strict_eq::<A>(f.clone().to_any(), f.to_any()),
+        Ok(true.to_any())
+    );
 }
 
 /// The generated `unary_plus` case only asserts *that* `+0n` throws; the
@@ -239,10 +279,10 @@ fn bigint_negative_zero<A: IVm>() {
 /// equal-content one — is what actually proves the selected operand comes
 /// back unchanged rather than reconstructed. A lazy operand is a thunk, so
 /// the one handed in is what the thunk answers.
-fn reference_identity_selection<A: IVm>() {
+fn reference_identity_selection<A: IStaticFunction>() {
     let array: Any<A> = Array::default().to_any();
     let object: Any<A> = Object::default().to_any();
-    let function: Any<A> = Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any();
+    let function: Any<A> = harness::function_any();
 
     // `&&`: a reference-typed value is always truthy, so it can only ever be
     // the discarded left or the selected right — never returned via the
@@ -316,7 +356,7 @@ fn unselected_operand_not_established<A: IVm>() {
     );
 }
 
-fn gen_test<A: IVm>() {
+fn gen_test<A: IStaticFunction>() {
     generated::all::<A>();
     //
     conversions::<A>();
@@ -330,6 +370,8 @@ fn gen_test<A: IVm>() {
     bigint_mul::<A>();
     bigint_negative_zero::<A>();
     format_fn::<A>();
+    static_function_call::<A>();
+    function_identity::<A>();
     reference_identity_selection::<A>();
     unselected_operand_not_established::<A>();
 }

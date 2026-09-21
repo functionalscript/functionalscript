@@ -158,8 +158,8 @@ deferred by choice:**
   `export default (...a) => a[0];`, exported but never called. Refused, and
   deliberately: this is exactly "a function used as a first-class value,"
   which needs a `Function<A>` (bound through `IStaticFunction::static_function`,
-  the binding [function-is-callable-not-a-container](../../../nanvm-lib/todo/function-is-callable-not-a-container.md)
-  designs) to be handed to a generic harness — that binding is explicitly
+  [`internal/istatic_function.rs`](../../../nanvm-lib/src/vm/internal/istatic_function.rs))
+  to be handed to a generic harness — that binding is explicitly
   Stage 2's job, not Stage 1's. So every Stage 1 fixture's `export default`
   must itself be an **already-applied call expression** (or ordinary data —
   today's existing fixtures are unaffected), never a bare function
@@ -215,8 +215,8 @@ This has to come first, as a foundation, not as part of adding calls:
   the callee's body can fail on its own arguments), and generating a fresh
   `.unwrap()` for that would be a straightforward regression, not a
   simplification.
-- **It matches the calling convention `function-is-callable-not-a-container.md`
-  settles** for `StaticCode<A>`/`IFunction::call`:
+- **It matches the calling convention of `StaticCode<A>`/`IFunction::call`**
+  ([`internal/istatic_function.rs`](../../../nanvm-lib/src/vm/internal/istatic_function.rs)):
   `Result<Any<A>, Any<A>>` throughout, `Err` an `Any<A>` (today, the literal
   `"Type Error"` value the existing `TryFrom<Any<A>> for _` conversions in
   `nanvm-lib/src/vm/impls/try_from.rs` already use) — the same, single
@@ -475,8 +475,9 @@ fn f0<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
 ```
 
 **Deliberately one parameter, not the two of `StaticCode<A>`, the one
-signature `function-is-callable-not-a-container.md` settles for a function
-a VM binds.** The arguments are by value, as `StaticCode<A>` takes them,
+signature for a function a VM binds
+([`internal/istatic_function.rs`](../../../nanvm-lib/src/vm/internal/istatic_function.rs)).**
+The arguments are by value, as `StaticCode<A>` takes them,
 but nothing in a Stage 1 function reads a captured value (Task 2
 guarantees `frame` is always the "no captures" marker) or `["self"]` as a
 value, and no `Function<A>` value exists for `self_` to name — Stage 1

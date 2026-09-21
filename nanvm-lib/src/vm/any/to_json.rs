@@ -236,7 +236,7 @@ impl<A: IVm> Any<A> {
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Function, IContainer, IVm, String, ToAny, ToArray, ToObject, ToString},
+        vm::{Function, IStaticFunction, Nullish, String, ToAny, ToArray, ToObject, ToString},
     };
 
     type A = Naive;
@@ -482,8 +482,8 @@ mod tests {
 
     #[test]
     fn function_errors() {
-        let name: String<A> = "f".into();
-        let f: Function<A> = Function(<A as IVm>::InternalFunction::new_ok((name, 0), []));
+        let f: Function<A> =
+            A::static_function(|_, _| Ok(Nullish::Undefined.to_any()), 0, [].to_array());
         assert_eq!(f.to_any::<A>().to_json(), Err(super::JsonError::Function));
     }
 

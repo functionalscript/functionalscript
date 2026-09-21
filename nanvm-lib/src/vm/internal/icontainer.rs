@@ -2,7 +2,10 @@ use core::fmt::Debug;
 
 use crate::{common::sized_index::SizedIndex, vm::IVm};
 
-pub trait IContainer<A: IVm>: Sized + Clone + 'static {
+use super::IComplex;
+
+/// A sequence with a header: a string, a bigint, an array, an object.
+pub trait IContainer<A: IVm>: IComplex<A> {
     // types
     type Header: PartialEq + Clone;
     type Item: Debug + Clone;
@@ -15,7 +18,6 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     ) -> Result<Self, E>;
     fn header(&self) -> &Self::Header;
     fn items(&self) -> &Self::Items;
-    fn ptr_eq(&self, other: &Self) -> bool;
 
     // extensions
 

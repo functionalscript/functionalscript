@@ -5,24 +5,18 @@
 
 ### Problem
 
-`Function<A>` exists today only as a placeholder:
-
-```rust
-pub struct Function<A: IVm>(pub A::InternalFunction);
-```
-
-with `InternalFunction: IContainer<Self, Header = FunctionHeader<Self>, Item = u8>`
-— a name, a declared length, and a bag of bytes nothing ever executes
-([`function/mod.rs`](../src/vm/function/mod.rs),
-[`internal/mod.rs`](../src/vm/internal/mod.rs)). The `Item = u8` bytes are
-unused; the constructions of a `Function` value today are the corpus
-harness's `function_any`, two tests in `tests/test/main.rs`, and one in
-[`any/to_json.rs`](../src/vm/any/to_json.rs) — each building an empty one
-purely to have something a function-shaped `Any` can refuse; the one
-inventory is
-[function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)'s.
-There is no `call`. The Rust code
-generator that `fjs compile <module> <output>.rs` drives
+`Function<A>` is callable — `call`, `length`, identity
+([`function/mod.rs`](../src/vm/function/mod.rs)), over a VM's own value
+bound by `IFunction` ([`internal/ifunction.rs`](../src/vm/internal/ifunction.rs)),
+and a VM that binds Rust static functions constructs one through
+`IStaticFunction::static_function`
+([`internal/istatic_function.rs`](../src/vm/internal/istatic_function.rs)),
+which `naive` implements over an `Rc` holding the `fn` pointer, the
+`length` and the captured frame ([`naive/function.rs`](../src/naive/function.rs)).
+But nothing generates a body for it: the constructions of a `Function`
+value today are the corpus harness's `function_any`, the tests in
+`tests/test/main.rs`, and one in [`any/to_json.rs`](../src/vm/any/to_json.rs).
+The Rust code generator that `fjs compile <module> <output>.rs` drives
 ([mvp-roadmap](./mvp-roadmap.md)) accepts exactly one hard-coded closure
 placeholder (`() => undefined`) and refuses every real one, "since
 `nanvm-lib` has no closures yet."
@@ -206,35 +200,36 @@ length check, only the enclosing scope's *construction* of the frame does.
 
 #### The `Function<A>` value and its code pointer
 
-**Decided elsewhere**: the representation is
-[function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
-— `Function<A>` is callable, not a container, so neither option below is
-the one; both are kept as the record of the question, and neither is
-implemented. A VM that binds static functions implements
-`IStaticFunction` — `static_function(code, length, frame)` and `frame` —
+**Decided, and landed**: `Function<A>` is callable, not a container
+([`internal/ifunction.rs`](../src/vm/internal/ifunction.rs)), so neither
+option below is the one; both are kept as the record of the question, and
+neither is implemented. A VM that binds static functions implements
+`IStaticFunction` — `static_function(code, length, frame)` and `frame`
+([`internal/istatic_function.rs`](../src/vm/internal/istatic_function.rs)) —
 and every static function has the one signature `StaticCode<A>`,
 `fn(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>>`,
 the arguments by value; the body reads its frame through `A::frame(self_)`
 and its length off `self_`. `naive`'s `InternalFunction` is an `Rc` over
-the `fn` pointer, the `length` and the frame. The stages below are written
-against that shape.
+the `fn` pointer, the `length` and the frame
+([`naive/function.rs`](../src/naive/function.rs)). The stages below are
+written against that shape.
 
 The declared arity is the `length` `static_function` is given, and a
 program reads it as `f.length` once callable support lands — Stage 2's,
-and how it reaches the program is decided there
-([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md),
-"Direction, not detail"). Empty and rest-only parameter lists have length
+and how it reaches the program (a `member_access` arm, a property table,
+something else) is decided there, against the code as it is then. Empty
+and rest-only parameter lists have length
 `0`. If the named-parameter proposal is approved, each generated callable
 carries the function node's `parameterCount`, including unused parameters,
 capturing or not; it is never inferred from argument reads or the caller's
 array length. The complete actual argument array still crosses the call
 boundary unchanged.
 
-The piece that turns this from data into something callable: a function
-value needs, alongside its existing name/length header
-([`function/header.rs`](../src/vm/function/header.rs)), a Rust code pointer
-and its captured `Array<A>`. Two ways to fit that onto `Function<A>`'s
-current single-`IContainer`-newtype shape
+Before that landed, `Function<A>` was a newtype over an `IContainer` with
+a name/length header, `(String<A>, u32)`, and a bag of `u8` items nothing
+executed. The piece that turns such data into something callable is a Rust
+code pointer and its captured `Array<A>`, and two ways were sketched to fit
+that onto the single-`IContainer`-newtype shape
 (`pub struct Function<A: IVm>(pub A::InternalFunction)`), from safer to more
 uniform with the rest of the crate — both illustrative sketches, neither
 compiled as part of writing this document:
@@ -341,8 +336,8 @@ precisely.
 
    Every static function receives `self_`, whether or not its body reads
    `["self"]`: one signature for all, an unused parameter costing nothing,
-   as [function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
-   settles it. A body that reads `["self"]` reads that parameter; one that
+   as `StaticCode<A>` ([`internal/istatic_function.rs`](../src/vm/internal/istatic_function.rs))
+   has it. A body that reads `["self"]` reads that parameter; one that
    only ever calls itself (case 1) may still recurse at the Rust level.
 
 Mutual recursion between two independently-hashed functions (`a` calls `b`
@@ -381,7 +376,7 @@ scope-unaware node-sharing hazard need fixing — in
 
 **Stage 2 — `Function<A>` as a real, callable first-class value.**
 With `IFunction` landed
-([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)),
+([`internal/ifunction.rs`](../src/vm/internal/ifunction.rs)),
 the generator emits each function's body as a static function of the one
 signature, `StaticCode<A>`, and constructs the value through
 `A::static_function` with an empty frame — so a module holding a function
@@ -478,7 +473,7 @@ generated-Rust test from one source of cases.
 
 1. ~~Does option 2 of the code-pointer sketch type-check?~~ Moot: neither
    container option is the representation
-   ([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)).
+   ([`internal/ifunction.rs`](../src/vm/internal/ifunction.rs)).
 2. **Allocation cost of an empty captured `Array<A>`.** Every function
    value carries a frame, even a non-capturing one, where it is empty;
    since identity is the object's and not the frame's, every non-capturing
