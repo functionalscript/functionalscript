@@ -1,9 +1,7 @@
 ## The lazy operators have no lazy `.rs` spelling
 
 **Priority:** P2
-**Status:** blocked
-**Blocked by:** [Stage B](../../todo/stage-b-operators.md) making these
-nodes reachable from source
+**Status:** open
 
 ### Problem
 
@@ -30,6 +28,13 @@ and `op3Id` name the vocabularies — so a module holding one is refused
 rather than miscompiled. Their entries sit in the same `op2Rust`/`op3Rust`
 tables the eager ones do, and spelling them there as they are would be
 exactly the eager miscompile above.
+
+That refusal is the generator policing itself for a mistake the Rust
+compiler should catch, and it exists only because the operations' types
+let the eager spelling through. The guard belongs in the signature: once
+a lazy operand is a thunk, the eager spelling does not compile, and a
+generator that prints it is simply wrong — so the refusal goes with the
+signatures, not with Stage B.
 
 The chains are the other conditional forms: a `?.` region establishes the
 rest of the chain only when its base is not nullish, and the optional-call
@@ -69,19 +74,26 @@ throw. Three things follow, and nothing else changes:
   `|| Err(…)` proves the operand was not established, with no `throw` node
   needed for that half
   ([`corpus-as-conformance-vectors.md`](../../../nanvm/todo/corpus-as-conformance-vectors.md)).
-- **Sharing is computed over eager reaches only.** The compiler hoists a
-  shared node into a `let` binding, which establishes it eagerly; a node
-  reached only from lazy positions must not be hoisted, or the module would
-  establish what the program does not. Laziness is positional in the EDAG,
-  so a node is shared, and hoisted, only by its eager reaches; one reached
-  only lazily prints inside the closure that reaches it, and two closures
-  reaching it each establish it, as JavaScript does. That is the
-  eager-restricted `refsOf` [Stage B](../../todo/stage-b-operators.md)
-  lists.
+- **Sharing stays as it is.** The compiler hoists a shared node into a
+  `let` binding before the root, which establishes it eagerly — and that
+  is right, thunks or not: an implicitly shared node is a `const`
+  referenced twice, and JavaScript establishes a `const` at its
+  declaration whatever the operators around its uses do. A `const` reached
+  only through lazy operands is the lowering's business, not this
+  printer's: [Stage B](../../todo/stage-b-operators.md)'s eager-restricted
+  `refsOf` anchors it through the comma root so it is established as the
+  source establishes it, and keeps `sharing` counting every reach.
 
-The `nanvm-lib` and printer halves need no parser: they are proven through
-the corpus and through `toRust` directly, the way the refusal is today.
-The compiler lifts the refusal when Stage B makes the nodes reachable.
+The two halves need no parser: they are proven through the corpus and
+through `toRust` directly. Non-establishment has two proofs. A thunk
+written `|| Err(…)` proves it through the value, in the generic corpus as
+it is. A thunk that panics proves it harder, as a set of tests that must
+fail. The thunk calls a `vm::unstable` helper that panics — say
+`|| not_established()` — since generated code spells no macro, `panic!`
+included. The corpus cannot generate such a set today: a `#[should_panic]`
+test is a concrete `#[test]`, and the corpus is generic over `IVm`, called
+once per VM; that takes a redesign, one generated set per VM, and it has
+no todo yet.
 
 ### Tasks
 
@@ -89,12 +101,16 @@ The compiler lifts the refusal when Stage B makes the nodes reachable.
       `impl FnOnce() -> Result<Any<A>, Any<A>>`; a breaking change,
       declared.
 - [ ] `fjs/edag/rust`: `op2Rust`/`op3Rust` print a lazy operand as
-      `|| Ok(…)`; the corpus regenerates, and gains non-establishment cases
-      with a throwing thunk.
-- [ ] `fjs/fsc/rust`: sharing over eager reaches only, with the proof of a
-      node reached only lazily; then lift `lazyOperator`'s refusal, and
-      prove `false && (1n / 0n)` and a `?:` with a throwing unselected arm
-      through `nanvm-harness` once the grammar produces them.
+      `|| Ok(…)`, in both printers; the corpus regenerates, and gains
+      non-establishment cases with a `|| Err(…)` thunk.
+- [ ] `fjs/fsc/rust`: delete `lazyOperator`, `lazyOp2` and `lazyOp3` —
+      nothing is left to refuse — and prove `false && (1n / 0n)` and a
+      `?:` with a throwing unselected arm through `toRust`, and through
+      `nanvm-harness` once the grammar produces them.
+- [ ] File the todo for the should-fail set: the corpus generated once per
+      VM instead of once over `IVm`, so a thunk calling a panicking
+      `vm::unstable` helper can be a `#[should_panic]` test of its own —
+      generated code spells no macro.
 - [ ] `cargo test`, `cargo clippy --all-targets`, `cargo fmt -- --check`;
       `tsc`, `fjs test`, `npm run cov` at 100%; `npm run gen` with no
       drift.
@@ -102,10 +118,11 @@ The compiler lifts the refusal when Stage B makes the nodes reachable.
 ### Related
 
 - [`../module.f.mjs`](../module.f.mjs) — `lazyOperator`, the refusal this
-  issue lifts; every eager operator already prints there as `(…)?`, through
+  issue deletes; every eager operator already prints there as `(…)?`, through
   `fjs/edag/rust`'s `valueExpr`, against the failure contract `pub fn
   module<A: IVm>() -> Result<Any<A>, Any<A>>`.
 - [Stage B operators](../../todo/stage-b-operators.md) — the front end that
-  makes these nodes reachable.
+  makes these nodes reachable from source, and the anchoring of a `const`
+  reached only lazily.
 - [`fjs/edag/rust/module.f.mjs`](../../../edag/rust/module.f.mjs) — the
   by-value spellings the corpus keeps.

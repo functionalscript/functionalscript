@@ -131,11 +131,15 @@ const lazyOp3 = ['?:']
  * `nanvm-lib` spelling, but a by-value one — `Any::logical_and(a, b)` takes
  * both operands already established — so printing it into a module would
  * establish an operand the program does not, and throw where the program
- * does not ([`./todo/lazy-operators.md`](./todo/lazy-operators.md)). No
- * syntax this compiler's parser admits produces any of the four yet, but
- * `toRust` takes any EDAG, so the check is here and proven directly —
- * without it, a `?:` handed in would print as a call establishing both
- * arms, a wrong value in silence.
+ * does not. No syntax this compiler's parser admits produces any of the
+ * four yet, but `toRust` takes any EDAG, so the check is here and proven
+ * directly — without it, a `?:` handed in would print as a call
+ * establishing both arms, a wrong value in silence.
+ *
+ * An interim, and not a design: the guard belongs in the operations'
+ * signatures. Once a lazy operand is a thunk the eager spelling does not
+ * compile, the printer prints `|| Ok(…)`, and this check is deleted with
+ * nothing left to refuse — [`./todo/lazy-operators.md`](./todo/lazy-operators.md).
  *
  * The chains are the other conditional forms — a `?.` region establishes
  * the rest of the chain only when its base is not nullish, and the
