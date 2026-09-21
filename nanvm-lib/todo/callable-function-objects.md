@@ -115,7 +115,7 @@ function-object boundary** — the arguments a call is invoked with, and the
 values a closure captured before the call — and nothing else.
 
 A second constraint runs through every sketch below: `IContainer::Items`
-(`InternalArray`'s and `InternalFunction`'s alike) is deliberately opaque —
+(`InternalArray`'s; a function is no container) is deliberately opaque —
 it promises only `SizedIndex`, not a contiguous Rust `[T]` — so that a future
 backend (e.g. [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxed layout) is free
 to store it differently. Today's only implementation, `naive::Container`,
@@ -137,7 +137,7 @@ today). That is the existing, single realization of A3 (throws are
 preserved — edag-stage1-discussion), and a generated function body must join
 it from its very first stage, not add it later: even a non-recursive,
 non-capturing Stage 1 function can contain a `"."` property access or an
-arithmetic operator that fails. So `Code<A>` returns
+arithmetic operator that fails. So `StaticCode<A>` returns
 `Result<Any<A>, Any<A>>` throughout every sketch below, and a generated body
 threads `?` through each sub-operation exactly as hand-written Rust using
 these same operators already would.
@@ -492,9 +492,9 @@ generated-Rust test from one source of cases.
    (`use` paths, file/directory layout) and is not reopened here — Stage 1
    should reuse whatever that task decides rather than picking its own
    convention.
-4. **Does `Code<A>` need `unsafe`/`extern "C"` anywhere?** No — this plan
-   never crosses an FFI boundary; `Code<A>` is an ordinary safe Rust `fn`
-   pointer generic over `A: IVm`, monomorphized like everything else in
+4. **Does `StaticCode<A>` need `unsafe`/`extern "C"` anywhere?** No — this plan
+   never crosses an FFI boundary; `StaticCode<A>` is an ordinary safe Rust `fn`
+   pointer generic over `A: IStaticFunction`, monomorphized like everything else in
    `nanvm-lib`. Called out only because the NaN-boxing discussion in
    [optimal-nanvm](./optimal-nanvm.md) is adjacent enough to invite the
    question.
