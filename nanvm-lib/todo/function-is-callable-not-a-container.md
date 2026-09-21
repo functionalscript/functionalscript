@@ -96,22 +96,24 @@ over one object: the static `fn` pointer, the `length`, and the captured
 `frame: Array<Naive>`. The object's pointer is the function's identity —
 `ptr_eq` compares the `Rc` — so identity depends on nothing the generator
 does: every construction is a new object, and every non-capturing function
-may share one empty frame. The static function receives the frame, the
-length, the function value itself and the arguments, the arguments by
-value, as every operator on `Any` takes its operands:
+may share one empty frame. The static function receives that object and
+the arguments, the arguments by value, as every operator on `Any` takes
+its operands:
 
 ```rust
-type Code = fn(frame: &Array<Naive>, length: u32, self_: &Function<Naive>, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>;
+type Code = fn(self_: &naive::Function, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>;
 ```
 
-One signature for every function, whether or not its body uses each
-parameter: an unused `self_` costs nothing, and one convention is simpler
-than a family. `call` reads the frame and the length out of the object and
-passes them, so `Function<A>` exposes no `frame()` — that would be the
-access to internals this design refuses — and passes the function value
-itself, which is what the body's `["self"]` names for recursion
-([callable-function-objects.md](./callable-function-objects.md)). All of
-this is `naive`'s own; nothing of it reaches `IFunction`.
+`naive::Function` is the object behind the `Rc`, and it is where the body
+finds everything else: its frame and its length are the object's fields,
+read through `self_`, and a clone of `self_` into an `Any` is what the
+body's `["self"]` names for recursion
+([callable-function-objects.md](./callable-function-objects.md)). One
+signature for every function, whether or not its body reads `self_`: an
+unused parameter costs nothing, and one convention is simpler than a
+family. The generic `Function<A>` exposes no `frame()` — that would be the
+access to internals this design refuses; the field is `naive`'s own, read
+by code `naive` links, and nothing of it reaches `IFunction`.
 
 `to_string` is owed before the MVP: `String(f)` is source reconstructed
 from the function's EDAG ([spec](../../spec/README.md)), serializable data
@@ -136,8 +138,8 @@ self-reference, the generator — is unchanged and builds on this shape.
       binds `InternalFunction: IFunction<Self>`.
 - [ ] `naive` implements `IFunction` as an `Rc` over the `fn` pointer, the
       `length` and the captured frame, identity the `Rc`'s, with a
-      constructor of its own; `call` passes the frame, the length, `self`
-      and the arguments; `to_string` panics as unimplemented.
+      constructor of its own; `call` passes the object and the arguments;
+      `to_string` panics as unimplemented.
 - [ ] `Function<A>`: `call`, `length`, `to_string`, identity; `name`, the
       header and the `pub` field go; `Debug` prints `to_string`.
 - [ ] `function_any` in the corpus harness and the three test
@@ -147,8 +149,9 @@ self-reference, the generator — is unchanged and builds on this shape.
       binds to `naive` — it runs on `naive` alone today — or the binding
       trait comes with this change. Decided at implementation, the smaller
       change preferred.
-- [ ] A test that `call` runs the code with its frame, its arguments and
-      itself, that two functions made from the same code and frame are not
+- [ ] A test that `call` runs the code with its object and its arguments,
+      and the code reads its frame and length off the object; that two
+      functions made from the same code and frame are not
       `===`, and that a function and its clone are.
 - [ ] `to_string` carries the text the generator prints from the EDAG,
       before the MVP.

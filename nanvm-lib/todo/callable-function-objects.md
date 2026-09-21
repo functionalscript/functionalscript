@@ -207,8 +207,9 @@ length check, only the enclosing scope's *construction* of the frame does.
 the one; both are kept as the record of the question. `naive`'s object
 holds the static `fn` pointer, the `length` and the captured frame behind
 an `Rc`, and every static function has the one signature
-`fn(frame: &Array<Naive>, length: u32, self_: &Function<Naive>, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
-the arguments by value. The stages below are written against that shape.
+`fn(self_: &naive::Function, args: Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
+the arguments by value; the body reads its frame and its length off
+`self_`. The stages below are written against that shape.
 
 Use the existing header's length for declared arity and expose it as
 `f.length` when callable support lands. Today's
@@ -326,10 +327,10 @@ precisely.
    The fix is to never reconstruct it: build `f`'s canonical `Function<A>`
    **once** — at the point its enclosing scope already builds one for any
    other reason (closure creation, `export default`, being stored in a
-   value) — and thread a *handle* to that one value, `self: &Function<A>`,
-   into every activation that reads `["self"]` in value position, alongside
-   `captured` and `args`. Reading `["self"]` is then `self.clone()`: an
-   `Rc`-cheap clone of the *same* underlying container, so identity is
+   value) — and thread a *handle* to that one object, `self_:
+   &naive::Function`, into every activation, beside `args`. Reading
+   `["self"]` is then a clone of `self_` into an `Any`: an
+   `Rc`-cheap clone of the *same* underlying object, so identity is
    trivially preserved with no dependence on how `Function<A>`'s equality
    happens to be implemented. This needs no cyclic or lazy construction
    either, for the same reason as before: by the time any activation of `f`
@@ -397,8 +398,8 @@ or Stage 7's EDAG embedding.
 Extend the generator to lower the approved function-node shape for a body
 that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
-`Function<A>` value with that as its frame. The nested body reads
-`frame[i]` exactly as it reads `args[i]`. Proof surface: a two-level
+`Function<A>` value with that as its frame. The nested body reads the
+frame off `self_`, slot `i` exactly as it reads `args[i]`. Proof surface: a two-level
 closure fixture over an ordinary (non-`self`) captured value — e.g.
 `a => b => a + b`, the outer parameter captured into the inner function's
 frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
