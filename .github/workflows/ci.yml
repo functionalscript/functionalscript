@@ -393,7 +393,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/node24/run node --version)\" = \"v24.19.0\""
+          "run": "test \"$(./nix/node24/run node --version)\" = \"v24.21.0\""
         },
         {
           "run": "./nix/node24/run npm ci"
