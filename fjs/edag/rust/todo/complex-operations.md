@@ -1,6 +1,6 @@
 ## A complex node has no mapping to a `nanvm-lib` operation
 
-**Priority:** P2
+**Priority:** P1
 **Status:** open
 
 ### Problem
