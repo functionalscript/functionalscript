@@ -307,7 +307,7 @@ export const proof = {
     },
     throw: {
         /** An operation the printer has no `nanvm-lib` spelling for. */
-        unknownOperation: () => printed(['!==', 1, 2]),
+        unknownOperation: () => printed(['is', 1, 2]),
         /** A string no Rust literal can hold, and a bigint no `i64` can. */
         loneSurrogate: () => printed('\ud800'),
         bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),

@@ -87,10 +87,11 @@ export const op2Rust = {
     '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
     own: (a, b) => `Any::own_property(${a}, ${b})`,
     // `==` on `Any` *is* JavaScript's `===`, but it yields a `bool` and so
-    // pins neither operand's `A`, and callers that need the `Result` every
-    // other operator returns settle it themselves (`strict_eq` in the
-    // operator-test harness).
+    // pins neither operand's `A`; `nanvm_lib::vm::unstable`'s `strict_eq`
+    // and `strict_ne` lift the answer into the `Result` every other
+    // operator returns.
     '===': (a, b) => `strict_eq(${a}, ${b})`,
+    '!==': (a, b) => `strict_ne(${a}, ${b})`,
 }
 
 /**

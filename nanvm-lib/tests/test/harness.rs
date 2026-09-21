@@ -1,11 +1,12 @@
 //! Hand-written support for the generated operator tests.
 //!
 //! `generated.rs` contains one statement per case and nothing else. The
-//! functions a literal becomes are `nanvm_lib::vm::unstable`'s, the same ones a
-//! compiled module calls; every assertion, and the one value constructor no
-//! literal spells, lives here, so the printer in `fjs/nanvm/rust/module.f.mjs`
-//! only has to name them. Re-exports at the top are what the generated file's
-//! `use super::harness::*;` pulls in.
+//! functions a literal becomes, and `===`/`!==` as operator results, are
+//! `nanvm_lib::vm::unstable`'s, the same ones a compiled module calls; every
+//! assertion, and the one value constructor no literal spells, lives here, so
+//! the printer in `fjs/nanvm/rust/module.f.mjs` only has to name them.
+//! Re-exports at the top are what the generated file's `use super::harness::*;`
+//! pulls in.
 
 pub use nanvm_lib::vm::{Any, Array, IVm, Nullish, Object, ToAny, ToArray, ToObject};
 
@@ -17,16 +18,6 @@ use nanvm_lib::vm::{Function, IContainer, Unpacked};
 /// coerces a function through `ToPrimitive`, which never inspects its body.
 pub fn function_any<A: IVm>() -> Any<A> {
     Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any()
-}
-
-/// Strict equality (`===`) as an operator result.
-///
-/// `==` on `Any` is exactly JavaScript's `===`, but it yields a `bool` and so
-/// pins neither operand's `A`; this gives both the same one and lifts the
-/// answer into the `Result` every other operator returns, so the generated
-/// statement for a `===` case is an ordinary `check`.
-pub fn strict_eq<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
-    Ok((a == b).to_any())
 }
 
 /// `Object.is`, the comparison the shared data's expectations are written in:

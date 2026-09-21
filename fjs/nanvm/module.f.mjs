@@ -1352,52 +1352,66 @@ const sharedValues = {
     object: { '0': '0' },
 }
 
+/**
+ * Strict equality's cases, the ones whose operands reach {@link Data.shared}:
+ * `===` asserts each as written and `!==` asserts each negated, so the two
+ * operators are proven against one table and cannot drift apart.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const strictEqualityCases = [
+    { name: 'nullByNull', args: [null, null], expected: true },
+    { name: 'undefinedByUndefined', args: [undefined, undefined], expected: true },
+    { name: 'nullByUndefined', args: [null, undefined], expected: false },
+    { name: 'trueByTrue', args: [true, true], expected: true },
+    { name: 'falseByFalse', args: [false, false], expected: true },
+    { name: 'trueByFalse', args: [true, false], expected: false },
+    { name: 'falseByUndefined', args: [false, undefined], expected: false },
+    { name: 'falseByNull', args: [false, null], expected: false },
+    { name: 'numberBySameNumber', args: [2.3, 2.3], expected: true },
+    { name: 'numberByOtherNumber', args: [2.3, -5.4], expected: false },
+    { name: 'nanByNan', args: [NaN, NaN], expected: false },
+    { name: 'zeroByNegativeZero', args: [0, -0], expected: true },
+    { name: 'infinityByInfinity', args: [Infinity, Infinity], expected: true },
+    {
+        name: 'negativeInfinityByNegativeInfinity',
+        args: [-Infinity, -Infinity],
+        expected: true,
+    },
+    { name: 'infinityByNegativeInfinity', args: [Infinity, -Infinity], expected: false },
+    { name: 'undefinedByNan', args: [undefined, NaN], expected: false },
+    { name: 'undefinedByZero', args: [undefined, 0], expected: false },
+    { name: 'stringBySameString', args: ['hello', 'hello'], expected: true },
+    { name: 'stringByOtherString', args: ['hello', 'world'], expected: false },
+    { name: 'zeroByStringZero', args: [0, '0'], expected: false },
+    { name: 'bigintBySameBigint', args: [12n, 12n], expected: true },
+    { name: 'bigintByNegatedBigint', args: [12n, -12n], expected: false },
+    { name: 'bigintByOtherBigint', args: [12n, 13n], expected: false },
+    { name: 'twelveByStringTwelve', args: [12n, '12'], expected: false },
+    { name: 'arrayByItself', args: [ref('emptyArray'), ref('emptyArray')], expected: true },
+    { name: 'arrayByEqualArray', args: [[], []], expected: false },
+    { name: 'stringArrayByItself', args: [ref('stringArray'), ref('stringArray')], expected: true },
+    { name: 'objectByItself', args: [ref('object'), ref('object')], expected: true },
+    { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
+]
+
 /** @type {Data} */
 export const data = {
     shared: sharedValues,
     groups: [
         {
-            // Strict equality, the one group whose operands reach
+            // Strict equality, the two groups whose operands reach
             // {@link Data.shared}. `commutative` checks each case both ways
             // round, which is what the Rust harness's `check_eq` used to do
             // inside one assertion.
             op: '===',
             commutative: true,
-            cases: [
-                { name: 'nullByNull', args: [null, null], expected: true },
-                { name: 'undefinedByUndefined', args: [undefined, undefined], expected: true },
-                { name: 'nullByUndefined', args: [null, undefined], expected: false },
-                { name: 'trueByTrue', args: [true, true], expected: true },
-                { name: 'falseByFalse', args: [false, false], expected: true },
-                { name: 'trueByFalse', args: [true, false], expected: false },
-                { name: 'falseByUndefined', args: [false, undefined], expected: false },
-                { name: 'falseByNull', args: [false, null], expected: false },
-                { name: 'numberBySameNumber', args: [2.3, 2.3], expected: true },
-                { name: 'numberByOtherNumber', args: [2.3, -5.4], expected: false },
-                { name: 'nanByNan', args: [NaN, NaN], expected: false },
-                { name: 'zeroByNegativeZero', args: [0, -0], expected: true },
-                { name: 'infinityByInfinity', args: [Infinity, Infinity], expected: true },
-                {
-                    name: 'negativeInfinityByNegativeInfinity',
-                    args: [-Infinity, -Infinity],
-                    expected: true,
-                },
-                { name: 'infinityByNegativeInfinity', args: [Infinity, -Infinity], expected: false },
-                { name: 'undefinedByNan', args: [undefined, NaN], expected: false },
-                { name: 'undefinedByZero', args: [undefined, 0], expected: false },
-                { name: 'stringBySameString', args: ['hello', 'hello'], expected: true },
-                { name: 'stringByOtherString', args: ['hello', 'world'], expected: false },
-                { name: 'zeroByStringZero', args: [0, '0'], expected: false },
-                { name: 'bigintBySameBigint', args: [12n, 12n], expected: true },
-                { name: 'bigintByNegatedBigint', args: [12n, -12n], expected: false },
-                { name: 'bigintByOtherBigint', args: [12n, 13n], expected: false },
-                { name: 'twelveByStringTwelve', args: [12n, '12'], expected: false },
-                { name: 'arrayByItself', args: [ref('emptyArray'), ref('emptyArray')], expected: true },
-                { name: 'arrayByEqualArray', args: [[], []], expected: false },
-                { name: 'stringArrayByItself', args: [ref('stringArray'), ref('stringArray')], expected: true },
-                { name: 'objectByItself', args: [ref('object'), ref('object')], expected: true },
-                { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
-            ],
+            cases: strictEqualityCases,
+        },
+        {
+            op: '!==',
+            commutative: true,
+            cases: strictEqualityCases.map(c => ({ ...c, expected: !c.expected })),
         },
         {
             // JS unary plus, not the `Number` cast: the two differ on a
