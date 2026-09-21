@@ -15,9 +15,13 @@ with `InternalFunction: IContainer<Self, Header = FunctionHeader<Self>, Item = u
 — a name, a declared length, and a bag of bytes nothing ever executes
 ([`function/mod.rs`](../src/vm/function/mod.rs),
 [`internal/mod.rs`](../src/vm/internal/mod.rs)). The `Item = u8` bytes are
-unused; the only producer of a `Function` value today is
-[`any/to_json.rs`](../src/vm/any/to_json.rs), which builds an empty one purely
-so `to_json` has something to refuse. There is no `call`. The Rust code
+unused; the constructions of a `Function` value today are the corpus
+harness's `function_any`, two tests in `tests/test/main.rs`, and one in
+[`any/to_json.rs`](../src/vm/any/to_json.rs) — each building an empty one
+purely to have something a function-shaped `Any` can refuse; the one
+inventory is
+[function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)'s.
+There is no `call`. The Rust code
 generator that `fjs compile <module> <output>.rs` drives
 ([mvp-roadmap](./mvp-roadmap.md)) accepts exactly one hard-coded closure
 placeholder (`() => undefined`) and refuses every real one, "since
@@ -57,7 +61,7 @@ variables that the generated code and `nanvm-lib` agree on.
   forms. This document's representation is written for `["args"]` (an
   array), which named parameters still read positionally. The pending
   parameter-count proposal also changes the function EDAG and requires AOT
-  lowering to preserve the count in the callable header; parser work being
+  lowering to preserve the count in the function value; parser work being
   separate does not put that runtime obligation out of scope.
 
 #### Grounding: what is already decided
@@ -111,7 +115,7 @@ function-object boundary** — the arguments a call is invoked with, and the
 values a closure captured before the call — and nothing else.
 
 A second constraint runs through every sketch below: `IContainer::Items`
-(`InternalArray`'s and `InternalFunction`'s alike) is deliberately opaque —
+(`InternalArray`'s; a function is no container) is deliberately opaque —
 it promises only `SizedIndex`, not a contiguous Rust `[T]` — so that a future
 backend (e.g. [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxed layout) is free
 to store it differently. Today's only implementation, `naive::Container`,
@@ -133,16 +137,17 @@ today). That is the existing, single realization of A3 (throws are
 preserved — edag-stage1-discussion), and a generated function body must join
 it from its very first stage, not add it later: even a non-recursive,
 non-capturing Stage 1 function can contain a `"."` property access or an
-arithmetic operator that fails. So `Code<A>` returns
+arithmetic operator that fails. So `StaticCode<A>` returns
 `Result<Any<A>, Any<A>>` throughout every sketch below, and a generated body
 threads `?` through each sub-operation exactly as hand-written Rust using
 these same operators already would.
 
 #### Arguments — `["args"]`
 
-Represented as `&Array<A>` at the call boundary — the same wrapper every
-array-valued `Any<A>` already uses
-([`vm/array/mod.rs`](../src/vm/array/mod.rs)). A generated function reads a
+Represented as `Array<A>`, passed by value at the call boundary — the
+same wrapper every array-valued `Any<A>` already uses
+([`vm/array/mod.rs`](../src/vm/array/mod.rs)), built for the call and
+owned by nothing else. A generated function reads a
 declared position through `Any::member_access`
 ([`vm/member_access.rs`](../src/vm/member_access.rs),
 [`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — the same
@@ -158,7 +163,7 @@ check internally and answers `None` (which `Any::member_access` turns into
 bounds check to write:
 
 ```rust
-fn f<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
+fn f<A: IStaticFunction>(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Any::member_access(args.clone().to_any(), Number::from(0.0).to_any())?;
     let b = Any::member_access(args.clone().to_any(), Number::from(1.0).to_any())?;
     Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
@@ -201,16 +206,29 @@ length check, only the enclosing scope's *construction* of the frame does.
 
 #### The `Function<A>` value and its code pointer
 
-Use the existing header's length for declared arity and expose it as
-`f.length` when callable support lands. Today's
-[`Any::member_access`](../src/vm/any/member_access.rs) returns `undefined`
-for functions, so storing the count alone does not meet this requirement.
-Empty and rest-only parameter lists have length `0`. If the named-parameter
-proposal is approved, each generated callable must carry the function node's
-`parameterCount` in that header, including unused parameters and capturing
-or non-capturing functions. Do not infer it from argument reads or the
-caller's array length. The complete actual argument array still crosses the
-call boundary unchanged.
+**Decided elsewhere**: the representation is
+[function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
+— `Function<A>` is callable, not a container, so neither option below is
+the one; both are kept as the record of the question, and neither is
+implemented. A VM that binds static functions implements
+`IStaticFunction` — `static_function(code, length, frame)` and `frame` —
+and every static function has the one signature `StaticCode<A>`,
+`fn(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>>`,
+the arguments by value; the body reads its frame through `A::frame(self_)`
+and its length off `self_`. `naive`'s `InternalFunction` is an `Rc` over
+the `fn` pointer, the `length` and the frame. The stages below are written
+against that shape.
+
+The declared arity is the `length` `static_function` is given, and a
+program reads it as `f.length` once callable support lands — Stage 2's,
+and how it reaches the program is decided there
+([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md),
+"Direction, not detail"). Empty and rest-only parameter lists have length
+`0`. If the named-parameter proposal is approved, each generated callable
+carries the function node's `parameterCount`, including unused parameters,
+capturing or not; it is never inferred from argument reads or the caller's
+array length. The complete actual argument array still crosses the call
+boundary unchanged.
 
 The piece that turns this from data into something callable: a function
 value needs, alongside its existing name/length header
@@ -263,33 +281,16 @@ compiled as part of writing this document:
    `Self::Assoc` projections allow a good deal of this, but this document
    does not assert it compiles.
 
-Option 1 is the one to implement first: it is the one guaranteed to compile
-with today's trait definitions, and nothing about `Function::call`'s
-signature depends on the choice — switching to option 2 later, if it works
-out, is an internal representation change behind `call`, not something a
-caller observes.
-
 `toString`/hashing implications of a natively compiled function are a
 pre-existing, separately tracked question
 ([object-identity](../../spec/todo/object-identity.md), Stage 7 below).
-Equality is not separately tracked, and option 1 changes it in a way worth
-being explicit about: `PartialEq for Function<A>` today delegates entirely
-to `IContainer::ptr_eq`, which is an **items**-allocation check
-(`naive::Container::ptr_eq` compares `Rc::ptr_eq(&self.items, &other.items)`
-alongside header equality). Under option 1, `items` is always empty and
-carries no real state — the captured array moved into the header — so two
-`Function<A>` values are equal only if they additionally happen to share the
-same (vestigial, always-empty) items allocation, which two independently
-constructed values have no reason to. Two closures built from unrelated
-creation events *should* compare unequal (JS gives two closures from two
+Equality is settled with the representation: `PartialEq for Function<A>`
+is identity, `ptr_eq` on `naive`'s `Rc`, so two closures built from
+unrelated creation events compare unequal — JS gives two closures from two
 calls to the same closure-returning function distinct identity even with
-identical code and content — matching `Array<A>`'s own identity-based
-`PartialEq`, `vm/array/partial_eq.rs`), so that default is correct for
-ordinary closures (Stage 3). It is wrong for exactly one case: **the same
-function's own `self`**, which must compare equal to itself across every
-place it is read — see [Self-reference](#self-reference), which resolves
-this by never reconstructing `self` in the first place, sidestepping the
-`items`-allocation question entirely rather than depending on it.
+identical code and content, matching `Array<A>`'s own identity-based
+`PartialEq` (`vm/array/partial_eq.rs`) — and a function and its clone
+compare equal, since a clone shares the object.
 
 #### Self-reference
 
@@ -328,23 +329,21 @@ precisely.
    The fix is to never reconstruct it: build `f`'s canonical `Function<A>`
    **once** — at the point its enclosing scope already builds one for any
    other reason (closure creation, `export default`, being stored in a
-   value) — and thread a *handle* to that one value, `self: &Function<A>`,
-   into every activation that reads `["self"]` in value position, alongside
-   `captured` and `args`. Reading `["self"]` is then `self.clone()`: an
-   `Rc`-cheap clone of the *same* underlying container, so identity is
+   value) — and thread a *handle* to that one value, `self_:
+   &A::InternalFunction`, into every activation, beside `args`. Reading
+   `["self"]` is then `Function::new(self_.clone())`: an
+   `Rc`-cheap clone of the *same* underlying object, so identity is
    trivially preserved with no dependence on how `Function<A>`'s equality
    happens to be implemented. This needs no cyclic or lazy construction
    either, for the same reason as before: by the time any activation of `f`
    runs, `f`'s own canonical value already exists to be passed in — nothing
    about it depends on that activation's own result.
 
-   Only functions whose body actually reads `["self"]` in value position
-   need this extra parameter — one that only ever calls itself (case 1)
-   does not, so `Code<A>` is not one universal signature but a family
-   (matching how [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
-   already gives variadic and non-variadic functions different calling
-   conventions); working that out to a concrete type-level shape is
-   Stage 5's task, not settled here.
+   Every static function receives `self_`, whether or not its body reads
+   `["self"]`: one signature for all, an unused parameter costing nothing,
+   as [function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
+   settles it. A body that reads `["self"]` reads that parameter; one that
+   only ever calls itself (case 1) may still recurse at the Rust level.
 
 Mutual recursion between two independently-hashed functions (`a` calls `b`
 calls `a`) stays out of scope, exactly as the language spec currently scopes
@@ -381,13 +380,17 @@ scope-unaware node-sharing hazard need fixing — in
 [compile-noncapturing-functions-to-rust](../../fjs/fsc/todo/compile-noncapturing-functions-to-rust.md).
 
 **Stage 2 — `Function<A>` as a real, callable first-class value.**
-Add the header code pointer (and, under option 1 above, the captured
-`Array<A>` field) plus `Function::call`. A non-capturing function used as a
-value (assigned, stored in an array or object property, or returned) now
-gets a real `Function<A>` with an empty captured array, callable
-generically — this is what lets `export default` be evaluated uniformly by
-the harness whether or not it happens to be a function, closing the gap the
-harness currently special-cases.
+With `IFunction` landed
+([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)),
+the generator emits each function's body as a static function of the one
+signature, `StaticCode<A>`, and constructs the value through
+`A::static_function` with an empty frame — so a module holding a function
+bounds on `IStaticFunction` where it bounds on `IVm` today. A
+non-capturing function used as a value (assigned, stored in an array or
+object property, or returned) now gets a real `Function<A>`, callable
+through `Function::call` — this is what lets `export default` be evaluated
+uniformly by the harness whether or not it happens to be a function,
+closing the gap the harness currently special-cases.
 
 Preserve the declared length from the first callable value this stage
 constructs. When named parameters are admitted, compare exported and
@@ -399,8 +402,9 @@ or Stage 7's EDAG embedding.
 Extend the generator to lower the approved function-node shape for a body
 that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
-`Function<A>` value with that as its captured field. The nested body reads
-`captured[i]` exactly as it reads `args[i]`. Proof surface: a two-level
+`Function<A>` value through `A::static_function` with that as its frame.
+The nested body reads slot `i` of `A::frame(self_)` exactly as it reads
+`args[i]`. Proof surface: a two-level
 closure fixture over an ordinary (non-`self`) captured value — e.g.
 `a => b => a + b`, the outer parameter captured into the inner function's
 frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
@@ -417,7 +421,7 @@ element, a parameter — anything the EDAG's `exp` can produce), not already a
 already exists — `TryFrom<Any<A>> for Function<A>`
 ([`vm/impls/try_from.rs`](../src/vm/impls/try_from.rs)) returns
 `Result<Function<A>, Any<A>>`, `Err` exactly the not-a-function case — so a
-dynamic call compiles to `Function::try_from(callee)?.call(&args)?`, no new
+dynamic call compiles to `Function::try_from(callee)?.call(args)?`, no new
 conversion to design, only to wire up. Both call forms (Stage 1's static
 form and this one) must be observably identical, per the core invariant
 that source behavior is call-site-representation-independent; nail this
@@ -427,12 +431,9 @@ through a value) rather than trusting it by inspection.
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:
 `self`-as-callee needs no new runtime support (Stage 1 already gives
-Rust-level recursion); `self`-as-a-value needs the generator to recognize
-which functions read `["self"]` outside call position, build each such
-function's canonical `Function<A>` once wherever its enclosing scope already
-builds one, and thread a handle to it into that function's calling
-convention. This is where the calling-convention family from
-[Self-reference](#self-reference) gets a concrete Rust shape. Proof surface:
+Rust-level recursion); `self`-as-a-value needs nothing in the calling
+convention either — every static function receives `self_` — only the
+generator reading `["self"]` as that parameter. Proof surface:
 edag-stage1-discussion's own outer-`f`/nested-`b` snippet cited in
 [Self-reference](#self-reference) above — an enclosing function's `["self"]`
 captured into a nested closure's frame and called back out through it —
@@ -453,8 +454,8 @@ mvp-roadmap already stages this: a natively compiled function must
 eventually still carry its `Any<A>` EDAG description, so hashing and
 `toString(f)` apply uniformly to interpreted and AOT-compiled functions
 alike, but the MVP code generator is explicitly allowed to omit it until the
-[edag-spec](../../todo/edag-spec.md) exists. Once it does, extend the header
-(or an out-of-band association, per
+[edag-spec](../../todo/edag-spec.md) exists. Once it does, the VM's own
+function object carries it (or an out-of-band association, per
 [associate-edag-with-functions](../../fjs/fsc/todo/associate-edag-with-functions.md)'s
 Effect-based alternative if that is the direction chosen) to carry it, for
 every `Function<A>` this plan's stages produce — including capturing
@@ -475,20 +476,13 @@ generated-Rust test from one source of cases.
 
 ### Open questions
 
-1. **Does option 2 of [the code-pointer sketch](#the-functiona-value-and-its-code-pointer)
-   type-check?** Repurposing `InternalFunction::Items` for captured values,
-   rather than adding a field to the header (option 1), needs
-   `FunctionHeader<A>` to name `<A::InternalFunction as IContainer<A>>::Items`
-   — an associated type referring to a sibling associated type of the same
-   `InternalFunction`, at the exact spot `IVm`'s own bound
-   (`Header = FunctionHeader<Self>`) is declared. Verifying this (or
-   confirming it does not compile and option 1 stands permanently, not just
-   as a first cut) is Stage 2's first task.
-2. **Allocation cost of an empty captured `Array<A>`.** Under option 1,
-   every function value carries a captured `Array<A>` field, even a
-   non-capturing ("static") one, where it is always empty. Whether
-   `naive::Container`'s `Rc<[I]>` avoids allocating for a zero-length
-   collection, and whether that matters enough to special-case, is a
+1. ~~Does option 2 of the code-pointer sketch type-check?~~ Moot: neither
+   container option is the representation
+   ([function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)).
+2. **Allocation cost of an empty captured `Array<A>`.** Every function
+   value carries a frame, even a non-capturing one, where it is empty;
+   since identity is the object's and not the frame's, every non-capturing
+   function may share one empty frame. Whether that is worth doing is a
    `naive`-backend efficiency question, not a representation question, and
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
@@ -498,9 +492,9 @@ generated-Rust test from one source of cases.
    (`use` paths, file/directory layout) and is not reopened here — Stage 1
    should reuse whatever that task decides rather than picking its own
    convention.
-4. **Does `Code<A>` need `unsafe`/`extern "C"` anywhere?** No — this plan
-   never crosses an FFI boundary; `Code<A>` is an ordinary safe Rust `fn`
-   pointer generic over `A: IVm`, monomorphized like everything else in
+4. **Does `StaticCode<A>` need `unsafe`/`extern "C"` anywhere?** No — this plan
+   never crosses an FFI boundary; `StaticCode<A>` is an ordinary safe Rust `fn`
+   pointer generic over `A: IStaticFunction`, monomorphized like everything else in
    `nanvm-lib`. Called out only because the NaN-boxing discussion in
    [optimal-nanvm](./optimal-nanvm.md) is adjacent enough to invite the
    question.
@@ -511,18 +505,18 @@ generated-Rust test from one source of cases.
       harness fixtures whose `export default` is an already-applied call
       (a bare function-valued `export default` stays out of scope until
       Stage 2's `Function<A>` value exists).
-- [ ] Stage 2: `FunctionHeader<A>` gains a code pointer (option 1: plus a
-      captured `Array<A>` field); preserve observable declared length;
-      `Function::call`; resolve open question 1.
-- [ ] Stage 3: capturing closures — approved function-node lowering, frame
-      built as the captured `Array<A>`.
+- [ ] Stage 2: after `IFunction`, emit each body as a static function of
+      `StaticCode<A>` and construct the value through `A::static_function`
+      with an empty frame, the module bounding on `IStaticFunction`;
+      preserve observable declared length; `Function::call`.
+- [ ] Stage 3: capturing closures — approved function-node lowering, the
+      frame built as an `Array<A>` and handed to `A::static_function`.
 - [ ] Stage 4: dynamic call sites through `TryFrom<Any<A>> for Function<A>` +
       `Function::call`; paired static/dynamic fixtures proving observable
       equivalence.
 - [ ] Stage 5: self-reference — `self`-as-callee needs nothing new;
-      `self`-as-a-value needs a canonical, once-built `Function<A>` threaded
-      into that function's calling convention, plus a `self === self`
-      fixture.
+      `self`-as-a-value reads the `self_` every static function receives,
+      plus a `self === self` fixture.
 - [ ] Stage 6: arity/variadic edge-case audit against
       call-like-instructions §6.
 - [ ] Stage 7: EDAG embedding on natively compiled functions, once
