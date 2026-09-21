@@ -112,19 +112,39 @@ const entryOf = node => {
  * The entries of a release file, as text, with each entry's wrapped lines
  * joined by one space.
  *
- * A `- ` opens an entry and two spaces continue the one before it; anything
- * else — the trailing newline every file ends with is the only case in the
- * tree — closes nothing and adds nothing.
+ * A `- ` opens an entry, two spaces continue the one before it, and a line
+ * with nothing on it closes nothing — the trailing newline every released
+ * file ends with is the only such line in the tree.
  *
- * @type {(text: string) => readonly string[]}
+ * **Any other line is refused, rather than passed over.** A line that is
+ * neither — a continuation someone failed to indent, a heading nobody
+ * meant — carries words that belong to the release, and dropping it
+ * answers with a changelog quietly missing them: the plausible wrong
+ * value [`DESIGN.md` §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+ * refuses. The inline half already refuses what it cannot read — that is
+ * what pairing its rule with `eof` buys — and this half now says so too.
+ *
+ * A continuation before any entry is refused for the same reason: it has
+ * words and nothing to attach them to.
+ *
+ * @type {(text: string) => Result<readonly string[], string>}
  */
-export const entryTexts = text => text.split('\n').reduce(
-    (acc, line) =>
-        line.startsWith('- ') ? [...acc, line.slice(2)] :
-        line.startsWith('  ') && line.trim() !== '' && acc.length !== 0
-            ? [...acc.slice(0, -1), `${acc[acc.length - 1]} ${line.trim()}`]
-            : acc,
-    /** @type {readonly string[]} */([]))
+export const entryTexts = text => {
+    const lines = text.split('\n')
+    /** @type {readonly string[]} */
+    let out = []
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (line.startsWith('- ')) {
+            out = [...out, line.slice(2)]
+        } else if (line.startsWith('  ') && line.trim() !== '' && out.length !== 0) {
+            out = [...out.slice(0, -1), `${out[out.length - 1]} ${line.trim()}`]
+        } else if (line.trim() !== '') {
+            return error(`line ${i + 1}: neither an entry nor a continuation of one`)
+        }
+    }
+    return ok(out)
+}
 
 /**
  * One entry's joined text as its spans, or the position it stopped at.
@@ -146,9 +166,11 @@ export const tryParseEntry = text => {
  * @type {(text: string) => Result<Document, string>}
  */
 export const tryParse = text => {
+    const texts = entryTexts(text)
+    if (texts[0] === 'error') { return texts }
     /** @type {readonly Entry[]} */
     let out = []
-    for (const [i, t] of entryTexts(text).entries()) {
+    for (const [i, t] of texts[1].entries()) {
         const one = tryParseEntry(t)
         if (one[0] === 'error') { return error(`entry ${i}: ${one[1]}`) }
         out = [...out, one[1]]

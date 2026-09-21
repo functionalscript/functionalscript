@@ -12,26 +12,38 @@ const spans = text => unwrap(tryParseEntry(text))
 
 export const proof = {
     /**
-     * The block layer, which runs before the grammar: a `- ` opens an entry
-     * and two spaces continue the one before it.
+     * The block layer, which runs before the grammar: a `- ` opens an entry,
+     * two spaces continue the one before it, and anything else with words on
+     * it is refused rather than passed over.
      */
     entryTexts: {
-        one: () => assertStructurallySame(entryTexts('- a\n'), ['a']),
-        several: () => assertStructurallySame(entryTexts('- a\n- b\n'), ['a', 'b']),
+        one: () => assertStructurallySame(unwrap(entryTexts('- a\n')), ['a']),
+        several: () => assertStructurallySame(unwrap(entryTexts('- a\n- b\n')), ['a', 'b']),
         // A wrapped line joins with one space, so the entry reads as the
         // sentence it was written as rather than as its layout.
-        joinsWrapped: () => assertStructurallySame(entryTexts('- a\n  b\n  c\n'), ['a b c']),
+        joinsWrapped: () => assertStructurallySame(unwrap(entryTexts('- a\n  b\n  c\n')), ['a b c']),
         // The trailing newline every released file ends with closes nothing.
-        trailingBlank: () => assertStructurallySame(entryTexts('- a\n\n'), ['a']),
-        // A line of nothing but the indent continues nothing. It is
-        // indented like a wrapped line and carries no words, so joining it
-        // would put a trailing space on the entry above it.
-        blankIndented: () => assertStructurallySame(entryTexts('- a\n   \n'), ['a']),
-        // A continuation before any item has nothing to continue. No
-        // released file begins that way; a file being edited can, and the
-        // reader must not reach into the empty list it would be continuing.
-        orphanContinuation: () => assertStructurallySame(entryTexts('  orphan\n- a\n'), ['a']),
-        empty: () => assertStructurallySame(entryTexts(''), []),
+        trailingBlank: () => assertStructurallySame(unwrap(entryTexts('- a\n\n')), ['a']),
+        // A line of nothing but the indent carries no words, so it continues
+        // nothing and is not refused either — joining it would put a trailing
+        // space on the entry above it.
+        blankIndented: () => assertStructurallySame(unwrap(entryTexts('- a\n   \n')), ['a']),
+        empty: () => assertStructurallySame(unwrap(entryTexts('')), []),
+        /**
+         * **A line that is neither is refused, and says which line it was.**
+         * It carries words that belong to the release, so passing over it
+         * answers with a changelog quietly missing them — the plausible wrong
+         * value `DESIGN.md` §10 refuses. No released file in the tree has such
+         * a line; a file being edited can.
+         */
+        refuses: {
+            unindentedContinuation: () => assertEq(entryTexts('- a\nb\n')[0], 'error'),
+            heading: () => assertEq(entryTexts('# not a release\n')[0], 'error'),
+            // A continuation before any entry has words and nothing to
+            // attach them to.
+            orphanContinuation: () => assertEq(entryTexts('  orphan\n- a\n')[0], 'error'),
+            saysWhichLine: () => assertEq(entryTexts('- a\nb\n')[1], 'line 2: neither an entry nor a continuation of one'),
+        },
     },
     /**
      * **A code span may open on one line and close on the next**, which is
@@ -40,7 +52,7 @@ export const proof = {
      * and a reader that parsed line by line would split every one of them.
      */
     codeSpanAcrossALineBreak: () => assertStructurallySame(
-        spans(entryTexts(`- a ${tick}b\n  c${tick} d\n`)[0]),
+        spans(unwrap(entryTexts(`- a ${tick}b\n  c${tick} d\n`))[0]),
         [['text', 'a '], ['code', 'b c'], ['text', ' d']]),
     spans: {
         text: () => assertStructurallySame(spans('plain (#1807)'), [['text', 'plain (#1807)']]),
@@ -130,6 +142,13 @@ export const proof = {
     },
     /** An unclosed delimiter is refused, and the refusal names which entry. */
     refuses: {
+        // A document is refused for either half: a line the block layer
+        // cannot place, as well as a delimiter the grammar cannot close.
+        blockLine: () => {
+            const r = tryParse('- fine\nb\n')
+            assertEq(r[0], 'error')
+            assertEq(/** @type {string} */(r[1]).startsWith('line 2:'), true)
+        },
         entry: () => assertEq(tryParseEntry(`${tick}unclosed`)[0], 'error'),
         document: () => {
             const r = tryParse(`- fine\n- ${tick}unclosed\n`)
