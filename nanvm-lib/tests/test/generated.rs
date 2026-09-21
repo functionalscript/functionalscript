@@ -1034,6 +1034,7 @@ fn logical_and<A: IVm>() {
     check::<A>("nanAndUnreached", Any::logical_and(f64_any(0x7ff8000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x7ff8000000000000));
     check::<A>("emptyStringAndUnreached", Any::logical_and(string_any(""), || bigint_any(1) / bigint_any(0)), string_any(""));
     check::<A>("bigZeroAndUnreached", Any::logical_and(bigint_any(0), || bigint_any(1) / bigint_any(0)), bigint_any(0));
+    check::<A>("falseAndNestedUnreached", Any::logical_and(false.to_any(), || Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any())), false.to_any());
 }
 
 #[rustfmt::skip]

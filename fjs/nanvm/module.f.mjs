@@ -12,7 +12,7 @@
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
- * `throws`, `unreached`), its **eliminators** (`isThrows`, `isUnreached`,
+ * `throws`, `unreached`), its **eliminators** (`isThrows`, `hasUnreached`,
  * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
  * turns a case into the EDAG expression it denotes (`lambdaExp`,
  * `unreachedExp`, `sharedExp`, `valuesExp`, `valueExp`, `caseExp`). All
@@ -103,14 +103,19 @@ export const unreached = () => ['unreached']
 export const isThrows = v => typeof v === 'function' && v()[0] === 'throw'
 
 /**
- * `true` when an operand is `unreached` — the one operand that has no value
- * to hand a JavaScript operator, since establishing it is the thing the case
- * claims does not happen.
+ * `true` when a value is, or holds, an `unreached` — the one value that has
+ * none to hand a JavaScript operator, since establishing it is the thing the
+ * case claims does not happen; and a container holding one is established
+ * with it, so it has none either. Walks arrays and objects as the lowering
+ * does, since `Value` admits a thunk at any depth.
  *
- * @param {Value} v
- * @returns {v is Unreached}
+ * @type {(v: Value) => boolean}
  */
-export const isUnreached = v => typeof v === 'function' && v()[0] === 'unreached'
+export const hasUnreached = v => {
+    if (typeof v === 'function') { return v()[0] === 'unreached' }
+    if (Array.isArray(v)) { return v.some(hasUnreached) }
+    return typeof v === 'object' && v !== null && Object.values(v).some(hasUnreached)
+}
 
 /**
  * `true` when a group's cases are also checked with their arguments swapped.
@@ -904,6 +909,9 @@ const andCases = [
     { name: 'nanAndUnreached', args: [NaN, unreached], expected: NaN },
     { name: 'emptyStringAndUnreached', args: ['', unreached], expected: '' },
     { name: 'bigZeroAndUnreached', args: [0n, unreached], expected: 0n },
+    // A container holding one is established with it, so it is unreached
+    // wherever it sits: `false && [1n / 0n]`.
+    { name: 'falseAndNestedUnreached', args: [false, [unreached]], expected: false },
 ]
 
 /** @type {readonly Case<2>[]} */
