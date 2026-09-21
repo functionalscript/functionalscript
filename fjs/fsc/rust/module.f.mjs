@@ -101,24 +101,47 @@ const letLines = bindings => i => {
 }
 
 /**
- * The operators whose operands JavaScript establishes conditionally: `&&`
- * and `||` establish the right one only if the left decides nothing, `??`
- * only if the left is nullish. Each has a `nanvm-lib` spelling, but a
- * by-value one — `Any::logical_and(a, b)` takes both operands already
- * established — so printing it into a module would establish an operand the
- * program does not, and throw where the program does not
- * ([`./todo/lazy-operators.md`](./todo/lazy-operators.md)). `?:` is the
- * fourth, and needs no check: it is no syntax this compiler's parser admits,
- * so no module reaches here holding one — a check for it would be a branch
- * this repository's own coverage rule refuses to leave unreachable. Revisit
- * alongside the ternary landing in the grammar.
+ * The binary operators whose right operand JavaScript establishes
+ * conditionally: `&&` and `||` only if the left decides nothing, `??` only
+ * if the left is nullish. Named as `op2Id` names the binary vocabulary.
+ *
+ * @type {readonly string[]}
+ */
+const lazyOp2 = ['&&', '||', '??']
+
+/**
+ * The ternary operator, whose one selected arm is established: `?:`, the
+ * whole of `op3Id`.
+ *
+ * @type {readonly string[]}
+ */
+const lazyOp3 = ['?:']
+
+/**
+ * Whether a node is one of {@link lazyOp2} or {@link lazyOp3}. Each has a
+ * `nanvm-lib` spelling, but a by-value one — `Any::logical_and(a, b)` takes
+ * both operands already established — so printing it into a module would
+ * establish an operand the program does not, and throw where the program
+ * does not ([`./todo/lazy-operators.md`](./todo/lazy-operators.md)). No
+ * syntax this compiler's parser admits produces any of the four yet, but
+ * `toRust` takes any EDAG, so the check is here and proven directly —
+ * without it, a `?:` handed in would print as a call establishing both
+ * arms, a wrong value in silence.
+ *
+ * The chains are the other conditional forms — a `?.` region establishes
+ * the rest of the chain only when its base is not nullish, and the
+ * optional-call steps likewise — and need no entry here: the printer
+ * refuses every chain step already, having no spelling for one.
  *
  * Every other operator prints, followed by `?`, since `pub fn module`
  * answers the `Result` a throw lands in — `fjs/edag/rust`'s `valueExpr`.
  *
  * @type {(node: Node) => boolean}
  */
-const lazyOperator = node => node instanceof Array && node.length === 3 && ['&&', '||', '??'].includes(node[0])
+const lazyOperator = node => node instanceof Array && (
+    (node.length === 3 && lazyOp2.includes(node[0]))
+    || (node.length === 4 && lazyOp3.includes(node[0]))
+)
 
 /**
  * The module's value as `Ok(…)` of a Rust expression of type `Any<A>` — a

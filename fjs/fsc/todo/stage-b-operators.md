@@ -348,30 +348,15 @@ above, not just new-syntax acceptance.
 - [ ] `fjs/fsc/ast`/`fjs/fsc/edag`: `AstConditional`; `lower`'s `case` list
       gains the three tags and a `ternary` work item for `?:`; keep the
       plain-data evaluator's refusal.
-- [ ] `fjs/fsc/rust`: extend `lazyOperator` to the length-4 `?:` node.
-      The shared printer's `op2Rust` entries for `&&`/`||`/`??` and
-      `op3Rust`'s `?:` print `Any::logical_and(${a}, ${b})` /
-      `Any::conditional(${a}, ${b}, ${c})` over already-printed operands,
-      and `nanvm-lib`'s `Any::logical_and`/`logical_or`/`nullish_coalescing`/
-      `conditional` (`nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs`)
-      take `Self` by value, not a closure, so Rust evaluates every operand
-      before the call — right for the operator corpus, whose cases hand the
-      `Result` to a checker, and a silent miscompile for a module whose
-      correctness rests on the laziness this task is about: `false && (1n +
-      1)` must not evaluate `1n + 1`, but that Rust would. The compile route
-      already refuses the binary three: `fjs/fsc/rust`'s `lazyOperator`
-      matches every length-3 node whose tag is in `op2Rust`, and `bodyLines`
-      answers `no Rust for an operator in a module` before `expExpr` runs,
-      so `&&`/`||`/`??` are covered the moment they parse. `?:` is not: it
-      is a length-4 node, `lazyOperator` checks only lengths 2 and 3, and
-      its own comment defers the `op3Rust` check to "the ternary landing in
-      the grammar" because a branch no module could reach would fail the
-      coverage rule. This task lands that check with the grammar, and proves
-      a module holding `?:` is refused on the `.rs` route. The shared
+- [x] `fjs/fsc/rust`: `lazyOperator` refuses the `?:` node beside
+      `&&`/`||`/`??`, proven directly through `toRust`, since it takes any
+      EDAG whether or not the grammar can produce one. The shared
       `fjs/edag/rust` entries stay as they are: `fjs/nanvm/rust` unwraps the
       shared printer to write the corpus, so gating them there would break
       generating the very tests the lazy Rust operators will be checked by.
-      Lifting the refusal is
+      What this task still owes is a proof that a *module* holding `?:` is
+      refused on the `.rs` route once the grammar produces one. Lifting the
+      refusal is
       [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md)'s.
 - [ ] `refsOf`: add the eager-restricted variant and switch **both** `reach`
       and `anchors`' own `within` computation to it, leaving `sharing`'s use

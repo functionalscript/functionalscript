@@ -21,32 +21,83 @@ operands are lazy ([`fjs/edag/module.f.mjs`](../../../edag/module.f.mjs),
 
 Nothing tracked this: the roadmap's operator item is done, the operations
 being what it asked for, and `?:` is its own item there, about the VM.
-Until this issue closes, `fjs/fsc/rust`'s `lazyOperator` refuses these
-nodes in a module, as it refuses every operator in one today, and Stage B
-extends that refusal to the length-4 `?:` node. The Stage A task, which
-spells the eager operators against the failure contract, leaves these
-four refused by its own terms: their entries sit in the same `op2Rust`
-table, and spelling them there would be exactly the eager miscompile
-above.
+The baseline today: every eager operator prints in a module as `(…)?`,
+through `fjs/edag/rust`'s `valueExpr`, against the decided failure
+contract `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`; the four
+lazy ones are exactly what `fjs/fsc/rust`'s `lazyOperator` refuses —
+`lazyOp2`, the binary three, and `lazyOp3`, the ternary, named as `op2Id`
+and `op3Id` name the vocabularies — so a module holding one is refused
+rather than miscompiled. Their entries sit in the same `op2Rust`/`op3Rust`
+tables the eager ones do, and spelling them there as they are would be
+exactly the eager miscompile above.
+
+The chains are the other conditional forms: a `?.` region establishes the
+rest of the chain only when its base is not nullish, and the optional-call
+steps (`|?.()`) likewise
+([`fjs/edag/README.md`](../../../edag/README.md), "Chains"). The printer
+refuses every chain step today, having no `.rs` spelling for one, so they
+are not miscompiled either; when chains get a spelling, a `?.` region's
+continuation is a thunk exactly as a lazy operand is below.
 
 ### Proposal
 
-A spelling whose lazy operands are not evaluated before the call — a
-closure per lazy operand, or an operation on the VM that takes one — and
-the shared printer telling the two callers apart, since the corpus keeps
-the by-value form. Which of those, and whether `nanvm-lib` grows an
-operation for it, is decided with the failure contract this is blocked on:
-both change what a printed operator returns, and one answer should serve
-both.
+A lazy operand is a thunk: the generated code passes `() => Any` in Rust's
+own terms, and the operation decides whether to run it.
+
+```rust
+fn logical_and(self, rhs: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>>;
+fn logical_or(self, rhs: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>>;
+fn nullish_coalescing(self, rhs: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>>;
+fn conditional(
+    self,
+    consequent: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    alternate: impl FnOnce() -> Result<Any<A>, Any<A>>,
+) -> Result<Any<A>, Any<A>>;
+```
+
+`FnOnce`, since an operand is established at most once; `impl`, so it
+monomorphizes to nothing; a `Result`, since establishing the operand may
+throw. Three things follow, and nothing else changes:
+
+- **The printed text** is `(Any::logical_and(a, || Ok(b)))?`, `b` being
+  whatever `valueExpr` prints for the operand. That composes on its own: a
+  `?` inside the closure propagates out of the closure's `Result`, and the
+  outer `?` out of `module`. The shared printer wraps the lazy positions and
+  nothing more; the two callers need no telling apart, since the corpus
+  spells them the same way.
+- **The corpus** gains what it waited on: a right operand written
+  `|| Err(…)` proves the operand was not established, with no `throw` node
+  needed for that half
+  ([`corpus-as-conformance-vectors.md`](../../../nanvm/todo/corpus-as-conformance-vectors.md)).
+- **Sharing is computed over eager reaches only.** The compiler hoists a
+  shared node into a `let` binding, which establishes it eagerly; a node
+  reached only from lazy positions must not be hoisted, or the module would
+  establish what the program does not. Laziness is positional in the EDAG,
+  so a node is shared, and hoisted, only by its eager reaches; one reached
+  only lazily prints inside the closure that reaches it, and two closures
+  reaching it each establish it, as JavaScript does. That is the
+  eager-restricted `refsOf` [Stage B](../../todo/stage-b-operators.md)
+  lists.
+
+The `nanvm-lib` and printer halves need no parser: they are proven through
+the corpus and through `toRust` directly, the way the refusal is today.
+The compiler lifts the refusal when Stage B makes the nodes reachable.
 
 ### Tasks
 
-- [ ] Decide the lazy spelling with the failure contract.
-- [ ] Spell `&&`, `||`, `??` and `?:` that way in `fjs/fsc/rust`, and lift
-      `lazyOperator`'s refusal for them; prove `false && (1n / 0n)` and
-      a `?:` with a throwing unselected arm through `nanvm-harness`.
-- [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`; `tsc`,
-      `fjs test`, `npm run cov` at 100%.
+- [ ] `nanvm-lib`: the four operations take each lazy operand as an
+      `impl FnOnce() -> Result<Any<A>, Any<A>>`; a breaking change,
+      declared.
+- [ ] `fjs/edag/rust`: `op2Rust`/`op3Rust` print a lazy operand as
+      `|| Ok(…)`; the corpus regenerates, and gains non-establishment cases
+      with a throwing thunk.
+- [ ] `fjs/fsc/rust`: sharing over eager reaches only, with the proof of a
+      node reached only lazily; then lift `lazyOperator`'s refusal, and
+      prove `false && (1n / 0n)` and a `?:` with a throwing unselected arm
+      through `nanvm-harness` once the grammar produces them.
+- [ ] `cargo test`, `cargo clippy --all-targets`, `cargo fmt -- --check`;
+      `tsc`, `fjs test`, `npm run cov` at 100%; `npm run gen` with no
+      drift.
 
 ### Related
 
