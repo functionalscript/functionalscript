@@ -117,6 +117,22 @@ const mergeParallel = edges => edges.reduce((acc, edge) => {
  * A graph, drawn: a node per {@link Ranked}, an edge per {@link Edge},
  * ranked by longest path from the root.
  *
+ * **Three layers, not two: boxes, then edges, then the node labels.** An
+ * edge whose rank difference is more than one crosses the ranks between its
+ * ends, and a node sitting there is an opaque box — drawn over the edges,
+ * as it was while nodes were one layer, it hid about a quarter of every
+ * edge that passed under it, on roughly one edge in six of the graphs these
+ * demos start with. Edges therefore draw over the boxes. What that order
+ * used to protect is the node's own text, so the text moves above the
+ * edges and keeps its protection, while the box — a background fill and a
+ * border, carrying no information a line can obscure — gives it up.
+ *
+ * Each edge draws twice, a wide background-coloured casing under the line
+ * itself, so a crossing reads as one line passing in front of a box rather
+ * than as two strokes meeting at the border. It is the trick the edge
+ * labels already use against each other, which `paint-order` does in one
+ * element for text and a path needs two elements for.
+ *
  * @type {(g: Graph) => Element}
  */
 export const graphSvg = g => {
@@ -143,11 +159,10 @@ export const graphSvg = g => {
         const t = 0.65
         const lx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2
         const ly = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2
+        const d = `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`
         return [
-            ['path', {
-                d: `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`,
-                'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
-            }],
+            ['path', { d, 'data-graph-edge-casing': '' }],
+            ['path', { d, 'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)' }],
             ['text', {
                 x: String(lx), y: String(ly),
                 'text-anchor': 'middle', 'data-graph-edge-label': '',
@@ -155,16 +170,15 @@ export const graphSvg = g => {
         ]
     })
     /** @type {readonly Element[]} */
-    const nodeEls = positioned.flatMap(p => [
-        ['rect', {
-            x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: '4',
-            'data-graph-node': '', 'data-graph-kind': p.kind,
-        }],
-        ['text', {
-            x: String(p.x + p.width / 2), y: String(p.y + p.height / 2),
-            'text-anchor': 'middle', 'data-graph-label': '',
-        }, p.label],
-    ])
+    const boxEls = positioned.map(p => ['rect', {
+        x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: '4',
+        'data-graph-node': '', 'data-graph-kind': p.kind,
+    }])
+    /** @type {readonly Element[]} */
+    const labelEls = positioned.map(p => ['text', {
+        x: String(p.x + p.width / 2), y: String(p.y + p.height / 2),
+        'text-anchor': 'middle', 'data-graph-label': '',
+    }, p.label])
     return ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
         ['defs',
             ['marker', {
@@ -172,7 +186,8 @@ export const graphSvg = g => {
                 markerWidth: '6', markerHeight: '6', orient: 'auto',
             },
                 ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]]],
+        ...boxEls,
         ...edgeEls,
-        ...nodeEls,
+        ...labelEls,
     ]
 }
