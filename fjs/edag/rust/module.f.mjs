@@ -489,7 +489,8 @@ const last = e => {
  *
  * The lines are a {@link block}'s: the scope's root binds every temporary
  * it reaches eagerly, then answers its own value, and a lazy operand's
- * thunk binds the temporaries only it reaches, inside its closure, so
+ * thunk — itself a temporary, `let cN = || …;`, once it has a body of its
+ * own — binds the temporaries only it reaches, inside its closure, so
  * nothing is established before the program establishes it. That is what
  * the refusal above checks: a node shared but eager nowhere has no block
  * to bind it in — `true ? 1 : [c, c]` answers `1` without establishing
@@ -545,14 +546,21 @@ const printer = nested => shared => root => {
      */
     const valueNodes = e => !isComma(e) || isShared(last(e)) ? [e] : [e, ...valueNodes(last(e))]
     /**
-     * The nodes printed where they stand as a block's own answer, never a
-     * temporary: the scope's root, and every lazy operand nothing
-     * establishes eagerly, the root of its thunk's block — a lazy operand
-     * also reached eagerly is a temporary, and its thunk answers the name.
+     * Every lazy operand nothing establishes eagerly: the root of its
+     * thunk's block. A lazy operand also reached eagerly is an ordinary
+     * temporary, and its thunk answers the name.
      */
-    const structural = [root, ...order.flatMap(([n]) =>
-        lazy.includes(/** @type {string} */ (tagOf(n))) ? /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (n).slice(2)).filter(o => !eager.includes(o)) : [])]
-        .flatMap(valueNodes)
+    const thunks = order.flatMap(([n]) => lazyOperandsOf(n)).filter(o => !eager.includes(o))
+    /** @type {(e: Exp) => boolean} */
+    const isThunk = e => thunks.includes(e)
+    /**
+     * The nodes printed where they stand as a block's own answer, never a
+     * temporary: the scope's root, and — in the corpus's mode, where a
+     * thunk stands in its statement — every thunk's root; otherwise a
+     * thunk is a temporary of its own, `let cN = || …;`, and only what a
+     * root answers through a comma stands.
+     */
+    const structural = [root, ...thunks].flatMap(valueNodes).filter(n => nested || !isThunk(n))
     /** The nodes printed where they stand, nested: every eager one in the corpus's mode; none otherwise. */
     const inline = nested ? eager : []
     /**
@@ -573,10 +581,40 @@ const printer = nested => shared => root => {
         (atomic(n) && count < 2) || isMember(n) || structural.includes(n) || inline.includes(n)
             ? []
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
-    const named = temporaries.filter(([, refs]) => refs > 0).map(([n]) => n)
+    /** @type {(e: Exp) => boolean} */
+    const isTemporary = e => temporaries.some(([n]) => n === e)
+    /** What the scope's own block holds, established before the root as a `const` is at its declaration. */
+    const outer = held(root)
     /**
-     * A temporary's name: `c0`, `c1`, … in dependency order, or `_` for
-     * one nothing references, a comma's discarded operand.
+     * The temporaries `e`'s block binds, in dependency order: the ones it
+     * holds — every one, for the scope's root; for a thunk's root, less the
+     * ones the scope's block already holds — a value reached eagerly
+     * elsewhere, and the thunks over that value's own lazy operands, which
+     * the scope's block makes where the value is — and less the thunk
+     * itself, the block's own answer.
+     *
+     * @type {(e: Exp) => readonly Exp[]}
+     */
+    const declaredBy = e => {
+        const own = held(e)
+        return temporaries.filter(([n]) => n !== e && own.includes(n) && (e === root || !outer.includes(n))).map(([n]) => n)
+    }
+    /**
+     * The temporaries in the order their `let` lines print: a block's own,
+     * a thunk's block's right after the thunk's own `let` — or, where the
+     * thunk stands in its statement, in the statement's place.
+     *
+     * @type {(e: Exp) => readonly Exp[]}
+     */
+    const printOrder = e => [
+        ...declaredBy(e).flatMap(n => isThunk(n) ? [n, ...printOrder(n)] : [n]),
+        ...held(e).filter(n => n !== e && isThunk(n) && !isTemporary(n)).flatMap(printOrder),
+    ]
+    const named = printOrder(root).filter(n => temporaries.some(([m, refs]) => m === n && refs > 0))
+    /**
+     * A temporary's name: `c0`, `c1`, … in the order the `let` lines
+     * print, or `_` for one nothing references, a comma's discarded
+     * operand.
      *
      * @type {(n: Exp) => string}
      */
@@ -585,13 +623,14 @@ const printer = nested => shared => root => {
         return i === -1 ? '_' : `c${i}`
     }
     /**
-     * Every node printed by name where it is referenced: the caller's
-     * bindings, and each temporary moved where the reference is its only
-     * one and cloned where it has more.
+     * Every value printed by name where it is referenced: the caller's
+     * bindings, and each temporary but a thunk — a closure, not an `Any`,
+     * named by {@link lazyOperand} alone — moved where the reference is
+     * its only one and cloned where it has more.
      *
      * @type {readonly (readonly [Exp, string])[]}
      */
-    const bound = [...shared, ...temporaries.map(([n, refs]) =>
+    const bound = [...shared, ...temporaries.filter(([n]) => !isThunk(n)).map(([n, refs]) =>
         /** @type {readonly [Exp, string]} */ ([n, refs >= 2 ? `${nameOf(n)}.clone()` : nameOf(n)]))]
     /**
      * A node's text where it is referenced: a primitive's literal, a bound
@@ -715,7 +754,7 @@ const printer = nested => shared => root => {
         if (id === '()') { return map2((fn, x) => `Any::call(${fn}, ${x})`)(operand(a), operand(b)) }
         // The first operand is established in every operation; the ones
         // after it are what a lazy operation establishes conditionally.
-        const rest = lazy.includes(id) ? thunk : operand
+        const rest = lazy.includes(id) ? lazyOperand : operand
         return e.length === 2 ? map2((fn, x) => fn(x))(op1(id), operand(a))
             : e.length === 3 ? map3((fn, x, y) => fn(x, y))(op2(id), operand(a), rest(b))
             : map4((fn, x, y, z) => fn(x, y, z))(op3(id), operand(a), rest(b), rest(c))
@@ -755,6 +794,15 @@ const printer = nested => shared => root => {
      */
     const thunk = e => mapOk(statements => `|| ${statements.length === 1 ? statements[0] : braced(statements)}`)(block(e))
     /**
+     * A lazy operand where its operation stands: its thunk's name, where
+     * the thunk is a temporary of the block — one with a body of its own,
+     * outside the corpus's mode — and the thunk itself otherwise: over an
+     * atom, or over a value the block already holds by name.
+     *
+     * @type {(e: Exp) => Result<string, readonly unknown[]>}
+     */
+    const lazyOperand = e => isThunk(e) && isTemporary(e) ? ok(nameOf(e)) : thunk(e)
+    /**
      * A node as the `Result<Any<A>, Any<A>>` a function answers for it: an
      * operation's own, bare — `Ok((…)?)` would say the same, and clippy's
      * `needless_question_mark` refuses it — and `Ok(…)` of any other node's
@@ -768,27 +816,18 @@ const printer = nested => shared => root => {
         : isOperation(e) && bound.every(([n]) => n !== e) ? bare(/** @type {readonly any[]} */ (e))
         : mapOk(s => `Ok(${s})`)(f(e))
     /**
-     * The temporaries `e`'s block binds, in dependency order: the ones `e`
-     * reaches eagerly — every one, for the scope's root; for a thunk's
-     * root, less the ones the scope's block already holds, established
-     * before the root as a `const` is at its declaration.
-     *
-     * @type {(e: Exp) => readonly Exp[]}
-     */
-    const declaredBy = e => {
-        const reached = eagerNodesOf(e)
-        return temporaries.filter(([n]) => reached.includes(n) && (e === root || !eager.includes(n))).map(([n]) => n)
-    }
-    /**
-     * A temporary's `let` line: an operation's call followed by `?`, so
-     * the temporary is the `Any<A>` it answers — an operator's text
-     * parenthesized first, a `.` read's or a call's as it is — and any
-     * other node's construction as it is.
+     * A temporary's `let` line: a thunk's closure, its type the operation's
+     * to infer; an operation's call followed by `?`, so the temporary is
+     * the `Any<A>` it answers — an operator's text parenthesized first, a
+     * `.` read's or a call's as it is — and any other node's construction
+     * as it is.
      *
      * @type {(n: Exp) => Result<string, readonly unknown[]>}
      */
-    const letLine = n => mapOk(s => `let ${nameOf(n)}: Any<A> = ${
-        !isOperation(n) ? s : ['.', '()'].includes(/** @type {string} */ (tagOf(n))) ? `${s}?` : `(${s})?`};`)(node(n))
+    const letLine = n => isThunk(n)
+        ? mapOk(s => `let ${nameOf(n)} = ${s};`)(thunk(n))
+        : mapOk(s => `let ${nameOf(n)}: Any<A> = ${
+            !isOperation(n) ? s : ['.', '()'].includes(/** @type {string} */ (tagOf(n))) ? `${s}?` : `(${s})?`};`)(node(n))
     /**
      * The statements of `e`'s block: a `let` per temporary it binds, then
      * `e` as the `Result` the block answers — a closure's body, a thunk's,
@@ -979,6 +1018,28 @@ const reach = (seen, root) => {
     const [id] = root
     const operands = /** @type {readonly unknown[]} */ (lazy.includes(id) ? [root[1]] : operandsOf(root))
     return operands.reduce(reach, [...seen, self])
+}
+
+/**
+ * A lazy operation's operands after the first, the ones its thunks
+ * establish; none for any other node.
+ *
+ * @type {(n: Exp) => readonly Exp[]}
+ */
+const lazyOperandsOf = n => lazy.includes(/** @type {string} */ (tagOf(n)))
+    ? /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (n).slice(2))
+    : []
+
+/**
+ * The nodes a block over `e` holds: the ones `e` reaches eagerly,
+ * {@link eagerNodesOf}, and the thunk over every lazy operand of an
+ * operation among them, which the block makes where the operation is.
+ *
+ * @type {(e: Exp) => readonly Exp[]}
+ */
+const held = e => {
+    const reached = eagerNodesOf(e)
+    return [...reached, ...reached.flatMap(lazyOperandsOf)]
 }
 
 /**
