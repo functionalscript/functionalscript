@@ -12,7 +12,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { eagerNodesOf, expExpr, nodeExpr, scope, sharedNodesOf, valueExpr } from './module.f.mjs'
+import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, scope, sharedNodesOf, valueExpr } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
@@ -485,6 +485,20 @@ export const proof = {
         /** Any frame but `null` and the corpus's empty one is refused. */
         otherFrame: () => {
             assertEq(refusalReason(['=>', ['[]', [1]], 1])[0], 'no Rust for')
+        },
+        /**
+         * A `null`-frame function anywhere — an item, a call's callee, a
+         * body inside another function — is held; the corpus's own lambda
+         * binds nothing, and a primitive holds nothing.
+         */
+        holdsFunction: () => {
+            assertEq(holdsFunction(['=>', null, 1]), true)
+            assertEq(holdsFunction(['[]', [1, ['=>', null, 1]]]), true)
+            assertEq(holdsFunction(['()', ['=>', null, ['args']], ['[]', []]]), true)
+            assertEq(holdsFunction(['=>', ['[]', []], ['=>', null, 1]]), true)
+            assertEq(holdsFunction(['=>', ['[]', []], ['undefined']]), false)
+            assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
+            assertEq(holdsFunction(1), false)
         },
     },
     /**

@@ -697,6 +697,18 @@ const readsArgs = node => node instanceof Array
     && (node[0] === 'args' || operandsOf(node).some(readsArgs))
 
 /**
+ * Whether an EDAG holds a function the printer binds — a `null`-frame `=>`
+ * node — anywhere, nested bodies included: what decides that the module
+ * printed from it bounds on `IStaticFunction`, and not the text, which a
+ * string literal could spell.
+ *
+ * @type {(node: unknown) => boolean}
+ */
+export const holdsFunction = node => node instanceof Array
+    && ((node[0] === '=>' && node[1] === null)
+        || (node[0] === '=>' ? node.slice(1) : operandsOf(node)).some(holdsFunction))
+
+/**
  * The operands a walk descends into, read from a node's shape rather than
  * from every array it holds: an array, object, or comma node holds its
  * operands in a list, whose first item may be a string that spells a tag —
