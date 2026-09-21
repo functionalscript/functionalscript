@@ -686,10 +686,7 @@ pub fn module<A: IVm>() -> Any<A> {
             expect('export default 1 % 2;', '%,1,2')
             expect('export default 1 ** 2;', '**,1,2')
             expect('export default 1 === 2;', '===,1,2')
-            // `!==` has no `op2Rust` entry at all yet (unlike the rest,
-            // which do and are refused here instead) — `fjs/edag/rust`'s
-            // own `lookup` refuses it first, one layer down
-            assertEq(rustRefused('export default 1 !== 2;'), 'output.rs - error: no Rust spelling for this module: no Rust for: !==')
+            expect('export default 1 !== 2;', '!==,1,2')
             expect('export default 1 < 2;', '<,1,2')
             expect('export default 1 <= 2;', '<=,1,2')
             expect('export default 1 > 2;', '>,1,2')

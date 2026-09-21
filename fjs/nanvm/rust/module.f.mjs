@@ -124,6 +124,7 @@ export const rustName = {
     '??': 'nullish_coalescing',
     own: 'own_property',
     '===': 'eq',
+    '!==': 'ne',
     typeof: 'typeof_',
     String: 'string_coercion',
 }
@@ -228,7 +229,7 @@ export const generate = data => {
         '// Do not edit: change the shared operator test data and regenerate.',
         '',
         'use super::harness::*;',
-        'use nanvm_lib::vm::unstable::{bigint_any, f64_any, string_any, string_key};',
+        'use nanvm_lib::vm::unstable::{bigint_any, f64_any, strict_eq, strict_ne, string_any, string_key};',
         '',
         ...data.groups.flatMap(groupFn(shared)),
         'pub fn all<A: IVm>() {',

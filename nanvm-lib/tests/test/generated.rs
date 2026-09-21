@@ -2,7 +2,7 @@
 // Do not edit: change the shared operator test data and regenerate.
 
 use super::harness::*;
-use nanvm_lib::vm::unstable::{bigint_any, f64_any, string_any, string_key};
+use nanvm_lib::vm::unstable::{bigint_any, f64_any, strict_eq, strict_ne, string_any, string_key};
 
 #[rustfmt::skip]
 fn eq<A: IVm>() {
@@ -67,6 +67,71 @@ fn eq<A: IVm>() {
     check::<A>("objectByItselfSwapped", strict_eq(object.clone(), object.clone()), true.to_any());
     check::<A>("objectByEqualObject", strict_eq(object.clone(), [(string_key("0"), string_any("0"))].to_object().to_any()), false.to_any());
     check::<A>("objectByEqualObjectSwapped", strict_eq([(string_key("0"), string_any("0"))].to_object().to_any(), object.clone()), false.to_any());
+}
+
+#[rustfmt::skip]
+fn ne<A: IVm>() {
+    let empty_array: Any<A> = Array::default().to_any();
+    let string_array: Any<A> = [string_any("0")].to_array().to_any();
+    let object: Any<A> = [(string_key("0"), string_any("0"))].to_object().to_any();
+    check::<A>("nullByNull", strict_ne(Nullish::Null.to_any(), Nullish::Null.to_any()), false.to_any());
+    check::<A>("nullByNullSwapped", strict_ne(Nullish::Null.to_any(), Nullish::Null.to_any()), false.to_any());
+    check::<A>("undefinedByUndefined", strict_ne(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()), false.to_any());
+    check::<A>("undefinedByUndefinedSwapped", strict_ne(Nullish::Undefined.to_any(), Nullish::Undefined.to_any()), false.to_any());
+    check::<A>("nullByUndefined", strict_ne(Nullish::Null.to_any(), Nullish::Undefined.to_any()), true.to_any());
+    check::<A>("nullByUndefinedSwapped", strict_ne(Nullish::Undefined.to_any(), Nullish::Null.to_any()), true.to_any());
+    check::<A>("trueByTrue", strict_ne(true.to_any(), true.to_any()), false.to_any());
+    check::<A>("trueByTrueSwapped", strict_ne(true.to_any(), true.to_any()), false.to_any());
+    check::<A>("falseByFalse", strict_ne(false.to_any(), false.to_any()), false.to_any());
+    check::<A>("falseByFalseSwapped", strict_ne(false.to_any(), false.to_any()), false.to_any());
+    check::<A>("trueByFalse", strict_ne(true.to_any(), false.to_any()), true.to_any());
+    check::<A>("trueByFalseSwapped", strict_ne(false.to_any(), true.to_any()), true.to_any());
+    check::<A>("falseByUndefined", strict_ne(false.to_any(), Nullish::Undefined.to_any()), true.to_any());
+    check::<A>("falseByUndefinedSwapped", strict_ne(Nullish::Undefined.to_any(), false.to_any()), true.to_any());
+    check::<A>("falseByNull", strict_ne(false.to_any(), Nullish::Null.to_any()), true.to_any());
+    check::<A>("falseByNullSwapped", strict_ne(Nullish::Null.to_any(), false.to_any()), true.to_any());
+    check::<A>("numberBySameNumber", strict_ne(f64_any(0x4002666666666666), f64_any(0x4002666666666666)), false.to_any());
+    check::<A>("numberBySameNumberSwapped", strict_ne(f64_any(0x4002666666666666), f64_any(0x4002666666666666)), false.to_any());
+    check::<A>("numberByOtherNumber", strict_ne(f64_any(0x4002666666666666), f64_any(0xc01599999999999a)), true.to_any());
+    check::<A>("numberByOtherNumberSwapped", strict_ne(f64_any(0xc01599999999999a), f64_any(0x4002666666666666)), true.to_any());
+    check::<A>("nanByNan", strict_ne(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)), true.to_any());
+    check::<A>("nanByNanSwapped", strict_ne(f64_any(0x7ff8000000000000), f64_any(0x7ff8000000000000)), true.to_any());
+    check::<A>("zeroByNegativeZero", strict_ne(f64_any(0x0000000000000000), f64_any(0x8000000000000000)), false.to_any());
+    check::<A>("zeroByNegativeZeroSwapped", strict_ne(f64_any(0x8000000000000000), f64_any(0x0000000000000000)), false.to_any());
+    check::<A>("infinityByInfinity", strict_ne(f64_any(0x7ff0000000000000), f64_any(0x7ff0000000000000)), false.to_any());
+    check::<A>("infinityByInfinitySwapped", strict_ne(f64_any(0x7ff0000000000000), f64_any(0x7ff0000000000000)), false.to_any());
+    check::<A>("negativeInfinityByNegativeInfinity", strict_ne(f64_any(0xfff0000000000000), f64_any(0xfff0000000000000)), false.to_any());
+    check::<A>("negativeInfinityByNegativeInfinitySwapped", strict_ne(f64_any(0xfff0000000000000), f64_any(0xfff0000000000000)), false.to_any());
+    check::<A>("infinityByNegativeInfinity", strict_ne(f64_any(0x7ff0000000000000), f64_any(0xfff0000000000000)), true.to_any());
+    check::<A>("infinityByNegativeInfinitySwapped", strict_ne(f64_any(0xfff0000000000000), f64_any(0x7ff0000000000000)), true.to_any());
+    check::<A>("undefinedByNan", strict_ne(Nullish::Undefined.to_any(), f64_any(0x7ff8000000000000)), true.to_any());
+    check::<A>("undefinedByNanSwapped", strict_ne(f64_any(0x7ff8000000000000), Nullish::Undefined.to_any()), true.to_any());
+    check::<A>("undefinedByZero", strict_ne(Nullish::Undefined.to_any(), f64_any(0x0000000000000000)), true.to_any());
+    check::<A>("undefinedByZeroSwapped", strict_ne(f64_any(0x0000000000000000), Nullish::Undefined.to_any()), true.to_any());
+    check::<A>("stringBySameString", strict_ne(string_any("hello"), string_any("hello")), false.to_any());
+    check::<A>("stringBySameStringSwapped", strict_ne(string_any("hello"), string_any("hello")), false.to_any());
+    check::<A>("stringByOtherString", strict_ne(string_any("hello"), string_any("world")), true.to_any());
+    check::<A>("stringByOtherStringSwapped", strict_ne(string_any("world"), string_any("hello")), true.to_any());
+    check::<A>("zeroByStringZero", strict_ne(f64_any(0x0000000000000000), string_any("0")), true.to_any());
+    check::<A>("zeroByStringZeroSwapped", strict_ne(string_any("0"), f64_any(0x0000000000000000)), true.to_any());
+    check::<A>("bigintBySameBigint", strict_ne(bigint_any(12), bigint_any(12)), false.to_any());
+    check::<A>("bigintBySameBigintSwapped", strict_ne(bigint_any(12), bigint_any(12)), false.to_any());
+    check::<A>("bigintByNegatedBigint", strict_ne(bigint_any(12), bigint_any(-12)), true.to_any());
+    check::<A>("bigintByNegatedBigintSwapped", strict_ne(bigint_any(-12), bigint_any(12)), true.to_any());
+    check::<A>("bigintByOtherBigint", strict_ne(bigint_any(12), bigint_any(13)), true.to_any());
+    check::<A>("bigintByOtherBigintSwapped", strict_ne(bigint_any(13), bigint_any(12)), true.to_any());
+    check::<A>("twelveByStringTwelve", strict_ne(bigint_any(12), string_any("12")), true.to_any());
+    check::<A>("twelveByStringTwelveSwapped", strict_ne(string_any("12"), bigint_any(12)), true.to_any());
+    check::<A>("arrayByItself", strict_ne(empty_array.clone(), empty_array.clone()), false.to_any());
+    check::<A>("arrayByItselfSwapped", strict_ne(empty_array.clone(), empty_array.clone()), false.to_any());
+    check::<A>("arrayByEqualArray", strict_ne(Array::default().to_any(), Array::default().to_any()), true.to_any());
+    check::<A>("arrayByEqualArraySwapped", strict_ne(Array::default().to_any(), Array::default().to_any()), true.to_any());
+    check::<A>("stringArrayByItself", strict_ne(string_array.clone(), string_array.clone()), false.to_any());
+    check::<A>("stringArrayByItselfSwapped", strict_ne(string_array.clone(), string_array.clone()), false.to_any());
+    check::<A>("objectByItself", strict_ne(object.clone(), object.clone()), false.to_any());
+    check::<A>("objectByItselfSwapped", strict_ne(object.clone(), object.clone()), false.to_any());
+    check::<A>("objectByEqualObject", strict_ne(object.clone(), [(string_key("0"), string_any("0"))].to_object().to_any()), true.to_any());
+    check::<A>("objectByEqualObjectSwapped", strict_ne([(string_key("0"), string_any("0"))].to_object().to_any(), object.clone()), true.to_any());
 }
 
 #[rustfmt::skip]
@@ -1088,6 +1153,7 @@ fn own_property<A: IVm>() {
 
 pub fn all<A: IVm>() {
     eq::<A>();
+    ne::<A>();
     unary_plus::<A>();
     neg::<A>();
     bitwise_not::<A>();

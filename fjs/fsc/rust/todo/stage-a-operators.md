@@ -7,17 +7,13 @@
 
 Stage A of [operators](../../../../spec/todo/2340-operators.md) made the
 eighteen binary operators and `~` reachable from source. `fjs/edag/rust`
-already has a `nanvm-lib` spelling for most of them — it is shared with
-the operator-conformance corpus generator, which needed them first — but
-not all: `!==` has no `op2Rust` entry at all, and `===`'s entry calls
-`strict_eq`, a helper the operator-test harness defines
-(`nanvm-lib/tests/test/harness.rs`), not one `nanvm-lib` itself has. Every
-spelling that does exist answers `Result<Any<A>, Any<A>>`, and
+has a `nanvm-lib` spelling for every one of them — it is shared with the
+operator-conformance corpus generator, which needed them first; `===` and
+`!==` call `strict_eq` and `strict_ne` in `nanvm_lib::vm::unstable`. Every
+spelling answers `Result<Any<A>, Any<A>>`, and
 `pub fn module<A: IVm>() -> Any<A>` has nowhere to put the `Err`. Before
 this refuses cleanly (see below), compiling one of these operators to
-`.rs` exited `0` and wrote Rust `rustc` rejects — a type mismatch for
-most of them, and a call to `strict_eq`, a test-harness-only helper with
-no `nanvm-lib` definition, for `===`.
+`.rs` exited `0` and wrote Rust `rustc` rejects with a type mismatch.
 
 `resultOperator` in `./module.f.mjs` now refuses every operator node
 `op1Rust`/`op2Rust` has an entry for — the same refusal unary `-` on
@@ -47,9 +43,7 @@ mismatch from `rustc` to this module's own type.
 - [ ] Decide the generated module's own failure contract (see Proposal).
 - [ ] Spell Stage A's own operators — the eighteen binary ones and `~`,
       every one eager — against that contract, in
-      `fjs/fsc/rust/module.f.mjs`, and give `!==`/`===` a real `nanvm-lib`
-      spelling first, since neither has one to reuse yet (see Problem).
-      `op2Rust` also holds `&&`, `||` and `??`, and `op3Rust` holds `?:`:
+      `fjs/fsc/rust/module.f.mjs`. `op2Rust` also holds `&&`, `||` and `??`, and `op3Rust` holds `?:`:
       those four stay refused here, whatever this task does, since their
       by-value spelling evaluates an operand JavaScript would not — they
       are [`lazy-operators.md`](./lazy-operators.md)'s, after this one.
@@ -65,7 +59,7 @@ mismatch from `rustc` to this module's own type.
 - [`../../../edag/rust/module.f.mjs`](../../../edag/rust/module.f.mjs) —
   `op1Rust`/`op2Rust`, the spellings this issue's fix reuses, and the
   operator-conformance corpus generator that already exercises them
-  through `strict_eq`/`check` rather than a bare `Any<A>` return.
+  through `check` rather than a bare `Any<A>` return.
 - [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md) —
   Stage A itself.
 - [`../../serializer/todo/stage-a-operators.md`](../../serializer/todo/stage-a-operators.md) —

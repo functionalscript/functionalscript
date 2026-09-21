@@ -17,5 +17,8 @@ a helper here and print a call to it, rather than printing the same
 expression again. Each is a plain function on purpose: `Any` stays simple,
 and a generated module needs no sugar.
 
-Today's helpers are the values a literal becomes: each pins the `A` a bare
-`into()` cannot infer at the point of use.
+Today's helpers are the values a literal becomes, each pinning the `A` a
+bare `into()` cannot infer at the point of use, and the two equality
+operators, `===` and `!==`: their `nanvm-lib` form is `PartialEq`, which
+answers a `bool`, and generated code wants the `Result<Any<A>, Any<A>>`
+every other operator returns.
