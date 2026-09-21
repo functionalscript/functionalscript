@@ -337,8 +337,9 @@ precisely.
    Every static function receives `self_`, whether or not its body reads
    `["self"]`: one signature for all, an unused parameter costing nothing,
    as `StaticCode<A>` ([`internal/istatic_function.rs`](../src/vm/internal/istatic_function.rs))
-   has it. A body that reads `["self"]` reads that parameter; one that
-   only ever calls itself (case 1) may still recurse at the Rust level.
+   has it. A body that reads `["self"]` reads that parameter, in either
+   case: the generator prints a function as a closure, which cannot name
+   itself, so a call to `self` is `Any::call` on the value `self_` is.
 
 Mutual recursion between two independently-hashed functions (`a` calls `b`
 calls `a`) stays out of scope, exactly as the language spec currently scopes
@@ -352,46 +353,28 @@ flag as open.
 Each stage should land independently testable and useful; later stages
 depend on earlier ones but do not require redesigning them.
 
-**Stage 1 — non-capturing functions, statically-resolved call sites.**
-Extend the Rust code generator to emit a real `fn` body (not a placeholder)
-for an FS arrow function with no captures, using the arguments
-representation above. Call sites where the callee is known at compile time
-(a module-level `const`, `export default` itself) compile to a direct Rust
-call — [call-like-instructions §2](../../spec/todo/9100-call-like-instructions.md#2-static-calls-into-user-defined-functions)'s
-"static call" — with no `Function<A>` runtime value in play yet. This is the
-smallest change that makes any generated function body actually run: the
-call happens inside the generated `module()` itself, at Rust compile time
-for the callee, so the harness needs no new logic to detect and invoke a
-function-valued export — it only ever sees the already-applied result.
-Proof surface: extend `nanvm-harness/fixtures/` with an already-applied call
-to a function of no arguments and to one taking a rest parameter — a bare,
-uninvoked function-valued `export default` is explicitly out of scope (no
-`Function<A>` value exists yet to hand the harness) — mirroring the existing
-literal/array/object fixtures. Worked out in full against the actual
-generator — the one closure shape the printer already accepts is live only
-for a separate corpus-generator path, not `fjs/fsc`'s own lowering, which
-needs its own new case, and four separate refusal points plus a
-scope-unaware node-sharing hazard need fixing — in
-[compile-noncapturing-functions-to-rust](../../fjs/fsc/todo/compile-noncapturing-functions-to-rust.md).
+**Stage 1 — non-capturing functions and their calls. Landed.** The Rust
+code generator prints a function, `['=>', null, body]`, as a closure bound
+through `A::static_function` with `length` `0` and an empty frame — a
+closure over nothing coerces to the `fn` pointer `StaticCode<A>` is — its
+body a scope of its own, with its own `let` bindings, and a call,
+`['()', callee, args]`, as `Any::call` over two values
+([`vm/any/call.rs`](../src/vm/any/call.rs)). No direct Rust call, no naming
+of functions, no discovery pass: a function is a value like any other, and
+one reached from two call sites is one shared node, bound once. A module
+holding a function bounds on `IStaticFunction` in place of `IVm`.
+`nanvm-harness/fixtures/{call,arity,missing,function-scope,rest,calls,nested,not-a-function}.mjs`
+prove it end to end, the spec's own sharing example among them.
 
-**Stage 2 — `Function<A>` as a real, callable first-class value.**
-With `IFunction` landed
-([`internal/ifunction.rs`](../src/vm/internal/ifunction.rs)),
-the generator emits each function's body as a static function of the one
-signature, `StaticCode<A>`, and constructs the value through
-`A::static_function` with an empty frame — so a module holding a function
-bounds on `IStaticFunction` where it bounds on `IVm` today. A
-non-capturing function used as a value (assigned, stored in an array or
-object property, or returned) now gets a real `Function<A>`, callable
-through `Function::call` — this is what lets `export default` be evaluated
-uniformly by the harness whether or not it happens to be a function,
-closing the gap the harness currently special-cases.
-
-Preserve the declared length from the first callable value this stage
-constructs. When named parameters are admitted, compare exported and
-returned functions' `length` with native JavaScript, including unused
-parameters. This obligation is not deferred to Stage 6's call-edge audit
-or Stage 7's EDAG embedding.
+**Stage 2 — `Function<A>` as a real, callable first-class value.
+Landed with Stage 1**, there being no other shape: every function the
+generator prints is a `Function<A>` value already, whether it is called at
+once, stored, returned or exported, so the harness evaluates `export
+default` uniformly and a function value standing as the export is the one
+thing `to_json` refuses. The declared length is `0`, the only arity the
+language has; when named parameters are admitted, the generator prints the
+function node's count, and exported and returned functions' `length` is
+compared with native JavaScript, unused parameters included.
 
 **Stage 3 — capturing closures.**
 Extend the generator to lower the approved function-node shape for a body
@@ -406,29 +389,20 @@ frame — the general shape [function-frame](../../spec/todo/3111-function-frame
 and edag-stage1-discussion's `["frame"]` design are built around, though
 neither document spells this particular example.
 
-**Stage 4 — dynamic calls and higher-order functions.**
-Add the call-site form for when the callee is *not* known at compile time —
-[call-like-instructions §3](../../spec/todo/9100-call-like-instructions.md#3-dynamic-calls-into-user-defined-functions)'s
-"dynamic call". The callee here is an `Any<A>` (a property read, an array
-element, a parameter — anything the EDAG's `exp` can produce), not already a
-`Function<A>`, and calling a non-function must fail the way JS's own
-`TypeError` does rather than panic or go unspecified. That conversion
-already exists — `TryFrom<Any<A>> for Function<A>`
-([`vm/impls/try_from.rs`](../src/vm/impls/try_from.rs)) returns
-`Result<Function<A>, Any<A>>`, `Err` exactly the not-a-function case — so a
-dynamic call compiles to `Function::try_from(callee)?.call(args)?`, no new
-conversion to design, only to wire up. Both call forms (Stage 1's static
-form and this one) must be observably identical, per the core invariant
-that source behavior is call-site-representation-independent; nail this
-down with paired fixtures (same function, called once statically and once
-through a value) rather than trusting it by inspection.
+**Stage 4 — dynamic calls and higher-order functions. Landed with Stage
+1**: there is one call form, `Any::call`, whatever the callee — a function
+literal, a `const`, a property read, an argument, the result of another
+call — and a non-function callee throws the `TypeError` JavaScript's does,
+through `TryFrom<Any<A>> for Function<A>`, never a panic. Static and
+dynamic calls are not two forms to prove identical; they are one.
 
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:
-`self`-as-callee needs no new runtime support (Stage 1 already gives
-Rust-level recursion); `self`-as-a-value needs nothing in the calling
-convention either — every static function receives `self_` — only the
-generator reading `["self"]` as that parameter. Proof surface:
+neither needs anything in the calling convention — every static function
+receives `self_` already, and the generator prints it as `_self` only
+because no body reads it yet — only the generator reading `["self"]` as
+that parameter, `Function::new(self_.clone()).to_any()`, which a call to
+`self` then goes through as any call does. Proof surface:
 edag-stage1-discussion's own outer-`f`/nested-`b` snippet cited in
 [Self-reference](#self-reference) above — an enclosing function's `["self"]`
 captured into a nested closure's frame and called back out through it —
@@ -496,22 +470,18 @@ generated-Rust test from one source of cases.
 
 ### Tasks
 
-- [ ] Stage 1: non-capturing generated function bodies + static call sites;
-      harness fixtures whose `export default` is an already-applied call
-      (a bare function-valued `export default` stays out of scope until
-      Stage 2's `Function<A>` value exists).
-- [ ] Stage 2: after `IFunction`, emit each body as a static function of
-      `StaticCode<A>` and construct the value through `A::static_function`
-      with an empty frame, the module bounding on `IStaticFunction`;
-      preserve observable declared length; `Function::call`.
+- [x] Stage 1: a function is a closure bound through `A::static_function`,
+      its body a scope of its own; a call is `Any::call`; harness fixtures.
+- [x] Stage 2: landed with Stage 1 — every function is a `Function<A>`
+      value, the module bounding on `IStaticFunction`; `length` `0` until
+      named parameters exist.
 - [ ] Stage 3: capturing closures — approved function-node lowering, the
       frame built as an `Array<A>` and handed to `A::static_function`.
-- [ ] Stage 4: dynamic call sites through `TryFrom<Any<A>> for Function<A>` +
-      `Function::call`; paired static/dynamic fixtures proving observable
-      equivalence.
-- [ ] Stage 5: self-reference — `self`-as-callee needs nothing new;
-      `self`-as-a-value reads the `self_` every static function receives,
-      plus a `self === self` fixture.
+- [x] Stage 4: landed with Stage 1 — `Any::call` is the one call form,
+      a non-function callee throwing through `TryFrom<Any<A>> for Function<A>`.
+- [ ] Stage 5: self-reference — the generator reads `["self"]` as the
+      `self_` every static function receives, a call to it being a call
+      like any other; plus a `self === self` fixture.
 - [ ] Stage 6: arity/variadic edge-case audit against
       call-like-instructions §6.
 - [ ] Stage 7: EDAG embedding on natively compiled functions, once
