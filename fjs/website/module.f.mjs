@@ -54,7 +54,7 @@
 import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { foldStep, forEachStep, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { foldStep, forEachStep, ioError, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
@@ -610,7 +610,11 @@ const writeChangelog = tree => {
             text => {
                 const document = tryParse(text)
                 return document[0] === 'error'
-                    ? pureError(`changelog/${version}.md: ${document[1]}`)
+                    // The build's channel is `IoChannel`, so a refusal of ours
+                    // is reported through it rather than beside it: `exitStep`
+                    // prints the message and exits 1, as it does for a file
+                    // that could not be read.
+                    ? pureError(ioError({ message: `changelog/${version}.md: ${document[1]}` }))
                     : writeFile(releasePath(version), releasePage(version)(document[1]))
             })),
         () => step(
