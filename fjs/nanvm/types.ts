@@ -123,7 +123,10 @@ export type Throws = Special<readonly ['throw']>
  * way. Its use is the lazy positions — `&&`/`||`/`??`'s right operand and
  * either arm of `?:` — where the Rust printer prints it inside the thunk
  * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.mjs`,
- * `lazy`).
+ * `lazy`). Not in {@link Data}'s `shared`, at any depth: a shared value is
+ * established before any case on both sides, so `sharedExp` refuses one
+ * holding this — the type admits it there only because {@link Struct} is
+ * also an object operand's shape.
  */
 export type Unreached = Special<readonly ['unreached']>
 

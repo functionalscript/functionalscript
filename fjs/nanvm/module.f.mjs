@@ -319,11 +319,20 @@ const resolve = done => name => {
  * and with it a cycle, which no EDAG may have — unspellable rather than
  * something to detect.
  *
+ * A shared value holding an `unreached` is refused: a shared value is
+ * established before any case, on both sides — the proof's `memo`, the
+ * printer's `let` binding — so it can be nothing a case must not
+ * establish, and a `ref` to it from a lazy position would claim exactly
+ * that. `Struct` admits the thunk because an object *operand* may hold one;
+ * the refusal is what keeps `shared` from meaning two things.
+ *
  * @type {(shared: Struct) => readonly SharedNode[]}
  */
 export const sharedExp = shared => entries(shared).reduce(
-    (/** @type {readonly SharedNode[]} */ done, [k, v]) =>
-        [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])],
+    (/** @type {readonly SharedNode[]} */ done, [k, v]) => {
+        if (hasUnreached(v)) { throw ['a shared value is established before any case, so it cannot be unreached', k] }
+        return [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])]
+    },
     [])
 
 /**

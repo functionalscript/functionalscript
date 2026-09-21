@@ -493,6 +493,14 @@ const jsOnly = {
          * reference is refused — and a cycle, needing one, cannot be written.
          */
         forwardSharedRef: () => sharedExp({ a: [ref('b')], b: [] }),
+        /**
+         * A shared value is established before any case, on both sides, so
+         * one that must not be established is a contradiction — refused at
+         * lowering, at any depth, rather than bound eagerly by the printer
+         * as a `let` whose initializer no `Any<A>` can hold.
+         */
+        unreachedShared: () => sharedExp({ boom: unreached }),
+        nestedUnreachedShared: () => sharedExp({ holder: [1, { boom: unreached }] }),
         /** An operation the corpus does not exercise has no JavaScript here. */
         unusedOperation: () => reference('Number'),
         /**
