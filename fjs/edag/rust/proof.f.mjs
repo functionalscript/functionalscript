@@ -12,10 +12,13 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { expExpr, nodeExpr, sharedNodesOf } from './module.f.mjs'
+import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, readsArgs, scope, sharedNodesOf, valueExpr } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
+
+/** The same, propagating: what a compiled module's body holds. @type {(e: Exp) => string} */
+const valued = e => unwrap(valueExpr([])(e))
 
 /** @type {(shared: readonly (readonly [Exp, string])[]) => (e: Exp) => string} */
 const printedWith = shared => e => unwrap(expExpr(shared)(e))
@@ -61,9 +64,78 @@ export const proof = {
         assertEq(printed(['+', 1]), 'Any::unary_plus(f64_any(0x3ff0000000000000))')
         assertEq(
             printed(['?:', true, 1, 2]),
-            'Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))')
+            'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
         assertEq(printed(['=>', ['[]', []], ['undefined']]), 'function_any()')
         assertEq(printed(['*', 1, 2]), 'f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)')
+    },
+    /**
+     * A lazy operation's operands after the first are thunks, in either
+     * mode: a value answers `|| Ok(…)`, and an operation answers its own
+     * `Result` bare, and either body prints propagating, so a throw
+     * anywhere inside it lands in the closure — which is what lets a bare
+     * corpus statement hold an operation in a lazy position, nested however
+     * it is, where an eager position still cannot (see `nesting`). The
+     * first operand prints as the mode prints any operand.
+     */
+    lazy: () => {
+        assertEq(
+            printed(['&&', false, 1]),
+            'Any::logical_and(false.to_any(), || Ok(f64_any(0x3ff0000000000000)))')
+        assertEq(
+            printed(['||', true, 1]),
+            'Any::logical_or(true.to_any(), || Ok(f64_any(0x3ff0000000000000)))')
+        assertEq(
+            printed(['??', null, 1]),
+            'Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000)))')
+        // `false && (1n / 0n)`: the throwing operation is the closure's own
+        // answer, whether the statement is bare or propagating.
+        assertEq(
+            printed(['&&', false, ['/', 1n, 0n]]),
+            'Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0))')
+        assertEq(
+            valued(['&&', false, ['/', 1n, 0n]]),
+            '(Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0)))?')
+        // Inside the thunk everything propagates, whatever the statement's
+        // mode: the operation's own operands, and an operation inside a
+        // container the thunk answers — `false && [1n / 0n]`.
+        const nestedThunk = '|| (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))? * f64_any(0x4008000000000000)'
+        assertEq(
+            printed(['&&', false, ['*', ['*', 1, 2], 3]]),
+            `Any::logical_and(false.to_any(), ${nestedThunk})`)
+        assertEq(
+            valued(['&&', false, ['*', ['*', 1, 2], 3]]),
+            `(Any::logical_and(false.to_any(), ${nestedThunk}))?`)
+        const arrayThunk = '|| Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any())'
+        assertEq(
+            printed(['&&', false, ['[]', [['/', 1n, 0n]]]]),
+            `Any::logical_and(false.to_any(), ${arrayThunk})`)
+        assertEq(
+            valued(['&&', false, ['[]', [['/', 1n, 0n]]]]),
+            `(Any::logical_and(false.to_any(), ${arrayThunk}))?`)
+        // A `.` read is an operation too, and a container is a value.
+        assertEq(
+            valued(['||', true, ['.', ['{}', []], 'a']]),
+            '(Any::logical_or(true.to_any(), || Any::member_access(Object::default().to_any(), string_any("a"))))?')
+        assertEq(
+            printed(['||', true, ['[]', [['-', 1]]]]),
+            'Any::logical_or(true.to_any(), || Ok([(-(f64_any(0x3ff0000000000000)))?].to_array().to_any()))')
+        // Both arms of `?:`, and a nested lazy operation in an arm, which
+        // is a thunk inside a thunk; a lazy operation as the eager first
+        // operand is composed like any operator there.
+        assertEq(
+            valued(['?:', true, 1, ['/', 1n, 0n]]),
+            '(Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0)))?')
+        assertEq(
+            printed(['?:', ['&&', true, false], ['||', false, 1], 2]),
+            'Any::conditional((Any::logical_and(true.to_any(), || Ok(false.to_any()))), || Any::logical_or(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), || Ok(f64_any(0x4000000000000000)))')
+        // The first operand is eager, and composed where its rendering
+        // would otherwise re-associate — exactly as an eager operator's.
+        assertEq(
+            printed(['&&', ['*', 1, 2], 3]),
+            'Any::logical_and((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)), || Ok(f64_any(0x4008000000000000)))')
+        assertEq(
+            valued(['&&', ['*', 1, 2], 3]),
+            '(Any::logical_and((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?, || Ok(f64_any(0x4008000000000000))))?')
     },
     /** A composed operand keeps its parentheses; an atomic one does not. */
     nesting: () => {
@@ -79,12 +151,35 @@ export const proof = {
     dot: () => {
         assertEq(
             printed(['.', ['{}', [[':', 'a', 1]]], 'a']),
-            'Any::member_access([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("a"))?')
-        // Atomic as an operand: the method chain binds tighter than any
-        // infix operator, so no parentheses are needed around it.
+            'Any::member_access([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("a"))')
+        // Atomic as an operand: the call binds tighter than any infix
+        // operator, so no parentheses are needed around it.
         assertEq(
             printed(['-', ['.', ['{}', []], 'b']]),
-            '-(Any::member_access(Object::default().to_any(), string_any("b"))?)')
+            '-(Any::member_access(Object::default().to_any(), string_any("b")))')
+    },
+    /**
+     * Propagating, every operation is an `Any<A>` with its throw handed to
+     * the enclosing function: an operator's text parenthesized before the
+     * `?`, a `.` read's call followed by it, and a nested operation atomic
+     * as written, so it takes no parentheses of its own.
+     */
+    value: () => {
+        assertEq(valued(['*', 1, 2]), '(f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?')
+        assertEq(
+            valued(['*', 1, ['*', 2, 3]]),
+            '(f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?)?')
+        assertEq(valued(['-', ['undefined']]), '(-(Nullish::Undefined.to_any()))?')
+        assertEq(
+            valued(['.', ['{}', [[':', 'a', 1]]], 'a']),
+            'Any::member_access([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("a"))?')
+        assertEq(
+            valued(['.', ['.', ['{}', [[':', 'a', ['{}', []]]]], 'a'], 'b']),
+            'Any::member_access(Any::member_access([(string_key("a"), Object::default().to_any())].to_object().to_any(), string_any("a"))?, string_any("b"))?')
+        assertEq(valued(['[]', [['-', 1]]]), '[(-(f64_any(0x3ff0000000000000)))?].to_array().to_any()')
+        assertEq(valued([',', [['-', 1], 2]]), '{ let _: Any<A> = (-(f64_any(0x3ff0000000000000)))?; f64_any(0x4000000000000000) }')
+        // A literal is a literal in either mode.
+        assertEq(valued(1), printed(1))
     },
     /**
      * `Any::member_access` reads an array, a string, a boolean, a number, and
@@ -97,25 +192,25 @@ export const proof = {
     dotOnNonObjectLiteral: () => {
         assertEq(
             printed(['.', ['[]', [1]], 'length']),
-            'Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("length"))?')
+            'Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("length"))')
         assertEq(
             printed(['.', 'ab', '0']),
-            'Any::member_access(string_any("ab"), string_any("0"))?')
+            'Any::member_access(string_any("ab"), string_any("0"))')
         assertEq(
             printed(['.', true, 'x']),
-            'Any::member_access(true.to_any(), string_any("x"))?')
+            'Any::member_access(true.to_any(), string_any("x"))')
         assertEq(
             printed(['.', 5, 'x']),
-            'Any::member_access(f64_any(0x4014000000000000), string_any("x"))?')
+            'Any::member_access(f64_any(0x4014000000000000), string_any("x"))')
         assertEq(
             printed(['.', 5n, 'x']),
-            'Any::member_access(bigint_any(5), string_any("x"))?')
+            'Any::member_access(bigint_any(5), string_any("x"))')
     },
     /** A literal `number` index prints the same way a numeric primitive does elsewhere in this file. */
     numericIndex: () => {
         assertEq(
             printed(['.', ['{}', []], 0]),
-            'Any::member_access(Object::default().to_any(), f64_any(0x0000000000000000))?')
+            'Any::member_access(Object::default().to_any(), f64_any(0x0000000000000000))')
     },
     /**
      * A `.` base folds through a literal object chain before `nullishBase`
@@ -130,7 +225,7 @@ export const proof = {
         // Resolves to an object two hops away: printed, not refused.
         assertEq(
             printed(['.', ['.', ['{}', [[':', 'a', ['{}', [[':', 'c', 5]]]]]], 'a'], 'c']),
-            'Any::member_access(Any::member_access([(string_key("a"), [(string_key("c"), f64_any(0x4014000000000000))].to_object().to_any())].to_object().to_any(), string_any("a"))?, string_any("c"))?')
+            'Any::member_access(Any::member_access([(string_key("a"), [(string_key("c"), f64_any(0x4014000000000000))].to_object().to_any())].to_object().to_any(), string_any("a")), string_any("c"))')
         // The fold can just as well resolve to a non-object literal (an
         // array, here) two hops away. `nullishBase` treats that the same as
         // if the fold had left it opaque — neither is a literal `null` nor
@@ -139,7 +234,7 @@ export const proof = {
         // nothing, not that some refusal is being dodged.
         assertEq(
             printed(['.', ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], 'length']),
-            'Any::member_access(Any::member_access([(string_key("a"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any(), string_any("a"))?, string_any("length"))?')
+            'Any::member_access(Any::member_access([(string_key("a"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any(), string_any("a")), string_any("length"))')
         // `resolvedBase` folds through a `.` node only as far as an actual
         // literal object — a chain whose middle step resolves to something
         // else (an empty array, here) stops there, unresolved, rather than
@@ -164,7 +259,7 @@ export const proof = {
         // were the only thing standing in the way.
         assertEq(
             printed(['.', ['.', ['[]', []], 'length'], 'toString']),
-            'Any::member_access(Any::member_access(Array::default().to_any(), string_any("length"))?, string_any("toString"))?')
+            'Any::member_access(Any::member_access(Array::default().to_any(), string_any("length")), string_any("toString"))')
     },
     /**
      * `resolvedBase` also folds a literal array's or string's own canonical
@@ -186,7 +281,7 @@ export const proof = {
         // exactly as it would one property access away.
         assertEq(
             printed(['.', ['.', ['[]', [['{}', [[':', 'a', 1]]]]], 0], 'a']),
-            'Any::member_access(Any::member_access([[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), f64_any(0x0000000000000000))?, string_any("a"))?')
+            'Any::member_access(Any::member_access([[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), f64_any(0x0000000000000000)), string_any("a"))')
         // A numeric key into an object literal is stringified first, the
         // same way `{0:'x'}[0]` and `{0:'x'}['0']` read the same property
         // in real JS: the fold matches the string-keyed property `"0"`
@@ -194,14 +289,14 @@ export const proof = {
         // opaque to a numeric key.
         assertEq(
             printed(['.', ['.', ['{}', [[':', '0', 'x']]], 0], 'length']),
-            'Any::member_access(Any::member_access([(string_key("0"), string_any("x"))].to_object().to_any(), f64_any(0x0000000000000000))?, string_any("length"))?')
+            'Any::member_access(Any::member_access([(string_key("0"), string_any("x"))].to_object().to_any(), f64_any(0x0000000000000000)), string_any("length"))')
         // A string literal's in-bounds index resolves to the single-unit
         // string at that position, the same way `{@link
         // dotOnStringOutOfRangeIndex}` (`throw`, below) resolves an
         // out-of-range one to `undefined` instead.
         assertEq(
             printed(['.', ['.', 'ab', 0], 'length']),
-            'Any::member_access(Any::member_access(string_any("ab"), f64_any(0x0000000000000000))?, string_any("length"))?')
+            'Any::member_access(Any::member_access(string_any("ab"), f64_any(0x0000000000000000)), string_any("length"))')
         // `[1]["0"]` reads element `0` exactly as `[1][0]` does: `"0"` is
         // the canonical decimal form of the index `0`, which
         // `Array::member_access` accepts as an alternative spelling of the
@@ -209,14 +304,14 @@ export const proof = {
         // (never nullish), so this prints two hops in.
         assertEq(
             printed(['.', ['.', ['[]', [1]], '0'], 'x']),
-            'Any::member_access(Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("0"))?, string_any("x"))?')
+            'Any::member_access(Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("0")), string_any("x"))')
         // `.length` on a string literal is a number, never nullish, so it
         // is left opaque here exactly as an array's `.length` is above —
         // proving the string branch's own `b === 'length'` guard behaves
         // the same way.
         assertEq(
             printed(['.', ['.', 'ab', 'length'], 'toString']),
-            'Any::member_access(Any::member_access(string_any("ab"), string_any("length"))?, string_any("toString"))?')
+            'Any::member_access(Any::member_access(string_any("ab"), string_any("length")), string_any("toString"))')
     },
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
@@ -243,6 +338,18 @@ export const proof = {
         const shared = /** @type {readonly (readonly [Exp, string])[]} */ ([[base, 'x.clone()']])
         assertEq(printedWith(shared)(base), 'x.clone()')
         assertEq(printedWith(shared)(['[]', [base]]), '[x.clone()].to_array().to_any()')
+        // In a lazy position too: the binding is established before the
+        // root, as a `const` is at its declaration, and the thunk clones it
+        // — a shared operation included, which is its binding there, not
+        // the operation.
+        assertEq(
+            printedWith(shared)(['??', null, base]),
+            'Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(x.clone()))')
+        /** @type {Exp} */
+        const op = ['*', 1, 2]
+        assertEq(
+            printedWith([[op, 'y.clone()']])(['??', null, op]),
+            'Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(y.clone()))')
     },
     sharedNodesOf: {
         /** A node reached from only one place is never a binding candidate. */
@@ -286,6 +393,129 @@ export const proof = {
             const root = ['[]', [1]]
             assert(!sharedNodesOf(root).includes(root), sharedNodesOf(root))
         },
+        /**
+         * A function's body is a scope of its own: nothing inside it is
+         * shared at the scope around it — `scope` walks the body afresh
+         * — while its frame is that scope's.
+         */
+        stopsAtAFunctionBody: () => {
+            /** @type {Exp} */
+            const x = ['[]', []]
+            assertEq(sharedNodesOf(['=>', null, ['[]', [x, x]]]).length, 0)
+            const found = sharedNodesOf(['[]', [['=>', x, 1], x]])
+            assertEq(found.length, 1)
+            assert(found[0] === x, found)
+        },
+    },
+    /**
+     * The statements of one scope: a `let` per shared node, then the root
+     * as the `Result` the scope's function answers — an operation's own,
+     * `Ok(…)` of any other value — or the refusal of a shared node the root
+     * reaches only through lazy operands.
+     */
+    scope: {
+        statements: () => {
+            /** @type {Exp} */
+            const x = ['[]', []]
+            assertStructurallySame(unwrap(scope(['[]', [x, x]])), [
+                'let c0: Any<A> = Array::default().to_any();',
+                'Ok([c0.clone(), c0.clone()].to_array().to_any())',
+            ])
+        },
+        operationRoot: () => {
+            assertStructurallySame(
+                unwrap(scope(['.', ['{}', []], 'a'])),
+                ['Any::member_access(Object::default().to_any(), string_any("a"))'])
+        },
+        refusedSharedOnlyThroughLazyOperands: () => {
+            /** @type {Exp} */
+            const c = ['[]', []]
+            const result = scope(['?:', true, 1, ['[]', [c, c]]])
+            assert(result[0] === 'error', result)
+        },
+    },
+    /**
+     * Functions: a `null`-frame `=>` node — the compiler's every function —
+     * is a closure bound through `IStaticFunction`, its body a scope of its
+     * own; `['args']` is the closure's parameter as a value; a call is
+     * `Any::call` over two values, an operation in either mode.
+     */
+    functions: {
+        args: () => {
+            assertEq(printed(['args']), 'args.clone().to_any()')
+        },
+        call: () => {
+            /** @type {Exp} */
+            const e = ['()', ['args'], ['[]', [1]]]
+            assertEq(printed(e), 'Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any())')
+            assertEq(valued(e), '(Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?')
+        },
+        /**
+         * A body that reads its arguments names the parameter; one that
+         * never does leaves it `_args`, unused.
+         */
+        closure: () => {
+            assertEq(
+                printed(['=>', null, ['args']]),
+                'A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()')
+            assertEq(
+                printed(['=>', null, 1]),
+                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()')
+        },
+        /** A nested function's `args` are its own: the outer body reads none. */
+        nested: () => {
+            assertEq(
+                printed(['=>', null, ['=>', null, ['args']]]),
+                'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()) }, 0, Array::default()).to_any()')
+        },
+        /** A body whose root is an operation answers that operation's own `Result`, as a thunk does. */
+        operationBody: () => {
+            assertEq(
+                printed(['=>', null, ['.', ['args'], 0]]),
+                'A::static_function(|_self, args| { Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000)) }, 0, Array::default()).to_any()')
+        },
+        /** Sharing inside a body is the body's own: bound in the closure, numbered from `c0`. */
+        sharingInside: () => {
+            /** @type {Exp} */
+            const first = ['.', ['args'], 0]
+            assertEq(
+                printed(['=>', null, ['[]', [first, first]]]),
+                'A::static_function(|_self, args| { let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?; Ok([c0.clone(), c0.clone()].to_array().to_any()) }, 0, Array::default()).to_any()')
+        },
+        /** Any frame but `null` and the corpus's empty one is refused. */
+        otherFrame: () => {
+            assertEq(refusalReason(['=>', ['[]', [1]], 1])[0], 'no Rust for')
+        },
+        /**
+         * A `null`-frame function anywhere — an item, a call's callee, a
+         * body inside another function — is held; the corpus's own lambda
+         * binds nothing, and a primitive holds nothing.
+         */
+        holdsFunction: () => {
+            assertEq(holdsFunction(['=>', null, 1]), true)
+            assertEq(holdsFunction(['[]', [1, ['=>', null, 1]]]), true)
+            assertEq(holdsFunction(['()', ['=>', null, ['args']], ['[]', []]]), true)
+            assertEq(holdsFunction(['=>', ['[]', []], ['=>', null, 1]]), true)
+            assertEq(holdsFunction(['=>', ['[]', []], ['undefined']]), false)
+            assertEq(holdsFunction(['[]', [1, 'static_function(']]), false)
+            assertEq(holdsFunction(1), false)
+        },
+        /**
+         * Every question asked of a graph walks it once per distinct node:
+         * a sharing chain forty levels deep, each level reaching the one
+         * before it twice, is answered as fast as its forty nodes and not
+         * as the trillion paths through them.
+         */
+        walksSharedNodesOnce: () => {
+            /** @type {(depth: number, node: Exp) => Exp} */
+            const chain = (depth, node) => depth === 0 ? node : chain(depth - 1, ['[]', [node, node]])
+            const deep = chain(40, ['[]', []])
+            assertEq(readsArgs(deep), false)
+            assertEq(readsArgs(chain(40, ['args'])), true)
+            assertEq(holdsFunction(deep), false)
+            assertEq(holdsFunction(chain(40, ['=>', null, 1])), true)
+            assertEq(sharedNodesOf(deep).length, 40)
+        },
     },
     /**
      * A literal the target type cannot hold — a string with a lone
@@ -293,6 +523,41 @@ export const proof = {
      * with the reason this printer gives it, wherever a string literal
      * stands: a primitive, an object key, an index.
      */
+    /**
+     * The nodes a root establishes unconditionally: through every eager
+     * position, and a lazy operation's first operand, never its others —
+     * however a node is also reached lazily.
+     */
+    eagerNodesOf: () => {
+        /** @type {Exp} */
+        const c = ['[]', []]
+        // Through an array item, an object value, a comma operand, an eager
+        // operator's operands, a `.` base, and a lazy operation's first
+        // operand.
+        assertEq(eagerNodesOf(['[]', [c]]).includes(c), true)
+        assertEq(eagerNodesOf(['{}', [[':', 'k', c]]]).includes(c), true)
+        assertEq(eagerNodesOf([',', [c, 1]]).includes(c), true)
+        assertEq(eagerNodesOf(['*', 1, c]).includes(c), true)
+        assertEq(eagerNodesOf(['.', c, 'length']).includes(c), true)
+        assertEq(eagerNodesOf(['&&', c, 1]).includes(c), true)
+        assertEq(eagerNodesOf(['?:', c, 1, 2]).includes(c), true)
+        // Not through a function's body, established only when it is called.
+        assertEq(eagerNodesOf(['=>', null, ['[]', [c]]]).includes(c), false)
+        // Not through a lazy operand, at any depth below it.
+        assertEq(eagerNodesOf(['&&', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['||', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['??', true, c]).includes(c), false)
+        assertEq(eagerNodesOf(['?:', true, c, 2]).includes(c), false)
+        assertEq(eagerNodesOf(['?:', true, 1, ['[]', [c, c]]]).includes(c), false)
+        // One eager reach is enough, wherever the lazy ones are.
+        assertEq(eagerNodesOf(['[]', [['&&', true, c], c]]).includes(c), true)
+        // A list whose first item spells a lazy tag is a list: both `c`s
+        // are items, reached.
+        assertEq(eagerNodesOf(['[]', ['&&', c, ['&&', true, c]]]).includes(c), true)
+        // The root comes first, and a primitive root reaches nothing.
+        assertStructurallySame(eagerNodesOf(c), [c])
+        assertStructurallySame(eagerNodesOf(1), [])
+    },
     literalRefusals: () => {
         assertStructurallySame(
             refusalReason('a\ud800b'),

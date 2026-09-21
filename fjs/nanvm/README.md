@@ -63,12 +63,16 @@ NaNVM-specific vocabulary did not:
   validation rule changing under the corpus fails there.
 
 There is no exception: every group's operation is an EDAG id, and every case
-lowers to an expression that both consumers read. What the corpus's cases
-cannot prove is that `&&`/`||`/`??`/`?:` leave their unselected operand
-unestablished — a value cannot observe its own evaluation, and the Rust
-harness receives every operand built — so that half of those operators is
-pinned by [amnesia's proof](../edag/amnesia/proof.f.mjs) alone, with an
-operand that throws when established.
+lowers to an expression that both consumers read. That includes what
+`&&`/`||`/`??`/`?:` are for — leaving their unselected operand
+unestablished — through the `unreached` operand: it lowers to `1n / 0n`,
+an operation that throws when established, so `false && unreached` answers
+`false` on either side only because neither side touched it. `amnesia`
+establishes a lazy operand only when the operator selects it, and the Rust
+printer prints one as the thunk `nanvm-lib`'s four methods take — an `impl
+FnOnce() -> Result<Any<A>, Any<A>>` they call at most once, here `||
+bigint_any(1) / bigint_any(0)`, the operation's own `Result`
+([`fjs/edag/rust`](../edag/rust/module.f.mjs), `lazy`).
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
 the smallest closure — `['=>', ['[]', []], ['undefined']]` — which `amnesia`
@@ -100,7 +104,7 @@ there are:
 { op: '-', arity: 1, cases: [...] },               // `-` is also binary, so the group says
 ```
 
-Three things a literal cannot express are written as thunks — a function in the
+Four things a literal cannot express are written as thunks — a function in the
 data is always a *description*, never a value that happens to be a function:
 
 | Thunk | Means |
@@ -108,6 +112,7 @@ data is always a *description*, never a value that happens to be a function:
 | `functionValue` | a function value, lowered to `() => undefined` (no operator here inspects which one) |
 | `ref(name)` | one of `data.shared`'s values, so the *same* object reaches every `ref` to that name |
 | `throws` | the case must throw; valid only as `expected` |
+| `unreached` | an operand the operation must not establish, lowered to `1n / 0n`, which throws if it is; for the lazy positions of `&&`/`||`/`??`/`?:` |
 
 `expected` is compared with `Object.is`, so `NaN` matches `NaN` and `0` does not
 match `-0`. The Rust side compares the same way. It describes the test's

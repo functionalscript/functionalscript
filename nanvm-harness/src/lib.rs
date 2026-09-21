@@ -9,28 +9,46 @@
 //! generated files in via `#[path]`, since they live beside the FJS source
 //! they were compiled from rather than under `src/`.
 
+#[path = "../fixtures/arity.rs"]
+pub mod arity;
 #[path = "../fixtures/array.rs"]
 pub mod array;
 #[path = "../fixtures/boolean.rs"]
 pub mod boolean;
+#[path = "../fixtures/call.rs"]
+pub mod call;
+#[path = "../fixtures/calls.rs"]
+pub mod calls;
 #[path = "../fixtures/escapes.rs"]
 pub mod escapes;
-#[path = "../fixtures/function.rs"]
-pub mod function;
+#[path = "../fixtures/function-scope.rs"]
+pub mod function_scope;
+#[path = "../fixtures/length.rs"]
+pub mod length;
+#[path = "../fixtures/missing.rs"]
+pub mod missing;
 #[path = "../fixtures/named.rs"]
 pub mod named;
+#[path = "../fixtures/nested.rs"]
+pub mod nested;
+#[path = "../fixtures/not-a-function.rs"]
+pub mod not_a_function;
 #[path = "../fixtures/number.rs"]
 pub mod number;
 #[path = "../fixtures/object.rs"]
 pub mod object;
+#[path = "../fixtures/operators.rs"]
+pub mod operators;
 #[path = "../fixtures/property.rs"]
 pub mod property;
-#[path = "../fixtures/rest-function.rs"]
-pub mod rest_function;
+#[path = "../fixtures/rest.rs"]
+pub mod rest;
 #[path = "../fixtures/sharing.rs"]
 pub mod sharing;
 #[path = "../fixtures/string.rs"]
 pub mod string;
+#[path = "../fixtures/throws.rs"]
+pub mod throws;
 
 use core::fmt::{self, Debug, Display, Formatter};
 
@@ -87,14 +105,12 @@ impl<A: IVm> PartialEq for RunError<A> {
 /// value the module threw. The harness selects the object's `default`
 /// property for the JSON result.
 ///
-/// A real generated module's default export may be a function, which the
-/// harness's job is to run before printing its result
-/// (`fjs-nanvm-integration.md`). `nanvm-lib` has no `Function`
-/// constructor/interpreter yet — that's `mvp-roadmap.md`'s P2 "`Function`
-/// constructor + interpreter" task, gated behind a future cargo feature —
-/// so there is no way to call one here. A function export therefore comes
-/// out of [`Any::to_json`] as [`JsonError::Function`], the same as every
-/// other value this minimal serializer doesn't (yet) handle.
+/// A module holding a function bounds on `IStaticFunction`, which every VM
+/// this harness runs — `naive` — implements, and a compiled call already
+/// ran inside `module()`: the harness only ever sees the value. A function
+/// value standing as the export itself has no JSON, and comes out of
+/// [`Any::to_json`] as [`JsonError::Function`], as every other value this
+/// minimal serializer does not handle does.
 pub fn run<A: IVm>(
     module: fn() -> Result<Any<A>, Any<A>>,
 ) -> Result<std::string::String, RunError<A>> {
@@ -110,11 +126,13 @@ pub fn run<A: IVm>(
 mod tests {
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, IVm},
+        vm::{Any, IVm, Nullish, ToAny},
     };
 
     use crate::{
-        RunError, array, boolean, escapes, function, named, number, object, property, rest_function, run, sharing, string,
+        RunError, arity, array, boolean, call, calls, escapes, function_scope, length, missing,
+        named, nested, not_a_function, number, object, operators, property, rest, run, sharing,
+        string, throws,
     };
 
     #[test]
@@ -129,9 +147,8 @@ mod tests {
         );
     }
 
-    /// No committed fixture throws yet — no operator compiles to `.rs` — so
-    /// the throwing module is written by hand, in the shape the generator
-    /// prints.
+    /// A module written by hand in the shape the generator prints, throwing
+    /// a value of the test's choosing.
     fn throwing<A: IVm>() -> Result<Any<A>, Any<A>> {
         Err("boom".into())
     }
@@ -141,6 +158,64 @@ mod tests {
         let error = run::<Naive>(throwing).unwrap_err();
         assert!(matches!(&error, RunError::Thrown(v) if *v == "boom".into()));
         assert_eq!(error.to_string(), "uncaught \"boom\"");
+    }
+
+    /// The failure contract from source to run: `1n / 0n` throws in
+    /// JavaScript, and the compiled module answers the thrown value.
+    #[test]
+    fn compiled_throw_is_reported() {
+        assert!(matches!(
+            run::<Naive>(throws::module),
+            Err(RunError::Thrown(_))
+        ));
+    }
+
+    /// Every eager operator, computed by `nanvm-lib` from the compiled
+    /// module, against what a JavaScript engine gives the same source.
+    #[test]
+    fn operators() {
+        assert_eq!(
+            run::<Naive>(operators::module),
+            Ok(
+                "[7,5,12,1.5,2,36,-6,-7,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
+                    .into()
+            )
+        );
+    }
+
+    /// Functions, end to end: a function of one rest parameter is a closure
+    /// bound through `IStaticFunction`, a call is `Any::call`, and the
+    /// arguments reach the body as its `args`.
+    #[test]
+    fn functions() {
+        assert_eq!(run::<Naive>(call::module), Ok("41".into()));
+        assert_eq!(run::<Naive>(arity::module), Ok("[0,2]".into()));
+        assert_eq!(run::<Naive>(rest::module), Ok("[1,2,3]".into()));
+        assert_eq!(run::<Naive>(calls::module), Ok("[1,2]".into()));
+        assert_eq!(run::<Naive>(nested::module), Ok("[2,3]".into()));
+        assert_eq!(run::<Naive>(length::module), Ok("0".into()));
+        // spec/README.md's sharing example: `pair` is bound once inside the
+        // function's own scope, where `a` is, and cloned at each reference.
+        assert_eq!(
+            run::<Naive>(function_scope::module),
+            Ok("[[1,1],[1,1]]".into())
+        );
+    }
+
+    /// A read past the arguments supplied answers `undefined` — which has
+    /// no JSON, so the value is checked as it is — and calling what is not
+    /// a function throws.
+    #[test]
+    fn missing_argument_and_non_function_callee() {
+        let value = missing::module::<Naive>()
+            .unwrap()
+            .member_access("default".into())
+            .unwrap();
+        assert_eq!(value, Nullish::Undefined.to_any());
+        assert!(matches!(
+            run::<Naive>(not_a_function::module),
+            Err(RunError::Thrown(_))
+        ));
     }
 
     #[test]
@@ -196,16 +271,6 @@ mod tests {
     #[test]
     fn property_access() {
         assert_eq!(run::<Naive>(property::module), Ok("42".into()));
-    }
-
-    #[test]
-    fn no_argument_function() {
-        assert_eq!(run::<Naive>(function::module), Ok("42".into()));
-    }
-
-    #[test]
-    fn rest_function() {
-        assert_eq!(run::<Naive>(rest_function::module), Ok("[]".into()));
     }
 
     #[test]

@@ -305,17 +305,13 @@ above, not just new-syntax acceptance.
 - Stage C (comma): explicitly sequenced after Stage B; the anchoring
   subtraction rule this task implements one instance of is Stage C's to
   generalize, not to pull forward.
-- A lazy `.rs` spelling for `&&`/`||`/`??`/`?:`. `nanvm-lib` has the four
-  operations, taking evaluated operands, and the corpus checks them; a
-  compiled module needs operands that are not evaluated before the call,
-  which nothing spells yet —
-  [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md),
-  blocked on the generated module's failure contract in
-  [`stage-a-operators.md`](../rust/todo/stage-a-operators.md). The `.rs`
-  route of `fjs compile` is this task's to keep honest, though — see the
-  Rust-codegen task below: not implementing laziness in Rust, but making
-  sure the one node shape `fjs/fsc/rust` does not refuse yet, `?:`, is
-  refused once the grammar can produce it.
+- The `.rs` spelling of `&&`/`||`/`??`/`?:`: done. `nanvm-lib`'s four
+  operations take each conditionally established operand as a thunk, and
+  `fjs/edag/rust`'s printer prints one as a closure — a compiled module
+  answers `false` for `false && (1n / 0n)`, proven directly through
+  `toRust`. What the `.rs` route of `fjs compile` owes this task is the
+  `nanvm-harness` fixture: a whole *module* holding each of the four, run
+  once the grammar can produce one — see the Rust-codegen task below.
 - The FunctionalScript writer (`fjs/fsc/serializer`): stays silent on Stage B
   the same way it already is on Stage A. `entry`'s ``default: { return
   error(`a ${node[0]} node`) }`` already refuses every Stage A operator node,
@@ -349,33 +345,13 @@ above, not just new-syntax acceptance.
 - [ ] `fjs/fsc/ast`/`fjs/fsc/edag`: `AstConditional`; `lower`'s `case` list
       gains the three tags and a `ternary` work item for `?:`; keep the
       plain-data evaluator's refusal.
-- [ ] `fjs/fsc/rust`: extend `resultOperator` to the length-4 `?:` node.
-      The shared printer's `op2Rust` entries for `&&`/`||`/`??` and
-      `op3Rust`'s `?:` print `Any::logical_and(${a}, ${b})` /
-      `Any::conditional(${a}, ${b}, ${c})` over already-printed operands,
-      and `nanvm-lib`'s `Any::logical_and`/`logical_or`/`nullish_coalescing`/
-      `conditional` (`nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs`)
-      take `Self` by value, not a closure, so Rust evaluates every operand
-      before the call — right for the operator corpus, whose cases hand the
-      `Result` to a checker, and a silent miscompile for a module whose
-      correctness rests on the laziness this task is about: `false && (1n +
-      1)` must not evaluate `1n + 1`, but that Rust would. The compile route
-      already refuses the binary three: `fjs/fsc/rust`'s `resultOperator`
-      matches every length-3 node whose tag is in `op2Rust`, and `bodyLines`
-      answers `no Rust for an operator in a module` before `expExpr` runs,
-      so `&&`/`||`/`??` are covered the moment they parse. `?:` is not: it
-      is a length-4 node, `resultOperator` checks only lengths 2 and 3, and
-      its own comment defers the `op3Rust` check to "the ternary landing in
-      the grammar" because a branch no module could reach would fail the
-      coverage rule. This task lands that check with the grammar, and proves
-      a module holding `?:` is refused on the `.rs` route. The shared
-      `fjs/edag/rust` entries stay as they are: `fjs/nanvm/rust` unwraps the
-      shared printer to write the corpus, so gating them there would break
-      generating the very tests the lazy Rust operators will be checked by.
-      Lifting the refusal is
-      [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md)'s,
-      after the failure contract in
-      [`stage-a-operators.md`](../rust/todo/stage-a-operators.md).
+- [ ] `fjs/fsc/rust`: the four operators already print, each lazy operand
+      as the thunk `nanvm-lib` takes, proven directly through `toRust` on
+      `false && (1n / 0n)` and a `?:` with a throwing unselected arm, since
+      it takes any EDAG whether or not the grammar can produce one. What
+      this task owes is the `nanvm-harness` fixture: a *module* holding each
+      of the four, with a throwing unselected operand, compiled and run
+      once the grammar produces one.
 - [ ] `refsOf`: add the eager-restricted variant and switch **both** `reach`
       and `anchors`' own `within` computation to it, leaving `sharing`'s use
       of the unrestricted one unchanged; proofs for the sharing behavior,
@@ -409,17 +385,14 @@ above, not just new-syntax acceptance.
   the staging plan and the anchoring-subtraction rule this task implements
   one instance of.
 - [`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md) —
-  the Parser task, which this is. Its operators item is done and its `?:`
-  item is the VM's; neither is what the `.rs` route waits on, which is
-  [the failure contract](../rust/todo/stage-a-operators.md) and then
-  [a lazy spelling](../rust/todo/lazy-operators.md).
+  the Parser task, which this is. Its operators item and its `?:` item are
+  both done, and the `.rs` route waits on nothing but a source program.
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — `op2Rust`/
-  `op3Rust`, whose `&&`/`||`/`??`/`?:` entries the corpus printer needs as
-  they are; [`fjs/fsc/rust`](../rust/module.f.mjs)'s `resultOperator` is
-  where the compile route refuses them, see the Tasks entry above.
+  `op3Rust` and `lazy`: the `&&`/`||`/`??`/`?:` spellings, each lazy operand
+  a thunk, shared by the corpus printer and the compile route.
 - `nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
-  `Any` methods those entries call, confirming they take already-evaluated
-  operands, not closures.
+  `Any` methods those entries call, each lazy operand an
+  `impl FnOnce() -> Result<Any<A>, Any<A>>`.
 - [`fjs/edag/module.f.mjs`](../../edag/module.f.mjs) — the already-landed,
   already-proved EDAG schema and laziness semantics this task compiles down
   to (`op2Id`, `op3Id`).
