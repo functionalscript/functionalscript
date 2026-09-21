@@ -71,10 +71,11 @@ export const proof = {
     /**
      * A lazy operation's operands after the first are thunks, in either
      * mode: a value answers `|| Ok(…)`, and an operation answers its own
-     * `Result` bare, so its throw lands in the closure — which is what lets
-     * a bare corpus statement hold an operation in a lazy position, where an
-     * eager position still cannot (see `nesting`). The first operand prints
-     * as the mode prints any operand.
+     * `Result` bare, and either body prints propagating, so a throw
+     * anywhere inside it lands in the closure — which is what lets a bare
+     * corpus statement hold an operation in a lazy position, nested however
+     * it is, where an eager position still cannot (see `nesting`). The
+     * first operand prints as the mode prints any operand.
      */
     lazy: () => {
         assertEq(
@@ -94,21 +95,30 @@ export const proof = {
         assertEq(
             valued(['&&', false, ['/', 1n, 0n]]),
             '(Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0)))?')
-        // An operation's own operands print as the mode prints them: bare,
-        // or propagating into the closure's `Result`.
+        // Inside the thunk everything propagates, whatever the statement's
+        // mode: the operation's own operands, and an operation inside a
+        // container the thunk answers — `false && [1n / 0n]`.
+        const nestedThunk = '|| (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))? * f64_any(0x4008000000000000)'
         assertEq(
             printed(['&&', false, ['*', ['*', 1, 2], 3]]),
-            'Any::logical_and(false.to_any(), || (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)) * f64_any(0x4008000000000000))')
+            `Any::logical_and(false.to_any(), ${nestedThunk})`)
         assertEq(
             valued(['&&', false, ['*', ['*', 1, 2], 3]]),
-            '(Any::logical_and(false.to_any(), || (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))? * f64_any(0x4008000000000000)))?')
+            `(Any::logical_and(false.to_any(), ${nestedThunk}))?`)
+        const arrayThunk = '|| Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any())'
+        assertEq(
+            printed(['&&', false, ['[]', [['/', 1n, 0n]]]]),
+            `Any::logical_and(false.to_any(), ${arrayThunk})`)
+        assertEq(
+            valued(['&&', false, ['[]', [['/', 1n, 0n]]]]),
+            `(Any::logical_and(false.to_any(), ${arrayThunk}))?`)
         // A `.` read is an operation too, and a container is a value.
         assertEq(
             valued(['||', true, ['.', ['{}', []], 'a']]),
             '(Any::logical_or(true.to_any(), || Any::member_access(Object::default().to_any(), string_any("a"))))?')
         assertEq(
-            valued(['||', true, ['[]', [['-', 1]]]]),
-            '(Any::logical_or(true.to_any(), || Ok([(-(f64_any(0x3ff0000000000000)))?].to_array().to_any())))?')
+            printed(['||', true, ['[]', [['-', 1]]]]),
+            'Any::logical_or(true.to_any(), || Ok([(-(f64_any(0x3ff0000000000000)))?].to_array().to_any()))')
         // Both arms of `?:`, and a nested lazy operation in an arm, which
         // is a thunk inside a thunk; a lazy operation as the eager first
         // operand is composed like any operator there.

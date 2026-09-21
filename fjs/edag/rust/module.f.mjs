@@ -19,6 +19,7 @@
  *
  * @import { Exp, Index, Primitive, Properties } from '../types.ts'
  * @import { OpId } from '../../nanvm/types.ts'
+ * @import { Printer } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
@@ -410,9 +411,10 @@ const resolvedBase = e => {
  *
  * A {@link lazy} operation's later operands print as thunks in either mode,
  * the closure answering the `Result` `nanvm-lib` asks of it: an operation's
- * own, bare, or `Ok(…)` around any other node's value — see {@link thunk}.
+ * own, bare, or `Ok(…)` around any other node's value, either printed
+ * propagating — see {@link thunk}.
  *
- * @type {(propagate: boolean) => (shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
+ * @type {(propagate: boolean) => (shared: readonly (readonly[Exp, string])[]) => Printer}
  */
 const printer = propagate => shared => {
     /** An operator node's printed operation, in the mode's form. @type {(s: string) => string} */
@@ -531,16 +533,25 @@ const printer = propagate => shared => {
      * answers `Ok(…)` of its value: a literal, a container, a block, or a
      * shared binding's `.clone()`, the binding having been established
      * before the root, as a `const` is at its declaration whatever the
-     * operators around its uses do. A throw inside the body lands in the
-     * closure's `Result`, never in the statement's, so the corpus's bare
-     * `check` statements hold an operation here exactly as a compiled
-     * module's `(…)?` does.
+     * operators around its uses do.
+     *
+     * Either body is printed propagating, whichever mode the statement
+     * around it is in: the closure is a function of its own, answering a
+     * `Result`, so an operation anywhere inside it — the operation's own
+     * operand, an item of a container it answers — follows with `?` and
+     * lands its throw in the closure's `Result`, never in the statement's.
+     * That is what lets the corpus's bare `check` statements hold an
+     * operation in a lazy position, where an eager position of theirs
+     * still cannot (`../../nanvm/todo/corpus-as-conformance-vectors.md`).
      *
      * @type {(e: Exp) => Result<string, readonly unknown[]>}
      */
-    const thunk = e => isOperation(e)
-        ? mapOk(s => `|| ${s}`)(bare(/** @type {readonly any[]} */ (e)))
-        : mapOk(s => `|| Ok(${s})`)(f(e))
+    const thunk = e => {
+        const p = propagate ? self : printer(true)(shared)
+        return isOperation(e)
+            ? mapOk(s => `|| ${s}`)(p.bare(/** @type {readonly any[]} */ (e)))
+            : mapOk(s => `|| Ok(${s})`)(p.f(e))
+    }
     /**
      * One object entry.
      *
@@ -557,7 +568,9 @@ const printer = propagate => shared => {
     const propertyExpr = p => p[0] !== ':'
         ? error(['not a property', p])
         : map2((k, v) => `(${k}, ${v})`)(keyExpr(p[1]), f(p[2]))
-    return f
+    /** @type {Printer} */
+    const self = { f, bare }
+    return self
 }
 
 /**
@@ -566,7 +579,7 @@ const printer = propagate => shared => {
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
-export const expExpr = printer(false)
+export const expExpr = shared => printer(false)(shared).f
 
 /**
  * The printer whose operations propagate with `?`, every expression an
@@ -575,7 +588,7 @@ export const expExpr = printer(false)
  *
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
-export const valueExpr = printer(true)
+export const valueExpr = shared => printer(true)(shared).f
 
 /**
  * `true` for the operands of `() => undefined`: an empty frame and the
