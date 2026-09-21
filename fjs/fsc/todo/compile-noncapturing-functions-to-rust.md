@@ -495,8 +495,9 @@ argument).
 #### Task 6 — print a call as a direct Rust call
 
 `['()', callee, args]` where `callee` is, by node identity, one of the
-functions Task 5 discovered: print as `f{N}(&{args_expr})?`, `N` that
-function's assigned index.
+functions Task 5 discovered: print as `f{N}({args_expr})?`, `N` that
+function's assigned index — the arguments by value, as the signature takes
+them.
 
 **The argument-list node is restricted to a fresh array literal,
 `['[]', […]]`, for now — not any node that merely evaluates to an array.**
