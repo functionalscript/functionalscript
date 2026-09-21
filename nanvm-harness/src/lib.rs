@@ -19,12 +19,16 @@ pub mod boolean;
 pub mod call;
 #[path = "../fixtures/calls.rs"]
 pub mod calls;
+#[path = "../fixtures/chain.rs"]
+pub mod chain;
 #[path = "../fixtures/escapes.rs"]
 pub mod escapes;
 #[path = "../fixtures/function-scope.rs"]
 pub mod function_scope;
 #[path = "../fixtures/length.rs"]
 pub mod length;
+#[path = "../fixtures/method.rs"]
+pub mod method;
 #[path = "../fixtures/missing.rs"]
 pub mod missing;
 #[path = "../fixtures/named.rs"]
@@ -130,9 +134,9 @@ mod tests {
     };
 
     use crate::{
-        RunError, arity, array, boolean, call, calls, escapes, function_scope, length, missing,
-        named, nested, not_a_function, number, object, operators, property, rest, run, sharing,
-        string, throws,
+        RunError, arity, array, boolean, call, calls, chain, escapes, function_scope, length,
+        method, missing, named, nested, not_a_function, number, object, operators, property, rest,
+        run, sharing, string, throws,
     };
 
     #[test]
@@ -194,6 +198,10 @@ mod tests {
         assert_eq!(run::<Naive>(calls::module), Ok("[1,2]".into()));
         assert_eq!(run::<Naive>(nested::module), Ok("[2,3]".into()));
         assert_eq!(run::<Naive>(length::module), Ok("0".into()));
+        // A method call is the property read, then called; a chain is each
+        // step over the whole value before it.
+        assert_eq!(run::<Naive>(method::module), Ok("41".into()));
+        assert_eq!(run::<Naive>(chain::module), Ok("[[2,3],0]".into()));
         // spec/README.md's sharing example: `pair` is bound once inside the
         // function's own scope, where `a` is, and cloned at each reference.
         assert_eq!(

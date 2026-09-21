@@ -435,6 +435,43 @@ export const proof = {
         },
     },
     /**
+     * A method call, `a.f(...c)`: the `.` node's `['|()', args]` step calls
+     * the property just read — `Any::call` over the read, the read's own
+     * `?` inside, since nothing can observe the receiver the step carries.
+     * Each further access is a new `.` node over the whole call, as the
+     * compiler lowers a chain. Every other step, and a `|()` with a
+     * continuation, is refused as before.
+     */
+    methodCall: {
+        call: () => {
+            /** @type {Exp} */
+            const o = ['{}', [[':', 'f', ['=>', null, ['args']]]]]
+            /** @type {Exp} */
+            const call = ['.', o, 'f', ['|()', ['[]', [1]]]]
+            assertEq(printed(call), 'Any::call(Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f")), [f64_any(0x3ff0000000000000)].to_array().to_any())')
+            assertEq(valued(call), 'Any::call(Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f"))?, [f64_any(0x3ff0000000000000)].to_array().to_any())?')
+            assertEq(valued(['.', call, 'length']), 'Any::member_access(Any::call(Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f"))?, [f64_any(0x3ff0000000000000)].to_array().to_any())?, string_any("length"))?')
+        },
+        /** The optional chain's call, `a.f?.(…)`, is the other step a `.` node may hold, and has no spelling yet. */
+        optionalCallRefused: () => {
+            /** @type {Exp} */
+            const o = ['{}', [[':', 'f', ['=>', null, ['args']]]]]
+            assertEq(refusalReason(['.', o, 'f', ['|?.()', ['[]', []]]])[0], 'no Rust for a property-access chain step')
+        },
+        /**
+         * A function's `length` is a number, so a read on it is a read on
+         * a number, `undefined` and not a throw; any other property of a
+         * function is `undefined`, so a read on that is refused as the
+         * nullish base it is.
+         */
+        functionLength: () => {
+            /** @type {Exp} */
+            const fn = ['=>', null, 1]
+            assertEq(valued(['.', ['.', fn, 'length'], 'x']), 'Any::member_access(Any::member_access(A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any(), string_any("length"))?, string_any("x"))?')
+            assertEq(refusalReason(['.', ['.', fn, 'x'], 'y'])[0], 'a property access on a nullish base throws at run time; refused rather than compiled to a panic')
+        },
+    },
+    /**
      * Functions: a `null`-frame `=>` node — the compiler's every function —
      * is a closure bound through `IStaticFunction`, its body a scope of its
      * own; `['args']` is the closure's parameter as a value; a call is
@@ -586,8 +623,8 @@ export const proof = {
          * `Number(...)` cast primitive to route it through.
          */
         numberCastIndex: () => printed(['.', ['{}', []], ['Number', 1]]),
-        /** A `.` chain step: out of scope, refused rather than dropped. */
-        dotChainStep: () => printed(['.', ['{}', []], 'b', ['|()', ['[]', []]]]),
+        /** The optional chain's call step: no spelling yet, refused rather than dropped. */
+        dotChainStep: () => printed(['.', ['{}', []], 'b', ['|?.()', ['[]', []]]]),
         /**
          * A property read on a nullish base throws at run time — refused
          * rather than compiled to a Rust panic (`fjs/fsc/README.md`: "a
@@ -706,14 +743,17 @@ export const proof = {
          * That base is still opaque to the nullish-base check, so the
          * refusal here comes from printing the chain step itself, one level
          * down, the same as `dotChainStep` above — proving `resolvedBase`
-         * did not crash or silently drop the continuation on the way.
+         * did not crash or silently drop the continuation on the way. A
+         * method call's step prints, and the read over it is a read over
+         * an opaque value: not refused, whatever the call would answer.
          */
         dotOnChainStepBase: () => {
             /** @type {Exp} */
-            const inner = ['.', ['{}', []], 'y', ['|()', ['[]', []]]]
+            const inner = ['.', ['{}', []], 'y', ['|?.()', ['[]', []]]]
             assertStructurallySame(
                 refusalReason(['.', inner, 'z']),
                 ['no Rust for a property-access chain step', inner])
+            assertEq(valueExpr([])(['.', ['.', ['{}', []], 'y', ['|()', ['[]', []]]], 'z'])[0], 'ok')
         },
         /**
          * A key absent from an object holding a spread cannot be resolved

@@ -330,8 +330,9 @@ const arrayIndexOf = b => {
  * `[null][0].x` both fold their base to a literal `null` before
  * `nullishBase` ever sees it — exactly mirroring `Any::member_access`'s own
  * dispatch: a receiver it does not special-case at all (a number, a
- * boolean, a bigint, or a function) always answers `undefined` regardless
- * of the key, an object's key is a string directly or a number stringified
+ * boolean, or a bigint) always answers `undefined` regardless of the key,
+ * a function answers its `length` and `undefined` for every other key,
+ * an object's key is a string directly or a number stringified
  * first (matching `Object::member_access`'s own `ToString`), and an
  * array's or a string's key is its canonical index
  * ({@link arrayIndexOf}, matching `Array`/`String::member_access` —
@@ -356,9 +357,11 @@ const resolvedBase = e => {
     const [id, a, b, c] = /** @type {readonly any[]} */ (e)
     if (id !== '.' || c !== undefined) { return e }
     const base = resolvedBase(a)
-    if (typeof base === 'boolean' || typeof base === 'number' || typeof base === 'bigint'
-        || (base instanceof Array && base[0] === '=>')) {
+    if (typeof base === 'boolean' || typeof base === 'number' || typeof base === 'bigint') {
         return ['undefined']
+    }
+    if (base instanceof Array && base[0] === '=>') {
+        return b === 'length' ? e : ['undefined']
     }
     if (base instanceof Array && base[0] === '{}' && (typeof b === 'string' || typeof b === 'number')) {
         const key = typeof b === 'number' ? String(b) : b
@@ -535,10 +538,21 @@ const printer = propagate => shared => {
     const bare = e => {
         const [id, a, b, c] = e
         if (id === '.') {
-            if (c !== undefined) { return error(['no Rust for a property-access chain step', e]) }
+            if (c !== undefined && !isMethodCall(c)) { return error(['no Rust for a property-access chain step', e]) }
             const base = resolvedBase(a)
             if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
-            return map2((fa, k) => `Any::member_access(${fa}, ${k})`)(f(a), indexExpr(b))
+            const read = map2((fa, k) => `Any::member_access(${fa}, ${k})`)(f(a), indexExpr(b))
+            // A method call, `a.b(...c)`: the `|()` step calls the property
+            // with the receiver the read hands it. Nothing can observe that
+            // receiver today — a FunctionalScript function is an arrow
+            // function, which has no `this`, and `nanvm-lib` has no
+            // prototype method a receiver could reach — so the step is the
+            // read's value called, `Any::call` over it, the read's own `?`
+            // inside. A built-in method with a receiver will need an
+            // operation of its own here; the other steps, the optional
+            // chain's, are refused above until they have a spelling.
+            return c === undefined ? read
+                : map2((r, x) => `Any::call(${call(r)}, ${x})`)(read, nested(c[1]))
         }
         // A call, `['()', callee, args]`: `Any::call`, the callee and the
         // arguments both values, as the node's operands are — the callee a
@@ -637,6 +651,17 @@ export const expExpr = shared => printer(false)(shared).f
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
 export const valueExpr = shared => printer(true)(shared).f
+
+/**
+ * `true` for the one chain step this printer spells: `['|()', args]`, a
+ * call of the property just read, with no continuation after it — the
+ * shape the compiler lowers every method call to, each further access
+ * being a new `.` node over the whole call (`fjs/fsc/edag/module.f.mjs`,
+ * `call`).
+ *
+ * @type {(step: unknown) => boolean}
+ */
+const isMethodCall = step => step instanceof Array && step[0] === '|()' && step.length === 2
 
 /**
  * `true` for the operands of `() => undefined`: an empty frame and the
