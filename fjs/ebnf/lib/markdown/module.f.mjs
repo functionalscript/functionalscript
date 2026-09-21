@@ -23,10 +23,12 @@
  * and its body admits every symbol but the backtick, those characters are
  * consumed as code content and never reach the emphasis or link rules.
  *
- * **Emphasis holds text and nothing else.** All 336 bold spans and 10
- * emphasised spans in the tree are plain: none nests, none contains code,
- * none contains a link. The rules say so, rather than admitting a nesting
- * the format has never used and that processing would then owe a meaning.
+ * **Emphasis holds text and nothing else, and refuses what it cannot
+ * hold.** All 346 emphasised spans in the tree are plain — none nests, none
+ * contains code, none contains a link — so the rules say so. Where
+ * CommonMark would nest, this refuses rather than reading the delimiters as
+ * text: the same file is read on GitHub too, and a body that swallowed them
+ * would give the two renderings different answers about one source.
  *
  * What this grammar does **not** do, and what processing must do after it:
  * derive a link from a bare `(#NNN)` pull request reference, which is
@@ -61,8 +63,22 @@ export const text = repeatFrom1(remove(any, set(opening)))
  */
 export const code = /**@type {const}*/(['`', repeatFrom0(remove(any, set('`'))), '`'])
 
-/** A body of emphasis: text with no asterisk, since neither kind nests. */
-const emphasised = repeatFrom1(remove(any, set('*')))
+/**
+ * A body of emphasis: text with none of the symbols that open a span.
+ *
+ * **The exclusions are a refusal, not an oversight.** CommonMark nests —
+ * GitHub renders `**see [details](url)**` as bold around a working link, and
+ * every released file here is read there as well as on the site. A body that
+ * admitted those symbols as ordinary text would put the two renderings of one
+ * file at odds: a link on GitHub, its own brackets on the site. Refusing
+ * leaves one reading, and the author is told at build time rather than a
+ * reader left to notice.
+ *
+ * Nothing in the tree is refused by it: of its 346 emphasised spans, none
+ * holds a backtick or a bracket. Supporting the nesting CommonMark defines
+ * is `todo/nested-emphasis.md`.
+ */
+const emphasised = repeatFrom1(remove(any, set('*`[')))
 
 /**
  * Bold or emphasis, **factored through the asterisk they share**. Written as

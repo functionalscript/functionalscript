@@ -80,5 +80,19 @@ export const proof = {
         // be told apart by the one symbol the backend looks at.
         emptyStrong: () => assert(!accepts('****')),
         emptyEm: () => assert(!accepts('**')),
+        /**
+         * **Emphasis refuses what CommonMark would nest.** GitHub renders
+         * `**see [details](url)**` as bold around a working link, and every
+         * released file is read there as well as on the site. Reading the
+         * delimiters as text would give one source two answers; refusing
+         * leaves one, and says so at build time. Supporting the nesting is
+         * `todo/nested-emphasis.md`.
+         */
+        linkInsideStrong: () => assert(!accepts(`**see [details](u)**`)),
+        codeInsideStrong: () => assert(!accepts(`**a ${tick}b${tick} c**`)),
+        codeInsideEm: () => assert(!accepts(`*${tick}b${tick}*`)),
+        // A bracket that opens nothing is refused too. The rule is about
+        // the symbol, not about whether it went on to form a span.
+        loneBracketInsideStrong: () => assert(!accepts(`**a [ b**`)),
     },
 }
