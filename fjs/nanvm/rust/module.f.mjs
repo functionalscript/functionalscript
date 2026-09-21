@@ -205,7 +205,7 @@ const groupFn = shared => g => {
     const binding = ([k, node]) => [node, `${snakeCase(k)}.clone()`]
     return [
         '#[rustfmt::skip]',
-        `fn ${fnName(groupKey(g))}<A: IVm>() {`,
+        `fn ${fnName(groupKey(g))}<A: IStaticFunction>() {`,
         // An initializer is printed against the bindings established before
         // it, so a `ref` to an earlier shared value clones that binding
         // rather than constructing a second object. Printed without them the
@@ -232,7 +232,7 @@ export const generate = data => {
         'use nanvm_lib::vm::unstable::{bigint_any, f64_any, strict_eq, strict_ne, string_any, string_key};',
         '',
         ...data.groups.flatMap(groupFn(shared)),
-        'pub fn all<A: IVm>() {',
+        'pub fn all<A: IStaticFunction>() {',
         ...data.groups.map(g => `${indent}${fnName(groupKey(g))}::<A>();`),
         '}',
         '',
