@@ -60,8 +60,17 @@ export const text = repeatFrom1(remove(any, set(opening)))
 /**
  * An inline code span. Its body admits every symbol but the backtick that
  * ends it, which is what makes code bind tightest.
+ *
+ * **The body is non-empty, which refuses a longer delimiter.** CommonMark
+ * opens a code span with a run of backticks and closes it with a run of the
+ * same length, so ```x``` is one span holding `x` — a form a writer needs
+ * when the code itself holds a backtick. Read one backtick at a time, that
+ * text is an empty span, an `x`, and another empty span: accepted, and a
+ * different document from the one GitHub builds. An empty span is worth
+ * nothing on its own, so refusing it is what stops the longer delimiter
+ * being misread.
  */
-export const code = /**@type {const}*/(['`', repeatFrom0(remove(any, set('`'))), '`'])
+export const code = /**@type {const}*/(['`', repeatFrom1(remove(any, set('`'))), '`'])
 
 /**
  * A body of emphasis: text with none of the symbols that open a span.
@@ -76,7 +85,7 @@ export const code = /**@type {const}*/(['`', repeatFrom0(remove(any, set('`'))),
  *
  * Nothing in the tree is refused by it: of its 346 emphasised spans, none
  * holds a backtick or a bracket. Supporting the nesting CommonMark defines
- * is `todo/nested-emphasis.md`.
+ * is `todo/commonmark-constructs.md`.
  */
 const emphasised = repeatFrom1(remove(any, set('*`[')))
 
@@ -95,10 +104,24 @@ export const emphasis = /**@type {const}*/(['*', {
     em: [emphasised, '*'],
 }])
 
-/** An inline link: its text holds no bracket, and its target no closing parenthesis. */
+/**
+ * An inline link.
+ *
+ * **Its label holds no span opener and its target no parenthesis**, both
+ * for the reason the emphasis body excludes them: CommonMark reads more
+ * here than this subset does, and admitting the symbols as text would give
+ * one source two readings.
+ *
+ * A label is where it shows: GitHub renders `[**details**](u)` as a link
+ * whose words are bold, and reading the asterisks as label text would print
+ * them. A target is where it bites: a destination may hold balanced
+ * parentheses, so GitHub reads `[x](a(b)c)` as a link to `a(b)c`, while
+ * stopping at the first `)` gives a link to `a(b)` — not a stray rendering
+ * but the wrong address, and nothing on the page would say so.
+ */
 export const link = /**@type {const}*/([
-    '[', repeatFrom1(remove(any, set(']['))),
-    '](', repeatFrom1(remove(any, set(')'))), ')',
+    '[', repeatFrom1(remove(any, set('][*`'))),
+    '](', repeatFrom1(remove(any, set(')('))), ')',
 ])
 
 /**

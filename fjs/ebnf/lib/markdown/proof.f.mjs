@@ -86,7 +86,7 @@ export const proof = {
          * released file is read there as well as on the site. Reading the
          * delimiters as text would give one source two answers; refusing
          * leaves one, and says so at build time. Supporting the nesting is
-         * `todo/nested-emphasis.md`.
+         * `todo/commonmark-constructs.md`.
          */
         linkInsideStrong: () => assert(!accepts(`**see [details](u)**`)),
         codeInsideStrong: () => assert(!accepts(`**a ${tick}b${tick} c**`)),
@@ -94,5 +94,23 @@ export const proof = {
         // A bracket that opens nothing is refused too. The rule is about
         // the symbol, not about whether it went on to form a span.
         loneBracketInsideStrong: () => assert(!accepts(`**a [ b**`)),
+        /**
+         * **A longer delimiter is refused rather than misread.** CommonMark
+         * opens a code span with a run of backticks and closes it with a run
+         * of the same length, which a writer needs when the code itself holds
+         * one. Read one at a time, `` `` ``x`` `` `` is an empty span, an `x`,
+         * and another empty span — accepted, and a different document from the
+         * one GitHub builds. Refusing an empty span is what stops that.
+         */
+        longerCodeDelimiter: () => assert(!accepts(`${tick}${tick}x${tick}${tick}`)),
+        emptyCode: () => assert(!accepts(`${tick}${tick}`)),
+        // A link label is where nesting shows, and a target is where it
+        // bites: stopping at the first `)` gives the wrong address, with
+        // nothing on the page to say so.
+        formattingInALinkLabel: () => assert(!accepts(`[**details**](u)`)),
+        codeInALinkLabel: () => assert(!accepts(`[${tick}code${tick}](u)`)),
+        parenthesisInATarget: () => assert(!accepts(`[x](a(b)c)`)),
+        // What a released entry actually carries still reads.
+        anOrdinaryLink: () => assert(accepts(`[#1421](https://example.com/pull/1421)`)),
     },
 }
