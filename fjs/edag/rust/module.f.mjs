@@ -547,12 +547,15 @@ const printer = propagate => shared => {
             // receiver today — a FunctionalScript function is an arrow
             // function, which has no `this`, and `nanvm-lib` has no
             // prototype method a receiver could reach — so the step is the
-            // read's value called, `Any::call` over it, the read's own `?`
-            // inside. A built-in method with a receiver will need an
-            // operation of its own here; the other steps, the optional
+            // read's value called: the read's `Result` composed with
+            // `Any::call` through `and_then`, one expression answering the
+            // operation's own `Result` in either mode, the arguments
+            // printed inside the closure so an operation among them lands
+            // its throw there. A built-in method with a receiver will need
+            // an operation of its own here; the other steps, the optional
             // chain's, are refused above until they have a spelling.
             return c === undefined ? read
-                : map2((r, x) => `Any::call(${call(r)}, ${x})`)(read, nested(c[1]))
+                : map2((r, x) => `${r}.and_then(|f| Any::call(f, ${x}))`)(read, nested(c[1]))
         }
         // A call, `['()', callee, args]`: `Any::call`, the callee and the
         // arguments both values, as the node's operands are — the callee a

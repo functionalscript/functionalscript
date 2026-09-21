@@ -436,8 +436,9 @@ export const proof = {
     },
     /**
      * A method call, `a.f(...c)`: the `.` node's `['|()', args]` step calls
-     * the property just read — `Any::call` over the read, the read's own
-     * `?` inside, since nothing can observe the receiver the step carries.
+     * the property just read — the read's `Result` composed with
+     * `Any::call` through `and_then`, one expression in either mode, since
+     * nothing can observe the receiver the step carries.
      * Each further access is a new `.` node over the whole call, as the
      * compiler lowers a chain. Every other step, and a `|()` with a
      * continuation, is refused as before.
@@ -448,9 +449,9 @@ export const proof = {
             const o = ['{}', [[':', 'f', ['=>', null, ['args']]]]]
             /** @type {Exp} */
             const call = ['.', o, 'f', ['|()', ['[]', [1]]]]
-            assertEq(printed(call), 'Any::call(Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f")), [f64_any(0x3ff0000000000000)].to_array().to_any())')
-            assertEq(valued(call), 'Any::call(Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f"))?, [f64_any(0x3ff0000000000000)].to_array().to_any())?')
-            assertEq(valued(['.', call, 'length']), 'Any::member_access(Any::call(Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f"))?, [f64_any(0x3ff0000000000000)].to_array().to_any())?, string_any("length"))?')
+            assertEq(printed(call), 'Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f")).and_then(|f| Any::call(f, [f64_any(0x3ff0000000000000)].to_array().to_any()))')
+            assertEq(valued(call), 'Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f")).and_then(|f| Any::call(f, [f64_any(0x3ff0000000000000)].to_array().to_any()))?')
+            assertEq(valued(['.', call, 'length']), 'Any::member_access(Any::member_access([(string_key("f"), A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any())].to_object().to_any(), string_any("f")).and_then(|f| Any::call(f, [f64_any(0x3ff0000000000000)].to_array().to_any()))?, string_any("length"))?')
         },
         /** The optional chain's call, `a.f?.(…)`, is the other step a `.` node may hold, and has no spelling yet. */
         optionalCallRefused: () => {

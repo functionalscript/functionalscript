@@ -399,7 +399,8 @@ are not two forms to prove identical; they are one. A call whose callee is
 a property read — `a.b(c)`, `f[0](1)` — is the `.` node's `|()` step, a
 method call carrying its receiver
 ([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), and prints as
-the read's value called: a FunctionalScript function is an arrow function,
+the read's value called, the read's `Result` composed with `Any::call`
+through `and_then`: a FunctionalScript function is an arrow function,
 which has no `this`, and `nanvm-lib` has no prototype method a receiver
 could reach, so nothing observes the receiver today. A built-in method
 with one will need an operation of its own; the optional chain's steps
