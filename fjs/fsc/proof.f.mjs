@@ -617,7 +617,9 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), Any::member_access([(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("b"))?)].to_object().to_any())
+    let c0: Any<A> = [(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any();
+    let c1: Any<A> = Any::member_access(c0, string_any("b"))?;
+    Ok([(string_key("default"), c1)].to_object().to_any())
 }
 `)
         },
@@ -633,7 +635,9 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), Any::member_access([f64_any(0x3ff0000000000000)].to_array().to_any(), f64_any(0x0000000000000000))?)].to_object().to_any())
+    let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
+    let c1: Any<A> = Any::member_access(c0, f64_any(0x0000000000000000))?;
+    Ok([(string_key("default"), c1)].to_object().to_any())
 }
 `)
         },
@@ -646,16 +650,20 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 rustRefused('const a = null; export default a.x;'),
                 'output.rs - error: no Rust spelling for this module: a property access on a nullish base throws at run time; refused rather than compiled to a panic: .,,x')
         },
-        // Every eager operator prints, followed by `?`: `pub fn module`
-        // answers the `Result` a throw lands in, so an operation is an
-        // `Any<A>` wherever it stands. A negated *literal* never reaches the
-        // printer as a node — the lowering folds it into the number — and
-        // prints as it always did.
+        // Every eager operator prints as a temporary, its `let` followed
+        // by `?`: `pub fn module` answers the `Result` a throw lands in, so
+        // the temporary is an `Any<A>`, referenced by name in the export
+        // object. A negated *literal* never reaches the printer as a node —
+        // the lowering folds it into the number — and prints as it always
+        // did.
         operators: () => {
-            /** @type {(source: string) => string} */
-            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    Ok('))[0]
+            /** The lines of the module's body. @type {(source: string) => readonly string[]} */
+            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
             /** @type {(source: string, value: string) => void} */
-            const expect = (source, value) => assertEq(body(source), `    Ok([(string_key("default"), ${value})].to_object().to_any())`)
+            const expect = (source, value) => assertStructurallySame(body(source), [
+                `    let c0: Any<A> = ${value};`,
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
             const one = 'f64_any(0x3ff0000000000000)'
             const two = 'f64_any(0x4000000000000000)'
             expect('export default 1 + 2;', `(${one} + ${two})?`)
@@ -677,26 +685,40 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             expect('export default 1 >> 2;', `(${one} >> ${two})?`)
             expect('export default 1 >>> 2;', `(Any::unsigned_right_shift(${one}, ${two}))?`)
             expect('export default ~1;', `(Any::bitwise_not(${one}))?`)
-            expect('export default -[1];', `(-([${one}].to_array().to_any()))?`)
             expect('export default -"a";', '(-(string_any("a")))?')
-            // nested: the inner operation is atomic as written, so it takes
-            // no parentheses of its own beyond the `(…)?` every operation has
-            expect('export default 1 + 2 * 1;', `(${one} + (${two} * ${one})?)?`)
+            // an operand with operands of its own is a temporary before the
+            // operation, referenced by name: a literal array, an inner
+            // operation
+            assertStructurallySame(body('export default -[1];'), [
+                `    let c0: Any<A> = [${one}].to_array().to_any();`,
+                '    let c1: Any<A> = (-(c0))?;',
+                '    Ok([(string_key("default"), c1)].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default 1 + 2 * 1;'), [
+                `    let c0: Any<A> = (${two} * ${one})?;`,
+                `    let c1: Any<A> = (${one} + c0)?;`,
+                '    Ok([(string_key("default"), c1)].to_object().to_any())',
+            ])
             // `===` and `!==` import their helpers, as every literal does its own
             assertEq(
                 compileSource('export default 1 === 2;')('output.rs').split('\n')[2],
                 'use nanvm_lib::vm::unstable::{f64_any, strict_eq, string_key};')
             // the folded negations print as the leaves they lower to
-            assertEq(
-                body('export default [-1, -1n, - -1, -Infinity, -0];'),
-                '    Ok([(string_key("default"), [f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any())].to_object().to_any())')
+            expect(
+                'export default [-1, -1n, - -1, -Infinity, -0];',
+                '[f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
         },
-        // A shared operation is established once, in its `let` binding, with
-        // the same `?`; each reference clones the value it produced.
+        // A shared operation is established once, in its `let`, with the
+        // same `?`; each reference clones the value it produced, where a
+        // value referenced once — the array — is moved.
         sharedOperation: () => {
-            assertEq(
-                compileSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    let')).join('\n'),
-                '    let c0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;')
+            assertStructurallySame(
+                compileSource('const a = 1 + 2; export default [a, a];')('output.rs').split('\n').filter(line => line.startsWith('    ')),
+                [
+                    '    let c0: Any<A> = (f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000))?;',
+                    '    let c1: Any<A> = [c0.clone(), c0.clone()].to_array().to_any();',
+                    '    Ok([(string_key("default"), c1)].to_object().to_any())',
+                ])
         },
     },
     // An error with no token to point at names the file being compiled, not

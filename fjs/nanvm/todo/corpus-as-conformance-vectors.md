@@ -56,14 +56,14 @@ eager one and `cargo test` has never had the chance to fail. The exported
 it takes an arbitrary `Exp`, so a caller outside the corpus can print a nested
 operation and get text that fails with E0308.
 
-A compiled module already has its answer: `fjs/edag/rust`'s `valueExpr`
-prints every operation as `(…)?`, since `pub fn module` answers the
-`Result` a throw lands in. So does a lazy position in either printer: a
-lazy operand is a thunk whose body prints propagating, however deeply an
-operation nests inside it, so a `?` there lands in the closure's own
-`Result` — which is how the corpus's `unreached` operand, an operation,
-prints in a bare `check` statement today. The corpus's eager positions
-print through `expExpr`,
+A compiled module already has its answer: `fjs/edag/rust`'s `scope`
+binds every operation to a temporary, `let cN: Any<A> = (…)?;`, since
+`pub fn module` answers the `Result` a throw lands in. So does a lazy
+position in either printer: a lazy operand is a thunk whose block binds
+the operations inside it the same way, however deeply one nests, so a `?`
+there lands in the closure's own `Result` — which is how the corpus's
+`unreached` operand, an operation, prints in a bare `check` statement
+today. The corpus's eager positions print through `expExpr`,
 whose statements hand each `Result` to `check` bare, so their shape is
 still to decide. Deciding it is part of this issue rather than a detail of
 it, because it sets what every emitted statement looks like. `?` inside a

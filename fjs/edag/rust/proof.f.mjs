@@ -12,13 +12,13 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, readsArgs, scope, sharedNodesOf, valueExpr } from './module.f.mjs'
+import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, readsArgs, scope, sharedNodesOf } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
 
-/** The same, propagating: what a compiled module's body holds. @type {(e: Exp) => string} */
-const valued = e => unwrap(valueExpr([])(e))
+/** The lines of a scope over `e`: what a compiled module's body holds. @type {(e: Exp) => readonly string[]} */
+const scoped = e => unwrap(scope(e))
 
 /** @type {(shared: readonly (readonly [Exp, string])[]) => (e: Exp) => string} */
 const printedWith = shared => e => unwrap(expExpr(shared)(e))
@@ -71,11 +71,12 @@ export const proof = {
     /**
      * A lazy operation's operands after the first are thunks, in either
      * mode: a value answers `|| Ok(…)`, and an operation answers its own
-     * `Result` bare, and either body prints propagating, so a throw
-     * anywhere inside it lands in the closure — which is what lets a bare
-     * corpus statement hold an operation in a lazy position, nested however
-     * it is, where an eager position still cannot (see `nesting`). The
-     * first operand prints as the mode prints any operand.
+     * `Result` bare, and a node inside the operand is a temporary the
+     * thunk's own block binds, so a throw anywhere inside it lands in the
+     * closure — which is what lets a bare corpus statement hold an
+     * operation in a lazy position, nested however it is, where an eager
+     * position still cannot (see `nesting`). The first operand prints as
+     * the mode prints any operand.
      */
     lazy: () => {
         assertEq(
@@ -92,50 +93,76 @@ export const proof = {
         assertEq(
             printed(['&&', false, ['/', 1n, 0n]]),
             'Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0))')
-        assertEq(
-            valued(['&&', false, ['/', 1n, 0n]]),
-            '(Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0)))?')
-        // Inside the thunk everything propagates, whatever the statement's
-        // mode: the operation's own operands, and an operation inside a
-        // container the thunk answers — `false && [1n / 0n]`.
-        const nestedThunk = '|| (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))? * f64_any(0x4008000000000000)'
+        assertStructurallySame(
+            scoped(['&&', false, ['/', 1n, 0n]]),
+            ['Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0))'])
+        // Inside the thunk every node with operands is a temporary of the
+        // thunk's own block, whatever the statement's mode — established
+        // only when the thunk is — and the block is the closure's body,
+        // one line under another: the operation's own operand, and an
+        // operation inside a container the thunk answers, `false && [1n /
+        // 0n]`.
+        const nestedThunk = [
+            '|| {',
+            '    let c0: Any<A> = (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?;',
+            '    c0 * f64_any(0x4008000000000000)',
+            '}',
+        ]
         assertEq(
             printed(['&&', false, ['*', ['*', 1, 2], 3]]),
-            `Any::logical_and(false.to_any(), ${nestedThunk})`)
-        assertEq(
-            valued(['&&', false, ['*', ['*', 1, 2], 3]]),
-            `(Any::logical_and(false.to_any(), ${nestedThunk}))?`)
-        const arrayThunk = '|| Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any())'
+            `Any::logical_and(false.to_any(), ${nestedThunk.join('\n')})`)
+        assertStructurallySame(
+            scoped(['&&', false, ['*', ['*', 1, 2], 3]]),
+            [`Any::logical_and(false.to_any(), ${nestedThunk[0]}`, ...nestedThunk.slice(1, -1), '})'])
+        const arrayThunk = [
+            '|| {',
+            '    let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;',
+            '    Ok([c0].to_array().to_any())',
+            '}',
+        ].join('\n')
         assertEq(
             printed(['&&', false, ['[]', [['/', 1n, 0n]]]]),
             `Any::logical_and(false.to_any(), ${arrayThunk})`)
         assertEq(
-            valued(['&&', false, ['[]', [['/', 1n, 0n]]]]),
-            `(Any::logical_and(false.to_any(), ${arrayThunk}))?`)
+            scoped(['&&', false, ['[]', [['/', 1n, 0n]]]]).join('\n'),
+            `Any::logical_and(false.to_any(), ${arrayThunk})`)
         // A `.` read is an operation too, and a container is a value.
-        assertEq(
-            valued(['||', true, ['.', ['{}', []], 'a']]),
-            '(Any::logical_or(true.to_any(), || Any::member_access(Object::default().to_any(), string_any("a"))))?')
+        assertStructurallySame(
+            scoped(['||', true, ['.', ['{}', []], 'a']]),
+            ['Any::logical_or(true.to_any(), || Any::member_access(Object::default().to_any(), string_any("a")))'])
         assertEq(
             printed(['||', true, ['[]', [['-', 1]]]]),
-            'Any::logical_or(true.to_any(), || Ok([(-(f64_any(0x3ff0000000000000)))?].to_array().to_any()))')
+            'Any::logical_or(true.to_any(), || {\n    let c0: Any<A> = (-(f64_any(0x3ff0000000000000)))?;\n    Ok([c0].to_array().to_any())\n})')
         // Both arms of `?:`, and a nested lazy operation in an arm, which
         // is a thunk inside a thunk; a lazy operation as the eager first
-        // operand is composed like any operator there.
-        assertEq(
-            valued(['?:', true, 1, ['/', 1n, 0n]]),
-            '(Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0)))?')
+        // operand is composed like any operator there, bare, and a
+        // temporary in a scope.
+        assertStructurallySame(
+            scoped(['?:', true, 1, ['/', 1n, 0n]]),
+            ['Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0))'])
         assertEq(
             printed(['?:', ['&&', true, false], ['||', false, 1], 2]),
             'Any::conditional((Any::logical_and(true.to_any(), || Ok(false.to_any()))), || Any::logical_or(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), || Ok(f64_any(0x4000000000000000)))')
+        assertStructurallySame(
+            scoped(['?:', ['&&', true, false], ['||', false, ['[]', [['-', 1]]]], 2]),
+            [
+                'let c0: Any<A> = (Any::logical_and(true.to_any(), || Ok(false.to_any())))?;',
+                'Any::conditional(c0, || Any::logical_or(false.to_any(), || {',
+                '    let c1: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
+                '    Ok([c1].to_array().to_any())',
+                '}), || Ok(f64_any(0x4000000000000000)))',
+            ])
         // The first operand is eager, and composed where its rendering
         // would otherwise re-associate — exactly as an eager operator's.
         assertEq(
             printed(['&&', ['*', 1, 2], 3]),
             'Any::logical_and((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)), || Ok(f64_any(0x4008000000000000)))')
-        assertEq(
-            valued(['&&', ['*', 1, 2], 3]),
-            '(Any::logical_and((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?, || Ok(f64_any(0x4008000000000000))))?')
+        assertStructurallySame(
+            scoped(['&&', ['*', 1, 2], 3]),
+            [
+                'let c0: Any<A> = (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?;',
+                'Any::logical_and(c0, || Ok(f64_any(0x4008000000000000)))',
+            ])
     },
     /** A composed operand keeps its parentheses; an atomic one does not. */
     nesting: () => {
@@ -157,29 +184,6 @@ export const proof = {
         assertEq(
             printed(['-', ['.', ['{}', []], 'b']]),
             '-(Any::member_access(Object::default().to_any(), string_any("b")))')
-    },
-    /**
-     * Propagating, every operation is an `Any<A>` with its throw handed to
-     * the enclosing function: an operator's text parenthesized before the
-     * `?`, a `.` read's call followed by it, and a nested operation atomic
-     * as written, so it takes no parentheses of its own.
-     */
-    value: () => {
-        assertEq(valued(['*', 1, 2]), '(f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?')
-        assertEq(
-            valued(['*', 1, ['*', 2, 3]]),
-            '(f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?)?')
-        assertEq(valued(['-', ['undefined']]), '(-(Nullish::Undefined.to_any()))?')
-        assertEq(
-            valued(['.', ['{}', [[':', 'a', 1]]], 'a']),
-            'Any::member_access([(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any(), string_any("a"))?')
-        assertEq(
-            valued(['.', ['.', ['{}', [[':', 'a', ['{}', []]]]], 'a'], 'b']),
-            'Any::member_access(Any::member_access([(string_key("a"), Object::default().to_any())].to_object().to_any(), string_any("a"))?, string_any("b"))?')
-        assertEq(valued(['[]', [['-', 1]]]), '[(-(f64_any(0x3ff0000000000000)))?].to_array().to_any()')
-        assertEq(valued([',', [['-', 1], 2]]), '{ let _: Any<A> = (-(f64_any(0x3ff0000000000000)))?; f64_any(0x4000000000000000) }')
-        // A literal is a literal in either mode.
-        assertEq(valued(1), printed(1))
     },
     /**
      * `Any::member_access` reads an array, a string, a boolean, a number, and
@@ -350,6 +354,22 @@ export const proof = {
         assertEq(
             printedWith([[op, 'y.clone()']])(['??', null, op]),
             'Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(y.clone()))')
+        // A bound operation is its name as an operand too, atomic as
+        // written, where the operation would be composed.
+        assertEq(printedWith([[op, 'y.clone()']])(['-', op]), '-(y.clone())')
+        assertEq(printed(['-', op]), '-((f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)))')
+        // A node inside a lazy operand is a temporary of the thunk's block
+        // in the bare mode too, over the bindings around it.
+        assertEq(
+            printedWith(shared)(['??', null, ['[]', [base, ['-', base]]]]),
+            'Any::nullish_coalescing(Nullish::Null.to_any(), || {\n    let c0: Any<A> = (-(x.clone()))?;\n    Ok([x.clone(), c0].to_array().to_any())\n})')
+        // A node reached eagerly and lazily prints where it stands in the
+        // bare mode, in the thunk too — a comma as its block expression.
+        /** @type {Exp} */
+        const comma = [',', [1, 2]]
+        assertEq(
+            printed(['[]', [comma, ['&&', true, comma]]]),
+            '[{ let _: Any<A> = f64_any(0x3ff0000000000000); f64_any(0x4000000000000000) }, Any::logical_and(true.to_any(), || Ok({ let _: Any<A> = f64_any(0x3ff0000000000000); f64_any(0x4000000000000000) }))].to_array().to_any()')
     },
     sharedNodesOf: {
         /** A node reached from only one place is never a binding candidate. */
@@ -408,30 +428,120 @@ export const proof = {
         },
     },
     /**
-     * The statements of one scope: a `let` per shared node, then the root
-     * as the `Result` the scope's function answers — an operation's own,
-     * `Ok(…)` of any other value — or the refusal of a shared node the root
-     * reaches only through lazy operands.
+     * The lines of one scope: a `let` per temporary — every node with
+     * operands, one line, one expression — then the root as the `Result`
+     * the scope's function answers — an operation's own, `Ok(…)` of any
+     * other value — or the refusal of a shared node the root reaches only
+     * through lazy operands.
      */
     scope: {
+        /** A shared atom is a temporary, cloned at each reference. */
         statements: () => {
             /** @type {Exp} */
             const x = ['[]', []]
-            assertStructurallySame(unwrap(scope(['[]', [x, x]])), [
+            assertStructurallySame(scoped(['[]', [x, x]]), [
                 'let c0: Any<A> = Array::default().to_any();',
                 'Ok([c0.clone(), c0.clone()].to_array().to_any())',
             ])
         },
         operationRoot: () => {
             assertStructurallySame(
-                unwrap(scope(['.', ['{}', []], 'a'])),
+                scoped(['.', ['{}', []], 'a']),
                 ['Any::member_access(Object::default().to_any(), string_any("a"))'])
+        },
+        /**
+         * Every node with operands is a temporary in dependency order,
+         * referenced by name — moved, each being referenced once — and an
+         * atom referenced once is written where it stands: a primitive,
+         * `undefined`, an empty container.
+         */
+        temporaries: () => {
+            assertStructurallySame(
+                scoped(['[]', [['*', 1, 2], ['{}', [[':', 'k', ['[]', [1]]]]], ['[]', []], ['undefined'], null]]),
+                [
+                    'let c0: Any<A> = (f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000))?;',
+                    'let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                    'let c2: Any<A> = [(string_key("k"), c1)].to_object().to_any();',
+                    'Ok([c0, c2, Array::default().to_any(), Nullish::Undefined.to_any(), Nullish::Null.to_any()].to_array().to_any())',
+                ])
+        },
+        /**
+         * An operation's `let` follows its call with `?`, so the temporary
+         * is an `Any<A>` with its throw handed to the enclosing function:
+         * an operator's text parenthesized before the `?`, a `.` read's
+         * call and a call followed by it as they are. The root, an
+         * operation, answers its own `Result`, its operands by name.
+         */
+        operations: () => {
+            assertStructurallySame(scoped(['*', 1, 2]), ['f64_any(0x3ff0000000000000) * f64_any(0x4000000000000000)'])
+            assertStructurallySame(scoped(['*', 1, ['*', 2, 3]]), [
+                'let c0: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;',
+                'f64_any(0x3ff0000000000000) * c0',
+            ])
+            assertStructurallySame(scoped(['-', ['undefined']]), ['-(Nullish::Undefined.to_any())'])
+            assertStructurallySame(scoped(['.', ['.', ['{}', [[':', 'a', ['{}', []]]]], 'a'], 'b']), [
+                'let c0: Any<A> = [(string_key("a"), Object::default().to_any())].to_object().to_any();',
+                'let c1: Any<A> = Any::member_access(c0, string_any("a"))?;',
+                'Any::member_access(c1, string_any("b"))',
+            ])
+            assertStructurallySame(scoped(['[]', [['()', ['args'], ['[]', [1]]]]]), [
+                'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                'let c1: Any<A> = Any::call(args.clone().to_any(), c0)?;',
+                'Ok([c1].to_array().to_any())',
+            ])
+            // A literal root is `Ok` of the literal.
+            assertStructurallySame(scoped(1), ['Ok(f64_any(0x3ff0000000000000))'])
+        },
+        /**
+         * A comma root answers by its last operand: the operands before it
+         * are established for what they anchor, each a temporary named
+         * `_`, nothing referencing it — and an atom among them, which no
+         * establishment can fail, is not written at all. The last operand
+         * is the scope's own answer, an operation's `Result` included.
+         */
+        commaRoot: () => {
+            assertStructurallySame(scoped([',', [['-', 1], ['[]', []], 2]]), [
+                'let _: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
+                'Ok(f64_any(0x4000000000000000))',
+            ])
+            assertStructurallySame(scoped([',', [['-', 1], ['*', 2, 3]]]), [
+                'let _: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
+                'f64_any(0x4000000000000000) * f64_any(0x4008000000000000)',
+            ])
+            // A last operand shared with a discarded one is a temporary,
+            // and the comma answers its name.
+            /** @type {Exp} */
+            const c = ['[]', []]
+            assertStructurallySame(scoped([',', [['[]', [c]], c]]), [
+                'let c0: Any<A> = Array::default().to_any();',
+                'let _: Any<A> = [c0.clone()].to_array().to_any();',
+                'Ok(c0.clone())',
+            ])
+        },
+        /**
+         * A comma below the root — no lowering puts one there, `resolve`
+         * anchoring at the root alone — is a temporary holding its last
+         * operand's name, its discarded operands `_` temporaries before
+         * it.
+         */
+        commaTemporary: () => {
+            assertStructurallySame(scoped(['.', [',', [['-', 1], ['{}', [[':', 'a', 1]]]]], 'a']), [
+                'let _: Any<A> = (-(f64_any(0x3ff0000000000000)))?;',
+                'let c0: Any<A> = [(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any();',
+                'let c1: Any<A> = c0;',
+                'Any::member_access(c1, string_any("a"))',
+            ])
         },
         refusedSharedOnlyThroughLazyOperands: () => {
             /** @type {Exp} */
             const c = ['[]', []]
             const result = scope(['?:', true, 1, ['[]', [c, c]]])
             assert(result[0] === 'error', result)
+        },
+        /** `Exps` admits an empty list in the schema; the Rust backend has no value for it, wherever it stands. */
+        refusedEmptyComma: () => {
+            assertStructurallySame(scope([',', []]), ['error', ['no Rust for an empty comma', [',', []]]])
+            assertEq(scope(['[]', [[',', []]]])[0], 'error')
         },
     },
     /**
@@ -448,7 +558,10 @@ export const proof = {
             /** @type {Exp} */
             const e = ['()', ['args'], ['[]', [1]]]
             assertEq(printed(e), 'Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any())')
-            assertEq(valued(e), '(Any::call(args.clone().to_any(), [f64_any(0x3ff0000000000000)].to_array().to_any()))?')
+            assertStructurallySame(scoped(e), [
+                'let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();',
+                'Any::call(args.clone().to_any(), c0)',
+            ])
         },
         /**
          * A body that reads its arguments names the parameter; one that
@@ -474,13 +587,26 @@ export const proof = {
                 printed(['=>', null, ['.', ['args'], 0]]),
                 'A::static_function(|_self, args| { Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000)) }, 0, Array::default()).to_any()')
         },
-        /** Sharing inside a body is the body's own: bound in the closure, numbered from `c0`. */
+        /**
+         * A body's temporaries are the body's own: bound in the closure,
+         * numbered from `c0`, its block one line under another — a shared
+         * read cloned at each reference, two reads each moved.
+         */
         sharingInside: () => {
             /** @type {Exp} */
             const first = ['.', ['args'], 0]
             assertEq(
                 printed(['=>', null, ['[]', [first, first]]]),
-                'A::static_function(|_self, args| { let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?; Ok([c0.clone(), c0.clone()].to_array().to_any()) }, 0, Array::default()).to_any()')
+                'A::static_function(|_self, args| {\n    let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?;\n    Ok([c0.clone(), c0.clone()].to_array().to_any())\n}, 0, Array::default()).to_any()')
+            assertStructurallySame(
+                scoped(['=>', null, ['[]', [['.', ['args'], 0], ['.', ['args'], 1]]]]),
+                [
+                    'Ok(A::static_function(|_self, args| {',
+                    '    let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?;',
+                    '    let c1: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x3ff0000000000000))?;',
+                    '    Ok([c0, c1].to_array().to_any())',
+                    '}, 0, Array::default()).to_any())',
+                ])
         },
         /** Any frame but `null` and the corpus's empty one is refused. */
         otherFrame: () => {

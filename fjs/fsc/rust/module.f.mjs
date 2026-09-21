@@ -5,8 +5,8 @@
  * [mvp-roadmap](../../../nanvm-lib/todo/mvp-roadmap.md),
  * [fjs-nanvm-integration](../../../todo/fjs-nanvm-integration.md).
  *
- * The node printer, its `let`-binding sharing mechanism and the statements
- * of a scope are not this module's own: they live in
+ * The node printer, its temporaries and the lines of a scope are not this
+ * module's own: they live in
  * [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared with
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs), which prints the
  * operator conformance corpus the same way. What is specific to this module:
@@ -24,10 +24,8 @@
  */
 
 import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
-import { holdsFunction, readsArgs, scope } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, indent, readsArgs, scope } from '../../edag/rust/module.f.mjs'
 import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
-
-const indent = '    '
 
 /**
  * The `nanvm_lib::vm::unstable` functions the printed body calls — the same
@@ -97,10 +95,10 @@ const importsFor = (text, bound) => [...new Set([
 ])].sort()
 
 /**
- * The module's scope, one statement per line: its `let` bindings and its
- * `Ok(…)` — `fjs/edag/rust`'s {@link scope}, which also prints every
- * function's body the module holds, each a scope of its own inside its
- * closure — or the refusal. A module has no arguments, so an `['args']`
+ * The module's scope, one line per temporary and its `Ok(…)` —
+ * `fjs/edag/rust`'s {@link scope}, which also prints every function's body
+ * the module holds, each a scope of its own inside its closure — or the
+ * refusal. A module has no arguments, so an `['args']`
  * node in its own scope — a function body's node, which the lowering
  * never puts here, handed in directly — is refused rather than printed as
  * a name nothing binds.
@@ -109,22 +107,21 @@ const importsFor = (text, bound) => [...new Set([
  */
 const bodyLines = root => readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
-    : mapOk((/** @type {readonly string[]} */ statements) => statements.map(s => `${indent}${s}`))(scope(root))
+    : mapOk((/** @type {readonly string[]} */ lines) => lines.map(l => `${indent}${l}`))(scope(root))
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
  * printer has no `nanvm-lib` spelling for. Never throws — see
- * `fjs/edag/rust/module.f.mjs`'s `valueExpr` for why a gap here is a `Result`
+ * `fjs/edag/rust/module.f.mjs`'s `scope` for why a gap here is a `Result`
  * and not a thrown value.
  *
  * `pub fn module` carries `#[rustfmt::skip]`, the same as every function
- * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) emits: one node prints as
- * one line regardless of nesting depth, and a moderately nested module
- * already exceeds rustfmt's line-length limit — measured directly, printing
- * a small nested sample and running `cargo fmt -- --check` against it. A
- * layout-preserving printer that stayed under the limit at every nesting
- * depth would have to reproduce rustfmt's own wrapping, which is what the
- * skip avoids paying for.
+ * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) emits: the layout is
+ * the printer's own — one temporary per line, a closure's body a block
+ * under its `let` — and not rustfmt's, which breaks a closure argument
+ * and a method chain its own way, and a line still grows with the items
+ * of one literal. A layout-preserving printer would have to reproduce
+ * rustfmt's own wrapping, which is what the skip avoids paying for.
  *
  * @type {(root: Exp) => Result<string, readonly unknown[]>}
  */
@@ -158,7 +155,7 @@ export const generate = root => unwrap(generateResult(root))
 
 /**
  * The reason {@link generateResult} refused, as text. Every refusal
- * `valueExpr` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
+ * `scope` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
  * pair — `lookup`'s convention, kept by every refusal added since — never a
  * bare value, so joining the pair's own `String` forms is exact rather than
  * approximate.

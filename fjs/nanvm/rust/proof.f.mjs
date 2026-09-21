@@ -18,7 +18,9 @@ const valueExpr = v => nodeExpr(valueExp(v))
 /**
  * One case of every shape the printer can emit: a shared value and a
  * reference to it, a skipped case, a throwing case, an `Op12` group at unary
- * arity, the ternary operation, and a commutative binary operator.
+ * arity, the ternary operation — with an arm holding an operation, whose
+ * thunk is a block over several lines, skipped so that every line of it
+ * is commented out — and a commutative binary operator.
  *
  * @type {Data}
  */
@@ -43,6 +45,7 @@ const sample = {
             cases: [
                 { name: 'pick', args: [true, 1, 2], expected: 1 },
                 { name: 'skip', args: [false, unreached, 2], expected: 2 },
+                { name: 'skipNested', args: [false, [unreached], 2], expected: 2, rust: 'not yet' },
             ],
         },
         {
@@ -77,6 +80,10 @@ fn unary_plus<A: IStaticFunction>() {
 fn conditional<A: IStaticFunction>() {
     check::<A>("pick", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
     check::<A>("skip", Any::conditional(false.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    // TODO: not yet: check::<A>("skipNested", Any::conditional(false.to_any(), || {
+    //     let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+    //     Ok([c0].to_array().to_any())
+    // }, || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
 }
 
 #[rustfmt::skip]
