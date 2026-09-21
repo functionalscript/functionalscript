@@ -25,16 +25,16 @@
  */
 
 import { error, mapOk, ok, okThen, unwrap } from '../../types/result/module.f.mjs'
-import { expExpr, op1Rust, op2Rust, sharedNodesOf } from '../../edag/rust/module.f.mjs'
+import { sharedNodesOf, valueExpr } from '../../edag/rust/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 
 const indent = '    '
 
 /**
  * The `nanvm_lib::vm::unstable` functions the printed body calls — the same
- * ones the operator corpus calls, since both are printed by {@link expExpr}
- * — found by the call text that names them, so a module imports only what
- * it uses. A helper added there to shorten generated code gets a row here
+ * ones the operator corpus calls, since both are printed by
+ * `fjs/edag/rust`'s one printer — found by the call text that names them,
+ * so a module imports only what it uses. A helper added there to shorten generated code gets a row here
  * once the printer calls it.
  *
  * @type {readonly (readonly [string, string])[]}
@@ -42,6 +42,8 @@ const indent = '    '
 const helperCatalog = [
     ['bigint_any(', 'bigint_any'],
     ['f64_any(', 'f64_any'],
+    ['strict_eq(', 'strict_eq'],
+    ['strict_ne(', 'strict_ne'],
     ['string_any(', 'string_any'],
     ['string_key(', 'string_key'],
 ]
@@ -86,7 +88,7 @@ const importsFor = text => [...new Set([
 /**
  * The `let` binding lines for the first `i` of `bindings`, each printed
  * against the bindings established before it — or the refusal, from
- * whichever one `expExpr` meets first that it has no `nanvm-lib` spelling
+ * whichever one `valueExpr` meets first that it has no `nanvm-lib` spelling
  * for. Recursive rather than a fold, so that a refusal partway through short
  * -circuits the rest without a mutable accumulator.
  *
@@ -95,44 +97,28 @@ const importsFor = text => [...new Set([
 const letLines = bindings => i => {
     if (i === 0) { return ok([]) }
     const [node] = bindings[i - 1]
-    return okThen(prev => mapOk(s => [...prev, `${indent}let c${i - 1}: Any<A> = ${s};`])(expExpr(bindings.slice(0, i - 1))(node)))(letLines(bindings)(i - 1))
+    return okThen(prev => mapOk(s => [...prev, `${indent}let c${i - 1}: Any<A> = ${s};`])(valueExpr(bindings.slice(0, i - 1))(node)))(letLines(bindings)(i - 1))
 }
 
 /**
- * Whether a node is one of `op1Rust`/`op2Rust`'s own — every operator
- * [`../../edag/rust`](../../edag/rust/module.f.mjs) knows a `nanvm-lib`
- * spelling for and a parseable module can reach today, unary minus among
- * them. `op3Rust` has none yet: its one entry, `?:`, is no syntax this
- * compiler's parser admits, so no module this function's caller hands it
- * can hold one — a check for it here would be a branch this repository's
- * own coverage rule refuses to leave unreachable, not a correctness gap.
- * Revisit alongside the ternary landing in the grammar.
+ * The operators whose operands JavaScript establishes conditionally: `&&`
+ * and `||` establish the right one only if the left decides nothing, `??`
+ * only if the left is nullish. Each has a `nanvm-lib` spelling, but a
+ * by-value one — `Any::logical_and(a, b)` takes both operands already
+ * established — so printing it into a module would establish an operand the
+ * program does not, and throw where the program does not
+ * ([`./todo/lazy-operators.md`](./todo/lazy-operators.md)). `?:` is the
+ * fourth, and needs no check: it is no syntax this compiler's parser admits,
+ * so no module reaches here holding one — a check for it would be a branch
+ * this repository's own coverage rule refuses to leave unreachable. Revisit
+ * alongside the ternary landing in the grammar.
  *
- * Every `op1Rust`/`op2Rust` spelling answers `Result<Any<A>, Any<A>>`:
- * each `nanvm-lib` operator on `Any<A>` throws where its JavaScript
- * original does. `pub fn module` answers the same `Result` now, so a throw
- * has somewhere to go — a `.` read already propagates with `?` — but the
- * printer does not yet append the `?` an operator's spelling needs, and
- * every place this module writes a value still wants a bare `Any<A>`: the
- * `let` bindings and the body's `Ok(…)` alike. So the text an operator
- * node prints does not compile *here* yet, though it is right where that
- * printer's other caller puts it — a generated operator test hands the
- * `Result` to a checker, `fjs/edag/rust/module.f.mjs`'s own comment on
- * `op2Rust` has why. `fjs/fsc/rust/todo/stage-a-operators.md` is the
- * spelling.
- *
- * The lowering folds a negated numeric literal into the leaf, so `-1`
- * reaches this as a number and never as a node at all, printing as it
- * always did; every other operator node is refused here rather than
- * written into a module that does not build. The shape that would serve
- * one is a throwing operation the printer can spell, not a value.
+ * Every other operator prints, followed by `?`, since `pub fn module`
+ * answers the `Result` a throw lands in — `fjs/edag/rust`'s `valueExpr`.
  *
  * @type {(node: Node) => boolean}
  */
-const resultOperator = node => node instanceof Array && (
-    (node.length === 2 && node[0] in op1Rust)
-    || (node.length === 3 && node[0] in op2Rust)
-)
+const lazyOperator = node => node instanceof Array && node.length === 3 && ['&&', '||', '??'].includes(node[0])
 
 /**
  * The module's value as `Ok(…)` of a Rust expression of type `Any<A>` — a
@@ -151,17 +137,17 @@ const resultOperator = node => node instanceof Array && (
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
 const bodyLines = root => {
-    if (analysis(root).nodes.some(resultOperator)) { return error(['no Rust for an operator in a module', root]) }
+    if (analysis(root).nodes.some(lazyOperator)) { return error(['no Rust for a lazy operator in a module', root]) }
     const shared = sharedNodesOf(root)
     /** @type {readonly (readonly [Exp, string])[]} */
     const bindings = shared.map((node, i) => [node, `c${i}.clone()`])
-    return okThen(lines => mapOk(s => [...lines, `${indent}Ok(${s})`])(expExpr(bindings)(root)))(letLines(bindings)(bindings.length))
+    return okThen(lines => mapOk(s => [...lines, `${indent}Ok(${s})`])(valueExpr(bindings)(root)))(letLines(bindings)(bindings.length))
 }
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
  * printer has no `nanvm-lib` spelling for. Never throws — see
- * `fjs/edag/rust/module.f.mjs`'s `expExpr` for why a gap here is a `Result`
+ * `fjs/edag/rust/module.f.mjs`'s `valueExpr` for why a gap here is a `Result`
  * and not a thrown value.
  *
  * `pub fn module` carries `#[rustfmt::skip]`, the same as every function
@@ -205,7 +191,7 @@ export const generate = root => unwrap(generateResult(root))
 
 /**
  * The reason {@link generateResult} refused, as text. Every refusal
- * `expExpr` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
+ * `valueExpr` reports (`fjs/edag/rust/module.f.mjs`) is a `[reason, detail]`
  * pair — `lookup`'s convention, kept by every refusal added since — never a
  * bare value, so joining the pair's own `String` forms is exact rather than
  * approximate.

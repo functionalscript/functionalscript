@@ -21,12 +21,16 @@ pub mod named;
 pub mod number;
 #[path = "../fixtures/object.rs"]
 pub mod object;
+#[path = "../fixtures/operators.rs"]
+pub mod operators;
 #[path = "../fixtures/property.rs"]
 pub mod property;
 #[path = "../fixtures/sharing.rs"]
 pub mod sharing;
 #[path = "../fixtures/string.rs"]
 pub mod string;
+#[path = "../fixtures/throws.rs"]
+pub mod throws;
 
 use core::fmt::{self, Debug, Display, Formatter};
 
@@ -110,7 +114,8 @@ mod tests {
     };
 
     use crate::{
-        RunError, array, boolean, escapes, named, number, object, property, run, sharing, string,
+        RunError, array, boolean, escapes, named, number, object, operators, property, run,
+        sharing, string, throws,
     };
 
     #[test]
@@ -125,9 +130,8 @@ mod tests {
         );
     }
 
-    /// No committed fixture throws yet — no operator compiles to `.rs` — so
-    /// the throwing module is written by hand, in the shape the generator
-    /// prints.
+    /// A module written by hand in the shape the generator prints, throwing
+    /// a value of the test's choosing.
     fn throwing<A: IVm>() -> Result<Any<A>, Any<A>> {
         Err("boom".into())
     }
@@ -137,6 +141,29 @@ mod tests {
         let error = run::<Naive>(throwing).unwrap_err();
         assert!(matches!(&error, RunError::Thrown(v) if *v == "boom".into()));
         assert_eq!(error.to_string(), "uncaught \"boom\"");
+    }
+
+    /// The failure contract from source to run: `1n / 0n` throws in
+    /// JavaScript, and the compiled module answers the thrown value.
+    #[test]
+    fn compiled_throw_is_reported() {
+        assert!(matches!(
+            run::<Naive>(throws::module),
+            Err(RunError::Thrown(_))
+        ));
+    }
+
+    /// Every eager operator, computed by `nanvm-lib` from the compiled
+    /// module, against what a JavaScript engine gives the same source.
+    #[test]
+    fn operators() {
+        assert_eq!(
+            run::<Naive>(operators::module),
+            Ok(
+                "[7,5,12,1.5,2,36,-6,-7,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
+                    .into()
+            )
+        );
     }
 
     #[test]

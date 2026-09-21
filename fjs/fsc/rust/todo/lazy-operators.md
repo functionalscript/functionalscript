@@ -2,10 +2,8 @@
 
 **Priority:** P2
 **Status:** blocked
-**Blocked by:** [the generated module's failure contract](./stage-a-operators.md),
-which every operator in a module waits on, and
-[Stage B](../../todo/stage-b-operators.md) making these nodes reachable
-from source
+**Blocked by:** [Stage B](../../todo/stage-b-operators.md) making these
+nodes reachable from source
 
 ### Problem
 
@@ -23,7 +21,7 @@ operands are lazy ([`fjs/edag/module.f.mjs`](../../../edag/module.f.mjs),
 
 Nothing tracked this: the roadmap's operator item is done, the operations
 being what it asked for, and `?:` is its own item there, about the VM.
-Until this issue closes, `fjs/fsc/rust`'s `resultOperator` refuses these
+Until this issue closes, `fjs/fsc/rust`'s `lazyOperator` refuses these
 nodes in a module, as it refuses every operator in one today, and Stage B
 extends that refusal to the length-4 `?:` node. The Stage A task, which
 spells the eager operators against the failure contract, leaves these
@@ -45,15 +43,17 @@ both.
 
 - [ ] Decide the lazy spelling with the failure contract.
 - [ ] Spell `&&`, `||`, `??` and `?:` that way in `fjs/fsc/rust`, and lift
-      `resultOperator`'s refusal for them; prove `false && (1n / 0n)` and
+      `lazyOperator`'s refusal for them; prove `false && (1n / 0n)` and
       a `?:` with a throwing unselected arm through `nanvm-harness`.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`; `tsc`,
       `fjs test`, `npm run cov` at 100%.
 
 ### Related
 
-- [Stage A operators](./stage-a-operators.md) — the failure contract, and
-  the same refusal for the eager operators.
+- [`../module.f.mjs`](../module.f.mjs) — `lazyOperator`, the refusal this
+  issue lifts; every eager operator already prints there as `(…)?`, through
+  `fjs/edag/rust`'s `valueExpr`, against the failure contract `pub fn
+  module<A: IVm>() -> Result<Any<A>, Any<A>>`.
 - [Stage B operators](../../todo/stage-b-operators.md) — the front end that
   makes these nodes reachable.
 - [`fjs/edag/rust/module.f.mjs`](../../../edag/rust/module.f.mjs) — the
