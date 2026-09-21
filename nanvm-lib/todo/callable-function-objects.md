@@ -201,6 +201,13 @@ length check, only the enclosing scope's *construction* of the frame does.
 
 #### The `Function<A>` value and its code pointer
 
+**Decided elsewhere**: the representation is
+[function-is-callable-not-a-container.md](./function-is-callable-not-a-container.md)
+— `Function<A>` is callable, not a container, so neither option below is
+the one; both are kept as the record of the question. What follows about
+the calling convention, `Code<A>`'s shape and the captured array still
+holds, and is what that design's native-construction capability takes.
+
 Use the existing header's length for declared arity and expose it as
 `f.length` when callable support lands. Today's
 [`Any::member_access`](../src/vm/any/member_access.rs) returns `undefined`
