@@ -129,8 +129,28 @@ export const _shapeOf = exp => {
             ],
         }
     }
+    // `=>` is an `Op2` by operand count and stays in that set above, which
+    // mirrors the type file for the eye-check the comment there describes; it
+    // is drawn here instead because `left`/`right` name nothing a reader of a
+    // function wants, and `frame`/`body` name exactly it. The frame is `null`
+    // in every function the compiler emits today — `./module.f.mjs` lowers
+    // each to `['=>', null, body]`, the parser refusing a capture — and the
+    // edge label is what makes that null read as the absent frame it is
+    // rather than as a constant somebody passed.
+    if (tag === '=>') {
+        return {
+            kind: 'op', label: '=>',
+            children: [['frame', /** @type {Exp} */ (exp[1])], ['body', /** @type {Exp} */ (exp[2])]],
+        }
+    }
     if (typeof tag === 'string' && op0.has(tag)) {
-        return { kind: 'op', label: tag, children: [] }
+        // `Op0Id` groups by operand count, not by meaning — its own doc in
+        // `fjs/edag` says so: `undefined` is a constant, where `args` and
+        // `frame` are the two places a value enters a scope from outside it.
+        // A drawing wants the meaning, so the constant draws as the leaf it
+        // is, beside `null` and every other one, and the two inputs draw as
+        // terminals of their own.
+        return { kind: tag === 'undefined' ? 'leaf' : 'terminal', label: tag, children: [] }
     }
     if (typeof tag === 'string' && op1.has(tag)) {
         return { kind: 'op', label: tag, children: [['operand', /** @type {Exp} */ (exp[1])]] }
@@ -219,10 +239,22 @@ const graphOf = text => {
  * every reference is the same `Exp` object, so the `+` node draws once with
  * three incoming edges.
  *
+ * It carries one of every look the drawing has, too, so that what the
+ * three mean is on screen before a reader has typed anything. The numbers
+ * and `undefined` are constants, dashed. The two `args` are filled
+ * terminals — a value arriving from outside a scope rather than computed
+ * from operands below — and there are two of them because a node belongs
+ * to one scope: the module's, which its import reaches through
+ * `.default` on argument 0, and the function's own, fresh for that
+ * body. That those two look identical and are still not shared is `a`'s
+ * lesson from the other side: sharing is reference identity, never
+ * resemblance. The function's `frame` edge ends at `null` because the
+ * compiler emits no captures yet.
+ *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'const a = 1 + 2;\nexport default [a, a, a * 3];',
+    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nexport default [a, a, a * 3, m, (...x) => x, undefined];',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
         const g = graphOf(text)
