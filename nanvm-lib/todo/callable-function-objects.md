@@ -327,7 +327,7 @@ precisely.
    other reason (closure creation, `export default`, being stored in a
    value) — and thread a *handle* to that one value, `self_:
    &A::InternalFunction`, into every activation, beside `args`. Reading
-   `["self"]` is then `Function::from(self_.clone())`: an
+   `["self"]` is then `Function::new(self_.clone())`: an
    `Rc`-cheap clone of the *same* underlying object, so identity is
    trivially preserved with no dependence on how `Function<A>`'s equality
    happens to be implemented. This needs no cyclic or lazy construction

@@ -109,10 +109,16 @@ pub type StaticCode<A> = fn(self_: &<A as IVm>::InternalFunction, args: Array<A>
 
 `self_` is the VM's own function value — an `IFunction`, so `Clone` and
 `length` are its — and everything else the body needs is read through
-it: the frame by `A::frame(self_)`, and `Function::from(self_.clone())`,
+it: the frame by `A::frame(self_)`, and `Function::new(self_.clone())`,
 an `Rc`-cheap clone of the same value, is what the body's `["self"]`
 names for recursion
-([callable-function-objects.md](./callable-function-objects.md)). One
+([callable-function-objects.md](./callable-function-objects.md)).
+`Function::new` is an inherent constructor, the one way in from a VM's
+own value — a `From` impl over `A::InternalFunction` would overlap core's
+`From<T> for T`, since a VM may choose `InternalFunction = Function<A>` —
+and the field stays private: `Function<A>` exposes what this design
+decides to expose, `call`, `length` and identity, and never the internal
+value itself. One
 signature for every function, whether or not its body reads `self_`: an
 unused parameter costs nothing, and one convention is simpler than a
 family. The generic `Function<A>` exposes no `frame()` — that would be
@@ -169,8 +175,9 @@ the Stage 1 compiler plan,
       `IFunction` — `call` passes `self` and the arguments — and
       `IStaticFunction`.
 - [ ] `Function<A>`: `call`, `length`, identity; `name`, the header and
-      the `pub` field go, `From<A::InternalFunction>` in the field's
-      place; `Debug` prints a fixed marker. `fn_to_string` is untouched.
+      the `pub` field go, the inherent `Function::new(A::InternalFunction)`
+      in the field's place; `Debug` prints a fixed marker. `fn_to_string`
+      is untouched.
 - [ ] `function_any` in the corpus harness and the three test
       constructions go through `IStaticFunction::static_function`, and
       the corpus bounds on `IStaticFunction` where it bounds on `IVm`
