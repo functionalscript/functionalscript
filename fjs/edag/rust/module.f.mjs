@@ -546,15 +546,6 @@ const printer = nested => shared => root => {
      */
     const valueNodes = e => !isComma(e) || isShared(last(e)) ? [e] : [e, ...valueNodes(last(e))]
     /**
-     * A lazy operation's operands after the first, the ones its thunks
-     * establish; none for any other node.
-     *
-     * @type {(n: Exp) => readonly Exp[]}
-     */
-    const lazyOperandsOf = n => lazy.includes(/** @type {string} */ (tagOf(n)))
-        ? /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (n).slice(2))
-        : []
-    /**
      * Every lazy operand nothing establishes eagerly: the root of its
      * thunk's block. A lazy operand also reached eagerly is an ordinary
      * temporary, and its thunk answers the name.
@@ -592,17 +583,6 @@ const printer = nested => shared => root => {
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
     /** @type {(e: Exp) => boolean} */
     const isTemporary = e => temporaries.some(([n]) => n === e)
-    /**
-     * The nodes `e`'s block holds: the ones `e` reaches eagerly, and the
-     * thunk over every lazy operand of an operation among them, which the
-     * block makes where the operation is.
-     *
-     * @type {(e: Exp) => readonly Exp[]}
-     */
-    const held = e => {
-        const reached = eagerNodesOf(e)
-        return [...reached, ...reached.flatMap(lazyOperandsOf)]
-    }
     /**
      * The temporaries `e`'s block binds, in dependency order: the ones it
      * holds — every one, for the scope's root; for a thunk's root, less the
@@ -1035,6 +1015,28 @@ const reach = (seen, root) => {
     const [id] = root
     const operands = /** @type {readonly unknown[]} */ (lazy.includes(id) ? [root[1]] : operandsOf(root))
     return operands.reduce(reach, [...seen, self])
+}
+
+/**
+ * A lazy operation's operands after the first, the ones its thunks
+ * establish; none for any other node.
+ *
+ * @type {(n: Exp) => readonly Exp[]}
+ */
+const lazyOperandsOf = n => lazy.includes(/** @type {string} */ (tagOf(n)))
+    ? /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (n).slice(2))
+    : []
+
+/**
+ * The nodes a block over `e` holds: the ones `e` reaches eagerly,
+ * {@link eagerNodesOf}, and the thunk over every lazy operand of an
+ * operation among them, which the block makes where the operation is.
+ *
+ * @type {(e: Exp) => readonly Exp[]}
+ */
+const held = e => {
+    const reached = eagerNodesOf(e)
+    return [...reached, ...reached.flatMap(lazyOperandsOf)]
 }
 
 /**
