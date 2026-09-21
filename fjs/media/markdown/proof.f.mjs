@@ -23,6 +23,14 @@ export const proof = {
         joinsWrapped: () => assertStructurallySame(entryTexts('- a\n  b\n  c\n'), ['a b c']),
         // The trailing newline every released file ends with closes nothing.
         trailingBlank: () => assertStructurallySame(entryTexts('- a\n\n'), ['a']),
+        // A line of nothing but the indent continues nothing. It is
+        // indented like a wrapped line and carries no words, so joining it
+        // would put a trailing space on the entry above it.
+        blankIndented: () => assertStructurallySame(entryTexts('- a\n   \n'), ['a']),
+        // A continuation before any item has nothing to continue. No
+        // released file begins that way; a file being edited can, and the
+        // reader must not reach into the empty list it would be continuing.
+        orphanContinuation: () => assertStructurallySame(entryTexts('  orphan\n- a\n'), ['a']),
         empty: () => assertStructurallySame(entryTexts(''), []),
     },
     /**
