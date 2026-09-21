@@ -1,5 +1,8 @@
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { htmlToString } from '../html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
+import { demo } from './demo.f.mjs'
 import { entryTexts, tryParse, tryParseEntry } from './module.f.mjs'
 
 const tick = '`'
@@ -66,6 +69,57 @@ export const proof = {
             [['code', 'a'], ['text', ': one more']],
             [['strong', 'b:'], ['text', ' two']],
         ]),
+    /**
+     * The demo's initial text is chosen to carry every property the parser
+     * has, so a reader meets them before changing anything. Two of them are
+     * invisible in a rendering and show only in the spans.
+     */
+    demo: {
+        // A code span opens on one line of the first entry and closes on the
+        // next. It reaches the spans whole, which is what the block layer is
+        // for, and the joined text is what a reader wrote rather than how it
+        // wrapped.
+        joinsACodeSpanAcrossALineBreak: () => {
+            const entries = unwrap(tryParse(demo.init))
+            assert(entries[0].some(s2 => s2[0] === 'code' && s2[1] === 'own property'))
+        },
+        // The second entry holds both symbols that only stay readable because
+        // code is recognised first, and holds a real emphasis beside the
+        // asterisk it would otherwise have opened.
+        codeBindsTightest: () => {
+            const entry = unwrap(tryParse(demo.init))[1]
+            assert(entry.some(s2 => s2[0] === 'code' && s2[1] === 'readonly T[]'))
+            assert(entry.some(s2 => s2[0] === 'code' && s2[1] === '*'))
+            assert(entry.some(s2 => s2[0] === 'em' && s2[1] === 'always'))
+        },
+        // Every kind the grammar has, and a reference left as text.
+        everyKind: () => {
+            const kinds = new Set(unwrap(tryParse(demo.init)).flat().map(s2 => s2[0]))
+            assert(kinds.has('text'))
+            assert(kinds.has('code'))
+            assert(kinds.has('strong'))
+            assert(kinds.has('em'))
+            assert(kinds.has('link'))
+            assert(unwrap(tryParse(demo.init))[0].some(
+                s2 => s2[0] === 'text' && s2[1].includes('(#1421)')))
+        },
+        // A file that does not parse is said so, not swallowed, and draws no list.
+        error: () => {
+            const html = htmlToString(demo.view('- ' + tick + 'unclosed'))
+            assert(html.includes('Error:'), html)
+            assert(!html.includes('<ol>'), html)
+        },
+        view: () => assert(htmlToString(demo.view(demo.init)).includes('name="changelog"')),
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            /** @type {(event: { readonly kind: 'input', readonly name: string, readonly value: string } | { readonly kind: 'start' }) => (state: string) => string} */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(step({ kind: 'input', name: 'changelog', value: '- a' })(''), '- a')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+    },
     /** An unclosed delimiter is refused, and the refusal names which entry. */
     refuses: {
         entry: () => assertEq(tryParseEntry(`${tick}unclosed`)[0], 'error'),
