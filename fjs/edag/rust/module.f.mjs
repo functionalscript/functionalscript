@@ -583,18 +583,21 @@ const printer = nested => shared => root => {
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
     /** @type {(e: Exp) => boolean} */
     const isTemporary = e => temporaries.some(([n]) => n === e)
+    /** What the scope's own block holds, established before the root as a `const` is at its declaration. */
+    const outer = held(root)
     /**
      * The temporaries `e`'s block binds, in dependency order: the ones it
      * holds — every one, for the scope's root; for a thunk's root, less the
-     * ones the scope's block already holds, established before the root as
-     * a `const` is at its declaration, and less the thunk itself, the
-     * block's own answer.
+     * ones the scope's block already holds — a value reached eagerly
+     * elsewhere, and the thunks over that value's own lazy operands, which
+     * the scope's block makes where the value is — and less the thunk
+     * itself, the block's own answer.
      *
      * @type {(e: Exp) => readonly Exp[]}
      */
     const declaredBy = e => {
         const own = held(e)
-        return temporaries.filter(([n]) => n !== e && own.includes(n) && (e === root || !eager.includes(n))).map(([n]) => n)
+        return temporaries.filter(([n]) => n !== e && own.includes(n) && (e === root || !outer.includes(n))).map(([n]) => n)
     }
     /**
      * The temporaries in the order their `let` lines print: a block's own,

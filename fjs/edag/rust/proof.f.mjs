@@ -566,6 +566,22 @@ export const proof = {
             const result = scope(['?:', true, 1, ['[]', [c, c]]])
             assert(result[0] === 'error', result)
         },
+        /**
+         * A lazy operation reached eagerly and lazily — `const x = 1n ||
+         * (1n / 0n)`, anchored and then `true && x` — is a temporary of the
+         * scope, and so is the thunk over its own lazy operand, made where
+         * `x` is; the thunk over `x` answers the name and binds nothing,
+         * since a closure nothing uses is one `rustc` cannot type.
+         */
+        sharedLazyOperation: () => {
+            /** @type {Exp} */
+            const x = ['||', 1n, ['/', 1n, 0n]]
+            assertStructurallySame(scoped([',', [x, ['&&', true, x]]]), [
+                'let c0 = || bigint_any(1) / bigint_any(0);',
+                'let c1: Any<A> = (Any::logical_or(bigint_any(1), c0))?;',
+                'Any::logical_and(true.to_any(), || Ok(c1))',
+            ])
+        },
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it, wherever it stands. */
         refusedEmptyComma: () => {
             assertStructurallySame(scope([',', []]), ['error', ['no Rust for an empty comma', [',', []]]])
