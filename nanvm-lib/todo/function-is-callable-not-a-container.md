@@ -88,16 +88,23 @@ VM*, in a trait of its own:
   that composes freely — a compiled function calls a dynamic one it was
   handed, and a dynamic one calls a compiled one it captured.
 
-**`naive` holds a static function.** Its `InternalFunction` is an `Rc`
-around a `fn(captured: &Array<Naive>, args: &Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
-the captured `Array<Naive>` and the `length`. A `fn` pointer is `Copy`,
-`PartialEq` and allocates nothing of its own; the `Rc` is the one allocation
-every function value needs, since each evaluation of an arrow is a new
-function in JavaScript, and `ptr_eq` compares it. `to_string` answers
-`() => {}` until a spelling exists — low priority, and honest: the VM knows
-the value is a function and nothing more. `naive` holds no EDAG: it stays
-the simple VM an AOT target wants, and every headache of interpreting or
-building code stays in the compiler.
+**`naive` holds a static function.** Its `InternalFunction` is a plain
+struct: a `fn(captured: &Array<Naive>, args: &Array<Naive>) -> Result<Any<Naive>, Any<Naive>>`,
+the captured `Array<Naive>` and the `length`. No allocation of its own: a
+`fn` pointer is `Copy` and `PartialEq`, and the captured array already
+carries the function's identity. Each evaluation of an arrow evaluates its
+frame node afresh in the enclosing scope, so every function value is born
+with its own captured array, a fresh allocation even when empty; two
+evaluations of the same arrow have two, one function cloned shares one.
+So `ptr_eq` compares the captured arrays by pointer, and `Clone` copies the
+pointer and clones the array's reference. What that asks of the generator
+and of `Array::default` is that a non-capturing function still gets a fresh
+empty array at each creation, never a shared empty singleton, or two such
+functions would compare equal. `to_string` answers `() => {}` until a
+spelling exists — low priority, and honest: the VM knows the value is a
+function and nothing more. `naive` holds no EDAG: it stays the simple VM
+an AOT target wants, and every headache of interpreting or building code
+stays in the compiler.
 
 This decides the representation question
 [callable-function-objects.md](./callable-function-objects.md) left open
@@ -110,16 +117,18 @@ self-reference, the generator — is unchanged and builds on this shape.
 - [ ] `IComplex`, `IContainer: IComplex`, `IFunction: IComplex`; `IVm`
       binds `InternalFunction: IFunction<Self>`.
 - [ ] The native-construction capability trait; `naive` implements it and
-      `IFunction`, as an `Rc` over a `fn` pointer, a captured array and a
-      length; `to_string` answers `() => {}`.
+      `IFunction`, as a plain struct of a `fn` pointer, a captured array
+      and a length, identity the captured array's; `to_string` answers
+      `() => {}`.
 - [ ] `Function<A>`: `call`, `length`, `to_string`, identity; `name`, the
       header and the `pub` field go; `Debug` prints `to_string`.
 - [ ] `function_any` in the corpus harness and the two test constructions
       go through the capability trait; the corpus's generated functions
       carry its bound.
 - [ ] A test that `call` runs the code with its captured array and the
-      arguments, and that two functions made from the same code are not
-      `===`.
+      arguments, that two functions made from the same code with their own
+      empty captured arrays are not `===`, and that a function and its
+      clone are.
 - [ ] `callable-function-objects.md`: reduce its representation section to
       a pointer here; declare the `IVm` break.
 - [ ] `cargo test`, `cargo clippy --all-targets`, `cargo fmt -- --check`;
