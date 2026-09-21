@@ -67,5 +67,6 @@ other side does not), the same shape unary `-`'s own spacing rule
   `powTail`, `unaryOperand`) this writer's parenthesization has to invert.
 - [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md) —
   Stage A itself.
-- [`../../rust/todo/stage-a-operators.md`](../../rust/todo/stage-a-operators.md) —
-  the same gap in the `.rs` output, filed alongside this one.
+- [`../../rust/module.f.mjs`](../../rust/module.f.mjs) — the `.rs` output,
+  which prints every eager operator already, as `(…)?`; the same gap was
+  filed alongside this one and is closed.

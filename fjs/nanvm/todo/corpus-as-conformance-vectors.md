@@ -58,8 +58,13 @@ test` has never had the chance to fail. The exported `nodeExpr` does reach it â€
 it takes an arbitrary `Exp`, so a caller outside the corpus can print a nested
 operation and get text that fails with E0308.
 
-Deciding the shape is part of this issue rather than a detail of it, because
-it sets what every emitted statement looks like. `?` inside a closure, an
+A compiled module already has its answer: `fjs/edag/rust`'s `valueExpr`
+prints every operation as `(â€¦)?`, since `pub fn module` answers the
+`Result` a throw lands in. The corpus prints through `expExpr`, whose
+statements hand each `Result` to `check` bare, so it is the corpus's own
+shape that is still to decide. Deciding it is part of this issue rather
+than a detail of it, because it sets what every emitted statement looks
+like. `?` inside a closure, an
 `and_then` chain, or a harness helper that takes the operands already
 unwrapped are the obvious candidates; whichever is chosen, the flat statements
 should keep their present shape, since `generated.rs` staying byte-stable

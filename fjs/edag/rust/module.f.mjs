@@ -236,7 +236,7 @@ const indexExpr = index => {
 
 /**
  * `true` for a `.` base a property read on always throws: `null` and the
- * tagged `['undefined']` node. Printing `Any::member_access(…)?` for
+ * tagged `['undefined']` node. Printing `Any::member_access(…)` for
  * either would compile to a run-time throw in place of the compile-time refusal
  * every other DJS output gives the same input (`fjs/fsc/README.md`: "a
  * `null` or `undefined` base is the one failure a data module can make").
@@ -377,9 +377,22 @@ const resolvedBase = e => {
  * Every use site fixes `A`, so no expression needs a turbofish: the operators
  * above take `Any<A>` arguments and the shared `let` bindings are annotated.
  *
- * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
+ * `propagate` is how an operation — an operator node, or a `.` read —
+ * prints. `false`: as the `Result<Any<A>, Any<A>>` the `nanvm-lib` call
+ * answers, for a statement that consumes the `Result` itself, the corpus's
+ * `check`. `true`: followed by `?`, so it is an `Any<A>` and a throw
+ * propagates to the enclosing function — a compiled module's `pub fn
+ * module`, which answers the same `Result`. An operator's text is
+ * parenthesized before the `?`, since `?` binds tighter than any infix
+ * operator; a `.` read is a call already and needs none.
+ *
+ * @type {(propagate: boolean) => (shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
-export const expExpr = shared => {
+const printer = propagate => shared => {
+    /** An operator node's printed operation, in the mode's form. @type {(s: string) => string} */
+    const operation = s => propagate ? `(${s})?` : s
+    /** A `.` read's printed call, in the mode's form. @type {(s: string) => string} */
+    const call = s => propagate ? `${s}?` : s
     /**
      * `true` when a node prints as an operator expression.
      *
@@ -388,17 +401,18 @@ export const expExpr = shared => {
      * operand as written. An operator expression does not: Rust parses
      * `a * b * c` to the left and binds a method call tighter than `*`, so an
      * unparenthesized composed operand is a different program from the node
-     * it was printed from. A `.` node is a call with a postfix `?`
-     * (`Any::member_access(…)?`), which already binds tighter than any infix
-     * operator, so
-     * it needs no parentheses either. A `,` node is a brace-delimited block
+     * it was printed from — when the operation prints bare. Propagating, it
+     * prints as `(…)?`, atomic as written, so nothing is composed. A `.`
+     * node is a call (`Any::member_access(…)`, with or without its `?`),
+     * which already binds tighter than any infix operator, so it needs no
+     * parentheses either. A `,` node is a brace-delimited block
      * (`{ …; last }`), atomic the same way a parenthesized group is. A shared
      * node is a lowered value and so never an operation, which is why the tag
      * alone decides this.
      *
      * @type {(e: Exp) => boolean}
      */
-    const composed = e => e instanceof Array && ![
+    const composed = e => !propagate && e instanceof Array && ![
         'undefined', '[]', '{}', '=>', '.', ',',
     ].includes(e[0])
     /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
@@ -422,7 +436,7 @@ export const expExpr = shared => {
             if (c !== undefined) { return error(['no Rust for a property-access chain step', e]) }
             const base = resolvedBase(a)
             if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
-            return map2((fa, k) => `Any::member_access(${fa}, ${k})?`)(f(a), indexExpr(b))
+            return map2((fa, k) => call(`Any::member_access(${fa}, ${k})`))(f(a), indexExpr(b))
         }
         if (id === ',') {
             // `Exps` admits an empty operand list in the schema (shape-only,
@@ -450,9 +464,10 @@ export const expExpr = shared => {
             // refused rather than printed as a function it is not.
             return isSmallestLambda(a, b) ? ok('function_any()') : error(['no Rust for', e])
         }
-        return e.length === 2 ? map2((fn, x) => fn(x))(op1(id), nested(a))
+        return mapOk(operation)(
+            e.length === 2 ? map2((fn, x) => fn(x))(op1(id), nested(a))
             : e.length === 3 ? map3((fn, x, y) => fn(x, y))(op2(id), nested(a), nested(b))
-            : map4((fn, x, y, z) => fn(x, y, z))(op3(id), nested(a), nested(b), nested(c))
+            : map4((fn, x, y, z) => fn(x, y, z))(op3(id), nested(a), nested(b), nested(c)))
     }
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
     /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
@@ -475,6 +490,23 @@ export const expExpr = shared => {
         : map2((k, v) => `(${k}, ${v})`)(keyExpr(p[1]), f(p[2]))
     return f
 }
+
+/**
+ * The printer whose operations print bare, as the `Result` each answers:
+ * the operator corpus's, one operation per statement handed to a checker.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
+ */
+export const expExpr = printer(false)
+
+/**
+ * The printer whose operations propagate with `?`, every expression an
+ * `Any<A>`: a compiled module's, where `pub fn module` answers the
+ * `Result` a throw lands in.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
+ */
+export const valueExpr = printer(true)
 
 /**
  * `true` for the operands of `() => undefined`: an empty frame and the
