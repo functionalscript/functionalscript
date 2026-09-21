@@ -372,7 +372,8 @@ generator prints is a `Function<A>` value already, whether it is called at
 once, stored, returned or exported, so the harness evaluates `export
 default` uniformly and a function value standing as the export is the one
 thing `to_json` refuses. The declared length is `0`, the only arity the
-language has; when named parameters are admitted, the generator prints the
+language has, read as `f.length` through `Any::member_access` — a
+function's one property; when named parameters are admitted, the generator prints the
 function node's count, and exported and returned functions' `length` is
 compared with native JavaScript, unused parameters included.
 

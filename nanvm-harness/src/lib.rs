@@ -23,6 +23,8 @@ pub mod calls;
 pub mod escapes;
 #[path = "../fixtures/function-scope.rs"]
 pub mod function_scope;
+#[path = "../fixtures/length.rs"]
+pub mod length;
 #[path = "../fixtures/missing.rs"]
 pub mod missing;
 #[path = "../fixtures/named.rs"]
@@ -128,9 +130,9 @@ mod tests {
     };
 
     use crate::{
-        RunError, arity, array, boolean, call, calls, escapes, function_scope, missing, named,
-        nested, not_a_function, number, object, operators, property, rest, run, sharing, string,
-        throws,
+        RunError, arity, array, boolean, call, calls, escapes, function_scope, length, missing,
+        named, nested, not_a_function, number, object, operators, property, rest, run, sharing,
+        string, throws,
     };
 
     #[test]
@@ -191,6 +193,7 @@ mod tests {
         assert_eq!(run::<Naive>(rest::module), Ok("[1,2,3]".into()));
         assert_eq!(run::<Naive>(calls::module), Ok("[1,2]".into()));
         assert_eq!(run::<Naive>(nested::module), Ok("[2,3]".into()));
+        assert_eq!(run::<Naive>(length::module), Ok("0".into()));
         // spec/README.md's sharing example: `pair` is bound once inside the
         // function's own scope, where `a` is, and cloned at each reference.
         assert_eq!(
