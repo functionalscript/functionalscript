@@ -24,7 +24,7 @@
  */
 
 import { error, mapOk, ok, okThen, unwrap } from '../../types/result/module.f.mjs'
-import { sharedNodesOf, valueExpr } from '../../edag/rust/module.f.mjs'
+import { eagerNodesOf, sharedNodesOf, valueExpr } from '../../edag/rust/module.f.mjs'
 
 const indent = '    '
 
@@ -95,14 +95,9 @@ const importsFor = text => [...new Set([
  * module reports that failure where JavaScript reports the earlier one.
  * The two are one outcome — `spec/README.md`, "Failure is one outcome",
  * names the first failing operation as no language-level observation and
- * allows exactly this reordering. A binding reached only through lazy
- * operands — the right of an `&&`, an arm of a `?:` — is established here
- * all the same, and that is right: an implicitly shared node is a `const`
- * referenced twice, and JavaScript establishes a `const` at its declaration
- * whatever the operators around its uses do. Anchoring a `const` reached
- * only lazily so the source establishes it too is the lowering's business,
- * not this printer's —
- * [Stage B](../todo/stage-b-operators.md)'s eager-restricted `refsOf`.
+ * allows exactly this reordering. Every binding is reached eagerly by the
+ * root — {@link bodyLines} refuses a module where one is not — so no
+ * failure the program skips is run here.
  *
  * @type {(bindings: readonly (readonly [Exp, string])[]) => (i: number) => Result<readonly string[], readonly unknown[]>}
  */
@@ -125,15 +120,33 @@ const letLines = bindings => i => {
  * signature does, since an operand printed as a value where a thunk is due
  * does not compile.
  *
- * `sharedNodesOf` recurses once per operand, so a module deep enough
- * overflows the call stack before this function prints anything — tracked
- * with the other EDAG walks' recursion, not fixed here:
+ * A shared node is hoisted into a `let` binding before the root, which
+ * establishes it unconditionally — right where the root reaches it eagerly
+ * at least once, and wrong where it is reached only through lazy operands:
+ * `true ? 1 : [c, c]` answers `1` without establishing `c`, and a binding
+ * would establish it first. That shape is refused rather than bound. A
+ * module the lowering links never has it: an implicitly shared node is a
+ * `const` referenced twice, JavaScript establishes a `const` at its
+ * declaration whatever the operators around its uses do, and
+ * [Stage B](../todo/stage-b-operators.md)'s eager-restricted `refsOf`
+ * anchors a `const` reached only lazily through the comma root — an eager
+ * reach, so the binding is right again. The refusal is the check that the
+ * anchoring happened, for an EDAG handed in directly.
+ *
+ * `sharedNodesOf` and `eagerNodesOf` recurse once per operand, so a module
+ * deep enough overflows the call stack before this function prints
+ * anything — tracked with the other EDAG walks' recursion, not fixed here:
  * `fjs/edag/todo/stack-safety.md`.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
 const bodyLines = root => {
     const shared = sharedNodesOf(root)
+    const eager = eagerNodesOf(root)
+    const lazyOnly = shared.find(node => !eager.includes(node))
+    if (lazyOnly !== undefined) {
+        return error(['no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not', lazyOnly])
+    }
     /** @type {readonly (readonly [Exp, string])[]} */
     const bindings = shared.map((node, i) => [node, `c${i}.clone()`])
     return okThen(lines => mapOk(s => [...lines, `${indent}Ok(${s})`])(valueExpr(bindings)(root)))(letLines(bindings)(bindings.length))

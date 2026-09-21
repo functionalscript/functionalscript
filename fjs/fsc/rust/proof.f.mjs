@@ -172,18 +172,36 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 `])
         },
         /**
-         * A `const` reached twice, both times through lazy operands —
-         * `const c = []; export default [a && c, b && c]` — is still hoisted
-         * into a `let` binding before the root and established there, as
-         * JavaScript establishes a `const` at its declaration; each thunk
-         * clones the binding.
+         * A `const` reached eagerly once and lazily once — `const c = [];
+         * export default [c, a && c]` — is hoisted into a `let` binding
+         * before the root, established there as JavaScript establishes a
+         * `const` at its declaration, and the thunk clones the binding.
          */
-        sharedThroughLazyOperands: () => {
+        sharedThroughLazyOperand: () => {
             /** @type {Exp} */
             const c = ['[]', []]
-            const result = toRust(['[]', [['&&', true, c], ['&&', false, c]]])
+            const result = toRust(['[]', [c, ['&&', false, c]]])
             assertEq(result[0], 'ok')
-            assert(result[1].includes('    let c0: Any<A> = Array::default().to_any();\n    Ok([(Any::logical_and(true.to_any(), || Ok(c0.clone())))?, (Any::logical_and(false.to_any(), || Ok(c0.clone())))?].to_array().to_any())'), result)
+            assert(result[1].includes('    let c0: Any<A> = Array::default().to_any();\n    Ok([c0.clone(), (Any::logical_and(false.to_any(), || Ok(c0.clone())))?].to_array().to_any())'), result)
+        },
+        /**
+         * A shared node reached only through lazy operands is refused: a
+         * `let` binding would establish it before the root, where the
+         * program may never establish it at all — `true ? 1 : [c, c]`
+         * answers `1` with `c`'s `1n / 0n` never run. The lowering anchors
+         * such a `const` eagerly, so no linked module has this shape; an
+         * EDAG handed in directly can, and is refused rather than compiled
+         * to a throw.
+         */
+        refusedSharedOnlyThroughLazyOperands: () => {
+            /** @type {Exp} */
+            const boom = ['/', 1n, 0n]
+            assertStructurallySame(
+                toRust(['?:', true, 1, ['[]', [boom, boom]]]),
+                ['error', 'no Rust spelling for this module: no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not: /,1,0'])
+            /** @type {Exp} */
+            const c = ['[]', []]
+            assertEq(toRust(['[]', [['&&', true, c], ['&&', false, c]]])[0], 'error')
         },
         /**
          * A property read on a nullish base compiles to a `Result` error

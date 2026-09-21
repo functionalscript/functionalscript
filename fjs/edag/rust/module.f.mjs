@@ -655,3 +655,42 @@ const visit = visited => root => {
 export const sharedNodesOf = root => visit([])(root)
     .filter(([, count]) => count >= 2)
     .map(([node]) => node)
+
+/**
+ * `seen` with every node `root` establishes unconditionally folded in: the
+ * nodes reached without passing through a lazy position, which is every
+ * operand after the first of a {@link lazy} operation. A node is walked
+ * once, by identity, as {@link visit} walks it.
+ *
+ * Reads a node's shape rather than descending into every array it holds:
+ * an array, object, or comma node holds its operands in a list, whose
+ * first item may be a string that spells a lazy tag — `['&&', c, c]` is
+ * three array items where `['&&', c, c]` a node is a lazy operation — so
+ * the list is read as a list, and every other node's operands follow its
+ * tag. A spread and a property are tagged pairs no lazy tag names, so they
+ * are walked as nodes are; a `.` node's index and step, and a `=>` node's
+ * frame and body, hold nothing a lazy operand hides.
+ *
+ * @type {(seen: readonly Exp[], root: unknown) => readonly Exp[]}
+ */
+const reach = (seen, root) => {
+    if (!(root instanceof Array)) { return seen }
+    const self = /** @type {Exp} */ (/** @type {unknown} */ (root))
+    if (seen.includes(self)) { return seen }
+    const [id] = root
+    const operands = lazy.includes(id) ? [root[1]]
+        : ['[]', '{}', ','].includes(id) ? root[1]
+        : root.slice(1)
+    return /** @type {readonly unknown[]} */ (operands).reduce(reach, [...seen, self])
+}
+
+/**
+ * The nodes an EDAG establishes unconditionally — reached from `root`
+ * through eager positions alone — in walk order, `root` first. A node
+ * {@link sharedNodesOf} lists that is not among these is reached only
+ * through lazy operands, and a `let` binding for it before the root would
+ * establish what the program may not: the shape `fjs/fsc/rust` refuses.
+ *
+ * @type {(root: Exp) => readonly Exp[]}
+ */
+export const eagerNodesOf = root => reach([], root)
