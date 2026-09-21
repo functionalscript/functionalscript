@@ -191,10 +191,13 @@ svg text { font: inherit }
    container are the one distinction this graph draws beyond sharing itself.
    An edge label is haloed in the page's own background rather than boxed,
    so two crossing lines still read under it without a second shape per
-   label. */
+   label, and an edge is cased in it — a wide background stroke under the
+   line — so that where an edge crosses a node it passes visibly in front
+   of the box rather than merging into its border. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
+[data-graph-edge-casing] { fill: none; stroke: var(--bg); stroke-width: 5 }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-label] {
     dominant-baseline: middle; fill: var(--muted); font-size: .7rem;
