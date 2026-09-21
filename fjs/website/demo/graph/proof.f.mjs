@@ -97,5 +97,34 @@ export const proof = {
             assert(html.includes('d="M35,36 Q59,89 35,142"'), html) // r: rank diff 2, bows
             assert(html.includes('d="M35,36 Q35,56 35,76"'), html) // p: rank diff 1, straight
         },
+        /**
+         * **Boxes, then edges, then the node labels** — the document order
+         * an SVG paints in. The same three ranks as above: `r` skips rank 1,
+         * so it crosses that row, and the node there hid a quarter of it
+         * while the boxes drew last. The labels still draw after the edges,
+         * which is what the old order was protecting.
+         *
+         * Each edge is cased, and the casing carries its line's own curve —
+         * a casing on a straight path under a bowed one would leave the bow
+         * uncased, which is the half that crosses anything.
+         */
+        layersBoxesThenEdgesThenLabels: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: '{ }', rank: 0 },
+                    { id: 1, kind: 'a', label: '{ }', rank: 1 },
+                    { id: 2, kind: 'a', label: '[ ]', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'p' },
+                    { from: 1, to: 2, label: 'y' },
+                    { from: 0, to: 2, label: 'r' },
+                ],
+            }))
+            assert(html.indexOf('<rect') < html.indexOf('data-graph-edge-casing'), html)
+            assert(html.indexOf('data-graph-edge-casing') < html.indexOf('data-graph-label'), html)
+            assertEq(html.split('data-graph-edge-casing').length - 1, 3)
+            assert(html.includes('d="M35,36 Q59,89 35,142" data-graph-edge-casing'), html)
+        },
     },
 }
