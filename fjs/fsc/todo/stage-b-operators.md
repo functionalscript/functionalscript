@@ -310,11 +310,12 @@ above, not just new-syntax acceptance.
   compiled module needs operands that are not evaluated before the call,
   which nothing spells yet —
   [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md),
-  blocked on this task making the nodes reachable. The `.rs`
-  route of `fjs compile` is this task's to keep honest, though — see the
-  Rust-codegen task below: not implementing laziness in Rust, but making
-  sure the one node shape `fjs/fsc/rust` does not refuse yet, `?:`, is
-  refused once the grammar can produce it.
+  which waits on this task only for a source program that can reach the
+  nodes. `fjs/fsc/rust`'s `lazyOperator` already refuses all four, `?:`
+  included, proven directly through `toRust`; what the `.rs` route of
+  `fjs compile` owes this task is the proof that a whole *module* holding
+  `?:` is refused once the grammar can produce one — see the Rust-codegen
+  task below.
 - The FunctionalScript writer (`fjs/fsc/serializer`): stays silent on Stage B
   the same way it already is on Stage A. `entry`'s ``default: { return
   error(`a ${node[0]} node`) }`` already refuses every Stage A operator node,
