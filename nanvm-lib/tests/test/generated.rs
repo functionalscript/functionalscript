@@ -1011,77 +1011,97 @@ fn not<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 fn logical_and<A: IStaticFunction>() {
-    check::<A>("falseAndTrue", Any::logical_and(false.to_any(), true.to_any()), false.to_any());
-    check::<A>("trueAndFalse", Any::logical_and(true.to_any(), false.to_any()), false.to_any());
-    check::<A>("trueAndTrue", Any::logical_and(true.to_any(), true.to_any()), true.to_any());
-    check::<A>("nullAndOne", Any::logical_and(Nullish::Null.to_any(), f64_any(0x3ff0000000000000)), Nullish::Null.to_any());
-    check::<A>("undefinedAndOne", Any::logical_and(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)), Nullish::Undefined.to_any());
-    check::<A>("zeroAndOne", Any::logical_and(f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)), f64_any(0x0000000000000000));
-    check::<A>("nanAndOne", Any::logical_and(f64_any(0x7ff8000000000000), f64_any(0x3ff0000000000000)), f64_any(0x7ff8000000000000));
-    check::<A>("oneAndZero", Any::logical_and(f64_any(0x3ff0000000000000), f64_any(0x0000000000000000)), f64_any(0x0000000000000000));
-    check::<A>("oneAndTwo", Any::logical_and(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("emptyStringAndOne", Any::logical_and(string_any(""), f64_any(0x3ff0000000000000)), string_any(""));
-    check::<A>("nonEmptyStringAndOne", Any::logical_and(string_any("a"), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("bigZeroAndOne", Any::logical_and(bigint_any(0), f64_any(0x3ff0000000000000)), bigint_any(0));
-    check::<A>("bigOneAndTwo", Any::logical_and(bigint_any(1), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("emptyArrayAndOne", Any::logical_and(Array::default().to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("emptyObjectAndOne", Any::logical_and(Object::default().to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("functionAndOne", Any::logical_and(function_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
+    check::<A>("falseAndTrue", Any::logical_and(false.to_any(), || Ok(true.to_any())), false.to_any());
+    check::<A>("trueAndFalse", Any::logical_and(true.to_any(), || Ok(false.to_any())), false.to_any());
+    check::<A>("trueAndTrue", Any::logical_and(true.to_any(), || Ok(true.to_any())), true.to_any());
+    check::<A>("nullAndOne", Any::logical_and(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))), Nullish::Null.to_any());
+    check::<A>("undefinedAndOne", Any::logical_and(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))), Nullish::Undefined.to_any());
+    check::<A>("zeroAndOne", Any::logical_and(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x0000000000000000));
+    check::<A>("nanAndOne", Any::logical_and(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x7ff8000000000000));
+    check::<A>("oneAndZero", Any::logical_and(f64_any(0x3ff0000000000000), || Ok(f64_any(0x0000000000000000))), f64_any(0x0000000000000000));
+    check::<A>("oneAndTwo", Any::logical_and(f64_any(0x3ff0000000000000), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("emptyStringAndOne", Any::logical_and(string_any(""), || Ok(f64_any(0x3ff0000000000000))), string_any(""));
+    check::<A>("nonEmptyStringAndOne", Any::logical_and(string_any("a"), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("bigZeroAndOne", Any::logical_and(bigint_any(0), || Ok(f64_any(0x3ff0000000000000))), bigint_any(0));
+    check::<A>("bigOneAndTwo", Any::logical_and(bigint_any(1), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("emptyArrayAndOne", Any::logical_and(Array::default().to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("emptyObjectAndOne", Any::logical_and(Object::default().to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("functionAndOne", Any::logical_and(function_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("falseAndUnreached", Any::logical_and(false.to_any(), || bigint_any(1) / bigint_any(0)), false.to_any());
+    check::<A>("nullAndUnreached", Any::logical_and(Nullish::Null.to_any(), || bigint_any(1) / bigint_any(0)), Nullish::Null.to_any());
+    check::<A>("undefinedAndUnreached", Any::logical_and(Nullish::Undefined.to_any(), || bigint_any(1) / bigint_any(0)), Nullish::Undefined.to_any());
+    check::<A>("zeroAndUnreached", Any::logical_and(f64_any(0x0000000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x0000000000000000));
+    check::<A>("nanAndUnreached", Any::logical_and(f64_any(0x7ff8000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x7ff8000000000000));
+    check::<A>("emptyStringAndUnreached", Any::logical_and(string_any(""), || bigint_any(1) / bigint_any(0)), string_any(""));
+    check::<A>("bigZeroAndUnreached", Any::logical_and(bigint_any(0), || bigint_any(1) / bigint_any(0)), bigint_any(0));
+    check::<A>("falseAndNestedUnreached", Any::logical_and(false.to_any(), || Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any())), false.to_any());
 }
 
 #[rustfmt::skip]
 fn logical_or<A: IStaticFunction>() {
-    check::<A>("falseOrTrue", Any::logical_or(false.to_any(), true.to_any()), true.to_any());
-    check::<A>("trueOrFalse", Any::logical_or(true.to_any(), false.to_any()), true.to_any());
-    check::<A>("falseOrFalse", Any::logical_or(false.to_any(), false.to_any()), false.to_any());
-    check::<A>("nullOrOne", Any::logical_or(Nullish::Null.to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("undefinedOrOne", Any::logical_or(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("zeroOrOne", Any::logical_or(f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("nanOrOne", Any::logical_or(f64_any(0x7ff8000000000000), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrZero", Any::logical_or(f64_any(0x3ff0000000000000), f64_any(0x0000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrTwo", Any::logical_or(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("emptyStringOrOne", Any::logical_or(string_any(""), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("nonEmptyStringOrOne", Any::logical_or(string_any("a"), f64_any(0x3ff0000000000000)), string_any("a"));
-    check::<A>("bigZeroOrOne", Any::logical_or(bigint_any(0), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("bigOneOrTwo", Any::logical_or(bigint_any(1), f64_any(0x4000000000000000)), bigint_any(1));
-    check::<A>("oneOrEmptyArray", Any::logical_or(f64_any(0x3ff0000000000000), Array::default().to_any()), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrEmptyObject", Any::logical_or(f64_any(0x3ff0000000000000), Object::default().to_any()), f64_any(0x3ff0000000000000));
-    check::<A>("oneOrFunction", Any::logical_or(f64_any(0x3ff0000000000000), function_any()), f64_any(0x3ff0000000000000));
+    check::<A>("falseOrTrue", Any::logical_or(false.to_any(), || Ok(true.to_any())), true.to_any());
+    check::<A>("trueOrFalse", Any::logical_or(true.to_any(), || Ok(false.to_any())), true.to_any());
+    check::<A>("falseOrFalse", Any::logical_or(false.to_any(), || Ok(false.to_any())), false.to_any());
+    check::<A>("nullOrOne", Any::logical_or(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("undefinedOrOne", Any::logical_or(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("zeroOrOne", Any::logical_or(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("nanOrOne", Any::logical_or(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrZero", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(f64_any(0x0000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrTwo", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("emptyStringOrOne", Any::logical_or(string_any(""), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("nonEmptyStringOrOne", Any::logical_or(string_any("a"), || Ok(f64_any(0x3ff0000000000000))), string_any("a"));
+    check::<A>("bigZeroOrOne", Any::logical_or(bigint_any(0), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("bigOneOrTwo", Any::logical_or(bigint_any(1), || Ok(f64_any(0x4000000000000000))), bigint_any(1));
+    check::<A>("oneOrEmptyArray", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(Array::default().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrEmptyObject", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(Object::default().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("oneOrFunction", Any::logical_or(f64_any(0x3ff0000000000000), || Ok(function_any())), f64_any(0x3ff0000000000000));
+    check::<A>("trueOrUnreached", Any::logical_or(true.to_any(), || bigint_any(1) / bigint_any(0)), true.to_any());
+    check::<A>("oneOrUnreached", Any::logical_or(f64_any(0x3ff0000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
+    check::<A>("nonEmptyStringOrUnreached", Any::logical_or(string_any("a"), || bigint_any(1) / bigint_any(0)), string_any("a"));
+    check::<A>("bigOneOrUnreached", Any::logical_or(bigint_any(1), || bigint_any(1) / bigint_any(0)), bigint_any(1));
 }
 
 #[rustfmt::skip]
 fn nullish_coalescing<A: IStaticFunction>() {
-    check::<A>("nullCoalesceOne", Any::nullish_coalescing(Nullish::Null.to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("undefinedCoalesceOne", Any::nullish_coalescing(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("zeroCoalesceOne", Any::nullish_coalescing(f64_any(0x0000000000000000), f64_any(0x3ff0000000000000)), f64_any(0x0000000000000000));
-    check::<A>("falseCoalesceOne", Any::nullish_coalescing(false.to_any(), f64_any(0x3ff0000000000000)), false.to_any());
-    check::<A>("nanCoalesceOne", Any::nullish_coalescing(f64_any(0x7ff8000000000000), f64_any(0x3ff0000000000000)), f64_any(0x7ff8000000000000));
-    check::<A>("emptyStringCoalesceOne", Any::nullish_coalescing(string_any(""), f64_any(0x3ff0000000000000)), string_any(""));
-    check::<A>("bigZeroCoalesceOne", Any::nullish_coalescing(bigint_any(0), f64_any(0x3ff0000000000000)), bigint_any(0));
-    check::<A>("oneCoalesceTwo", Any::nullish_coalescing(f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceNull", Any::nullish_coalescing(f64_any(0x3ff0000000000000), Nullish::Null.to_any()), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceEmptyArray", Any::nullish_coalescing(f64_any(0x3ff0000000000000), Array::default().to_any()), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceEmptyObject", Any::nullish_coalescing(f64_any(0x3ff0000000000000), Object::default().to_any()), f64_any(0x3ff0000000000000));
-    check::<A>("oneCoalesceFunction", Any::nullish_coalescing(f64_any(0x3ff0000000000000), function_any()), f64_any(0x3ff0000000000000));
+    check::<A>("nullCoalesceOne", Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("undefinedCoalesceOne", Any::nullish_coalescing(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("zeroCoalesceOne", Any::nullish_coalescing(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x0000000000000000));
+    check::<A>("falseCoalesceOne", Any::nullish_coalescing(false.to_any(), || Ok(f64_any(0x3ff0000000000000))), false.to_any());
+    check::<A>("nanCoalesceOne", Any::nullish_coalescing(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000))), f64_any(0x7ff8000000000000));
+    check::<A>("emptyStringCoalesceOne", Any::nullish_coalescing(string_any(""), || Ok(f64_any(0x3ff0000000000000))), string_any(""));
+    check::<A>("bigZeroCoalesceOne", Any::nullish_coalescing(bigint_any(0), || Ok(f64_any(0x3ff0000000000000))), bigint_any(0));
+    check::<A>("oneCoalesceTwo", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceNull", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Nullish::Null.to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceEmptyArray", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Array::default().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceEmptyObject", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(Object::default().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceFunction", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || Ok(function_any())), f64_any(0x3ff0000000000000));
+    check::<A>("oneCoalesceUnreached", Any::nullish_coalescing(f64_any(0x3ff0000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
+    check::<A>("zeroCoalesceUnreached", Any::nullish_coalescing(f64_any(0x0000000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x0000000000000000));
+    check::<A>("falseCoalesceUnreached", Any::nullish_coalescing(false.to_any(), || bigint_any(1) / bigint_any(0)), false.to_any());
+    check::<A>("emptyStringCoalesceUnreached", Any::nullish_coalescing(string_any(""), || bigint_any(1) / bigint_any(0)), string_any(""));
 }
 
 #[rustfmt::skip]
 fn conditional<A: IStaticFunction>() {
-    check::<A>("truePicksConsequent", Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("falsePicksAlternate", Any::conditional(false.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("nullPicksAlternate", Any::conditional(Nullish::Null.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("undefinedPicksAlternate", Any::conditional(Nullish::Undefined.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("zeroPicksAlternate", Any::conditional(f64_any(0x0000000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("nanPicksAlternate", Any::conditional(f64_any(0x7ff8000000000000), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("emptyStringPicksAlternate", Any::conditional(string_any(""), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("nonEmptyStringPicksConsequent", Any::conditional(string_any("a"), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("bigZeroPicksAlternate", Any::conditional(bigint_any(0), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x4000000000000000));
-    check::<A>("bigNonZeroPicksConsequent", Any::conditional(bigint_any(5), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("emptyArrayPicksConsequent", Any::conditional(Array::default().to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("emptyObjectPicksConsequent", Any::conditional(Object::default().to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("functionPicksConsequent", Any::conditional(function_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
-    check::<A>("truePicksStringConsequent", Any::conditional(true.to_any(), string_any("yes"), string_any("no")), string_any("yes"));
-    check::<A>("falsePicksBigAlternate", Any::conditional(false.to_any(), bigint_any(1), bigint_any(2)), bigint_any(2));
+    check::<A>("truePicksConsequent", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("falsePicksAlternate", Any::conditional(false.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("nullPicksAlternate", Any::conditional(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("undefinedPicksAlternate", Any::conditional(Nullish::Undefined.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("zeroPicksAlternate", Any::conditional(f64_any(0x0000000000000000), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("nanPicksAlternate", Any::conditional(f64_any(0x7ff8000000000000), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("emptyStringPicksAlternate", Any::conditional(string_any(""), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("nonEmptyStringPicksConsequent", Any::conditional(string_any("a"), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("bigZeroPicksAlternate", Any::conditional(bigint_any(0), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("bigNonZeroPicksConsequent", Any::conditional(bigint_any(5), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("emptyArrayPicksConsequent", Any::conditional(Array::default().to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("emptyObjectPicksConsequent", Any::conditional(Object::default().to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("functionPicksConsequent", Any::conditional(function_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("truePicksStringConsequent", Any::conditional(true.to_any(), || Ok(string_any("yes")), || Ok(string_any("no"))), string_any("yes"));
+    check::<A>("falsePicksBigAlternate", Any::conditional(false.to_any(), || Ok(bigint_any(1)), || Ok(bigint_any(2))), bigint_any(2));
+    check::<A>("trueSkipsAlternate", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
+    check::<A>("falseSkipsConsequent", Any::conditional(false.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("nullSkipsConsequent", Any::conditional(Nullish::Null.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    check::<A>("emptyArraySkipsAlternate", Any::conditional(Array::default().to_any(), || Ok(f64_any(0x3ff0000000000000)), || bigint_any(1) / bigint_any(0)), f64_any(0x3ff0000000000000));
 }
 
 #[rustfmt::skip]

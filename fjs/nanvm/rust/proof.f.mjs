@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { casesOf, data, functionValue, groupKey, lambdaExp, ref, throws, valueExp } from '../module.f.mjs'
+import { casesOf, data, functionValue, groupKey, lambdaExp, ref, throws, unreached, valueExp } from '../module.f.mjs'
 import { directory, generate, nodeExpr, path, rustName } from './module.f.mjs'
 
 /** A value as the printer meets it: its lowering, printed. @type {(v: Value) => string} */
@@ -38,7 +38,13 @@ const sample = {
             ],
         },
         { op: '+', arity: 1, cases: [{ name: 'bigint', args: [0n], expected: throws }] },
-        { op: '?:', cases: [{ name: 'pick', args: [true, 1, 2], expected: 1 }] },
+        {
+            op: '?:',
+            cases: [
+                { name: 'pick', args: [true, 1, 2], expected: 1 },
+                { name: 'skip', args: [false, unreached, 2], expected: 2 },
+            ],
+        },
         {
             op: '*',
             commutative: true,
@@ -69,7 +75,8 @@ fn unary_plus<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 fn conditional<A: IStaticFunction>() {
-    check::<A>("pick", Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000)), f64_any(0x3ff0000000000000));
+    check::<A>("pick", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
+    check::<A>("skip", Any::conditional(false.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
 }
 
 #[rustfmt::skip]
@@ -108,6 +115,10 @@ export const proof = {
         assertEq(valueExpr(functionValue), 'function_any()')
         // Nested, a function is the same node inside its container's.
         assertEq(valueExpr([functionValue]), '[function_any()].to_array().to_any()')
+        // An `unreached` is the throwing operation it lowers to: where it
+        // belongs, a lazy position, this is the thunk's own answer — see
+        // `generate`'s `skip` case.
+        assertEq(valueExpr(unreached), 'bigint_any(1) / bigint_any(0)')
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through
@@ -120,7 +131,7 @@ export const proof = {
         assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_(f64_any(0x3ff0000000000000))')
         assertEq(
             nodeExpr(['?:', true, 1, 2]),
-            'Any::conditional(true.to_any(), f64_any(0x3ff0000000000000), f64_any(0x4000000000000000))')
+            'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))')
         // The one `=>` with a spelling: the corpus's function value, printed
         // as the harness's stand-in, and atomic as an operand.
         assertEq(nodeExpr(lambdaExp()), 'function_any()')
@@ -147,10 +158,11 @@ export const proof = {
      * so an inner operation hands the outer one a `Result` where it needs an
      * `Any`. Propagating that is the nested-emission strategy owed by
      * [corpus-as-conformance-vectors](../todo/corpus-as-conformance-vectors.md).
-     * No corpus case needs it yet — a case is one operation over lowered
-     * values, so `generated.rs` nests nothing — but `nodeExpr` is exported and
-     * takes an arbitrary `Exp`, so a caller can reach it today, and the
-     * lazy-operator groups will nest.
+     * No corpus case needs it in an eager position — a case is one operation
+     * over lowered values, and the one operation a value lowers to, an
+     * `unreached`, sits in a lazy position, where it is the thunk's own
+     * `Result` (see `generate`'s `skip` case) — but `nodeExpr` is exported
+     * and takes an arbitrary `Exp`, so a caller can reach it today.
      *
      * Unary `-` parenthesizes in its own template, so a composed operand
      * there is doubly wrapped — redundant, and correct either way.

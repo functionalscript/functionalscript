@@ -35,11 +35,13 @@ layer further down, in code shared by every EDAG consumer rather than
 one compiler stage — a bigger, more central rewrite, out of Stage A's
 own scope.
 
-Confirmed reachable through the Rust backend's own operator refusal
-(`fjs/fsc/rust/module.f.mjs`'s `bodyLines`, added by Stage A): it calls
-`analysis(root)` to find every operator node *before* it can report the
-clean refusal Stage A's PR description promises, so a 5,000-term chain
-crashes there rather than reaching that refusal. Raised again,
+Confirmed reachable through the Rust backend (`fjs/fsc/rust/module.f.mjs`'s
+`bodyLines`, added by Stage A): at the time it called `analysis(root)` to
+find every operator node *before* it could report the clean refusal Stage
+A's PR description promised, so a 5,000-term chain crashed there rather
+than reaching that refusal. That refusal is gone — every operator prints
+now — and the backend's remaining walk, `fjs/edag/rust`'s `sharedNodesOf`,
+recurses the same way. Raised again,
 independently, as a Stage A PR review finding
 ([functionalscript/functionalscript#2106, discussion_r4053431594](https://github.com/functionalscript/functionalscript/pull/2106#discussion_r4053431594))
 — left unfixed there for the reason above: a correctness-preserving
