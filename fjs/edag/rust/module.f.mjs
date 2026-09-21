@@ -54,10 +54,12 @@ export const op1Rust = {
  * every operator here returns `Result<Any<A>, Any<A>>`, which a
  * `PartialOrd`-derived `<`/`<=`/`>`/`>=` on `Any<A>` would not give back.
  * `&&`/`||`/`??` follow it for a third reason: Rust's own `&&`/`||` take
- * `bool` operands and short-circuit *evaluation*, neither of which fits an
- * operator over already-evaluated `Any<A>` values, and `?` is Rust's own
- * try-operator, unrelated to JS `??` — so all three are `Any` methods, named
- * for what they do rather than reusing punctuation Rust already owns. `>>>`
+ * `bool` operands, and `?` is Rust's own try-operator, unrelated to JS `??`
+ * — so all three are `Any` methods, named for what they do rather than
+ * reusing punctuation Rust already owns. Their right operand arrives here
+ * already a thunk, `|| …`, since the three are {@link lazy}: the
+ * `nanvm-lib` method takes it as an `impl FnOnce() -> Result<Any<A>,
+ * Any<A>>` and establishes it only when the left decides nothing. `>>>`
  * follows it for a fourth reason: Rust has no unsigned-right-shift operator
  * at all (only `>>`, which is arithmetic on a signed type), so it is
  * `Any::unsigned_right_shift`. `own` follows it for a fifth: no Rust operator
@@ -98,12 +100,32 @@ export const op2Rust = {
  * The same, for the one ternary operation (`?:`) — another method, for the
  * same reason as `&&`/`||`/`??`: Rust's own `if`/`else` takes a `bool`
  * condition, not an `Any<A>` one, so there is no infix spelling to reuse.
+ * Both arms arrive as thunks, `?:` being {@link lazy}: `Any::conditional`
+ * establishes the one its condition selects.
  *
  * @type {{ readonly [k in OpId]?: (a: string, b: string, c: string) => string }}
  */
 export const op3Rust = {
     '?:': (a, b, c) => `Any::conditional(${a}, ${b}, ${c})`,
 }
+
+/**
+ * The operations that establish every operand after the first only
+ * conditionally: `&&`, `||` and `??` establish the right operand only if the
+ * left decides nothing, and `?:` establishes the one arm its condition
+ * selects — the EDAG's positional laziness, as `op2Id` and `op3Id` in
+ * [`../module.f.mjs`](../module.f.mjs) state it. In each the deciding
+ * operand comes first and every later one is lazy, which is the rule the
+ * printer prints by: a lazy operand is a thunk — `|| Ok(…)` around a value,
+ * or an operation's own `Result` bare — the `impl FnOnce() ->
+ * Result<Any<A>, Any<A>>` the four `nanvm-lib` methods take. The
+ * signature is the guard: an operand printed as a value where a thunk is
+ * due does not compile, so a printer that establishes one eagerly is caught
+ * by `rustc` rather than trusted.
+ *
+ * @type {readonly string[]}
+ */
+const lazy = ['&&', '||', '??', '?:']
 
 /**
  * What a key names in this printer, or the refusal: a key with no entry is a
@@ -386,6 +408,10 @@ const resolvedBase = e => {
  * parenthesized before the `?`, since `?` binds tighter than any infix
  * operator; a `.` read is a call already and needs none.
  *
+ * A {@link lazy} operation's later operands print as thunks in either mode,
+ * the closure answering the `Result` `nanvm-lib` asks of it: an operation's
+ * own, bare, or `Ok(…)` around any other node's value — see {@link thunk}.
+ *
  * @type {(propagate: boolean) => (shared: readonly (readonly[Exp, string])[]) => (e: Exp) => Result<string, readonly unknown[]>}
  */
 const printer = propagate => shared => {
@@ -432,12 +458,6 @@ const printer = propagate => shared => {
                 ? ok('Object::default().to_any()')
                 : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(allOk(a.map(propertyExpr)))
         }
-        if (id === '.') {
-            if (c !== undefined) { return error(['no Rust for a property-access chain step', e]) }
-            const base = resolvedBase(a)
-            if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
-            return map2((fa, k) => call(`Any::member_access(${fa}, ${k})`))(f(a), indexExpr(b))
-        }
         if (id === ',') {
             // `Exps` admits an empty operand list in the schema (shape-only,
             // per `fjs/edag/types.ts`), but the Rust backend has no value to
@@ -464,14 +484,63 @@ const printer = propagate => shared => {
             // refused rather than printed as a function it is not.
             return isSmallestLambda(a, b) ? ok('function_any()') : error(['no Rust for', e])
         }
-        return mapOk(operation)(
-            e.length === 2 ? map2((fn, x) => fn(x))(op1(id), nested(a))
-            : e.length === 3 ? map3((fn, x, y) => fn(x, y))(op2(id), nested(a), nested(b))
-            : map4((fn, x, y, z) => fn(x, y, z))(op3(id), nested(a), nested(b), nested(c)))
+        return mapOk(id === '.' ? call : operation)(bare(e))
+    }
+    /**
+     * An operation — a `.` read, or an operator node — as the bare
+     * `Result<Any<A>, Any<A>>` its `nanvm-lib` call answers, or the refusal.
+     * {@link f} follows it with the mode's `?`; {@link thunk} hands it back
+     * as it is, the closure's own answer.
+     *
+     * @type {(e: readonly any[]) => Result<string, readonly unknown[]>}
+     */
+    const bare = e => {
+        const [id, a, b, c] = e
+        if (id === '.') {
+            if (c !== undefined) { return error(['no Rust for a property-access chain step', e]) }
+            const base = resolvedBase(a)
+            if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
+            return map2((fa, k) => `Any::member_access(${fa}, ${k})`)(f(a), indexExpr(b))
+        }
+        // The first operand is established in every operation; the ones
+        // after it are what a lazy operation establishes conditionally.
+        const rest = lazy.includes(id) ? thunk : nested
+        return e.length === 2 ? map2((fn, x) => fn(x))(op1(id), nested(a))
+            : e.length === 3 ? map3((fn, x, y) => fn(x, y))(op2(id), nested(a), rest(b))
+            : map4((fn, x, y, z) => fn(x, y, z))(op3(id), nested(a), rest(b), rest(c))
     }
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
     /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
     const nested = e => mapOk(s => composed(e) ? `(${s})` : s)(f(e))
+    /**
+     * `true` when a node prints through {@link bare}: a `.` read or an
+     * operator node, and not one a `let` binding already holds — a shared
+     * node is its binding's `.clone()` wherever it stands, an operation no
+     * longer.
+     *
+     * @type {(e: Exp) => boolean}
+     */
+    const isOperation = e => e instanceof Array
+        && shared.every(([n]) => n !== e)
+        && !['undefined', '[]', '{}', '=>', ','].includes(e[0])
+    /**
+     * A lazy operand, as the thunk `nanvm-lib` takes: a closure answering
+     * the `Result<Any<A>, Any<A>>` the operand's establishment is. An
+     * operation answers its own, bare — `Ok((…)?)` would say the same, and
+     * clippy's `needless_question_mark` refuses it — and any other node
+     * answers `Ok(…)` of its value: a literal, a container, a block, or a
+     * shared binding's `.clone()`, the binding having been established
+     * before the root, as a `const` is at its declaration whatever the
+     * operators around its uses do. A throw inside the body lands in the
+     * closure's `Result`, never in the statement's, so the corpus's bare
+     * `check` statements hold an operation here exactly as a compiled
+     * module's `(…)?` does.
+     *
+     * @type {(e: Exp) => Result<string, readonly unknown[]>}
+     */
+    const thunk = e => isOperation(e)
+        ? mapOk(s => `|| ${s}`)(bare(/** @type {readonly any[]} */ (e)))
+        : mapOk(s => `|| Ok(${s})`)(f(e))
     /**
      * One object entry.
      *

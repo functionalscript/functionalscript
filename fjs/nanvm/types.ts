@@ -42,7 +42,7 @@ import type { Equal } from '../types/ts/types.ts'
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
-export type Value = Const | Ref | FunctionValue
+export type Value = Const | Ref | FunctionValue | Unreached
 
 /** A value that is its own description. */
 export type Const =
@@ -68,13 +68,14 @@ export type Struct = { readonly [k in string]?: Value }
 export type Special<I extends Info> = () => I
 
 /**
- * What a {@link Special} describes. Each of the three is its own type below,
+ * What a {@link Special} describes. Each of the four is its own type below,
  * so where it may appear is a type and not a comment.
  */
 export type Info =
     | readonly ['function']
     | readonly ['ref', string]
     | readonly ['throw']
+    | readonly ['unreached']
 
 /**
  * A function value. Every operator here coerces one through `ToPrimitive`,
@@ -109,6 +110,22 @@ export type Ref = Special<readonly ['ref', string]>
  * `expected` — see {@link Expectation}.
  */
 export type Throws = Special<readonly ['throw']>
+
+/**
+ * An operand the operation must not establish: `false && unreached` is
+ * `false` only if `&&` leaves its right operand alone. It lowers to an
+ * operation that throws when established — `1n / 0n`, a `RangeError` in
+ * JavaScript and an `Err` in `nanvm-lib` — so on both sides the case's own
+ * value is the proof: a lazy operand established by mistake throws, and the
+ * case fails where it expected a value. Legal anywhere a {@link Value} is,
+ * since it is one; in an eager position it is established, and the case
+ * throws, which is only ever an `expected: throws` case written the long
+ * way. Its use is the lazy positions — `&&`/`||`/`??`'s right operand and
+ * either arm of `?:` — where the Rust printer prints it inside the thunk
+ * `nanvm-lib` establishes at most once (`fjs/edag/rust/module.f.mjs`,
+ * `lazy`).
+ */
+export type Unreached = Special<readonly ['unreached']>
 
 /**
  * What a case expects: a value, or `throws`.
@@ -217,11 +234,14 @@ type _Op12Unary = Assert<Equal<Extract<Group12, { arity: 1 }>['cases'], readonly
 type _Op12Binary = Assert<Equal<Extract<Group12, { arity: 2 }>['cases'], readonly Case<2>[]>>
 
 // Where each thunk may appear, as a type rather than as a sentence: a
-// `functionValue` is a value like any other, `throws` is an expectation or
-// nothing, and a function is not an expectation.
+// `functionValue` and an `unreached` are values like any other, `throws` is
+// an expectation or nothing, and neither a function nor an `unreached` is an
+// expectation.
 type _FunctionIsValue = Assert<Equal<FunctionValue extends Value ? true : false, true>>
+type _UnreachedIsValue = Assert<Equal<Unreached extends Value ? true : false, true>>
 type _NoThrowsValue = Assert<Equal<Throws extends Value ? true : false, false>>
 type _NoFunctionExpected = Assert<Equal<FunctionValue extends Expectation ? true : false, false>>
+type _NoUnreachedExpected = Assert<Equal<Unreached extends Expectation ? true : false, false>>
 
 /** A value the corpus shares, and the name it is bound to. */
 export type SharedNode = readonly [string, Exp]

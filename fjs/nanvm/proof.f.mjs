@@ -42,10 +42,13 @@ import {
     functionValue,
     groupKey,
     isThrows,
+    isUnreached,
     lambdaExp,
     orders,
     ref,
     sharedExp,
+    unreached,
+    unreachedExp,
     valueExp,
     valuesExp,
 } from './module.f.mjs'
@@ -269,7 +272,12 @@ const group = g => {
  * operation that has one is a bare JavaScript operator on both sides, so
  * agreement is the only correct outcome, not a coincidence of scope. A
  * function operand is compared like any other: both sides see a closure, and
- * every operator here coerces one the same way.
+ * every operator here coerces one the same way. A case with an `unreached`
+ * operand is skipped too: the reference is a JavaScript operator over
+ * *values*, and that operand has none to hand it — establishing it is
+ * exactly what the case claims does not happen, so the operand's value would
+ * be the throw. Such a case is proven through `amnesia` alone, in
+ * {@link group}, where the operator meets the node rather than its value.
  *
  * Throwing cases are checked structurally only — both sides must throw,
  * not throw the same thing — for the same reason `group` above can't
@@ -283,7 +291,7 @@ const crossCheck = g => {
     const f = js[key]
     if (f === undefined) { return {} }
     /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
-    const leaves = c => orders(g)(c).map(([name, args]) => {
+    const leaves = c => c.args.some(isUnreached) ? [] : orders(g)(c).map(([name, args]) => {
         const e = exprOf(g)(args)
         // One evaluator per run: the case's expression and the reference's
         // operands must see the same object across a shared node, or
@@ -353,6 +361,33 @@ const lambda = () => {
     assertEq(same(ref('holder'), [ref('fn')]), false)
     const [[, fn], [, holder]] = sharedMemo(own)
     assert(/** @type {readonly unknown[]} */ (holder)[0] === fn, ['nested function is a copy'])
+}
+
+/**
+ * An `unreached` lowers to an operation that throws when established, and
+ * `amnesia` does throw on it — which is what makes a lazy-position case
+ * holding one a proof: the case answers a value only because the operand was
+ * never established. The Rust side's counterpart is `rust/proof.f.mjs`'s
+ * printed thunk, and `nanvm-lib`'s own `bigTenDividedByZero`.
+ */
+const unreachedOperand = {
+    shape: () => {
+        assertStructurallySame(valueExp(unreached), unreachedExp())
+        assertStructurallySame(valueExp([unreached]), ['[]', [unreachedExp()]])
+        assert(isUnreached(unreached))
+        assert(!isUnreached(functionValue))
+        assert(!isUnreached(1))
+    },
+    /** In a lazy position the case answers; in an eager one it throws. */
+    lazy: () => {
+        assertEq(corpus()(['&&', false, valueExp(unreached)]), false)
+        assertEq(corpus()(['?:', true, 1, valueExp(unreached)]), 1)
+    },
+    throw: {
+        established: () => corpus()(valueExp(unreached)),
+        eagerPosition: () => corpus()(['*', 1, valueExp(unreached)]),
+        selectedArm: () => corpus()(['?:', false, 1, valueExp(unreached)]),
+    },
 }
 
 /**
@@ -470,5 +505,6 @@ export const proof = {
     crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(g)])),
     edagShape,
     nestedSharing,
+    unreachedOperand,
     jsOnly,
 }

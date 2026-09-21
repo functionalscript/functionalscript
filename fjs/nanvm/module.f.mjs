@@ -12,10 +12,10 @@
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
- * `throws`), its **eliminators** (`isThrows`, `orders`, `groupKey`,
- * `casesOf`, `arityOf`), and the **lowering** that turns a case into the
- * EDAG expression it denotes (`lambdaExp`, `sharedExp`, `valuesExp`,
- * `valueExp`, `caseExp`). All
+ * `throws`, `unreached`), its **eliminators** (`isThrows`, `isUnreached`,
+ * `orders`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that
+ * turns a case into the EDAG expression it denotes (`lambdaExp`,
+ * `unreachedExp`, `sharedExp`, `valuesExp`, `valueExp`, `caseExp`). All
  * three exist so that neither consumer has to re-implement a rule of the
  * corpus format: a rule written twice is a rule that drifts.
  *
@@ -32,7 +32,7 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Expectation, FunctionValue, Group, Ref, SharedNode, Struct, Throws, Value } from './types.ts'
+ * @import { Case, Data, Expectation, FunctionValue, Group, Ref, SharedNode, Struct, Throws, Unreached, Value } from './types.ts'
  *
  * @example
  *
@@ -54,7 +54,7 @@ const isOp1Id = validate(op1Id)
 /** The same, for the ternary vocabulary. */
 const isOp3Id = validate(op3Id)
 
-// Constructors — the three things a literal cannot express.
+// Constructors — the four things a literal cannot express.
 
 /**
  * A function value.
@@ -82,6 +82,16 @@ export const throws = () => ['throw']
  */
 export const ref = name => () => ['ref', name]
 
+/**
+ * An operand the operation must not establish. Lowers to
+ * {@link unreachedExp}, an operation that throws when established, so a
+ * case's value proves the operand was left alone — `false && unreached` is
+ * `false` on both sides only because neither establishes the right operand.
+ *
+ * @type {Unreached}
+ */
+export const unreached = () => ['unreached']
+
 // Eliminators — the constructors read back, so each rule has one owner.
 
 /**
@@ -91,6 +101,16 @@ export const ref = name => () => ['ref', name]
  * @returns {v is Throws}
  */
 export const isThrows = v => typeof v === 'function' && v()[0] === 'throw'
+
+/**
+ * `true` when an operand is `unreached` — the one operand that has no value
+ * to hand a JavaScript operator, since establishing it is the thing the case
+ * claims does not happen.
+ *
+ * @param {Value} v
+ * @returns {v is Unreached}
+ */
+export const isUnreached = v => typeof v === 'function' && v()[0] === 'unreached'
 
 /**
  * `true` when a group's cases are also checked with their arguments swapped.
@@ -177,6 +197,24 @@ export const arityOf = g => {
 export const lambdaExp = () => ['=>', ['[]', []], ['undefined']]
 
 /**
+ * The expression an `unreached` denotes: `1n / 0n`, which throws when
+ * established — a `RangeError` in JavaScript, an `Err` in `nanvm-lib`, the
+ * corpus's own `bigTenDividedByZero` on both. An operation rather than a
+ * throw node, because the schema has no throw node and needs none for this:
+ * what a lazy operand must not do is be established, and any established
+ * operation that throws observes that. Both consumers read it as the
+ * ordinary node it is: `amnesia` establishes it only where the operator is
+ * eager, and the Rust printer prints it as the thunk a lazy position takes,
+ * `|| bigint_any(1) / bigint_any(0)`, the operation's own `Result` being
+ * the closure's answer.
+ *
+ * A fresh node on every call, like {@link lambdaExp}.
+ *
+ * @type {() => Exp}
+ */
+export const unreachedExp = () => ['/', 1n, 0n]
+
+/**
  * Lowers a value to the EDAG expression that denotes it.
  *
  * `resolve` supplies the node a `ref` names — the *same* node for every
@@ -185,9 +223,10 @@ export const lambdaExp = () => ['=>', ['[]', []], ['undefined']]
  * fresh node, so a multiply-referenced node in a derived expression is always
  * a `ref` and never an accident of the walk.
  *
- * A {@link Value} admits two thunks, and this walk has a case for each: a
- * `ref` resolves and a `functionValue` is {@link lambdaExp}. `throws` is an
- * {@link Expectation}, not spellable here, so it is not rejected here either.
+ * A {@link Value} admits three thunks, and this walk has a case for each: a
+ * `ref` resolves, a `functionValue` is {@link lambdaExp}, and an `unreached`
+ * is {@link unreachedExp}. `throws` is an {@link Expectation}, not spellable
+ * here, so it is not rejected here either.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
  */
@@ -196,7 +235,9 @@ const constExp = resolve => {
     const f = v => {
         if (typeof v === 'function') {
             const info = v()
-            return info[0] === 'ref' ? resolve(info[1]) : lambdaExp()
+            return info[0] === 'ref' ? resolve(info[1])
+                : info[0] === 'function' ? lambdaExp()
+                : unreachedExp()
         }
         if (v === undefined) { return ['undefined'] }
         if (Array.isArray(v)) { return ['[]', v.map(f)] }
@@ -820,18 +861,15 @@ const notCases = [
  * falsy-but-not-nullish value (`0`, `NaN`, `''`) behaves like `null` here,
  * unlike `??`, which keys off nullishness alone.
  *
- * What these cases do *not* prove: that the discarded operand's evaluation
- * is actually skipped. `&&`/`||`/`??`/`?:` are the one place in JavaScript
- * where that is these operators' defining behaviour — but every operand in
- * this corpus is a `Value` (see `types.ts`), which admits no expression
- * whose evaluation is observable (no side effect, no throw:
- * `Throws` is legal only as an `expected`, never an operand). On the
- * JavaScript side the node runs through `amnesia`, whose `&&`/`||`/`??`/`?:`
- * are lazy — that laziness is pinned in `fjs/edag/amnesia/proof.f.mjs`, with
- * an operand that throws when established — but a `Value` cannot observe it,
- * and the Rust harness receives every operand already built, so there is
- * nothing an unevaluated operand could do differently from an evaluated one
- * for this corpus to catch. What these cases prove is the other half:
+ * The `unreached` cases prove the other half of these operators, the one
+ * that is their defining behaviour: the discarded operand is not
+ * established at all. `unreached` lowers to an operation that throws when
+ * established (see {@link unreachedExp}), so `false && unreached` answers
+ * `false` on either side only because neither side touched the right
+ * operand — `amnesia`'s `&&` is lazy, and `nanvm-lib`'s takes the operand as
+ * a thunk it never calls. A case that did establish it would throw where it
+ * expected a value, which is the failure the corpus's own `check` reports.
+ * Every other case here has a constant on the discarded side, and proves
  * *which* operand comes back.
  *
  * @type {readonly Case<2>[]}
@@ -857,6 +895,15 @@ const andCases = [
     { name: 'emptyArrayAndOne', args: [[], 1], expected: 1 },
     { name: 'emptyObjectAndOne', args: [{}, 1], expected: 1 },
     { name: 'functionAndOne', args: [functionValue, 1], expected: 1 },
+    // A falsy left decides, so the right is never established: for every
+    // kind of falsy value, since each is its own `ToBoolean` branch.
+    { name: 'falseAndUnreached', args: [false, unreached], expected: false },
+    { name: 'nullAndUnreached', args: [null, unreached], expected: null },
+    { name: 'undefinedAndUnreached', args: [undefined, unreached], expected: undefined },
+    { name: 'zeroAndUnreached', args: [0, unreached], expected: 0 },
+    { name: 'nanAndUnreached', args: [NaN, unreached], expected: NaN },
+    { name: 'emptyStringAndUnreached', args: ['', unreached], expected: '' },
+    { name: 'bigZeroAndUnreached', args: [0n, unreached], expected: 0n },
 ]
 
 /** @type {readonly Case<2>[]} */
@@ -881,6 +928,11 @@ const orCases = [
     { name: 'oneOrEmptyArray', args: [1, []], expected: 1 },
     { name: 'oneOrEmptyObject', args: [1, {}], expected: 1 },
     { name: 'oneOrFunction', args: [1, functionValue], expected: 1 },
+    // A truthy left decides, so the right is never established.
+    { name: 'trueOrUnreached', args: [true, unreached], expected: true },
+    { name: 'oneOrUnreached', args: [1, unreached], expected: 1 },
+    { name: 'nonEmptyStringOrUnreached', args: ['a', unreached], expected: 'a' },
+    { name: 'bigOneOrUnreached', args: [1n, unreached], expected: 1n },
 ]
 
 /** @type {readonly Case<2>[]} */
@@ -900,6 +952,12 @@ const nullishCases = [
     { name: 'oneCoalesceEmptyArray', args: [1, []], expected: 1 },
     { name: 'oneCoalesceEmptyObject', args: [1, {}], expected: 1 },
     { name: 'oneCoalesceFunction', args: [1, functionValue], expected: 1 },
+    // A non-nullish left decides, so the right is never established — the
+    // falsy-but-not-nullish values included, where `||` would establish it.
+    { name: 'oneCoalesceUnreached', args: [1, unreached], expected: 1 },
+    { name: 'zeroCoalesceUnreached', args: [0, unreached], expected: 0 },
+    { name: 'falseCoalesceUnreached', args: [false, unreached], expected: false },
+    { name: 'emptyStringCoalesceUnreached', args: ['', unreached], expected: '' },
 ]
 
 /**
@@ -909,8 +967,8 @@ const nullishCases = [
  * use. Like those, this selects an operand rather than coercing it, so a
  * reference-typed value only ever appears as the *condition*, the one
  * position that is always discarded (see the `&&`/`||`/`??` group comment
- * above for why that matters, and for why — the same as those three — these
- * cases cannot prove the *unselected* branch goes unevaluated).
+ * above for why that matters). The `unreached` cases prove the unselected
+ * arm is not established, the same way that group's do.
  *
  * @type {readonly Case<3>[]}
  */
@@ -930,6 +988,11 @@ const ternaryCases = [
     { name: 'functionPicksConsequent', args: [functionValue, 1, 2], expected: 1 },
     { name: 'truePicksStringConsequent', args: [true, 'yes', 'no'], expected: 'yes' },
     { name: 'falsePicksBigAlternate', args: [false, 1n, 2n], expected: 2n },
+    // Exactly one arm is established: the selected one, whichever it is.
+    { name: 'trueSkipsAlternate', args: [true, 1, unreached], expected: 1 },
+    { name: 'falseSkipsConsequent', args: [false, unreached, 2], expected: 2 },
+    { name: 'nullSkipsConsequent', args: [null, unreached, 2], expected: 2 },
+    { name: 'emptyArraySkipsAlternate', args: [[], 1, unreached], expected: 1 },
 ]
 
 /**

@@ -305,17 +305,13 @@ above, not just new-syntax acceptance.
 - Stage C (comma): explicitly sequenced after Stage B; the anchoring
   subtraction rule this task implements one instance of is Stage C's to
   generalize, not to pull forward.
-- A lazy `.rs` spelling for `&&`/`||`/`??`/`?:`. `nanvm-lib` has the four
-  operations, taking evaluated operands, and the corpus checks them; a
-  compiled module needs operands that are not evaluated before the call,
-  which nothing spells yet —
-  [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md),
-  which waits on this task only for a source program that can reach the
-  nodes. `fjs/fsc/rust`'s `lazyOperator` already refuses all four, `?:`
-  included, proven directly through `toRust`; what the `.rs` route of
-  `fjs compile` owes this task is the proof that a whole *module* holding
-  `?:` is refused once the grammar can produce one — see the Rust-codegen
-  task below.
+- The `.rs` spelling of `&&`/`||`/`??`/`?:`: done. `nanvm-lib`'s four
+  operations take each conditionally established operand as a thunk, and
+  `fjs/edag/rust`'s printer prints one as a closure — a compiled module
+  answers `false` for `false && (1n / 0n)`, proven directly through
+  `toRust`. What the `.rs` route of `fjs compile` owes this task is the
+  `nanvm-harness` fixture: a whole *module* holding each of the four, run
+  once the grammar can produce one — see the Rust-codegen task below.
 - The FunctionalScript writer (`fjs/fsc/serializer`): stays silent on Stage B
   the same way it already is on Stage A. `entry`'s ``default: { return
   error(`a ${node[0]} node`) }`` already refuses every Stage A operator node,
@@ -349,16 +345,13 @@ above, not just new-syntax acceptance.
 - [ ] `fjs/fsc/ast`/`fjs/fsc/edag`: `AstConditional`; `lower`'s `case` list
       gains the three tags and a `ternary` work item for `?:`; keep the
       plain-data evaluator's refusal.
-- [x] `fjs/fsc/rust`: `lazyOperator` refuses the `?:` node beside
-      `&&`/`||`/`??`, proven directly through `toRust`, since it takes any
-      EDAG whether or not the grammar can produce one. The shared
-      `fjs/edag/rust` entries stay as they are: `fjs/nanvm/rust` unwraps the
-      shared printer to write the corpus, so gating them there would break
-      generating the very tests the lazy Rust operators will be checked by.
-      What this task still owes is a proof that a *module* holding `?:` is
-      refused on the `.rs` route once the grammar produces one. Lifting the
-      refusal is
-      [`fjs/fsc/rust/todo/lazy-operators.md`](../rust/todo/lazy-operators.md)'s.
+- [ ] `fjs/fsc/rust`: the four operators already print, each lazy operand
+      as the thunk `nanvm-lib` takes, proven directly through `toRust` on
+      `false && (1n / 0n)` and a `?:` with a throwing unselected arm, since
+      it takes any EDAG whether or not the grammar can produce one. What
+      this task owes is the `nanvm-harness` fixture: a *module* holding each
+      of the four, with a throwing unselected operand, compiled and run
+      once the grammar produces one.
 - [ ] `refsOf`: add the eager-restricted variant and switch **both** `reach`
       and `anchors`' own `within` computation to it, leaving `sharing`'s use
       of the unrestricted one unchanged; proofs for the sharing behavior,
@@ -392,16 +385,14 @@ above, not just new-syntax acceptance.
   the staging plan and the anchoring-subtraction rule this task implements
   one instance of.
 - [`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md) —
-  the Parser task, which this is. Its operators item is done and its `?:`
-  item is the VM's; neither is what the `.rs` route waits on, which is
-  [a lazy spelling](../rust/todo/lazy-operators.md).
+  the Parser task, which this is. Its operators item and its `?:` item are
+  both done, and the `.rs` route waits on nothing but a source program.
 - [`fjs/edag/rust/module.f.mjs`](../../edag/rust/module.f.mjs) — `op2Rust`/
-  `op3Rust`, whose `&&`/`||`/`??`/`?:` entries the corpus printer needs as
-  they are; [`fjs/fsc/rust`](../rust/module.f.mjs)'s `lazyOperator` is
-  where the compile route refuses them, see the Tasks entry above.
+  `op3Rust` and `lazy`: the `&&`/`||`/`??`/`?:` spellings, each lazy operand
+  a thunk, shared by the corpus printer and the compile route.
 - `nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
-  `Any` methods those entries call, confirming they take already-evaluated
-  operands, not closures.
+  `Any` methods those entries call, each lazy operand an
+  `impl FnOnce() -> Result<Any<A>, Any<A>>`.
 - [`fjs/edag/module.f.mjs`](../../edag/module.f.mjs) — the already-landed,
   already-proved EDAG schema and laziness semantics this task compiles down
   to (`op2Id`, `op3Id`).
