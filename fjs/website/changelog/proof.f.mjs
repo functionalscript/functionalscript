@@ -81,6 +81,15 @@ const core = {
         notLexicographic: () => assertEq(descending(['0.11.2', '0.11.10'])[0], '0.11.10'),
         shorterIsSmaller: () => assertStructurallySame(
             descending(['0.11', '0.11.1']), ['0.11.1', '0.11']),
+        // The same comparison the other way round, so neither side of it
+        // depends on which argument the sort happens to pass first.
+        longerFirst: () => assertStructurallySame(
+            descending(['0.11.1', '0.11']), ['0.11.1', '0.11']),
+        // Two equal versions settle rather than swapping. No directory
+        // holds a release twice, but a comparator that never answers
+        // "same" is not one, and `sort` is entitled to ask.
+        equal: () => assertStructurallySame(
+            descending(['0.1.0', '0.1.0']), ['0.1.0', '0.1.0']),
     },
 }
 
