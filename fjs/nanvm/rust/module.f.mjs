@@ -54,7 +54,7 @@ import {
 } from '../module.f.mjs'
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { expExpr as sharedExpExpr, nodeExpr as sharedNodeExpr } from '../../edag/rust/module.f.mjs'
+import { expExpr as sharedExpExpr } from '../../edag/rust/module.f.mjs'
 
 /**
  * The shared printer as a throwing convenience, for this module's own use:
@@ -68,7 +68,7 @@ import { expExpr as sharedExpExpr, nodeExpr as sharedNodeExpr } from '../../edag
 const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
 
 /** @type {(e: Exp) => string} */
-export const nodeExpr = e => unwrap(sharedNodeExpr(e))
+export const nodeExpr = e => unwrap(sharedExpExpr([])(e))
 
 const indent = '    '
 
