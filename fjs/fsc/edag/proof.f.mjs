@@ -673,12 +673,28 @@ export const proof = {
                 assertEq(shape.label, '?:')
                 assertStructurallySame(shape.children, [['cond', ['a']], ['then', 1], ['else', 2]])
             },
-            // Every Op0 name renders with no children — a leaf in shape, if
-            // not in this walk's own vocabulary for one.
+            // `=>` is an Op2 by operand count, so it would draw `left` and
+            // `right` like every other tag in that set; it is its own case
+            // for the two names that say what a function's operands are. The
+            // frame is `null` in everything the compiler emits today.
+            lambda: () => {
+                const shape = assertNotNullish(_shapeOf(['=>', null, ['args']]), 'expected a shape')
+                assertEq(shape.label, '=>')
+                assertStructurallySame(shape.children, [['frame', null], ['body', ['args']]])
+            },
+            // Every Op0 name renders with no children, and the three part
+            // by meaning where `Op0Id` groups them by operand count:
+            // `undefined` is a constant and draws as the leaf it is, beside
+            // `null` and the numbers, where `args` and `frame` are the two
+            // places a value enters a scope from outside it and draw as
+            // terminals of their own. `frame` is unreachable from the demo's
+            // own field — the parser refuses a capture, so no source lowers
+            // to one — which is why the tags are built here by hand.
             op0: () => {
-                for (const tag of ['undefined', 'args', 'frame']) {
+                for (const [tag, kind] of [['undefined', 'leaf'], ['args', 'terminal'], ['frame', 'terminal']]) {
                     const shape = assertNotNullish(_shapeOf([tag]), tag)
                     assertEq(shape.label, tag)
+                    assertEq(shape.kind, kind)
                     assertStructurallySame(shape.children, [])
                 }
             },
@@ -736,9 +752,26 @@ export const proof = {
         // to match.
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
-            assertEq(html.split('data-graph-kind="op"').length - 1, 3) // [], *, +
+            assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
             assert(html.includes('>0, 1<'), html) // the array's two direct refs, merged
             assert(html.includes('>left<'), html) // a*3's left operand, the third edge to +
+        },
+        // The same source carries one of every look the drawing has, so a
+        // reader meets all three before typing anything: an operator
+        // hollow, a constant dashed, a terminal filled. `undefined` is among
+        // the constants rather than drawn as the zero-operand operator its
+        // `Op0Id` grouping would otherwise make it, and the terminals are
+        // two rather than one shared because a node belongs to one scope —
+        // the module's `args`, which its import reaches, and the function's
+        // own. The `=>` names its operands `frame` and `body`, which is what
+        // makes its `null` frame read as the absent one it is.
+        kinds: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assertEq(html.split('data-graph-kind="terminal"').length - 1, 2)
+            assertEq(html.split('>args<').length - 1, 2)
+            assert(html.includes('>undefined<'), html)
+            assert(html.includes('>frame<'), html)
+            assert(html.includes('>body<'), html)
         },
         // Arithmetic, comparison, a call and property access, all through
         // real source — the parser accepts this much today.
