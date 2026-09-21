@@ -157,9 +157,9 @@ deferred by choice:**
 - **`export default` naming a bare, uninvoked function value.** For example
   `export default (...a) => a[0];`, exported but never called. Refused, and
   deliberately: this is exactly "a function used as a first-class value,"
-  which needs a `Function<A>` (built from the `FunctionHeader<A>`/`Code<A>`
-  machinery [callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md)
-  designs) to be handed to a generic harness — that machinery is explicitly
+  which needs a `Function<A>` (bound through `IStaticFunction::static_function`,
+  the binding [function-is-callable-not-a-container](../../../nanvm-lib/todo/function-is-callable-not-a-container.md)
+  designs) to be handed to a generic harness — that binding is explicitly
   Stage 2's job, not Stage 1's. So every Stage 1 fixture's `export default`
   must itself be an **already-applied call expression** (or ordinary data —
   today's existing fixtures are unaffected), never a bare function
@@ -215,8 +215,8 @@ This has to come first, as a foundation, not as part of adding calls:
   the callee's body can fail on its own arguments), and generating a fresh
   `.unwrap()` for that would be a straightforward regression, not a
   simplification.
-- **It matches the calling convention `callable-function-objects.md`
-  already designs** for `Code<A>`/`Function::call`:
+- **It matches the calling convention `function-is-callable-not-a-container.md`
+  settles** for `StaticCode<A>`/`IFunction::call`:
   `Result<Any<A>, Any<A>>` throughout, `Err` an `Any<A>` (today, the literal
   `"Type Error"` value the existing `TryFrom<Any<A>> for _` conversions in
   `nanvm-lib/src/vm/impls/try_from.rs` already use) — the same, single
@@ -298,7 +298,7 @@ rediscovered as a surprise when Stage 3 starts.
 **One new case, and it is enough on its own: `['args']` alone**, used as a
 value (not indexed) — needed even for a Stage 1 fixture as simple as
 `(...a) => a`. Prints as the whole arguments array converted to a value:
-given a generated function's `args: &Array<A>` parameter (Task 5), this is
+given a generated function's `args: Array<A>` parameter (Task 5), this is
 `args.clone().to_any()` — an `Rc`-cheap clone through `IContainer`, not a
 deep copy.
 
@@ -469,19 +469,21 @@ each stays independently easy to read). Each is emitted, before
 
 ```rust
 #[rustfmt::skip]
-fn f0<A: IVm>(args: &Array<A>) -> Result<Any<A>, Any<A>> {
+fn f0<A: IVm>(args: Array<A>) -> Result<Any<A>, Any<A>> {
     // this function's own let-sequence (Task 4), then its final expression
 }
 ```
 
-**Deliberately one parameter, not the two-parameter `Code<A>` shape
-`callable-function-objects.md` designs for the general case.** Nothing in a
-Stage 1 function ever reads a captured value (Task 2 guarantees `frame` is
-always the "no captures" marker), so a `captured: &Array<A>` parameter would
-be pure, unused ceremony bought against a Stage 2 design that has not landed
-and could still change shape before it does. This is a known, deliberately
-accepted seam: when Stage 2 introduces `Code<A>`, it will need to either
-regenerate Stage 1's functions with the extra parameter or wrap them —
+**Deliberately one parameter, not the two of `StaticCode<A>`, the one
+signature `function-is-callable-not-a-container.md` settles for a function
+a VM binds.** The arguments are by value, as `StaticCode<A>` takes them,
+but nothing in a Stage 1 function reads a captured value (Task 2
+guarantees `frame` is always the "no captures" marker) or `["self"]` as a
+value, and no `Function<A>` value exists for `self_` to name — Stage 1
+calls `f{N}` directly — so a `self_: &A::InternalFunction` parameter would
+be pure, unused ceremony. This is a known, deliberately accepted seam:
+when Stage 2 binds functions through `A::static_function`, it will need
+to either regenerate Stage 1's functions with `self_` or wrap them —
 recorded here so it is a planned handoff, not a surprise.
 
 `#[rustfmt::skip]` on each, matching `pub fn module`'s own existing
@@ -499,12 +501,12 @@ function's assigned index.
 **The argument-list node is restricted to a fresh array literal,
 `['[]', […]]`, for now — not any node that merely evaluates to an array.**
 The reason is a real, if narrow, type mismatch this task does not attempt to
-solve: an argument list needs to reach the call site as `&Array<A>` (what
+solve: an argument list needs to reach the call site as `Array<A>` (what
 `f{N}` takes), but `expExpr`'s existing `'[]'` handling always produces an
 `Any<A>`-typed expression (`[…].to_array().to_any()`), and if that same
 array-literal node were independently *shared* elsewhere as a plain value,
 `letLines` would hoist it as a `let cN: Any<A> = …;` — the wrong type for a
-direct `&Array<A>` argument. Untangling a node that needs to be printable as
+direct `Array<A>` argument. Untangling a node that needs to be printable as
 *either* `Any<A>` or bare `Array<A>` depending on where it's read from is
 solvable but not needed by anything in scope here (see Scope: forwarding
 `args`, and any call from inside a function body where such reuse could
@@ -567,7 +569,7 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
 ### Interaction with later stages
 
 - **Stage 2** (`Function<A>` as a real value) will need to either regenerate
-  every Stage 1 function with `Code<A>`'s two-parameter shape or wrap the
+  every Stage 1 function with `StaticCode<A>`'s `self_` parameter or wrap the
   one-parameter `fn`s this task produces — an explicitly accepted seam
   (Task 5), not an oversight.
 - **Stage 3** (capturing closures) reopens Task 2's `frame === null` check:
@@ -587,12 +589,12 @@ existing fixture already follows) and to `nanvm-harness/src/lib.rs`'s
 ### Open questions
 
 1. **Does `importsFor`'s substring scan pick up `Array<A>` used only in a
-   parameter position** (`fn f0<A: IVm>(args: &Array<A>) …`), not just a
+   parameter position** (`fn f0<A: IVm>(args: Array<A>) …`), not just a
    constructor call like today's `Array::default()`/`.to_array()`? Almost
    certainly yes — it is a plain text search over the whole generated body,
    and `Array<A>` fixed against `importCatalog`'s existing `'Array::default'`
    marker will not match, so the marker list itself may need a second,
-   narrower entry (`'&Array<A>'` or similar) rather than assuming the
+   narrower entry (`': Array<A>'` or similar) rather than assuming the
    existing one already covers it. Worth checking directly against a real
    generated fixture rather than assumed.
 2. **The deterministic order for naming `f0`, `f1`, ….** The CI drift check
