@@ -154,7 +154,8 @@ what makes the argument thunk on `PropertyLambda::end_call` necessary:
 (README, "Where the host engines disagree"), and only a thunk lets the
 terminal check the stored throw before it evaluates the arguments.
 
-So each lambda type has three internal states, not two: *live*, with the
+So each option type has three internal states, not two — `PropertyLambda`,
+with no region to skip, has the two of its `Result` — : *live*, with the
 current value it carries; *skipped*, a region that has
 short-circuited; and *thrown*, with the thrown value. Every non-terminal
 step is a no-op on the last two. The terminals tell them apart: `end`
