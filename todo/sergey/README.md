@@ -30,7 +30,7 @@
 - [X] Replace CHANGELOG with a generated from a Website.
   - [ ] Proposal: Create changelog during release.
 - [ ] Reformulate "grab and implement" task. It should focus on priorities.
-- [ ] convention for generated files, for example `gen_`
+- [ ] [Generated-file conventions and clean CI regeneration](../generated-file-conventions.md)
 - [ ] we may try to use `BoundedArray<2, 4, T>` instead of `OptionTailArray<2, 4, T>` in EDAG and RTTI for `[t, t, option(t), option(t)]`
 - [ ] NiX and Rust eDSL should follow the same conventions as RTTI, new EBNF, HTML and EDAG. Use plain objects to define normal objects.
 - [ ] Specify what is `unknown` in FJS. The set is smaller than in JS.
