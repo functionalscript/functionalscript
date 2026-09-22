@@ -125,9 +125,30 @@ export const op3Rust = {
  * due does not compile, so a printer that establishes one eagerly is caught
  * by `rustc` rather than trusted.
  *
+ * The chain nodes have lazy positions of their own, {@link lazyOperandsOf}:
+ * a `?.` or `?.()` node's key or arguments and its continuation's operands
+ * are inside the region the node opens, and a `.` node's continuation is a
+ * call whose arguments a throw at the access leaves untouched. They are
+ * not in this list because their eager positions are not the first operand
+ * alone — a `.` node's receiver *and* key are eager — so
+ * {@link eagerOperandsOf} states each tag's rule.
+ *
  * @type {readonly string[]}
  */
 const lazy = ['&&', '||', '??', '?:']
+
+/**
+ * `true` for the tag of a node that opens a chain: `.`, `?.` and `?.()`,
+ * the three whose last operand may be a continuation (`fjs/edag/README.md`,
+ * Chains). Each prints as its `nanvm-lib` entry point — `Any::dot`,
+ * `Any::option_dot`, `Any::option_call` — followed by one method per step
+ * and closed by `.end()` or `.end_call(…)`: one expression, a method chain,
+ * which binds tighter than any infix operator and so is atomic as an
+ * operand.
+ *
+ * @type {(id: unknown) => boolean}
+ */
+const isChain = id => id === '.' || id === '?.' || id === '?.()'
 
 /**
  * What a key names in this printer, or the refusal: a key with no entry is a
@@ -235,9 +256,9 @@ const primitiveExpr = v => {
 const keyExpr = k => typeof k === 'string' ? mapOk(s => `string_key(${s})`)(stringExpr(k)) : error(['not a literal key', k])
 
 /**
- * A `.` node's index, as the `Any<A>` key `Any::member_access` takes: a
- * literal `number` or `string`, the two `Index` variants `member_access`'s
- * own key type (`number | string`) already covers directly.
+ * A `.` node's index, as the `Any<A>` key `Any::dot` takes: a literal
+ * `number` or `string`, the two `Index` variants the read's own key type
+ * (`number | string`) already covers directly.
  *
  * `NumberCast` — the remaining `Index` variant — names a sub-expression to
  * evaluate and coerce at run time (`a[Number(k)]`), not a literal key this
@@ -256,7 +277,7 @@ const indexExpr = index => {
 
 /**
  * `true` for a `.` base a property read on always throws: `null` and the
- * tagged `['undefined']` node. Printing `Any::member_access(…)` for
+ * tagged `['undefined']` node. Printing `Any::dot(…)` for
  * either would compile to a run-time throw in place of the compile-time refusal
  * every other DJS output gives the same input (`fjs/fsc/README.md`: "a
  * `null` or `undefined` base is the one failure a data module can make").
@@ -325,7 +346,7 @@ const arrayIndexOf = b => {
  * `['undefined']` node the same way a missing property or an out-of-range
  * index reads as `undefined` at run time, and `{ a: null }.a.x` and
  * `[null][0].x` both fold their base to a literal `null` before
- * `nullishBase` ever sees it — exactly mirroring `Any::member_access`'s own
+ * `nullishBase` ever sees it — exactly mirroring `Any::dot`'s own
  * dispatch: a receiver it does not special-case at all (a number, a
  * boolean, a bigint, or a function) always answers `undefined` regardless
  * of the key, an object's key is a string directly or a number stringified
@@ -659,7 +680,7 @@ const printer = nested => shared => root => {
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
         // `Rc`-cheap clone of it. An indexed read, `a[0]` or `a.length`, is
-        // an ordinary `.` node over this, `Any::member_access` answering
+        // an ordinary `.` node over this, `Any::dot(…).end()` answering
         // `undefined` past the end as JavaScript does.
         if (id === 'args') { return ok('args.clone().to_any()') }
         if (id === '[]') {
@@ -742,11 +763,17 @@ const printer = nested => shared => root => {
      */
     const bare = e => {
         const [id, a, b, c] = e
-        if (id === '.') {
-            if (c !== undefined) { return error(['no Rust for a property-access chain step', e]) }
-            const base = resolvedBase(a)
-            if (nullishBase(base)) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
-            return map2((fa, k) => `Any::member_access(${fa}, ${k})`)(f(a), indexExpr(b))
+        // A chain: the node's entry point, then its continuation's steps,
+        // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
+        // spelling whether or not a continuation follows. A `.` read on a
+        // provably nullish base is refused as before; `?.` and `?.()` on
+        // one are `undefined`, and print.
+        if (isChain(id)) {
+            if (id === '.' && nullishBase(resolvedBase(a))) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
+            const open = id === '.' ? map2((fa, k) => `Any::dot(${fa}, ${k})`)(f(a), indexExpr(b))
+                : id === '?.' ? map2((fa, k) => `Any::option_dot(${fa}, ${k})`)(f(a), keyThunk(b))
+                : map2((fa, t) => `Any::option_call(${fa}, ${t})`)(f(a), lazyOperand(b))
+            return map2((o, rest) => `${o}${rest}`)(open, steps(id === '.')(c))
         }
         // A call, `['()', callee, args]`: `Any::call`, the callee and the
         // arguments both values, as the node's operands are — the callee a
@@ -759,6 +786,38 @@ const printer = nested => shared => root => {
             : e.length === 3 ? map3((fn, x, y) => fn(x, y))(op2(id), operand(a), rest(b))
             : map4((fn, x, y, z) => fn(x, y, z))(op3(id), operand(a), rest(b), rest(c))
     }
+    /**
+     * A continuation's steps as the methods they are, from the node's entry
+     * point to the chain's exit: `.end()` where the continuation is absent,
+     * `.end_call(…)` for a terminal step — `|!()`, and `|()` where a
+     * receiver alone is live, `property`, since with no region open there
+     * is no bit for `!` to clear — and `.call(…)`, `.dot(…)` or
+     * `.option_call(…)` for a step the chain goes on from, in the state it
+     * hands on. Which steps a state admits is the lambda type's method set
+     * in `nanvm-lib`, so a step the README does not allow does not compile;
+     * this printer only spells. A step's key is a thunk over a literal,
+     * {@link keyThunk}, and its arguments a {@link lazyOperand}: both are
+     * inside the region, or after an access that may throw first.
+     *
+     * @type {(property: boolean) => (k: readonly any[] | undefined) => Result<string, readonly unknown[]>}
+     */
+    const steps = property => k => {
+        if (k === undefined) { return ok('.end()') }
+        const [step, x, next] = k
+        if (step === '|.') { return map2((key, rest) => `.dot(${key})${rest}`)(keyThunk(x), steps(false)(next)) }
+        const terminal = step === '|!()' || (step === '|()' && property)
+        if (terminal && next !== undefined) { return error(['a terminal step with a continuation', k]) }
+        const method = terminal ? 'end_call' : step === '|()' ? 'call' : 'option_call'
+        return map2((t, rest) => `.${method}(${t})${rest}`)(lazyOperand(x), terminal ? ok('') : steps(false)(next))
+    }
+    /**
+     * An index inside a region, as the thunk `option_dot` and the `|.` step
+     * take: `|| Ok(…)` around the literal key {@link indexExpr} spells,
+     * since a literal has nothing to bind and cannot throw.
+     *
+     * @type {(index: Index) => Result<string, readonly unknown[]>}
+     */
+    const keyThunk = index => mapOk(k => `|| Ok(${k})`)(indexExpr(index))
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
     /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
     const operand = e => mapOk(s => composed(e) ? `(${s})` : s)(f(e))
@@ -770,13 +829,13 @@ const printer = nested => shared => root => {
      * operand as written. An operator expression does not: Rust parses
      * `a * b * c` to the left and binds a method call tighter than `*`, so
      * an unparenthesized composed operand is a different program from the
-     * node it was printed from. A `.` node is a call
-     * (`Any::member_access(…)`), which already binds tighter than any infix
+     * node it was printed from. A chain node is a method chain
+     * (`Any::dot(…).end()`), which already binds tighter than any infix
      * operator, so it needs no parentheses either.
      *
      * @type {(e: Exp) => boolean}
      */
-    const composed = e => isOperation(e) && bound.every(([n]) => n !== e) && /** @type {readonly any[]} */ (e)[0] !== '.'
+    const composed = e => isOperation(e) && bound.every(([n]) => n !== e) && !isChain(/** @type {readonly any[]} */ (e)[0])
     /**
      * A lazy operand, as the thunk `nanvm-lib` takes: a closure answering
      * the `Result<Any<A>, Any<A>>` the operand's establishment is — the
@@ -819,7 +878,7 @@ const printer = nested => shared => root => {
      * A temporary's `let` line: a thunk's closure, its type the operation's
      * to infer; an operation's call followed by `?`, so the temporary is
      * the `Any<A>` it answers — an operator's text parenthesized first, a
-     * `.` read's or a call's as it is — and any other node's construction
+     * chain's or a call's as it is — and any other node's construction
      * as it is.
      *
      * @type {(n: Exp) => Result<string, readonly unknown[]>}
@@ -827,7 +886,7 @@ const printer = nested => shared => root => {
     const letLine = n => isThunk(n)
         ? mapOk(s => `let ${nameOf(n)} = ${s};`)(thunk(n))
         : mapOk(s => `let ${nameOf(n)}: Any<A> = ${
-            !isOperation(n) ? s : ['.', '()'].includes(/** @type {string} */ (tagOf(n))) ? `${s}?` : `(${s})?`};`)(node(n))
+            !isOperation(n) ? s : isChain(tagOf(n)) || tagOf(n) === '()' ? `${s}?` : `(${s})?`};`)(node(n))
     /**
      * The statements of `e`'s block: a `let` per temporary it binds, then
      * `e` as the `Result` the block answers — a closure's body, a thunk's,
@@ -979,7 +1038,35 @@ const operandsOf = node => {
     const [id] = node
     return id === '=>' ? [node[1]]
         : ['[]', '{}', ','].includes(/** @type {string} */ (id)) ? /** @type {readonly unknown[]} */ (node[1])
+        : isChain(id) ? [...eagerOperandsOf(node), ...lazyOperandsOf(/** @type {Exp} */ (/** @type {unknown} */ (node)))]
         : node.slice(1)
+}
+
+/**
+ * The operands of a continuation `k` — the step's own key or arguments,
+ * then its continuation's — and none where there is none. A continuation
+ * is not a node: it is a lambda over the chain's current value
+ * (`fjs/edag/README.md`, Chains), so a walk never lists it, only what it
+ * holds, every item of which is inside the chain and so lazy.
+ *
+ * @type {(k: unknown) => readonly unknown[]}
+ */
+const stepOperands = k => k === undefined ? [] : [/** @type {readonly any[]} */ (k)[1], ...stepOperands(/** @type {readonly any[]} */ (k)[2])]
+
+/**
+ * The operands a node establishes unconditionally: a lazy operation's
+ * first, a `.` node's receiver and key, a `?.` or `?.()` node's receiver
+ * or callee alone — the guard decides whether anything after it runs — and
+ * every operand of any other node.
+ *
+ * @type {(node: readonly unknown[]) => readonly unknown[]}
+ */
+const eagerOperandsOf = node => {
+    const [id] = node
+    return lazy.includes(/** @type {string} */ (id)) ? [node[1]]
+        : id === '.' ? [node[1], node[2]]
+        : id === '?.' || id === '?.()' ? [node[1]]
+        : operandsOf(node)
 }
 
 /**
@@ -1002,12 +1089,10 @@ export const sharedNodesOf = root => visit(operandsOf)([])(root)
 
 /**
  * `seen` with every node `root` establishes unconditionally folded in: the
- * nodes reached without passing through a lazy position, which is every
- * operand after the first of a {@link lazy} operation. A node is walked
- * once, by identity, as {@link visit} walks it.
- *
- * Descends into {@link operandsOf}'s operands, a lazy operation's first
- * alone; a `.` node's index and step hold nothing a lazy operand hides.
+ * nodes reached without passing through a lazy position — every operand
+ * after the first of a {@link lazy} operation, and a chain's lazy
+ * positions, {@link eagerOperandsOf}. A node is walked once, by identity,
+ * as {@link visit} walks it.
  *
  * @type {(seen: readonly Exp[], root: unknown) => readonly Exp[]}
  */
@@ -1015,20 +1100,29 @@ const reach = (seen, root) => {
     if (!(root instanceof Array)) { return seen }
     const self = /** @type {Exp} */ (/** @type {unknown} */ (root))
     if (seen.includes(self)) { return seen }
-    const [id] = root
-    const operands = /** @type {readonly unknown[]} */ (lazy.includes(id) ? [root[1]] : operandsOf(root))
-    return operands.reduce(reach, [...seen, self])
+    return eagerOperandsOf(root).reduce(reach, [...seen, self])
 }
 
 /**
- * A lazy operation's operands after the first, the ones its thunks
- * establish; none for any other node.
+ * The operands a node establishes only conditionally, the ones its thunks
+ * establish: a lazy operation's operands after the first; a `?.` or `?.()`
+ * node's key or arguments, inside the region its guard opens, and its
+ * continuation's operands, {@link stepOperands}; a `.` node's
+ * continuation's operands, after an access that may throw with them
+ * untouched; none for any other node. What is not eager is lazy, and the
+ * two lists together are {@link operandsOf}'s.
  *
  * @type {(n: Exp) => readonly Exp[]}
  */
-const lazyOperandsOf = n => lazy.includes(/** @type {string} */ (tagOf(n)))
-    ? /** @type {readonly Exp[]} */ (/** @type {readonly any[]} */ (n).slice(2))
-    : []
+const lazyOperandsOf = n => {
+    const node = /** @type {readonly any[]} */ (n)
+    const [id] = node
+    return /** @type {readonly Exp[]} */ (
+        lazy.includes(id) ? node.slice(2)
+        : id === '.' ? stepOperands(node[3])
+        : id === '?.' || id === '?.()' ? [node[2], ...stepOperands(node[3])]
+        : [])
+}
 
 /**
  * The nodes a block over `e` holds: the ones `e` reaches eagerly,

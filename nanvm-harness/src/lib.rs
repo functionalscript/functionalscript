@@ -25,6 +25,8 @@ pub mod escapes;
 pub mod function_scope;
 #[path = "../fixtures/length.rs"]
 pub mod length;
+#[path = "../fixtures/method.rs"]
+pub mod method;
 #[path = "../fixtures/missing.rs"]
 pub mod missing;
 #[path = "../fixtures/named.rs"]
@@ -116,7 +118,8 @@ pub fn run<A: IVm>(
 ) -> Result<std::string::String, RunError<A>> {
     module()
         .map_err(RunError::Thrown)?
-        .member_access("default".into())
+        .dot("default".into())
+        .end()
         .expect("a compiled module returns its export object")
         .to_json()
         .map_err(RunError::Json)
@@ -130,9 +133,9 @@ mod tests {
     };
 
     use crate::{
-        RunError, arity, array, boolean, call, calls, escapes, function_scope, length, missing,
-        named, nested, not_a_function, number, object, operators, property, rest, run, sharing,
-        string, throws,
+        RunError, arity, array, boolean, call, calls, escapes, function_scope, length, method,
+        missing, named, nested, not_a_function, number, object, operators, property, rest, run,
+        sharing, string, throws,
     };
 
     #[test]
@@ -209,7 +212,8 @@ mod tests {
     fn missing_argument_and_non_function_callee() {
         let value = missing::module::<Naive>()
             .unwrap()
-            .member_access("default".into())
+            .dot("default".into())
+            .end()
             .unwrap();
         assert_eq!(value, Nullish::Undefined.to_any());
         assert!(matches!(
@@ -271,6 +275,13 @@ mod tests {
     #[test]
     fn property_access() {
         assert_eq!(run::<Naive>(property::module), Ok("42".into()));
+    }
+
+    /// `o.f(42)`: the read's continuation calls `f` — a method call, one
+    /// chain — and the call reaches the function with its arguments.
+    #[test]
+    fn method_call() {
+        assert_eq!(run::<Naive>(method::module), Ok("42".into()));
     }
 
     #[test]

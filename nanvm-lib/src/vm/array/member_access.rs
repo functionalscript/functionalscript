@@ -11,7 +11,7 @@ impl<A: IVm> Array<A> {
     /// `self[key]`: an in-bounds index — given as a `Number` or its
     /// canonical decimal string — reads the element, the string key
     /// `"length"` reads the length, and every other key is `None` — for
-    /// the caller (`Any::member_access`) to turn into `undefined`, the same
+    /// the caller (`Any::dot`) to turn into `undefined`, the same
     /// contract `Object::own_property` has for `Any::own_property`.
     ///
     /// Never panics on an out-of-range index: `index < len` is checked

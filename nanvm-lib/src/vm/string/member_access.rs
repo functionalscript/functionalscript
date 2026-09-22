@@ -14,7 +14,7 @@ impl<A: IVm> String<A> {
     /// *not* `.charAt`, which is a prototype method and out of scope, same
     /// as every other built-in method); the string key `"length"` reads
     /// the UTF-16 length; every other key is `None`, for
-    /// the caller (`Any::member_access`) to turn into `undefined` — the
+    /// the caller (`Any::dot`) to turn into `undefined` — the
     /// same contract `Array::member_access` and `Object::own_property`
     /// have.
     ///

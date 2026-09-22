@@ -89,17 +89,18 @@ pub(crate) fn call<A: IVm>(
     |callee| args().and_then(|a| callee.call(a))
 }
 
-/// The property step's operation: the key forced, then `Any::member_access`,
-/// whose nullish-base throw therefore comes second.
+/// The property step's operation: the key forced, then the read `Any::dot`
+/// is, whose nullish-base throw therefore comes second.
 pub(crate) fn read<A: IVm>(
     key: impl FnOnce() -> Result<Any<A>, Any<A>>,
 ) -> impl FnOnce(Any<A>) -> Result<Any<A>, Any<A>> {
-    |base| key().and_then(|k| base.member_access(k))
+    |base| key().and_then(|k| base.dot(k).end())
 }
 
 /// A receiver is live and no region is open: the state after a `.` node,
 /// `a.b`. Its steps are `|()` (`end_call`) and `|?.()` (`option_call`);
-/// `end` is the bare node, the read with its receiver dropped.
+/// `end` is the bare node, the read with its receiver dropped — the one
+/// property read `nanvm-lib` has, `dot(a, key).end()`.
 ///
 /// No region, so no skipped state: the interior is the read's own
 /// `Result`, its throw waiting for a terminal to surface it — `a.b(...c)`
@@ -233,7 +234,7 @@ mod tests {
 
     // `PropertyLambda`
 
-    /// `a.b` — `end` is `member_access`, throw included.
+    /// `a.b` — `end` is the read, throw included.
     #[test]
     fn property_end() {
         assert_eq!(object().dot("n".into()).end(), Ok(1.0.to_any()));

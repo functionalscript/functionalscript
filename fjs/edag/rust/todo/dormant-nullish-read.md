@@ -7,7 +7,7 @@
 
 The printer in [`module.f.mjs`](../module.f.mjs) refuses a `.` read whose
 base is provably nullish — `null.a`, `{}.missing.x` — because printing
-`Any::member_access(…)` for it would compile to a run-time throw where
+`Any::dot(…).end()` for it would compile to a run-time throw where
 every other output of `fjs compile` gives the same program a compile-time
 refusal (`nullishBase`, `resolvedBase`). The check runs wherever the read
 is printed, a lazy operand included: `false && null.a` is refused as a
