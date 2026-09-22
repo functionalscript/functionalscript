@@ -85,10 +85,13 @@ evaluator in `fjs/edag/operations` has the same gap with a different
 placeholder, the text of the closure it wraps a function in. One task,
 Stage 7, closes all of it. A stub with its TODO is the accepted shape here;
 the design principle against a plausible wrong value binds the MVP
-surface. `Number`'s `toString` with a radix is the other stub: a
-non-integer with a radix other than ten is implementation-approximated by
-the specification, so this VM's entry throws for that shape rather than
-approximate, and the corpus pins integers and radix ten alone.
+surface. `Number`'s `toString` with a radix is the other stub, and today
+it is a stub in full: the entry reads no arguments, so `(255).toString(16)`
+answers `"255"` and `(1.5).toString(2)` answers `"1.5"`. The plan, the
+radix task below, is a radix for integers and for bigints, and a throw for
+a non-integer with a radix other than ten, which the specification leaves
+implementation-approximated, with the corpus pinning integers and radix
+ten alone.
 
 **`toString` is mostly written.** `Any::to_string`, the `String(x)`
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
