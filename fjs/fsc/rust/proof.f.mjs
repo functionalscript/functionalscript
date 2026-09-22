@@ -315,12 +315,12 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(toRust(['=>', null, ['args']])[0], 'ok')
         },
         /**
-         * A property read on a nullish base compiles to a `Result` error
-         * instead of Rust that panics at run time.
+         * A property read on a nullish base compiles: the `.rs` output is a
+         * program, and the throw is the VM's when it runs, reported by the
+         * harness as `RunError::Thrown` — `nanvm-harness/fixtures/nullish.mjs`.
          */
-        refusedNullishBase: () => {
-            const result = toRust(['.', null, 'a'])
-            assertEq(result[0], 'error')
+        nullishBase: () => {
+            assertEq(toRust(['.', null, 'a'])[0], 'ok')
         },
         /**
          * A string no Rust literal can hold and a bigint no `i64` can are
