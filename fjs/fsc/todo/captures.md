@@ -1,30 +1,25 @@
 ## Captures: a function body names what is declared outside it
 
 **Priority:** P1
-**Status:** proposal — awaiting another language designer's explicit
-approval ([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions));
-record it here when given
+**Status:** open
 
 ### Problem
 
-A function body may name its own parameter and its own `const`s and
-nothing else. A reference to a module `const`, an import or an enclosing
-function's parameter is a capture, and the parser refuses it where it is
-written — `capture not supported` in [`parser/module.f.mjs`](../parser/module.f.mjs),
+FunctionalScript is a subset of JavaScript, and a JavaScript arrow
+function closes over the scope it is written in. This compiler's parser
+restricts that: a function body may name its own parameter and its own
+`const`s and nothing else, and a reference to a module `const`, an import
+or an enclosing function's parameter is refused where it is written —
+`capture not supported` in [`parser/module.f.mjs`](../parser/module.f.mjs),
 the rule [`spec/README.md`](../../../spec/README.md) states under
 Functions and [`README.md`](../README.md) restates for the AST. So
 `(...a) => (...b) => a[0] + b[0]` does not compile, and neither does any
 function that uses a helper declared beside it.
 
-That is the restriction on the critical path. The post-MVP milestone is
-self-hosting ([`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)):
-the compiler, written in FunctionalScript, compiled by itself to Rust.
-The compiler's source is curried functions over module `const`s on nearly
-every line, and none of it compiles while a capture is an error. It is also
-the restriction with no justification left: JavaScript's arrow function
-closes over its scope, harmless to preserve, and the one reason it was
-refused — a function had no frame to capture with — is gone. The EDAG has
-the frame, and so does the VM:
+A restriction on JavaScript needs a justification
+([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)),
+and this one's is gone. It was refused because a function had no frame to
+capture with; the EDAG has the frame now, and so does the VM:
 
 - `['=>', frame, body]` builds a function from a frame evaluated in the
   enclosing scope, and `['frame']` is that array inside the body, a slot
@@ -35,12 +30,18 @@ the frame, and so does the VM:
 - `A::static_function(code, length, frame)` takes the frame, and
   `A::frame(self_)` reads it in the body
   ([`nanvm-lib/todo/callable-function-objects.md`](../../../nanvm-lib/todo/callable-function-objects.md),
-  Stage 3, whose gate this proposal is).
+  Stage 3, whose front end this is).
 
 What is missing is the front end alone: the parser, the AST, the lowering
 in [`edag/module.f.mjs`](../edag/module.f.mjs), and the printer in
 [`fjs/edag/rust`](../../edag/rust/module.f.mjs), which prints a `null`
 frame and refuses any other.
+
+It is also the restriction on the critical path. The post-MVP milestone is
+self-hosting ([`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)):
+the compiler, written in FunctionalScript, compiled by itself to Rust.
+The compiler's source is curried functions over module `const`s on nearly
+every line, and none of it compiles while a capture is refused.
 
 ### Direction
 
@@ -72,17 +73,17 @@ in [`fjs/edag/analysis`](../../edag/analysis/) and the printer's scope rule
 sound.
 
 The printer prints a non-`null` frame as the third argument of
-`A::static_function` and `['frame']` as `A::frame(self_)`, both spellings
-the VM already has, and a body that reads its frame names `self_` as one
-that reads its arguments names `args`.
+`A::static_function`, and `['frame']` as the value `A::frame(self_)`
+holds, the way `['args']` prints the value `args` holds; a body that
+reads its frame names `self_` as one that reads its arguments names
+`args`.
 
 The spec's sentence that a capture is an error is replaced by the rule
 above in the same pull request that lifts the refusal.
 
-**Direction, not detail.** How the parser threads scopes, what the AST
-calls a frame reference, and how the printer binds the frame are the
-implementation's to decide and its proofs to pin. Reviewers of this file
-are asked to review the direction.
+How the parser threads scopes, what the AST calls a frame reference, and
+how the printer binds the frame are the implementation's to decide and
+its proofs to pin.
 
 ### Not here
 
@@ -94,7 +95,6 @@ are asked to review the direction.
 
 ### Tasks
 
-- [ ] Approval recorded above.
 - [ ] Printer: a non-`null` frame and `['frame']` print; proofs at the
       printer level.
 - [ ] Parser, AST, lowering: a capture is a frame slot, not an error; the
@@ -106,7 +106,7 @@ are asked to review the direction.
 ### Related
 
 - [`nanvm-lib/todo/callable-function-objects.md`](../../../nanvm-lib/todo/callable-function-objects.md)
-  — Stage 3, which this proposal gates.
+  — Stage 3, which this is the front end of.
 - [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md)
   — the frame as a copied block of captured values.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
