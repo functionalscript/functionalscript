@@ -433,6 +433,14 @@ export const proof = {
         assertEq(
             reads(_defaultExport(moduleGraph('const o=[1]; const x=o[0]; const y=o[0]; export default (...a)=>[x,y];'))),
             'const $0=[1][0];export default (...$a)=>[$0,$0];')
+        // where the writer's own order would read the slots in another —
+        // here the body's text is the frame's order backwards, and a shared
+        // function hoisted above the `return` reads the later slot first —
+        // the body names its slots in order before anything else
+        writes(['=>', ['[]', [c, d]], ['[]', [slot(1), slot(0)]]], 'const $0=[1];const $1={};export default (...$a)=>{const $a0=$0;const $a1=$1;return [$a1,$a0];};')
+        assertEq(
+            reads(_defaultExport(moduleGraph('const x=[1]; const y=[2]; export default (...a)=>{const z=x; const f=(...b)=>y; return [z,f,f];};'))),
+            'const $0=[1];const $1=[2];export default (...$a)=>{const $a0=$0;const $a1=$1;const $a2=(...$b)=>$a1;return [$a0,$a2,$a2];};')
         // a frame the parser would not build has no text that reads back,
         // and one of the enclosing scope, a comma, has no text yet
         refuses(['=>', ['undefined'], 1], 'a frame that is not an array literal')
@@ -441,7 +449,6 @@ export const proof = {
         refuses(['=>', ['[]', [['...', c]]], slot(0)], 'a spread')
         refuses(['=>', ['[]', [c, c]], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
         refuses(['=>', ['[]', [c]], 1], 'a frame slot the body never reads')
-        refuses(['=>', ['[]', [c, d]], ['[]', [slot(1), slot(0)]]], 'a frame out of first-use order')
         refuses(['=>', ['[]', [c]], slot(1)], 'a frame read that is no slot')
         refuses(['=>', ['[]', [c]], ['.', ['frame'], 'a']], 'a frame read that is no slot')
         refuses(['.', ['frame'], 0], 'a frame read that is no slot')

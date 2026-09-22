@@ -44,8 +44,9 @@
  * otherwise, since a capture is a name; a read of the frame's slot `i` is
  * that name, and a slot that reads the scope's own frame is that slot's
  * name already. Read back, the body's outside names are its captures in
- * first-use order, which is what the writer checks the frame against
- * ({@link firstUse}):
+ * first-use order, which the writer keeps to the frame's by naming the
+ * slots in order first where its own text would read them in another
+ * ({@link closureBody}):
  *
  * ```js
  * const $0=[1];export default (...$a)=>[$0,$a[0]];
@@ -65,7 +66,7 @@
  * key the parser would not read back — one no literal spells, and one naming
  * a property of a built-in prototype, which the grammar refuses in either
  * spelling; and a frame the parser would not build ({@link frameNames},
- * {@link firstUse}), or a read of one that is no slot.
+ * {@link closureBody}), or a read of one that is no slot.
  *
  * An identity-minting node reached only through lazy edges is refused too,
  * and needs no rule of its own yet: every lazy node kind is a kind this
@@ -392,27 +393,78 @@ const frameNames = s => frame => {
 }
 
 /**
- * Whether a function's body reads its frame's slots in the order the parser
- * numbers them — each first read in the text in slot order, every slot read
- * — which is the order reading the text back gives them. A chunk holding a
- * name alone is a reference ({@link key}), and the names of one frame are
- * the spellings of the scope around the body, which no name the body binds
- * shares ({@link hoistName}), so the first time the text holds a slot's
- * name is where the parser meets that capture.
+ * The order a function's body first reads its frame's slots in, which is
+ * the order reading the text back numbers them: a chunk holding a name
+ * alone is a reference ({@link key}), and the names of one frame are the
+ * spellings of the scope around the body, which no name the body binds
+ * shares ({@link hoistName}), so the first time the text holds a slot's name
+ * is where the parser meets that capture.
  *
- * @type {(names: readonly string[], text: List<string>) => Result<null, string>}
+ * @type {(names: readonly string[], text: List<string>) => readonly number[]}
  */
-const firstUse = (names, text) => {
-    const order = toArray(text).reduce(
-        /** @type {(order: readonly number[], chunk: string) => readonly number[]} */
-        ((order, chunk) => {
-            const i = names.indexOf(chunk)
-            return i === -1 || order.includes(i) ? order : [...order, i]
-        }),
-        [])
-    return order.length !== names.length ? error('a frame slot the body never reads')
-        : order.every((x, i) => x === i) ? ok(null)
-        : error('a frame out of first-use order')
+const firstUse = (names, text) => toArray(text).reduce(
+    /** @type {(order: readonly number[], chunk: string) => readonly number[]} */
+    ((order, chunk) => {
+        const i = names.indexOf(chunk)
+        return i === -1 || order.includes(i) ? order : [...order, i]
+    }),
+    [])
+
+/**
+ * A function's body, over the names its frame's slots read as, in the text
+ * that reads back to the same frame: the body as {@link lambdaBody} writes
+ * it where its first reads of the slots come in slot order, and otherwise
+ * {@link aliasedBody}, which puts them in that order first. The writer's
+ * text order is its own — a shared function the body holds is hoisted above
+ * the `return`, so what it reads comes first — and the frame's order is the
+ * source's, so the two need not agree.
+ *
+ * A slot the body never reads is refused: the parser builds none, and no
+ * text reads back as one.
+ *
+ * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ */
+const closureBody = (a, depth, names) => b => okThen(
+    /** @type {(text: List<string>) => Document} */
+    (text => {
+        const order = firstUse(names, text)
+        return order.length !== names.length ? error('a frame slot the body never reads')
+            : order.every((x, i) => x === i) ? ok(text)
+            : aliasedBody(a, depth, names)(b)
+    }),
+)(lambdaBody(a, depth, names)(b))
+
+/**
+ * A function's body that opens by naming its frame's slots in slot order,
+ * one `const` each, and reads each slot by that `const` from then on:
+ *
+ * ```js
+ * (...$a)=>{const $a0=$0;const $a1=$1;const $a2=(...$b)=>$a1;return [$a0,$a2,$a2];}
+ * ```
+ *
+ * Read back, each `const` is the body's capture of that slot, taken in
+ * order, and a reference to it is the slot's read again — an alias is the
+ * node it names. It is anchored, as an unreached `const` is, only where no
+ * eager position reaches it, and every position reaching a slot read is
+ * eager in what this writer spells: a lazy operator is a node kind it has
+ * none for.
+ *
+ * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ */
+const aliasedBody = (a, depth, names) => b => {
+    const aliases = names.map((_, i) => hoistName(depth, i))
+    /** @type {_Statement} */
+    const start = {
+        text: flat(names.map((name, i) => [`const ${aliases[i]}=`, name, ';'])),
+        names: aliases.map(alias => /** @type {const} */ ([null, alias])),
+    }
+    return okThen(
+        /** @type {(all: _Root) => Document} */
+        (all => mapOk(
+            /** @type {(st: _Statement) => List<string>} */
+            (st => flat([['{'], st.text, ['}']])),
+        )(scope(a, depth, aliases, start)(all))),
+    )(scopeOperands(a, b))
 }
 
 /**
@@ -446,7 +498,7 @@ const lambdaBody = (a, depth, frame) => b => okThen(
         : mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(a, depth, frame)(all))),
+        )(scope(a, depth, frame, nothing)(all))),
 )(scopeOperands(a, b))
 
 /**
@@ -479,13 +531,10 @@ const entry = (s, depth) => i => {
             const [, frame, body] = node
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
-                (names => okThen(
-                    /** @type {(text: List<string>) => Document} */
-                    (text => mapOk(
-                        /** @type {(_: null) => List<string>} */
-                        (() => flat([[`(...${parameter(depth + 1)})=>`], text])),
-                    )(firstUse(names, text))),
-                )(lambdaBody(s.a, depth + 1, names)(body))),
+                (names => mapOk(
+                    /** @type {(text: List<string>) => List<string>} */
+                    (text => flat([[`(...${parameter(depth + 1)})=>`], text])),
+                )(closureBody(s.a, depth + 1, names)(body))),
             )(frameNames(s)(frame))
         }
         case '-': {
@@ -632,15 +681,21 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
  * name the scope around it bound through its frame alone, `frame` naming
  * each slot.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[]) => (all: _Root) => Result<_Statement, string>}
+ * `start` is what the scope has written before them: nothing, or a body's
+ * aliases of its frame ({@link aliasedBody}).
+ *
+ * @type {(a: Analysis, depth: number, frame: readonly string[], start: _Statement) => (all: _Root) => Result<_Statement, string>}
  */
-const scope = (a, depth, frame) => all => {
+const scope = (a, depth, frame, start) => all => {
     /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
     const step = (acc, v, i) => acc[0] === 'error'
         ? acc
         : statement(a, depth, frame, i === all.length - 1)(acc[1], v)
-    return all.reduce(step, ok({ text: null, names: [] }))
+    return all.reduce(step, ok(start))
 }
+
+/** A scope that has written nothing yet. @type {_Statement} */
+const nothing = { text: null, names: [] }
 
 /**
  * The operands a scope's statements are written from: a comma is the source
@@ -677,7 +732,7 @@ export const trySerialize = e => {
         (all => mapOk(
             /** @type {(s: _Statement) => List<string>} */
             (s => s.text),
-        )(scope(a, 0, [])(all))),
+        )(scope(a, 0, [], nothing)(all))),
     )(scopeOperands(a, a.root))
 }
 
