@@ -112,5 +112,22 @@ export const proof = {
         parenthesisInATarget: () => assert(!accepts(`[x](a(b)c)`)),
         // What a released entry actually carries still reads.
         anOrdinaryLink: () => assert(accepts(`[#1421](https://example.com/pull/1421)`)),
+        /**
+         * **A space beside an asterisk is not emphasis.** CommonMark reads
+         * `a * b * c` as the three words and two asterisks they are, and a
+         * body admitting the spaces would make an `em` span out of prose —
+         * formatting invented rather than read.
+         */
+        spaceFlankedAsterisks: () => assert(!accepts(`a * b * c`)),
+        paddedEm: () => assert(!accepts(`* a *`)),
+        // A code span loses one leading and trailing space to CommonMark,
+        // so keeping them answers with different content.
+        paddedCode: () => assert(!accepts(`${tick} code ${tick}`)),
+        // The title form: CommonMark ends the destination at the space and
+        // reads the rest as the link title, so admitting it links elsewhere.
+        linkTitle: () => assert(!accepts(`[x](https://example.com "t")`)),
+        // What a released entry carries still reads.
+        interiorSpaceInEmphasis: () => assert(accepts(`*type parameter*`)),
+        interiorSpaceInCode: () => assert(accepts(`${tick}nix develop ./nix${tick}`)),
     },
 }

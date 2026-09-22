@@ -54,6 +54,29 @@ const any = range(` ${unicodeMax}`)
  */
 const opening = '`*['
 
+/**
+ * A body that neither begins nor ends with a space: runs of ordinary
+ * symbols separated by runs of spaces.
+ *
+ * **Padding is refused, for two readings it would otherwise invent.**
+ * CommonMark does not read an asterisk with a space beside it as emphasis
+ * at all — GitHub leaves `a * b * c` as the three words and two asterisks
+ * they are, where a body admitting the spaces makes an `em` span out of
+ * prose. And a code span's one leading and trailing space is stripped, so
+ * `` code `` reads as `code` there and would read as ` code ` here.
+ * Neither is a rendering that merely looks different; both are a different
+ * document.
+ *
+ * It also refuses an empty body, which is what a longer delimiter looks
+ * like one symbol at a time.
+ *
+ * @type {(openers: string) => Rule}
+ */
+const unpadded = openers => {
+    const inner = repeatFrom1(remove(any, set(`${openers} `)))
+    return [inner, repeatFrom0([repeatFrom1(' '), inner])]
+}
+
 /** A run of plain text: at least one symbol that opens no span. */
 export const text = repeatFrom1(remove(any, set(opening)))
 
@@ -70,7 +93,7 @@ export const text = repeatFrom1(remove(any, set(opening)))
  * nothing on its own, so refusing it is what stops the longer delimiter
  * being misread.
  */
-export const code = /**@type {const}*/(['`', repeatFrom1(remove(any, set('`'))), '`'])
+export const code = /**@type {const}*/(['`', unpadded('`'), '`'])
 
 /**
  * A body of emphasis: text with none of the symbols that open a span.
@@ -87,7 +110,7 @@ export const code = /**@type {const}*/(['`', repeatFrom1(remove(any, set('`'))),
  * holds a backtick or a bracket. Supporting the nesting CommonMark defines
  * is `todo/commonmark-constructs.md`.
  */
-const emphasised = repeatFrom1(remove(any, set('*`[')))
+const emphasised = unpadded('*`[')
 
 /**
  * Bold or emphasis, **factored through the asterisk they share**. Written as
@@ -118,10 +141,16 @@ export const emphasis = /**@type {const}*/(['*', {
  * parentheses, so GitHub reads `[x](a(b)c)` as a link to `a(b)c`, while
  * stopping at the first `)` gives a link to `a(b)` — not a stray rendering
  * but the wrong address, and nothing on the page would say so.
+ *
+ * **A space in the target is refused for the same reason.** CommonMark
+ * ends an unbracketed destination at the first space and reads what
+ * follows as the link's title, so `[x](u "t")` links to `u` there and
+ * would link to `u "t"` here — the wrong address again, and the form a
+ * writer reaches for when captioning a link.
  */
 export const link = /**@type {const}*/([
     '[', repeatFrom1(remove(any, set('][*`'))),
-    '](', repeatFrom1(remove(any, set(')('))), ')',
+    '](', repeatFrom1(remove(any, set(')( '))), ')',
 ])
 
 /**

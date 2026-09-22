@@ -133,18 +133,58 @@ export const entryTexts = text => {
     const lines = text.split('\n')
     /** @type {readonly string[]} */
     let out = []
+    let blankSeen = false
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
-        if (line.startsWith('- ')) {
-            out = [...out, line.slice(2)]
-        } else if (line.startsWith('  ') && line.trim() !== '' && out.length !== 0) {
-            out = [...out.slice(0, -1), `${out[out.length - 1]} ${line.trim()}`]
-        } else if (line.trim() !== '') {
-            return error(`line ${i + 1}: neither an entry nor a continuation of one`)
+        const refuse = /** @type {(why: string) => Result<readonly string[], string>} */(
+            why => error(`line ${i + 1}: ${why}`))
+        if (line.trim() === '') { blankSeen = true }
+        else if (blankSeen) {
+            // A blank line between two lines with words on them is a
+            // paragraph break, which an entry has no room for: CommonMark
+            // reads two paragraphs in one item, and joining them across the
+            // break would answer with one. Only the trailing newline every
+            // released file ends with is a blank this reads.
+            return refuse('a blank line inside an entry')
         }
+        else if (line.startsWith('- ')) { out = [...out, line.slice(2)] }
+        else if (line.startsWith('  ') && out.length !== 0) {
+            const content = line.trim()
+            // An indented marker opens a nested list, which CommonMark
+            // reads as a list inside the item and `Entry` cannot hold.
+            // Joining it would make one line of prose out of two items.
+            if (content.startsWith('- ') || content.startsWith('* ') || content.startsWith('+ ')) {
+                return refuse('a nested list item')
+            }
+            out = [...out.slice(0, -1), `${out[out.length - 1]} ${content}`]
+        }
+        else { return refuse('neither an entry nor a continuation of one') }
     }
     return ok(out)
 }
+
+/**
+ * Whether an exclamation mark ends a text span that a link follows, which
+ * is an image written in the one way the grammar cannot see.
+ *
+ * **The grammar reads `!` as ordinary text**, and correctly: an entry ending
+ * "and it throws!" is prose. It is only an image when a link follows it
+ * immediately, and a rule cannot look that far ahead with the one symbol
+ * the backend has. So it is asked here, after recognition, in the place
+ * DataJS's own reader asks what its grammar could not
+ * ([`ebnf/lib/datajs`](../../ebnf/lib/datajs/module.f.mjs)).
+ *
+ * CommonMark reads `![alt](u)` as an image; recognised a span at a time it is
+ * a `!` and a link, which is a different document rather than a different
+ * rendering of one.
+ *
+ * @type {(entry: Entry) => boolean}
+ */
+const hasImage = entry => entry.some((span, i) => {
+    const next = entry[i + 1]
+    return span[0] === 'text' && span[1].endsWith('!')
+        && next !== undefined && next[0] === 'link'
+})
 
 /**
  * One entry's joined text as its spans, or the position it stopped at.
@@ -153,9 +193,9 @@ export const entryTexts = text => {
  */
 export const tryParseEntry = text => {
     const match = parseEntry(units(text))
-    return match[0] === 'error'
-        ? error(`entry: unexpected symbol at ${match[1]}`)
-        : ok(entryOf(arr(arr(match[1])[0])[0]))
+    if (match[0] === 'error') { return error(`entry: unexpected symbol at ${match[1]}`) }
+    const entry = entryOf(arr(arr(match[1])[0])[0])
+    return hasImage(entry) ? error('an image, which an entry does not hold') : ok(entry)
 }
 
 /**

@@ -42,6 +42,13 @@ export const proof = {
             // A continuation before any entry has words and nothing to
             // attach them to.
             orphanContinuation: () => assertEq(entryTexts('  orphan\n- a\n')[0], 'error'),
+            // An indented marker opens a nested list, which CommonMark
+            // reads as a list inside the item and `Entry` cannot hold.
+            nestedListItem: () => assertEq(entryTexts('- parent\n  - child\n')[0], 'error'),
+            nestedWithAStar: () => assertEq(entryTexts('- parent\n  * child\n')[0], 'error'),
+            // A blank line between two lines with words on them is a
+            // paragraph break, which an entry has no room for.
+            interiorBlank: () => assertEq(entryTexts('- first\n\n  second\n')[0], 'error'),
             saysWhichLine: () => assertEq(entryTexts('- a\nb\n')[1], 'line 2: neither an entry nor a continuation of one'),
         },
     },
@@ -150,6 +157,19 @@ export const proof = {
             assertEq(/** @type {string} */(r[1]).startsWith('line 2:'), true)
         },
         entry: () => assertEq(tryParseEntry(`${tick}unclosed`)[0], 'error'),
+        /**
+         * **An image is refused after recognition, not by a rule.** The
+         * grammar reads `!` as ordinary text, and correctly — an entry
+         * ending "it throws!" is prose. It is an image only when a link
+         * follows immediately, which one symbol of lookahead cannot see.
+         */
+        image: () => assertEq(tryParseEntry('![alt](https://example.com/i.png)')[0], 'error'),
+        imageInsideAnEntry: () => assertEq(
+            tryParseEntry('a ![x](https://example.com/y.png) b')[0], 'error'),
+        // Prose ending in an exclamation mark is prose.
+        exclamationIsText: () => assertEq(tryParseEntry('and it throws!')[0], 'ok'),
+        exclamationBeforeALink: () => assertEq(
+            tryParseEntry('done! [#1](https://example.com/pull/1)')[0], 'ok'),
         document: () => {
             const r = tryParse(`- fine\n- ${tick}unclosed\n`)
             assertEq(r[0], 'error')

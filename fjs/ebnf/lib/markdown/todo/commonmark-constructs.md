@@ -13,23 +13,41 @@ whole one: a release author who writes what every other Markdown tool
 accepts is told no, and the reason is this parser rather than anything about
 the entry.
 
-Four constructs, each checked against GitHub's own renderer:
+Ten constructs so far, each checked against GitHub's own renderer rather
+than argued from the spec:
 
-| written | GitHub reads | this grammar |
+| written | GitHub reads | this subset |
 | --- | --- | --- |
 | `**see [details](u)**` | bold around a link | refused |
-| ```x``` | one code span holding `x` | refused |
 | `[**details**](u)` | a link whose words are bold | refused |
+| a two-backtick code span | one code span holding `x` | refused |
+| a code span padded with spaces | `code` — one stripped each side | refused |
+| `a * b * c` | three words and two asterisks | refused |
 | `[x](a(b)c)` | a link to `a(b)c` | refused |
+| `[x](u "t")` | a link to `u`, titled `t` | refused |
+| `![alt](u)` | an image | refused |
+| a nested list marker | a list inside the item | refused |
+| a blank line inside an item | two paragraphs | refused |
 
-The last one is the one that would have bitten hardest if it were read as
-text rather than refused: stopping the target at the first `)` gives a link
-to `a(b)`, which is not a stray rendering but the **wrong address**, with
-nothing on the page to say so.
+**The list is open, and that is the shape of the problem rather than an
+accident of how far review has got.** CommonMark defines far more than this
+subset reads — autolinks, entity references, hard line breaks, backslash
+escapes, raw HTML, setext headings — and each one found is another entry
+here. The refusals are cheap and correct one at a time; what they do not do
+is bound the set. Deciding that the changelog is read by a conformant reader,
+rather than by a grammar for the subset its entries have used, is the
+alternative this file does not take, and the one to weigh if the list keeps
+growing.
 
-None of the four appears in the tree: of its 346 emphasised spans none holds
-a backtick or bracket, and no entry holds two adjacent backticks, a label
-with a span opener, or a target with a parenthesis.
+Two of the ten would have produced the **wrong address** rather than a
+different rendering: a destination stopped at the first `)`, and one that
+swallowed a title. Those are the reason the refusals are worth their cost.
+
+None of the ten appears in the tree. Measured by parsing rather than by
+pattern: of its 346 emphasised spans, none is padded and none holds a
+backtick or bracket; no code span is padded; no entry holds two adjacent
+backticks, a label with a span opener, a target with a parenthesis or a
+space, an image, a nested marker, or a blank line inside it.
 
 ### Proposal
 
@@ -48,7 +66,14 @@ Take them in the order that a writer is likely to want them.
   `[x](<a(b)c>)`, which needs no counting.
 - **A backtick run as a delimiter.** Open with a run, close with a run of
   the same length. The length is not a fixed number, so this is the same
-  shape of problem as the destination, and the same answer applies.
+  shape of problem as the destination, and the same answer applies. A code
+  span's padding is stripped in the same pass.
+- **Delimiter flanking**, which decides whether an asterisk opens emphasis
+  at all. The refusal here is the blunt half of CommonMark's rule — no
+  space beside the delimiter — and the rule itself looks at what is on
+  both sides. It belongs with the nesting work rather than before it.
+- **Images and link titles**, if a release note is ever to carry either.
+  Neither is asked for by `changelog/README.md`, so this is last.
 
 Emphasis inside emphasis is out of scope for all of it: CommonMark allows
 it, no entry has used it, and it is what makes the rule recursive rather
