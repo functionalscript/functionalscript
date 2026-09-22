@@ -56,7 +56,6 @@ const any = range(` ${unicodeMax}`)
  * punctuation mark in CommonMark, so `\\*a\\*` is the literal `*a*` there
  * and would be emphasis here. Nothing in this subset reads it, so it is
  * refused rather than read as the character it is not.
- * here.
  */
 const opening = '`*[\\'
 
@@ -162,10 +161,17 @@ export const emphasis = /**@type {const}*/(['*', {
  * parenthesis and the space are refused for. The label refuses one too,
  * and so does a text run, where `\\*a\\*` would otherwise become emphasis
  * the source does not have.
+ *
+ * **A target that opens with `<` is refused.** CommonMark reads
+ * `[x](<u>)` as a link to `u`, the angle brackets delimiting the
+ * destination rather than belonging to it, and read here they would be
+ * part of the address — the wrong address once more. Only the first symbol
+ * decides that form, so a `<` later in a target is the character it looks
+ * like to both readers and stays admitted.
  */
 export const link = /**@type {const}*/([
     '[', repeatFrom1(remove(any, set('][*`\\'))),
-    '](', repeatFrom1(remove(any, set(')( \\'))), ')',
+    '](', remove(any, set(')( \\<')), repeatFrom0(remove(any, set(')( \\'))), ')',
 ])
 
 /**

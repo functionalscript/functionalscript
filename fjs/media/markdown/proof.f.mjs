@@ -33,6 +33,9 @@ export const proof = {
         // `changelog/0.44.0.md` has one, and keeping it gave that entry a
         // leading empty-looking `text` span that CommonMark strips.
         twoSpacesAfterTheDash: () => assertStructurallySame(unwrap(entryTexts('-  a\n')), ['a']),
+        // Four spaces after the dash is still indentation, the most
+        // CommonMark allows before the text.
+        fourSpacesAfterTheDash: () => assertStructurallySame(unwrap(entryTexts('-    a\n')), ['a']),
         // A carriage return is a line ending, not content. A file written
         // on Windows carries one at every break.
         crlf: () => assertStructurallySame(unwrap(entryTexts('- a\r\n  b\r\n')), ['a b']),
@@ -53,6 +56,9 @@ export const proof = {
             // An indented marker opens a nested list, which CommonMark
             // reads as a list inside the item and `Entry` cannot hold.
             nestedListItem: () => assertEq(entryTexts('- parent\n  - child\n')[0], 'error'),
+            // Five spaces after the dash make the text an indented code
+            // block inside the item, which `Entry` cannot hold.
+            indentedCodeAfterTheMarker: () => assertEq(entryTexts('-     code\n')[0], 'error'),
             nestedWithAStar: () => assertEq(entryTexts('- parent\n  * child\n')[0], 'error'),
             // A blank line between two lines with words on them is a
             // paragraph break, which an entry has no room for.
@@ -82,6 +88,10 @@ export const proof = {
         strong: () => assertStructurallySame(spans('**a**'), [['strong', 'a']]),
         em: () => assertStructurallySame(spans('*a*'), [['em', 'a']]),
         link: () => assertStructurallySame(spans('[a](b)'), [['link', 'a', 'b']]),
+        // A target is folded from two parts; the address is both, whole.
+        linkTarget: () => assertStructurallySame(
+            spans('[#1](https://example.com/p<1>)'), [['link', '#1', 'https://example.com/p<1>']]),
+        angleBracketedTarget: () => assertEq(tryParseEntry('[x](<https://example.com>)')[0], 'error'),
         // Runs of text and spans alternate, and an absent run contributes
         // nothing rather than an empty `text`.
         alternating: () => assertStructurallySame(

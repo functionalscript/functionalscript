@@ -13,7 +13,7 @@ whole one: a release author who writes what every other Markdown tool
 accepts is told no, and the reason is this parser rather than anything about
 the entry.
 
-Ten constructs so far, each checked against GitHub's own renderer rather
+Twelve constructs so far, each checked against GitHub's own renderer rather
 than argued from the spec:
 
 | written | GitHub reads | this subset |
@@ -25,9 +25,11 @@ than argued from the spec:
 | `a * b * c` | three words and two asterisks | refused |
 | `[x](a(b)c)` | a link to `a(b)c` | refused |
 | `[x](u "t")` | a link to `u`, titled `t` | refused |
+| `[x](<u>)` | a link to `u` | refused |
 | `![alt](u)` | an image | refused |
 | a nested list marker | a list inside the item | refused |
 | a blank line inside an item | two paragraphs | refused |
+| `-     code`, five spaces after the dash | an indented code block in the item | refused |
 
 ### What is accepted and still read differently
 
@@ -67,15 +69,16 @@ is read by a conformant reader rather than by a grammar for the subset its
 entries have happened to use. That is a larger question than any row here,
 and the one to weigh if the list keeps growing.
 
-Two of the ten would have produced the **wrong address** rather than a
-different rendering: a destination stopped at the first `)`, and one that
-swallowed a title. Those are the reason the refusals are worth their cost.
+Three of the twelve would have produced the **wrong address** rather than a
+different rendering: a destination stopped at the first `)`, one that
+swallowed a title, and one that kept its angle brackets. Those are the reason the refusals are worth their cost.
 
 None of the refusals appears in the tree. Measured by parsing rather than by
 pattern: of its 346 emphasised spans, none is padded and none holds a
 backtick or bracket; no code span is padded; no entry holds two adjacent
 backticks, a label with a span opener, a target with a parenthesis or a
-space, an image, a nested marker, or a blank line inside it.
+space or opening with `<`, an image, a nested marker, a code block opening
+it, or a blank line inside it.
 
 ### Proposal
 

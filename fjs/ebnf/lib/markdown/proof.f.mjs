@@ -136,6 +136,11 @@ export const proof = {
         backslashInATarget: () => assert(!accepts(`[x](a\\)b)`)),
         backslashInText: () => assert(!accepts(`\\*a\\*`)),
         backslashInALabel: () => assert(!accepts(`[a\\]b](u)`)),
+        // The angle-bracket form: CommonMark links to what is between the
+        // brackets, so admitting them as target text links elsewhere.
+        angleBracketedTarget: () => assert(!accepts(`[x](<https://example.com>)`)),
+        // Only the first symbol opens that form; a later `<` is itself.
+        angleBracketLaterInATarget: () => assert(accepts(`[x](a<b)`)),
         // What a released entry carries still reads.
         interiorSpaceInEmphasis: () => assert(accepts(`*type parameter*`)),
         interiorSpaceInCode: () => assert(accepts(`${tick}nix develop ./nix${tick}`)),

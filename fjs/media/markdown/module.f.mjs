@@ -72,7 +72,7 @@ const arr = node => unmapped(/** @type {readonly unknown[]} */(node))
  * One delimited span, by the branch the grammar took. Each case indexes the
  * rule's own tuple: `code` is the body between its backticks, `strong` the
  * body after the two asterisks it opens with, `em` the body before the one
- * it closes with, and a `link` its text and its target.
+ * it closes with, and a `link` its text and the two parts of its target.
  *
  * @type {(node: unknown) => Inline}
  */
@@ -81,7 +81,9 @@ const spanOf = node => {
     if (tag === 'code') { return ['code', lexeme(arr(body)[1])] }
     if (tag === 'link') {
         const l = arr(body)
-        return ['link', lexeme(l[1]), lexeme(l[3])]
+        // A target is its first symbol, which may not open the angle-bracket
+        // form, then the rest of it.
+        return ['link', lexeme(l[1]), lexeme([l[3], l[4]])]
     }
     const [kind, inner] = arr(arr(body)[1])
     return kind === 'strong'
@@ -160,7 +162,15 @@ export const entryTexts = text => {
             // `changelog/0.44.0.md` has one, and keeping it gave that entry
             // a leading `['text', ' ']` span that CommonMark strips and no
             // reader of the page could see.
-            out = [...out, line.slice(2).trimStart()]
+            const content = line.slice(2)
+            // Four more spaces make the rest an indented code block inside
+            // the item — CommonMark allows at most four between the marker
+            // and the text — and `Entry` has no room for a block of code.
+            // Trimming them would answer with prose where GitHub shows code.
+            if (content.startsWith('    ') && content.trim() !== '') {
+                return refuse('an indented code block opening an entry')
+            }
+            out = [...out, content.trimStart()]
         }
         else if (line.startsWith('  ') && out.length !== 0) {
             const content = line.trim()
