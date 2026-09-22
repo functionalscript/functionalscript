@@ -63,11 +63,18 @@ export type ParseError = {
  * A binary operator is `[tag, left, right]`, its tag the token itself —
  * Stage A of
  * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
- * arithmetic, strict comparison, and bitwise. `-` alone is both a prefix
- * and an infix, told apart by arity exactly as `~`'s prefix and every
- * infix are told apart from each other, by tag; `**` is right-associative,
- * folded by the grammar rather than by this tree, so `2 ** 3 ** 2` is
- * already `['**', 2, ['**', 3, 2]]` here.
+ * arithmetic, strict comparison, and bitwise — and Stage B's lazy `&&`,
+ * `||` and `??` the same shape, laziness being no shape difference here
+ * any more than in the EDAG. `-` alone is both a prefix and an infix, told
+ * apart by arity exactly as `~`'s prefix and every infix are told apart
+ * from each other, by tag; `**` is right-associative, folded by the
+ * grammar rather than by this tree, so `2 ** 3 ** 2` is already
+ * `['**', 2, ['**', 3, 2]]` here.
+ *
+ * The conditional is `['?:', condition, then, else]`, the one node of
+ * three operands: always three, nothing else carrying its tag at another
+ * arity, so no length decides it as `-`'s does. Nested conditionals
+ * associate to the right, folded by the grammar as `**` is.
  */
 export type Node =
     | readonly ['primitive', Primitive]
@@ -77,6 +84,7 @@ export type Node =
     | readonly ['-', Node]
     | readonly ['~', Node]
     | readonly [BinaryTag, Node, Node]
+    | readonly ['?:', Node, Node, Node]
     | readonly ['=>', DjsTokenWithMetadata | null, Node]
     | Block
     | Container

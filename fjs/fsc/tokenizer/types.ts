@@ -30,7 +30,10 @@ import type {
  * `+ * / % **`, `=== !== > >= < <=`, `& | ^ ~ << >> >>>` — Stage A of
  * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
  * every one of them arithmetic, strict comparison, or bitwise, each already
- * a kind of its own on `JsToken`, so the DJS layer only has to admit it.
+ * a kind of its own on `JsToken`, so the DJS layer only has to admit it —
+ * and `&& || ??` with `?`, the lazy operators and the conditional's own
+ * token, Stage B of the same; `:` the conditional shares with a member.
+ * `?.` stays refused: optional chaining is not this language's yet.
  */
 export type DjsToken = |
   {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity'} |
@@ -38,6 +41,7 @@ export type DjsToken = |
     | '+' | '*' | '/' | '%' | '**'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '&' | '|' | '^' | '~' | '<<' | '>>' | '>>>'
+    | '&&' | '||' | '??' | '?'
   } |
   StringToken |
   NumberToken |

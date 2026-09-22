@@ -17,8 +17,9 @@
  * `undefined`, `NaN`, `Infinity` — which stay reserved, since a key or the
  * name after `.` may be any word and the parser refuses a keyword where
  * JavaScript wants an identifier; and every operator but the four a
- * function is written with — `(`, `)`, `...`, `=>` — `-`, and Stage A's
- * arithmetic, strict-comparison and bitwise operators
+ * function is written with — `(`, `)`, `...`, `=>` — `-`, Stage A's
+ * arithmetic, strict-comparison and bitwise operators and Stage B's lazy
+ * ones with the conditional's `?`
  * ([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md))
  * is an error, since the language has no other.
  *
@@ -27,7 +28,7 @@
  * access and of the call, as JavaScript reads them, rather than an access
  * and a call on a negative literal — recognized is not accepted, and the
  * same is true of every operator token `fjs/js/tokenizer` already carries
- * that this layer does not admit, `&&`/`||`/`??`/`?:`/`,` and the rest of
+ * that this layer does not admit, `?.` and `,` and the rest of
  * `spec/todo/2340-operators.md`'s later stages among them.
  *
  * @module
@@ -67,6 +68,10 @@ const mapDjsToken = input => {
         case '<<':
         case '>>':
         case '>>>':
+        case '&&':
+        case '||':
+        case '??':
+        case '?':
         case 'id':
         case 'bigint':
         case '{':

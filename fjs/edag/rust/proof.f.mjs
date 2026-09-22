@@ -502,9 +502,46 @@ export const proof = {
         },
         refusedSharedOnlyThroughLazyOperands: () => {
             /** @type {Exp} */
-            const c = ['[]', []]
+            const c = ['[]', [1]]
             const result = scope(['?:', true, 1, ['[]', [c, c]]])
             assert(result[0] === 'error', result)
+        },
+        /**
+         * A shared atom reached only through lazy operands is not refused:
+         * binding it establishes nothing the program could skip, so the
+         * scope's block binds it before the root and every thunk clones
+         * it — `args`, the closure's parameter, which `(...a) => true ? a
+         * : a` reaches twice and only lazily, and an empty container the
+         * same. An atom that is itself the lazy operand is a thunk
+         * answering it, shared as the thunk where both positions take it.
+         * Sharing is by identity, as the lowering spells it — one `args`
+         * node per scope — so the one node stands in both positions here.
+         */
+        sharedAtomOnlyThroughLazyOperands: () => {
+            /** @type {Exp} */
+            const args = ['args']
+            assertStructurallySame(scoped(['?:', true, args, args]), [
+                'let c0 = || Ok(args.clone().to_any());',
+                'Any::conditional(true.to_any(), c0, c0)',
+            ])
+            assertStructurallySame(scoped(['?:', true, ['[]', [args]], ['[]', [args]]]), [
+                'let c0: Any<A> = args.clone().to_any();',
+                'let c1 = || Ok([c0.clone()].to_array().to_any());',
+                'let c2 = || Ok([c0.clone()].to_array().to_any());',
+                'Any::conditional(true.to_any(), c1, c2)',
+            ])
+            assertStructurallySame(scoped(['||', ['&&', true, args], args]), [
+                'let c0 = || Ok(args.clone().to_any());',
+                'let c1: Any<A> = (Any::logical_and(true.to_any(), c0))?;',
+                'Any::logical_or(c1, c0)',
+            ])
+            /** @type {Exp} */
+            const c = ['[]', []]
+            assertStructurallySame(scoped(['?:', true, 1, ['[]', [c, c]]]), [
+                'let c0: Any<A> = Array::default().to_any();',
+                'let c1 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
+                'Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), c1)',
+            ])
         },
         /**
          * A lazy operation reached eagerly and lazily — `const x = 1n ||
@@ -844,14 +881,22 @@ export const proof = {
         /**
          * A node shared but reached only through a chain's lazy positions
          * has no block that may bind it — the same refusal a node reached
-         * only through lazy operands gets — where one reached eagerly as
-         * well is a temporary of the scope, and the thunk answers its name.
+         * only through lazy operands gets, an atom excepted as there —
+         * where one reached eagerly as well is a temporary of the scope,
+         * and the thunk answers its name.
          */
         sharing: () => {
             /** @type {Exp} */
-            const c = ['[]', []]
-            const result = scope(['?.()', ['undefined'], ['[]', [c, c]]])
+            const one = ['[]', [1]]
+            const result = scope(['?.()', ['undefined'], ['[]', [one, one]]])
             assert(result[0] === 'error', result)
+            /** @type {Exp} */
+            const c = ['[]', []]
+            assertStructurallySame(scoped(['?.()', ['undefined'], ['[]', [c, c]]]), [
+                'let c0: Any<A> = Array::default().to_any();',
+                'let c1 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
+                'Any::option_call(Nullish::Undefined.to_any(), c1).end()',
+            ])
             assertStructurallySame(
                 scoped(['[]', [c, ['?.()', ['undefined'], c]]]),
                 [

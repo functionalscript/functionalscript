@@ -24,11 +24,19 @@
  * group  ::= value ')' t access* powTail
  * groupOperand ::= value ')' t access*
  * powTail ::= [ '**' t unary ]
- * tail   ::= { mulOp t unary }
+ * eagerTail ::= { mulOp t unary }
  *            { addOp t unary <the multiplicative repeat above> }
  *            …six more layers, each repeating over every layer below it
  *            the same way — shift, relational, equality, bitwiseAnd,
  *            bitwiseXor, bitwiseOr, in that order, JavaScript's own
+ * logicalAndRound ::= '&&' t unary eagerTail
+ * logicalOrRound  ::= '||' t unary eagerTail { logicalAndRound }
+ * nullishRound    ::= '??' t unary eagerTail
+ * circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
+ *                 | logicalOrRound { logicalOrRound }
+ *                 | nullishRound { nullishRound } ]
+ * conditionalTail ::= [ '?' t value ':' t value ]
+ * tail   ::= eagerTail circuitTail conditionalTail
  * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
  * array  ::= '[' t [ items(value) ] ']' t
  * object ::= '{' t [ items(member) ] '}' t
@@ -48,7 +56,8 @@
  *
  * `tail`, the binary-operator suffix — Stage A of
  * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md)
- * — is spread inline onto every branch that may carry one, rather than
+ * and Stage B, the lazy operators and the conditional, above it — is
+ * spread inline onto every branch that may carry one, rather than
  * wrapping a shared primary the way a textbook precedence ladder would:
  * {@link func}'s body is unbounded, reading everything to its right as its
  * own, so wrapping it in anything a binary layer also wraps would leak
@@ -86,7 +95,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, Block, Body, ExportStatement, Func, Group, GroupOperand, Items, Member, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
+ * @import { Access, Block, Body, CircuitTail, ConditionalTail, EagerTail, ExportStatement, Func, Group, GroupOperand, Items, Member, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -114,6 +123,7 @@ export const _tokenKindNames = /** @type {const} */ ([
     '+', '*', '/', '%', '**',
     '===', '!==', '>', '>=', '<', '<=',
     '&', '|', '^', '~', '<<', '>>', '>>>',
+    '&&', '||', '??', '?',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -332,8 +342,26 @@ const bitwiseAndOp = /** @type {const} */ ({ and: sym('&') })
 /** `^` — above {@link bitwiseAndOp}. */
 const bitwiseXorOp = /** @type {const} */ ({ xor: sym('^') })
 
-/** `|` — above {@link bitwiseXorOp}, the ladder's own top. */
+/** `|` — above {@link bitwiseXorOp}, the eager ladder's own top. */
 const bitwiseOrOp = /** @type {const} */ ({ or: sym('|') })
+
+/**
+ * `&&`, `||`, `??` — the short-circuit level above {@link bitwiseOrOp},
+ * Stage B of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md).
+ * Each is a tagged choice of one branch, as every layer's operator is,
+ * because the reader in `../module.f.mjs` looks a round's operator up by
+ * that tag; three choices rather than one of three branches, since which
+ * of them opens a chain decides what may follow it — see
+ * {@link circuitTail}.
+ */
+const logicalAndOp = /** @type {const} */ ({ logicalAnd: sym('&&') })
+
+/** `||` — beside {@link logicalAndOp}, and above it in precedence. */
+const logicalOrOp = /** @type {const} */ ({ logicalOr: sym('||') })
+
+/** `??` — beside {@link logicalAndOp} and {@link logicalOrOp}, and mixing with neither. */
+const nullishOp = /** @type {const} */ ({ nullish: sym('??') })
 
 /**
  * A function's parameter list: the one rest parameter, `(...a)`, or
@@ -486,20 +514,83 @@ const bitwiseAndTail = repeatFrom0([bitwiseAndOp, trivia, unary, multiplicativeT
 /** `^` — above {@link bitwiseAndTail}. */
 const bitwiseXorTail = repeatFrom0([bitwiseXorOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail])
 
-/** `|` — above {@link bitwiseXorTail}, the ladder's own top. */
+/** `|` — above {@link bitwiseXorTail}, the eager ladder's own top. */
 const bitwiseOrTail = repeatFrom0([bitwiseOrOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail, bitwiseXorTail])
 
 /**
- * The whole binary-operator suffix, {@link multiplicativeTail} through
- * {@link bitwiseOrTail}, spread onto every branch of {@link value} and
- * {@link body} that may carry one.
+ * The eager binary-operator suffix, {@link multiplicativeTail} through
+ * {@link bitwiseOrTail}: every layer whose operands are all established,
+ * and so the first part of {@link tail}, and every lazy operator's own
+ * operand — `unary` followed by these eight lists, which is what a
+ * `bitwiseOr`-level expression is.
  *
- * @type {Tail}
+ * Exported for the reader in `../module.f.mjs`, which splits a value's
+ * whole {@link tail} at this list's length: the eager layers are one shape,
+ * a repeat of rounds each, and the two positions after them another.
+ *
+ * @type {EagerTail}
  */
-const tail = [
+export const eagerTail = [
     multiplicativeTail, additiveTail, shiftTail, relationalTail,
     equalityTail, bitwiseAndTail, bitwiseXorTail, bitwiseOrTail,
 ]
+
+/**
+ * One round of the `&&` layer: `&& t unary <every eager tail>`, the same
+ * shape as {@link bitwiseOrTail}'s round one layer up, so `a && b | c` is
+ * `a && (b | c)`.
+ */
+const logicalAndRound = /** @type {const} */ ([logicalAndOp, trivia, unary, ...eagerTail])
+
+/** The `&&` rounds after the first, `a && b && c` folding left as every layer does. */
+const logicalAndTail = repeatFrom0(logicalAndRound)
+
+/**
+ * One round of the `||` layer: its operand carries {@link logicalAndTail}
+ * as a layer's round carries every layer below it, so `a || b && c` is
+ * `a || (b && c)`.
+ */
+const logicalOrRound = /** @type {const} */ ([logicalOrOp, trivia, unary, ...eagerTail, logicalAndTail])
+
+/** The `||` rounds after the first. */
+const logicalOrTail = repeatFrom0(logicalOrRound)
+
+/** One round of the `??` layer: `?? t unary <every eager tail>`, an operand no `&&` or `||` may enter. */
+const nullishRound = /** @type {const} */ ([nullishOp, trivia, unary, ...eagerTail])
+
+/** The `??` rounds after the first. */
+const nullishTail = repeatFrom0(nullishRound)
+
+/**
+ * The short-circuit level, above {@link eagerTail}: nothing, or a chain the
+ * first operator commits — `&&` and `||` to the logical ladder, `&&` below
+ * `||` as in JavaScript, and `??` to a chain of its own.
+ *
+ * JavaScript keeps `??` apart from `&&`/`||` at one nesting — `a ?? b || c`
+ * and `a && b ?? c` are syntax errors, not precedence questions — by
+ * giving the two their own productions, `LogicalORExpression` beside
+ * `CoalesceExpression`. Spelled as that choice, the two alternatives both
+ * open with the same operand, a first/first conflict `fjs/ebnf/ll1`
+ * refuses before any input; so the operand is read once, as the branch's
+ * own, and the choice is made at the operator after it, one symbol wide.
+ * Once made, the branch's continuation has no round for the other chain's
+ * token, which is where `a ?? b || c` fails: at the `||`, refused by the
+ * grammar's shape and not by a check after it. Parentheses admit either
+ * mix, `(a ?? b) || c`, as they do in JavaScript.
+ *
+ * The three branches are each a round and the repeat lists after it —
+ * the `&&` branch's first round is a {@link logicalAndTail} round and the
+ * `||` branch's a {@link logicalOrTail} round — so the reader folds a
+ * branch as it folds a layer: the round onto the value before it, and the
+ * lists onto that.
+ *
+ * @type {CircuitTail}
+ */
+export const circuitTail = option({
+    logicalAnd: [logicalAndRound, logicalAndTail, logicalOrTail],
+    logicalOr: [logicalOrRound, logicalOrTail],
+    nullish: [nullishRound, nullishTail],
+})
 
 /**
  * A value: a primitive token, a reference, an array, an object, a `-`/`~`
@@ -513,12 +604,13 @@ const tail = [
  *
  * Any value takes accesses, as any expression does in JavaScript:
  * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
- * space since `1.x` is one number and a stray word in JavaScript. Stage A
- * of [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
+ * space since `1.x` is one number and a stray word in JavaScript. Stages A
+ * and B of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
  * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
- * (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`). `==`/`!=` stay
- * refused, and the lazy (`&& || ?? ?:`) and comma stages wait on `tail`'s
- * current top, `bitwiseOr`.
+ * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
+ * (`&& || ??`) and the conditional (`?:`). `==`/`!=` stay refused, and the
+ * comma stage waits on `tail`'s current top, the conditional.
  *
  * @type {Value}
  */
@@ -558,6 +650,43 @@ export const body = () => ['const', {
     paren,
     block,
 }]
+
+/**
+ * The conditional, above {@link circuitTail} and the top of {@link tail}:
+ * nothing, or `? t value : t value`, each arm a whole {@link value} —
+ * JavaScript's arms are `AssignmentExpression`s, and this language, having
+ * no assignment, takes the ladder's own top as the nearest — so an arm may
+ * be a function, a further conditional or anything else a value is, and
+ * nested conditionals associate to the right through the arms' own
+ * recursion, `a ? b : c ? d : e` being `a ? b : (c ? d : e)`, with no
+ * repeat construct.
+ *
+ * `?` is a token of its own beside `??` and `?.`, so the choice stays one
+ * symbol wide, and `:` follows a value here as it precedes one in a
+ * member — so it follows a function's body too, an arm being a value, and
+ * `fjs/ebnf/ll1` finds no conflict in that: nothing a body may continue
+ * with begins with `:`, so `a ? () => 1 : 2` is the function and then the
+ * else arm, as JavaScript reads it, the body ending where `:` cannot
+ * continue it.
+ *
+ * Declared after {@link value} and {@link body}, which name it through
+ * {@link tail}: an arm names the `value` binding directly, so the binding
+ * has to exist here, where the two rules reach `tail` only when called,
+ * after every rule in this module is bound.
+ *
+ * @type {ConditionalTail}
+ */
+export const conditionalTail = option([sym('?'), trivia, value, sym(':'), trivia, value])
+
+/**
+ * The whole operator suffix, {@link eagerTail} and then the two lazy
+ * positions above it, {@link circuitTail} and {@link conditionalTail},
+ * spread onto every branch of {@link value} and {@link body} that may
+ * carry one.
+ *
+ * @type {Tail}
+ */
+const tail = [...eagerTail, circuitTail, conditionalTail]
 
 /**
  * A function after its `(`: its parameter list, the `)`, then `=>` on the

@@ -345,6 +345,38 @@ export const proof = {
             assertEq(parseFromTokens(tokens)[0], 'ok')
         },
     ],
+    // A chain of lazy operators, or of conditionals, as deep as the source
+    // that built it, at the bar `containerStackCost` sets: a lazy chain
+    // folds left through the same reader as an eager one, and a conditional
+    // nests to the right through its arms — each arm a value already mapped
+    // by the time the conditional's own mapping runs, so the reader never
+    // recurses, and the resolution walks the three operands over its own
+    // explicit stack. Neither shape is bounded by what a human writes: the
+    // eager ladder's own overflow was found at this depth, not reasoned away.
+    lazyStackCost: [
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(`export default 1${' && 1'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(`export default 1${' || 1 && 1'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString(`export default 1${' ?? 1'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            // nested to the right through the else arm
+            const [tag] = parseFromTokens(tokenizeString(`export default ${'1 ? 2 : '.repeat(20000)}3;`))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            // and through the then arm, whose `:` closes each in turn
+            const [tag] = parseFromTokens(tokenizeString(`export default ${'1 ? '.repeat(20000)}2${' : 3'.repeat(20000)};`))
+            assert(tag === 'ok', tag)
+        },
+    ],
     // A syntax error is reported ahead of a semantic one, wherever each sits.
     //
     // The grammar matches the whole module before the fold runs, so a malformed
@@ -718,6 +750,117 @@ export const proof = {
             // a name bound outside a function's body is a capture through
             // an operator exactly as it is bare
             expect('const c = 1; export default (...a) => c + a[0];', 'capture not supported', 39)
+        },
+        // Stage B: the lazy operators, `[tag, left, right]` exactly as the
+        // eager ones are — laziness is no shape difference here — above
+        // `bitwiseOr`, `&&` below `||`, and `??` a chain of its own that
+        // mixes with neither, refused at the operator that would mix them.
+        lazy: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('export default 1 && 2;', '[[],[["object",[["default",["&&",1,2]]]]]]')
+            expect('export default 1 || 2;', '[[],[["object",[["default",["||",1,2]]]]]]')
+            expect('export default 1 ?? 2;', '[[],[["object",[["default",["??",1,2]]]]]]')
+            // left-associative, each of them
+            expect('export default 1 && 2 && 3;', '[[],[["object",[["default",["&&",["&&",1,2],3]]]]]]')
+            expect('export default 1 || 2 || 3;', '[[],[["object",[["default",["||",["||",1,2],3]]]]]]')
+            expect('export default 1 ?? 2 ?? 3;', '[[],[["object",[["default",["??",["??",1,2],3]]]]]]')
+            // `&&` binds tighter than `||`, whichever opens the chain
+            expect('export default 1 || 2 && 3;', '[[],[["object",[["default",["||",1,["&&",2,3]]]]]]]')
+            expect('export default 1 && 2 || 3;', '[[],[["object",[["default",["||",["&&",1,2],3]]]]]]')
+            expect('export default 1 && 2 || 3 && 4 || 5;', '[[],[["object",[["default",["||",["||",["&&",1,2],["&&",3,4]],5]]]]]]')
+            expect('export default 1 || 2 && 3 && 4 || 5 && 6;', '[[],[["object",[["default",["||",["||",1,["&&",["&&",2,3],4]],["&&",5,6]]]]]]]')
+            // and every eager operator binds tighter than any of them
+            expect('export default 1 | 2 && 3 + 4;', '[[],[["object",[["default",["&&",["|",1,2],["+",3,4]]]]]]]')
+            expect('export default 1 === 2 ?? 3 ** 4;', '[[],[["object",[["default",["??",["===",1,2],["**",3,4]]]]]]]')
+            expect('export default -1 || ~2;', '[[],[["object",[["default",["||",["-",1],["~",2]]]]]]]')
+            // a group is an operand, and mixes what the bare chain may not
+            expect('export default (1 ?? 2) || 3;', '[[],[["object",[["default",["||",["??",1,2],3]]]]]]')
+            expect('export default 1 ?? (2 || 3);', '[[],[["object",[["default",["??",1,["||",2,3]]]]]]]')
+            expect('export default (1 && 2).x;', '[[],[["object",[["default",[".",["&&",1,2],"x"]]]]]]')
+            // a function's body is its own operand, the whole chain
+            expect('export default (...a) => a && 1 || 2;', '[[],[["object",[["default",["=>",[["||",["&&",["args"],1],2]]]]]]]]')
+            expect('export default 1 && ((...a) => 2);', '[[],[["object",[["default",["&&",1,["=>",[2]]]]]]]]')
+        },
+        lazyRefused: () => {
+            /** @type {(source: string, column: number) => void} */
+            const expect = (source, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, 'unexpected token')
+                assertEq(value.metadata?.column, column)
+            }
+            // `??` beside `&&`/`||` at one nesting is a syntax error in
+            // JavaScript, not a precedence question, and the grammar's
+            // shape refuses it at the second operator: a chain committed to
+            // one has no round for the other
+            expect('export default 1 ?? 2 || 3;', 23)
+            expect('export default 1 ?? 2 && 3;', 23)
+            expect('export default 1 && 2 ?? 3;', 23)
+            expect('export default 1 || 2 ?? 3;', 23)
+            expect('export default 1 || 2 && 3 ?? 4;', 28)
+            // a function is no operand of a lazy operator unparenthesized,
+            // as of no eager one
+            expect('export default 1 && (...a) => 2;', 22)
+            // `?.` is optional chaining, a token the language has no rule
+            // for: refused at the token, which the tokenizer marks
+            expect('export default 1?.x;', 17)
+        },
+        // The conditional, `['?:', condition, then, else]` — the one node
+        // of three operands, above the short-circuit level, its arms whole
+        // values, so a nested conditional associates to the right.
+        conditional: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('export default 1 ? 2 : 3;', '[[],[["object",[["default",["?:",1,2,3]]]]]]')
+            expect('export default 1?2:3;', '[[],[["object",[["default",["?:",1,2,3]]]]]]')
+            expect('export default 1 ? 2 : 3 ? 4 : 5;', '[[],[["object",[["default",["?:",1,2,["?:",3,4,5]]]]]]]')
+            expect('export default 1 ? 2 ? 3 : 4 : 5;', '[[],[["object",[["default",["?:",1,["?:",2,3,4],5]]]]]]')
+            // the condition is the whole short-circuit chain, and each arm
+            // takes one of its own
+            expect('export default 1 && 2 ? 3 || 4 : 5 ?? 6;', '[[],[["object",[["default",["?:",["&&",1,2],["||",3,4],["??",5,6]]]]]]]')
+            expect('export default 1 + 2 ? 3 : 4;', '[[],[["object",[["default",["?:",["+",1,2],3,4]]]]]]')
+            // an arm may be a function, its body ending where `:` cannot
+            // continue it — `1 ? () => 2 : 3` is the function and the else
+            // arm, as JavaScript reads it — or an object, an array, a group
+            expect('export default 1 ? () => 2 : 3;', '[[],[["object",[["default",["?:",1,["=>",[2]],3]]]]]]')
+            expect('export default 1 ? 2 : () => 3 ? 4 : 5;', '[[],[["object",[["default",["?:",1,2,["=>",[["?:",3,4,5]]]]]]]]]')
+            expect('export default 1 ? { x: 2 } : [3];', '[[],[["object",[["default",["?:",1,["object",[["x",2]]],["array",[3]]]]]]]]')
+            expect('export default (1 ? 2 : 3).x;', '[[],[["object",[["default",[".",["?:",1,2,3],"x"]]]]]]')
+            expect('export default [1 ? 2 : 3, { a: 4 ? 5 : 6 }];', '[[],[["object",[["default",["array",[["?:",1,2,3],["object",[["a",["?:",4,5,6]]]]]]]]]]]')
+            expect('export default (...a) => a ? 1 : 2;', '[[],[["object",[["default",["=>",[["?:",["args"],1,2]]]]]]]]')
+            expect('export default -1 ? -2 : ~3;', '[[],[["object",[["default",["?:",["-",1],["-",2],["~",3]]]]]]]')
+            // three operands, resolved in order: the condition first, then
+            // each arm, whether or not the program establishes it
+            expect('const a = 1; export default a ? a : a;', '[[],[1,["object",[["default",["?:",["cref",0],["cref",0],["cref",0]]]]]]]')
+        },
+        conditionalRefused: () => {
+            /** @type {(source: string, message: string, column: number) => void} */
+            const expect = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            expect('export default 1 ? 2;', 'unexpected token', 21)
+            expect('export default 1 ? : 3;', 'unexpected token', 20)
+            expect('export default 1 ? 2 : 3 : 4;', 'unexpected token', 26)
+            // every operand is resolved, an unselected arm included: a name
+            // is checked where it is written, as JavaScript's early errors are
+            expect('export default zzz ? 1 : 2;', 'const not found', 16)
+            expect('export default 1 ? zzz : 2;', 'const not found', 20)
+            expect('export default 1 ? 2 : zzz;', 'const not found', 24)
+            expect('export default 1 && zzz;', 'const not found', 21)
+            expect('export default zzz ?? 1;', 'const not found', 16)
+            expect('const c = 1; export default (...a) => a ? c : 1;', 'capture not supported', 43)
         },
     },
     memberOrder: () => {

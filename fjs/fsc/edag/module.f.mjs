@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Exp } from '../../edag/types.ts'
- * @import { AstBinary, AstBitnot, AstBody, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
+ * @import { AstBinary, AstBitnot, AstBody, AstConditional, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
  * @import { _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
@@ -95,7 +95,7 @@ const call = nodes => (callee, args) => {
  * length ({@link lower}'s own comment has why that one gets an explicit
  * stack instead).
  *
- * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary>) => Exp}
+ * @type {(nodes: _Nodes) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => Exp}
  */
 const lowerLeaf = nodes => ast => {
     if (ast === undefined) { return undefinedNode() }
@@ -122,12 +122,12 @@ const lowerLeaf = nodes => ast => {
  * they stand, a repeated key twice, since the constructor applies them in
  * order and the later wins.
  *
- * An operator, a negation or a bitwise not is walked with an explicit
- * stack rather than recursion: a source expression nests a chain of these
- * as deep as it is long, left-associative for every binary operator and
- * right-associative for `-`/`~`/`**`, and {@link evaluate} in
- * `../parser/module.f.mjs` already resolves the same shape this way, over
- * its own `_Stack`, for the identical reason.
+ * An operator, a negation, a bitwise not or a conditional is walked with
+ * an explicit stack rather than recursion: a source expression nests a
+ * chain of these as deep as it is long, left-associative for every binary
+ * operator and right-associative for `-`/`~`/`**`/`?:`, and
+ * {@link evaluate} in `../parser/module.f.mjs` already resolves the same
+ * shape this way, over its own `_Stack`, for the identical reason.
  *
  * `op12` of one operand, the EDAG's unary minus, folds away over a numeric
  * literal: negating one is exact arithmetic — total, and answered without
@@ -138,7 +138,10 @@ const lowerLeaf = nodes => ast => {
  * `ToPrimitive`'s and depends on what the value holds — the readers that
  * want a number work it out where a number is wanted. Every other binary
  * operator and the bitwise not are the EDAG's own `op1`/`op2` shapes
- * already, both operands lowered and nothing folded.
+ * already, both operands lowered and nothing folded — the lazy `&&`, `||`
+ * and `??` the same `op2` as the eager ones, laziness being the EDAG's
+ * positional rule and no shape of its own — and the conditional its
+ * `op3`, `['?:', c, t, e]`, three operands lowered the same way.
  *
  * @type {(nodes: _Nodes) => (ast: AstConst) => Exp}
  */
@@ -171,8 +174,13 @@ const lower = nodes => root => {
                 case '*': case '/': case '%': case '**':
                 case '+':
                 case '===': case '!==': case '<': case '<=': case '>': case '>=':
-                case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+                case '&': case '|': case '^': case '<<': case '>>': case '>>>':
+                case '&&': case '||': case '??': {
                     work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'binary', tag: ast[0], rest } } }
+                    break
+                }
+                case '?:': {
+                    work = { kind: 'expand', ast: ast[1], rest: { kind: 'expand', ast: ast[2], rest: { kind: 'expand', ast: ast[3], rest: { kind: 'ternary', rest } } } }
                     break
                 }
                 default: {
@@ -197,6 +205,16 @@ const lower = nodes => root => {
             const rest = work.rest
             const operand = assertNotNullish(results, ['no operand for a bitwise not', root])
             results = { top: ['~', operand.top], rest: operand.rest }
+            work = rest
+            continue
+        }
+        if (work.kind === 'ternary') {
+            /** @type {_LowerWork} */
+            const rest = work.rest
+            const otherwise = assertNotNullish(results, ['no else arm for a conditional', root])
+            const then = assertNotNullish(otherwise.rest, ['no then arm for a conditional', root])
+            const condition = assertNotNullish(then.rest, ['no condition for a conditional', root])
+            results = { top: ['?:', condition.top, then.top, otherwise.top], rest: condition.rest }
             work = rest
             continue
         }

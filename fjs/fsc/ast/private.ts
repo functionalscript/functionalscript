@@ -24,13 +24,18 @@ export type _RunState = {
 /**
  * A way of reading the syntax for references: which of an object's members
  * count, what an access denotes — the value's view selects inside a
- * literal, the written view reads the access as it stands — and what a
- * negation's operand leaves behind.
+ * literal, the written view reads the access as it stands — what a
+ * negation's operand leaves behind, and what a lazy operator's
+ * conditionally established operands do: the right operand of `&&`, `||`
+ * and `??`, and both arms of `?:` — the value's view every one of them,
+ * since the value may be any of them, and the written view none, since
+ * the EDAG establishes none of them unconditionally.
  */
 export type _View = {
     readonly members: (members: readonly AstMember[]) => readonly AstConst[]
     readonly through: (ast: AstAccess) => AstConst
     readonly negated: (operand: AstConst) => readonly AstConst[]
+    readonly lazy: (operands: readonly AstConst[]) => readonly AstConst[]
 }
 
 export type _Ref = {

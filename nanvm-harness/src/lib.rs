@@ -25,6 +25,8 @@ pub mod calls;
 pub mod escapes;
 #[path = "../fixtures/function-scope.rs"]
 pub mod function_scope;
+#[path = "../fixtures/lazy.rs"]
+pub mod lazy;
 #[path = "../fixtures/length.rs"]
 pub mod length;
 #[path = "../fixtures/method.rs"]
@@ -139,9 +141,9 @@ mod tests {
     };
 
     use crate::{
-        RunError, arity, array, at, boolean, call, calls, escapes, function_scope, length, method,
-        missing, named, nested, not_a_function, nullish, number, object, operators, property, rest,
-        run, sharing, string, throws, to_string,
+        RunError, arity, array, at, boolean, call, calls, escapes, function_scope, lazy, length,
+        method, missing, named, nested, not_a_function, nullish, number, object, operators,
+        property, rest, run, sharing, string, throws, to_string,
     };
 
     #[test]
@@ -195,6 +197,21 @@ mod tests {
                 "[7,5,12,1.5,2,36,-6,-7,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
                     .into()
             )
+        );
+    }
+
+    /// The four lazy operators, each from source the grammar reads: the
+    /// operand a `&&`, `||` or `??` never reaches and the arm a `?:` does
+    /// not select is a thunk never run, so the `1n / 0n` standing in each
+    /// of those positions throws nowhere, and the module answers what a
+    /// JavaScript engine answers the same source. The last two are a
+    /// function's arguments reached only through lazy positions, bound
+    /// once by the body and cloned by each thunk.
+    #[test]
+    fn lazy_operators() {
+        assert_eq!(
+            run::<Naive>(lazy::module),
+            Ok("[0,2,null,1,3,\"x\",0,4,5,false,7,8,2,10,11,13,2]".into())
         );
     }
 

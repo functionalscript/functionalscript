@@ -658,18 +658,35 @@ export default 1 + 2 * 3;
 Beyond unary `-` ([supported value types](#supported-value-types)), the
 language has arithmetic (`+ - * / % **`), strict comparison
 (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
-[operators](./todo/2340-operators.md). `==`/`!=` stay refused, since neither
-language reads them the same way twice. The lazy operators (`&& || ??`), the
-conditional (`?:`), and the comma operator are not recognized yet.
+[operators](./todo/2340-operators.md) — and, above them, the lazy operators
+(`&& || ??`) and the conditional (`?:`), Stage B. `==`/`!=` stay refused,
+since neither language reads them the same way twice. The comma operator is
+not recognized yet.
 
 Precedence and associativity follow JavaScript's own: arithmetic binds
-tighter than comparison, which binds tighter than bitwise, `**` is
-right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), and every other
-operator here is left-associative. `-`/`~` immediately before `**` are
-refused, matching JavaScript exactly: `-2 ** 2` and `~2 ** 2` are syntax
-errors here as there, at any depth of `-`/`~` nesting, and parentheses are
-the only way to write either reading — `(-2) ** 2` raises the negation,
-`-(2 ** 2)` negates the power.
+tighter than comparison, which binds tighter than bitwise, which binds
+tighter than `&&`, which binds tighter than `||`, and the conditional is
+above them all; `**` is right-associative (`2 ** 3 ** 2` is `2 ** (3 **
+2)`), the conditional nests to the right (`a ? b : c ? d : e` is `a ? b :
+(c ? d : e)`), and every other operator here is left-associative. `-`/`~`
+immediately before `**` are refused, matching JavaScript exactly: `-2 ** 2`
+and `~2 ** 2` are syntax errors here as there, at any depth of `-`/`~`
+nesting, and parentheses are the only way to write either reading — `(-2)
+** 2` raises the negation, `-(2 ** 2)` negates the power. `??` mixes with
+`&&`/`||` only under parentheses, as in JavaScript: `a ?? b || c` and
+`a && b ?? c` are syntax errors in both, and `(a ?? b) || c` is the one
+spelling of that reading.
+
+The lazy operators establish their right operand only when the left decides
+nothing — `a && b`'s `b` when `a` is truthy, `a || b`'s when `a` is falsy,
+`a ?? b`'s when `a` is `null` or `undefined` — and the conditional
+establishes exactly one of its arms, as JavaScript does. A `const` reached
+only through such a position is still evaluated when the module loads, as
+its own statement: `const c = null.x; export default [a && c, b && c];`
+throws at load in both languages, whatever `a` and `b` are. The
+[failure contract](#failure-is-one-outcome) says what an implementation may
+reorder around that; being reached only through a lazy position is not what
+decides whether a `const` runs.
 
 A function is an operand of none of these, unparenthesized: `(...a) => body`
 reads everything to its right as `body`, exactly as in JavaScript, so
@@ -679,10 +696,11 @@ value, however little multiplying by a function is worth.
 
 The front end computes none of these — it builds the operation and passes
 it on. Unary `-` alone folds over a numeric literal, exact and total
-arithmetic; every other operator here reaches the EDAG as a node, and a
-`.json` or DataJS output — the readers that compute a value — refuses one
-the same way it refuses a function or a call, until an interpreter answers
-for the rest of them ([roadmap](./todo/README.md)).
+arithmetic; every other operator here reaches the EDAG as a node, the lazy
+ones and the conditional included, and a `.json` or DataJS output — the
+readers that compute a value — refuses one the same way it refuses a
+function or a call, until an interpreter answers for the rest of them
+([roadmap](./todo/README.md)).
 
 ## Property Access
 
