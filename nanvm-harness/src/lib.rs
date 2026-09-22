@@ -35,6 +35,8 @@ pub mod named;
 pub mod nested;
 #[path = "../fixtures/not-a-function.rs"]
 pub mod not_a_function;
+#[path = "../fixtures/nullish.rs"]
+pub mod nullish;
 #[path = "../fixtures/number.rs"]
 pub mod number;
 #[path = "../fixtures/object.rs"]
@@ -136,8 +138,8 @@ mod tests {
 
     use crate::{
         RunError, arity, array, boolean, call, calls, escapes, function_scope, length, method,
-        missing, named, nested, not_a_function, number, object, operators, property, rest, run,
-        sharing, string, throws, to_string,
+        missing, named, nested, not_a_function, nullish, number, object, operators, property, rest,
+        run, sharing, string, throws, to_string,
     };
 
     #[test]
@@ -171,6 +173,12 @@ mod tests {
     fn compiled_throw_is_reported() {
         assert!(matches!(
             run::<Naive>(throws::module),
+            Err(RunError::Thrown(_))
+        ));
+        // A property read on a nullish base: the compiler writes the read,
+        // and the VM throws the `TypeError` JavaScript throws.
+        assert!(matches!(
+            run::<Naive>(nullish::module),
             Err(RunError::Thrown(_))
         ));
     }
