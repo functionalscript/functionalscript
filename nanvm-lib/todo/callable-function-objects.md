@@ -142,19 +142,22 @@ Represented as `Array<A>`, passed by value at the call boundary — the
 same wrapper every array-valued `Any<A>` already uses
 ([`vm/array/mod.rs`](../src/vm/array/mod.rs)), built for the call and
 owned by nothing else. A generated function reads a
-declared position through `Any::member_access`
+declared position as a `.` node, in whatever spelling the Rust code
+generator ([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs))
+prints for every `.`/`[]` read — `Any::member_access` today, and
+`Any::dot(…).end()` once
+[`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)
+lands, the two being one operation
 ([`vm/member_access.rs`](../src/vm/member_access.rs),
-[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — the same
-call the Rust code generator already prints for every other `.`/`[]` read
-([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs)) — rather
-than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
+[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) under two
+names — rather than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
 bounds ([`vm/array/index.rs`](../src/vm/array/index.rs)), while
 `Array::member_access` already does its own length and canonical-index
 check internally and answers `None` (which `Any::member_access` turns into
 `undefined`) for an out-of-range or otherwise non-canonical key, matching
 [call-like-instructions §6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
 "a missing argument reads as `undefined`, never panics" with no separate
-bounds check to write:
+bounds check to write (the sample is today's spelling):
 
 ```rust
 fn f<A: IStaticFunction>(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>> {
@@ -372,7 +375,7 @@ generator prints is a `Function<A>` value already, whether it is called at
 once, stored, returned or exported, so the harness evaluates `export
 default` uniformly and a function value standing as the export is the one
 thing `to_json` refuses. The declared length is `0`, the only arity the
-language has, read as `f.length` through `Any::member_access` — a
+language has, read as `f.length` through the `.` read — a
 function's one property; when named parameters are admitted, the generator prints the
 function node's count, and exported and returned functions' `length` is
 compared with native JavaScript, unused parameters included.
