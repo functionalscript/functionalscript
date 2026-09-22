@@ -360,6 +360,29 @@ mod tests {
         );
     }
 
+    /// `|()` and `|.` are unguarded: on a live but nullish current value
+    /// the thunk is forced and the operation throws — `a?.b()` with `a.b`
+    /// undefined throws, it does not answer `undefined`. One case per
+    /// unguarded step, so that turning any of them into a guarded step
+    /// fails a test.
+    #[test]
+    fn unguarded_steps_throw_on_nullish_current_value() {
+        let returns_undefined: Any<A> =
+            A::static_function(|_, _| Ok(undefined()), 0, [].to_array()).to_any();
+        assert_eq!(
+            returns_undefined.clone().option_call(args).call(boom).end(),
+            Err("boom".into())
+        );
+        assert_eq!(
+            returns_undefined.option_call(args).dot(boom).end(),
+            Err("boom".into())
+        );
+        assert_eq!(
+            object().option_dot(key("u")).call(boom).end(),
+            Err("boom".into())
+        );
+    }
+
     /// `|.` on a live but nullish current value throws at the read — after
     /// the key is forced, as JavaScript evaluates `u[k()]`.
     #[test]
