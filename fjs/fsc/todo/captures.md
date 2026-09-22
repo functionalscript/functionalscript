@@ -32,10 +32,12 @@ capture with; the EDAG has the frame now, and so does the VM:
   ([`nanvm-lib/todo/callable-function-objects.md`](../../../nanvm-lib/todo/callable-function-objects.md),
   Stage 3, whose front end this is).
 
-What is missing is the front end alone: the parser, the AST, the lowering
-in [`edag/module.f.mjs`](../edag/module.f.mjs), and the printer in
-[`fjs/edag/rust`](../../edag/rust/module.f.mjs), which prints a `null`
-frame and refuses any other.
+What is missing is the front end and the two outputs: the parser, the
+AST, the lowering in [`edag/module.f.mjs`](../edag/module.f.mjs), the
+printer in [`fjs/edag/rust`](../../edag/rust/module.f.mjs), which prints
+a `null` frame and refuses any other, and the FunctionalScript serializer
+in [`serializer/module.f.mjs`](../serializer/module.f.mjs), which refuses
+the same.
 
 It is also the restriction on the critical path. The post-MVP milestone is
 self-hosting ([`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)):
@@ -78,6 +80,22 @@ holds, the way `['args']` prints the value `args` holds; a body that
 reads its frame names `self_` as one that reads its arguments names
 `args`.
 
+The FunctionalScript output, [`serializer/module.f.mjs`](../serializer/module.f.mjs),
+writes a function with a frame as a function of its frame, applied:
+
+```js
+((...$f) => (...$a) => body)(...frame)
+```
+
+The frame node is spread as the outer call's arguments — an array-literal
+frame `['[]', [c0, c1]]` is written `(c0, c1)`, any other frame node
+`(...frame)` — and a frame read `['.', ['frame'], i]` is `$f[i]`, as an
+argument read is `$a[i]`. The inner function captures `$f`, which is what
+the parser admits once this task lands, so the output round-trips through
+our own parser; nothing is named, and nothing crosses the function
+boundary but through the frame, as in the EDAG. Today the serializer
+refuses the shape, `a function with a frame`.
+
 The spec's sentence that a capture is an error is replaced by the rule
 above in the same pull request that lifts the refusal.
 
@@ -97,6 +115,9 @@ its proofs to pin.
 
 - [ ] Printer: a non-`null` frame and `['frame']` print; proofs at the
       printer level.
+- [ ] Serializer: a function with a frame is written as a function of its
+      frame, applied, and `['frame']` as its parameter; proofs, and the
+      output round-tripped through the parser once it admits captures.
 - [ ] Parser, AST, lowering: a capture is a frame slot, not an error; the
       spec's rule updated; proofs.
 - [ ] Harness fixture `(...a) => (...b) => a[0] + b[0]` end to end — the
