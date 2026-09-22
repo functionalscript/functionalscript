@@ -23,7 +23,7 @@ impl<A: IVm> OptionCall<A> for PropertyLambda<A> {}
 
 impl<A: IVm> PropertyLambda<A> {
     /// `()`
-    pub fn call(self, _: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
+    pub fn end_call(self, _: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
         todo!()
     }
 }
