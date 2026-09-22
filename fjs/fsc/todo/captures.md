@@ -9,8 +9,8 @@ FunctionalScript is a subset of JavaScript, and a JavaScript arrow
 function closes over the scope it is written in. This compiler's parser
 restricts that: a function body may name its own parameter and its own
 `const`s and nothing else, and a reference to a module `const`, an
-imported name or an enclosing function's parameter is refused where it is
-written —
+imported name or an enclosing function's parameter is an error where it
+is written —
 `capture not supported` in [`parser/module.f.mjs`](../parser/module.f.mjs),
 the rule [`spec/README.md`](../../../spec/README.md) states under
 Functions and [`README.md`](../README.md) restates for the AST. So
@@ -19,8 +19,8 @@ function that uses a helper declared beside it.
 
 A restriction on JavaScript needs a justification
 ([DESIGN.md §12](../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)),
-and this one's is gone. It was refused because a function had no frame to
-capture with; the EDAG has the frame now, and so does the VM:
+and this one's is gone. It was an error because a function had no frame
+to capture with; the EDAG has the frame now, and so does the VM:
 
 - `['=>', frame, body]` builds a function from a frame evaluated in the
   enclosing scope, and `['frame']` is that array inside the body, a slot
@@ -36,15 +36,16 @@ capture with; the EDAG has the frame now, and so does the VM:
 What is missing is the front end and the two outputs: the parser, the
 AST, the lowering in [`edag/module.f.mjs`](../edag/module.f.mjs), the
 printer in [`fjs/edag/rust`](../../edag/rust/module.f.mjs), which prints
-a `null` frame and refuses any other, and the FunctionalScript serializer
-in [`serializer/module.f.mjs`](../serializer/module.f.mjs), which refuses
-the same.
+a `null` frame and returns an error for any other, and the
+FunctionalScript serializer in
+[`serializer/module.f.mjs`](../serializer/module.f.mjs), which returns an
+error for the same.
 
 It is also the restriction on the critical path. The post-MVP milestone is
 self-hosting ([`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)):
 the compiler, written in FunctionalScript, compiled by itself to Rust.
 The compiler's source is curried functions over module `const`s on nearly
-every line, and none of it compiles while a capture is refused.
+every line, and none of it compiles while a capture is an error.
 
 ### Direction
 
@@ -108,12 +109,12 @@ lowering defines, so the writer reproduces it by construction. A frame
 the parser would not have built — a slot out of the body's first-use
 order, a slot the body never reads, a slot holding a primitive, which the
 parser inlines — has no text that reads back as the same graph, and the
-writer refuses it by name, as it refuses every shape it has no faithful
-text for; the compiler never builds one. Today the serializer refuses
-every frame, `a function with a frame`.
+writer returns an error naming it, as it does for every shape it has no
+faithful text for; the compiler never builds one. Today the serializer
+returns an error for every frame, `a function with a frame`.
 
 The spec's sentence that a capture is an error is replaced by the rule
-above in the same pull request that lifts the refusal.
+above in the same pull request that lifts the error.
 
 How the parser threads scopes, what the AST calls a frame reference, and
 how the printer binds the frame are the implementation's to decide and
@@ -123,7 +124,7 @@ its proofs to pin.
 
 - `['self']`, recursion: Stage 5 of callable-function-objects. A function
   that names itself is still a capture of its own `const`, which is a
-  cycle the frame cannot hold by value, and stays refused until then.
+  cycle the frame cannot hold by value, and stays an error until then.
 - Named parameters: a function still has one rest parameter or none.
 - Any change to the EDAG: the shape is the one already decided.
 
