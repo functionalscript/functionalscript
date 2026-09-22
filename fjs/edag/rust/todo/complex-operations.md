@@ -62,10 +62,13 @@ lambda type of the state the node produces:
 | `['?.', a, key, k]` | `option_dot` | `key`, a thunk | `OptionPropertyLambda` |
 | `['?.()', a, args, k]` | `option_call` | `args`, a thunk | `OptionLambda` |
 
-A `.` node *without* a continuation stays `Any::member_access`, one
-spelling per node; `dot` is printed only where a continuation follows.
-The other two nodes have no value form, so `option_dot(…).end()` is the
-one spelling of a bare `a?.b`.
+Every `.` node opens with `dot`, a continuation or not, so
+`Any::dot(a, key).end()` is the one spelling of `a.b` and
+`Any::member_access` leaves the generated code's vocabulary: it is what
+`end` *does* on a `PropertyLambda`, not a second way to print the node.
+One spelling per node then holds without a special case, and the same
+way for the other two nodes — `option_dot(…).end()` is the one spelling
+of a bare `a?.b`.
 
 **One method per legal step.** The README's table, method by method.
 Every step takes the lambda by value and answers the next state; the two
@@ -87,6 +90,13 @@ The absent steps are the README's absent productions: no `dot` on
 `PropertyLambda`, no `option_call` or `end_call` on `OptionLambda`. A
 printer that emits one of them does not compile, which is the same guard
 the eager and lazy operators already have.
+
+`end` is on every type because the README makes leaving the continuation
+out "every state's third exit". On `PropertyLambda` that exit is the bare
+`.` node — `a.b`, the property read with its receiver dropped — which is
+why `dot(a, key).end()` can be the node's spelling and `member_access`
+its implementation, rather than `end` being a method the printer must
+never reach.
 
 Both terminals are spelled `end_call`, and that is exact rather than a
 convenience. On `PropertyLambda` no region is open, so `|()` and a `|!()`
@@ -156,15 +166,42 @@ boundary it is where that composition is allowed to live: when
 the lambda has been holding, and every generated module is already right.
 That change is `nanvm-lib`'s alone, which is the whole point.
 
-**What the printer prints.** A `.` node with a continuation opens with
-`Any::dot(a, k)`; each step is a method call on the result, its key or
-arguments a thunk printed as `lazyOperand` prints one today; the chain
-ends in `.end()` where the continuation operand is absent and in
-`.end_call(|| …)` where it is a terminal step. The `|` prefix that keeps
-a step from reading as a node has its counterpart here: a step is a method
-of a lambda type and never of `Any<A>`, so `Any::call` (a value's
-arguments) and `OptionLambda::call` (a thunk) cannot be confused by the
-compiler even where a reader might.
+**What the printer prints.** Every `.`, `?.` and `?.()` node opens with
+its entry point; each step is a method call on the result, its key or
+arguments a thunk; the chain ends in `.end()` where the continuation
+operand is absent and in `.end_call(|| …)` where it is a terminal step.
+The `|` prefix that keeps a step from reading as a node has its
+counterpart here: a step is a method of a lambda type and never of
+`Any<A>`, so `Any::call` (a value's arguments) and `OptionLambda::call`
+(a thunk) cannot be confused by the compiler even where a reader might.
+
+**The printer's analysis has to know the same positions are lazy.**
+Rendering an operand through `lazyOperand` is not what defers it. What
+defers it is the scope analysis — `reach`, `lazyOperandsOf` and the
+refusal built on them in [`module.f.mjs`](../module.f.mjs) — deciding
+that the nodes under it are the thunk's to bind and not the block's, so
+no `let` before the line establishes them. Today that analysis treats
+every operand of `.`, `?.` and `?.()` as eager (`reach`'s own comment: "a
+`.` node's index and step hold nothing a lazy operand hides"), and it
+walks a continuation tuple as if it were a node. Left as it is, a node
+inside the arguments of `undefined?.(...)` would be bound eagerly and
+evaluated before `option_call` could skip it — the thunk would close over
+a name, and the skip the README pins would be lost.
+
+So the rule the analysis prints by, "the first operand is eager and every
+later one lazy", which fits the four operators, becomes a rule per tag:
+
+- `?.` and `?.()` fit it as they stand — the first operand eager, the key
+  or arguments and the continuation lazy;
+- `.` has two eager operands, the receiver and the key, and a lazy
+  continuation;
+- a continuation tuple is not a node: its key or arguments are lazy and
+  its own continuation is lazy again, so the eager walk never enters one
+  and every operand of one is a thunk root.
+
+The refusal comes along unchanged: a node shared but reached only through
+chain positions has no block that may bind it, exactly as one reached
+only through lazy operands has none today.
 
 ### Tasks
 
@@ -176,9 +213,15 @@ compiler even where a reader might.
       cases the README says JavaScript cannot pin: `a.b(...c)` against
       `(a?.b)(...c)` on a nullish base, and the skipped key and arguments
       inside a region.
-- [ ] Printer: print a `.` node with a continuation, `?.`, `?.()` and the
-      four steps; keep `member_access` for the bare `.` node; refuse
-      nothing the README allows.
+- [ ] Printer: the eager positions per tag above, in `reach` and
+      `lazyOperandsOf`, with a proof that a shared node reached only
+      through a chain position is refused and that an operation inside a
+      skipped operand is bound inside the thunk.
+- [ ] Printer: every `.` node as `dot(…).end()`, then `?.`, `?.()` and the
+      four steps; `Any::member_access` disappears from the generated text,
+      so the fixtures under `nanvm-harness/fixtures` and the proofs that
+      pin the old spelling are regenerated in the same PR; refuse nothing
+      the README allows.
 - [ ] `IFunction::call` gains a receiver, and `end_call` hands it over —
       the Stage 4 item in
       [`callable-function-objects.md`](../../../../nanvm-lib/todo/callable-function-objects.md).
@@ -197,4 +240,5 @@ compiler even where a reader might.
 - `nanvm-lib/src/vm/any/member_access.rs`, `nanvm-lib/src/vm/any/call.rs` —
   the two value operations that do not compose into a method call, and
   that `end_call` composes behind the operation boundary until
-  `Function::call` takes a receiver.
+  `Function::call` takes a receiver. `member_access` becomes what
+  `PropertyLambda::end` does; `call` stays the `()` node's operation.
