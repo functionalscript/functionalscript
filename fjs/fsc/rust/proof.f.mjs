@@ -293,7 +293,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
          * answers `1` with `c`'s `1n / 0n` never run. The lowering anchors
          * such a `const` eagerly, so no linked module has this shape; an
          * EDAG handed in directly can, and is refused rather than compiled
-         * to a throw.
+         * to a throw. An atom is not refused — `args` in a function, or an
+         * empty container — since binding one establishes nothing.
          */
         refusedSharedOnlyThroughLazyOperands: () => {
             /** @type {Exp} */
@@ -302,8 +303,12 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 toRust(['?:', true, 1, ['[]', [boom, boom]]]),
                 ['error', 'no Rust spelling for this module: no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not: /,1,0'])
             /** @type {Exp} */
-            const c = ['[]', []]
+            const c = ['[]', [1]]
             assertEq(toRust(['[]', [['&&', true, c], ['&&', false, c]]])[0], 'error')
+            /** @type {Exp} */
+            const empty = ['[]', []]
+            assertEq(toRust(['[]', [['&&', true, empty], ['&&', false, empty]]])[0], 'ok')
+            assertEq(toRust(['=>', null, ['?:', true, ['args'], ['args']]])[0], 'ok')
         },
         /**
          * `args` in the module's own scope — a function body's node handed

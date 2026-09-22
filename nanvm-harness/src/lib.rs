@@ -204,12 +204,14 @@ mod tests {
     /// operand a `&&`, `||` or `??` never reaches and the arm a `?:` does
     /// not select is a thunk never run, so the `1n / 0n` standing in each
     /// of those positions throws nowhere, and the module answers what a
-    /// JavaScript engine answers the same source.
+    /// JavaScript engine answers the same source. The last two are a
+    /// function's arguments reached only through lazy positions, bound
+    /// once by the body and cloned by each thunk.
     #[test]
     fn lazy_operators() {
         assert_eq!(
             run::<Naive>(lazy::module),
-            Ok("[0,2,null,1,3,\"x\",0,4,5,false,7,8,2,10,11]".into())
+            Ok("[0,2,null,1,3,\"x\",0,4,5,false,7,8,2,10,11,13,2]".into())
         );
     }
 

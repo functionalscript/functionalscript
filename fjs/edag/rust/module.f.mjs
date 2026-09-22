@@ -397,7 +397,14 @@ const last = e => {
  * eager-restricted reference sweep of `anchors`
  * ([`fjs/fsc/ast`](../../fsc/ast/module.f.mjs)) anchors through the comma
  * root when reached only lazily — an eager reach, so the binding is right
- * again.
+ * again. An {@link atomic} node is the exception: its construction
+ * establishes nothing the program could skip — `args` is the closure's
+ * parameter, already bound, and `undefined` or an empty container is a
+ * value no evaluation precedes — so one shared only through lazy operands
+ * is not refused but bound by the scope's block before the root, where
+ * every thunk reaching it clones the one binding. `(...a) => true ? a :
+ * a` is the shape: its `args` is no `const` for `anchors` to anchor, and
+ * needs none.
  *
  * `nested` is the corpus's mode: the root prints as one expression, its
  * operation the bare `Result<Any<A>, Any<A>>` the `nanvm-lib` call answers
@@ -421,7 +428,7 @@ const printer = nested => shared => root => {
     const order = visit(node => isBound(/** @type {Exp} */ (/** @type {unknown} */ (node))) ? [] : operandsOf(node))([])(root)
         .filter(([n]) => !isBound(n))
     const eager = eagerNodesOf(root)
-    const lazyOnly = order.find(([n, count]) => count >= 2 && !eager.includes(n))
+    const lazyOnly = order.find(([n, count]) => count >= 2 && !eager.includes(n) && !atomic(n))
     if (lazyOnly !== undefined) {
         return error(['no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not', lazyOnly[0]])
     }
@@ -480,20 +487,26 @@ const printer = nested => shared => root => {
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
     /** @type {(e: Exp) => boolean} */
     const isTemporary = e => temporaries.some(([n]) => n === e)
-    /** What the scope's own block holds, established before the root as a `const` is at its declaration. */
-    const outer = held(root)
+    /**
+     * What the scope's own block holds, established before the root as a
+     * `const` is at its declaration: what the root holds, and every shared
+     * atom under it wherever it is reached — bound once by the scope, for
+     * the thunks that reach it to clone, since binding one early
+     * establishes nothing (see above).
+     */
+    const outer = [...held(root), ...order.flatMap(([n, count]) => atomic(n) && count >= 2 ? [n] : [])]
     /**
      * The temporaries `e`'s block binds, in dependency order: the ones it
      * holds — every one, for the scope's root; for a thunk's root, less the
      * ones the scope's block already holds — a value reached eagerly
-     * elsewhere, and the thunks over that value's own lazy operands, which
-     * the scope's block makes where the value is — and less the thunk
-     * itself, the block's own answer.
+     * elsewhere, a shared atom, and the thunks over that value's own lazy
+     * operands, which the scope's block makes where the value is — and
+     * less the thunk itself, the block's own answer.
      *
      * @type {(e: Exp) => readonly Exp[]}
      */
     const declaredBy = e => {
-        const own = held(e)
+        const own = e === root ? outer : held(e)
         return temporaries.filter(([n]) => n !== e && own.includes(n) && (e === root || !outer.includes(n))).map(([n]) => n)
     }
     /**
@@ -1018,7 +1031,8 @@ const held = e => {
  * through eager positions alone — in walk order, `root` first. A node
  * {@link sharedNodesOf} lists that is not among these is reached only
  * through lazy operands, and a `let` binding for it before the root would
- * establish what the program may not: the shape `fjs/fsc/rust` refuses.
+ * establish what the program may not: the shape `fjs/fsc/rust` refuses,
+ * an {@link atomic} node excepted, whose binding establishes nothing.
  *
  * @type {(root: Exp) => readonly Exp[]}
  */

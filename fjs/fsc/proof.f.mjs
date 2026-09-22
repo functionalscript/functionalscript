@@ -758,6 +758,25 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
                 '    let c3: Any<A> = [c1, c2].to_array().to_any();',
                 '    Ok([(string_key("default"), c3)].to_object().to_any())',
             ])
+            // a function's arguments reached only lazily are no `const`
+            // to anchor and need none: the parameter is bound already, so
+            // the body binds it once and each thunk clones it
+            assertStructurallySame(body('export default (...a) => true ? a : a;'), [
+                '    let c0: Any<A> = A::static_function(|_self, args| {',
+                '        let c0 = || Ok(args.clone().to_any());',
+                '        Any::conditional(true.to_any(), c0, c0)',
+                '    }, 0, Array::default()).to_any();',
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
+                '    let c0: Any<A> = A::static_function(|_self, args| {',
+                '        let c0: Any<A> = args.clone().to_any();',
+                '        let c1 = || Ok([c0.clone()].to_array().to_any());',
+                '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
+                '        Any::conditional(true.to_any(), c1, c2)',
+                '    }, 0, Array::default()).to_any();',
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
         },
         // A shared operation is established once, in its `let`, with the
         // same `?`; each reference clones the value it produced, where a
