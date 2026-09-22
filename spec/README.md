@@ -901,6 +901,14 @@ arguments and of what it captures:
   primitive is written into the body instead, as a `const` holding one is
   wherever it is read, since it has nothing to share.
 
+  Captures are JavaScript's closures, not a feature of this language's
+  own: a capture was an error only while a function had no frame to
+  capture with, a restriction whose reason is gone
+  ([DESIGN.md §12](../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+  The frame is the one [function-frame](./todo/3111-function-frame.md) and
+  the EDAG's closed-scope model
+  ([`["frame"]`](../todo/edag-stage1-discussion.md)) describe.
+
   ```js
   const base = [10];
   const add = (...a) => (...b) => a[0] + b[0];
