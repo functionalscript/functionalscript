@@ -265,10 +265,16 @@ const graphOf = text => {
  * resemblance. The function's `frame` edge ends at `null` because the
  * compiler emits no captures yet.
  *
+ * `checked` is the one thing the export does not reach, so the compiler
+ * anchors it with a comma and the whole module is that comma's result.
+ * Its two edges carry the roles a number could not: `anchor` for a
+ * computation that only has to happen, `result` for the value the
+ * module is.
+ *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nexport default [a, a, a * 3, m, (...x) => x, undefined];',
+    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = a < 4;\nexport default [a, a, a * 3, m, (...x) => x, undefined];',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
         const g = graphOf(text)

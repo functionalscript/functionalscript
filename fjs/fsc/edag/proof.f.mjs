@@ -805,6 +805,17 @@ export const proof = {
         },
         // An unused const is anchored as a comma's first operand rather
         // than dropped, so the export default is not the whole EDAG.
+        /**
+         * **The initial source draws a comma**, so a reader meets the two
+         * roles before typing anything. `checked` is the one thing the
+         * export does not reach, which is what the compiler anchors.
+         */
+        commaRolesInTheInitialSource: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('>,<'), html)
+            assert(html.includes('>anchor<'), html)
+            assert(html.includes('>result<'), html)
+        },
         commaAnchorsAnUnusedConst: () => {
             const html = htmlToString(demo.view('const unused = 5; export default 1;'))
             assert(html.includes('>,<'), html)
