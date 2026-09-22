@@ -1,5 +1,5 @@
 use super::method::method;
-use crate::vm::{Any, IVm, Nullish, ToAny, Unpacked, any::CANNOT_CONVERT_NULLISH_TO_OBJECT};
+use crate::vm::{Any, Array, IVm, Nullish, ToAny, Unpacked, any::CANNOT_CONVERT_NULLISH_TO_OBJECT};
 
 /// A property step's live state: the receiver and the key, the read
 /// deferred to the exit that needs it. `end` reads the property; a call
@@ -80,12 +80,15 @@ impl<A: IVm> Member<A> {
     /// element if there is one — `Any::call` throwing for a value that is
     /// no function — else the receiver type's built-in of the name with the
     /// receiver, else the `TypeError` for calling `undefined`, as
-    /// JavaScript throws on a type without the method.
+    /// JavaScript throws on a type without the method. The arguments are
+    /// the array a call spreads, and a value that is no array throws on
+    /// every path, through `Array::try_from` as `Any::call` throws, before
+    /// a built-in sees them.
     pub(crate) fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
         match self.own() {
             Some(callee) => callee.call(args),
             None => match method(&self.key) {
-                Some(f) => f(self.receiver, args),
+                Some(f) => f(self.receiver, Array::try_from(args)?),
                 None => Nullish::Undefined.to_any().call(args),
             },
         }
@@ -193,6 +196,19 @@ mod tests {
         assert_eq!(
             object.dot("toString".into()).option_call(no_args).end(),
             Ok("[object Object]".into())
+        );
+    }
+
+    /// The arguments of a built-in are the array a call spreads: a value
+    /// that is no array throws before the built-in runs, as `Any::call`
+    /// throws for it.
+    #[test]
+    fn built_in_arguments_must_be_an_array() {
+        assert_eq!(
+            1.0.to_any::<A>()
+                .dot("toString".into())
+                .end_call(|| Ok(Nullish::Null.to_any())),
+            Err(TYPE_ERROR.into())
         );
     }
 

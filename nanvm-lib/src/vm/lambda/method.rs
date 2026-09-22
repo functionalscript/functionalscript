@@ -1,8 +1,10 @@
-use crate::vm::{Any, IVm, ToAny};
+use crate::vm::{Any, Array, IVm, ToAny};
 
-/// A built-in member function: the receiver and the arguments array, as an
-/// `Any`, answering the value or the throw.
-pub(crate) type Method<A> = fn(Any<A>, Any<A>) -> Result<Any<A>, Any<A>>;
+/// A built-in member function: the receiver and the arguments, already the
+/// `Array` a call spreads — `Member::call` converts them before any
+/// built-in runs, throwing for a non-array as `Any::call` does — answering
+/// the value or the throw.
+pub(crate) type Method<A> = fn(Any<A>, Array<A>) -> Result<Any<A>, Any<A>>;
 
 /// The built-in member function a key names, for the receiver a call step
 /// has found no own property on. The names a module may call are
@@ -26,7 +28,7 @@ pub(crate) fn method<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
 /// both tracked in `member-functions.md`: a function answers the placeholder
 /// the conversion answers, not its source, and the arguments are not read,
 /// so a radix is not applied.
-fn to_string<A: IVm>(receiver: Any<A>, _args: Any<A>) -> Result<Any<A>, Any<A>> {
+fn to_string<A: IVm>(receiver: Any<A>, _args: Array<A>) -> Result<Any<A>, Any<A>> {
     receiver.to_string().map(|s| s.to_any())
 }
 
