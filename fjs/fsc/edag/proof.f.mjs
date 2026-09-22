@@ -427,6 +427,10 @@ export const proof = {
         const alias = compile('const c = [1]; const d = c; export default (...a) => [d, c];').edag
         expectEdag(alias, ['=>', ['[]', [['[]', [1]]]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 0]]]])
         assert(alias instanceof Array && alias[0] === '=>' && alias[2] instanceof Array && alias[2][0] === '[]' && alias[2][1][0] === alias[2][1][1], alias)
+        // and so are two nodes the analysis merges: one read spelled twice
+        const merged = compile('const o = [1]; const x = o[0]; const y = o[0]; export default (...a) => [x, y];').edag
+        expectEdag(merged, ['=>', ['[]', [['.', ['[]', [1]], 0]]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 0]]]])
+        assert(merged instanceof Array && merged[0] === '=>' && merged[2] instanceof Array && merged[2][0] === '[]' && merged[2][1][0] === merged[2][1][1], merged)
         // a nested function captures through its parent: the middle
         // function's frame holds the outer arguments, the innermost's a
         // read of the middle frame and the middle arguments

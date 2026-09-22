@@ -427,6 +427,12 @@ export const proof = {
         writes(
             ['=>', null, ['=>', ['[]', [['.', ['args'], 0]]], ['[]', [slot(0), slot(0)]]]],
             'export default (...$a)=>{const $a0=$a[0];return (...$b)=>[$a0,$a0];};')
+        // what the compiler builds is written, two `const`s reading one
+        // value among it: the lowering gives them the one slot the
+        // analysis sees
+        assertEq(
+            reads(_defaultExport(moduleGraph('const o=[1]; const x=o[0]; const y=o[0]; export default (...a)=>[x,y];'))),
+            'const $0=[1][0];export default (...$a)=>[$0,$0];')
         // a frame the parser would not build has no text that reads back,
         // and one of the enclosing scope, a comma, has no text yet
         refuses(['=>', ['undefined'], 1], 'a frame that is not an array literal')
