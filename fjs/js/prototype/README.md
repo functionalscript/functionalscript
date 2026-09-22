@@ -19,7 +19,8 @@ compile time:
   function the VM answers by the receiver's type. An own property of the
   name on an object shadows the built-in, a type without the built-in throws
   the `TypeError` JavaScript throws, and a nullish receiver throws before the
-  arguments are evaluated.
+  arguments are evaluated. Which of them `nanvm-lib` answers today, pair by
+  pair, is [`nanvm-lib/todo/member-functions.md`](../../../nanvm-lib/todo/member-functions.md).
 
 ✅ means allowed and ❌ prohibited. The lists are ECMAScript 2025's, Annex B
 included, string keys only; they grow with the language's types — `Map` and
