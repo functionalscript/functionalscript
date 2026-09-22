@@ -290,7 +290,7 @@ export const indent = '    '
  *
  * @type {(statements: readonly string[]) => string}
  */
-const braced = statements => statements.length === 1
+export const braced = statements => statements.length === 1
     ? `{ ${statements[0]} }`
     : `{\n${lines(statements).map(l => `${indent}${l}`).join('\n')}\n}`
 
@@ -1024,13 +1024,35 @@ const held = e => {
 export const eagerNodesOf = root => reach([], root)
 
 /**
+ * The statements of one scope over the caller's own bindings — a corpus
+ * case's, over the group's shared values — as {@link scope} prints a
+ * module's over none: a `let` per temporary, then the root as the
+ * `Result` the scope answers.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<readonly string[], readonly unknown[]>}
+ */
+export const statementsOf = shared => root => okThen(p => p.block(root))(printer(false)(shared)(root))
+
+/**
  * The statements of a scope's block — a compiled module's body, or a
- * function's — over no bindings but its own: {@link printer}'s
- * `block` of its root.
+ * function's — over no bindings but its own.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
-const statements = root => okThen(p => p.block(root))(printer(false)([])(root))
+const statements = statementsOf([])
+
+/**
+ * `true` when an operation stands in an eager position under `root`, a
+ * node the caller has bound aside: what a bare statement cannot hold,
+ * since an operation answers a `Result` where its operand position takes
+ * an `Any`, and a bare statement has no line before it to bind the
+ * temporary on. A lazy position holds one fine — its thunk's block binds
+ * it — and so does a bound node, its binding's `.clone()` being a value.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => boolean}
+ */
+export const nestsOperation = shared => root => eagerNodesOf(root).slice(1)
+    .some(n => isOperation(n) && !shared.some(([s]) => s === n))
 
 /**
  * The lines of one scope — a compiled module's body, or a function's — or
