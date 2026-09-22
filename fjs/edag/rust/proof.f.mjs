@@ -1057,6 +1057,18 @@ export const proof = {
                 refusalReason(/** @type {Exp} */ (/** @type {unknown} */ (['.', ['{}', []], 'b', k]))),
                 ['a terminal step with a continuation', k])
         },
+        /**
+         * A continuation tag that is none of the four steps: the schema
+         * spells none, and the printer refuses it rather than read it as
+         * the step it resembles.
+         */
+        refusedUnknownStep: () => {
+            /** @type {readonly unknown[]} */
+            const k = ['bogus', ['[]', []]]
+            assertStructurallySame(
+                refusalReason(/** @type {Exp} */ (/** @type {unknown} */ (['?.', ['{}', []], 'f', k]))),
+                ['no Rust for a chain step', k])
+        },
         /** A `Number(...)` cast key inside a region is refused as it is outside one. */
         refusedNumberCastKey: () => {
             assertStructurallySame(
