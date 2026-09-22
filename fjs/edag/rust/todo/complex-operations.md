@@ -255,9 +255,13 @@ only through lazy operands has none today.
       are regenerated in the same PR, and the argument-read sample in
       [`callable-function-objects.md`](../../../../nanvm-lib/todo/callable-function-objects.md)
       follows; refuse nothing the README allows.
-- [ ] `IFunction::call` gains a receiver, and `end_call` hands it over —
-      the Stage 4 item in
+- [ ] The receiver is consumed by the built-in member functions, own
+      property first, and never handed to a user function —
+      [`member-functions.md`](../../../../nanvm-lib/todo/member-functions.md),
+      which is also the Stage 4 item in
       [`callable-function-objects.md`](../../../../nanvm-lib/todo/callable-function-objects.md).
+      `IFunction::call` stays as it is: no FunctionalScript function reads
+      `this`.
 
 ### Related
 
