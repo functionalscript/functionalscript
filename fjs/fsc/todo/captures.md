@@ -13,8 +13,8 @@ function's parameter is a capture, and the parser refuses it where it is
 written — `capture not supported` in [`parser/module.f.mjs`](../parser/module.f.mjs),
 the rule [`spec/README.md`](../../../spec/README.md) states under
 Functions and [`README.md`](../README.md) restates for the AST. So
-`a => b => a + b` does not compile, and neither does any function that
-uses a helper declared beside it.
+`(...a) => (...b) => a[0] + b[0]` does not compile, and neither does any
+function that uses a helper declared beside it.
 
 That is the restriction on the critical path. The post-MVP milestone is
 self-hosting ([`nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)):
@@ -60,9 +60,10 @@ That is JavaScript's closure by value, which is what a closure over
 `const`s is: nothing here mutates, so copying the value at creation is
 unobservable, and it is the scheme
 [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md)
-chose. A nested function captures through its parent: `a => b => c => a`
-gives the middle function a frame of `[a]` and the innermost a frame of
-`[frame[0]]`, built in the middle body. Sharing stays what it is: the
+chose. A nested function captures through its parent: in
+`(...a) => (...b) => (...c) => a` the middle function's frame is `[a]` and
+the innermost's is `[frame[0]]`, built in the middle body. Sharing stays
+what it is: the
 frame is an operand in the enclosing scope, so an enclosing node reaching
 it is shared as any operand is, and the body remains a closed graph whose
 leaves are constants, `['args']` and `['frame']` — nothing crosses the
@@ -98,7 +99,9 @@ are asked to review the direction.
       printer level.
 - [ ] Parser, AST, lowering: a capture is a frame slot, not an error; the
       spec's rule updated; proofs.
-- [ ] Harness fixture `a => b => a + b` end to end; Stage 3 ticked.
+- [ ] Harness fixture `(...a) => (...b) => a[0] + b[0]` end to end — the
+      language's one parameter is a rest parameter, so that is the
+      spelling — Stage 3 ticked.
 
 ### Related
 
