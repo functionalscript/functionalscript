@@ -39,6 +39,14 @@ fn same<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
     }
 }
 
+/// The scope of a case that nests an operation in an eager position: its
+/// temporaries bound inside the closure with their `?`, and the root's own
+/// `Result` the closure's answer, handed to `check` whole. A name for the
+/// call rather than `(|| …)()`, which clippy calls redundant.
+pub fn scope<A: IVm>(f: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
+    f()
+}
+
 /// Checks that an operator returned `expected`.
 pub fn check<A: IVm>(case: &str, result: Result<Any<A>, Any<A>>, expected: Any<A>) {
     match result {

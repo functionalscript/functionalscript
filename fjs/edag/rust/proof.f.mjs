@@ -12,7 +12,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { eagerNodesOf, expExpr, holdsFunction, nodeExpr, readsArgs, scope, sharedNodesOf } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, scope, sharedNodesOf, statementsOf } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
@@ -40,6 +40,30 @@ const refusalReason = e => {
 }
 
 export const proof = {
+    /**
+     * A case that nests an operation in an eager position is a scope: the
+     * statements over the caller's bindings, braced as a thunk's body is.
+     * A nested operation in a lazy position, or a bound node, is not one:
+     * the thunk's block binds the one, the binding's `.clone()` is the other.
+     */
+    nestsOperation: () => {
+        /** @type {Exp} */
+        const inner = ['*', 2, 3]
+        assertEq(nestsOperation([])(['+', inner, 1]), true)
+        assertEq(nestsOperation([])(['+', 1, 2]), false)
+        assertEq(nestsOperation([])(['&&', true, inner]), false)
+        assertEq(nestsOperation([[inner, 'x.clone()']])(['+', inner, 1]), false)
+        assertEq(nestsOperation([])(['-', ['.', ['{}', []], 'a']]), true)
+        assertStructurallySame(unwrap(statementsOf([])(['+', inner, 1])), [
+            'let c0: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;',
+            'c0 + f64_any(0x3ff0000000000000)',
+        ])
+        assertStructurallySame(unwrap(statementsOf([[inner, 'x.clone()']])(['+', inner, 1])), [
+            'x.clone() + f64_any(0x3ff0000000000000)',
+        ])
+        assertEq(braced(['a']), '{ a }')
+        assertEq(braced(['a;', 'b']), '{\n    a;\n    b\n}')
+    },
     /** Every primitive kind, as {@link printed} prints it standalone. */
     primitives: () => {
         assertEq(printed(null), 'Nullish::Null.to_any()')

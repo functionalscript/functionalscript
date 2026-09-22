@@ -434,6 +434,10 @@ fn sub<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 fn add<A: IStaticFunction>() {
+    check_throws::<A>("unreachedPlusOne", scope(|| {
+        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+        c0 + f64_any(0x3ff0000000000000)
+    }));
     check::<A>("nullPlusOne", Nullish::Null.to_any() + f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000));
     check::<A>("undefinedPlusOne", Nullish::Undefined.to_any() + f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
     check::<A>("truePlusTrue", true.to_any() + true.to_any(), f64_any(0x4000000000000000));
@@ -1086,6 +1090,10 @@ fn nullish_coalescing<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 fn conditional<A: IStaticFunction>() {
+    check_throws::<A>("unreachedCondition", scope(|| {
+        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+        Any::conditional(c0, || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))
+    }));
     check::<A>("truePicksConsequent", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
     check::<A>("falsePicksAlternate", Any::conditional(false.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
     check::<A>("nullPicksAlternate", Any::conditional(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));

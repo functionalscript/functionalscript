@@ -54,7 +54,7 @@ import {
 } from '../module.f.mjs'
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { expExpr as sharedExpExpr, indent } from '../../edag/rust/module.f.mjs'
+import { braced, expExpr as sharedExpExpr, indent, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
 
 /**
  * The shared printer as a throwing convenience, for this module's own use:
@@ -69,6 +69,23 @@ const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
 
 /** @type {(e: Exp) => string} */
 export const nodeExpr = e => unwrap(sharedExpExpr([])(e))
+
+/**
+ * A case's result as the `Result` `check` takes: one bare operation over
+ * its operands as written — the flat statement every case has been —
+ * unless an operation stands in an eager position, which a bare statement
+ * has no line to bind on. Then the case is a scope, `scope(|| { … })`: its
+ * temporaries bound inside the closure with their `?`, and the root's own
+ * `Result` the closure's answer, handed to `check` whole — the shape a
+ * thunk's body and a compiled module already have (`fjs/edag/rust`'s
+ * `statementsOf`). `scope` is the harness's, a name for the call rather
+ * than `(|| …)()`, which clippy calls redundant.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
+ */
+const caseText = shared => e => nestsOperation(shared)(e)
+    ? `scope(|| ${braced(unwrap(statementsOf(shared)(e)))})`
+    : expExpr(shared)(e)
 
 /**
  * Where this printer's output goes, relative to the repository root.
@@ -215,7 +232,7 @@ const groupFn = shared => g => {
                 expExpr(used.slice(0, i).map(binding))(node)};`),
         ...casesOf(g).flatMap(c => orders(g)(c).flatMap(([name, args]) =>
             emit(c.rust)(assertion(c.expected)(name)(
-                expExpr(used.map(binding))(caseExp(shared)(g)(args)))))),
+                caseText(used.map(binding))(caseExp(shared)(g)(args)))))),
         '}',
         '',
     ]

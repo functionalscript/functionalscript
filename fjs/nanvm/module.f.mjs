@@ -653,6 +653,8 @@ const remCases = [
  * @type {readonly Case<2>[]}
  */
 const addCases = [
+    // An eager position establishes its operand: the throw is the case's.
+    { name: 'unreachedPlusOne', args: [unreached, 1], expected: throws },
     { name: 'nullPlusOne', args: [null, 1], expected: 1 },
     { name: 'undefinedPlusOne', args: [undefined, 1], expected: NaN },
     { name: 'truePlusTrue', args: [true, true], expected: 2 },
@@ -990,6 +992,8 @@ const nullishCases = [
  * @type {readonly Case<3>[]}
  */
 const ternaryCases = [
+    // The condition is the one eager position: established, it throws.
+    { name: 'unreachedCondition', args: [unreached, 1, 2], expected: throws },
     { name: 'truePicksConsequent', args: [true, 1, 2], expected: 1 },
     { name: 'falsePicksAlternate', args: [false, 1, 2], expected: 2 },
     { name: 'nullPicksAlternate', args: [null, 1, 2], expected: 2 },
