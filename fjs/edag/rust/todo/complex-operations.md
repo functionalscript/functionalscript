@@ -124,6 +124,20 @@ where a thunk belongs does not compile.
 - The `.` node's key is a value: `a[k]` evaluates both operands whatever
   they are.
 
+A thunk says when an operand may be *skipped*; it says nothing about
+where it runs when it is not. That is fixed separately: on a live chain a
+step forces its thunk first, before it looks at the current value at
+all. JavaScript evaluates a call's arguments before it checks that the
+callee is callable, and a computed key before the read that throws on a
+nullish base, so `1?.(boom)` throws `boom`'s value and not the
+`TypeError`, and `a?.b[k()]` with `a.b` undefined throws from `k`.
+`callValue` in
+[`../../operations/module.f.mjs`](../../operations/module.f.mjs)
+inherits that order by spelling the call as JavaScript; a thunk has to
+state it. An implementation that converts the callee first and answers
+its `TypeError` without forcing the thunk is wrong on every non-callable
+live callee whose arguments throw.
+
 **A lambda carries a deferred throw.** `dot` answers a `PropertyLambda`,
 not a `Result`, so a nullish receiver cannot throw there: the `TypeError`
 waits inside the lambda until `end` or `end_call` surfaces it. That is
@@ -213,6 +227,11 @@ only through lazy operands has none today.
       cases the README says JavaScript cannot pin: `a.b(...c)` against
       `(a?.b)(...c)` on a nullish base, and the skipped key and arguments
       inside a region.
+- [ ] `nanvm-lib`: a test per live step that its thunk is forced first —
+      a non-callable callee with throwing arguments answers the
+      arguments' throw, a nullish current value with a throwing key
+      answers the key's — the case JavaScript *can* pin and the `Err`
+      values tell apart.
 - [ ] Printer: the eager positions per tag above, in `reach` and
       `lazyOperandsOf`, with a proof that a shared node reached only
       through a chain position is refused and that an operation inside a
