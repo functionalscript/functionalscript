@@ -795,9 +795,10 @@ const printer = nested => shared => root => {
      * `.option_call(…)` for a step the chain goes on from, in the state it
      * hands on. Which steps a state admits is the lambda type's method set
      * in `nanvm-lib`, so a step the README does not allow does not compile;
-     * this printer only spells. A step's key is a thunk over a literal,
-     * {@link keyThunk}, and its arguments a {@link lazyOperand}: both are
-     * inside the region, or after an access that may throw first.
+     * this printer only spells, and refuses a tag that is none of the four
+     * rather than read it as one of them. A step's key is a thunk over a
+     * literal, {@link keyThunk}, and its arguments a {@link lazyOperand}:
+     * both are inside the region, or after an access that may throw first.
      *
      * @type {(property: boolean) => (k: readonly any[] | undefined) => Result<string, readonly unknown[]>}
      */
@@ -805,6 +806,7 @@ const printer = nested => shared => root => {
         if (k === undefined) { return ok('.end()') }
         const [step, x, next] = k
         if (step === '|.') { return map2((key, rest) => `.dot(${key})${rest}`)(keyThunk(x), steps(false)(next)) }
+        if (!['|()', '|?.()', '|!()'].includes(step)) { return error(['no Rust for a chain step', k]) }
         const terminal = step === '|!()' || (step === '|()' && property)
         if (terminal && next !== undefined) { return error(['a terminal step with a continuation', k]) }
         const method = terminal ? 'end_call' : step === '|()' ? 'call' : 'option_call'
