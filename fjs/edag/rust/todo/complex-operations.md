@@ -31,12 +31,13 @@ every module generated that way is wrong, and the fix is a generator
 change and a regeneration where it should be a change in `nanvm-lib`
 alone. #2173 tried that spelling and was closed for it.
 
-So the printer refuses every continuation today, which is the honest
-state, and the rule for the eager operators and the lazy ones holds for
-these too: the operation comes first, in `nanvm-lib`, with the signature
-the node's semantics need, and the printer prints it. The design of that
-mapping is below. No spelling composed from value operations is to be
-tried in its place.
+The printer refused every continuation until the mapping below landed —
+the honest state while there was no operation to print — and the rule for
+the eager operators and the lazy ones holds for these too: the operation
+comes first, in `nanvm-lib`, with the signature the node's semantics need,
+and the printer prints it. That is the state now: every chain prints, and
+what remains is the receiver, the last task below. No spelling composed
+from value operations is to be tried in its place.
 
 ### Design
 

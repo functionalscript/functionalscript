@@ -1,4 +1,4 @@
-## any-receiver-prologue. `Any::member_access` and `Any::own_property` repeat the receiver guard and fallback
+## any-receiver-prologue. `Any::dot` and `Any::own_property` repeat the receiver guard and fallback
 
 **Priority:** P4
 **Status:** open
@@ -20,17 +20,18 @@ Ok(match unpacked {
     _ => Nullish::Undefined.to_any(),
 })
 
-// vm/any/member_access.rs, Any::member_access
+// vm/any/dot.rs, Any::dot — the read, answered into the lambda's `Result`
 let unpacked: Unpacked<A> = self.into();
 if let Unpacked::Nullish(_) = &unpacked {
-    return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+    return PropertyLambda(Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into()));
 }
-Ok(match unpacked {
+PropertyLambda(Ok(match unpacked {
     Unpacked::Array(a) => a.member_access(key).unwrap_or_else(|| Nullish::Undefined.to_any()),
     Unpacked::String(s) => s.member_access(key).unwrap_or_else(|| Nullish::Undefined.to_any()),
     Unpacked::Object(o) => o.member_access(key).unwrap_or_else(|| Nullish::Undefined.to_any()),
+    Unpacked::Function(f) => f.member_access(key).unwrap_or_else(|| Nullish::Undefined.to_any()),
     _ => Nullish::Undefined.to_any(),
-})
+}))
 ```
 
 Two policies are stated here, and each is stated by repetition rather than
@@ -38,7 +39,7 @@ by name. **A nullish receiver throws before the key is looked at** — the
 `ToObject`-first ordering that `own_property`'s doc and its
 `own_property_nullish_receiver_outranks_non_string_key` test pin down.
 **An absent member reads `undefined`** — the `unwrap_or_else` that appears
-four times. The two doc comments assert that the operators agree on both
+five times. The two doc comments assert that the operators agree on both
 ("the same fallback `own_property` has", "the same split `own_property`
 has"); nothing in the code makes them agree, and the next receiver
 operator re-follows the convention by hand or drifts.
