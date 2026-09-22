@@ -5,5 +5,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), (Any::call(A::static_function(|_self, args| { Any::member_access(args.clone().to_any(), f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any(), [f64_any(0x4044800000000000)].to_array().to_any()))?)].to_object().to_any())
+    Ok([(string_key("default"), (Any::call(A::static_function(|_self, args| {
+        Any::member_access(args.clone().to_any(), f64_any(0x3ff0000000000000))
+    }, 0, Array::default()).to_any(), [f64_any(0x4044800000000000)].to_array().to_any()))?)].to_object().to_any())
 }

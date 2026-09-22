@@ -457,22 +457,22 @@ export const proof = {
         closure: () => {
             assertEq(
                 printed(['=>', null, ['args']]),
-                'A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()')
+                'A::static_function(|_self, args| {\n        Ok(args.clone().to_any())\n    }, 0, Array::default()).to_any()')
             assertEq(
                 printed(['=>', null, 1]),
-                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()')
+                'A::static_function(|_self, _args| {\n        Ok(f64_any(0x3ff0000000000000))\n    }, 0, Array::default()).to_any()')
         },
         /** A nested function's `args` are its own: the outer body reads none. */
         nested: () => {
             assertEq(
                 printed(['=>', null, ['=>', null, ['args']]]),
-                'A::static_function(|_self, _args| { Ok(A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any()) }, 0, Array::default()).to_any()')
+                'A::static_function(|_self, _args| {\n        Ok(A::static_function(|_self, args| {\n                Ok(args.clone().to_any())\n            }, 0, Array::default()).to_any())\n    }, 0, Array::default()).to_any()')
         },
         /** A body whose root is an operation answers that operation's own `Result`, as a thunk does. */
         operationBody: () => {
             assertEq(
                 printed(['=>', null, ['.', ['args'], 0]]),
-                'A::static_function(|_self, args| { Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000)) }, 0, Array::default()).to_any()')
+                'A::static_function(|_self, args| {\n        Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))\n    }, 0, Array::default()).to_any()')
         },
         /** Sharing inside a body is the body's own: bound in the closure, numbered from `c0`. */
         sharingInside: () => {
@@ -480,7 +480,7 @@ export const proof = {
             const first = ['.', ['args'], 0]
             assertEq(
                 printed(['=>', null, ['[]', [first, first]]]),
-                'A::static_function(|_self, args| { let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?; Ok([c0.clone(), c0.clone()].to_array().to_any()) }, 0, Array::default()).to_any()')
+                'A::static_function(|_self, args| {\n        let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?;\n        Ok([c0.clone(), c0.clone()].to_array().to_any())\n    }, 0, Array::default()).to_any()')
         },
         /** Any frame but `null` and the corpus's empty one is refused. */
         otherFrame: () => {
