@@ -81,20 +81,24 @@ reads its frame names `self_` as one that reads its arguments names
 `args`.
 
 The FunctionalScript output, [`serializer/module.f.mjs`](../serializer/module.f.mjs),
-writes a function with a frame as a function of its frame, applied:
+writes a function with a frame as JavaScript writes a closure: an arrow
+function whose body names its captures. Each frame element takes a
+`const` in the enclosing scope, as the writer already hoists a shared
+value, and a frame read `['.', ['frame'], i]` is written as that name:
 
 ```js
-((...$f) => (...$a) => body)(...frame)
+const $0 = [1];
+const $1 = (...$a) => [$0, $a[0]];
 ```
 
-The frame node is spread as the outer call's arguments — an array-literal
-frame `['[]', [c0, c1]]` is written `(c0, c1)`, any other frame node
-`(...frame)` — and a frame read `['.', ['frame'], i]` is `$f[i]`, as an
-argument read is `$a[i]`. The inner function captures `$f`, which is what
-the parser admits once this task lands, so the output round-trips through
-our own parser; nothing is named, and nothing crosses the function
-boundary but through the frame, as in the EDAG. Today the serializer
-refuses the shape, `a function with a frame`.
+Read back, the body's outside names are captures in first-use order, so
+the frame comes back with the same elements in the same order, and the
+output round-trips as the writer's contract asks. A frame element always
+takes a `const`, even one the writer would otherwise write in place: a
+capture is a name, and `$a[0]` as an operand would read back as a capture
+of `$a`. The frame's order is the body's first-use order, which the
+lowering defines, so the writer reproduces it by construction. Today the
+serializer refuses the shape, `a function with a frame`.
 
 The spec's sentence that a capture is an error is replaced by the rule
 above in the same pull request that lifts the refusal.
@@ -115,9 +119,9 @@ its proofs to pin.
 
 - [ ] Printer: a non-`null` frame and `['frame']` print; proofs at the
       printer level.
-- [ ] Serializer: a function with a frame is written as a function of its
-      frame, applied, and `['frame']` as its parameter; proofs, and the
-      output round-tripped through the parser once it admits captures.
+- [ ] Serializer: a function with a frame is written as a closure over
+      `const`s, one per frame element; proofs, and the output round-tripped
+      through the parser once it admits captures.
 - [ ] Parser, AST, lowering: a capture is a frame slot, not an error; the
       spec's rule updated; proofs.
 - [ ] Harness fixture `(...a) => (...b) => a[0] + b[0]` end to end — the
