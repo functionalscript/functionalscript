@@ -2087,6 +2087,21 @@ export const proof = {
             assert(tag === 'ok', tag)
         },
         () => {
+            // a capture through as many functions: resolved by a loop out to
+            // the binding scope and back, where a recursion per function
+            // overflowed, each body capturing the one outside it
+            const [tag, value] = parseFromTokens(tokenizeString(
+                `const x = 1; export default ${'() => '.repeat(20000)}x;`))
+            assert(tag === 'ok', tag)
+            // walked by a loop too: the outermost function captures the
+            // module's `x`, every one inside it its parent's slot
+            /** @type {any} */
+            let fn = /** @type {any} */ (value[1][1])[1][0][1]
+            assertEq(stringify(sort)(fn[2]), '[["cref",0]]')
+            for (let depth = 1; depth < 20000; depth += 1) { fn = fn[1][0] }
+            assertEq(stringify(sort)(fn), '["=>",[["fref",0]],[["fref",0]]]')
+        },
+        () => {
             // primitives never touched the stack — the baseline that always passed
             const [tag] = parseFromTokens(tokenizeString(
                 `export default [${Array.from({ length: 20000 }, (_, i) => i).join(',')}];`))

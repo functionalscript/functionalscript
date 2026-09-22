@@ -1080,23 +1080,48 @@ const sameRef = (a, b) => a[0] === b[0] && a[1] === b[1]
  * through it: the word resolved in the middle body first, as a capture of
  * its own there, and that slot captured in turn.
  *
+ * A loop rather than a recursion, as {@link evaluate} is: out to the scope
+ * that binds the word, then back in, each body on the way rebuilt around
+ * the one outside it with its capture taken — so a capture however many
+ * functions deep costs no call stack.
+ *
  * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref] | null}
  */
 const resolve = (scope, word) => {
-    const own = at(word)(scope.names)
-    if (own !== null) { return [scope, own] }
-    if (scope.outer === null) { return null }
-    const found = resolve(scope.outer, word)
-    if (found === null) { return null }
-    const [outer, ref] = found
-    const i = scope.captures.findIndex(c => sameRef(c, ref))
+    /** The bodies the word is read through, the one just inside the binding scope on top. @type {List<_Scope>} */
+    let through = null
+    let binder = scope
+    let ref = at(word)(binder.names)
+    while (ref === null) {
+        if (binder.outer === null) { return null }
+        through = { first: binder, tail: through }
+        binder = binder.outer
+        ref = at(word)(binder.names)
+    }
+    /** @type {readonly [_Scope, _Ref]} */
+    let result = [binder, ref]
+    for (const body of toArray(through)) {
+        result = captured(body, word, result)
+    }
+    return result
+}
+
+/**
+ * A body with the value the scope around it resolved `word` to captured,
+ * that scope rebuilt as its `outer`: the slot the body already has for the
+ * binding, or a new one after the rest.
+ *
+ * @type {(body: _Scope, word: string, outer: readonly [_Scope, _Ref]) => readonly [_Scope, _Ref]}
+ */
+const captured = (body, word, [outer, ref]) => {
+    const i = body.captures.findIndex(c => sameRef(c, ref))
     /** @type {AstFrameRef} */
-    const slot = ['fref', i === -1 ? scope.captures.length : i]
+    const slot = ['fref', i === -1 ? body.captures.length : i]
     return [{
-        ...scope,
+        ...body,
         outer,
-        captures: i === -1 ? [...scope.captures, ref] : scope.captures,
-        read: scope.read.includes(word) ? scope.read : [...scope.read, word],
+        captures: i === -1 ? [...body.captures, ref] : body.captures,
+        read: body.read.includes(word) ? body.read : [...body.read, word],
     }, slot]
 }
 
