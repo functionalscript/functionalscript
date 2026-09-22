@@ -175,8 +175,11 @@ the fold's:
   included, which is a duplicate as a module's is. A name a scope *around*
   the body binds is not: the body's `const` shadows it, as in JavaScript —
   unless the body has already read that name from outside, before the
-  `const` or in its own initializer, which is `capture shadowed`, since
-  JavaScript would read the body's `const` there;
+  `const` or in its own initializer, which is `capture shadowed`: not a
+  rule of the language but a forward reference inside a body, not yet
+  supported
+  ([`todo/body-const-forward-reference.md`](todo/body-const-forward-reference.md)),
+  refused because JavaScript would read the body's `const` there;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;

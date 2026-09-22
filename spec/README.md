@@ -960,9 +960,15 @@ arguments and of what it captures:
   *may* take a name a scope around it binds, shadowing it as in
   JavaScript ([no-shadowing](./todo/3150-shadowing.md)) — unless the body
   has already read that name from outside, before the `const` or in its own
-  initializer, which is an error: JavaScript resolves every reference in
-  the body to the body's `const`, so the capture taken would be another
-  value.
+  initializer. That is not supported yet and is refused (`capture
+  shadowed`) rather than compiled to another value: JavaScript resolves
+  every reference in the body to the body's `const`, a read before its
+  declaration throwing and a function written earlier reading it once
+  called, where this compiler would read the capture. It is no restriction
+  of the language — nothing leaks through it — but a forward reference
+  inside a body, which
+  [`body-const-forward-reference.md`](../fjs/fsc/parser/todo/body-const-forward-reference.md)
+  tracks.
 
   ```js
   export default (...args) => {

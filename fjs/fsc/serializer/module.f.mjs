@@ -345,7 +345,11 @@ const firstChunk = first('')
 /**
  * The name the frame's slot `k` reads as in the scope `s`: the name the
  * slot's element took in the scope around the function. A slot out of
- * range, and a key no slot is, has no name to write.
+ * range, and a key no slot is, has no name to write. A `-0` key is slot
+ * `0`'s: JavaScript reads the number `-0` as the key `"0"`, and so do the
+ * EDAG interpreter and `nanvm-lib` (`canonical_index`), so the read is
+ * written as slot `0`'s name — the same program, the table differing only
+ * in the key's sign, which collapsing would be an optimization.
  *
  * @type {(s: _Scope) => (k: Operand) => Result<string, string>}
  */

@@ -791,7 +791,9 @@ const duplicateId = foldError('duplicate id')
  * body to the body's own `const`, the ones before it included — a read
  * before it is initialized throws, and a function written before it reads
  * it once called — so the capture already taken would be a different
- * value, and the program is refused instead.
+ * value, and the program is refused instead. Not a rule of the language,
+ * which leaks nothing here, but a forward reference inside a body not yet
+ * supported: `./todo/body-const-forward-reference.md`.
  */
 const captureShadowed = foldError('capture shadowed')
 
