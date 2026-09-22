@@ -140,11 +140,14 @@ hardening TODO after the baseline interpreter exists.
       graphs disjoint while allowing sharing inside one body.
 - [ ] Reject an access whose index is a prohibited name, by the parser's two
       lists, in `validate`: a `.` node without a call continuation by the read
-      rule, `['.', ['{}', []], 'constructor']`, and one with a `|()` or `|?.()`
-      continuation by `fjs/js/prototype`'s `prohibitedCalls` alone, since
+      rule, `['.', ['{}', []], 'constructor']`, and a `.` or `?.` node whose
+      continuation is a call step — `|()`, `|?.()` or `|!()`, the three
+      receiver-preserving calls of `fjs/edag/README.md`'s Chains — by
+      `fjs/js/prototype`'s `prohibitedCalls` alone, since
       `['.', a, 'toString', ['|()', args]]` is an EDAG the compiler emits and the
-      executor reads. Neither prohibited shape is emitted, and the executor never
-      reads one.
+      executor reads, and `['?.', a, 'toString', ['|!()', args]]` will be once
+      the grammar spells `?.`. Neither prohibited shape is emitted, and the
+      executor never reads one.
 - [ ] Return the interpreted value for a valid final EDAG.
 - [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
       `transpile` / `fjs compile` path without changing its success result/output
