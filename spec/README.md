@@ -885,13 +885,31 @@ export default () => 6;
 
 A function is written as an arrow function of one rest parameter or of none,
 and its body is an expression or a block. It denotes a function of its
-arguments alone:
+arguments and of what it captures:
 
-- The parameter is the arguments array, `args[0]` the first argument, and
-  the body may name it and nothing declared outside — a `const`, an import,
-  or an enclosing function's parameter is a **capture**, which is an error
-  ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
-  a module name, as in JavaScript.
+- The parameter is the arguments array, `args[0]` the first argument. The
+  parameter may shadow a module name, as in JavaScript.
+- A name the body reads from a scope around it — a `const`, an import, an
+  enclosing function's parameter or an enclosing body's `const` — is a
+  **capture**, as a JavaScript closure's is. The function's frame is the
+  array of the captured values, one per binding however many references
+  reach it, in the order the body first names them, built where the
+  function is written; the body reads a capture as a slot of it, and a
+  nested function captures through its parent. Nothing mutates, so a frame
+  copied when the function is made is unobservable from a closure over the
+  scope ([function-frame](./todo/3111-function-frame.md)). A captured
+  primitive is written into the body instead, as a `const` holding one is
+  wherever it is read, since it has nothing to share.
+
+  ```js
+  const base = [10];
+  const add = (...a) => (...b) => a[0] + b[0];
+  export default [add(1)(2), ((...a) => base[0] + a[0])(5)];
+  ```
+
+  A function that names itself — recursion — is not supported yet: its
+  `const` is not bound in its own initializer, and a function has no
+  `self` to read in its place.
 - An **empty parameter list** binds no name at all, so a body written under
   one cannot reach its arguments: the arguments array is named by the
   parameter and by nothing else, and a word the list does not spell is
@@ -930,12 +948,13 @@ arguments alone:
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
   written twice, and it is not in its own initializer's scope. The parameter
-  is a name of the body too, so a `const` may not take it. What a body
-  `const` *may* take is a name the module binds — the body cannot reach the
-  module's scope at all, a reference out being a capture, so the module's
-  name is unreachable here rather than hidden
-  ([no-shadowing](./todo/3150-shadowing.md) has nothing to decide about this
-  case).
+  is a name of the body too, so a `const` may not take it. A body `const`
+  *may* take a name a scope around it binds, shadowing it as in
+  JavaScript ([no-shadowing](./todo/3150-shadowing.md)) — unless the body
+  has already read that name from outside, before the `const` or in its own
+  initializer, which is an error: JavaScript resolves every reference in
+  the body to the body's `const`, so the capture taken would be another
+  value.
 
   ```js
   export default (...args) => {

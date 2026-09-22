@@ -75,7 +75,8 @@ const copy = e => /** @type {Exp} */ (deep(e))
  * One graph per shape over the graphs `p`: each container, an access with
  * each key, a function body, a node shared twice, each side of a root
  * comma, a root comma whose two sides are one node, a root comma with one
- * operand, and the same graph twice over in two scopes.
+ * operand, the same graph twice over in two scopes, and a function that
+ * captures the graph beside it.
  *
  * That last one is a copy and not the node again: two nodes, one in a body
  * and one outside it, which is a graph the compiler emits — and which the
@@ -100,6 +101,7 @@ const shapes = p => [
     ...p.map(x => /** @type {Exp} */([',', [x, x]])),
     ...p.map(x => /** @type {Exp} */([',', [x]])),
     ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', null, copy(x)]]])),
+    ...p.map(x => /** @type {Exp} */(['[]', [x, ['=>', ['[]', [x]], ['.', ['frame'], 0]]]])),
 ]
 
 /**
@@ -394,6 +396,57 @@ export const proof = {
     chunks: () => {
         assertStructurallySame(toArray(unwrap(trySerialize(1))), ['export default ', '1', ';'])
     },
+    // A function with a frame is a closure: each frame element takes a
+    // `const` in the scope around the function — even one the writer would
+    // write in place, since a capture is a name — and a read of slot `i` is
+    // that name. A slot that reads the scope's own frame is that slot's
+    // name already. Read back, the body's outside names are its captures
+    // in first-use order, which is the frame's.
+    captures: () => {
+        /** @type {Exp} */
+        const c = ['[]', [1]]
+        /** A read of slot `i`, a node of its own — one node in two bodies is no EDAG. @type {(i: number) => Exp} */
+        const slot = i => ['.', ['frame'], i]
+        writes(['=>', ['[]', [c]], slot(0)], 'const $0=[1];export default (...$a)=>$0;')
+        writes(['[]', [c, ['=>', ['[]', [c]], slot(0)]]], 'const $0=[1];export default [$0,(...$a)=>$0];')
+        // the frame's `const` comes before the function's own
+        /** @type {Exp} */
+        const f = ['=>', ['[]', [c]], ['[]', [slot(0), ['.', ['args'], 0]]]]
+        writes(['[]', [f, f]], 'const $0=[1];const $1=(...$a)=>[$0,$a[0]];export default [$1,$1];')
+        // a slot read is a base like any name
+        writes(['=>', ['[]', [c]], ['.', slot(0), 0]], 'const $0=[1];export default (...$a)=>$0[0];')
+        // one slot read twice is one name, and two slots are two
+        /** @type {Exp} */
+        const d = ['{}', []]
+        writes(['=>', ['[]', [c, d]], ['[]', [slot(0), slot(1), slot(0)]]], 'const $0=[1];const $1={};export default (...$a)=>[$0,$1,$0];')
+        // inside a body: the arguments and an access take a `const` of the
+        // body, and a nested function captures through its parent
+        writes(
+            ['=>', null, ['=>', ['[]', [['args']]], ['=>', ['[]', [slot(0), ['args']]], ['[]', [slot(0), slot(1), slot(0)]]]]],
+            'export default (...$a)=>{const $a0=$a;return (...$b)=>{const $b0=$b;return (...$c)=>[$a0,$b0,$a0];};};')
+        writes(
+            ['=>', null, ['=>', ['[]', [['.', ['args'], 0]]], ['[]', [slot(0), slot(0)]]]],
+            'export default (...$a)=>{const $a0=$a[0];return (...$b)=>[$a0,$a0];};')
+        // a frame the parser would not build has no text that reads back,
+        // and one of the enclosing scope, a comma, has no text yet
+        refuses(['=>', ['undefined'], 1], 'a frame that is not an array literal')
+        refuses(['=>', ['[]', []], 1], 'an empty frame')
+        refuses(['=>', ['[]', [1]], slot(0)], 'a frame slot holding a primitive')
+        refuses(['=>', ['[]', [['...', c]]], slot(0)], 'a spread')
+        refuses(['=>', ['[]', [c, c]], ['[]', [slot(0), slot(1)]]], 'a frame slot that repeats another')
+        refuses(['=>', ['[]', [c]], 1], 'a frame slot the body never reads')
+        refuses(['=>', ['[]', [c, d]], ['[]', [slot(1), slot(0)]]], 'a frame out of first-use order')
+        refuses(['=>', ['[]', [c]], slot(1)], 'a frame read that is no slot')
+        refuses(['=>', ['[]', [c]], ['.', ['frame'], 'a']], 'a frame read that is no slot')
+        refuses(['.', ['frame'], 0], 'a frame read that is no slot')
+        refuses(['=>', ['[]', [c]], ['frame']], 'the frame outside a slot read')
+        refuses((() => {
+            /** @type {Exp} */
+            const frame = ['[]', [c]]
+            return ['[]', [frame, ['=>', frame, slot(0)]]]
+        })(), 'a frame reached from anywhere but its function')
+        refuses(['=>', ['[]', [[',', [['[]', []], c]]]], slot(0)], 'a comma outside a scope')
+    },
     // Every refusal, by the message it carries: a node kind with no spelling
     // yet, a position a spelling has none in, and a key no literal reads
     // back. Each names the feature that replaces it.
@@ -404,7 +457,6 @@ export const proof = {
         refuses(['[]', [['...', ['[]', []]]]], 'a spread')
         refuses(['{}', [['...', ['[]', []]]]], 'a spread')
         refuses(['.', ['args'], 'b', ['|()', ['args']]], 'a chain step')
-        refuses(['=>', ['frame'], 1], 'a function with a frame')
         // A node kind with a spelling, in a position that has none.
         refuses(['args'], 'the arguments outside a function')
         // a comma is a scope's own form — a module's root and a function's
@@ -469,11 +521,11 @@ export const proof = {
     // which is what a writer whose contract is the round trip may not do,
     // and which four hand-picked accept sets in a row did not catch.
     //
-    // The graphs are every shape over every shape over the atoms: 2169 of
-    // them, of which 1157 have a text and the rest are refused by name.
-    // Before a body could hold a `const` the writer spelled 1110 — the 47
-    // this law newly round-trips rather than skipping are what a body's
-    // `const`s are worth to it.
+    // The graphs are every shape over every shape over the atoms: 2730 of
+    // them, of which 1447 have a text and the rest are refused by name.
+    // The capturing shape, a closure, is 320 of the graphs and 148 of the
+    // texts; before a body could hold a `const` the writer spelled 47 fewer
+    // of the rest, which is what a body's `const`s are worth to it.
     law: () => {
         generated.forEach(e => {
             const written = tryStringify(e)

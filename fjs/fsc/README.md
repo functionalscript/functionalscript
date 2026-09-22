@@ -139,12 +139,18 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
-A function is `['=>', null, body]`: no frame yet, and the body a scope of
-its own, in which the rest parameter is `['args']` — one node however many
-references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
-nothing outside stands: a reference to a `const`, an import or an enclosing
-function's parameter is a capture, refused where it is written, so no module
-node is ever shared into a body. The body is any value except an object, since
+A function is `['=>', frame, body]`, the body a scope of its own, in which
+the rest parameter is `['args']` — one node however many references reach
+it, so `(...a) => [a, a]` shares as JavaScript does — and nothing outside
+stands. A reference to a `const`, an import, an enclosing function's
+parameter or an enclosing body's `const` is a capture: the frame is
+`['[]', slots]`, each slot the enclosing scope's own node for a captured
+value, one per node in the order the body first names them, and the body
+reads slot `i` as `['.', ['frame'], i]` — so no outside node is ever shared
+into a body, only read through its frame. A captured primitive is written
+into the body rather than captured, and a function that captures nothing
+else has a `null` frame. A nested function captures through its parent, its
+slot a read of the parent's frame. The body is any value except an object, since
 `=> {` opens a block in JavaScript — or that block, in which an object is a
 value again: any number of `const` statements and then one `return`. A body
 `const` is an entry of the function's own body, as a module `const` is of the

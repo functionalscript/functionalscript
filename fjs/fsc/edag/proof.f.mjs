@@ -367,11 +367,11 @@ export const proof = {
             expectEdag(compile('const a = []; export default [a, 0][1];').edag, ['.', ['[]', [['[]', []], 0]], 1])
         },
     },
-    // A function is `['=>', null, body]`: no frame yet, and the body a
+    // A function that captures nothing is `['=>', null, body]`, the body a
     // scope of its own, in which the arguments are one node however many
-    // references reach them and no module node stands, since the parser
-    // refuses a capture — so two functions share nothing, and a function
-    // `const` is one node like any other.
+    // references reach them and no module node stands — so two such
+    // functions share nothing, and a function `const` is one node like any
+    // other.
     func: () => {
         expectEdag(compile('export default (...a) => a;').edag, ['=>', null, ['args']])
         const shared = compile('export default (...a) => [a, a[0]];').edag
@@ -399,6 +399,51 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', null, ['=>', null, ['args']]])
+    },
+    // A function that captures is `['=>', ['[]', slots], body]`: each slot
+    // the enclosing scope's own node for a captured value — one per node,
+    // in the order the body first names them — and each read of it in the
+    // body `['.', ['frame'], i]`, one node per slot. A primitive is no slot:
+    // it is written into the body, as any read of a `const` holding one is.
+    captures: () => {
+        const own = compile('const c = [1]; export default [c, (...a) => c];').edag
+        expectEdag(own, ['[]', [['[]', [1]], ['=>', ['[]', [['[]', [1]]]], ['.', ['frame'], 0]]]])
+        // the frame's element is the module's node, not a copy of it
+        assert(own instanceof Array && own[0] === '[]', own)
+        const [c, f] = own[1]
+        assert(f instanceof Array && f[0] === '=>' && f[1] instanceof Array && f[1][0] === '[]' && f[1][1][0] === c, own)
+        // a captured `const` is reached through the function, not anchored
+        expectEdag(compile('const c = [1]; export default (...a) => c;').edag, ['=>', ['[]', [['[]', [1]]]], ['.', ['frame'], 0]])
+        // a primitive is written in, and a function left with no slot has
+        // no frame
+        expectEdag(compile('const c = 1; export default (...a) => [c, a];').edag, ['=>', null, ['[]', [1, ['args']]]])
+        expectEdag(compile('const n = 1; const c = [1]; export default (...a) => [n, c];').edag, ['=>', ['[]', [['[]', [1]]]], ['[]', [1, ['.', ['frame'], 0]]]])
+        // an import is its parameter before linking, and its node after —
+        // a primitive one written in
+        expectEdag(compile('import y from "./y.f.js"; export default (...a) => y;').edag, ['=>', ['[]', [['.', ['.', ['args'], 0], 'default']]], ['.', ['frame'], 0]])
+        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default (...a) => y;'), 'y.f.js': file('export default 1;') })('a.f.js'), ['=>', null, 1])
+        expectEdag(program({ 'a.f.js': file('import y from "./y.f.js"; export default (...a) => y;'), 'y.f.js': file('export default [1];') })('a.f.js'), ['=>', ['[]', [['[]', [1]]]], ['.', ['frame'], 0]])
+        // an alias and its target are one node, so one slot, read by one node
+        const alias = compile('const c = [1]; const d = c; export default (...a) => [d, c];').edag
+        expectEdag(alias, ['=>', ['[]', [['[]', [1]]]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 0]]]])
+        assert(alias instanceof Array && alias[0] === '=>' && alias[2] instanceof Array && alias[2][0] === '[]' && alias[2][1][0] === alias[2][1][1], alias)
+        // a nested function captures through its parent: the middle
+        // function's frame holds the outer arguments, the innermost's a
+        // read of the middle frame and the middle arguments
+        expectEdag(
+            compile('export default (...a) => (...b) => (...c) => [a, b, a];').edag,
+            ['=>', null, ['=>', ['[]', [['args']]], ['=>', ['[]', [['.', ['frame'], 0], ['args']]], ['[]', [['.', ['frame'], 0], ['.', ['frame'], 1], ['.', ['frame'], 0]]]]]])
+        expectEdag(
+            compile('export default (...a) => (...b) => a[0] + b[0];').edag,
+            ['=>', null, ['=>', ['[]', [['args']]], ['+', ['.', ['.', ['frame'], 0], 0], ['.', ['args'], 0]]]])
+        // a body `const` captured by a function in the body
+        expectEdag(
+            compile('export default (...a) => { const x = [a]; return (...b) => x; };').edag,
+            ['=>', null, ['=>', ['[]', [['[]', [['args']]]]], ['.', ['frame'], 0]]])
+        // a function `const` called from another function
+        expectEdag(
+            compile('const f = (...a) => a; export default (...b) => f(b);').edag,
+            ['=>', ['[]', [['=>', null, ['args']]]], ['()', ['.', ['frame'], 0], ['[]', [['args']]]]])
     },
     // Source blocks and returns survive parsing, but lowering still gives
     // equivalent bodies the same EDAG, including nested block functions.
@@ -825,9 +870,9 @@ export const proof = {
             // `undefined` is a constant and draws as the leaf it is, beside
             // `null` and the numbers, where `args` and `frame` are the two
             // places a value enters a scope from outside it and draw as
-            // terminals of their own. `frame` is unreachable from the demo's
-            // own field — the parser refuses a capture, so no source lowers
-            // to one — which is why the tags are built here by hand.
+            // terminals of their own. `frame` is not reached from the demo's
+            // own field — its one function captures nothing — which is why
+            // the tags are built here by hand.
             op0: () => {
                 for (const [tag, kind] of [['undefined', 'leaf'], ['args', 'terminal'], ['frame', 'terminal']]) {
                     const shape = assertNotNullish(_shapeOf([tag]), tag)
