@@ -39,8 +39,9 @@ event payload and fails unless
 The `edited` trigger re-runs the check when the title or description is fixed —
 no push needed to re-green. Branch protection marks it required, which disables
 the merge button until it passes. The linter is a self-hosted FunctionalScript
-module (`fjs/ci`), and the changelog-subset Markdown parser planned in
-[changelog-website.md](./changelog-website.md) validates the section's items.
+module (`fjs/ci`), and the changelog-subset Markdown parser
+[`fjs/media/markdown`](../fjs/media/markdown/module.f.mjs) validates the
+section's items.
 
 #### What no pre-merge check can decide
 
@@ -84,8 +85,8 @@ narrow the hole, and neither closes it:
    enforced; over the unenforced history above it can advise, never decide, and
    it must not be described as catching the release that undercounts. Build the
    lint first, then this check over the window the lint has governed. The section
-   parser [changelog-website.md](./changelog-website.md) plans is what makes the
-   parse a parse rather than a `grep` — [AGENTS.md
+   parser [`fjs/media/markdown`](../fjs/media/markdown/module.f.mjs) is what
+   makes the parse a parse rather than a `grep` — [AGENTS.md
    §6](../AGENTS.md#6-external-tools): a pattern over text cannot tell a
    declaration from the same characters quoted in a sentence about declarations.
 
@@ -172,5 +173,7 @@ it outright but require an Enterprise plan.
   enforces, and the reasoning for merge-commits-only
 - [changelog/RELEASE.md](../changelog/RELEASE.md) — the release procedure whose
   only per-pull-request input is the declaration this checks
-- [changelog-website.md](./changelog-website.md) — plans the changelog
-  Markdown-subset parser the section validator reuses
+- [`fjs/media/markdown`](../fjs/media/markdown/module.f.mjs) — the changelog
+  Markdown-subset parser the section validator reuses, and
+  [`fjs/ebnf/lib/markdown`](../fjs/ebnf/lib/markdown/module.f.mjs) the grammar
+  it reads the subset with
