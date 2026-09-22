@@ -1,12 +1,12 @@
 use core::f64;
 
 use crate::vm::{
-    Array, BigInt, Function, IVm, Object, String, ToAny, any::Any, dispatch::Dispatch,
+    Array, BigInt, Function, IVm, Number, Object, String, ToAny, any::Any, dispatch::Dispatch,
     ecma_whitespace::is_ecma_whitespace, nullish::Nullish, primitive::Primitive,
     primitive_coercion::ToPrimitivePreferredType,
 };
 
-/// Coerces the value to f64, possibly producing an error result.
+/// Coerces the value to a `Number`, possibly producing an error result.
 /// <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number#number_coercion>
 /// <https://tc39.es/ecma262/#sec-tonumber>
 ///
@@ -15,7 +15,7 @@ use crate::vm::{
 /// Note: the function can return an error (JS throw). For example, `+(7n)`.
 pub struct NumberCoercion;
 
-fn any_to_number<A: IVm>(a: Any<A>) -> Result<f64, Any<A>> {
+fn any_to_number<A: IVm>(a: Any<A>) -> Result<Number, Any<A>> {
     // https://tc39.es/ecma262/#sec-tonumber - starting from point 8:
     // 8. Let primValue be ? ToPrimitive(argument, number).
     // (here we call to_primitive with preferred type Number)
@@ -33,26 +33,26 @@ fn any_to_number<A: IVm>(a: Any<A>) -> Result<f64, Any<A>> {
 }
 
 impl<A: IVm> Dispatch<A> for NumberCoercion {
-    type Result = Result<f64, Any<A>>;
+    type Result = Result<Number, Any<A>>;
 
     fn nullish(self, v: Nullish) -> Self::Result {
         Ok(match v {
-            Nullish::Null => 0.0,
-            Nullish::Undefined => f64::NAN,
+            Nullish::Null => 0.into(),
+            Nullish::Undefined => Number::NAN,
         })
     }
 
     fn bool(self, v: bool) -> Self::Result {
-        Ok(to_f64(v))
+        Ok(v.into())
     }
 
-    fn number(self, v: f64) -> Self::Result {
+    fn number(self, v: Number) -> Self::Result {
         Ok(v)
     }
 
     fn string(self, v: String<A>) -> Self::Result {
         let s: std::string::String = v.into();
-        Ok(string_to_number(s.trim_matches(is_ecma_whitespace)))
+        Ok(string_to_number(s.trim_matches(is_ecma_whitespace)).into())
     }
 
     fn bigint(self, _: BigInt<A>) -> Self::Result {
@@ -70,10 +70,6 @@ impl<A: IVm> Dispatch<A> for NumberCoercion {
     fn function(self, v: Function<A>) -> Self::Result {
         any_to_number(v.to_any())
     }
-}
-
-fn to_f64(v: bool) -> f64 {
-    v as u8 as f64
 }
 
 /// `StringToNumber` on an already-trimmed string: `""` is `0`, `0x`/`0o`/`0b`
@@ -232,16 +228,7 @@ fn is_str_decimal_literal(s: &str) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::vm::{
-        ecma_whitespace::is_ecma_whitespace,
-        number_coercion::{string_to_number, to_f64},
-    };
-
-    #[test]
-    fn test() {
-        assert_eq!(to_f64(true), 1.0);
-        assert_eq!(to_f64(false), 0.0);
-    }
+    use crate::vm::{ecma_whitespace::is_ecma_whitespace, number_coercion::string_to_number};
 
     #[test]
     fn empty_and_decimal() {

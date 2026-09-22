@@ -9,10 +9,11 @@ fjs compile <input> <output>
 
 compiles; every rule below is a rule the `fjs` parser and serializer enforce.
 
-Features the parser does not recognize yet — every operator but unary `-`,
-type annotations — and the design documents for the VM, I/O,
-serialization, and the rest of the roadmap live in
-[`spec/todo/`](./todo/README.md).
+Features the parser does not recognize yet — the lazy operators (`&& || ??`),
+loose equality (`== !=`), the remaining unary operators (`! + typeof`), the
+conditional (`?:`), the comma operator, and type annotations — and the
+design documents for the VM, I/O, serialization, and the rest of the roadmap
+live in [`spec/todo/`](./todo/README.md).
 
 Those documents sort planned features into two layers, and use the names here.
 **DJS** — data JS — is the data subset: a module denotes a graph of values,
@@ -50,6 +51,13 @@ stage and outrank everything else:
    FunctionalScript and JavaScript executions have the same observable result,
    except for explicitly specified semantic exceptions. This includes later
    observations through exported functions, not just the initial module value.
+
+The observable result is the serializable data the program returns. What a
+JavaScript engine reports about the *written* output of a compiler — a
+function's `name` or its text after `fsc` has serialized a module — is the
+writer's spelling, not a result of the program, and no compatibility
+question: a compatibility issue exists only where the same program returns
+different serializable data on a FunctionalScript VM and a JavaScript engine.
 
 The execution profile declares its ECMAScript and host-resolution environment.
 An exception names its profile, affected operations and observable consequences;
@@ -386,8 +394,8 @@ See
 ## Supported Value Types
 
 An expression is a data expression, a property access, a function, a call, a
-negation, or any of those in parentheses ([grouping](#grouping)). Unary `-` is
-the one operator — see the [roadmap](./todo/README.md).
+negation, a binary operator ([operators](#operators)), or any of those in
+parentheses ([grouping](#grouping)).
 
 |Value|Example|In JSON|
 |-----|-------|:-----:|
@@ -441,15 +449,30 @@ an `IdentifierReference`. `-Infinity` names nothing in either language: it is
 two tokens in both — the operator and the word — which no property name may
 be.
 
+**FunctionalScript has one `NaN`.** IEEE 754 gives a `NaN` a sign and a
+payload, and a JavaScript program can read them — through a typed array or a
+`DataView`, which FunctionalScript has none of. Nothing else tells two `NaN`s
+apart: every operator, coercion and comparison treats each the same,
+`Object.is` included, and each is written as the word `NaN`. So a `NaN`'s
+bits are not serializable data, hence not an observation and not a
+compatibility question ([principles](#principles)): every `NaN` is the one
+value, and a writer may spell them all as one — the Rust writer spells each
+as the quiet `NaN` with an empty payload.
+
 The `-` is the **unary minus operator** ([operators](./todo/2340-operators.md)),
-and the only operator the language has. It is not part of the literal after
-it: `-42.5` is the negation of `42.5`, `- 42.5` is the same value written with
-a space, and `-NaN` and `-Infinity` are values as JavaScript has them. It binds
-looser than a property access or a call, as it does in JavaScript, so `-1 .x`
-is `-(1 .x)` and `-1()` is `-(1())`. What it takes is JavaScript's
-`UnaryExpression`, which an arrow function is not, so `-(...a) => 1` is a
-syntax error in both. Two adjacent `-` characters are the decrement operator,
-which the language has no rule for: a negation of a negation is `- -1`.
+the first operator the language had; `~`, the **bitwise not operator**, is the
+other prefix, Stage A of the same operators document. Neither is part of the
+literal after it: `-42.5` is the negation of `42.5`, `- 42.5` is the same
+value written with a space, and `-NaN` and `-Infinity` are values as
+JavaScript has them. Each binds looser than a property access or a call, as
+in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`. What either
+takes is JavaScript's `UnaryExpression`, which an arrow function is not, so
+`-(...a) => 1` and `~(...a) => 1` are syntax errors in both, and neither
+stands immediately before `**` — `-2 ** 2` is refused, matching JavaScript,
+where `(-2) ** 2` and `-(2 ** 2)` are the parenthesized readings. Two
+adjacent `-` characters are the decrement operator, which the language has
+no rule for: a negation of a negation is `- -1`, and likewise `~ ~1` for
+bitwise not. [Operators](#operators) has the rest of them.
 
 A negative number is therefore an expression rather than a literal *in the
 syntax*. The graph is another matter: lowering folds a negation of a numeric
@@ -626,6 +649,59 @@ recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
 tells one from the other only past the `)`, so `(a) => 1` is read as a group
 and refused at the `=>`.
 
+## Operators
+
+```js
+export default 1 + 2 * 3;
+```
+
+Beyond unary `-` ([supported value types](#supported-value-types)), the
+language has arithmetic (`+ - * / % **`), strict comparison
+(`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
+[operators](./todo/2340-operators.md) — and, above them, the lazy operators
+(`&& || ??`) and the conditional (`?:`), Stage B. `==`/`!=` stay refused,
+since neither language reads them the same way twice. The comma operator is
+not recognized yet.
+
+Precedence and associativity follow JavaScript's own: arithmetic binds
+tighter than comparison, which binds tighter than bitwise, which binds
+tighter than `&&`, which binds tighter than `||`, and the conditional is
+above them all; `**` is right-associative (`2 ** 3 ** 2` is `2 ** (3 **
+2)`), the conditional nests to the right (`a ? b : c ? d : e` is `a ? b :
+(c ? d : e)`), and every other operator here is left-associative. `-`/`~`
+immediately before `**` are refused, matching JavaScript exactly: `-2 ** 2`
+and `~2 ** 2` are syntax errors here as there, at any depth of `-`/`~`
+nesting, and parentheses are the only way to write either reading — `(-2)
+** 2` raises the negation, `-(2 ** 2)` negates the power. `??` mixes with
+`&&`/`||` only under parentheses, as in JavaScript: `a ?? b || c` and
+`a && b ?? c` are syntax errors in both, and `(a ?? b) || c` is the one
+spelling of that reading.
+
+The lazy operators establish their right operand only when the left decides
+nothing — `a && b`'s `b` when `a` is truthy, `a || b`'s when `a` is falsy,
+`a ?? b`'s when `a` is `null` or `undefined` — and the conditional
+establishes exactly one of its arms, as JavaScript does. A `const` reached
+only through such a position is still evaluated when the module loads, as
+its own statement: `const c = null.x; export default [a && c, b && c];`
+throws at load in both languages, whatever `a` and `b` are. The
+[failure contract](#failure-is-one-outcome) says what an implementation may
+reorder around that; being reached only through a lazy position is not what
+decides whether a `const` runs.
+
+A function is an operand of none of these, unparenthesized: `(...a) => body`
+reads everything to its right as `body`, exactly as in JavaScript, so
+`1 * (...a) => 2` is refused where `1 * (...a)` runs out of value to read. A
+group makes it one, the same way it does for `-`: `1 * ((...a) => 2)` is a
+value, however little multiplying by a function is worth.
+
+The front end computes none of these — it builds the operation and passes
+it on. Unary `-` alone folds over a numeric literal, exact and total
+arithmetic; every other operator here reaches the EDAG as a node, the lazy
+ones and the conditional included, and a `.json` or DataJS output — the
+readers that compute a value — refuses one the same way it refuses a
+function or a call, until an interpreter answers for the rest of them
+([roadmap](./todo/README.md)).
+
 ## Property Access
 
 ```js
@@ -653,9 +729,16 @@ and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
 find a function there and this language nothing, and a module must mean one
 thing in both. `length` is the exception, since an array, a string and a
 function own it. The rules are
-[property-accessor](./todo/2330-property-accessor.md)'s, and they hold for a
-method call too, `a.toString()` being refused where `a.toString` is; a key
-computed at run time is not recognized yet.
+[property-accessor](./todo/2330-property-accessor.md)'s. A method call has a
+rule of its own: `a.toString()` and `a.at(0)` are calls the VM answers by the
+receiver's type, an own property of the name shadowing the built-in and a
+type without one throwing as JavaScript does, while `a.push(1)`, `a.valueOf()`
+and the other member functions
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)'s `prohibitedCalls`
+names are compilation errors — one row per name, with the reason, in
+[its README](../fjs/js/prototype/README.md). The read stays refused where
+the call is allowed, since a detached built-in is a function that only
+fails. A key computed at run time is not recognized yet.
 
 ## Importing Other Modules
 
@@ -836,8 +919,12 @@ arguments alone:
   would name them, and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
   `name` is not an enumerable own property
-  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)). Nor is the arity
-  observable, which is what leaves the two parameter lists nothing to be
+  ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)), which is the
+  decision that retired the proposals that would have exposed a name. The
+  name a JavaScript engine gives a function it loads from the written
+  output is the writer's spelling, not a result of the program
+  ([principles](#principles)).
+  Nor is the arity observable, which is what leaves the two parameter lists nothing to be
   told apart by: `f.length` is `0` for a rest parameter as it is for none,
   a rest parameter not counting towards it in JavaScript.
 - A body `const` is the body's, and binds as a module's does: it names a
@@ -875,9 +962,11 @@ arguments alone:
   graph it compiles to; the detached spelling waits on the comma operator,
   so every call written on a property today is a call with a receiver.
 
-  A method call's property is the access's, so the names an access may not
-  read, a built-in prototype's among them
-  ([property access](#property-access)), it may not call either.
+  A method call's property is the access's, but its key is judged by the
+  call rule and not the read rule ([property access](#property-access)): a
+  member function on `fjs/js/prototype`'s `prohibitedCalls` is a compilation
+  error, every other prototype name is a call the VM answers by the
+  receiver's type, and the read of either stays refused.
 
   Only the EDAG output holds a call today, and the other three refuse one for
   two different reasons. `.data.js` and `.json` are values, and what a call

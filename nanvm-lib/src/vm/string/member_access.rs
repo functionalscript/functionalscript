@@ -2,7 +2,7 @@ use super::String;
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, IVm, ToAny, ToString, Unpacked,
+        Any, IVm, Number, ToAny, ToString, Unpacked,
         member_access::{canonical_index, string_to_index},
     },
 };
@@ -14,7 +14,7 @@ impl<A: IVm> String<A> {
     /// *not* `.charAt`, which is a prototype method and out of scope, same
     /// as every other built-in method); the string key `"length"` reads
     /// the UTF-16 length; every other key is `None`, for
-    /// the caller (`Any::member_access`) to turn into `undefined` — the
+    /// the caller (`Any::dot`) to turn into `undefined` — the
     /// same contract `Array::member_access` and `Object::own_property`
     /// have.
     ///
@@ -34,7 +34,7 @@ impl<A: IVm> String<A> {
                 .map(|i| [self[i]].to_string::<A>().to_any()),
             Unpacked::String(s) => {
                 if s == "length".into() {
-                    Some((len as f64).to_any())
+                    Some(Number::from(len).to_any())
                 } else {
                     string_to_index(&s)
                         .filter(|&i| i < len)

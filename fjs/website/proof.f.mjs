@@ -156,14 +156,30 @@ export const proof = {
         },
         /**
          * **A blocker is inherited through the whole import graph**, which is
-         * the reason the scan reads more than the proof modules themselves: a
-         * page links a module's imports too, so a proof that is clean on its
-         * own face and imports something that is not cannot be loaded either.
+         * the reason `readGraph` reads further than the modules that export a
+         * `proof` or a `demo`: a page links a module's imports too, so a proof
+         * that is clean on its own face and imports something that is not
+         * cannot be loaded either.
          */
         blockersReachThroughImports: () => {
             const { root } = generate({
                 'a.f.mjs': file("import './dep.f.mjs'\nexport const proof = []"),
                 'dep.f.mjs': file("import 'node:fs'\nexport const x = 1"),
+            })
+            assertStructurallySame(listed(pageAt(root, [])), [])
+        },
+        /**
+         * **A blocker reached only through a non-authored dependency still
+         * counts.** `scan` reads only `.f.mjs` files, so a `.mjs` a proof
+         * imports has no entry in the graph it seeds — `readGraph` has to
+         * discover and read it starting from the seeded proof module's own
+         * `local` imports, not from a walk that starts as if nothing were
+         * known yet.
+         */
+        blockerThroughANonAuthoredDependency: () => {
+            const { root } = generate({
+                'a.f.mjs': file("import './dep.mjs'\nexport const proof = []"),
+                'dep.mjs': file("import 'node:fs'\nexport const x = 1"),
             })
             assertStructurallySame(listed(pageAt(root, [])), [])
         },
@@ -199,8 +215,8 @@ export const proof = {
          * the outcome the selection exists to prevent.
          *
          * The oversized file here is a `.mjs`, because that is the case only
-         * this guard catches: an oversized `.f.mjs` is walked, so
-         * `proofModules` reads it and fails first.
+         * this guard catches: an oversized `.f.mjs` is walked, so `scan`
+         * reads it and fails first.
          */
         anUnreadableModuleIsRefused: () => {
             const [generated, code] = run({
@@ -215,6 +231,23 @@ export const proof = {
             assertEq(
                 generated.stderr,
                 `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
+        },
+        /**
+         * **An unreadable import is only the build's problem when something
+         * selected can reach it.** `unrelated.f.mjs` exports neither a
+         * `proof` nor a `demo`, and nothing that does import it, so its own
+         * `big.mjs` is never on the frontier `classify` seeds — reading it
+         * would refuse the whole build over a file this run was never going
+         * to load, the same failure `anUnreadableModuleIsRefused` above
+         * proves happens when a *selected* module reaches one.
+         */
+        anUnreadableImportOffAnyPathIsIgnored: () => {
+            const { root } = generate({
+                'a.f.mjs': file('export const proof = []'),
+                'unrelated.f.mjs': file("import './big.mjs'\nexport const x = 1"),
+                'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)],
+            })
+            assertStructurallySame(listed(pageAt(root, [])), ['a.f.mjs'])
         },
         /**
          * **The browser proof takes its place in path order.** It is appended
@@ -554,6 +587,9 @@ export const proof = {
             source)
         // The heading is the project; the suite is one section of its page.
         assert(source.includes('<h1>FunctionalScript</h1>'), source)
+        // The root page carries the same favicon links every other page does.
+        assert(source.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), source)
+        assert(source.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), source)
         // The page ships the report's container empty: the runner fills it
         // with one group per module.
         assert(source.includes('<div data-test-results=""></div>'), source)

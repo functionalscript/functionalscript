@@ -1,22 +1,27 @@
 /**
  * @import { Exp } from '../../edag/types.ts'
+ * @import { AstConst } from '../ast/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Dir } from '../../effects/node/virtual/types.ts'
+ * @import { DemoEvent } from '../../website/demo/types.ts'
  */
 
 import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
+import { _shapeOf, _walk, demo } from './demo.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
 
 /** The default export's computation through the front end and lowering, a parse refusal thrown. @type {(source: string) => Unresolved} */
 const compile = source => {
@@ -48,6 +53,72 @@ const expectEdag = (edag, expected) => {
     assertEq(validate(exp)(edag)[0], 'ok')
     assertStructurallySame(edag, expected)
 }
+
+/**
+ * Confirms `exp` is a left-associative `+` chain `depth` terms deep, bottoming
+ * out at `1` — `((1+1)+1)+…`. `validate`/`assertStructurallySame` are
+ * themselves recursive (`fjs/edag/todo/stack-safety.md` tracks that, one
+ * layer down from this one), so a chain deep enough to prove `lower` stack-safe
+ * overflows them before it says anything about `lower`. This walks the same
+ * shape iteratively instead, the one comparison this proof needs at a depth
+ * the two shared helpers cannot reach.
+ * @type {(depth: number) => (exp: Exp) => void}
+ */
+const expectPlusChain = depth => exp => {
+    let node = exp
+    let remaining = depth
+    while (remaining > 0) {
+        assert(Array.isArray(node) && node[0] === '+' && node[2] === 1, node)
+        node = node[1]
+        remaining = remaining - 1
+    }
+    assertEq(node, 1)
+}
+
+/**
+ * Confirms `exp` is a left-associative `&&` chain `depth` terms deep,
+ * bottoming out at `1` — `((1 && 1) && 1) && …` — walked iteratively as
+ * {@link expectPlusChain} is, for the same reason.
+ * @type {(depth: number) => (exp: Exp) => void}
+ */
+const expectAndChain = depth => exp => {
+    let node = exp
+    let remaining = depth
+    while (remaining > 0) {
+        assert(Array.isArray(node) && node[0] === '&&' && node[2] === 1, node)
+        node = node[1]
+        remaining = remaining - 1
+    }
+    assertEq(node, 1)
+}
+
+/**
+ * Confirms `exp` is a conditional nested `depth` deep through its else arm
+ * — `1 ? 2 : (1 ? 2 : …)` — bottoming out at `3`, walked iteratively as
+ * {@link expectPlusChain} is, for the same reason.
+ * @type {(depth: number) => (exp: Exp) => void}
+ */
+const expectElseChain = depth => exp => {
+    let node = exp
+    let remaining = depth
+    while (remaining > 0) {
+        assert(Array.isArray(node) && node[0] === '?:' && node[1] === 1 && node[2] === 2, node)
+        node = node[3]
+        remaining = remaining - 1
+    }
+    assertEq(node, 3)
+}
+
+/**
+ * The default export's computation lowered from a body built by hand — the
+ * one entry, exported — with no parse in front of it: what a stress case
+ * of the lowering needs, since parsing the same chain is the parser's own
+ * proof and costs seconds at the depth this one is about, where the
+ * lowering costs milliseconds.
+ *
+ * @type {(entry: AstConst) => Exp}
+ */
+const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [['default', ['cref', 0]]]]]]).edag)
 
 /** @type {(graph: Exp) => unknown} */
 const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
@@ -403,6 +474,112 @@ export const proof = {
         expectEdag(compile('export default (-1).x;').edag, ['.', -1, 'x'])
         expectEdag(compile('export default -1 .x;').edag, ['-', ['.', 1, 'x']])
     },
+    // Stage A of `spec/todo/2340-operators.md`: arithmetic, strict
+    // comparison, and bitwise, each the EDAG's own `op2`/`op12`/`op1` shape
+    // with both operands lowered and nothing folded — the binary `-`
+    // included, told from the unary one the `group` block already covers
+    // by arity, never by this tag alone. Folding one would need to say
+    // what every operator computes over every value it might see, which is
+    // the EDAG's question and not the front end's.
+    operators: () => {
+        expectEdag(compile('export default 1 + 2 * 3;').edag, ['+', 1, ['*', 2, 3]])
+        expectEdag(compile('export default 5 - 2;').edag, ['-', 5, 2])
+        expectEdag(compile('export default 2 ** 3 ** 2;').edag, ['**', 2, ['**', 3, 2]])
+        expectEdag(compile('export default 1 < 2 << 3;').edag, ['<', 1, ['<<', 2, 3]])
+        expectEdag(compile('export default 1 === 2;').edag, ['===', 1, 2])
+        expectEdag(compile('export default 1 & 2 | 3 ^ 4;').edag, ['|', ['&', 1, 2], ['^', 3, 4]])
+        expectEdag(compile('export default ~1;').edag, ['~', 1])
+        // unary `-` still folds over a numeric literal, even nested inside
+        // a binary operator the lowering does not fold
+        expectEdag(compile('export default -1 * 2;').edag, ['*', -1, 2])
+        // a `const` reached through two operands is one node, as through
+        // any other operator
+        const shared = compile('const a = [1]; export default a + a;').edag
+        expectEdag(shared, ['+', ['[]', [1]], ['[]', [1]]])
+        assert(shared instanceof Array && shared[0] === '+', shared)
+        assert(shared[1] === shared[2], shared)
+    },
+    // Stage B: the lazy operators are the EDAG's own `op2`, the same shape
+    // as an eager one — laziness is the EDAG's positional rule, `op2Id`'s
+    // own comment, and no shape of its own — and the conditional its
+    // `op3`, `['?:', c, t, e]`, the first node of three operands the
+    // lowering builds. The EDAG interpreter (`fjs/edag/analysis`, through
+    // `memo`) is where their laziness is proven: an unselected operand that
+    // throws is never established.
+    lazy: () => {
+        expectEdag(compile('export default 1 && 2;').edag, ['&&', 1, 2])
+        expectEdag(compile('export default 1 || 2;').edag, ['||', 1, 2])
+        expectEdag(compile('export default 1 ?? 2;').edag, ['??', 1, 2])
+        expectEdag(compile('export default 1 ? 2 : 3;').edag, ['?:', 1, 2, 3])
+        expectEdag(compile('export default 1 || 2 && 3 ? 4 | 5 : 6 ?? 7;').edag, ['?:', ['||', 1, ['&&', 2, 3]], ['|', 4, 5], ['??', 6, 7]])
+        expectEdag(compile('export default 1 ? 2 : 3 ? 4 : 5;').edag, ['?:', 1, 2, ['?:', 3, 4, 5]])
+        expectEdag(compile('export default -1 ?? ~2;').edag, ['??', -1, ['~', 2]])
+        expectEdag(compile('export default (...a) => a && a[0];').edag, ['=>', null, ['&&', ['args'], ['.', ['args'], 0]]])
+        // a `const` reached through a lazy position is the one node it is
+        // anywhere: sharing survives the position, as `op2Id` states it
+        const shared = compile('const a = [1]; export default a && a;').edag
+        expectEdag(shared, ['&&', ['[]', [1]], ['[]', [1]]])
+        assert(shared instanceof Array && shared[0] === '&&', shared)
+        assert(shared[1] === shared[2], shared)
+        // and the laziness is the interpreter's: `false && (1n / 0n)` is
+        // `false` with the throwing operand never established, `true ? 1
+        // : 1n / 0n` is `1`, and the selected operand is established
+        assertEq(execute(compile('export default false && 1n / 0n;').edag), false)
+        assertEq(execute(compile('export default true || 1n / 0n;').edag), true)
+        assertEq(execute(compile('export default 0 ?? 1n / 0n;').edag), 0)
+        assertEq(execute(compile('export default null ?? 5;').edag), 5)
+        assertEq(execute(compile('export default true ? 1 : 1n / 0n;').edag), 1)
+        assertEq(execute(compile('export default false ? 1n / 0n : 2;').edag), 2)
+        assertEq(execute(compile('export default 1 && 2 || 3;').edag), 2)
+    },
+    // A `const` reached only through lazy positions is anchored — the
+    // comma establishes it at load, as the source's own `const c = null.x;`
+    // throws at load whatever `a && c` later decides — where one eager path
+    // in is enough to drop the anchor; and an unreached entry covers
+    // another only where it reaches it eagerly. The worked examples of
+    // `spec/todo/2340-operators.md`'s subtraction rule, through the front
+    // end.
+    lazyAnchored: () => {
+        /** `c`'s node, `null.x`, and the array `[a && c, b && c]` over `a = 1`, `b = 2`. @type {Exp} */
+        const c = ['.', null, 'x']
+        const both = compile('const a = 1; const b = 2; const c = null.x; export default [a && c, b && c];').edag
+        expectEdag(both, [',', [c, ['[]', [['&&', 1, c], ['&&', 2, c]]]]])
+        assert(both instanceof Array && both[0] === ',', both)
+        const [anchored, exported] = both[1]
+        assert(exported instanceof Array && exported[0] === '[]', both)
+        const [first, second] = exported[1]
+        assert(first instanceof Array && second instanceof Array && first[0] === '&&' && second[0] === '&&', both)
+        assert(first[2] === anchored && second[2] === anchored, both)
+        expectEdag(compile('const a = 1; const c = null.x; export default [c, a && c];').edag, ['[]', [c, ['&&', 1, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a && c;').edag, [',', [c, ['&&', 1, c]]])
+        expectEdag(compile('const c = null.x; export default c ? 2 : 3;').edag, ['?:', c, 2, 3])
+        // a leaf `const` is anchored as a container is, reached lazily
+        expectEdag(compile('const a = 1; const c = null.x; export default c ? a : a;').edag, [',', [1, ['?:', c, 1, 1]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a ? c : 2;').edag, [',', [c, ['?:', 1, c, 2]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a ? 2 : c;').edag, [',', [c, ['?:', 1, 2, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a || c;').edag, [',', [c, ['||', 1, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a ?? c;').edag, [',', [c, ['??', 1, c]]])
+        // the transitive case: `c = a && d` reaches `d` lazily, so `d` is
+        // anchored beside `c` — anchoring `c` establishes `a && d`, not `d`
+        /** @type {Exp} */
+        const d = ['.', null, 'y']
+        expectEdag(
+            compile('const a = 1; const b = 2; const d = null.y; const c = a && d; export default b && c;').edag,
+            [',', [d, ['&&', 1, d], ['&&', 2, ['&&', 1, d]]]])
+        // and `c = d && a` reaches `d` eagerly, so `c`'s anchor covers it —
+        // while `a`, reached lazily and by nothing else, keeps its own
+        expectEdag(
+            compile('const a = 1; const b = 2; const d = null.y; const c = d && a; export default b && c;').edag,
+            [',', [1, ['&&', d, 1], ['&&', 2, ['&&', d, 1]]]])
+        // an import likewise, evaluated at load whatever reaches it
+        expectEdag(compile('import m from "./m.f.js"; export default 1 && m;').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['&&', 1, ['.', ['.', ['args'], 0], 'default']]]])
+        // a function body is a scope of its own with the same rule
+        expectEdag(compile('export default (...a) => { const c = null.x; return a && c; };').edag, ['=>', null, [',', [c, ['&&', ['args'], c]]]])
+        // and the anchored `const` is the one node the lazy positions
+        // share: the interpreter answers the value with `c` established
+        // once, at the comma, and taken by the position that selects it
+        assertStructurallySame(execute(compile('const a = 0; const b = 1; const c = [3]; export default [a && c, b && c];').edag), [0, [3]])
+    },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many
     // references reach it, an alias is the node it names, and what the
@@ -523,6 +700,258 @@ export const proof = {
             expectEdag(program(twice)('a.f.js'), ['[]', [['[]', [1]]]])
             expectEdag(compile('import m from "./m.f.js"; import n from "./m.f.js"; export default [m];').edag, [',', [['.', ['.', ['args'], 1], 'default'], ['[]', [['.', ['.', ['args'], 0], 'default']]]]])
             expectEdag(program({ ...twice, 'a.f.js': file('import m from "./m.f.js"; import n from "./m.f.js"; export default 1;') })('a.f.js'), [',', [['[]', [1]], 1]])
+        },
+    },
+    // A chain of operators, as deep as the source that built it: `lower`
+    // walks one with an explicit stack rather than recursion, so 5,000
+    // terms — the depth `fjs/fsc/parser/proof.f.mjs`'s own `stackSafety`
+    // uses — cost no call stack. Left-associative for a binary operator,
+    // the EDAG nests on its own left, `((1+1)+1)+…`, checked by
+    // `expectPlusChain` rather than `expectEdag` for the reason given on
+    // it; right-associative for `-`, on its right, `-(-(-…))`, folding away
+    // to the leaf it started from since 5,000 negations is even — a single
+    // number, so `expectEdag` never recurses into it.
+    stackSafety: () => {
+        const plus = `1${' + 1'.repeat(5000)}`
+        expectPlusChain(5000)(compile(`export default ${plus};`).edag)
+        const neg = `${'- '.repeat(5000)}1`
+        expectEdag(compile(`export default ${neg};`).edag, 1)
+        // a lazy chain, and a conditional nested through its else arm, at
+        // the depth the parser's own `lazyStackCost` proves — the AST built
+        // here rather than parsed, `lowered`'s own comment has why
+        /** @type {AstConst} */
+        let and = 1
+        for (let i = 0; i < 20000; i++) { and = ['&&', and, 1] }
+        expectAndChain(20000)(lowered(and))
+        /** @type {AstConst} */
+        let otherwise = 3
+        for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        expectElseChain(20000)(lowered(otherwise))
+    },
+    demo: {
+        /**
+         * `_shapeOf` against hand-built `Exp` values, not source text: most
+         * of these tags — every `Op1`, some of `Op2`, a spread, a computed
+         * object key — have no `export default <text>;` that reaches them
+         * yet, so this is the only way to the whole walker rather than only
+         * its currently-reachable half. A chain
+         * continuation and optional chaining's own tags are refused the
+         * same way, and that path is tested here too, for the same reason.
+         */
+        shapeOf: {
+            array: {
+                plain: () => {
+                    const shape = assertNotNullish(_shapeOf(['[]', [1, 2]]), 'expected a shape')
+                    assertEq(shape.label, '[]')
+                    assertStructurallySame(shape.children, [['0', 1], ['1', 2]])
+                },
+                // A spread item is one child, named by its position rather
+                // than by an index that would claim it names one array slot.
+                spread: () => {
+                    const shape = assertNotNullish(_shapeOf(['[]', [['...', ['a']]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['...0', ['a']]])
+                },
+            },
+            object: {
+                // A literal string key becomes the edge label; no separate
+                // node for it, the same economy the DataJS demo spends on
+                // object keys.
+                literalKey: () => {
+                    const shape = assertNotNullish(_shapeOf(['{}', [[':', 'x', 1]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['x', 1]])
+                },
+                // A computed key is itself an `Exp` with nothing to fold
+                // into a label, so it gets a node of its own, alongside the
+                // value's.
+                computedKey: () => {
+                    const shape = assertNotNullish(_shapeOf(['{}', [[':', ['a'], 1]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['key0', ['a']], ['value0', 1]])
+                },
+                spread: () => {
+                    const shape = assertNotNullish(_shapeOf(['{}', [['...', ['a']]]]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['...0', ['a']]])
+                },
+            },
+            dot: {
+                // A string index folds into the node's own label; nothing
+                // about it needs a child edge to say what it is.
+                literalString: () => {
+                    const shape = assertNotNullish(_shapeOf(['.', ['a'], 'x']), 'expected a shape')
+                    assertEq(shape.label, '.x')
+                    assertStructurallySame(shape.children, [['obj', ['a']]])
+                },
+                literalNumber: () => {
+                    const shape = assertNotNullish(_shapeOf(['.', ['a'], 0]), 'expected a shape')
+                    assertEq(shape.label, '[0]')
+                },
+                // A computed index — `Number(x)`, the one shape `Index`
+                // allows beyond a bare literal — is an `Exp`, so it gets a
+                // child edge the way a computed object key does.
+                computed: () => {
+                    const shape = assertNotNullish(_shapeOf(['.', ['a'], ['Number', ['b']]]), 'expected a shape')
+                    assertEq(shape.label, '.')
+                    assertStructurallySame(shape.children, [['obj', ['a']], ['idx', ['Number', ['b']]]])
+                },
+                // A chain continuation is a fourth element past the
+                // ordinary two- or three-element form — not yet drawn, so
+                // refused rather than misread as an extra plain operand.
+                continuation: () => assertEq(_shapeOf(['.', ['a'], 'x', ['|()', 1]]), null),
+            },
+            call: () => {
+                const shape = assertNotNullish(_shapeOf(['()', ['a'], ['b']]), 'expected a shape')
+                assertEq(shape.label, '()')
+                assertStructurallySame(shape.children, [['callee', ['a']], ['arg', ['b']]])
+            },
+            comma: () => {
+                const shape = assertNotNullish(_shapeOf([',', [1, 2, 3]]), 'expected a shape')
+                assertStructurallySame(shape.children, [['0', 1], ['1', 2], ['2', 3]])
+            },
+            ternary: () => {
+                const shape = assertNotNullish(_shapeOf(['?:', ['a'], 1, 2]), 'expected a shape')
+                assertEq(shape.label, '?:')
+                assertStructurallySame(shape.children, [['cond', ['a']], ['then', 1], ['else', 2]])
+            },
+            // `=>` is an Op2 by operand count, so it would draw `left` and
+            // `right` like every other tag in that set; it is its own case
+            // for the two names that say what a function's operands are. The
+            // frame is `null` in everything the compiler emits today.
+            lambda: () => {
+                const shape = assertNotNullish(_shapeOf(['=>', null, ['args']]), 'expected a shape')
+                assertEq(shape.label, '=>')
+                assertStructurallySame(shape.children, [['frame', null], ['body', ['args']]])
+            },
+            // Every Op0 name renders with no children, and the three part
+            // by meaning where `Op0Id` groups them by operand count:
+            // `undefined` is a constant and draws as the leaf it is, beside
+            // `null` and the numbers, where `args` and `frame` are the two
+            // places a value enters a scope from outside it and draw as
+            // terminals of their own. `frame` is unreachable from the demo's
+            // own field — the parser refuses a capture, so no source lowers
+            // to one — which is why the tags are built here by hand.
+            op0: () => {
+                for (const [tag, kind] of [['undefined', 'leaf'], ['args', 'terminal'], ['frame', 'terminal']]) {
+                    const shape = assertNotNullish(_shapeOf([tag]), tag)
+                    assertEq(shape.label, tag)
+                    assertEq(shape.kind, kind)
+                    assertStructurallySame(shape.children, [])
+                }
+            },
+            op1: () => {
+                for (const tag of ['String', 'Number', '!', '~', 'typeof']) {
+                    const shape = assertNotNullish(_shapeOf([tag, ['a']]), tag)
+                    assertEq(shape.label, tag)
+                    assertStructurallySame(shape.children, [['operand', ['a']]])
+                }
+            },
+            // A sample across Op2's range, not all twenty-one tags: the
+            // dispatch is one membership test per group, so one tag from
+            // each syntactic corner — comparison, arithmetic, bitwise,
+            // logical, and the two named rather than symbolic ones — is
+            // what could vary.
+            op2: () => {
+                for (const tag of ['===', '*', '&', '&&', 'own', 'is']) {
+                    const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
+                    assertEq(shape.label, tag)
+                    assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
+                }
+            },
+            op12: {
+                unary: () => {
+                    const shape = assertNotNullish(_shapeOf(['-', ['a']]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['operand', ['a']]])
+                },
+                binary: () => {
+                    const shape = assertNotNullish(_shapeOf(['-', ['a'], ['b']]), 'expected a shape')
+                    assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
+                },
+            },
+            // A tag naming none of the recognized shapes — optional
+            // chaining's own, here — is refused the same way a chain
+            // continuation is.
+            unrecognizedTag: () => assertEq(_shapeOf(['?.', ['a'], 'x']), null),
+        },
+        // `_shapeOf` refusing a shape does not drop the node: `_walk` still
+        // draws it, labeled by its own tag, with no outgoing edges. No
+        // source the parser accepts today reaches this — optional chaining
+        // does not parse yet — so it needs the same hand-built `Exp` the
+        // `shapeOf.unrecognizedTag` test above refuses, carried one level up
+        // to where a node is actually built rather than only described.
+        walk: {
+            unsupported: () => {
+                const exp = /** @type {Exp} */ (/** @type {unknown} */ (['?.', ['a'], 'x']))
+                const { id, state } = _walk({ refs: [], nodes: [], edges: [], next: 0 })(exp)
+                assertEq(id, 0)
+                assertStructurallySame(state.nodes, [{ id: 0, kind: 'unsupported', label: '?. (not yet drawn)' }])
+                assertStructurallySame(state.edges, [])
+            },
+        },
+        // The initial source is the demo's whole reason for being: `a` is
+        // one `+` node reached by three edges, not three nodes that happen
+        // to match.
+        sharing: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
+            assert(html.includes('>0, 1<'), html) // the array's two direct refs, merged
+            assert(html.includes('>left<'), html) // a*3's left operand, the third edge to +
+        },
+        // The same source carries one of every look the drawing has, so a
+        // reader meets all three before typing anything: an operator
+        // hollow, a constant dashed, a terminal filled. `undefined` is among
+        // the constants rather than drawn as the zero-operand operator its
+        // `Op0Id` grouping would otherwise make it, and the terminals are
+        // two rather than one shared because a node belongs to one scope —
+        // the module's `args`, which its import reaches, and the function's
+        // own. The `=>` names its operands `frame` and `body`, which is what
+        // makes its `null` frame read as the absent one it is.
+        kinds: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assertEq(html.split('data-graph-kind="terminal"').length - 1, 2)
+            assertEq(html.split('>args<').length - 1, 2)
+            assert(html.includes('>undefined<'), html)
+            assert(html.includes('>frame<'), html)
+            assert(html.includes('>body<'), html)
+        },
+        // Arithmetic, comparison, a call and property access, all through
+        // real source — the parser accepts this much today.
+        realSource: () => {
+            const html = htmlToString(demo.view(
+                'const a = {x: 1}; const f = a.x; export default [f(2), a.x === 1];'))
+            assert(html.includes('>()<'), html)
+            assert(html.includes('>.x<'), html)
+            assert(html.includes('>===<'), html)
+        },
+        // A bigint leaf carries its own suffix into the label rather than
+        // being coerced like every other leaf `String(exp)` already covers.
+        bigintLeaf: () => {
+            const html = htmlToString(demo.view('export default 5n;'))
+            assert(html.includes('>5n<'), html)
+        },
+        // An unused const is anchored as a comma's first operand rather
+        // than dropped, so the export default is not the whole EDAG.
+        commaAnchorsAnUnusedConst: () => {
+            const html = htmlToString(demo.view('const unused = 5; export default 1;'))
+            assert(html.includes('>,<'), html)
+            assert(html.includes('>5<'), html)
+            assert(html.includes('>1<'), html)
+        },
+        // A parse failure is shown, not swallowed, and draws no graph.
+        error: () => {
+            const html = htmlToString(demo.view('export default {bad'))
+            assert(html.includes('Error:'), html)
+            assert(!html.includes('<svg'), html)
+        },
+        // Typing replaces the text; every other event leaves it alone.
+        update: () => {
+            /** @type {(event: DemoEvent) => (state: string) => string} */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(step({ kind: 'input', name: 'edag', value: '1' })(''), '1')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+        view: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('name="edag"'), html)
         },
     },
 }

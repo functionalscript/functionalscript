@@ -64,6 +64,7 @@ const dom = path => {
             name,
             selectionStart: 0,
             selectionEnd: 0,
+            style: { width: '', height: '' },
             focus: () => { active = self },
             setSelectionRange: (/** @type {number} */ start, /** @type {number} */ end) => {
                 self.selectionStart = start
@@ -109,7 +110,7 @@ const dom = path => {
             children.find(child => selector.includes(`"${child.name}"`)) ?? null,
         contains: (/** @type {any} */ node) => children.includes(node),
         querySelectorAll: (/** @type {string} */ selector) =>
-            selector === 'button' ? buttons : [],
+            selector === 'button' ? buttons : selector === '[name]' ? children : [],
         setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
             root.attributes.set(name, value)
             if (name === 'data-demo-working') { workedWith = value; steps.push('working') }
@@ -254,6 +255,48 @@ export const proof = {
         await settle()
         assertEq(d.activeName(), 'text')
         assertEq(d.caret(), 1)
+    },
+    /**
+     * **A manual resize survives a re-render too, and by the same
+     * reasoning as the caret.** A browser's drag sets a field's own inline
+     * `style.width`/`style.height`; a fresh element from the next render
+     * starts with neither, so without a restore a field widened by hand
+     * narrows back the moment its text changes.
+     */
+    keepsManualResize: async () => {
+        const d = dom(echo)
+        await startDemo(d.root)
+        await settle()
+        const before = d.root.querySelector('[name="text"]')
+        before.style.width = '600px'
+        before.style.height = '300px'
+        d.input('text', 'ab')
+        await settle()
+        const after = d.root.querySelector('[name="text"]')
+        assertEq(after.style.width, '600px')
+        assertEq(after.style.height, '300px')
+    },
+    // A resized field that a later state simply stops rendering has nowhere
+    // to put its size back — skipped rather than thrown, the same as a
+    // restored caret finding no field to focus.
+    dropsAManualResizeForAFieldThatIsGone: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: '',
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value : state],
+    view: text => text === 'hide'
+        ? ['div', ['pre', 'gone']]
+        : ['div', ['input', { name: 'text', value: text }], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        const before = d.root.querySelector('[name="text"]')
+        before.style.width = '600px'
+        d.input('text', 'hide')
+        await settle()
+        assert(!d.root.textContent.startsWith('demo failed'), d.root.textContent)
+        assertEq(d.root.querySelector('[name="text"]'), null)
     },
     /**
      * **The page says it is waiting, and stops being asked again.** A demo

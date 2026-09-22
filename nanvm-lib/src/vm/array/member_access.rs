@@ -2,7 +2,7 @@ use super::Array;
 use crate::{
     common::sized_index::SizedIndex,
     vm::{
-        Any, IVm, ToAny, Unpacked,
+        Any, IVm, Number, ToAny, Unpacked,
         member_access::{canonical_index, string_to_index},
     },
 };
@@ -11,7 +11,7 @@ impl<A: IVm> Array<A> {
     /// `self[key]`: an in-bounds index — given as a `Number` or its
     /// canonical decimal string — reads the element, the string key
     /// `"length"` reads the length, and every other key is `None` — for
-    /// the caller (`Any::member_access`) to turn into `undefined`, the same
+    /// the caller (`Any::dot`) to turn into `undefined`, the same
     /// contract `Object::own_property` has for `Any::own_property`.
     ///
     /// Never panics on an out-of-range index: `index < len` is checked
@@ -30,7 +30,7 @@ impl<A: IVm> Array<A> {
                 .map(|i| self[i].clone()),
             Unpacked::String(s) => {
                 if s == "length".into() {
-                    Some((len as f64).to_any())
+                    Some(Number::from(len).to_any())
                 } else {
                     string_to_index(&s)
                         .filter(|&i| i < len)

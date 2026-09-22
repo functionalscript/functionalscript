@@ -98,7 +98,8 @@ command group is dropped.
 
 One FJS module compiles to one Rust file, and the generated file is a Rust
 **module** — exposing the module's value via the `nanvm-lib` API (e.g.
-`pub fn module<A: IVm>() -> Any<A>`) — not a `main`. A thin, hand-written
+`pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`, the `Err` a thrown
+value) — not a `main`. A thin, hand-written
 `main` lives in the consumer: the test harness in this repo, the `nanvm`
 crate, or a user's own crate. This way the same generated output serves
 testing, self-hosting, and AOT embedding.
@@ -329,7 +330,10 @@ as a generic `Any` facility, post-MVP.
 - [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
       described by the EDAG spec and executes it; behind a cargo feature
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
-- [ ] **Basic control operator `?:`** (Rust).
+- [x] **Basic control operator `?:`** (Rust) — `Any::conditional`, its arms
+      thunks so a compiled module establishes only the selected one, covered
+      by the corpus as a `Group3`; the operator table in
+      [`nanvm-lib/README.md`](../README.md) has the record.
 - [ ] **Nested functions** (function frame) (Rust).
       See [functions](../../spec/README.md#functions),
       [function-frame](../../spec/todo/3111-function-frame.md). The staged

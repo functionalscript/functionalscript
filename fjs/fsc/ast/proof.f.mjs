@@ -6,6 +6,19 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 /** Whether the sweep finds a shared node in a body with no imports, given its values. @type {(body: import('./types.ts').AstBody) => boolean} */
 const sharedOf = body => sharing(body)([])(unwrap(values(body)([]))).shared
 
+/**
+ * Whether the sweep finds a shared node in a body holding an operator,
+ * where `values` has none to compute — `sharing` alone, an operator's own
+ * value being none `values` could give it. Every entry but the export
+ * stands in as `['array', []]` and needs no real value, its own value,
+ * `[]`, taking the place `values` would have computed; a leaf entry would
+ * need its real one instead, `containerNode` reading only a referenced
+ * entry's containerness.
+ *
+ * @type {(body: readonly import('./types.ts').AstConst[]) => boolean}
+ */
+const sharedWithOperator = body => sharing(body)([])(body.map((_, i) => i < body.length - 1 ? [] : null)).shared
+
 /** What the sweep says of a body over `imports`, given the values the body has over them. @type {(imports: readonly import('./types.ts').Import[]) => (body: import('./types.ts').AstBody) => import('./types.ts').Sharing} */
 const sharingWith = imports => body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
 
@@ -96,6 +109,44 @@ export const proof = {
         // what it does not reach is anchored as ever
         assertEq(anchorsOf([[a], [['array', []], ['()', 1, [2]]]]), 'consts 0; imports 0')
     },
+    // A binary operator and a bitwise not have no value here — `+` alone
+    // needs `ToPrimitive`, and folding the rest while leaving it a node
+    // would draw an inconsistent line — so `noOperatorValue` refuses every
+    // one of them, `run` reaching it exactly where it reaches
+    // `noFunctionValue`/`noCallValue`. Unary `-` alone still folds, told
+    // from the binary one by length. Neither is a leaf to the sweep: both
+    // operands are written where they stand, so what they name is reached.
+    operator: () => {
+        assertStructurallySame(run([['+', 1, 2]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(run([['-', 1, 2]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(run([['~', 1]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(values([['===', 1, 2], 3])([]), ['error', 'an operator has no value'])
+        // the unary `-` this refusal does not reach
+        assertStructurallySame(run([['-', 1]])([]), ['ok', -1])
+        // both operands of a binary operator are reached
+        assertEq(anchorsOf([[a], [['array', []], ['+', ['cref', 0], 1]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['+', 1, ['cref', 0]]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['~', ['cref', 0]]]]), 'consts ; imports 0')
+        // what it does not reach is anchored as ever
+        assertEq(anchorsOf([[a], [['array', []], ['+', 1, 2]]]), 'consts 0; imports 0')
+    },
+    // Stage B's lazy operators and the conditional have no value here
+    // either, refused the same way. To the sweep their left operand and
+    // condition are reached as any operand is; their right operand and arms
+    // are lazy positions, and what only those name is anchored — see
+    // `anchors.lazy` below.
+    lazy: () => {
+        assertStructurallySame(run([['&&', 1, 2]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(run([['||', 1, 2]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(run([['??', 1, 2]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(run([['?:', 1, 2, 3]])([]), ['error', 'an operator has no value'])
+        assertStructurallySame(values([['?:', true, 1, 2], 3])([]), ['error', 'an operator has no value'])
+        assertEq(anchorsOf([[a], [['array', []], ['&&', ['cref', 0], 1]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['||', ['cref', 0], 1]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['??', ['cref', 0], 1]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['?:', ['cref', 0], 1, 2]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['array', []], ['&&', ['aref', 0], ['cref', 0]]]]), 'consts 0; imports ')
+    },
     // what the sweep from the export leaves out, by index, less what the
     // left-out entries reach themselves
     anchors: {
@@ -114,6 +165,48 @@ export const proof = {
         consts: () => {
             assertEq(anchorsOf([[], [['array', []], 1]]), 'consts 0; imports ')
             assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['array', [['cref', 0]]], ['cref', 0]]]), 'consts 2; imports ')
+        },
+        // A reference through a lazy position — the right operand of
+        // `&&`/`||`/`??`, either arm of `?:` — reaches nothing for
+        // anchoring: the EDAG establishes it only when the operator
+        // decides to, where the source's own `const c = null.x;` throws at
+        // load whatever later code does with `c`. So `[a && c, b && c]`
+        // anchors `c`, `[c, a && c]` does not — one eager path in is enough
+        // — and the rule holds one level down: an unreached entry excuses
+        // another's anchor only where it reaches it eagerly, so `const d =
+        // null.x; const c = a && d; export default b && c;` anchors both,
+        // since anchoring `c` establishes `a && d` and not `d`. The worked
+        // examples of `spec/todo/2340-operators.md`'s subtraction rule.
+        lazy: () => {
+            /** `a`, `b`, `c`: three container entries, `c` the one at stake. @type {readonly import('./types.ts').AstConst[]} */
+            const abc = [['array', []], ['array', []], ['array', []]]
+            assertEq(anchorsOf([[], [...abc, ['array', [['&&', ['cref', 0], ['cref', 2]], ['&&', ['cref', 1], ['cref', 2]]]]]]), 'consts 2; imports ')
+            /** `a` and `c` alone. @type {readonly import('./types.ts').AstConst[]} */
+            const ac = [['array', []], ['array', []]]
+            assertEq(anchorsOf([[], [...ac, ['array', [['cref', 1], ['&&', ['cref', 0], ['cref', 1]]]]]]), 'consts ; imports ')
+            assertEq(anchorsOf([[], [...ac, ['array', [['&&', ['cref', 0], ['cref', 1]], ['cref', 1]]]]]), 'consts ; imports ')
+            // each lazy position, and each operator's eager one
+            assertEq(anchorsOf([[], [['array', []], ['||', 1, ['cref', 0]]]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['??', 1, ['cref', 0]]]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['?:', 1, ['cref', 0], 2]]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['?:', 1, 2, ['cref', 0]]]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['?:', ['cref', 0], 1, 2]]]), 'consts ; imports ')
+            // an import likewise: evaluated at load, whatever reaches it
+            assertEq(anchorsOf([[a], [['&&', 1, ['aref', 0]]]]), 'consts ; imports 0')
+            assertEq(anchorsOf([[a], [['?:', 1, ['aref', 0], 2]]]), 'consts ; imports 0')
+            assertEq(anchorsOf([[a], [['?:', ['aref', 0], 1, 2]]]), 'consts ; imports ')
+            // the transitive case: `d`, `c = a && d`, `b && c`
+            assertEq(anchorsOf([[], [['array', []], ['array', []], ['array', []], ['&&', ['cref', 0], ['cref', 2]], ['&&', ['cref', 1], ['cref', 3]]]]), 'consts 2,3; imports ')
+            // where `c` reaches `d` eagerly, `c = d && 1`, anchoring `c` covers `d`
+            assertEq(anchorsOf([[], [['array', []], ['array', []], ['&&', ['cref', 0], 1], ['&&', ['cref', 1], ['cref', 2]]]]), 'consts 2; imports ')
+            // an alias is the node it names: a `const` that is a bare
+            // reference to `c` anchors nothing of its own, and `c` reached
+            // only through the alias's lazy use is anchored as `c`
+            assertEq(anchorsOf([[], [['array', []], ['cref', 0], ['&&', 1, ['cref', 1]]]]), 'consts 0; imports ')
+            // deeper inside a lazy operand is lazy still, and an eager
+            // position inside a lazy operand is lazy from the export's view
+            assertEq(anchorsOf([[], [['array', []], ['&&', 1, ['array', [['+', ['cref', 0], 1]]]]]]), 'consts 0; imports ')
+            assertEq(anchorsOf([[], [['array', []], ['+', 1, ['&&', 1, ['cref', 0]]]]]), 'consts 0; imports ')
         },
         // an access reaches its base
         access: () => {
@@ -204,6 +297,24 @@ export const proof = {
             assert(sharedOf([['array', []], ['array', [['cref', 0], ['cref', 0]]]]))
             assert(!sharedOf([1, ['array', [['cref', 0], ['cref', 0]]]]))
         },
+        // a binary operator's operands are reached exactly as a call's
+        // arguments are, and a bitwise not's the same way a call's callee is
+        operator: () => {
+            assert(sharedWithOperator([['array', []], ['+', ['cref', 0], ['cref', 0]]]))
+            assert(!sharedWithOperator([['array', []], ['array', []], ['+', ['cref', 0], ['cref', 1]]]))
+            assert(sharedWithOperator([['array', []], ['array', [['cref', 0], ['~', ['cref', 0]]]]]))
+        },
+        // a lazy operand counts for sharing exactly as an eager one: the
+        // value may be it, so a node reached twice through lazy positions
+        // is shared — identity is indifferent to laziness, only anchoring
+        // is not
+        lazy: () => {
+            assert(sharedWithOperator([['array', []], ['array', [['&&', 1, ['cref', 0]], ['||', 1, ['cref', 0]]]]]))
+            assert(sharedWithOperator([['array', []], ['??', ['cref', 0], ['cref', 0]]]))
+            assert(sharedWithOperator([['array', []], ['?:', 1, ['cref', 0], ['cref', 0]]]))
+            assert(sharedWithOperator([['array', []], ['array', [['cref', 0], ['?:', ['cref', 0], 1, 2]]]]))
+            assert(!sharedWithOperator([['array', []], ['array', []], ['?:', ['cref', 0], ['cref', 1], 1]]))
+        },
         access: () => {
             /** @type {readonly import('./types.ts').AstConst[]} */
             const container = [['object', [['x', ['array', []]], ['y', ['array', []]]]]]
@@ -257,5 +368,43 @@ export const proof = {
             const zero = [{ id: '0', value: [], shared: false, reaches: [] }]
             assert(!sharingWith(zero)([['array', []], ['array', [['cref', 0], ['aref', 0]]]]).shared)
         },
+    },
+    // A chain of operators, as deep as the source that built it: `refsOf`
+    // walks one with an explicit stack rather than recursion, so 5,000
+    // terms — the depth `fjs/fsc/parser/proof.f.mjs`'s own `stackSafety`
+    // uses — cost no call stack, left-associative for a binary operator and
+    // right-associative for `-`/`~` alike.
+    stackSafety: () => {
+        // a reference at the deep end of a left-associative chain is still
+        // found, and reached exactly once — `refsOf` never revisits a node
+        // through the chain it flattens
+        /** @type {import('./types.ts').AstConst} */
+        let plus = ['cref', 0]
+        for (let i = 0; i < 5000; i++) { plus = ['+', plus, 1] }
+        assert(!sharedWithOperator([['array', []], plus]))
+        // a right-associative chain of negations, `refsOf`'s other shape
+        /** @type {import('./types.ts').AstConst} */
+        let neg = ['cref', 0]
+        for (let i = 0; i < 5000; i++) { neg = ['-', neg] }
+        assert(!sharedWithOperator([['array', []], neg]))
+        // a lazy chain, and a conditional nested through either arm, at
+        // the depth the parser's own `lazyStackCost` proves, under both
+        // views — the one that follows a lazy position and the one that
+        // stops at it
+        /** @type {import('./types.ts').AstConst} */
+        let and = ['cref', 0]
+        for (let i = 0; i < 20000; i++) { and = ['&&', and, ['cref', 0]] }
+        assert(sharedWithOperator([['array', []], and]))
+        assertEq(anchorsOf([[], [['array', []], and]]), 'consts ; imports ')
+        /** @type {import('./types.ts').AstConst} */
+        let otherwise = ['cref', 0]
+        for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        assert(!sharedWithOperator([['array', []], otherwise]))
+        assertEq(anchorsOf([[], [['array', []], otherwise]]), 'consts 0; imports ')
+        /** @type {import('./types.ts').AstConst} */
+        let then = ['cref', 0]
+        for (let i = 0; i < 20000; i++) { then = ['?:', ['cref', 0], then, 2] }
+        assert(sharedWithOperator([['array', []], then]))
+        assertEq(anchorsOf([[], [['array', []], then]]), 'consts ; imports ')
     },
 }

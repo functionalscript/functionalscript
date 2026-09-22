@@ -1,10 +1,10 @@
-use crate::vm::{Array, BigInt, Function, IVm, Object, String, nullish::Nullish};
+use crate::vm::{Array, BigInt, Function, IVm, Number, Object, String, nullish::Nullish};
 
 pub trait Dispatch<A: IVm>: Sized {
     type Result;
     fn nullish(self, v: Nullish) -> Self::Result;
     fn bool(self, v: bool) -> Self::Result;
-    fn number(self, v: f64) -> Self::Result;
+    fn number(self, v: Number) -> Self::Result;
     fn string(self, v: String<A>) -> Self::Result;
     fn bigint(self, v: BigInt<A>) -> Self::Result;
     fn object(self, v: Object<A>) -> Self::Result;

@@ -1,0 +1,38 @@
+/**
+ * Type-level API for `fjs/website/demo/graph/module.f.mjs`: a node-and-edge
+ * diagram any demo can hand a walked value to, once it has turned that value
+ * into nodes and edges of its own.
+ *
+ * @module
+ */
+
+/**
+ * A node before its rank is known: everything a demo's own walk can decide
+ * about a value without knowing where anything else in the graph sits.
+ *
+ * `kind` is the demo's own vocabulary, not this module's — `"leaf"` draws
+ * dashed by the site's stylesheet, and any other value draws as a plain
+ * solid box, so a demo with more than one kind of container is one CSS rule
+ * away from telling them apart too.
+ */
+export type Node = {
+    readonly id: number
+    readonly kind: string
+    readonly label: string
+}
+
+/** A {@link Node} once `ranked` (`./module.f.mjs`) has placed it. */
+export type Ranked = Node & { readonly rank: number }
+
+/** One edge, from a node's id to another's, labeled with the index or key that reaches it. */
+export type Edge = {
+    readonly from: number
+    readonly to: number
+    readonly label: string
+}
+
+/** A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every edge named. */
+export type Graph = {
+    readonly nodes: readonly Ranked[]
+    readonly edges: readonly Edge[]
+}

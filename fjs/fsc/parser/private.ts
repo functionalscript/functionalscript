@@ -12,7 +12,7 @@ import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstArgs, AstConst, AstModuleRef } from '../ast/types.ts'
+import type { AstArgs, AstConst, AstModuleRef, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { Block, Container, Node, Out, ParseError } from './types.ts'
 
@@ -27,6 +27,46 @@ export type _TokenStream = {
 
 /** A position a reader inspects: a symbol of either alphabet, or a node the machine built. */
 export type _Leaf = Meta<DjsTokenWithMetadata | Out> | readonly unknown[]
+
+/**
+ * The `[thing, accesses]` pair every base branch — primitive, reference,
+ * array, object — opens with: `unary`'s own shape, and `value`/`body`'s
+ * before their trailing tail lists. `accesses` is a position of its own,
+ * unmapped where it is read.
+ */
+export type _BaseNode = Unmapped<readonly [unknown, _Leaf]>
+
+/**
+ * `**`'s own optional round, `'**' t unary`: no round, or one holding the
+ * operand at the third position — the symbol itself, not a variant, since
+ * `**` is the one spelling.
+ */
+export type _PowTailNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _Leaf]>]>
+
+/**
+ * One round of a binary layer's repeat, `op t unary tail*`: the matched
+ * operator's own variant at the first position, the operand at the third,
+ * and every layer below this one's own tail list trailing it — as many
+ * positions as the layer is deep, `multiplicative`'s own round carrying
+ * none, each unmapped where {@link applyTail} reads it.
+ */
+export type _TailRound = Unmapped<readonly [Unmapped<readonly [string, _Leaf]>, unknown, _Leaf, ..._Leaf[]]>
+
+/**
+ * The node of the short-circuit level, `circuitTail`: no round, or one
+ * holding the branch the first operator committed to — its tag, and under
+ * it that operator's own round, a {@link _TailRound}, followed by the
+ * repeat lists the chain continues with, each unmapped where
+ * {@link applyCircuit} reads it.
+ */
+export type _CircuitNode = Unmapped<readonly [] | readonly [Unmapped<readonly [string, Unmapped<readonly [_TailRound, ..._Leaf[]]>]>]>
+
+/**
+ * The node of the conditional, `conditionalTail`: no round, or one holding
+ * `? t value : t value`, the arms at the third and sixth positions, each
+ * a value its mapping replaced by a symbol.
+ */
+export type _ConditionalNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _Leaf, unknown, unknown, _Leaf]>]>
 
 /**
  * A position holding an optional list, `[ items ]`: no round, or one
@@ -105,9 +145,15 @@ export type _CallFrame = {
     readonly done: List<AstConst>
 }
 
-/** An access whose base is being evaluated: the token its key is read from. */
+/**
+ * An access whose base is being evaluated: the token its key is read from,
+ * and whether the access is the callee of a call — a method call, whose
+ * key is checked against the member functions a module may not call rather
+ * than the properties it may not read.
+ */
 export type _AccessFrame = {
     readonly key: DjsTokenWithMetadata
+    readonly method: boolean
 }
 
 /** A function whose body is being evaluated: the names bound outside it, to return to. */
@@ -141,9 +187,42 @@ export type _BodyFrame = {
  */
 export type _NegFrame = { readonly neg: true }
 
-export type _Frame = _ContainerFrame | _CallFrame | _AccessFrame | _NegFrame | _FunctionFrame | _BodyFrame
+/**
+ * A bitwise not whose operand is being evaluated. It carries nothing, for
+ * the same reason {@link _NegFrame} does not.
+ */
+export type _BitnotFrame = { readonly bitnot: true }
 
-/** The containers, accesses, negations and functions suspended around the node being evaluated, innermost on top. */
+/** A binary operator whose left operand is being evaluated: the tag, and the right operand to enter once it resolves. */
+export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
+
+/** A binary operator whose right operand is being evaluated: the tag, and the left operand already resolved. */
+export type _BinaryRightFrame = { readonly tag: BinaryTag, readonly left: AstConst }
+
+/**
+ * A conditional being built: its operand at `index` — the condition, then
+ * each arm — is being evaluated, and `done` holds the values before it, a
+ * list for the reason a container's is.
+ */
+export type _ConditionalFrame = {
+    readonly conditional: readonly ['?:', Node, Node, Node]
+    readonly index: number
+    readonly done: List<AstConst>
+}
+
+export type _Frame =
+    | _ContainerFrame
+    | _CallFrame
+    | _AccessFrame
+    | _NegFrame
+    | _BitnotFrame
+    | _BinaryLeftFrame
+    | _BinaryRightFrame
+    | _ConditionalFrame
+    | _FunctionFrame
+    | _BodyFrame
+
+/** The containers, calls, accesses, operators, conditionals and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */

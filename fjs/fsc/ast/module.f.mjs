@@ -6,8 +6,8 @@
  * @import { Array, Unknown } from '../../media/datajs/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { AstAccess, AstArray, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstObject, Import, Sharing, Anchors } from './types.ts'
- * @import { _Node, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstConditional, AstConst, AstBody, AstMember, AstModule, AstModuleRef, AstNeg, AstObject, Import, Sharing, Anchors } from './types.ts'
+ * @import { _Node, _OperandStack, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
 import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
@@ -112,6 +112,18 @@ const noFunctionValue = 'a function has no value'
 const noCallValue = 'a call has no value'
 
 /**
+ * The refusal of a binary operator, a conditional or a bitwise not where
+ * a value is wanted: `+` alone needs `ToPrimitive` to decide number or
+ * string, and folding every other operator while leaving `+` a node would
+ * draw an inconsistent line, so this evaluator answers none of them — the
+ * lazy ones and the conditional included, whose `ToBoolean` is a question
+ * of the same kind — see {@link AstBinary}'s own comment in `./types.ts`. `run` reaches this
+ * exactly where it reaches {@link noFunctionValue}/{@link noCallValue}: a
+ * node whose value is the EDAG's to give, not this reader's.
+ */
+const noOperatorValue = 'an operator has no value'
+
+/**
  * The refusal of a value this evaluator has no number for: a container.
  *
  * Converting one is `ToPrimitive`, JavaScript's own machinery — `valueOf`,
@@ -163,7 +175,13 @@ const toDjs = state => ast => {
         case '=>':
         case 'args': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
-        case '-': { return okThen(negated)(toDjs(state)(ast[1])) }
+        case '-': { return ast.length === 2 ? okThen(negated)(toDjs(state)(ast[1])) : error(noOperatorValue) }
+        case '~':
+        case '*': case '/': case '%': case '**':
+        case '+':
+        case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>':
+        case '&&': case '||': case '??': case '?:': { return error(noOperatorValue) }
         default: { return okThen(ownProperty(ast[2]))(toDjs(state)(ast[1])) }
     }
 }
@@ -222,6 +240,83 @@ const memberValues = members => [...new Map(members).values()]
  */
 const memberValuesWritten = members => members.map(([, value]) => value)
 
+/** The stack with one more operand on top. @type {(s: _OperandStack, operand: AstConst) => _OperandStack} */
+const pushed = (s, operand) => ({ top: operand, rest: s })
+
+/**
+ * The stack with `operands` on top of it, the first of them uppermost —
+ * so they are popped in the order written, as the recursive walk read
+ * them.
+ *
+ * @type {(operands: readonly AstConst[], rest: _OperandStack) => _OperandStack}
+ */
+const pushedAll = (operands, rest) => operands.reduceRight(pushed, rest)
+
+/**
+ * The operands a chain of operator/negation/bitwise-not/conditional nodes
+ * bottoms out at, `ast` itself included when it is none of them — every
+ * branch {@link refsOf} would otherwise recurse straight through to reach
+ * its operands, and so the one shape a source expression can nest
+ * arbitrarily deep through, left-associative chains of `+`/`*`/`&&`/… and
+ * right-associative ones of `-`/`~`/`**`/`?:` alike.
+ *
+ * A heap-allocated cons-list stack in place of the recursion every one of
+ * those nodes would otherwise call {@link refsOf} through, so a chain
+ * however many terms long costs stack frames on the heap rather than the JS
+ * call stack — the shape {@link evaluate} in `../parser/module.f.mjs`
+ * already resolves a value's own operators with, over its own `_Stack`. A
+ * `while` loop reassigning `stack`/`bottom` rather than a recursive walk:
+ * nothing here is mutated in place, only rebound, `stack`'s own cons cells
+ * each built once and never revisited.
+ *
+ * Which operands a node contributes is the view's where the views differ:
+ * a negation's, and a lazy operator's conditionally established ones — the
+ * right operand of `&&`/`||`/`??` and both arms of `?:` — where the left
+ * operand and the condition, established whatever the value, are every
+ * view's.
+ *
+ * @type {(view: _View) => (ast: AstConst) => List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>>}
+ */
+const operandsOf = view => ast => {
+    /** @type {_OperandStack} */
+    let stack = { top: ast, rest: null }
+    /** @type {List<Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>>} */
+    let bottom = empty
+    while (stack !== null) {
+        const node = stack.top
+        /** @type {_OperandStack} */
+        const rest = stack.rest
+        if (node === null || typeof node !== 'object') { bottom = concat(bottom)([node]); stack = rest; continue }
+        switch (node[0]) {
+            case '-': {
+                if (node.length !== 2) { stack = { top: node[1], rest: { top: node[2], rest } }; break }
+                // the view's own read of a negation's operand —
+                // `written`'s is one operand, `value`'s none, negation
+                // being a primitive
+                stack = pushedAll(view.negated(node[1]), rest)
+                break
+            }
+            case '~': { stack = { top: node[1], rest }; break }
+            case '*': case '/': case '%': case '**':
+            case '+':
+            case '===': case '!==': case '<': case '<=': case '>': case '>=':
+            case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+                // the left operand on top, so it is the next popped — the
+                // order the recursive walk read the two in
+                stack = { top: node[1], rest: { top: node[2], rest } }
+                break
+            }
+            // the left operand is established whatever it decides; the
+            // right one is the view's to count
+            case '&&': case '||': case '??': { stack = { top: node[1], rest: pushedAll(view.lazy([node[2]]), rest) }; break }
+            // the condition likewise, and the arms are the view's
+            case '?:': { stack = { top: node[1], rest: pushedAll(view.lazy([node[2], node[3]]), rest) }; break }
+            default: { bottom = concat(bottom)([node]); stack = rest }
+        }
+    }
+    return bottom
+}
+
 /**
  * The references one entry makes directly: its `cref`s and `aref`s, however
  * deep inside its own literals, and nothing behind them — a referenced
@@ -234,7 +329,18 @@ const memberValuesWritten = members => members.map(([, value]) => value)
  *
  * @type {(view: _View) => (ast: AstConst) => List<_Ref>}
  */
-const refsOf = view => ast => {
+const refsOf = view => ast => flat(map(refsOfOperand(view))(operandsOf(view)(ast)))
+
+/**
+ * One operand {@link operandsOf} bottomed out at: never itself an operator,
+ * negation or bitwise not, so every branch here may recurse through
+ * {@link refsOf} exactly as it always did — a container, a call, or an
+ * access chain nests only as deep as the source that built it, which is a
+ * separate, narrower concern than an operator chain's unbounded length.
+ *
+ * @type {(view: _View) => (ast: Exclude<AstConst, AstNeg | AstBitnot | AstBinary | AstConditional>) => List<_Ref>}
+ */
+const refsOfOperand = view => ast => {
     if (ast === null || typeof ast !== 'object') { return empty }
     switch (ast[0]) {
         case 'array': { return flat(ast[1].map(refsOf(view))) }
@@ -251,9 +357,6 @@ const refsOf = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
-        // what a negation's operand leaves is the view's: the graph holds it
-        // and the value does not, a negation being a primitive
-        case '-': { return flat(view.negated(ast[1]).map(refsOf(view))) }
         // a function names nothing outside itself, and its arguments are its own
         case '=>':
         case 'args': { return empty }
@@ -331,12 +434,29 @@ const resolved = (imports, nodes) => ({ ref, keys }) => ({ ref: ref[0] === 'cref
 /**
  * What an EDAG of the module anchors, by index: exactly the code the graph
  * would not otherwise hold — the body entries no chain of references from
- * the export leads to, and the imports likewise, the sweep {@link sharing}
- * runs read for what it left out, less what those entries reach
- * themselves, which the graph holds through them. `run` evaluates every
- * entry and `transpile` reads every import whether the export reaches them
- * or not, so a compiler that follows references alone would drop what this
- * names, and anchors it instead.
+ * the export leads to, and the imports likewise, read as the EDAG
+ * establishes them, {@link written}, less what those entries reach
+ * themselves the same way, which the graph holds through them. `run`
+ * evaluates every entry and `transpile` reads every import whether the
+ * export reaches them or not, so a compiler that follows references alone
+ * would drop what this names, and anchors it instead.
+ *
+ * Reached means reached through eager positions alone — a container item,
+ * an access base, a call's callee and arguments, an operator's operand, a
+ * lazy operator's left one, a conditional's condition — and never through
+ * a lazy one, the right operand of `&&`/`||`/`??` or an arm of `?:`: a
+ * reference there is established only when the operator decides to, where
+ * the source's own `const c = null.x;` throws at load whatever later code
+ * does with `c`. So `const c = null.x; export default [a && c, b && c];`
+ * anchors `c`, and `[c, a && c]` does not, the array's item being one
+ * eager path in; and an unreached entry excuses another's anchor only when
+ * it reaches it eagerly — `const d = null.x; const c = a && d; export
+ * default b && c;` anchors both, since anchoring `c` establishes `a && d`
+ * and not `d`. The sharing sweep reads the same syntax with every position
+ * counted, {@link value}: identity does not care which position a
+ * reference is made from, only anchoring does. The rule is
+ * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)'s
+ * subtraction, the comma's to generalize.
  *
  * Counted by node, not by entry, since it is the graph that holds or lacks
  * a node: a `const` that is a bare reference is the node it names and is
@@ -428,25 +548,32 @@ const selected = ast => {
 const selectedOf = ast => ast !== null && typeof ast === 'object' && ast[0] === '.' ? selected(ast) : ast
 
 /**
- * The syntax as the EDAG evaluates it: every member written, a literal
- * whole before it is read, and a negation's operand followed — the graph
- * holds it as a node of its own, so a `const` nothing but a negation
- * reaches is reached all the same.
+ * The syntax as the EDAG establishes it, unconditionally: every member
+ * written, a literal whole before it is read, a negation's operand
+ * followed — the graph holds it as a node of its own, so a `const` nothing
+ * but a negation reaches is reached all the same — and a lazy operand
+ * not: the EDAG establishes `a && b`'s `b` only when `a` is truthy, so a
+ * reference there is no guarantee the `const` it names is evaluated, and
+ * {@link anchors} reads through this view exactly so that such a `const`
+ * keeps its anchor.
  *
  * @type {_View}
  */
-const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand] }
+const written = { members: memberValuesWritten, through: ast => ast, negated: operand => [operand], lazy: () => [] }
 
 /**
  * The syntax as the value has it: the last member per key, of a literal
- * only what the key selects, and of a negation nothing — `-x` is a number
+ * only what the key selects, of a negation nothing — `-x` is a number
  * or a bigint whatever `x` was, so the operand is consumed and no part of
  * it is in the value. `const a = []; export default [-a, -a];` is
- * `[-0, -0]`, two primitives and no node shared between them.
+ * `[-0, -0]`, two primitives and no node shared between them — and of a
+ * lazy operator every operand, since the value is whichever of them the
+ * operator selects: `[a && c, b && c]` may hold `c` twice, and the sweep
+ * says shared where it cannot say otherwise.
  *
  * @type {_View}
  */
-const value = { members: memberValues, through: selected, negated: () => [] }
+const value = { members: memberValues, through: selected, negated: () => [], lazy: operands => operands }
 
 /** A reference with keys beyond its own: the rest of a route that ran into it. @type {(keys: readonly string[]) => (ref: _Ref) => _Ref} */
 const deeperBy = keys => ({ ref, keys: own }) => ({ ref, keys: [...own, ...keys] })

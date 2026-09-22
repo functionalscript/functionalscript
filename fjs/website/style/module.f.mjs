@@ -37,6 +37,24 @@ export const stylesheetPath = '/_main.css'
 export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
+ * The two `<link rel="icon">` elements every page carries, so that no page
+ * spells the paths itself.
+ *
+ * Both, because declaring one ends the implicit lookup: `/favicon.ico` is
+ * what a browser asks for when a document declares no icon at all, and once
+ * a page declares the SVG, a browser that recognizes `rel="icon"` but cannot
+ * render SVG has no reason to go looking for the `.ico` — the fallback would
+ * never be requested in the one case it exists for. The `type` on the SVG
+ * link is what lets a browser that can use it skip the other.
+ *
+ * @type {readonly [Element, Element]}
+ */
+export const faviconLinks = [
+    ['link', { rel: 'icon', href: '/favicon.ico', sizes: '32x32' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fjs/website/favicon.svg' }],
+]
+
+/**
  * The stylesheet, verbatim.
  *
  * @type {string}
@@ -127,6 +145,17 @@ pre { white-space: pre-wrap }
    bottom of the box beside it rather than the top. A single-line input has
    no such seam: its one line of text already sits on the label's baseline. */
 textarea { vertical-align: top }
+/* A browser's own default width for a textarea is about twenty characters —
+   a sliver of the page's column, for a field meant to hold a document.
+   box-sizing keeps the 100% to the content width regardless of the border
+   and padding a browser gives a textarea by default, so it does not overflow
+   its own line. Resizable in height only: width has one right answer here,
+   the column, so there is nothing to drag it away from — a browser's own
+   resize otherwise sets an inline size the next render does not carry
+   (nothing here re-renders a resize into what it drew, the same way it
+   redraws focus and the caret), and a field a reader just widened would
+   silently narrow back on the next keystroke. */
+textarea { box-sizing: border-box; resize: vertical; width: 100% }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is
@@ -153,4 +182,33 @@ textarea { vertical-align: top }
 @media (any-pointer: coarse) {
     [data-section] > ul a { display: inline-block; padding-block: .25rem }
 }
+/* SVG text does not inherit the page's font on its own, unlike every
+   ordinary element — the DataJS demo's graph is the first thing on the site
+   to draw one. */
+svg text { font: inherit }
+/* A demo's graph: a rect per node, a line per index, key or operand role.
+   Three looks, for the three things a node can be. A container or an
+   operator is hollow — it is computed from what the edges below it reach.
+   A leaf is dashed: a constant, reaching nothing because there is nothing
+   to reach. A terminal is filled: it reaches nothing either, but for the
+   opposite reason — a value arrives there from outside the scope, as the
+   EDAG demo's args and frame do, and drawing it dashed would file an
+   input with the constants. Two looks were enough while the DataJS demo
+   was the only reader and a leaf and a container were the whole world.
+   An edge label is haloed in the page's own background rather than boxed,
+   so two crossing lines still read under it without a second shape per
+   label, and an edge is cased in it — a wide background stroke under the
+   line — so that where an edge crosses a node it passes visibly in front
+   of the box rather than merging into its border. */
+[data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+[data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
+[data-graph-kind="terminal"] { fill: var(--border) }
+[data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
+[data-graph-edge-casing] { fill: none; stroke: var(--bg); stroke-width: 5 }
+[data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+[data-graph-edge-label] {
+    dominant-baseline: middle; fill: var(--muted); font-size: .7rem;
+    paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; stroke-width: 3px;
+}
+[data-graph-arrow] { fill: var(--muted) }
 `

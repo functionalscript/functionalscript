@@ -112,44 +112,170 @@ export type Access = {
 }
 
 /**
- * What a `-` takes: a value less the function, JavaScript's unary operand
- * being a `UnaryExpression`, which an arrow function is not — and a group,
- * {@link ParenGroup}, which is one.
+ * `**`'s right operand, when a primary, a group, or a `-`/`~` is raised to
+ * a power: optional, and {@link Unary} again when present — right-recursive,
+ * so `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
+ */
+export type PowTail = Option<readonly [number, typeof trivia, Unary]>
+
+/**
+ * What a `-` or a `~` takes: a value less the function, JavaScript's unary
+ * operand being a `UnaryExpression`, which an arrow function is not — and a
+ * group, {@link ParenGroup}, which is one. Every alternative but the two
+ * prefixes may be raised to a power, {@link PowTail}; the prefixes
+ * themselves recurse into {@link UnaryOperand}, never {@link Unary}, since
+ * JavaScript refuses `**` immediately after a unary-prefixed operand.
  */
 export type Unary = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary]
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
-    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+    readonly neg: readonly [number, typeof trivia, UnaryOperand]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail]
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail]
     readonly group: ParenGroup
 }]
 
 /**
+ * What a `-` or a `~` takes: every alternative {@link Unary} has, but none
+ * of them — including a nested `-`/`~`, recursing through this same type —
+ * carries {@link PowTail}. JavaScript refuses `**` immediately after a
+ * unary-prefixed operand at any depth, `- -2 ** 2` exactly as `- 2 ** 2`,
+ * so recursing through this type rather than {@link Unary} keeps that
+ * refusal at every depth a `-`/`~` chain reaches.
+ */
+export type UnaryOperand = () => readonly ['const', {
+    readonly neg: readonly [number, typeof trivia, UnaryOperand]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>]]
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>]]
+    readonly group: ParenGroupOperand
+}]
+
+/**
+ * One round of a binary-operator layer above {@link Unary}: `(op, Unary,
+ * ...Prev)`, the op itself left untyped — nothing downstream reads its
+ * shape at the type level, only at the value level once a round is
+ * matched — and `Prev` the layers below this one, threaded through so a
+ * repeated operand reaches back down to them, `1 + 2 * 3` nesting as
+ * `1 + (2 * 3)`.
+ *
+ * The operand is always {@link Unary}, never {@link Value}/{@link Body}
+ * themselves: a function's body is unbounded, reading everything to the
+ * right of `=>` as its own, so wrapping a shared primary as a unit — as a
+ * single generic `Below` this alias once took — would leak the ladder's
+ * own follow set down into the function's body and manufacture an LL(1)
+ * conflict `fjs/ebnf/ll1` has no way to resolve. See `unary`'s own comment
+ * in `./module.f.mjs`.
+ */
+type _OpRound<Prev extends readonly Rule[]> = readonly [Rule, typeof trivia, Unary, ...Prev]
+
+/** One layer of the precedence ladder: zero or more {@link _OpRound}s over the layers below it. */
+type _OpTail<Prev extends readonly Rule[]> = RepeatFrom<0, _OpRound<Prev>>
+
+type _MultiplicativeTail = _OpTail<readonly []>
+type _AdditiveTail = _OpTail<readonly [_MultiplicativeTail]>
+type _ShiftTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail]>
+type _RelationalTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail]>
+type _EqualityTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail]>
+type _BitwiseAndTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail]>
+type _BitwiseXorTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail, _BitwiseAndTail]>
+type _BitwiseOrTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail, _BitwiseAndTail, _BitwiseXorTail]>
+
+/**
+ * The eager binary-operator suffix, `multiplicative` through `bitwiseOr`,
+ * each layer built on the ones below it, `bitwiseOr` this type's own top:
+ * the first part of {@link Tail}, and every lazy operator's own operand —
+ * {@link Unary} followed by these eight, which is what a `bitwiseOr`-level
+ * expression is.
+ */
+export type EagerTail = readonly [
+    _MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail,
+    _EqualityTail, _BitwiseAndTail, _BitwiseXorTail, _BitwiseOrTail,
+]
+
+/** One round of the `&&` layer: its operand every eager layer's, `a && b | c` being `a && (b | c)`. */
+type _LogicalAndRound = _OpRound<EagerTail>
+
+/** The `&&` rounds after a chain's first. */
+type _LogicalAndTail = RepeatFrom<0, _LogicalAndRound>
+
+/** One round of the `||` layer: its operand a `&&` chain, `a || b && c` being `a || (b && c)`. */
+type _LogicalOrRound = _OpRound<readonly [...EagerTail, _LogicalAndTail]>
+
+/** The `||` rounds after a chain's first. */
+type _LogicalOrTail = RepeatFrom<0, _LogicalOrRound>
+
+/** One round of the `??` layer: its operand every eager layer's, and never a `&&` or `||` chain. */
+type _NullishRound = _OpRound<EagerTail>
+
+/** The `??` rounds after a chain's first. */
+type _NullishTail = RepeatFrom<0, _NullishRound>
+
+/**
+ * The short-circuit level above {@link EagerTail}: nothing, or the chain
+ * its first operator commits to — each branch that operator's own round
+ * and then the repeat lists that may continue it, a `&&` chain continuing
+ * into `||` rounds and a `??` chain into `??` rounds alone, so that
+ * `a ?? b || c` and `a && b ?? c` have no parse, as JavaScript has none.
+ * The shape's own comment is on `circuitTail` in `./module.f.mjs`.
+ */
+export type CircuitTail = Option<{
+    readonly logicalAnd: readonly [_LogicalAndRound, _LogicalAndTail, _LogicalOrTail]
+    readonly logicalOr: readonly [_LogicalOrRound, _LogicalOrTail]
+    readonly nullish: readonly [_NullishRound, _NullishTail]
+}>
+
+/**
+ * The conditional above {@link CircuitTail}: nothing, or `?`, trivia, an
+ * arm, `:`, trivia, and the other arm — each arm a whole {@link Value}, so
+ * a nested conditional associates to the right through the arm's own
+ * recursion.
+ */
+export type ConditionalTail = Option<readonly [number, typeof trivia, Value, number, typeof trivia, Value]>
+
+/**
+ * The whole operator suffix: {@link EagerTail}, then the two lazy
+ * positions above it, {@link CircuitTail} and {@link ConditionalTail},
+ * this type's own top — spread onto every branch of {@link Value}/{@link
+ * Body} that may carry one, every branch but {@link Func} and {@link
+ * Block}.
+ */
+export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
+
+/**
  * A value: a primitive token, a reference, an array of values, or an
  * object of members, each ending with its trivia and each followed by the
- * accesses after it — a `const` thunk whose payload names the thunk, which
- * is what lets a type alias name itself.
+ * accesses after it and optionally raised to a power — or a `-`/`~`
+ * prefix — each carrying {@link Tail}, the binary-operator suffix, above
+ * it — or `(`, the choice between a function and a group, {@link Paren},
+ * a function alone excepted, nothing following one unparenthesized. A
+ * `const` thunk whose payload names the thunk, which is what lets a type
+ * alias name itself.
  */
 export type Value = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary]
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
-    readonly object: readonly [Container<Member>, RepeatFrom<0, Access>]
+    readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
 }]
 
 /**
- * A function's body: a value less the object, since `=> {` opens a block in
- * JavaScript — or that block, in which an object is a value again, or a
- * group, which is the other spelling of a body that is an object.
+ * A function's body: a value less the object, since `=> {` opens a block
+ * in JavaScript — or that block, in which an object is a value again, or
+ * a group, which is the other spelling of a body that is an object.
  */
 export type Body = () => readonly ['const', {
-    readonly neg: readonly [number, typeof trivia, Unary]
-    readonly primitive: readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>]
-    readonly ref: readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>]
-    readonly array: readonly [Container<Value>, RepeatFrom<0, Access>]
+    readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
     readonly block: Block
 }]
@@ -163,15 +289,17 @@ export type Paren = readonly [number, typeof trivia, Parenthesized]
  */
 export type Parenthesized = {
     readonly func: Func
-    readonly group: Group
+    readonly group: readonly [Group, ...Tail]
 }
 
 /**
- * A group after its `(`: the value, `)`, the trivia after it, and the steps
+ * A group after its `(`: the value, `)`, the trivia after it, the steps
  * the group takes — which are the group's and not the value's, the one
- * thing the parentheses change.
+ * thing the parentheses change — and the power it may be raised to,
+ * {@link PowTail}, the one place a group needs its own since both
+ * {@link Unary}'s restricted `(` and a value's full one stand on this rule.
  */
-export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>]
+export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>, PowTail]
 
 /**
  * `(`, trivia and a group: what a `-` may take in parentheses. It is not
@@ -180,6 +308,20 @@ export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access
  * `UnaryExpression` the function is not.
  */
 export type ParenGroup = readonly [number, typeof trivia, Group]
+
+/**
+ * A group after its `(`, without the power {@link Group} itself may carry:
+ * everything {@link Group} has but its own {@link PowTail}. `-(1) ** 2` is
+ * a syntax error in JavaScript, so {@link UnaryOperand}'s restricted `(`
+ * stands on this type rather than {@link Group}'s.
+ */
+export type GroupOperand = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>]
+
+/**
+ * `(`, trivia and {@link GroupOperand}: what a `-`/`~` may take in
+ * parentheses, {@link UnaryOperand}'s own `(` branch.
+ */
+export type ParenGroupOperand = readonly [number, typeof trivia, GroupOperand]
 
 /**
  * `{`, trivia, the body's `const` statements, `return`, same-line trivia,

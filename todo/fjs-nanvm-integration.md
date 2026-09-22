@@ -103,11 +103,11 @@ via the `Function` constructor — no rustc at the user's run time.
 
 - [x] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
       exposing the compiled module's value (e.g.
-      `pub fn module<A: IVm>() -> Any<A>`), not a `main`. Covers literals,
+      `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`), not a `main`. Covers literals,
       arrays, objects, `const` sharing (generalized from the operator-test
       printer's explicit named `shared` to a linked EDAG's implicit,
       identity-based sharing), and property access (`.`, via
-      `Any::member_access`, a literal `number` or `string` key over an
+      `Any::dot(…).end()`, a literal `number` or `string` key over an
       array, string, object, boolean, number, or bigint receiver — a
       `Number(...)` cast index, `a[Number(k)]`, is the one form still
       refused, having no `nanvm-lib` cast primitive to route it through).
@@ -118,13 +118,11 @@ via the `Function` constructor — no rustc at the user's run time.
       *expression* is accepted (see
       [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
       accepted subset), so there is nothing yet to print through the
-      `op1`/`op2`/`op3` tables. `=>` is a different case — the compiler does
-      emit it, for a function literal compiled to `.edag.data.js` — but it
-      stays out of the `.rs` subset too: this printer accepts only the one
-      placeholder closure the operator-test corpus uses (`() => undefined`)
-      and refuses every real one, since `nanvm-lib` has no closures yet
-      (P2, `fjs/edag/todo/entry.md` and the `Function` constructor task in
-      [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md)). The printer is
+      `op1`/`op2`/`op3` tables. A function, `=>`, prints as a closure bound
+      through `IStaticFunction`, and a call, `()`, as `Any::call` — since
+      [callable-function-objects](../nanvm-lib/todo/callable-function-objects.md)'s
+      Stage 1 landed; the corpus's own placeholder closure (`() =>
+      undefined`) keeps its `function_any` spelling. The printer is
       shared with the operator-test generator via
       [`fjs/edag/rust`](../fjs/edag/rust/module.f.mjs), not duplicated. Wired
       to the harness (next task) below. Not yet covered: multi-module output

@@ -19,13 +19,36 @@ module ::= t import* const* export eof
 import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
-value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
-body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
-unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
+value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
+         | (primitive t | id t | array | object) access* powTail tail
+         | '(' t (func | group tail)
+body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
+         | (primitive t | id t | array) access* powTail tail
+         | '(' t (func | group tail) | block
+unary  ::= '-' t unaryOperand | '~' t unaryOperand
+         | (primitive t | id t | array | object) access* powTail
+         | '(' t group
+unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
+         | (primitive t | id t | array | object) access*
+         | '(' t groupOperand
 block  ::= '{' t const* 'return' s value ';' t '}' t
-paren  ::= '(' t (func | group)
 func   ::= [ '...' t id t ] ')' s '=>' t body
-group  ::= value ')' t access*
+group  ::= value ')' t access* powTail
+groupOperand ::= value ')' t access*
+powTail ::= [ '**' t unary ]
+eagerTail ::= { mulOp t unary }
+           { addOp t unary <the multiplicative repeat above> }
+           …six more layers, each repeating over every layer below it the
+           same way — shift, relational, equality, bitwiseAnd, bitwiseXor,
+           bitwiseOr, JavaScript's own order
+logicalAndRound ::= '&&' t unary eagerTail
+logicalOrRound  ::= '||' t unary eagerTail { logicalAndRound }
+nullishRound    ::= '??' t unary eagerTail
+circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
+                | logicalOrRound { logicalOrRound }
+                | nullishRound { nullishRound } ]
+conditionalTail ::= [ '?' t value ':' t value ]
+tail   ::= eagerTail circuitTail conditionalTail
 access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
@@ -48,10 +71,53 @@ parenthesized parameters will
 It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
 is a group, and nothing may follow a value there.
 
-A `-` takes the group under its `(` and not `paren`, the two differing by
-the function: `-(...a) => 1` is a syntax error in JavaScript and
-`-((...a) => 1)` is not, so the operand is the group alone and the `...` is
-refused where JavaScript refuses it rather than at the `(`.
+A `-` or a `~` takes the group under its `(` and not `paren`, the two
+differing by the function: `-(...a) => 1` is a syntax error in JavaScript
+and `-((...a) => 1)` is not, so the operand is the group alone and the
+`...` is refused where JavaScript refuses it rather than at the `(`. Every
+binary operator's operand is `unary` — see the next section for why it
+can be no wider a rule — but `-`/`~`'s own operand is `unaryOperand`, a
+narrower rule still: JavaScript refuses `**` immediately after a
+unary-prefixed operand, full stop, at any depth (`- -2 ** 2` exactly as
+`- 2 ** 2`), so `unaryOperand` is every alternative `unary` has minus
+`powTail`, recursing through itself rather than `unary` for a nested
+`-`/`~`. Only `(-2) ** 2` and `-(2 ** 2)` write either reading:
+parentheses that move the `**` to where it no longer immediately follows
+the prefix.
+
+`tail`, the operator suffix — Stage A's eager ladder and Stage B's lazy
+operators and conditional above it
+([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)) — is
+threaded onto every branch of `value`/`body` that may carry one, inline,
+rather than wrapping a shared primary the way a textbook precedence ladder
+would. That wrapping was tried first and rejected: `func`'s body is
+unbounded, reading everything to its right as its own, so a primary the
+ladder also wrapped would leak the ladder's own follow set down into the
+body and manufacture an LL(1) conflict with no real ambiguity behind it —
+a greedy reader never needs the choice the checker flags, but the checker
+cannot see that. Spelling `tail` inline, with `unary` — narrow, `func`
+excluded — as every operand throughout, avoids the leak entirely: `func`
+is reachable only where `value`/`body` put it directly, never as a repeated
+operand any layer wraps.
+
+The short-circuit level, `circuitTail`, is a choice its first operator
+makes rather than one more repeat: JavaScript keeps `??` apart from
+`&&`/`||` at one nesting by giving the two their own productions,
+`LogicalORExpression` beside `CoalesceExpression`, and spelled as that
+choice the two alternatives open with one operand, a first/first conflict
+the checker refuses before any input. So the operand belongs to the branch
+its operator opens, the choice is made at that operator — one symbol — and
+a chain committed to `&&`/`||` has no round for `??`, nor a `??` chain for
+either: `a ?? b || c` fails at the `||`, refused by the grammar's shape and
+by nothing after it. The conditional is the top, `? value : value`, each
+arm the whole value rule — JavaScript's arms are `AssignmentExpression`s,
+and with no assignment the ladder's own top is the nearest — so a nested
+conditional associates to the right through the arms' recursion, and `:`
+follows a function's body there without a conflict, nothing a body may
+continue with beginning with it: `a ? () => 1 : 2` is the function and the
+else arm, as JavaScript reads it. Both are read by the same fold as the
+eager layers, a branch's round being a layer's round and its continuation
+the repeat lists a value's own tail is, plus one reader for the two arms.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had
@@ -125,7 +191,14 @@ the fold's:
   [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
   prohibits. The key of an access is a constant — an identifier after `.`, a
   string or a number in `[ ]` — so what remains is the EDAG's own form,
-  `['.', base, key]`, and the grammar refuses a runtime key at the token.
+  `['.', base, key]`, and the grammar refuses a runtime key at the token;
+- a method call naming a member function a module may not call, `a.push(1)`
+  or `a.valueOf()` — the names `prohibitedCalls` in the same module lists,
+  its [README](../../js/prototype/README.md) saying why for each. An access
+  that is a call's callee, through a group as well, is checked against that
+  list instead of the read rule, so `a.at(0)` and `a.toString()` are calls
+  like any other while `a.at` stays a refused read: a detached built-in is a
+  function that only fails.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar

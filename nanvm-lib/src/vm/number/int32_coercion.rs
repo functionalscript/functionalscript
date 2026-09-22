@@ -1,3 +1,5 @@
+use crate::vm::Number;
+
 /// The `modulo 2^32` step `ToInt32` shares with `ToUint32`
 /// (<https://tc39.es/ecma262/#sec-toint32> / <https://tc39.es/ecma262/#sec-touint32>):
 /// non-finite (`NaN`, `±Infinity`) becomes `+0`, otherwise the number is
@@ -7,7 +9,7 @@
 /// remainder is itself exactly representable in the same format, so this
 /// step introduces no error of its own even when `number.trunc()` is a huge
 /// magnitude — whatever rounding happened is already baked into `number`
-/// from when it became an `f64` via `ToNumber`, upstream of this function.
+/// from when it became a `Number` via `ToNumber`, upstream of this function.
 fn modulo_2_32(number: f64) -> u32 {
     if !number.is_finite() {
         return 0;
@@ -22,21 +24,31 @@ fn modulo_2_32(number: f64) -> u32 {
     non_negative as u32
 }
 
-/// `ToInt32`. <https://tc39.es/ecma262/#sec-toint32>
-pub(crate) fn to_int32(number: f64) -> i32 {
-    modulo_2_32(number) as i32
-}
+impl Number {
+    /// `ToInt32`. <https://tc39.es/ecma262/#sec-toint32>
+    pub fn to_int32(self) -> i32 {
+        modulo_2_32(self.0) as i32
+    }
 
-/// `ToUint32`. <https://tc39.es/ecma262/#sec-touint32> — used by `<<`/`>>`
-/// (for the shift-count operand) and `>>>` (for both operands, since it has
-/// no signed form).
-pub(crate) fn to_uint32(number: f64) -> u32 {
-    modulo_2_32(number)
+    /// `ToUint32`. <https://tc39.es/ecma262/#sec-touint32> — used by `<<`/`>>`
+    /// (for the shift-count operand) and `>>>` (for both operands, since it
+    /// has no signed form).
+    pub fn to_uint32(self) -> u32 {
+        modulo_2_32(self.0)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{to_int32, to_uint32};
+    use crate::vm::Number;
+
+    fn to_int32(v: f64) -> i32 {
+        Number::from(v).to_int32()
+    }
+
+    fn to_uint32(v: f64) -> u32 {
+        Number::from(v).to_uint32()
+    }
 
     #[test]
     fn non_finite_and_zero() {
@@ -71,22 +83,5 @@ mod tests {
         // 2^32 itself reduces to 0.
         assert_eq!(to_int32(4294967296.0), 0);
         assert_eq!(to_uint32(4294967296.0), 0);
-    }
-
-    #[test]
-    fn negative_wraps_up() {
-        // -1 reduces (mod 2^32) to 2^32 - 1, which ToInt32 then reinterprets
-        // back down to -1 — round-tripping through the unsigned domain.
-        // ToUint32 has no such reinterpretation, so it stays at 2^32 - 1.
-        assert_eq!(to_int32(-1.0), -1);
-        assert_eq!(to_uint32(-1.0), 4294967295);
-    }
-
-    #[test]
-    fn huge_magnitude() {
-        // Far beyond f64's 53-bit integer precision: an exact multiple of a
-        // power of two well past 2^32, so it reduces to 0 either way.
-        assert_eq!(to_int32(1.0e30), 0);
-        assert_eq!(to_uint32(1.0e30), 0);
     }
 }

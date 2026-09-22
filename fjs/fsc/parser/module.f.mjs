@@ -48,11 +48,12 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { BinaryTag } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
- * @import { Body, Group, Items, Member, Parenthesized, Unary, Value } from './grammar/types.ts'
+ * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -61,12 +62,12 @@ import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { prototypeNames } from '../../js/prototype/module.f.mjs'
+import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, unary, value,
-    values,
+    body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importStatement, member, members, symbolOf,
+    unary, unaryOperand, value, values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -339,31 +340,200 @@ const accessed = (base, round) => {
 const steps = (base, accesses) => accesses.reduce(accessed, base)
 
 /**
- * The node a value's own part makes, before the accesses after it: a
- * primitive converted from its token, a reference by its token, and a
- * container of the items its list returned — `[ open t [ items ] close t
- * ]`, the list at the third position. What a `(` opens, a block and a
- * negation are not here: a function, a block and a negation take no access,
- * so each node is made whole, and a group's value is reached through
- * {@link parenNode}.
+ * `**`'s round, when a primitive, a reference, an array, an object or a
+ * group is raised to a power: the operand at the third position of `'**' t
+ * unary`, under the one round the option holds.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg', unknown]>) => Node}
+ * @type {(base: Node, powTail: _PowTailNode) => Node}
+ */
+const withPow = (base, powTail) => {
+    const rounds = unmapped(powTail)
+    if (rounds.length === 0) { return base }
+    const [, , v] = unmapped(rounds[0])
+    return ['**', base, nodeAt(v)]
+}
+
+/**
+ * Every binary layer's own tag, read to its operator, in one flat map:
+ * `multiplicativeOp` through `nullishOp` (`./grammar/module.f.mjs`) each
+ * key their own rounds by a name none of the other ten use, so one map
+ * serves a round from any layer — no per-layer reader, and so no branch for
+ * a tag no round can carry: a plain lookup has no branch to leave
+ * unreachable where a `switch`'s `default` would. `**` is not here: it is
+ * `powTail`'s, no layer's round, read by {@link withPow}.
+ *
+ * @type {{ readonly [tag: string]: Exclude<BinaryTag, '**'> }}
+ */
+const binaryOpTag = {
+    mul: '*', div: '/', mod: '%',
+    add: '+', sub: '-',
+    left: '<<', right: '>>', unsigned: '>>>',
+    lt: '<', le: '<=', gt: '>', ge: '>=',
+    eq: '===', ne: '!==',
+    and: '&',
+    xor: '^',
+    or: '|',
+    logicalAnd: '&&', logicalOr: '||', nullish: '??',
+}
+
+/**
+ * One binary layer's rounds folded onto `base`, left-associative: each
+ * round is `op t unary tail*`, its own trailing tail lists — one per layer
+ * below this one — read the same way {@link applyLayers} reads a value's
+ * own, so a round's right operand is its `unary` with everything below
+ * this layer already applied to it, `1 + 2 * 3` folding `2 * 3` before
+ * `+` ever sees it. A lazy operator's round is the same shape — `a || b
+ * && c` folds `b && c` first, its `&&` list trailing the `||` round —
+ * and laziness is no shape difference at this layer, the tag alone
+ * saying which operator a node is.
+ *
+ * @type {(base: Node, rounds: readonly _TailRound[]) => Node}
+ */
+const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
+    const [opChoice, , v, ...lowerTails] = unmapped(round)
+    const [opTag] = unmapped(opChoice)
+    const right = applyLayers(nodeAt(v), lowerTails)
+    return [binaryOpTag[opTag], left, right]
+}, base)
+
+/**
+ * `base` through the binary layers given, each a repeat of rounds, lowest
+ * first: the eight eager lists of a value's own tail, or the lists
+ * trailing a round — the same shape one layer down, which is what lets
+ * {@link foldLayer} reuse this for a round's right operand — or the lists
+ * a short-circuit chain continues with after its first round.
+ *
+ * @type {(base: Node, tailLists: readonly _Leaf[]) => Node}
+ */
+const applyLayers = (base, tailLists) => tailLists.reduce(tailStep, base)
+
+/**
+ * The short-circuit level folded onto `base`: nothing, or the chain the
+ * first operator committed to, `[ && round { && round } { || round } | ||
+ * round { || round } | ?? round { ?? round } ]` — the branch's own round
+ * folded as any layer's round is, since it is one, and the repeat lists
+ * after it applied to that as {@link applyLayers} applies a value's own.
+ * The branch's tag says nothing the round's own operator does not, so the
+ * reader never looks at it; which chains may follow which is the grammar's
+ * shape, decided before this reader sees a node.
+ *
+ * @type {(base: Node, circuit: _CircuitNode) => Node}
+ */
+const applyCircuit = (base, circuit) => {
+    const rounds = unmapped(circuit)
+    if (rounds.length === 0) { return base }
+    const [, branch] = unmapped(rounds[0])
+    const [round, ...tailLists] = unmapped(branch)
+    return applyLayers(foldLayer(base, [round]), tailLists)
+}
+
+/**
+ * The conditional folded onto `base`: nothing, or `? t value : t value`,
+ * the arms at the third and sixth positions of the one round the option
+ * holds — each a whole value already mapped, so a nested conditional in
+ * either arm is a node here and never a call, however deep the source
+ * nests them.
+ *
+ * @type {(base: Node, conditional: _ConditionalNode) => Node}
+ */
+const applyConditional = (base, conditional) => {
+    const rounds = unmapped(conditional)
+    if (rounds.length === 0) { return base }
+    const [, , t, , , e] = unmapped(rounds[0])
+    return ['?:', base, nodeAt(t), nodeAt(e)]
+}
+
+/**
+ * `base` through the whole suffix `value`/`body` spread onto every branch
+ * that may carry one, `func` and `block` excepted: the eight eager layers
+ * first, `multiplicative` through `bitwiseOr`, then the short-circuit
+ * level, then the conditional — split at the eager list's own length,
+ * since the grammar spreads the eight and the two lazy positions into one
+ * sequence and the two are not repeats of rounds. Or no suffix at all:
+ * `unary`'s branches are `value`'s without one, read by the same reader,
+ * {@link toNode}.
+ *
+ * @type {(base: Node, tail: readonly _Leaf[]) => Node}
+ */
+const applyTail = (base, tail) => {
+    if (tail.length === 0) { return base }
+    // the two positions are typed by their shape, as `tailStep`'s round is
+    // and for the reason given there: `_Leaf` is what a spread position
+    // knows of itself
+    const [circuit, conditional] = tail.slice(eagerTail.length)
+    const eager = applyLayers(base, tail.slice(0, eagerTail.length))
+    return applyConditional(applyCircuit(eager, /** @type {_CircuitNode} */ (circuit)), /** @type {_ConditionalNode} */ (conditional))
+}
+
+/**
+ * One tail list applied to the accumulator so far.
+ *
+ * `unmapped` infers its return type from `_Leaf`'s own array member here,
+ * `readonly unknown[]`, rather than from `foldLayer`'s expected one: a
+ * generic call's type argument is inferred from its own argument before
+ * the position it is handed to is considered. The round shape this reads
+ * is `_TailRound`'s, unmapped one level further in by {@link foldLayer}
+ * itself, so the cast states what {@link _TailRound} already documents,
+ * rather than a new claim. {@link applyCircuit}'s round is read through
+ * the same type for the same reason.
+ *
+ * @type {(acc: Node, rounds: _Leaf) => Node}
+ */
+const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[]} */ (unmapped(rounds)))
+
+/**
+ * The node a value's own part makes, before the accesses, the power and the
+ * binary layers above it: a primitive converted from its token, a reference
+ * by its token, and a container of the items its list returned — `[ open t
+ * [ items ] close t ]`, the list at the third position, under the
+ * `[thing, accesses]` pair every one of these branches opens with, at the
+ * first position of the branch itself. What a `(` opens, a block, a
+ * negation and a bitwise not are not here: each of those takes no access of
+ * its own, so its node is made whole in {@link toNode}, and a group's value
+ * is reached through {@link parenNode}.
+ *
+ * Takes the whole node, tag and branch together, rather than a pre-peeled
+ * `x`: the branch narrows by `tag` only inside the discriminated union
+ * `Children<Unary | UnaryOperand | Value | Body, …>` still is at this
+ * position, which is what lets the second `unmapped` below see a precise
+ * shape instead of `unknown`. `UnaryOperand`'s own four leaves are wrapped
+ * one tuple deep for exactly this reason — see its own comment in
+ * `./grammar/module.f.mjs` — so the same reads serve both rules.
+ *
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
-        case 'primitive': { return ['primitive', primitiveOf(unmapped(unmapped(unmapped(branch)[0])[0]))] }
-        case 'ref': { return ['ref', tokenAt(unmapped(unmapped(unmapped(branch)[0])[0])[1])] }
-        case 'array': { return ['array', toArray(valueItems(unmapped(unmapped(branch)[0])[2]))] }
-        case 'object': { return ['object', toArray(memberItems(unmapped(unmapped(branch)[0])[2]))] }
+        case 'primitive': {
+            const x = unmapped(branch)[0]
+            const p = unmapped(x)[0]
+            return ['primitive', primitiveOf(unmapped(unmapped(p)[0]))]
+        }
+        case 'ref': {
+            const x = unmapped(branch)[0]
+            const p = unmapped(x)[0]
+            return ['ref', tokenAt(unmapped(unmapped(p)[0])[1])]
+        }
+        case 'array': {
+            const x = unmapped(branch)[0]
+            const a = unmapped(x)[0]
+            return ['array', toArray(valueItems(unmapped(a)[2]))]
+        }
+        case 'object': {
+            const x = unmapped(branch)[0]
+            const o = unmapped(x)[0]
+            return ['object', toArray(memberItems(unmapped(o)[2]))]
+        }
     }
 }
 
 /**
  * What a `(` opened, at the third position of `( t (func | group)`: a
  * function, by its parameter list at the first position of
- * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group,
- * the value at the first position of `value ) t access*` and the steps
- * after the `)` at the fourth.
+ * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group
+ * through the binary layers above it, {@link applyTail} — a function takes
+ * none, nothing following one unparenthesized (`unary`'s own comment in
+ * `./grammar/module.f.mjs` has why).
  *
  * A group is no node of its own: `(x)` is whatever `x` is, and the steps
  * after the `)` apply to that same node, so nothing downstream can tell a
@@ -378,29 +548,39 @@ const parenNode = ([tag, branch]) => {
         const [p, , , , , b] = unmapped(branch)
         return ['=>', parameterOf(p), nodeAt(b)]
     }
-    return groupNode(branch)
+    const [g, ...tailLists] = unmapped(branch)
+    return applyTail(groupNode(g), tailLists)
 }
 
 /**
- * A group's node, from `value ) t access*`: the value at the first position
- * with the steps after the `)`, at the fourth, applied to it.
+ * A group's node, from `value ) t access* '**' t unary`: the value at the
+ * first position, the steps after the `)` at the fourth applied to it, and
+ * the power at the fifth raised over that.
  *
  * @type {(node: Ast<Group, DjsTokenWithMetadata, Out>) => Node}
  */
 const groupNode = node => {
-    const [v, , , accesses] = unmapped(node)
-    return steps(nodeAt(v), unmapped(accesses))
+    const [v, , , accesses, powTail] = unmapped(node)
+    return withPow(steps(nodeAt(v), unmapped(accesses)), powTail)
 }
 
 /**
- * A value is the node its branch made, with each access after it applied
- * in turn — the accesses at the second position of every branch, after
- * the value's own part — or what a `(` opened, {@link parenNode}. A body is
- * a value less the object, and its node is made the same way.
+ * A value is the node its branch made, with each access after it, the
+ * power over it and the binary layers above it applied in turn — or what a
+ * `(` opened, {@link parenNode}. A body is a value less the object, and its
+ * node is made the same way; `unary` is a value less every binary layer,
+ * its every branch the same but for the trailing tail lists none of them
+ * carry, which is what tells this reader whether to call {@link applyTail}
+ * at all.
  *
  * A block preserves its ordered `const` declarations and explicit `return`,
  * including when no declaration precedes it. The source tree keeps that
  * syntax until the fold lowers it to an executable function body.
+ *
+ * A negation and a bitwise not are `op t unary tail*`, `unary` at the
+ * third position exactly as a binary layer's own round has it — negated or
+ * complemented first, then the tail lists above that, `-2 * 3` reading
+ * `(-2) * 3` and not `-(2 * 3)`.
  *
  * @type {(node: Children<Unary, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
@@ -411,16 +591,46 @@ const toNode = node => {
     if (node[0] === 'group') {
         return symbol({ id: 'value', node: groupNode(unmapped(node[1])[2]) })
     }
-    if (node[0] === 'neg') {
-        const [, , v] = unmapped(node[1])
-        return symbol({ id: 'value', node: ['-', nodeAt(v)] })
+    if (node[0] === 'neg' || node[0] === 'bitnot') {
+        const [, , v, ...tailLists] = unmapped(node[1])
+        return symbol({ id: 'value', node: applyTail([node[0] === 'neg' ? '-' : '~', nodeAt(v)], tailLists) })
     }
     if (node[0] === 'block') {
         const [, , consts, , , v] = unmapped(node[1])
         const statements = unmapped(consts).map(constAt).map(constNode)
         return symbol({ id: 'value', node: ['block', [...statements, ['return', nodeAt(v)]]] })
     }
-    const [, accesses] = unmapped(node[1])
+    const x = unmapped(node[1])[0]
+    const [, accesses] = unmapped(x)
+    const [, powTail, ...tailLists] = unmapped(node[1])
+    const withSteps = steps(baseOf(node), unmapped(accesses))
+    return symbol({ id: 'value', node: applyTail(withPow(withSteps, powTail), tailLists) })
+}
+
+/**
+ * A `-`/`~`'s own operand: {@link unaryOperand}'s branches, read the same
+ * way {@link toNode} reads {@link unary}'s but for the power and the
+ * binary layers above it, neither of which this rule's grammar admits — a
+ * further `-`/`~`, recursing through this same reader by way of
+ * {@link nodeAt}, {@link unaryOperand} mapped here exactly as {@link
+ * unary} is by `toNode`; a group, whose own steps apply with no power past
+ * the `)`; or the base itself, through {@link baseOf}, with only the
+ * accesses after it applied.
+ *
+ * @type {(node: Children<UnaryOperand, DjsTokenWithMetadata, Out>) => Meta<Out>}
+ */
+const operandToNode = node => {
+    if (node[0] === 'neg' || node[0] === 'bitnot') {
+        const [, , v] = unmapped(node[1])
+        return symbol({ id: 'value', node: [node[0] === 'neg' ? '-' : '~', nodeAt(v)] })
+    }
+    if (node[0] === 'group') {
+        const [, , g] = unmapped(node[1])
+        const [v, , , accesses] = unmapped(g)
+        return symbol({ id: 'value', node: steps(nodeAt(v), unmapped(accesses)) })
+    }
+    const x = unmapped(node[1])[0]
+    const [, accesses] = unmapped(x)
     return symbol({ id: 'value', node: steps(baseOf(node), unmapped(accesses)) })
 }
 
@@ -537,6 +747,9 @@ export const mappings = [
     // what a `-` takes is a rule of its own, and its branches are the
     // value's, so the same reader serves it
     map(unary, toNode),
+    // a `-`/`~`'s own operand is a further rule of its own, its branches
+    // `unary`'s minus the power, so it takes a reader of its own too
+    map(unaryOperand, operandToNode),
     map(values, toValues),
     // a call's arguments are that same list, reached through a rule of its
     // own, so the same reader serves both
@@ -643,6 +856,18 @@ const imported = ({ module, attribute }) => {
 const prohibitedKey = foldError('prohibited property name')
 
 /**
+ * The refusal of a method call's key: a member function a module may not
+ * call, `a.push(1)` or `a.valueOf()` — a mutator, the prototype protocol, a
+ * locale-dependent or regular-expression method, and the rest
+ * `fjs/js/prototype`'s `prohibitedCalls` names, its README saying why for
+ * each. The other prototype names are member functions the VM answers by
+ * the receiver's type, so `a.at(0)` and `a.toString()` are calls like any
+ * other, though `a.at` and `a.toString` stay refused as reads: a detached
+ * built-in is a function that only fails.
+ */
+const prohibitedCall = foldError('prohibited member function')
+
+/**
  * The names an access may not read: every name a built-in prototype gives
  * a value, `fjs/js/prototype`, but `length` — an own property of an array,
  * a string and a function, which the two languages read alike.
@@ -657,6 +882,13 @@ const prohibitedKey = foldError('prohibited property name')
  */
 export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
+/**
+ * The names a method call may not call: `prohibitedCalls`, as a set.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const prohibitedCallNames = new Set(prohibitedCalls)
+
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
     const { token } = t
@@ -669,17 +901,35 @@ const keyNamed = t => {
 
 /**
  * An access closed over its base: the AST's `['.', base, key]`, or the
- * refusal of a key that names the prototype chain.
+ * refusal of its key — a name of the prototype chain where the access is
+ * read, and a member function a module may not call where it is a call's
+ * callee, `frame.method`. The two rules are `fjs/js/prototype`'s two
+ * lists, and the access's shape is the same either way: the lowering
+ * makes the callee access a method call, `['.', a, 'b', ['|()', args]]`.
  *
- * @type {(key: DjsTokenWithMetadata, base: AstConst) => Result<AstConst, ParseError>}
+ * @type {(frame: _AccessFrame, base: AstConst) => Result<AstConst, ParseError>}
  */
-const accessClosed = (key, base) => {
+const accessClosed = (frame, base) => {
+    const { key, method } = frame
     const named = keyNamed(key)
-    if (typeof named === 'string' && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+    if (typeof named === 'string') {
+        if (method && prohibitedCallNames.has(named)) { return error(prohibitedCall(key)) }
+        if (!method && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+    }
     /** @type {AstAccess} */
     const access = ['.', base, named]
     return ok(access)
 }
+
+/**
+ * Whether the node being entered is a call's callee: the frame on top is
+ * the call's, with no operand done yet. An access entered there is a method
+ * call's, and its key is checked as one — through a group as well, since
+ * `(a.b)(c)` is the node `a.b(c)` is by the time it is entered.
+ *
+ * @type {(stack: _Stack) => boolean}
+ */
+const isCallee = stack => stack !== null && 'call' in stack.top && stack.top.index === 0
 
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
@@ -786,6 +1036,31 @@ const callRound = (stack, env, frame) => {
 }
 
 /**
+ * The operand a conditional evaluates at `index`: the condition, then each
+ * arm as written.
+ *
+ * @type {(conditional: _ConditionalFrame['conditional'], index: number) => Node}
+ */
+const conditionalOperandAt = ([, condition, then, otherwise], index) => [condition, then, otherwise][index]
+
+/**
+ * The next operand of a conditional, or the conditional closed when none
+ * is left: the condition first, then each arm as written — resolved all
+ * three, since a name is checked where it is written whether or not the
+ * program ever establishes the arm, as JavaScript's early errors are.
+ *
+ * @type {(stack: _Stack, env: _Env, frame: _ConditionalFrame) => _State}
+ */
+const conditionalRound = (stack, env, frame) => {
+    const { conditional, index } = frame
+    if (index < 3) { return [{ top: frame, rest: stack }, env, ['enter', conditionalOperandAt(conditional, index)]] }
+    const [condition, then, otherwise] = toArray(frame.done)
+    /** @type {AstConditional} */
+    const closed = ['?:', condition, then, otherwise]
+    return [stack, env, ok(closed)]
+}
+
+/**
  * Whether a name is bound outside the function being resolved: bound by
  * the names a function frame on the stack holds for after its body, which
  * the body may not use — a function has no frame to capture with yet.
@@ -840,8 +1115,9 @@ const bodyRound = (stack, env, frame) => {
 /**
  * Enters a node: a primitive is its value, a reference the binding `env`
  * holds for its name, an access its base under a frame holding the key, a
- * container the first round of a new frame, and a function its body under
- * a frame holding `env` — the body resolved against its own names alone, so
+ * container, a call or a conditional the first round of a new frame, an
+ * operator its left operand under a frame holding the right, and a
+ * function its body under a frame holding `env` — the body resolved against its own names alone, so
  * a reference to a name bound outside is a capture, refused where it is
  * written, and a name it does not find anywhere is `const not found` as
  * ever.
@@ -863,9 +1139,22 @@ const enter = (stack, env, node) => {
             if (ref !== null) { return [stack, env, ok(ref)] }
             return [stack, env, error(bound(stack, word) ? capture(node[1]) : constNotFound(node[1]))]
         }
-        case '.': { return [{ top: { key: node[2] }, rest: stack }, env, ['enter', node[1]]] }
+        case '.': { return [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, env, ['enter', node[1]]] }
         case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
-        case '-': { return [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]] }
+        case '-': {
+            return node.length === 2
+                ? [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]]
+                : [{ top: { tag: node[0], right: node[2] }, rest: stack }, env, ['enter', node[1]]]
+        }
+        case '~': { return [{ top: { bitnot: true }, rest: stack }, env, ['enter', node[1]]] }
+        case '*': case '/': case '%': case '**':
+        case '+':
+        case '===': case '!==': case '<': case '<=': case '>': case '>=':
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>':
+        case '&&': case '||': case '??': {
+            return [{ top: { tag: node[0], right: node[2] }, rest: stack }, env, ['enter', node[1]]]
+        }
+        case '?:': { return conditionalRound(stack, env, { conditional: node, index: 0, done: null }) }
         case '=>': {
             const [tag, inner] = functionScope(node[1])
             if (tag === 'error') { return [stack, env, error(inner)] }
@@ -890,11 +1179,23 @@ const enter = (stack, env, node) => {
 const returned = (stack, env, frame, value) => {
     if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('call' in frame) { return callRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('key' in frame) { return [stack, env, accessClosed(frame.key, value)] }
+    if ('conditional' in frame) { return conditionalRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('key' in frame) { return [stack, env, accessClosed(frame, value)] }
     if ('neg' in frame) {
         /** @type {AstNeg} */
         const negated = ['-', value]
         return [stack, env, ok(negated)]
+    }
+    if ('bitnot' in frame) {
+        /** @type {AstBitnot} */
+        const complemented = ['~', value]
+        return [stack, env, ok(complemented)]
+    }
+    if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, env, ['enter', frame.right]] }
+    if ('left' in frame) {
+        /** @type {AstBinary} */
+        const binary = [frame.tag, frame.left, value]
+        return [stack, env, ok(binary)]
     }
     if ('statements' in frame) {
         if (frame.statements[frame.index][0] === 'const') {

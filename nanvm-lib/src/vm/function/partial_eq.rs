@@ -1,4 +1,4 @@
-use crate::vm::{Function, IContainer, IVm};
+use crate::vm::{Function, IComplex, IVm};
 
 impl<A: IVm> PartialEq for Function<A> {
     fn eq(&self, other: &Self) -> bool {

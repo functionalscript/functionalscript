@@ -33,7 +33,11 @@ base, never the prototype chain, as
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
 is refused at the key rather than read as `undefined` where JavaScript
 finds a function, `length` excepted, since a value owns it
-([`fjs/js/prototype`](../js/prototype/module.f.mjs)); `undefined` where
+([`fjs/js/prototype`](../js/prototype/module.f.mjs)) — a method call is
+the exception the other way, `a.at(0)` and `a.toString()` being calls the
+VM answers by the receiver's type, and only the member functions the same
+module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
+([its README](../js/prototype/README.md) has the table); `undefined` where
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
@@ -149,13 +153,13 @@ value does not reach anchored by the comma rather than dropped, which is the
 one place a comma stands outside a module's root. With no statement the block
 lowers to the value it returns, the two spellings being one function.
 A `-` before a value is the unary minus, `['-', exp]` — `op12` of one operand
-— and the language's only operator. It is no part of the literal after it, so
-`-1` is the negation of `1` in the parser's tree, and the lowering folds that
-one case back into the leaf: negating a numeric literal is exact arithmetic,
-so the graph holds the number and [`rust`](rust/module.f.mjs) prints it. A
-negation of anything else stays a node — folding one would mean saying what a
-container converts to — and that route refuses one, `Neg for Any<A>` answering
-a `Result` a module cannot hold. It binds looser than a
+— and was once the language's only operator. It is no part of the literal
+after it, so `-1` is the negation of `1` in the parser's tree, and the
+lowering folds that one case back into the leaf: negating a numeric literal
+is exact arithmetic, so the graph holds the number and [`rust`](rust/module.f.mjs)
+prints it. A negation of anything else stays a node — folding one would mean
+saying what a container converts to — and that route refuses one, `Neg for
+Any<A>` answering a `Result` a module cannot hold. It binds looser than a
 step, as it does in JavaScript, so `-1 .x` is `-(1 .x)` and `-1()` is `-(1())`
 — which is what retired the two refusals the old fold needed, an access and a
 call on a numeric literal alike. What it takes is JavaScript's
@@ -165,6 +169,39 @@ through one, `-((...a) => 1)`, and the refusal falls on the `...` where
 JavaScript's does rather than on the `(`. The writer still gives a negated
 function a `const` of its own, as it does an access base, until it spells a
 group.
+
+Stage A of [`spec/todo/2340-operators.md`](../../spec/todo/2340-operators.md)
+gave the language the rest: arithmetic, strict comparison, and bitwise —
+`+ - * / % **`, `=== !== > >= < <=`, `& | ^ ~ << >> >>>`. Each parses as
+`[tag, left, right]` (`['~', operand]` for the one other prefix), the tag
+the EDAG's own — `op2Id`, `op12Id`'s `-` at two operands this time, told
+from the unary one by length — so the lowering carries every one of them
+straight across, both operands lowered and nothing folded: only the unary
+`-` above is exact enough to fold without knowing anything else about the
+program, and a `.json` or DataJS output refuses the rest the same way it
+refuses a function or a call. A function is no operand of any of them
+unparenthesized, for the reason above; the grammar spells this without
+wrapping a shared primary the ladder above negation once tried and
+retired, since `func`'s body is unbounded and a wrapped primary would leak
+the ladder's own follow set into it — `unary`, negation's own narrow
+operand, is every layer's operand instead, `./parser/README.md` has the
+argument. [`rust`](rust/module.f.mjs) already spelled every one of these
+EDAG nodes but `!==`, which this front end had no path to produce before —
+the front end is what was missing, not the code generator.
+
+Stage B added the lazy operators `&& || ??` and the conditional `?:` above
+them, each again the EDAG's own node — `op2`, and `op3` for the
+conditional — whose laziness the EDAG states positionally: the right
+operand, or the unselected arm, is not established there. The grammar
+keeps `??` apart from `&&`/`||` as JavaScript does, by shape, and the one
+piece of the front end laziness reaches is `anchors` in
+[`ast`](ast/module.f.mjs): a `const` the export reaches only through a
+lazy position is anchored, since its own statement runs at load whatever
+the operator later decides, so `const c = null.x; export default [a && c,
+b && c];` throws at load in both languages. The sharing sweep counts a
+lazy position as any other — identity does not care which position a
+reference is made from. The writer refuses every operator node, Stage B's
+as Stage A's, until it can spell their precedence.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call

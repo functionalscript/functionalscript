@@ -48,7 +48,7 @@ trait PrimitiveDispatch<A: IVm>: Sized {
     const PREFERRED: ToPrimitivePreferredType;
     fn nullish(self, v: Nullish) -> Self::Result;
     fn bool(self, v: bool) -> Self::Result;
-    fn number(self, v: f64) -> Self::Result;
+    fn number(self, v: Number) -> Self::Result;
     fn string(self, v: String<A>) -> Self::Result;
     fn bigint(self, v: BigInt<A>) -> Self::Result;
 }

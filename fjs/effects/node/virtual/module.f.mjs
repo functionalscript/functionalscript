@@ -514,17 +514,59 @@ const fileSizeBytes = chunks =>
 /** Absent-path error for an already-existing exclusive create, mirroring `EEXIST`. */
 const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
 
-/** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
-const createExclusiveOp = (dir, path) => {
+/**
+ * `O_CREAT|O_EXCL` on a name, creating it with `chunks` where it is free. Both
+ * exclusive operations are this: `createExclusive` with no chunks, and
+ * `writeExclusive` with the payload it was handed, since the difference between
+ * them is what the file holds and not when they refuse.
+ *
+ * **An existing *directory* at the name is `EEXIST` too**, which is what
+ * `path.length === 0` means here: `operation` descends into a directory it
+ * resolves, so the handler is reached with nothing left of the path. Measured on
+ * node 22.22.2, a `wx` open of a directory answers `EEXIST` exactly as one of a
+ * file does — `O_EXCL` fails on the name being taken before anything looks at
+ * what is there, which a plain `w` open does not: that answers `EISDIR`. A
+ * caller reading `EEXIST` as "somebody else holds this name" is right either
+ * way, and that is what `fjs/git/refstore`'s lock does. Found by review of
+ * [#2115](https://github.com/functionalscript/functionalscript/pull/2115).
+ *
+ * @type {(chunks: readonly Vec[]) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
+ */
+const exclusiveOp = chunks => (dir, path) => {
+    if (path.length === 0) { return [dir, eexist] }
     if (path.length !== 1) { return [dir, invalidPath] }
     const [name] = path
-    // O_EXCL: fail if the name is already taken; otherwise create an empty file.
     if (entryOf(dir, name) !== undefined) { return [dir, eexist] }
-    return [{ ...dir, [name]: [] }, okVoid]
+    return [{ ...dir, [name]: chunks }, okVoid]
+}
+
+/**
+ * `exclusiveOp` behind the descent, with the one question `parse` throws away
+ * asked first: **an empty path names nothing, and `.` is the root**. Both
+ * collapse to no segments at all, so the handler cannot tell them apart, and a
+ * host answers differently — measured on node 22.22.2, a `wx` open of `''` is
+ * `ENOENT` where one of `.` is `EEXIST`. {@link statOp} carves the same case out
+ * for the same reason.
+ *
+ * @type {(chunks: readonly Vec[]) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
+ */
+const exclusive = chunks => {
+    const op = operation(exclusiveOp(chunks))
+    return path => path === '' ? state => [state, enoent] : op(path)
 }
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<void>]} */
-const createExclusive = operation(createExclusiveOp)
+const createExclusive = exclusive([])
+
+/**
+ * `createExclusive` and `writeFile` in one step, which is what the operation is:
+ * the host takes the name and fills it through a single open, so nothing can
+ * reach the pathname in between. See `WriteExclusive` in `../types.ts` for what
+ * the two separate calls let through on a real host.
+ *
+ * @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]}
+ */
+const writeExclusive = payload => exclusive([payload])
 
 // The lock-free upload only ever writes sequentially at the current end of the
 // staging file (`offset === size`), so the virtual model implements that append
@@ -813,6 +855,7 @@ const map = {
     rename,
     readBytes: readBytesOp,
     createExclusive,
+    writeExclusive: (path, payload) => writeExclusive(payload)(path),
     writeBytes: writeBytesOp,
     readWhole,
     stat: statOp,

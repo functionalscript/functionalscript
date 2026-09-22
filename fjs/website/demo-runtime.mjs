@@ -144,14 +144,46 @@ const refocus = (root, was) => {
 }
 
 /**
+ * Every field's manually-dragged size, by name.
+ *
+ * **A drag sets an element's own inline style, which the next render does
+ * not carry any more than it carries the caret** — the same problem, the
+ * same fix, by the same identity. No demo writes a `style` attribute of its
+ * own, so an inline `width` or `height` found here is a reader's drag and
+ * nothing else.
+ *
+ * @type {(root: Element) => readonly { readonly name: string, readonly width: string, readonly height: string }[]}
+ */
+const resized = root => (
+    /** @type {HTMLInputElement[]} */ (Array.from(root.querySelectorAll('[name]')))
+).filter(el => el.style.width !== '' || el.style.height !== '')
+    .map(el => ({ name: el.name, width: el.style.width, height: el.style.height }))
+
+/**
+ * Puts every resized field back to the size the reader left it at.
+ *
+ * @type {(root: Element, was: ReturnType<typeof resized>) => void}
+ */
+const resize = (root, was) => {
+    for (const { name, width, height } of was) {
+        const next = /** @type {HTMLInputElement | null} */ (root.querySelector(`[name="${name}"]`))
+        if (next === null) { continue }
+        next.style.width = width
+        next.style.height = height
+    }
+}
+
+/**
  * Renders a state, and leaves the reader where they were.
  *
  * @type {(root: Element, view: string) => void}
  */
 const render = (root, view) => {
     const was = focused(root)
+    const sizes = resized(root)
     root.innerHTML = view
     refocus(root, was)
+    resize(root, sizes)
 }
 
 /**

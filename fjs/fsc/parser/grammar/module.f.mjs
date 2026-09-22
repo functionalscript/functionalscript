@@ -6,14 +6,37 @@
  * module ::= t import* const* export eof
  * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
  * const  ::= 'const' t id t '=' t value ';' t
- * export ::= 'export' t 'default' t value ';' t
- * value  ::= '-' t unary | (primitive t | id t | array | object) access* | paren
- * body   ::= '-' t unary | (primitive t | id t | array) access* | paren | block
- * unary  ::= '-' t unary | (primitive t | id t | array | object) access* | '(' t group
+ * export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
+ * value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
+ *          | (primitive t | id t | array | object) access* powTail tail
+ *          | '(' t (func | group tail)
+ * body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
+ *          | (primitive t | id t | array) access* powTail tail
+ *          | '(' t (func | group tail) | block
+ * unary  ::= '-' t unaryOperand | '~' t unaryOperand
+ *          | (primitive t | id t | array | object) access* powTail
+ *          | '(' t group
+ * unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
+ *          | (primitive t | id t | array | object) access*
+ *          | '(' t groupOperand
  * block  ::= '{' t const* 'return' s value ';' t '}' t
- * paren  ::= '(' t (func | group)
  * func   ::= [ '...' t id t ] ')' s '=>' t body
- * group  ::= value ')' t access*
+ * group  ::= value ')' t access* powTail
+ * groupOperand ::= value ')' t access*
+ * powTail ::= [ '**' t unary ]
+ * eagerTail ::= { mulOp t unary }
+ *            { addOp t unary <the multiplicative repeat above> }
+ *            …six more layers, each repeating over every layer below it
+ *            the same way — shift, relational, equality, bitwiseAnd,
+ *            bitwiseXor, bitwiseOr, in that order, JavaScript's own
+ * logicalAndRound ::= '&&' t unary eagerTail
+ * logicalOrRound  ::= '||' t unary eagerTail { logicalAndRound }
+ * nullishRound    ::= '??' t unary eagerTail
+ * circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
+ *                 | logicalOrRound { logicalOrRound }
+ *                 | nullishRound { nullishRound } ]
+ * conditionalTail ::= [ '?' t value ':' t value ]
+ * tail   ::= eagerTail circuitTail conditionalTail
  * access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
  * array  ::= '[' t [ items(value) ] ']' t
  * object ::= '{' t [ items(member) ] '}' t
@@ -30,6 +53,18 @@
  * grammar without lookahead past the `)` — where JavaScript itself needs
  * it, and where parenthesized parameters will
  * ([`spec/todo/3120-parameters.md`](../../../../spec/todo/3120-parameters.md)).
+ *
+ * `tail`, the binary-operator suffix — Stage A of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md)
+ * and Stage B, the lazy operators and the conditional, above it — is
+ * spread inline onto every branch that may carry one, rather than
+ * wrapping a shared primary the way a textbook precedence ladder would:
+ * {@link func}'s body is unbounded, reading everything to its right as its
+ * own, so wrapping it in anything a binary layer also wraps would leak
+ * that layer's own follow set down into the body and manufacture an LL(1)
+ * conflict with no real ambiguity behind it. `unary` is every operand of
+ * every layer instead, the leading one and every repeated one alike, and
+ * carries no `tail` of its own — see `unary`'s own comment below.
  *
  * Three more things are spelled for one symbol of lookahead, each a
  * conflict the classical grammar this replaced had, measured before the
@@ -60,7 +95,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { ExportStatement, Access, Block, Body, Func, Group, Items, Member, Parameters, Paren, ParenGroup, Parenthesized, Unary, Value } from './types.ts'
+ * @import { Access, Block, Body, CircuitTail, ConditionalTail, EagerTail, ExportStatement, Func, Group, GroupOperand, Items, Member, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -85,6 +120,10 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
 export const _tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
     '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
+    '+', '*', '/', '%', '**',
+    '===', '!==', '>', '>=', '<', '<=',
+    '&', '|', '^', '~', '<<', '>>', '>>>',
+    '&&', '||', '??', '?',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -277,31 +316,52 @@ const primitiveValue = /** @type {const} */ ([[primitive, trivia], accesses])
 /** A reference and its trivia, then its accesses. */
 const reference = /** @type {const} */ ([[identifier, trivia], accesses])
 
+/** `*`, `/`, `%` — the binary layer directly above {@link unary}. */
+const multiplicativeOp = /** @type {const} */ ({ mul: sym('*'), div: sym('/'), mod: sym('%') })
+
 /**
- * A function's body: a value, but not an object — after `=>` JavaScript
- * reads `{` as a block, never as an object, so the spelling is refused
- * rather than read another way — or that block, {@link block}, in which an
- * object is an ordinary value again. A group is a body as it is a value,
- * and it is the other spelling of a function returning an object,
- * `(...a) => ({ x: 1 })`. A function takes no access of its own: after
- * `=>` an access belongs to the body.
- *
- * `{` decides the block in one symbol, since no other branch starts with
- * it — and after a `-` it opens an object again, the prefix putting what
- * follows it in expression position, which is why that branch is
- * {@link unary} rather than this rule. `(` decides the group, since the
- * function under it is {@link paren}'s own branch.
- *
- * @type {Body}
+ * `+`, `-` — above {@link multiplicativeOp}. The `-` here is subtraction,
+ * distinct from the `neg` prefix {@link unary} already owns: the two share
+ * a token and nothing else, one an operator of two operands and the other
+ * of one, told apart by which branch of the grammar reads them.
  */
-export const body = () => ['const', {
-    neg: [sym('-'), trivia, unary],
-    primitive: primitiveValue,
-    ref: reference,
-    array: [array, accesses],
-    paren,
-    block,
-}]
+const additiveOp = /** @type {const} */ ({ add: sym('+'), sub: sym('-') })
+
+/** `<<`, `>>`, `>>>` — above {@link additiveOp}. */
+const shiftOp = /** @type {const} */ ({ left: sym('<<'), right: sym('>>'), unsigned: sym('>>>') })
+
+/** `<`, `<=`, `>`, `>=` — above {@link shiftOp}. */
+const relationalOp = /** @type {const} */ ({ lt: sym('<'), le: sym('<='), gt: sym('>'), ge: sym('>=') })
+
+/** `===`, `!==` — above {@link relationalOp}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
+const equalityOp = /** @type {const} */ ({ eq: sym('==='), ne: sym('!==') })
+
+/** `&` — above {@link equalityOp}. */
+const bitwiseAndOp = /** @type {const} */ ({ and: sym('&') })
+
+/** `^` — above {@link bitwiseAndOp}. */
+const bitwiseXorOp = /** @type {const} */ ({ xor: sym('^') })
+
+/** `|` — above {@link bitwiseXorOp}, the eager ladder's own top. */
+const bitwiseOrOp = /** @type {const} */ ({ or: sym('|') })
+
+/**
+ * `&&`, `||`, `??` — the short-circuit level above {@link bitwiseOrOp},
+ * Stage B of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md).
+ * Each is a tagged choice of one branch, as every layer's operator is,
+ * because the reader in `../module.f.mjs` looks a round's operator up by
+ * that tag; three choices rather than one of three branches, since which
+ * of them opens a chain decides what may follow it — see
+ * {@link circuitTail}.
+ */
+const logicalAndOp = /** @type {const} */ ({ logicalAnd: sym('&&') })
+
+/** `||` — beside {@link logicalAndOp}, and above it in precedence. */
+const logicalOrOp = /** @type {const} */ ({ logicalOr: sym('||') })
+
+/** `??` — beside {@link logicalAndOp} and {@link logicalOrOp}, and mixing with neither. */
+const nullishOp = /** @type {const} */ ({ nullish: sym('??') })
 
 /**
  * A function's parameter list: the one rest parameter, `(...a)`, or
@@ -324,6 +384,311 @@ export const body = () => ['const', {
 export const parameters = option([sym('...'), trivia, identifierName, trivia])
 
 /**
+ * What a `-` or a `~` takes: every value but a function. JavaScript's
+ * unary operand is a `UnaryExpression`, which an arrow function is not —
+ * `-(...a) => 1` and `~(...a) => 1` are syntax errors there, so they are
+ * here — and each branch is right-recursive, so `- -1` is a negation of a
+ * negation and `~ ~1` a bitwise-not of one. `--1` and `~~1` are not
+ * either's own token: `--` is the decrement token the language has no rule
+ * for, and `~~1` is two prefixes, not one operator, the tokenizer reading
+ * `~` and `~` where it reads `-` and `-` for the other.
+ *
+ * A group is an operand, {@link parenGroup}, and it is how a function
+ * reaches a `-`/`~` at all: `-((...a) => 1)` negates one where
+ * `-(...a) => 1` cannot be written. So the branch is that rule and not
+ * {@link paren}, which a function shares — taking the `(` alternative
+ * whole would admit the spelling JavaScript refuses.
+ *
+ * Every other alternative may be raised to a power, {@link powTail} —
+ * `2 ** 2`, a primary with nothing before it, is fine — but neither prefix
+ * reaches `powTail` itself: each recurses into {@link unaryOperand}
+ * instead, whose own comment has why.
+ *
+ * `unary` is also every binary operator's own operand, both the leading
+ * one and every repeated one after an operator token — never {@link value}
+ * or {@link body} themselves. A function's body is unbounded, reading
+ * everything to the right of `=>` as its own, so nothing may follow one
+ * without an extra group around it; embedding {@link paren} — the
+ * function-or-group choice — anywhere a binary layer wraps would leak that
+ * layer's own follow set down into the function's body and manufacture an
+ * LL(1) conflict `fjs/ebnf/ll1` has no way to resolve, even though no
+ * parse is actually ambiguous: a greedy reader never needs the choice the
+ * checker flags. So a binary operand is always this rule, whose own `(`
+ * is {@link parenGroup} and reaches no function, and {@link func} stands
+ * only where {@link value}/{@link body} put it directly — the leading
+ * alternative of a whole value, never a repeated operand of one.
+ *
+ * @type {Unary}
+ */
+export const unary = () => ['const', {
+    neg: [sym('-'), trivia, unaryOperand],
+    bitnot: [sym('~'), trivia, unaryOperand],
+    primitive: [primitiveValue, powTail],
+    ref: [reference, powTail],
+    array: [[array, accesses], powTail],
+    object: [[object, accesses], powTail],
+    group: parenGroup,
+}]
+
+/**
+ * `**`'s right operand, when a primary, a group, or `-`/`~`'s own operand
+ * is raised to a power: right-associative, so `2 ** 3 ** 2` is
+ * `2 ** (3 ** 2)`, and reaching back into {@link unary} — not stopping at
+ * a bare primary — is how `2 ** -2` and `2 ** ~2` stand without
+ * parentheses: `unary`'s own prefixes recurse into {@link unaryOperand},
+ * which is what keeps `2 ** -2 ** 2` a syntax error exactly as it is in
+ * JavaScript, the inner `-2 ** 2` refused the same way the outer would be.
+ *
+ * @type {PowTail}
+ */
+const powTail = option([sym('**'), trivia, unary])
+
+/**
+ * What a `-` or a `~` takes: every alternative {@link unary} has — a
+ * primitive, a reference, an array, an object, a group, or a further
+ * `-`/`~` — but none of them carries {@link powTail}, here or through any
+ * depth of recursion.
+ *
+ * JavaScript refuses `**` immediately after a unary-prefixed operand,
+ * full stop, at any depth: `- 2 ** 2`, `- -2 ** 2` and `- (2) ** 2` are
+ * all syntax errors, because each of `-2`, `- -2` and `-(2)` is a
+ * `UnaryExpression`, and `**`'s own left operand — an `UpdateExpression` —
+ * may never be one. Only `(-2) ** 2` and `-(2 ** 2)` write either reading:
+ * parentheses that move the `**` to where it no longer immediately
+ * follows the prefix, one wrapping the negation and the other the power.
+ *
+ * So {@link unary}'s own neg/bitnot branches, and {@link value}'s and
+ * {@link body}'s, all reach this rule for their operand rather than
+ * `unary` itself — and this rule reaches itself, not `unary`, for a
+ * nested `-`/`~`'s own operand, `- -2 ** 2` refused the same way `- 2 **
+ * 2` is rather than only the outer prefix carrying the restriction.
+ *
+ * The four leaves are each still wrapped one tuple deep, `[primitiveValue]`
+ * rather than `primitiveValue` bare, matching {@link unary}'s own
+ * `[primitiveValue, powTail]` at the same depth minus the slot `powTail`
+ * held — `./module.f.mjs`'s reader shares one function, `baseOf`, between
+ * both rules, and that depth is what lets it.
+ *
+ * @type {UnaryOperand}
+ */
+export const unaryOperand = () => ['const', {
+    neg: [sym('-'), trivia, unaryOperand],
+    bitnot: [sym('~'), trivia, unaryOperand],
+    primitive: [primitiveValue],
+    ref: [reference],
+    array: [[array, accesses]],
+    object: [[object, accesses]],
+    group: parenGroupOperand,
+}]
+
+/**
+ * `*`, `/`, `%` — the binary layer directly above {@link unary}: zero or
+ * more `(op, operand)` pairs, the operand always {@link unary}, never
+ * {@link value}/{@link body} themselves — see {@link unary}'s own comment
+ * for why. Threaded inline as a suffix on every branch of `value`/`body`
+ * that may be followed by one, rather than wrapping a shared primary as a
+ * unit, which is what let {@link func}'s body leak a wide follow set in
+ * the first place.
+ */
+const multiplicativeTail = repeatFrom0([multiplicativeOp, trivia, unary])
+
+/**
+ * `+`, `-` — above {@link multiplicativeTail}. Each repeated operand is a
+ * {@link unary} followed by its own {@link multiplicativeTail}, so `1 + 2
+ * * 3` nests as `1 + (2 * 3)` rather than `(1 + 2) * 3`.
+ */
+const additiveTail = repeatFrom0([additiveOp, trivia, unary, multiplicativeTail])
+
+/** `<<`, `>>`, `>>>` — above {@link additiveTail}. */
+const shiftTail = repeatFrom0([shiftOp, trivia, unary, multiplicativeTail, additiveTail])
+
+/** `<`, `<=`, `>`, `>=` — above {@link shiftTail}. */
+const relationalTail = repeatFrom0([relationalOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail])
+
+/** `===`, `!==` — above {@link relationalTail}; `==`/`!=` are not this language's, per `spec/todo/2340-operators.md`. */
+const equalityTail = repeatFrom0([equalityOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail])
+
+/** `&` — above {@link equalityTail}. */
+const bitwiseAndTail = repeatFrom0([bitwiseAndOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail])
+
+/** `^` — above {@link bitwiseAndTail}. */
+const bitwiseXorTail = repeatFrom0([bitwiseXorOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail])
+
+/** `|` — above {@link bitwiseXorTail}, the eager ladder's own top. */
+const bitwiseOrTail = repeatFrom0([bitwiseOrOp, trivia, unary, multiplicativeTail, additiveTail, shiftTail, relationalTail, equalityTail, bitwiseAndTail, bitwiseXorTail])
+
+/**
+ * The eager binary-operator suffix, {@link multiplicativeTail} through
+ * {@link bitwiseOrTail}: every layer whose operands are all established,
+ * and so the first part of {@link tail}, and every lazy operator's own
+ * operand — `unary` followed by these eight lists, which is what a
+ * `bitwiseOr`-level expression is.
+ *
+ * Exported for the reader in `../module.f.mjs`, which splits a value's
+ * whole {@link tail} at this list's length: the eager layers are one shape,
+ * a repeat of rounds each, and the two positions after them another.
+ *
+ * @type {EagerTail}
+ */
+export const eagerTail = [
+    multiplicativeTail, additiveTail, shiftTail, relationalTail,
+    equalityTail, bitwiseAndTail, bitwiseXorTail, bitwiseOrTail,
+]
+
+/**
+ * One round of the `&&` layer: `&& t unary <every eager tail>`, the same
+ * shape as {@link bitwiseOrTail}'s round one layer up, so `a && b | c` is
+ * `a && (b | c)`.
+ */
+const logicalAndRound = /** @type {const} */ ([logicalAndOp, trivia, unary, ...eagerTail])
+
+/** The `&&` rounds after the first, `a && b && c` folding left as every layer does. */
+const logicalAndTail = repeatFrom0(logicalAndRound)
+
+/**
+ * One round of the `||` layer: its operand carries {@link logicalAndTail}
+ * as a layer's round carries every layer below it, so `a || b && c` is
+ * `a || (b && c)`.
+ */
+const logicalOrRound = /** @type {const} */ ([logicalOrOp, trivia, unary, ...eagerTail, logicalAndTail])
+
+/** The `||` rounds after the first. */
+const logicalOrTail = repeatFrom0(logicalOrRound)
+
+/** One round of the `??` layer: `?? t unary <every eager tail>`, an operand no `&&` or `||` may enter. */
+const nullishRound = /** @type {const} */ ([nullishOp, trivia, unary, ...eagerTail])
+
+/** The `??` rounds after the first. */
+const nullishTail = repeatFrom0(nullishRound)
+
+/**
+ * The short-circuit level, above {@link eagerTail}: nothing, or a chain the
+ * first operator commits — `&&` and `||` to the logical ladder, `&&` below
+ * `||` as in JavaScript, and `??` to a chain of its own.
+ *
+ * JavaScript keeps `??` apart from `&&`/`||` at one nesting — `a ?? b || c`
+ * and `a && b ?? c` are syntax errors, not precedence questions — by
+ * giving the two their own productions, `LogicalORExpression` beside
+ * `CoalesceExpression`. Spelled as that choice, the two alternatives both
+ * open with the same operand, a first/first conflict `fjs/ebnf/ll1`
+ * refuses before any input; so the operand is read once, as the branch's
+ * own, and the choice is made at the operator after it, one symbol wide.
+ * Once made, the branch's continuation has no round for the other chain's
+ * token, which is where `a ?? b || c` fails: at the `||`, refused by the
+ * grammar's shape and not by a check after it. Parentheses admit either
+ * mix, `(a ?? b) || c`, as they do in JavaScript.
+ *
+ * The three branches are each a round and the repeat lists after it —
+ * the `&&` branch's first round is a {@link logicalAndTail} round and the
+ * `||` branch's a {@link logicalOrTail} round — so the reader folds a
+ * branch as it folds a layer: the round onto the value before it, and the
+ * lists onto that.
+ *
+ * @type {CircuitTail}
+ */
+export const circuitTail = option({
+    logicalAnd: [logicalAndRound, logicalAndTail, logicalOrTail],
+    logicalOr: [logicalOrRound, logicalOrTail],
+    nullish: [nullishRound, nullishTail],
+})
+
+/**
+ * A value: a primitive token, a reference, an array, an object, a `-`/`~`
+ * prefix, or `(` — the choice between a function and a group,
+ * {@link parenthesized} — each ending with its own {@link tail}, the
+ * binary-operator suffix, except the function: nothing may follow one
+ * unparenthesized, `=>` reading everything to its right as the body, so
+ * {@link func} alone stands bare where the others carry {@link tail}. A
+ * `const` thunk whose payload names the thunk, which is what lets a type
+ * alias name itself.
+ *
+ * Any value takes accesses, as any expression does in JavaScript:
+ * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
+ * space since `1.x` is one number and a stray word in JavaScript. Stages A
+ * and B of
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
+ * arithmetic (`+ - * / % **`, and unary `-`), strict comparison
+ * (`=== !== > >= < <=`), bitwise (`& | ^ ~ << >> >>>`), the lazy operators
+ * (`&& || ??`) and the conditional (`?:`). `==`/`!=` stay refused, and the
+ * comma stage waits on `tail`'s current top, the conditional.
+ *
+ * @type {Value}
+ */
+export const value = () => ['const', {
+    neg: [sym('-'), trivia, unaryOperand, ...tail],
+    bitnot: [sym('~'), trivia, unaryOperand, ...tail],
+    primitive: [primitiveValue, powTail, ...tail],
+    ref: [reference, powTail, ...tail],
+    array: [[array, accesses], powTail, ...tail],
+    object: [[object, accesses], powTail, ...tail],
+    paren,
+}]
+
+/**
+ * A function's body: a value less the object — after `=>` JavaScript reads
+ * `{` as a block, never as an object, so the spelling is refused rather
+ * than read another way — or that block, {@link block}, in which an
+ * object is an ordinary value again, or a group, which is the other
+ * spelling of a body that is an object, `(...a) => ({ x: 1 })`. Every
+ * branch but {@link func} and {@link block} carries {@link tail} exactly
+ * as {@link value}'s own branches do, for the same reason.
+ *
+ * `{` decides the block in one symbol, since no other branch starts with
+ * it — and after a `-`/`~` it opens an object again, the prefix putting
+ * what follows it in expression position, which is why those branches are
+ * {@link unary} rather than this rule. `(` decides the function or the
+ * group, {@link parenthesized}.
+ *
+ * @type {Body}
+ */
+export const body = () => ['const', {
+    neg: [sym('-'), trivia, unaryOperand, ...tail],
+    bitnot: [sym('~'), trivia, unaryOperand, ...tail],
+    primitive: [primitiveValue, powTail, ...tail],
+    ref: [reference, powTail, ...tail],
+    array: [[array, accesses], powTail, ...tail],
+    paren,
+    block,
+}]
+
+/**
+ * The conditional, above {@link circuitTail} and the top of {@link tail}:
+ * nothing, or `? t value : t value`, each arm a whole {@link value} —
+ * JavaScript's arms are `AssignmentExpression`s, and this language, having
+ * no assignment, takes the ladder's own top as the nearest — so an arm may
+ * be a function, a further conditional or anything else a value is, and
+ * nested conditionals associate to the right through the arms' own
+ * recursion, `a ? b : c ? d : e` being `a ? b : (c ? d : e)`, with no
+ * repeat construct.
+ *
+ * `?` is a token of its own beside `??` and `?.`, so the choice stays one
+ * symbol wide, and `:` follows a value here as it precedes one in a
+ * member — so it follows a function's body too, an arm being a value, and
+ * `fjs/ebnf/ll1` finds no conflict in that: nothing a body may continue
+ * with begins with `:`, so `a ? () => 1 : 2` is the function and then the
+ * else arm, as JavaScript reads it, the body ending where `:` cannot
+ * continue it.
+ *
+ * Declared after {@link value} and {@link body}, which name it through
+ * {@link tail}: an arm names the `value` binding directly, so the binding
+ * has to exist here, where the two rules reach `tail` only when called,
+ * after every rule in this module is bound.
+ *
+ * @type {ConditionalTail}
+ */
+export const conditionalTail = option([sym('?'), trivia, value, sym(':'), trivia, value])
+
+/**
+ * The whole operator suffix, {@link eagerTail} and then the two lazy
+ * positions above it, {@link circuitTail} and {@link conditionalTail},
+ * spread onto every branch of {@link value} and {@link body} that may
+ * carry one.
+ *
+ * @type {Tail}
+ */
+const tail = [...eagerTail, circuitTail, conditionalTail]
+
+/**
  * A function after its `(`: its parameter list, the `)`, then `=>` on the
  * same line as that `)`, as JavaScript requires, and the body, which ends
  * with its own trivia as every value does. The parameter is the arguments
@@ -333,61 +698,13 @@ export const parameters = option([sym('...'), trivia, identifierName, trivia])
  * included.
  *
  * The `(` is {@link paren}'s, since a group opens with the same symbol.
+ * Nothing follows a function directly — see {@link unary}'s own comment —
+ * so unlike every other branch of {@link value}/{@link body}, this one
+ * carries no {@link tail}.
  *
  * @type {Func}
  */
 export const func = [parameters, sym(')'), sameLine, sym('=>'), trivia, body]
-
-/**
- * What a `-` takes: every value but a function. JavaScript's unary operand
- * is a `UnaryExpression`, which an arrow function is not — `-(...a) => 1`
- * is a syntax error there, so it is one here — and the branch is
- * right-recursive, so `- -1` is a negation of a negation. `--1` is not:
- * the two characters are the one decrement token, which the language has
- * no rule for.
- *
- * A group is an operand, {@link parenGroup}, and it is how a function
- * reaches a `-` at all: `-((...a) => 1)` negates one where `-(...a) => 1`
- * cannot be written. So the branch is that rule and not {@link paren},
- * which a function shares — taking the `(` alternative whole would admit
- * the spelling JavaScript refuses.
- *
- * @type {Unary}
- */
-export const unary = () => ['const', {
-    neg: [sym('-'), trivia, unary],
-    primitive: primitiveValue,
-    ref: reference,
-    array: [array, accesses],
-    object: [object, accesses],
-    group: parenGroup,
-}]
-
-/**
- * A value ends with its own trivia, so that it may be followed by an
- * access, which the trivia after the value would otherwise have to lead —
- * and a rule trivia leads is a rule one symbol of lookahead cannot enter.
- * Every value's last token is followed by trivia exactly once, here, and
- * what follows a value adds none. Any value takes accesses, as any
- * expression does in JavaScript: `[1].length`, `"ab"[0]`, `{ a: 1 }.a`.
- * `1 .x` parses here too, with a space since `1.x` is one number and a
- * stray word in JavaScript.
- *
- * `-` is the language's one prefix operator and binds looser than a step,
- * which is what {@link unary} says: it takes a whole value, accesses and
- * all, so `-1 .x` is the negation of the access and `-1()` of the call, as
- * JavaScript reads them.
- *
- * @type {Value}
- */
-export const value = () => ['const', {
-    neg: [sym('-'), trivia, unary],
-    primitive: primitiveValue,
-    ref: reference,
-    array: [array, accesses],
-    object: [object, accesses],
-    paren,
-}]
 
 /**
  * A group after its `(`: any value, the `)`, and the steps after it. A
@@ -406,18 +723,29 @@ export const value = () => ['const', {
  * the place a block may start, so `({ x: 1 })` is the object it looks
  * like.
  *
+ * The steps after the `)` may raise the whole group to a power,
+ * {@link powTail} — `(1 + 2) ** 2` — the one place a group needs its own,
+ * since {@link unary}'s restricted `(` and {@link value}'s full one both
+ * stand on this same rule and inherit it from here. {@link tail}, the
+ * binary-operator suffix, is not this rule's: it belongs to whichever of
+ * {@link parenthesized}'s two branches follows the `)`, since only one of
+ * them — the group — may carry one.
+ *
  * @type {Group}
  */
-export const group = [value, sym(')'), trivia, accesses]
+export const group = [value, sym(')'), trivia, accesses, powTail]
 
 /**
- * What a `(` opens: the rest of a function, or a group. `...` decides it in
- * one symbol — no value begins with one — so the two share the `(` and the
- * grammar never looks past the `)`.
+ * What a `(` opens: the rest of a function, or a group followed by
+ * {@link tail}, the binary-operator suffix — `(1 + 2) * 3` — the one
+ * branch of {@link value}/{@link body}'s own `paren` choice that may carry
+ * one, a function taking none. `...` decides it in one symbol — no value
+ * begins with one — so the two share the `(` and the grammar never looks
+ * past the `)`.
  *
  * @type {Parenthesized}
  */
-export const parenthesized = { func, group }
+export const parenthesized = { func, group: [group, ...tail] }
 
 /**
  * A `(` and what it opens: the `(`-alternative of {@link value} and of
@@ -436,6 +764,27 @@ export const paren = [sym('('), trivia, parenthesized]
  * @type {ParenGroup}
  */
 export const parenGroup = [sym('('), trivia, group]
+
+/**
+ * A group after its `(`, without the power {@link group} itself may
+ * carry: the value, `)`, the trivia after it, and the steps the group
+ * takes — everything {@link group} has but its own {@link powTail}.
+ * `-(1).x` is the negation of the access, but `-(1) ** 2` is a syntax
+ * error in JavaScript, so {@link unaryOperand}'s restricted `(` stops
+ * here rather than reaching {@link group}'s own.
+ *
+ * @type {GroupOperand}
+ */
+export const groupOperand = [value, sym(')'), trivia, accesses]
+
+/**
+ * `(`, trivia and {@link groupOperand}: what a `-`/`~` may take in
+ * parentheses, {@link unaryOperand}'s own `(` branch — not {@link
+ * parenGroup}, whose {@link group} still carries a `**` of its own.
+ *
+ * @type {ParenGroupOperand}
+ */
+export const parenGroupOperand = [sym('('), trivia, groupOperand]
 
 /** A property name: bare identifier, string literal, or a computed `["a"]`. */
 export const key = /** @type {const} */ ({
