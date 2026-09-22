@@ -97,8 +97,13 @@ output round-trips as the writer's contract asks. A frame element always
 takes a `const`, even one the writer would otherwise write in place: a
 capture is a name, and `$a[0]` as an operand would read back as a capture
 of `$a`. The frame's order is the body's first-use order, which the
-lowering defines, so the writer reproduces it by construction. Today the
-serializer refuses the shape, `a function with a frame`.
+lowering defines, so the writer reproduces it by construction. A frame
+the parser would not have built — a slot out of the body's first-use
+order, a slot the body never reads, a slot holding a primitive, which the
+parser inlines — has no text that reads back as the same graph, and the
+writer refuses it by name, as it refuses every shape it has no faithful
+text for; the compiler never builds one. Today the serializer refuses
+every frame, `a function with a frame`.
 
 The spec's sentence that a capture is an error is replaced by the rule
 above in the same pull request that lifts the refusal.
