@@ -33,7 +33,11 @@ base, never the prototype chain, as
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
 is refused at the key rather than read as `undefined` where JavaScript
 finds a function, `length` excepted, since a value owns it
-([`fjs/js/prototype`](../js/prototype/module.f.mjs)); `undefined` where
+([`fjs/js/prototype`](../js/prototype/module.f.mjs)) — a method call is
+the exception the other way, `a.at(0)` and `a.toString()` being calls the
+VM answers by the receiver's type, and only the member functions the same
+module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
+([its README](../js/prototype/README.md) has the table); `undefined` where
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared

@@ -129,9 +129,15 @@ export type _CallFrame = {
     readonly done: List<AstConst>
 }
 
-/** An access whose base is being evaluated: the token its key is read from. */
+/**
+ * An access whose base is being evaluated: the token its key is read from,
+ * and whether the access is the callee of a call — a method call, whose
+ * key is checked against the member functions a module may not call rather
+ * than the properties it may not read.
+ */
 export type _AccessFrame = {
     readonly key: DjsTokenWithMetadata
+    readonly method: boolean
 }
 
 /** A function whose body is being evaluated: the names bound outside it, to return to. */

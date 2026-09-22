@@ -711,9 +711,16 @@ and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
 find a function there and this language nothing, and a module must mean one
 thing in both. `length` is the exception, since an array, a string and a
 function own it. The rules are
-[property-accessor](./todo/2330-property-accessor.md)'s, and they hold for a
-method call too, `a.toString()` being refused where `a.toString` is; a key
-computed at run time is not recognized yet.
+[property-accessor](./todo/2330-property-accessor.md)'s. A method call has a
+rule of its own: `a.toString()` and `a.at(0)` are calls the VM answers by the
+receiver's type, an own property of the name shadowing the built-in and a
+type without one throwing as JavaScript does, while `a.push(1)`, `a.valueOf()`
+and the other member functions
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)'s `prohibitedCalls`
+names are compilation errors — one row per name, with the reason, in
+[its README](../fjs/js/prototype/README.md). The read stays refused where
+the call is allowed, since a detached built-in is a function that only
+fails. A key computed at run time is not recognized yet.
 
 ## Importing Other Modules
 
@@ -937,9 +944,11 @@ arguments alone:
   graph it compiles to; the detached spelling waits on the comma operator,
   so every call written on a property today is a call with a receiver.
 
-  A method call's property is the access's, so the names an access may not
-  read, a built-in prototype's among them
-  ([property access](#property-access)), it may not call either.
+  A method call's property is the access's, but its key is judged by the
+  call rule and not the read rule ([property access](#property-access)): a
+  member function on `fjs/js/prototype`'s `prohibitedCalls` is a compilation
+  error, every other prototype name is a call the VM answers by the
+  receiver's type, and the read of either stays refused.
 
   Only the EDAG output holds a call today, and the other three refuse one for
   two different reasons. `.data.js` and `.json` are values, and what a call
