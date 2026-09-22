@@ -1,5 +1,7 @@
+use core::{marker::PhantomData, todo};
+
 use super::CANNOT_CONVERT_NULLISH_TO_OBJECT;
-use crate::vm::{Any, IVm, ToAny, Unpacked, nullish::Nullish};
+use crate::vm::{Any, IVm, ToAny, Unpacked, lambda::{OptionCall, OptionLambda, OptionPropertyLambda, PropertyLambda}, nullish::Nullish};
 
 impl<A: IVm> Any<A> {
     /// The EDAG's `.` / `[]` (`['.', receiver, index]`). An `Array`,
@@ -41,6 +43,21 @@ impl<A: IVm> Any<A> {
                 .unwrap_or_else(|| Nullish::Undefined.to_any()),
             _ => Nullish::Undefined.to_any(),
         })
+    }
+
+    /// '.'
+    pub fn dot(self, _key: Self) -> PropertyLambda<A> {
+        todo!()
+    }
+
+    /// '.?'
+    pub fn option_dot(self, _key: Self) -> OptionPropertyLambda<A> {
+        todo!()
+    }
+
+    // '.?()'
+    pub fn option_call(self, _args: impl FnOnce() -> Result<Self, Self>) -> OptionLambda<A> {
+        todo!()
     }
 }
 

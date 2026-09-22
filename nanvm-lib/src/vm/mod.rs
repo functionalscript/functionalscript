@@ -9,6 +9,7 @@ mod function;
 mod impls;
 mod internal;
 mod join;
+mod lambda;
 mod member_access;
 mod nullish;
 mod number;
