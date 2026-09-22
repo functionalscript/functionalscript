@@ -1,5 +1,6 @@
 /**
  * @import { Exp } from '../../edag/types.ts'
+ * @import { AstConst } from '../ast/types.ts'
  * @import { Unresolved } from './types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -107,6 +108,17 @@ const expectElseChain = depth => exp => {
     }
     assertEq(node, 3)
 }
+
+/**
+ * The default export's computation lowered from a body built by hand — the
+ * one entry, exported — with no parse in front of it: what a stress case
+ * of the lowering needs, since parsing the same chain is the parser's own
+ * proof and costs seconds at the depth this one is about, where the
+ * lowering costs milliseconds.
+ *
+ * @type {(entry: AstConst) => Exp}
+ */
+const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [['default', ['cref', 0]]]]]]).edag)
 
 /** @type {(graph: Exp) => unknown} */
 const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
@@ -705,9 +717,16 @@ export const proof = {
         const neg = `${'- '.repeat(5000)}1`
         expectEdag(compile(`export default ${neg};`).edag, 1)
         // a lazy chain, and a conditional nested through its else arm, at
-        // the depth the parser's own `lazyStackCost` proves
-        expectAndChain(20000)(compile(`export default 1${' && 1'.repeat(20000)};`).edag)
-        expectElseChain(20000)(compile(`export default ${'1 ? 2 : '.repeat(20000)}3;`).edag)
+        // the depth the parser's own `lazyStackCost` proves — the AST built
+        // here rather than parsed, `lowered`'s own comment has why
+        /** @type {AstConst} */
+        let and = 1
+        for (let i = 0; i < 20000; i++) { and = ['&&', and, 1] }
+        expectAndChain(20000)(lowered(and))
+        /** @type {AstConst} */
+        let otherwise = 3
+        for (let i = 0; i < 20000; i++) { otherwise = ['?:', 1, 2, otherwise] }
+        expectElseChain(20000)(lowered(otherwise))
     },
     demo: {
         /**
