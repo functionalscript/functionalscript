@@ -550,10 +550,13 @@ const printer = nested => shared => root => {
      *
      * @type {(e: Exp) => Result<string, readonly unknown[]>}
      */
+    /** @type {boolean} */
+    let cloneBound = false
+    /** @type {(e: Exp) => Result<string, readonly unknown[]>} */
     const f = e => {
         if (!(e instanceof Array)) { return primitiveExpr(e) }
         const b = bound.find(([n]) => n === e)
-        return b === undefined ? node(e) : ok(b[1])
+        return b === undefined ? node(e) : ok(cloneBound ? `${b[1]}.clone()` : b[1])
     }
     /**
      * A node's own construction, its operands referenced through {@link f}:
@@ -576,7 +579,7 @@ const printer = nested => shared => root => {
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(allOk(a.map(f)))
+                : mapOk((/** @type {readonly string[]} */ items) => `[${items.map(item => cloneBound ? `${item}.clone()` : item).join(', ')}].to_array().to_any()`)(allOk(a.map(f)))
         }
         if (id === '{}') {
             return a.length === 0
@@ -640,9 +643,26 @@ const printer = nested => shared => root => {
      *
      * @type {(frame: Exp, body: Exp) => Result<string, readonly unknown[]>}
      */
-    const closure = (frame, body) => map2((frameText, bodyStatements) =>
-        `A::static_function(|_self, ${readsArgs(body) ? 'args' : '_args'}| ${braced(bodyStatements)}, 0, ${frameText}).to_any()`
-    )(frame === null ? ok('Array::default()') : f(frame), statements(body))
+    const closure = (frame, body) => {
+        const previousCloneBound = cloneBound
+        cloneBound = frame !== null
+        const frameResult = frame === null ? ok('Array::default()') : frameArray(frame)
+        const bodyResult = statements(body)
+        cloneBound = previousCloneBound
+        return map2((frameText, bodyStatements) =>
+            `A::static_function(|_self, ${readsArgs(body) ? 'args' : '_args'}| ${braced(bodyStatements)}, 0, ${frameText}).to_any()`
+        )(frameResult, bodyResult)
+    }
+
+    /** The closure ABI takes its captured frame as `Array<A>`, not `Any<A>`. */
+    /** @type {(item: Exp) => Result<string, readonly unknown[]>} */
+    const frameValue = item => item instanceof Array && isOperation(item)
+        ? mapOk(s => `${s}?`)(bare(item))
+        : item instanceof Array ? node(item) : primitiveExpr(item)
+    /** @type {(frame: Exp) => Result<string, readonly unknown[]>} */
+    const frameArray = frame => frame instanceof Array && frame[0] === '[]'
+        ? mapOk((/** @type {readonly string[]} */ items) => `[${items.map(item => `${item}.clone()`).join(', ')}].to_array()`)(allOk((/** @type {readonly Exp[]} */ (/** @type {unknown} */ (frame[1]))).map(frameValue)))
+        : error(['no Rust frame for', frame])
     /**
      * An operation — a `.` read, a call, or an operator node — as the bare
      * `Result<Any<A>, Any<A>>` its `nanvm-lib` call answers, or the

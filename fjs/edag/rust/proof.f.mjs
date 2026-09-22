@@ -633,7 +633,7 @@ export const proof = {
         otherFrame: () => {
             assertEq(
                 printed(['=>', ['[]', [1]], 1]),
-                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [f64_any(0x3ff0000000000000)].to_array().to_any()).to_any()')
+                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [f64_any(0x3ff0000000000000).clone()].to_array()).to_any()')
         },
         /**
          * A `null`-frame function anywhere — an item, a call's callee, a
