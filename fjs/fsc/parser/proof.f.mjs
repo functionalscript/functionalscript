@@ -1022,10 +1022,11 @@ export const proof = {
                 assertEq(value.message, message)
                 assertEq(value.metadata?.column, column)
             }
-            // a built-in prototype's name is refused whether the access is
-            // called in place or grouped and called after
-            expect('const o = {}; export default (o.toString)(1);', 'prohibited property name', 33)
-            expect('const o = {}; export default o.toString(1);', 'prohibited property name', 32)
+            // a member function a module may not call is refused whether
+            // the access is called in place or grouped and called after —
+            // the group is no boundary, so the callee is the access either way
+            expect('const o = {}; export default (o.push)(1);', 'prohibited member function', 33)
+            expect('const o = {}; export default o.push(1);', 'prohibited member function', 32)
             // and a name nothing binds is not found where it stands
             expect('export default (zzz);', 'const not found', 17)
         },
@@ -1044,12 +1045,46 @@ export const proof = {
             expect('const f = (...a) => 1; export default f(zzz);', 'const not found', 41)
             expect('const f = (...a) => 1; export default f(1, zzz);', 'const not found', 44)
             expect('const f = (...a) => 1; export default f(yyy, zzz);', 'const not found', 41)
-            // a method call's property is the access's, so the rule that
-            // refuses a built-in prototype's name refuses it here too
-            expect('const o = {}; export default o.toString(1);', 'prohibited property name', 32)
-            expect('const o = {}; export default o.__proto__(1);', 'prohibited property name', 32)
+            // a method call's key is checked against the member functions a
+            // module may not call: a mutator, and a data property, which is
+            // no function
+            expect('const o = {}; export default o.push(1);', 'prohibited member function', 32)
+            expect('const o = {}; export default o.__proto__(1);', 'prohibited member function', 32)
             // and a body still reaches nothing outside itself
             expect('const f = (...a) => 1; export default (...b) => f(b);', 'capture not supported', 49)
+        },
+        // A method call's key is checked against `fjs/js/prototype`'s
+        // `prohibitedCalls`, not the read rule: a member function the VM
+        // answers by the receiver's type is a call like any other, in
+        // either spelling and through a group, while the same name is still
+        // refused as a read — as an argument, as a base, or alone — since a
+        // detached built-in is a function that only fails.
+        method: () => {
+            /** @type {(source: string, ast: string) => void} */
+            const expect = (source, ast) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+                assertEq(stringifyDjsModule(value), ast)
+            }
+            expect('const o = {}; export default o.toString(1);', '[[],[["object",[]],["object",[["default",["()",[".",["cref",0],"toString"],[1]]]]]]]')
+            expect('const a = []; export default a["at"](0);', '[[],[["array",[]],["object",[["default",["()",[".",["cref",0],"at"],[0]]]]]]]')
+            expect('const a = []; export default (a.at)(0);', '[[],[["array",[]],["object",[["default",["()",[".",["cref",0],"at"],[0]]]]]]]')
+            expect('export default [1, 2].map(1).length;', '[[],[["object",[["default",[".",["()",[".",["array",[1,2]],"map"],[1]],"length"]]]]]]')
+            /** @type {(source: string, message: string, column: number) => void} */
+            const refused = (source, message, column) => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', tag)
+                assertEq(value.message, message)
+                assertEq(value.metadata?.column, column)
+            }
+            refused('const f = (...a) => 1; const o = {}; export default f(o.toString);', 'prohibited property name', 57)
+            refused('const o = {}; export default o.toString.x(1);', 'prohibited property name', 32)
+            refused('const o = {}; export default o.toString(1).valueOf();', 'prohibited member function', 44)
+            // `length` is on neither list: a value owns it, so a call of it
+            // is a call of what it holds — a function on an object, and a
+            // number, thrown for at run time, on an array
+            expect('const f = (...a) => 1; const o = { length: f }; export default o.length();', '[[],[["=>",[1]],["object",[["length",["cref",0]]]],["object",[["default",["()",[".",["cref",1],"length"],[]]]]]]]')
+            expect('const a = []; export default a.length(1);', '[[],[["array",[]],["object",[["default",["()",[".",["cref",0],"length"],[1]]]]]]]')
         },
         // A call on a numeric literal is a call like any other, and the sign
         // is outside it: JavaScript reads `-1()` as `-(1())` and calls `1`,

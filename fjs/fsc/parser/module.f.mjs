@@ -52,7 +52,7 @@
  * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -61,7 +61,7 @@ import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
-import { prototypeNames } from '../../js/prototype/module.f.mjs'
+import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
@@ -791,6 +791,18 @@ const imported = ({ module, attribute }) => {
 const prohibitedKey = foldError('prohibited property name')
 
 /**
+ * The refusal of a method call's key: a member function a module may not
+ * call, `a.push(1)` or `a.valueOf()` — a mutator, the prototype protocol, a
+ * locale-dependent or regular-expression method, and the rest
+ * `fjs/js/prototype`'s `prohibitedCalls` names, its README saying why for
+ * each. The other prototype names are member functions the VM answers by
+ * the receiver's type, so `a.at(0)` and `a.toString()` are calls like any
+ * other, though `a.at` and `a.toString` stay refused as reads: a detached
+ * built-in is a function that only fails.
+ */
+const prohibitedCall = foldError('prohibited member function')
+
+/**
  * The names an access may not read: every name a built-in prototype gives
  * a value, `fjs/js/prototype`, but `length` — an own property of an array,
  * a string and a function, which the two languages read alike.
@@ -805,6 +817,13 @@ const prohibitedKey = foldError('prohibited property name')
  */
 export const _prohibitedNames = new Set(prototypeNames.filter(name => name !== 'length'))
 
+/**
+ * The names a method call may not call: `prohibitedCalls`, as a set.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const prohibitedCallNames = new Set(prohibitedCalls)
+
 /** What an access's key token names: a name's word, the string's text, or the number. @type {(t: DjsTokenWithMetadata) => string | number} */
 const keyNamed = t => {
     const { token } = t
@@ -817,17 +836,35 @@ const keyNamed = t => {
 
 /**
  * An access closed over its base: the AST's `['.', base, key]`, or the
- * refusal of a key that names the prototype chain.
+ * refusal of its key — a name of the prototype chain where the access is
+ * read, and a member function a module may not call where it is a call's
+ * callee, `frame.method`. The two rules are `fjs/js/prototype`'s two
+ * lists, and the access's shape is the same either way: the lowering
+ * makes the callee access a method call, `['.', a, 'b', ['|()', args]]`.
  *
- * @type {(key: DjsTokenWithMetadata, base: AstConst) => Result<AstConst, ParseError>}
+ * @type {(frame: _AccessFrame, base: AstConst) => Result<AstConst, ParseError>}
  */
-const accessClosed = (key, base) => {
+const accessClosed = (frame, base) => {
+    const { key, method } = frame
     const named = keyNamed(key)
-    if (typeof named === 'string' && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+    if (typeof named === 'string') {
+        if (method && prohibitedCallNames.has(named)) { return error(prohibitedCall(key)) }
+        if (!method && _prohibitedNames.has(named)) { return error(prohibitedKey(key)) }
+    }
     /** @type {AstAccess} */
     const access = ['.', base, named]
     return ok(access)
 }
+
+/**
+ * Whether the node being entered is a call's callee: the frame on top is
+ * the call's, with no operand done yet. An access entered there is a method
+ * call's, and its key is checked as one — through a group as well, since
+ * `(a.b)(c)` is the node `a.b(c)` is by the time it is entered.
+ *
+ * @type {(stack: _Stack) => boolean}
+ */
+const isCallee = stack => stack !== null && 'call' in stack.top && stack.top.index === 0
 
 /** @type {(container: Container, index: number) => Node} */
 const itemAt = ([kind, items], index) =>
@@ -1011,7 +1048,7 @@ const enter = (stack, env, node) => {
             if (ref !== null) { return [stack, env, ok(ref)] }
             return [stack, env, error(bound(stack, word) ? capture(node[1]) : constNotFound(node[1]))]
         }
-        case '.': { return [{ top: { key: node[2] }, rest: stack }, env, ['enter', node[1]]] }
+        case '.': { return [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, env, ['enter', node[1]]] }
         case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
         case '-': {
             return node.length === 2
@@ -1049,7 +1086,7 @@ const enter = (stack, env, node) => {
 const returned = (stack, env, frame, value) => {
     if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('call' in frame) { return callRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('key' in frame) { return [stack, env, accessClosed(frame.key, value)] }
+    if ('key' in frame) { return [stack, env, accessClosed(frame, value)] }
     if ('neg' in frame) {
         /** @type {AstNeg} */
         const negated = ['-', value]

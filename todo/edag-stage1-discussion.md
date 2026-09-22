@@ -1040,7 +1040,7 @@ a backend lookup routine does not make the operations interchangeable.
 |EDAG|Semantic role|Source boundary|
 |---|---|---|
 |`[".", o, p]`|permitted constant-key or numeric read|includes non-enumerable `length`; not an entry filter|
-|`[".", o, p, ["\|()", args]]`|the same access with a receiver-preserving call|subject to the same key admission|
+|`[".", o, p, ["\|()", args]]`|the same access with a receiver-preserving call|subject to the call admission, `fjs/js/prototype`'s `prohibitedCalls`: a built-in member function the read refuses may be called|
 |`['entry']` (proposed), used through ordinary `()`|enumerable-entry helper function|only the complete approved AST pattern, per [entry](../fjs/edag/todo/entry.md)|
 |`["own", o, k]`|internal operation|no standalone source spelling or static-read fallback; semantic migration belongs to `entry.md`|
 

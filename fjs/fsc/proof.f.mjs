@@ -582,6 +582,12 @@ export const proof = {
         call: () => {
             assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",null,1],["[]",[1]]]]]];')
             assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b",["|()",["[]",[2]]]]]]];')
+            // a member function `fjs/js/prototype`'s `allowedCalls` names is
+            // a method call like any other, where the same name is refused
+            // as a read; one its `prohibitedCalls` names is refused at the key
+            assertEq(compileSource('export default [1, 2].at(0);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["[]",[1,2]],"at",["|()",["[]",[0]]]]]]];')
+            assertEq(moduleRefused('export default [1, 2].at;'), 'input.f.js:1:23 - error: prohibited property name')
+            assertEq(moduleRefused('export default [1, 2].push(0);'), 'input.f.js:1:23 - error: prohibited member function')
             // a module whose entries hold no function still has no value
             // once a call is reached: applying one is the interpreter's
             assertEq(moduleRefused('export default [1][0](2);'), 'input.f.js - error: a call has no value')
@@ -618,13 +624,13 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any();
-    let c1: Any<A> = Any::member_access(c0, string_any("b"))?;
+    let c1: Any<A> = Any::dot(c0, string_any("b")).end()?;
     Ok([(string_key("default"), c1)].to_object().to_any())
 }
 `)
         },
-        // Indexing an array literal — refused until `nanvm-lib` gained
-        // `Any::member_access` — now prints like any other property access.
+        // Indexing an array literal — refused until `nanvm-lib` could read
+        // an array — now prints like any other property access.
         indexingAnArrayLiteral: () => {
             assertEq(
                 compileSource('const a = [1]; export default a[0];')('output.rs'),
@@ -636,12 +642,12 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c1: Any<A> = Any::member_access(c0, f64_any(0x0000000000000000))?;
+    let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
     Ok([(string_key("default"), c1)].to_object().to_any())
 }
 `)
         },
-        // A node shape the printer refuses even after `member_access` widened
+        // A node shape the printer refuses even after the read widened
         // what a `.`/`[]` base may be: a nullish base, which throws at run
         // time in real JS — refused against the output rather than compiled
         // to a Rust panic, since the module itself is sound.

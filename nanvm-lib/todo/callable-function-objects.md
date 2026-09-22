@@ -121,9 +121,9 @@ wrapper, accessed the way every other array-valued `Any<A>` already is.
 
 A third constraint: nothing here may run without a way to fail. Every
 existing operation that can throw already threads that through a plain
-`Result`, not a panic — `Any::add`, `Any::member_access`
+`Result`, not a panic — `Any::add`, `Any::dot(…).end()`
 ([`vm/any/add.rs`](../src/vm/any/add.rs),
-[`vm/any/member_access.rs`](../src/vm/any/member_access.rs)), and every
+[`vm/any/dot.rs`](../src/vm/any/dot.rs)), and every
 `TryFrom<Any<A>> for _` conversion
 ([`vm/impls/try_from.rs`](../src/vm/impls/try_from.rs)) return
 `Result<Any<A>, Any<A>>`, with `Err` an `Any<A>` value (`"Type Error"`,
@@ -144,25 +144,23 @@ same wrapper every array-valued `Any<A>` already uses
 owned by nothing else. A generated function reads a
 declared position as a `.` node, in whatever spelling the Rust code
 generator ([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs))
-prints for every `.`/`[]` read — `Any::member_access` today, and
-`Any::dot(…).end()` once
-[`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)
-lands, the two being one operation
-([`vm/member_access.rs`](../src/vm/member_access.rs),
-[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) under two
-names — rather than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
+prints for every `.`/`[]` read — `Any::dot(…).end()`
+([`vm/any/dot.rs`](../src/vm/any/dot.rs),
+[`vm/lambda`](../src/vm/lambda/mod.rs),
+[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — rather
+than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
 bounds ([`vm/array/index.rs`](../src/vm/array/index.rs)), while
 `Array::member_access` already does its own length and canonical-index
-check internally and answers `None` (which `Any::member_access` turns into
+check internally and answers `None` (which `Any::dot` turns into
 `undefined`) for an out-of-range or otherwise non-canonical key, matching
 [call-like-instructions §6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
 "a missing argument reads as `undefined`, never panics" with no separate
-bounds check to write (the sample is today's spelling):
+bounds check to write:
 
 ```rust
 fn f<A: IStaticFunction>(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = Any::member_access(args.clone().to_any(), Number::from(0.0).to_any())?;
-    let b = Any::member_access(args.clone().to_any(), Number::from(1.0).to_any())?;
+    let a = Any::dot(args.clone().to_any(), Number::from(0.0).to_any()).end()?;
+    let b = Any::dot(args.clone().to_any(), Number::from(1.0).to_any()).end()?;
     Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
 }
 ```
@@ -403,10 +401,11 @@ remains is a call whose callee is a property read — `a.b(c)`, `f[0](1)` —
 which the lowering makes the `.` node's `|()` continuation, a method call
 carrying its receiver
 ([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), and the
-printer refuses every chain step today. Its spelling is a call with a
-receiver, which `nanvm-lib` has no operation for yet, and no composition
-of the operations it has spells it —
-[`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md).
+printer prints as `Any::dot(a, key).end_call(args)`, and
+[`vm/lambda`](../src/vm/lambda/mod.rs) calls the property on its receiver:
+an own property or element first, then the receiver type's built-in member
+function. What remains is the table of built-ins the compiler admits,
+entry by entry — [`member-functions.md`](./member-functions.md).
 
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:

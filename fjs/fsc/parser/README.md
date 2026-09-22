@@ -163,7 +163,14 @@ the fold's:
   [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
   prohibits. The key of an access is a constant — an identifier after `.`, a
   string or a number in `[ ]` — so what remains is the EDAG's own form,
-  `['.', base, key]`, and the grammar refuses a runtime key at the token.
+  `['.', base, key]`, and the grammar refuses a runtime key at the token;
+- a method call naming a member function a module may not call, `a.push(1)`
+  or `a.valueOf()` — the names `prohibitedCalls` in the same module lists,
+  its [README](../../js/prototype/README.md) saying why for each. An access
+  that is a call's callee, through a group as well, is checked against that
+  list instead of the read rule, so `a.at(0)` and `a.toString()` are calls
+  like any other while `a.at` stays a refused read: a detached built-in is a
+  function that only fails.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
