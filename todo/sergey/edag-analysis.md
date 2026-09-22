@@ -7,5 +7,5 @@ to serialize back to FJS. There is one workaround:
 ```js
 const x = a
     ? (() => { const a = f(); return [a, a]; })()
-    : (() => { const b = g(); return [a, a]; })();
+    : (() => { const b = g(); return [b, b]; })();
 ```
