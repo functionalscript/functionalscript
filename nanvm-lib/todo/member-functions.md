@@ -10,14 +10,16 @@ The compiler admits a method call whose name is a built-in member function,
 `[1, 2].at(0)` or `n.toFixed(2)`: the names `allowedCalls` in
 [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs) lists, one row
 each with its reason in [its README](../../fjs/js/prototype/README.md).
-The VM does not answer any of them. A call step — `PropertyLambda::end_call`,
-`OptionPropertyLambda::call`, `option_call` and `end_call` in
-[`vm/lambda`](../src/vm/lambda/mod.rs) — reads the property and calls the
-value, so on a built-in name the read answers `undefined` and the call
-throws the `TypeError` for calling it, where JavaScript answers `1`. A
-compiled module that calls one is wrong on this VM until this lands, which
-is the divergence the two-list design exists to prevent: the compiler's
-list is the set of names the VM must answer.
+The VM answers `toString` and nothing else. A call step —
+`PropertyLambda::end_call`, `OptionPropertyLambda::call`, `option_call` and
+`end_call` in [`vm/lambda`](../src/vm/lambda/mod.rs) — resolves an own
+property or element, then the receiver type's built-in from the table in
+`vm/lambda/method.rs`, then throws the `TypeError` for calling `undefined`;
+every built-in but `toString` is missing from that table, so `[1, 2].at(0)`
+throws where JavaScript answers `1`. A compiled module that calls one is
+wrong on this VM until its entry lands, which is the divergence the
+two-list design exists to prevent: the compiler's list is the set of names
+the VM must answer.
 
 ### Proposal
 
