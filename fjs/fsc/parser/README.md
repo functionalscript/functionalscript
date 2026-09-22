@@ -36,11 +36,19 @@ func   ::= [ '...' t id t ] ')' s '=>' t body
 group  ::= value ')' t access* powTail
 groupOperand ::= value ')' t access*
 powTail ::= [ '**' t unary ]
-tail   ::= { mulOp t unary }
+eagerTail ::= { mulOp t unary }
            { addOp t unary <the multiplicative repeat above> }
            …six more layers, each repeating over every layer below it the
            same way — shift, relational, equality, bitwiseAnd, bitwiseXor,
            bitwiseOr, JavaScript's own order
+logicalAndRound ::= '&&' t unary eagerTail
+logicalOrRound  ::= '||' t unary eagerTail { logicalAndRound }
+nullishRound    ::= '??' t unary eagerTail
+circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
+                | logicalOrRound { logicalOrRound }
+                | nullishRound { nullishRound } ]
+conditionalTail ::= [ '?' t value ':' t value ]
+tail   ::= eagerTail circuitTail conditionalTail
 access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
@@ -77,8 +85,9 @@ unary-prefixed operand, full stop, at any depth (`- -2 ** 2` exactly as
 parentheses that move the `**` to where it no longer immediately follows
 the prefix.
 
-`tail`, the Stage A binary-operator suffix
-([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)), is
+`tail`, the operator suffix — Stage A's eager ladder and Stage B's lazy
+operators and conditional above it
+([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)) — is
 threaded onto every branch of `value`/`body` that may carry one, inline,
 rather than wrapping a shared primary the way a textbook precedence ladder
 would. That wrapping was tried first and rejected: `func`'s body is
@@ -90,6 +99,25 @@ cannot see that. Spelling `tail` inline, with `unary` — narrow, `func`
 excluded — as every operand throughout, avoids the leak entirely: `func`
 is reachable only where `value`/`body` put it directly, never as a repeated
 operand any layer wraps.
+
+The short-circuit level, `circuitTail`, is a choice its first operator
+makes rather than one more repeat: JavaScript keeps `??` apart from
+`&&`/`||` at one nesting by giving the two their own productions,
+`LogicalORExpression` beside `CoalesceExpression`, and spelled as that
+choice the two alternatives open with one operand, a first/first conflict
+the checker refuses before any input. So the operand belongs to the branch
+its operator opens, the choice is made at that operator — one symbol — and
+a chain committed to `&&`/`||` has no round for `??`, nor a `??` chain for
+either: `a ?? b || c` fails at the `||`, refused by the grammar's shape and
+by nothing after it. The conditional is the top, `? value : value`, each
+arm the whole value rule — JavaScript's arms are `AssignmentExpression`s,
+and with no assignment the ladder's own top is the nearest — so a nested
+conditional associates to the right through the arms' recursion, and `:`
+follows a function's body there without a conflict, nothing a body may
+continue with beginning with it: `a ? () => 1 : 2` is the function and the
+else arm, as JavaScript reads it. Both are read by the same fold as the
+eager layers, a branch's round being a layer's round and its continuation
+the repeat lists a value's own tail is, plus one reader for the two arms.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had

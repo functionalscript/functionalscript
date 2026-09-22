@@ -96,6 +96,22 @@ export const proof = {
             assertEq(kinds.join(' '), '[ - bigint ] eof')
         },
         () => {
+            // Stage B's tokens are tokens of their own, `?` beside `??` —
+            // maximal munch reads `??` where two `?` stand together, so a
+            // conditional's `?` is one token and the nullish operator
+            // another — and `:` is the token a member already uses
+            const kinds = toArray(tokenize(stringToList('a&&b||c??d?e:f'))('')).map(t => t.token.kind)
+            assertEq(kinds.join(' '), 'id && id || id ?? id ? id : id eof')
+            assertEq(toArray(tokenize(stringToList('??'))('')).map(t => t.token.kind).join(' '), '?? eof')
+            assertEq(toArray(tokenize(stringToList('? ?'))('')).map(t => t.token.kind).join(' '), '? ws ? eof')
+        },
+        () => {
+            // `?.` is optional chaining, a token this language has no rule
+            // for: an error, as every operator token not admitted is
+            const kinds = toArray(tokenize(stringToList('a?.b'))('')).map(t => t.token.kind)
+            assertEq(kinds.join(' '), 'id error id eof')
+        },
+        () => {
             // grammar-level tokenizer error position flows through the DJS wrapper unchanged
             const result = toArray(tokenize(stringToList('00'))(''))
             assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid number"}}]')

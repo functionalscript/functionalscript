@@ -74,6 +74,40 @@ const expectPlusChain = depth => exp => {
     assertEq(node, 1)
 }
 
+/**
+ * Confirms `exp` is a left-associative `&&` chain `depth` terms deep,
+ * bottoming out at `1` — `((1 && 1) && 1) && …` — walked iteratively as
+ * {@link expectPlusChain} is, for the same reason.
+ * @type {(depth: number) => (exp: Exp) => void}
+ */
+const expectAndChain = depth => exp => {
+    let node = exp
+    let remaining = depth
+    while (remaining > 0) {
+        assert(Array.isArray(node) && node[0] === '&&' && node[2] === 1, node)
+        node = node[1]
+        remaining = remaining - 1
+    }
+    assertEq(node, 1)
+}
+
+/**
+ * Confirms `exp` is a conditional nested `depth` deep through its else arm
+ * — `1 ? 2 : (1 ? 2 : …)` — bottoming out at `3`, walked iteratively as
+ * {@link expectPlusChain} is, for the same reason.
+ * @type {(depth: number) => (exp: Exp) => void}
+ */
+const expectElseChain = depth => exp => {
+    let node = exp
+    let remaining = depth
+    while (remaining > 0) {
+        assert(Array.isArray(node) && node[0] === '?:' && node[1] === 1 && node[2] === 2, node)
+        node = node[3]
+        remaining = remaining - 1
+    }
+    assertEq(node, 3)
+}
+
 /** @type {(graph: Exp) => unknown} */
 const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
 
@@ -453,6 +487,87 @@ export const proof = {
         assert(shared instanceof Array && shared[0] === '+', shared)
         assert(shared[1] === shared[2], shared)
     },
+    // Stage B: the lazy operators are the EDAG's own `op2`, the same shape
+    // as an eager one — laziness is the EDAG's positional rule, `op2Id`'s
+    // own comment, and no shape of its own — and the conditional its
+    // `op3`, `['?:', c, t, e]`, the first node of three operands the
+    // lowering builds. The EDAG interpreter (`fjs/edag/analysis`, through
+    // `memo`) is where their laziness is proven: an unselected operand that
+    // throws is never established.
+    lazy: () => {
+        expectEdag(compile('export default 1 && 2;').edag, ['&&', 1, 2])
+        expectEdag(compile('export default 1 || 2;').edag, ['||', 1, 2])
+        expectEdag(compile('export default 1 ?? 2;').edag, ['??', 1, 2])
+        expectEdag(compile('export default 1 ? 2 : 3;').edag, ['?:', 1, 2, 3])
+        expectEdag(compile('export default 1 || 2 && 3 ? 4 | 5 : 6 ?? 7;').edag, ['?:', ['||', 1, ['&&', 2, 3]], ['|', 4, 5], ['??', 6, 7]])
+        expectEdag(compile('export default 1 ? 2 : 3 ? 4 : 5;').edag, ['?:', 1, 2, ['?:', 3, 4, 5]])
+        expectEdag(compile('export default -1 ?? ~2;').edag, ['??', -1, ['~', 2]])
+        expectEdag(compile('export default (...a) => a && a[0];').edag, ['=>', null, ['&&', ['args'], ['.', ['args'], 0]]])
+        // a `const` reached through a lazy position is the one node it is
+        // anywhere: sharing survives the position, as `op2Id` states it
+        const shared = compile('const a = [1]; export default a && a;').edag
+        expectEdag(shared, ['&&', ['[]', [1]], ['[]', [1]]])
+        assert(shared instanceof Array && shared[0] === '&&', shared)
+        assert(shared[1] === shared[2], shared)
+        // and the laziness is the interpreter's: `false && (1n / 0n)` is
+        // `false` with the throwing operand never established, `true ? 1
+        // : 1n / 0n` is `1`, and the selected operand is established
+        assertEq(execute(compile('export default false && 1n / 0n;').edag), false)
+        assertEq(execute(compile('export default true || 1n / 0n;').edag), true)
+        assertEq(execute(compile('export default 0 ?? 1n / 0n;').edag), 0)
+        assertEq(execute(compile('export default null ?? 5;').edag), 5)
+        assertEq(execute(compile('export default true ? 1 : 1n / 0n;').edag), 1)
+        assertEq(execute(compile('export default false ? 1n / 0n : 2;').edag), 2)
+        assertEq(execute(compile('export default 1 && 2 || 3;').edag), 2)
+    },
+    // A `const` reached only through lazy positions is anchored — the
+    // comma establishes it at load, as the source's own `const c = null.x;`
+    // throws at load whatever `a && c` later decides — where one eager path
+    // in is enough to drop the anchor; and an unreached entry covers
+    // another only where it reaches it eagerly. The worked examples of
+    // `spec/todo/2340-operators.md`'s subtraction rule, through the front
+    // end.
+    lazyAnchored: () => {
+        /** `c`'s node, `null.x`, and the array `[a && c, b && c]` over `a = 1`, `b = 2`. @type {Exp} */
+        const c = ['.', null, 'x']
+        const both = compile('const a = 1; const b = 2; const c = null.x; export default [a && c, b && c];').edag
+        expectEdag(both, [',', [c, ['[]', [['&&', 1, c], ['&&', 2, c]]]]])
+        assert(both instanceof Array && both[0] === ',', both)
+        const [anchored, exported] = both[1]
+        assert(exported instanceof Array && exported[0] === '[]', both)
+        const [first, second] = exported[1]
+        assert(first instanceof Array && second instanceof Array && first[0] === '&&' && second[0] === '&&', both)
+        assert(first[2] === anchored && second[2] === anchored, both)
+        expectEdag(compile('const a = 1; const c = null.x; export default [c, a && c];').edag, ['[]', [c, ['&&', 1, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a && c;').edag, [',', [c, ['&&', 1, c]]])
+        expectEdag(compile('const c = null.x; export default c ? 2 : 3;').edag, ['?:', c, 2, 3])
+        // a leaf `const` is anchored as a container is, reached lazily
+        expectEdag(compile('const a = 1; const c = null.x; export default c ? a : a;').edag, [',', [1, ['?:', c, 1, 1]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a ? c : 2;').edag, [',', [c, ['?:', 1, c, 2]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a ? 2 : c;').edag, [',', [c, ['?:', 1, 2, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a || c;').edag, [',', [c, ['||', 1, c]]])
+        expectEdag(compile('const a = 1; const c = null.x; export default a ?? c;').edag, [',', [c, ['??', 1, c]]])
+        // the transitive case: `c = a && d` reaches `d` lazily, so `d` is
+        // anchored beside `c` — anchoring `c` establishes `a && d`, not `d`
+        /** @type {Exp} */
+        const d = ['.', null, 'y']
+        expectEdag(
+            compile('const a = 1; const b = 2; const d = null.y; const c = a && d; export default b && c;').edag,
+            [',', [d, ['&&', 1, d], ['&&', 2, ['&&', 1, d]]]])
+        // and `c = d && a` reaches `d` eagerly, so `c`'s anchor covers it —
+        // while `a`, reached lazily and by nothing else, keeps its own
+        expectEdag(
+            compile('const a = 1; const b = 2; const d = null.y; const c = d && a; export default b && c;').edag,
+            [',', [1, ['&&', d, 1], ['&&', 2, ['&&', d, 1]]]])
+        // an import likewise, evaluated at load whatever reaches it
+        expectEdag(compile('import m from "./m.f.js"; export default 1 && m;').edag, [',', [['.', ['.', ['args'], 0], 'default'], ['&&', 1, ['.', ['.', ['args'], 0], 'default']]]])
+        // a function body is a scope of its own with the same rule
+        expectEdag(compile('export default (...a) => { const c = null.x; return a && c; };').edag, ['=>', null, [',', [c, ['&&', ['args'], c]]]])
+        // and the anchored `const` is the one node the lazy positions
+        // share: the interpreter answers the value with `c` established
+        // once, at the comma, and taken by the position that selects it
+        assertStructurallySame(execute(compile('const a = 0; const b = 1; const c = [3]; export default [a && c, b && c];').edag), [0, [3]])
+    },
     // A body `const` is an entry of the body, as a module's is of the
     // module, and lowers the same way: a `const` is one node however many
     // references reach it, an alias is the node it names, and what the
@@ -589,14 +704,18 @@ export const proof = {
         expectPlusChain(5000)(compile(`export default ${plus};`).edag)
         const neg = `${'- '.repeat(5000)}1`
         expectEdag(compile(`export default ${neg};`).edag, 1)
+        // a lazy chain, and a conditional nested through its else arm, at
+        // the depth the parser's own `lazyStackCost` proves
+        expectAndChain(20000)(compile(`export default 1${' && 1'.repeat(20000)};`).edag)
+        expectElseChain(20000)(compile(`export default ${'1 ? 2 : '.repeat(20000)}3;`).edag)
     },
     demo: {
         /**
          * `_shapeOf` against hand-built `Exp` values, not source text: most
-         * of these tags — every `Op1`, most of `Op2`, the ternary, a
-         * spread, a computed object key — have no `export default <text>;`
-         * that reaches them yet, so this is the only way to the whole
-         * walker rather than only its currently-reachable half. A chain
+         * of these tags — every `Op1`, some of `Op2`, a spread, a computed
+         * object key — have no `export default <text>;` that reaches them
+         * yet, so this is the only way to the whole walker rather than only
+         * its currently-reachable half. A chain
          * continuation and optional chaining's own tags are refused the
          * same way, and that path is tested here too, for the same reason.
          */

@@ -48,11 +48,12 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { BinaryTag } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -65,8 +66,8 @@ import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, unary,
-    unaryOperand, value, values,
+    body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importStatement, member, members, symbolOf,
+    unary, unaryOperand, value, values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -354,13 +355,14 @@ const withPow = (base, powTail) => {
 
 /**
  * Every binary layer's own tag, read to its operator, in one flat map:
- * `multiplicativeOp` through `bitwiseOrOp` (`./grammar/module.f.mjs`) each
- * key their own rounds by a name none of the other seven use, so one map
+ * `multiplicativeOp` through `nullishOp` (`./grammar/module.f.mjs`) each
+ * key their own rounds by a name none of the other ten use, so one map
  * serves a round from any layer — no per-layer reader, and so no branch for
  * a tag no round can carry: a plain lookup has no branch to leave
- * unreachable where a `switch`'s `default` would.
+ * unreachable where a `switch`'s `default` would. `**` is not here: it is
+ * `powTail`'s, no layer's round, read by {@link withPow}.
  *
- * @type {{ readonly [tag: string]: '*' | '/' | '%' | '+' | '-' | '<<' | '>>' | '>>>' | '<' | '<=' | '>' | '>=' | '===' | '!==' | '&' | '^' | '|' }}
+ * @type {{ readonly [tag: string]: Exclude<BinaryTag, '**'> }}
  */
 const binaryOpTag = {
     mul: '*', div: '/', mod: '%',
@@ -371,35 +373,97 @@ const binaryOpTag = {
     and: '&',
     xor: '^',
     or: '|',
+    logicalAnd: '&&', logicalOr: '||', nullish: '??',
 }
 
 /**
  * One binary layer's rounds folded onto `base`, left-associative: each
  * round is `op t unary tail*`, its own trailing tail lists — one per layer
- * below this one — read the same way {@link applyTail} reads a value's own,
- * so a round's right operand is its `unary` with everything below this
- * layer already applied to it, `1 + 2 * 3` folding `2 * 3` before `+`
- * ever sees it.
+ * below this one — read the same way {@link applyLayers} reads a value's
+ * own, so a round's right operand is its `unary` with everything below
+ * this layer already applied to it, `1 + 2 * 3` folding `2 * 3` before
+ * `+` ever sees it. A lazy operator's round is the same shape — `a || b
+ * && c` folds `b && c` first, its `&&` list trailing the `||` round —
+ * and laziness is no shape difference at this layer, the tag alone
+ * saying which operator a node is.
  *
  * @type {(base: Node, rounds: readonly _TailRound[]) => Node}
  */
 const foldLayer = (base, rounds) => rounds.reduce((left, round) => {
     const [opChoice, , v, ...lowerTails] = unmapped(round)
     const [opTag] = unmapped(opChoice)
-    const right = applyTail(nodeAt(v), lowerTails)
+    const right = applyLayers(nodeAt(v), lowerTails)
     return [binaryOpTag[opTag], left, right]
 }, base)
 
 /**
- * `base` through every binary layer above it, `multiplicative` first and
- * `bitwiseOr` last — the eight tail lists `value`/`body` spread onto every
- * branch that may carry one, `func` and `block` excepted. Reused for a
- * round's own right operand, whose trailing tail lists are the same shape
- * one layer down.
+ * `base` through the binary layers given, each a repeat of rounds, lowest
+ * first: the eight eager lists of a value's own tail, or the lists
+ * trailing a round — the same shape one layer down, which is what lets
+ * {@link foldLayer} reuse this for a round's right operand — or the lists
+ * a short-circuit chain continues with after its first round.
  *
  * @type {(base: Node, tailLists: readonly _Leaf[]) => Node}
  */
-const applyTail = (base, tailLists) => tailLists.reduce(tailStep, base)
+const applyLayers = (base, tailLists) => tailLists.reduce(tailStep, base)
+
+/**
+ * The short-circuit level folded onto `base`: nothing, or the chain the
+ * first operator committed to, `[ && round { && round } { || round } | ||
+ * round { || round } | ?? round { ?? round } ]` — the branch's own round
+ * folded as any layer's round is, since it is one, and the repeat lists
+ * after it applied to that as {@link applyLayers} applies a value's own.
+ * The branch's tag says nothing the round's own operator does not, so the
+ * reader never looks at it; which chains may follow which is the grammar's
+ * shape, decided before this reader sees a node.
+ *
+ * @type {(base: Node, circuit: _CircuitNode) => Node}
+ */
+const applyCircuit = (base, circuit) => {
+    const rounds = unmapped(circuit)
+    if (rounds.length === 0) { return base }
+    const [, branch] = unmapped(rounds[0])
+    const [round, ...tailLists] = unmapped(branch)
+    return applyLayers(foldLayer(base, [round]), tailLists)
+}
+
+/**
+ * The conditional folded onto `base`: nothing, or `? t value : t value`,
+ * the arms at the third and sixth positions of the one round the option
+ * holds — each a whole value already mapped, so a nested conditional in
+ * either arm is a node here and never a call, however deep the source
+ * nests them.
+ *
+ * @type {(base: Node, conditional: _ConditionalNode) => Node}
+ */
+const applyConditional = (base, conditional) => {
+    const rounds = unmapped(conditional)
+    if (rounds.length === 0) { return base }
+    const [, , t, , , e] = unmapped(rounds[0])
+    return ['?:', base, nodeAt(t), nodeAt(e)]
+}
+
+/**
+ * `base` through the whole suffix `value`/`body` spread onto every branch
+ * that may carry one, `func` and `block` excepted: the eight eager layers
+ * first, `multiplicative` through `bitwiseOr`, then the short-circuit
+ * level, then the conditional — split at the eager list's own length,
+ * since the grammar spreads the eight and the two lazy positions into one
+ * sequence and the two are not repeats of rounds. Or no suffix at all:
+ * `unary`'s branches are `value`'s without one, read by the same reader,
+ * {@link toNode}.
+ *
+ * @type {(base: Node, tail: readonly _Leaf[]) => Node}
+ */
+const applyTail = (base, tail) => {
+    if (tail.length === 0) { return base }
+    // the two positions are typed by their shape, as `tailStep`'s round is
+    // and for the reason given there: `_Leaf` is what a spread position
+    // knows of itself
+    const [circuit, conditional] = tail.slice(eagerTail.length)
+    const eager = applyLayers(base, tail.slice(0, eagerTail.length))
+    return applyConditional(applyCircuit(eager, /** @type {_CircuitNode} */ (circuit)), /** @type {_ConditionalNode} */ (conditional))
+}
 
 /**
  * One tail list applied to the accumulator so far.
@@ -410,7 +474,8 @@ const applyTail = (base, tailLists) => tailLists.reduce(tailStep, base)
  * the position it is handed to is considered. The round shape this reads
  * is `_TailRound`'s, unmapped one level further in by {@link foldLayer}
  * itself, so the cast states what {@link _TailRound} already documents,
- * rather than a new claim.
+ * rather than a new claim. {@link applyCircuit}'s round is read through
+ * the same type for the same reason.
  *
  * @type {(acc: Node, rounds: _Leaf) => Node}
  */
@@ -971,6 +1036,31 @@ const callRound = (stack, env, frame) => {
 }
 
 /**
+ * The operand a conditional evaluates at `index`: the condition, then each
+ * arm as written.
+ *
+ * @type {(conditional: _ConditionalFrame['conditional'], index: number) => Node}
+ */
+const conditionalOperandAt = ([, condition, then, otherwise], index) => [condition, then, otherwise][index]
+
+/**
+ * The next operand of a conditional, or the conditional closed when none
+ * is left: the condition first, then each arm as written — resolved all
+ * three, since a name is checked where it is written whether or not the
+ * program ever establishes the arm, as JavaScript's early errors are.
+ *
+ * @type {(stack: _Stack, env: _Env, frame: _ConditionalFrame) => _State}
+ */
+const conditionalRound = (stack, env, frame) => {
+    const { conditional, index } = frame
+    if (index < 3) { return [{ top: frame, rest: stack }, env, ['enter', conditionalOperandAt(conditional, index)]] }
+    const [condition, then, otherwise] = toArray(frame.done)
+    /** @type {AstConditional} */
+    const closed = ['?:', condition, then, otherwise]
+    return [stack, env, ok(closed)]
+}
+
+/**
  * Whether a name is bound outside the function being resolved: bound by
  * the names a function frame on the stack holds for after its body, which
  * the body may not use — a function has no frame to capture with yet.
@@ -1025,8 +1115,9 @@ const bodyRound = (stack, env, frame) => {
 /**
  * Enters a node: a primitive is its value, a reference the binding `env`
  * holds for its name, an access its base under a frame holding the key, a
- * container the first round of a new frame, and a function its body under
- * a frame holding `env` — the body resolved against its own names alone, so
+ * container, a call or a conditional the first round of a new frame, an
+ * operator its left operand under a frame holding the right, and a
+ * function its body under a frame holding `env` — the body resolved against its own names alone, so
  * a reference to a name bound outside is a capture, refused where it is
  * written, and a name it does not find anywhere is `const not found` as
  * ever.
@@ -1059,9 +1150,11 @@ const enter = (stack, env, node) => {
         case '*': case '/': case '%': case '**':
         case '+':
         case '===': case '!==': case '<': case '<=': case '>': case '>=':
-        case '&': case '|': case '^': case '<<': case '>>': case '>>>': {
+        case '&': case '|': case '^': case '<<': case '>>': case '>>>':
+        case '&&': case '||': case '??': {
             return [{ top: { tag: node[0], right: node[2] }, rest: stack }, env, ['enter', node[1]]]
         }
+        case '?:': { return conditionalRound(stack, env, { conditional: node, index: 0, done: null }) }
         case '=>': {
             const [tag, inner] = functionScope(node[1])
             if (tag === 'error') { return [stack, env, error(inner)] }
@@ -1086,6 +1179,7 @@ const enter = (stack, env, node) => {
 const returned = (stack, env, frame, value) => {
     if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('call' in frame) { return callRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('conditional' in frame) { return conditionalRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
     if ('key' in frame) { return [stack, env, accessClosed(frame, value)] }
     if ('neg' in frame) {
         /** @type {AstNeg} */

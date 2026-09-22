@@ -53,6 +53,22 @@ export type _PowTailNode = Unmapped<readonly [] | readonly [Unmapped<readonly [u
 export type _TailRound = Unmapped<readonly [Unmapped<readonly [string, _Leaf]>, unknown, _Leaf, ..._Leaf[]]>
 
 /**
+ * The node of the short-circuit level, `circuitTail`: no round, or one
+ * holding the branch the first operator committed to — its tag, and under
+ * it that operator's own round, a {@link _TailRound}, followed by the
+ * repeat lists the chain continues with, each unmapped where
+ * {@link applyCircuit} reads it.
+ */
+export type _CircuitNode = Unmapped<readonly [] | readonly [Unmapped<readonly [string, Unmapped<readonly [_TailRound, ..._Leaf[]]>]>]>
+
+/**
+ * The node of the conditional, `conditionalTail`: no round, or one holding
+ * `? t value : t value`, the arms at the third and sixth positions, each
+ * a value its mapping replaced by a symbol.
+ */
+export type _ConditionalNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _Leaf, unknown, unknown, _Leaf]>]>
+
+/**
  * A position holding an optional list, `[ items ]`: no round, or one
  * holding the list's node — which its mapping replaced by a symbol.
  */
@@ -183,6 +199,17 @@ export type _BinaryLeftFrame = { readonly tag: BinaryTag, readonly right: Node }
 /** A binary operator whose right operand is being evaluated: the tag, and the left operand already resolved. */
 export type _BinaryRightFrame = { readonly tag: BinaryTag, readonly left: AstConst }
 
+/**
+ * A conditional being built: its operand at `index` — the condition, then
+ * each arm — is being evaluated, and `done` holds the values before it, a
+ * list for the reason a container's is.
+ */
+export type _ConditionalFrame = {
+    readonly conditional: readonly ['?:', Node, Node, Node]
+    readonly index: number
+    readonly done: List<AstConst>
+}
+
 export type _Frame =
     | _ContainerFrame
     | _CallFrame
@@ -191,10 +218,11 @@ export type _Frame =
     | _BitnotFrame
     | _BinaryLeftFrame
     | _BinaryRightFrame
+    | _ConditionalFrame
     | _FunctionFrame
     | _BodyFrame
 
-/** The containers, accesses, negations and functions suspended around the node being evaluated, innermost on top. */
+/** The containers, calls, accesses, operators, conditionals and functions suspended around the node being evaluated, innermost on top. */
 export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */

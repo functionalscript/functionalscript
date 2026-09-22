@@ -393,10 +393,11 @@ const last = e => {
  * `c`, and a `let` before the root would — and no scope the lowering
  * links has the shape, an implicitly shared node being a `const`
  * referenced twice, which JavaScript establishes at its declaration
- * whatever the operators around its uses do, and which
- * [Stage B](../../fsc/todo/stage-b-operators.md)'s eager-restricted
- * `refsOf` anchors through the comma root when reached only lazily — an
- * eager reach, so the binding is right again.
+ * whatever the operators around its uses do, and which the
+ * eager-restricted reference sweep of `anchors`
+ * ([`fjs/fsc/ast`](../../fsc/ast/module.f.mjs)) anchors through the comma
+ * root when reached only lazily — an eager reach, so the binding is right
+ * again.
  *
  * `nested` is the corpus's mode: the root prints as one expression, its
  * operation the bare `Result<Any<A>, Any<A>>` the `nanvm-lib` call answers

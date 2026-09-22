@@ -188,6 +188,20 @@ operand, is every layer's operand instead, `./parser/README.md` has the
 argument. [`rust`](rust/module.f.mjs) already spelled every one of these
 EDAG nodes but `!==`, which this front end had no path to produce before —
 the front end is what was missing, not the code generator.
+
+Stage B added the lazy operators `&& || ??` and the conditional `?:` above
+them, each again the EDAG's own node — `op2`, and `op3` for the
+conditional — whose laziness the EDAG states positionally: the right
+operand, or the unselected arm, is not established there. The grammar
+keeps `??` apart from `&&`/`||` as JavaScript does, by shape, and the one
+piece of the front end laziness reaches is `anchors` in
+[`ast`](ast/module.f.mjs): a `const` the export reaches only through a
+lazy position is anchored, since its own statement runs at load whatever
+the operator later decides, so `const c = null.x; export default [a && c,
+b && c];` throws at load in both languages. The sharing sweep counts a
+lazy position as any other — identity does not care which position a
+reference is made from. The writer refuses every operator node, Stage B's
+as Stage A's, until it can spell their precedence.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call
