@@ -107,7 +107,7 @@ via the `Function` constructor — no rustc at the user's run time.
       arrays, objects, `const` sharing (generalized from the operator-test
       printer's explicit named `shared` to a linked EDAG's implicit,
       identity-based sharing), and property access (`.`, via
-      `Any::member_access`, a literal `number` or `string` key over an
+      `Any::dot(…).end()`, a literal `number` or `string` key over an
       array, string, object, boolean, number, or bigint receiver — a
       `Number(...)` cast index, `a[Number(k)]`, is the one form still
       refused, having no `nanvm-lib` cast primitive to route it through).

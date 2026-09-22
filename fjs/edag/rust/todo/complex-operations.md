@@ -1,15 +1,15 @@
 ## A complex node has no mapping to a `nanvm-lib` operation
 
 **Priority:** P2
-**Status:** open — the `nanvm-lib` half is on `main` (`vm/lambda`, `Any::dot`,
-`Any::option_dot`, `Any::option_call`); the printer and the receiver remain
+**Status:** open — the lambda types, the entry points and the printer are on
+`main`; the receiver remains
 
 ### Problem
 
 The printer in [`module.f.mjs`](../module.f.mjs) maps an EDAG node to a
 `nanvm-lib` operation one to one where the node is a value over values:
 an operator node to the `Any` operator it names, `['()', callee, args]`
-to `Any::call`, a plain `['.', receiver, key]` to `Any::member_access`.
+to `Any::call`, a plain `['.', receiver, key]` to the property read.
 Each operation answers the node's value, or the thrown value, as a
 `Result<Any<A>, Any<A>>`, and the generated text is right by construction:
 a spelling that does not follow the operation's signature does not compile.
@@ -20,9 +20,9 @@ chain steps `|.`, `|?.()`, `|!()` and the `?.` region carry control flow
 their operand values do not: a receiver handed to the call as `this`, and
 a short-circuit region skipping the rest of the chain
 ([`../../README.md`](../../README.md), Chains). No composition of the value
-operations preserves that. `Any::member_access(a, b)` answers the
+operations preserves that. The read, `Any::dot(a, b).end()`, answers the
 property's value and nothing else, so the receiver is gone the moment the
-read answers, and `member_access(a, b).and_then(|f| Any::call(f, args))`
+read answers, and `Any::dot(a, b).end().and_then(|f| Any::call(f, args))`
 spells the detached call `(0, a.b)(...args)`, not the method call the node
 means. That the two agree today — a FunctionalScript function is an arrow
 function with no `this`, and `nanvm-lib` has no built-in method that reads
@@ -31,12 +31,13 @@ every module generated that way is wrong, and the fix is a generator
 change and a regeneration where it should be a change in `nanvm-lib`
 alone. #2173 tried that spelling and was closed for it.
 
-So the printer refuses every continuation today, which is the honest
-state, and the rule for the eager operators and the lazy ones holds for
-these too: the operation comes first, in `nanvm-lib`, with the signature
-the node's semantics need, and the printer prints it. The design of that
-mapping is below. No spelling composed from value operations is to be
-tried in its place.
+The printer refused every continuation until the mapping below landed —
+the honest state while there was no operation to print — and the rule for
+the eager operators and the lazy ones holds for these too: the operation
+comes first, in `nanvm-lib`, with the signature the node's semantics need,
+and the printer prints it. That is the state now: every chain prints, and
+what remains is the receiver, the last task below. No spelling composed
+from value operations is to be tried in its place.
 
 ### Design
 
@@ -64,9 +65,9 @@ lambda type of the state the node produces:
 | `['?.()', a, args, k]` | `option_call` | `args`, a thunk | `OptionLambda` |
 
 Every `.` node opens with `dot`, a continuation or not, so
-`Any::dot(a, key).end()` is the one spelling of `a.b` and
-`Any::member_access` leaves the generated code's vocabulary: it is what
-`end` *does* on a `PropertyLambda`, not a second way to print the node.
+`Any::dot(a, key).end()` is the one spelling of `a.b`, and the one
+property read `nanvm-lib` has: `Any::member_access`, the read as a value
+operation, is gone, its dispatch over the receiver now `dot`'s own body.
 One spelling per node then holds without a special case, and the same
 way for the other two nodes — `option_dot(…).end()` is the one spelling
 of a bare `a?.b`.
@@ -95,9 +96,8 @@ the eager and lazy operators already have.
 `end` is on every type because the README makes leaving the continuation
 out "every state's third exit". On `PropertyLambda` that exit is the bare
 `.` node — `a.b`, the property read with its receiver dropped — which is
-why `dot(a, key).end()` can be the node's spelling and `member_access`
-its implementation, rather than `end` being a method the printer must
-never reach.
+why `dot(a, key).end()` can be the node's spelling and the read `dot`'s
+own body, rather than `end` being a method the printer must never reach.
 
 Both terminals are spelled `end_call`, and that is exact rather than a
 convenience. On `PropertyLambda` no region is open, so `|()` and a `|!()`
@@ -245,15 +245,14 @@ only through lazy operands has none today.
       a non-callable callee with throwing arguments answers the
       arguments' throw; a nullish base with a throwing key answers the
       key's — cases JavaScript *can* pin and the `Err` values tell apart.
-- [ ] Printer: the eager positions per tag above, in `reach` and
+- [x] Printer: the eager positions per tag above, in `reach` and
       `lazyOperandsOf`, with a proof that a shared node reached only
       through a chain position is refused and that an operation inside a
       skipped operand is bound inside the thunk.
-- [ ] Printer: every `.` node as `dot(…).end()`, then `?.`, `?.()` and the
-      four steps; `Any::member_access` disappears from the generated text,
-      so the fixtures under `nanvm-harness/fixtures` and the proofs that
-      pin the old spelling are regenerated in the same PR, and the
-      argument-read sample in
+- [x] Printer: every `.` node as `dot(…).end()`, then `?.`, `?.()` and the
+      four steps; `Any::member_access` is deleted, so the fixtures under
+      `nanvm-harness/fixtures` and the proofs that pinned the old spelling
+      are regenerated in the same PR, and the argument-read sample in
       [`callable-function-objects.md`](../../../../nanvm-lib/todo/callable-function-objects.md)
       follows; refuse nothing the README allows.
 - [ ] `IFunction::call` gains a receiver, and `end_call` hands it over —
@@ -271,8 +270,8 @@ only through lazy operands has none today.
   the skipped operands and the closing call this design has to reproduce.
 - [`../../../../nanvm-lib/todo/callable-function-objects.md`](../../../../nanvm-lib/todo/callable-function-objects.md)
   — Stage 4, open for the method call this problem is about.
-- `nanvm-lib/src/vm/any/member_access.rs`, `nanvm-lib/src/vm/any/call.rs` —
-  the two value operations that do not compose into a method call, and
-  that `end_call` composes behind the operation boundary until
-  `Function::call` takes a receiver. `member_access` becomes what
-  `PropertyLambda::end` does; `call` stays the `()` node's operation.
+- `nanvm-lib/src/vm/any/dot.rs`, `nanvm-lib/src/vm/any/call.rs` — the read
+  and the call, which do not compose into a method call outside
+  `nanvm-lib`, and which `end_call` composes behind the operation boundary
+  until `Function::call` takes a receiver; `call` stays the `()` node's
+  operation.

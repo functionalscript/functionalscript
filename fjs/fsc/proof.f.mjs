@@ -618,13 +618,13 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any();
-    let c1: Any<A> = Any::member_access(c0, string_any("b"))?;
+    let c1: Any<A> = Any::dot(c0, string_any("b")).end()?;
     Ok([(string_key("default"), c1)].to_object().to_any())
 }
 `)
         },
-        // Indexing an array literal — refused until `nanvm-lib` gained
-        // `Any::member_access` — now prints like any other property access.
+        // Indexing an array literal — refused until `nanvm-lib` could read
+        // an array — now prints like any other property access.
         indexingAnArrayLiteral: () => {
             assertEq(
                 compileSource('const a = [1]; export default a[0];')('output.rs'),
@@ -636,12 +636,12 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();
-    let c1: Any<A> = Any::member_access(c0, f64_any(0x0000000000000000))?;
+    let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
     Ok([(string_key("default"), c1)].to_object().to_any())
 }
 `)
         },
-        // A node shape the printer refuses even after `member_access` widened
+        // A node shape the printer refuses even after the read widened
         // what a `.`/`[]` base may be: a nullish base, which throws at run
         // time in real JS — refused against the output rather than compiled
         // to a Rust panic, since the module itself is sound.

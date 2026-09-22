@@ -50,7 +50,7 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("a"), string_any("x"))].to_object().to_any();
-    Any::member_access(c0, string_any("a"))
+    Any::dot(c0, string_any("a")).end()
 }
 `)
     },
@@ -71,8 +71,8 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToObject};
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = [(string_key("b"), f64_any(0x3ff0000000000000))].to_object().to_any();
     let c1: Any<A> = [(string_key("a"), c0)].to_object().to_any();
-    let c2: Any<A> = Any::member_access(c1, string_any("a"))?;
-    Any::member_access(c2, string_any("b"))
+    let c2: Any<A> = Any::dot(c1, string_any("a")).end()?;
+    Any::dot(c2, string_any("b")).end()
 }
 `)
     },
@@ -138,7 +138,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};
 
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
-    let c0: Any<A> = A::static_function(|_self, args| { Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000)) }, 0, Array::default()).to_any();
+    let c0: Any<A> = A::static_function(|_self, args| { Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, Array::default()).to_any();
     let c1: Any<A> = [f64_any(0x4044800000000000)].to_array().to_any();
     Any::call(c0, c1)
 }
@@ -162,7 +162,7 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToArray};
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| {
-        let c0: Any<A> = Any::member_access(args.clone().to_any(), f64_any(0x0000000000000000))?;
+        let c0: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end()?;
         Ok([c0.clone(), c0.clone()].to_array().to_any())
     }, 0, Array::default()).to_any();
     let c1: Any<A> = [f64_any(0x3ff0000000000000)].to_array().to_any();

@@ -6,6 +6,6 @@ use nanvm_lib::vm::{Any, Array, IStaticFunction, ToAny, ToObject};
 #[rustfmt::skip]
 pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = A::static_function(|_self, args| { Ok(args.clone().to_any()) }, 0, Array::default()).to_any();
-    let c1: Any<A> = Any::member_access(c0, string_any("length"))?;
+    let c1: Any<A> = Any::dot(c0, string_any("length")).end()?;
     Ok([(string_key("default"), c1)].to_object().to_any())
 }

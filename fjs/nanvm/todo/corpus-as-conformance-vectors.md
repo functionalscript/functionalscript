@@ -54,7 +54,12 @@ operation over lowered values, and the one operation a value lowers to,
 eager one and `cargo test` has never had the chance to fail. The exported
 `nodeExpr` does reach it —
 it takes an arbitrary `Exp`, so a caller outside the corpus can print a nested
-operation and get text that fails with E0308.
+operation and get text that fails with E0308. A chain is one more such
+operation: `['-', ['?.', o, 'b']]` prints as `-(Any::option_dot(…).end())`,
+a `Result` under `Neg` (E0600), and a chain as another node's receiver hands
+`Any::dot` a `Result` where it takes an `Any` — `chains.operand` and
+`chains.opaqueBase` in [`../../edag/rust/proof.f.mjs`](../../edag/rust/proof.f.mjs)
+pin that text as `nestedOperation` pins the operator's.
 
 A compiled module already has its answer: `fjs/edag/rust`'s `scope`
 binds every operation to a temporary, `let cN: Any<A> = (…)?;`, since
