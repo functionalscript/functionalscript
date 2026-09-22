@@ -1,7 +1,8 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** open — nothing answered yet; every pair below is unchecked
+**Status:** open — `toString` is answered on every type, as a dispatch to
+`Any::to_string`; the rest is unchecked
 
 ### Problem
 
@@ -22,8 +23,7 @@ list is the set of names the VM must answer.
 
 **The algorithm of a call step**, after the guard and the arguments — a
 nullish receiver throws first, and a guarded step skips a nullish receiver
-with its arguments untouched
-([`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)):
+with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
 
 1. **An object**: an own property of the name, `Object::member_access`. A
    function is called with the arguments; any other value is the
@@ -94,11 +94,16 @@ once for both — and `Number`'s `toString` takes no radix.
 
 Infrastructure:
 
-- [ ] `vm/lambda`: the live state holds the receiver and the key; `end`
+- [x] `vm/lambda`: the live state holds the receiver and the key; `end`
       reads; the call exits run the algorithm above; `option_call`'s guard
-      uses the lookup.
-- [ ] The dispatch table per type, and the generated completeness test
-      over `allowedCalls`.
+      uses the lookup — `Member` in `vm/lambda/member.rs`.
+- [ ] The dispatch table per type — `method` in `vm/lambda/method.rs`
+      holds the first entry and matches on the key alone, since every type
+      has `toString` — and the generated completeness test over
+      `allowedCalls`.
+- [ ] `toString` reads its arguments: a radix for `Number` and `BigInt`.
+      Today the arguments are not read, so `(255).toString(16)` answers
+      `"255"` — a stub with this as its TODO.
 - [ ] Corpus cases for every entry, run on the host engine and as
       generated Rust.
 - [ ] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
@@ -106,7 +111,7 @@ Infrastructure:
 
 `Object`:
 
-- [ ] `toString`
+- [x] `toString`
 
 `Array`:
 
@@ -132,7 +137,7 @@ Infrastructure:
 - [ ] `toReversed`
 - [ ] `toSorted`
 - [ ] `toSpliced`
-- [ ] `toString`
+- [x] `toString`
 - [ ] `with`
 
 `String`:
@@ -156,7 +161,7 @@ Infrastructure:
 - [ ] `split`
 - [ ] `startsWith`
 - [ ] `substring`
-- [ ] `toString`
+- [x] `toString`
 - [ ] `toWellFormed`
 - [ ] `trim`
 - [ ] `trimEnd`
@@ -167,29 +172,32 @@ Infrastructure:
 - [ ] `toExponential`
 - [ ] `toFixed`
 - [ ] `toPrecision`
-- [ ] `toString` — radix ten, and a radix argument for integers alone,
-      the specification leaving other radices implementation-approximated
-      for non-integers.
+- [x] `toString` — radix ten; the radix argument is the infrastructure
+      task above, since the specification leaves other radices
+      implementation-approximated for non-integers.
 
 `Boolean`:
 
-- [ ] `toString`
+- [x] `toString`
 
 `BigInt`:
 
-- [ ] `toString` — every radix, fully specified.
+- [x] `toString` — radix ten; every radix is fully specified and is the
+      infrastructure task above.
 
 `Function`:
 
-- [ ] `toString` — a stub answering `fn_to_string`'s placeholder until a
+- [x] `toString` — a stub answering `fn_to_string`'s placeholder until a
       function carries its EDAG.
 
 ### Related
 
 - [`fjs/js/prototype/README.md`](../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
-- [`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)
-  — the lambda types these exits belong to; its receiver task is this file.
+- [`fjs/edag/README.md`](../../fjs/edag/README.md), Chains — the two bits
+  and the four steps the lambda types transcribe; the printer's
+  per-position laziness is in
+  [`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs).
 - [`callable-function-objects.md`](./callable-function-objects.md) — Stage
   4, the method call, which this file completes.
 - [`vm/lambda/mod.rs`](../src/vm/lambda/mod.rs) — the exits that change,

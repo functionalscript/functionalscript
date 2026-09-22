@@ -1,65 +1,32 @@
-use super::CANNOT_CONVERT_NULLISH_TO_OBJECT;
 use crate::vm::{
-    Any, IVm, ToAny, Unpacked,
-    lambda::{OptionPropertyLambda, PropertyLambda, Region, read},
-    nullish::Nullish,
+    Any, IVm,
+    lambda::{Member, OptionPropertyLambda, PropertyLambda, Region},
 };
 
 impl<A: IVm> Any<A> {
     /// The EDAG's `.` node, `['.', receiver, key]` or with a continuation,
-    /// `['.', receiver, key, k]`: the property read, as a chain a
+    /// `['.', receiver, key, k]`: the property step, as a chain a
     /// continuation may follow (`fjs/edag/README.md`, Chains).
     /// `dot(a, key).end()` is `a.b`, the one spelling of the node whether
     /// or not a continuation follows, and the one property read `nanvm-lib`
-    /// has. The key is a value: `a[k]` evaluates both operands whatever
-    /// they are.
+    /// has; `dot(a, key).end_call(args)` is the method call `a.b(...args)`,
+    /// the property called on its receiver. The key is a value: `a[k]`
+    /// evaluates both operands whatever they are.
     ///
-    /// An `Array`, `String`, `Object` or `Function` receiver is dispatched
-    /// to its own `member_access` (`vm/array/member_access.rs`,
-    /// `vm/string/member_access.rs`, `vm/object/member_access.rs`,
-    /// `vm/function/member_access.rs` — a function's one property is its
-    /// `length`), the same split `own_property` has between its dispatcher
-    /// and `Object::own_property`. Every remaining receiver — `Number`,
-    /// `Boolean`, `BigInt` — has no own properties, so it always answers
-    /// `undefined`, the same fallback `own_property` has. No prototype
-    /// chain and no built-in methods (`.map`, `.push`, `.slice`, getters)
-    /// on any receiver — out of scope, since `nanvm-lib` objects have no
-    /// `__proto__` to walk in the first place (see `own_property`'s own doc
-    /// comment).
-    ///
-    /// A nullish receiver throws the same `TypeError` `own_property` does:
-    /// real JS's `[]` runs the same `ToObject` failure ahead of any key
-    /// handling that `Object.getOwnPropertyDescriptor` does. The throw
-    /// waits in the lambda until `end` or `end_call` surfaces it, so
-    /// `a.b(...c)` on a nullish `a` throws with `c` untouched.
+    /// A nullish receiver throws here, before any continuation's arguments
+    /// — the throw waits in the lambda until `end` or `end_call` surfaces
+    /// it, so `a.b(...c)` on a nullish `a` throws with `c` untouched. What
+    /// a live step reads or calls is [`Member`]'s.
     pub fn dot(self, key: Self) -> PropertyLambda<A> {
-        let unpacked: Unpacked<A> = self.into();
-        if let Unpacked::Nullish(_) = &unpacked {
-            return PropertyLambda(Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into()));
-        }
-        PropertyLambda(Ok(match unpacked {
-            Unpacked::Array(a) => a
-                .member_access(key)
-                .unwrap_or_else(|| Nullish::Undefined.to_any()),
-            Unpacked::String(s) => s
-                .member_access(key)
-                .unwrap_or_else(|| Nullish::Undefined.to_any()),
-            Unpacked::Object(o) => o
-                .member_access(key)
-                .unwrap_or_else(|| Nullish::Undefined.to_any()),
-            Unpacked::Function(f) => f
-                .member_access(key)
-                .unwrap_or_else(|| Nullish::Undefined.to_any()),
-            _ => Nullish::Undefined.to_any(),
-        }))
+        PropertyLambda(Member::new(self, key))
     }
 
     /// The EDAG's `?.` node, `['?.', receiver, key, k]`: `a?.b`, opening a
     /// short-circuit region. A nullish receiver skips the key and the rest
     /// of the chain — `u?.[todo()]` never calls `todo` — which is why the
-    /// key is a thunk. Any other receiver is read as `dot` reads it.
+    /// key is a thunk. Any other receiver takes the step `dot` takes.
     pub fn option_dot(self, key: impl FnOnce() -> Result<Self, Self>) -> OptionPropertyLambda<A> {
-        OptionPropertyLambda(Region::Live(self).guarded(read(key)))
+        OptionPropertyLambda(Region::Live(self).option_dot(key))
     }
 }
 

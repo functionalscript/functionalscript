@@ -21,25 +21,73 @@
 //! evaluates a call's arguments before `IsCallable` and a computed key
 //! before the read.
 //!
-//! The receiver a property step leaves behind is not held yet:
-//! `Function::call` takes no receiver, so a call step composes the read and
-//! the call. That composition lives here, behind the operation boundary,
-//! so that when `IFunction::call` gains a receiver the change is this
-//! module's alone (`fjs/edag/rust/todo/complex-operations.md`).
+//! A property step holds its receiver and key, [`Member`], and the read
+//! waits for the exit: `end` reads, and a call exit resolves the callee —
+//! an object's own property or an array's element first, then the
+//! receiver type's built-in member function ([`method`](method::method)),
+//! then the `TypeError` for calling `undefined`. No user function reads
+//! `this`, so `Function::call` takes no receiver and never will: the
+//! receiver is consumed by the built-in and handed to nothing. Which
+//! built-ins the table answers is `nanvm-lib/todo/member-functions.md`.
 
 use crate::vm::{Any, IVm, Nullish, ToAny, Unpacked};
 
-/// The state of a chain inside an open region: live with its current
-/// value, skipped by a guard, or thrown. Skipped and thrown pass through
-/// every step; `end` tells them apart.
-pub(crate) enum Region<A: IVm> {
-    Live(Any<A>),
+pub(crate) mod member;
+mod method;
+
+pub(crate) use member::Member;
+
+/// What a chain's live state can do, whatever it holds: a bare value, the
+/// state after a call step or a `?.()` node, or a [`Member`], the receiver
+/// and key of a property step whose read waits for the exit.
+pub(crate) trait Live<A: IVm>: Sized {
+    /// The chain's current value: the value itself, or the property read.
+    fn value(self) -> Any<A>;
+    /// The guard of a `?.()` step: whether what the call would call is nullish.
+    fn is_nullish(&self) -> bool;
+    /// The call, its arguments evaluated: `Any::call` of a value, and a
+    /// member's own-property-first resolution.
+    fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>>;
+}
+
+impl<A: IVm> Live<A> for Any<A> {
+    fn value(self) -> Any<A> {
+        self
+    }
+    /// Matches on `Unpacked` rather than `Nullish::try_from`, as
+    /// `nullish_coalescing` does, so the common non-nullish case allocates
+    /// no error value.
+    fn is_nullish(&self) -> bool {
+        matches!(Unpacked::from(self.clone()), Unpacked::Nullish(_))
+    }
+    fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
+        Any::call(self, args)
+    }
+}
+
+impl<A: IVm> Live<A> for Member<A> {
+    fn value(self) -> Any<A> {
+        self.read()
+    }
+    fn is_nullish(&self) -> bool {
+        Member::is_nullish(self)
+    }
+    fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
+        Member::call(self, args)
+    }
+}
+
+/// The state of a chain inside an open region: live, skipped by a guard, or
+/// thrown. Skipped and thrown pass through every step; `end` tells them
+/// apart.
+pub(crate) enum Region<A: IVm, T: Live<A>> {
+    Live(T),
     Skipped,
     Thrown(Any<A>),
 }
 
-impl<A: IVm> From<Result<Any<A>, Any<A>>> for Region<A> {
-    fn from(r: Result<Any<A>, Any<A>>) -> Self {
+impl<A: IVm, T: Live<A>> From<Result<T, Any<A>>> for Region<A, T> {
+    fn from(r: Result<T, Any<A>>) -> Self {
         match r {
             Ok(v) => Region::Live(v),
             Err(e) => Region::Thrown(e),
@@ -47,54 +95,56 @@ impl<A: IVm> From<Result<Any<A>, Any<A>>> for Region<A> {
     }
 }
 
-impl<A: IVm> Region<A> {
+impl<A: IVm, T: Live<A>> Region<A, T> {
     /// The region closed: a skipped chain is `undefined`, the value a
     /// short-circuit answers.
     fn end(self) -> Result<Any<A>, Any<A>> {
         match self {
-            Region::Live(v) => Ok(v),
+            Region::Live(v) => Ok(v.value()),
             Region::Skipped => Ok(Nullish::Undefined.to_any()),
             Region::Thrown(e) => Err(e),
         }
     }
-    /// An unguarded step: `op` over a live value, nothing otherwise.
-    fn step(self, op: impl FnOnce(Any<A>) -> Result<Any<A>, Any<A>>) -> Self {
+    /// An unguarded step: `op` over a live state, nothing otherwise.
+    fn step<U: Live<A>>(self, op: impl FnOnce(T) -> Result<U, Any<A>>) -> Region<A, U> {
         match self {
             Region::Live(v) => op(v).into(),
-            other => other,
+            Region::Skipped => Region::Skipped,
+            Region::Thrown(e) => Region::Thrown(e),
         }
     }
-    /// A guarded step: a nullish live value skips the rest of the chain,
-    /// its thunk untouched.
-    pub(crate) fn guarded(self, op: impl FnOnce(Any<A>) -> Result<Any<A>, Any<A>>) -> Self {
+    /// `|()`: the arguments forced, then the call, whose callability check
+    /// therefore comes second.
+    fn call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Region<A, Any<A>> {
+        self.step(|v| args().and_then(|a| v.call(a)))
+    }
+    /// `|.`: the key forced, then the step over the current value as the
+    /// receiver, whose nullish throw therefore comes second.
+    pub(crate) fn dot(self, key: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Region<A, Member<A>> {
+        self.step(|v| key().and_then(|k| Member::new(v.value(), k)))
+    }
+    /// The `?.` node's own step: a nullish receiver skips the key and the
+    /// rest of the chain; any other takes the step `|.` takes.
+    pub(crate) fn option_dot(
+        self,
+        key: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Region<A, Member<A>> {
         match self {
-            Region::Live(v) if is_nullish(&v) => Region::Skipped,
-            other => other.step(op),
+            Region::Live(v) if v.is_nullish() => Region::Skipped,
+            other => other.dot(key),
         }
     }
-}
-
-/// Matches on `Unpacked` rather than `Nullish::try_from`, as
-/// `nullish_coalescing` does, so the common non-nullish case allocates no
-/// error value.
-fn is_nullish<A: IVm>(v: &Any<A>) -> bool {
-    matches!(Unpacked::from(v.clone()), Unpacked::Nullish(_))
-}
-
-/// The call step's operation: the arguments forced, then `Any::call`,
-/// whose callability check therefore comes second.
-pub(crate) fn call<A: IVm>(
-    args: impl FnOnce() -> Result<Any<A>, Any<A>>,
-) -> impl FnOnce(Any<A>) -> Result<Any<A>, Any<A>> {
-    |callee| args().and_then(|a| callee.call(a))
-}
-
-/// The property step's operation: the key forced, then the read `Any::dot`
-/// is, whose nullish-base throw therefore comes second.
-pub(crate) fn read<A: IVm>(
-    key: impl FnOnce() -> Result<Any<A>, Any<A>>,
-) -> impl FnOnce(Any<A>) -> Result<Any<A>, Any<A>> {
-    |base| key().and_then(|k| base.dot(k).end())
+    /// `|?.()`: a nullish callee skips the rest of the chain, its
+    /// arguments untouched; any other is called.
+    pub(crate) fn option_call(
+        self,
+        args: impl FnOnce() -> Result<Any<A>, Any<A>>,
+    ) -> Region<A, Any<A>> {
+        match self {
+            Region::Live(v) if v.is_nullish() => Region::Skipped,
+            other => other.call(args),
+        }
+    }
 }
 
 /// A receiver is live and no region is open: the state after a `.` node,
@@ -102,26 +152,28 @@ pub(crate) fn read<A: IVm>(
 /// `end` is the bare node, the read with its receiver dropped — the one
 /// property read `nanvm-lib` has, `dot(a, key).end()`.
 ///
-/// No region, so no skipped state: the interior is the read's own
-/// `Result`, its throw waiting for a terminal to surface it — `a.b(...c)`
-/// on a nullish `a` throws at the access with `c` untouched, which is why
-/// `end_call` takes its arguments as a thunk.
+/// No region, so no skipped state: the interior is the step's own
+/// `Result`, its nullish-receiver throw waiting for a terminal to surface
+/// it — `a.b(...c)` on a nullish `a` throws at the access with `c`
+/// untouched, which is why `end_call` takes its arguments as a thunk.
 #[must_use]
-pub struct PropertyLambda<A: IVm>(pub(crate) Result<Any<A>, Any<A>>);
+pub struct PropertyLambda<A: IVm>(pub(crate) Result<Member<A>, Any<A>>);
 
 impl<A: IVm> PropertyLambda<A> {
     /// No continuation: `a.b`.
     pub fn end(self) -> Result<Any<A>, Any<A>> {
-        self.0
+        self.0.map(Member::read)
     }
-    /// `|()`, terminal: `a.b(...args)`. No region is open, so this is also
-    /// what a `|!()` would be — "there is no bit to clear".
+    /// `|()`, terminal: `a.b(...args)`, the property called on its
+    /// receiver — an own property, or a built-in member function. No
+    /// region is open, so this is also what a `|!()` would be — "there is
+    /// no bit to clear".
     pub fn end_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
-        self.0.and_then(call(args))
+        self.0.and_then(|m| args().and_then(|a| m.call(a)))
     }
     /// `|?.()`: `a.b?.(...args)`, opening a region.
     pub fn option_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(Region::from(self.0).guarded(call(args)))
+        OptionLambda(Region::from(self.0).option_call(args))
     }
 }
 
@@ -130,7 +182,7 @@ impl<A: IVm> PropertyLambda<A> {
 /// `|()` (`call`) and `|.` (`dot`); no `|?.()`, and no `|!()` — there is no
 /// receiver for either to justify.
 #[must_use]
-pub struct OptionLambda<A: IVm>(pub(crate) Region<A>);
+pub struct OptionLambda<A: IVm>(pub(crate) Region<A, Any<A>>);
 
 impl<A: IVm> OptionLambda<A> {
     /// No continuation: the region closes, a skipped chain is `undefined`.
@@ -139,12 +191,12 @@ impl<A: IVm> OptionLambda<A> {
     }
     /// `|()`: call the current value, inside the region.
     pub fn call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(self.0.step(call(args)))
+        OptionLambda(self.0.call(args))
     }
-    /// `|.`: read a property of the current value, inside the region; the
-    /// value becomes the receiver.
+    /// `|.`: a property of the current value, inside the region; the value
+    /// becomes the receiver.
     pub fn dot(self, key: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionPropertyLambda<A> {
-        OptionPropertyLambda(self.0.step(read(key)))
+        OptionPropertyLambda(self.0.dot(key))
     }
 }
 
@@ -152,32 +204,37 @@ impl<A: IVm> OptionLambda<A> {
 /// inside a region. Every step is legal here: `|()` (`call`), `|.` (`dot`),
 /// `|?.()` (`option_call`) and `|!()` (`end_call`).
 #[must_use]
-pub struct OptionPropertyLambda<A: IVm>(pub(crate) Region<A>);
+pub struct OptionPropertyLambda<A: IVm>(pub(crate) Region<A, Member<A>>);
 
 impl<A: IVm> OptionPropertyLambda<A> {
     /// No continuation: `(a?.b)`, the region closed with nothing after it.
     pub fn end(self) -> Result<Any<A>, Any<A>> {
         self.0.end()
     }
-    /// `|()`: `a?.b(...args)`, skipped with the region.
+    /// `|()`: `a?.b(...args)`, the property called on its receiver, skipped
+    /// with the region.
     pub fn call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(self.0.step(call(args)))
+        OptionLambda(self.0.call(args))
     }
     /// `|.`: `a?.b.c`, skipped with the region.
     pub fn dot(self, key: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionPropertyLambda<A> {
-        OptionPropertyLambda(self.0.step(read(key)))
+        OptionPropertyLambda(self.0.dot(key))
     }
-    /// `|?.()`: `a?.b?.(...args)`, its own guard on the current value.
+    /// `|?.()`: `a?.b?.(...args)`, its own guard on the callee.
     pub fn option_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> OptionLambda<A> {
-        OptionLambda(self.0.guarded(call(args)))
+        OptionLambda(self.0.option_call(args))
     }
     /// `|!()`, terminal: `(a?.b)(...args)`. The parentheses close the
     /// region first, so a skipped chain is `undefined` here and the call
     /// happens regardless — the arguments are evaluated, then `undefined`
-    /// is called and throws. A thrown chain stays thrown, arguments
-    /// untouched.
+    /// is called and throws. A live chain calls the property on its
+    /// receiver; a thrown chain stays thrown, arguments untouched.
     pub fn end_call(self, args: impl FnOnce() -> Result<Any<A>, Any<A>>) -> Result<Any<A>, Any<A>> {
-        self.0.end().and_then(call(args))
+        match self.0 {
+            Region::Live(m) => args().and_then(|a| m.call(a)),
+            Region::Skipped => args().and_then(|a| Nullish::Undefined.to_any().call(a)),
+            Region::Thrown(e) => Err(e),
+        }
     }
 }
 

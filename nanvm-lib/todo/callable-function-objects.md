@@ -146,9 +146,9 @@ declared position as a `.` node, in whatever spelling the Rust code
 generator ([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs))
 prints for every `.`/`[]` read — `Any::dot(…).end()`
 ([`vm/any/dot.rs`](../src/vm/any/dot.rs),
-[`vm/array/member_access.rs`](../src/vm/array/member_access.rs);
-[`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md))
-— rather than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
+[`vm/lambda`](../src/vm/lambda/mod.rs),
+[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — rather
+than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
 bounds ([`vm/array/index.rs`](../src/vm/array/index.rs)), while
 `Array::member_access` already does its own length and canonical-index
 check internally and answers `None` (which `Any::dot` turns into
@@ -401,11 +401,11 @@ remains is a call whose callee is a property read — `a.b(c)`, `f[0](1)` —
 which the lowering makes the `.` node's `|()` continuation, a method call
 carrying its receiver
 ([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), and the
-printer prints as `Any::dot(a, key).end_call(args)`
-([`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)).
-What remains is what the call does with its receiver: the built-in member
-functions the compiler admits, own property first —
-[`member-functions.md`](./member-functions.md).
+printer prints as `Any::dot(a, key).end_call(args)`, and
+[`vm/lambda`](../src/vm/lambda/mod.rs) calls the property on its receiver:
+an own property or element first, then the receiver type's built-in member
+function. What remains is the table of built-ins the compiler admits,
+entry by entry — [`member-functions.md`](./member-functions.md).
 
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:

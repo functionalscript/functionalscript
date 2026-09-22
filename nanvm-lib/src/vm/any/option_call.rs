@@ -1,6 +1,6 @@
 use crate::vm::{
     Any, IVm,
-    lambda::{OptionLambda, Region, call},
+    lambda::{OptionLambda, Region},
 };
 
 impl<A: IVm> Any<A> {
@@ -11,7 +11,7 @@ impl<A: IVm> Any<A> {
     /// calls it — `1?.(...args)` is the `TypeError` `1(...args)` is, after
     /// the arguments.
     pub fn option_call(self, args: impl FnOnce() -> Result<Self, Self>) -> OptionLambda<A> {
-        OptionLambda(Region::Live(self).guarded(call(args)))
+        OptionLambda(Region::Live(self).option_call(args))
     }
 }
 
