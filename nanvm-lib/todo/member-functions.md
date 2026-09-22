@@ -77,8 +77,17 @@ the amnesia evaluator on the host engine and the generated Rust tests.
 carries its EDAG (`callable-function-objects.md`, Stage 7): it answers the
 placeholder `fn_to_string` in `vm/primitive_coercion.rs` already answers,
 since the compiler has transformed the source text the real one would
-answer. A stub with its TODO is the accepted shape here; the design
-principle against a plausible wrong value binds the MVP surface.
+answer. The same stub reaches every method that converts a function to a
+string on the way — an array's `join` or `toString` over an element that
+is a function, a string method whose argument is one — and the host
+evaluator in `fjs/edag/operations` has the same gap with a different
+placeholder, the text of the closure it wraps a function in. One task,
+Stage 7, closes all of it. A stub with its TODO is the accepted shape here;
+the design principle against a plausible wrong value binds the MVP
+surface. `Number`'s `toString` with a radix is the other stub: a
+non-integer with a radix other than ten is implementation-approximated by
+the specification, so this VM's entry throws for that shape rather than
+approximate, and the corpus pins integers and radix ten alone.
 
 **`toString` is mostly written.** `Any::to_string`, the `String(x)`
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers

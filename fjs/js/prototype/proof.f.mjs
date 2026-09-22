@@ -28,18 +28,21 @@ export const proof = {
         assertEq(prototypeNames.length, union.size)
     },
     // `prohibitedCalls` and `allowedCalls` are each sorted, each name once,
-    // and together they are exactly `prototypeNames`: every prototype name
-    // has one call verdict — at runtime here, and at the type level in
-    // `./types.ts`
+    // and with `length` they are exactly `prototypeNames`: every prototype
+    // name has one call verdict — at runtime here, and at the type level in
+    // `./types.ts`. `length` is on neither list, as it is not on the read
+    // list: a value owns it, and a call of it is a call of what it holds.
     calls: () => {
         for (const names of [prohibitedCalls, allowedCalls]) {
             assertEq(names.join(), sorted(names))
             assertEq(names.length, new Set(names).size)
+            assertEq(/** @type {readonly string[]} */ (names).includes('length'), false)
         }
-        assertEq(sorted([...prohibitedCalls, ...allowedCalls]), prototypeNames.join())
-        assertEq(prohibitedCalls.length + allowedCalls.length, prototypeNames.length)
-        // the six data properties are no functions, so none is callable
-        for (const name of ['__proto__', 'arguments', 'caller', 'constructor', 'length', 'name']) {
+        assertEq(sorted([...prohibitedCalls, ...allowedCalls, 'length']), prototypeNames.join())
+        assertEq(prohibitedCalls.length + allowedCalls.length + 1, prototypeNames.length)
+        // the five data properties a read refuses are no functions, so none
+        // is callable
+        for (const name of ['__proto__', 'arguments', 'caller', 'constructor', 'name']) {
             assertEq(prohibitedCalls.includes(/** @type {any} */ (name)), true)
         }
     },

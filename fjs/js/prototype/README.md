@@ -15,12 +15,12 @@ compile time:
   JavaScript. A detached built-in is a function that only fails, so the
   language never has one as a value, and the VM needs no prototype.
 - **Call** (`a.x(...)`, and `a?.x(...)` once the grammar spells it): a name
-  in `prohibitedCalls` is refused; every other prototype name is a member
-  function the VM answers by the receiver's type. An own property of the
+  in `prohibitedCalls` is refused; every other prototype name but `length` is a
+  member function the VM answers by the receiver's type, and `length`, which
+  a value owns, is a call of what the value holds. An own property of the
   name on an object shadows the built-in, a type without the built-in throws
   the `TypeError` JavaScript throws, and a nullish receiver throws before the
-  arguments are evaluated. Which of them `nanvm-lib` answers today, pair by
-  pair, is [`nanvm-lib/todo/member-functions.md`](../../../nanvm-lib/todo/member-functions.md).
+  arguments are evaluated.
 
 ✅ means allowed and ❌ prohibited. The lists are ECMAScript 2025's, Annex B
 included, string keys only; they grow with the language's types — `Map` and
@@ -73,7 +73,7 @@ included, string keys only; they grow with the language's types — `Map` and
 | `join` | ❌ | ✅ | Array. Pure, elements converted to string. |
 | `keys` | ❌ | ❌ | Array. Answers an iterator. |
 | `lastIndexOf` | ❌ | ✅ | Array, String. Pure, strict equality. |
-| `length` | ✅ | ❌ | Array, String, Function. Data property each value owns, so the read agrees with JavaScript. Not a function. |
+| `length` | ✅ | ✅ | Array, String, Function. Data property each value owns, so the read agrees with JavaScript. On neither list: a call of it is a call of what the value holds, a function on an object, a `TypeError` on an array, a string or a function. |
 | `link` | ❌ | ❌ | String. Annex B. Legacy HTML wrapper. |
 | `localeCompare` | ❌ | ❌ | String. Reads the host locale. |
 | `map` | ❌ | ✅ | Array. Pure, answers a new array. |
@@ -133,5 +133,5 @@ included, string keys only; they grow with the language's types — `Map` and
 |---|---|
 | all | 100 |
 | read allowed | 1 |
-| call allowed | 44 |
-| call prohibited | 56 |
+| call allowed | 44, and `length` as an own property |
+| call prohibited | 55 |

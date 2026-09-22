@@ -1080,8 +1080,11 @@ export const proof = {
             refused('const f = (...a) => 1; const o = {}; export default f(o.toString);', 'prohibited property name', 57)
             refused('const o = {}; export default o.toString.x(1);', 'prohibited property name', 32)
             refused('const o = {}; export default o.toString(1).valueOf();', 'prohibited member function', 44)
-            // `length` is readable and not callable: a data property
-            refused('const a = []; export default a.length(1);', 'prohibited member function', 32)
+            // `length` is on neither list: a value owns it, so a call of it
+            // is a call of what it holds — a function on an object, and a
+            // number, thrown for at run time, on an array
+            expect('const f = (...a) => 1; const o = { length: f }; export default o.length();', '[[],[["=>",[1]],["object",[["length",["cref",0]]]],["object",[["default",["()",[".",["cref",1],"length"],[]]]]]]]')
+            expect('const a = []; export default a.length(1);', '[[],[["array",[]],["object",[["default",["()",[".",["cref",0],"length"],[1]]]]]]]')
         },
         // A call on a numeric literal is a call like any other, and the sign
         // is outside it: JavaScript reads `-1()` as `-(1())` and calls `1`,

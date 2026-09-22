@@ -31,9 +31,14 @@ export type ProhibitedCall = (typeof prohibitedCalls)[number]
 /** A prototype name a module may call as a member function. */
 export type AllowedCall = (typeof allowedCalls)[number]
 
-/** The two call lists partition the prototype names: their union is every name, and they share none. */
-type _CallsPartition = Assert<Equal<ProhibitedCall | AllowedCall, PrototypeName>>
+/**
+ * The two call lists and `length` partition the prototype names: their
+ * union is every name, and no two share one. `length` is on neither list,
+ * a value owning it.
+ */
+type _CallsPartition = Assert<Equal<ProhibitedCall | AllowedCall | 'length', PrototypeName>>
 type _CallsDisjoint = Assert<Equal<ProhibitedCall & AllowedCall, never>>
+type _LengthOnNeither = Assert<Equal<Extract<ProhibitedCall | AllowedCall, 'length'>, never>>
 
 type _NamesPinned = Assert<Equal<
     PrototypeName,
