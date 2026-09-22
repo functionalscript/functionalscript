@@ -125,35 +125,51 @@ export const proof = {
             assert(!html.includes('data-graph-edge-kind'), html)
         },
         /**
-         * **Merging keeps a kind only where every edge merged had it.** Two
-         * references to one node, one marked and one not, are a single line
-         * that cannot be both — and the unmarked reading holds, since a lazy
-         * operand says a node *may* go unevaluated, which an eager reference
-         * from the same place already answers.
+         * **Only edges of one kind merge.** A kind describes the position,
+         * so two positions that differ in one stay two lines: merging them
+         * would draw `a && a` — both operands one node — as a single solid
+         * line labelled `left, right`, saying the conditional operand was
+         * not conditional.
          */
-        mergingDropsAKindThatDiffers: () => {
+        keepsKindsApart: () => {
             const nodes = [
                 { id: 0, kind: 'a', label: 'root', rank: 0 },
                 { id: 1, kind: 'a', label: 'shared', rank: 1 },
             ]
-            const both = htmlToString(graphSvg({
+            const mixed = htmlToString(graphSvg({
                 nodes,
                 edges: [
-                    { from: 0, to: 1, label: 'a', kind: 'lazy' },
-                    { from: 0, to: 1, label: 'b' },
+                    { from: 0, to: 1, label: 'left' },
+                    { from: 0, to: 1, label: 'right', kind: 'lazy' },
                 ],
             }))
-            assert(!both.includes('data-graph-edge-kind'), both)
-            assert(both.includes('>a, b<'), both)
-            // Both marked, and the one line keeps the mark.
+            // Two lines, the marked one still marked, and neither label
+            // folded into the other.
+            assertEq(mixed.split('data-graph-edge=""').length - 1, 2)
+            assertEq(mixed.split('data-graph-edge-kind="lazy"').length - 1, 1)
+            assert(!mixed.includes('>left, right<'), mixed)
+            // Bowed apart, or they would land on one curve. Only the
+            // lines are counted: the arrowhead marker is a path too.
+            const curves = new Set(
+                [...mixed.matchAll(/<path d="([^"]+)" data-graph-edge=""/g)].map(m => m[1]))
+            assertEq(curves.size, 2)
+        },
+        // Two of one kind are still one line, labelled with both.
+        mergesWhenTheKindMatches: () => {
+            const nodes = [
+                { id: 0, kind: 'a', label: 'root', rank: 0 },
+                { id: 1, kind: 'a', label: 'shared', rank: 1 },
+            ]
             const alike = htmlToString(graphSvg({
                 nodes,
                 edges: [
-                    { from: 0, to: 1, label: 'a', kind: 'lazy' },
-                    { from: 0, to: 1, label: 'b', kind: 'lazy' },
+                    { from: 0, to: 1, label: 'then', kind: 'lazy' },
+                    { from: 0, to: 1, label: 'else', kind: 'lazy' },
                 ],
             }))
+            assertEq(alike.split('data-graph-edge=""').length - 1, 1)
             assert(alike.includes('data-graph-edge-kind="lazy"'), alike)
+            assert(alike.includes('>then, else<'), alike)
         },
         /**
          * **Boxes, then edges, then the node labels** — the document order

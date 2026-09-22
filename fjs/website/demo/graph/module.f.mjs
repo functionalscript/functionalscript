@@ -104,23 +104,22 @@ const layout = nodes => byRank(nodes).flatMap(
  * last label is ever visible, so they draw as one line labeled with every
  * index or key that reaches it.
  *
- * **A merged edge keeps a kind only where every edge merged into it had
- * that one.** Two references to a node, one a demo marked and one it did
- * not, are one line that cannot be both, and the unmarked reading is the
- * one that holds: a lazy operand says a node *may* go unevaluated, which an
- * eager reference to the same node from the same place already answers.
+ * **Only edges of one kind merge.** An earlier version merged by endpoints
+ * alone and dropped a kind the two did not share, which drew `a && a` — both
+ * operands one node — as a single solid line labelled `left, right`, saying
+ * the conditional operand was not conditional. The positions are what a
+ * kind describes, so two positions that differ in one stay two lines;
+ * {@link graphSvg} bows them apart, since same-pair lines otherwise land on
+ * the same curve.
  *
  * @type {(edges: readonly Edge[]) => readonly Edge[]}
  */
 const mergeParallel = edges => edges.reduce((acc, edge) => {
-    const at = acc.findIndex(e => e.from === edge.from && e.to === edge.to)
-    if (at === -1) { return [...acc, edge] }
-    const kept = acc[at]
-    return acc.with(at, {
-        ...kept,
-        label: `${kept.label}, ${edge.label}`,
-        kind: kept.kind === edge.kind ? kept.kind : undefined,
-    })
+    const at = acc.findIndex(
+        e => e.from === edge.from && e.to === edge.to && e.kind === edge.kind)
+    return at === -1
+        ? [...acc, edge]
+        : acc.with(at, { ...acc[at], label: `${acc[at].label}, ${edge.label}` })
 }, /** @type {readonly Edge[]} */ ([]))
 
 /**
@@ -151,14 +150,21 @@ export const graphSvg = g => {
     const width = positioned.reduce((m, p) => Math.max(m, p.x + p.width), 0) + margin
     const height = margin + positioned.reduce((m, p) => Math.max(m, p.y + p.height), 0)
     /** @type {readonly Element[]} */
-    const edgeEls = mergeParallel(g.edges).flatMap(edge => {
+    const merged = mergeParallel(g.edges)
+    const edgeEls = merged.flatMap((edge, i) => {
+        // Lines between one pair that did not merge — they differ in kind —
+        // would land on the same curve, so each after the first is bowed
+        // further out. A pair with one line is untouched, which is every
+        // pair a demo that marks nothing can produce.
+        const sibling = merged.filter(
+            (e, j) => j < i && e.from === edge.from && e.to === edge.to).length
         const from = at(edge.from)
         const to = at(edge.to)
         const x1 = from.x + from.width / 2
         const y1 = from.y + from.height
         const x2 = to.x + to.width / 2
         const y2 = to.y
-        const bow = to.rank - from.rank > 1 ? 24 : 0
+        const bow = (to.rank - from.rank > 1 ? 24 : 0) + sibling * 20
         const cx = (x1 + x2) / 2 + bow
         const cy = (y1 + y2) / 2
         // Two-thirds of the way to the child, not the midpoint: several

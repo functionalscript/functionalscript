@@ -46,6 +46,7 @@
  */
 
 import { parse } from '../transpiler/module.f.mjs'
+import { lazyOp2Id } from '../../edag/module.f.mjs'
 import { _defaultExport, unresolved } from './module.f.mjs'
 import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
@@ -70,18 +71,18 @@ const op2 = new Set([
 const op12 = new Set(['+', '-'])
 
 /**
- * The `op2` tags whose **right** operand is lazy: established only where the
- * left has not already decided the answer.
+ * The `op2` tags whose **right** operand is lazy, taken from `fjs/edag` rather
+ * than repeated here: the executor and this drawing have to agree about
+ * which operand may go unevaluated, and a second list is the one that
+ * drifts.
  *
- * `fjs/edag`'s own doc says they short-circuit "exactly as in JS: their right
- * operand is conditional, never established eagerly", and that "all this
- * laziness is positional, not nodal — the same node referenced from an
- * eager position elsewhere is still evaluated there". That last sentence is
- * why the mark belongs on the edge: a node is drawn once however many
- * references reach it, and one of them being conditional says nothing about
- * the others.
+ * Why the mark then belongs on the **edge** and not on the node it reaches:
+ * `fjs/edag`'s doc again — "all this laziness is positional, not nodal — the
+ * same node referenced from an eager position elsewhere is still evaluated
+ * there". A node is drawn once however many references reach it, and one of
+ * them being conditional says nothing about the others.
  */
-const lazyRight = new Set(['&&', '||', '??'])
+const lazyRight = new Set(lazyOp2Id)
 
 /** @type {(index: unknown) => string} */
 const dotLabel = index => typeof index === 'number' || typeof index === 'string'
