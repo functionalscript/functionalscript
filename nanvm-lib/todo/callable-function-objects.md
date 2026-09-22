@@ -487,7 +487,8 @@ generated-Rust test from one source of cases.
       value, the module bounding on `IStaticFunction`; `length` `0` until
       named parameters exist.
 - [ ] Stage 3: capturing closures — approved function-node lowering, the
-      frame built as an `Array<A>` and handed to `A::static_function`.
+      frame built as an `Array<A>` and handed to `A::static_function`;
+      the proposal is [`fjs/fsc/todo/captures.md`](../../fjs/fsc/todo/captures.md).
 - [x] Stage 4: the plain call landed with Stage 1 — `Any::call` is the
       one call form, a non-function callee throwing through
       `TryFrom<Any<A>> for Function<A>` — and the method call with chains,
