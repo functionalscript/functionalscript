@@ -28,7 +28,7 @@ export type Ranked = Node & { readonly rank: number }
  * One edge, from a node's id to another's, labeled with the index or key
  * that reaches it.
  *
- * @`kind` is the demo's own vocabulary, as a {@link Node}'s is, and is
+ * `kind` is the demo's own vocabulary, as a {@link Node}'s is, and is
  * absent where a demo draws one kind of edge. `"lazy"` draws dashed by the
  * site's stylesheet; any other value, and none, draws solid.
  *

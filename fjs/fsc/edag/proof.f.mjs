@@ -818,9 +818,11 @@ export const proof = {
              * **An operand a node may never evaluate is marked on its
              * edge.** `&&`, `||` and `??` establish their right operand
              * only where the left has not decided the answer, and `?:`
-             * exactly one arm. None of the four parses yet — the front
-             * end refuses them, which is `../todo/stage-b-operators.md` —
-             * so these build the nodes by hand, as the `frame` case does.
+             * exactly one arm.
+             *
+             * Built by hand here because `_shapeOf` is what these pin, one
+             * tag at a time; `lazyThroughTheParser` below reads the same
+             * four out of source, which `fsc` accepts since Stage B.
              */
             lazyRightOperand: () => {
                 for (const tag of ['&&', '||', '??']) {
