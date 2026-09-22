@@ -125,18 +125,26 @@ where a thunk belongs does not compile.
   they are.
 
 A thunk says when an operand may be *skipped*; it says nothing about
-where it runs when it is not. That is fixed separately: on a live chain a
-step forces its thunk first, before it looks at the current value at
-all. JavaScript evaluates a call's arguments before it checks that the
-callee is callable, and a computed key before the read that throws on a
-nullish base, so `1?.(boom)` throws `boom`'s value and not the
-`TypeError`, and `a?.b[k()]` with `a.b` undefined throws from `k`.
-`callValue` in
-[`../../operations/module.f.mjs`](../../operations/module.f.mjs)
-inherits that order by spelling the call as JavaScript; a thunk has to
-state it. An implementation that converts the callee first and answers
-its `TypeError` without forcing the thunk is wrong on every non-callable
-live callee whose arguments throw.
+where it runs when it is not. That is fixed separately, and on a live
+chain the order is *guard, thunk, operation*:
+
+- A step's guard, where it has one, comes first. `?.`, `?.()` and `|?.()`
+  ask whether the current value is nullish, and if it is they skip the
+  thunk and the rest of the chain: `a.b?.(boom)` with a nullish `a.b` is
+  `undefined` and `boom` never runs — `optionCallStepSkips` in
+  [`../../amnesia/proof.f.mjs`](../../amnesia/proof.f.mjs), and the
+  `nullish(obj[prop])` test ahead of `callProperty` in
+  [`../../operations/module.f.mjs`](../../operations/module.f.mjs).
+- Everything else a step asks of the current value comes *after* the
+  thunk is forced. JavaScript evaluates a call's arguments before it
+  checks that the callee is callable, and a computed key before the read
+  that throws on a nullish base, so `1?.(boom)` throws `boom`'s value and
+  not the `TypeError`, and `a?.b[k()]` with `a.b` undefined throws from
+  `k`. `callValue` in the same module inherits that order by spelling the
+  call as JavaScript; a thunk has to state it. An implementation that
+  converts the callee first and answers its `TypeError` without forcing
+  the thunk is wrong on every non-callable live callee whose arguments
+  throw.
 
 **A lambda carries a deferred throw.** `dot` answers a `PropertyLambda`,
 not a `Result`, so a nullish receiver cannot throw there: the `TypeError`
@@ -227,11 +235,11 @@ only through lazy operands has none today.
       cases the README says JavaScript cannot pin: `a.b(...c)` against
       `(a?.b)(...c)` on a nullish base, and the skipped key and arguments
       inside a region.
-- [ ] `nanvm-lib`: a test per live step that its thunk is forced first —
+- [ ] `nanvm-lib`: a test per live step of *guard, thunk, operation* —
+      a guarded step on a nullish current value never forces its thunk;
       a non-callable callee with throwing arguments answers the
-      arguments' throw, a nullish current value with a throwing key
-      answers the key's — the case JavaScript *can* pin and the `Err`
-      values tell apart.
+      arguments' throw; a nullish base with a throwing key answers the
+      key's — cases JavaScript *can* pin and the `Err` values tell apart.
 - [ ] Printer: the eager positions per tag above, in `reach` and
       `lazyOperandsOf`, with a proof that a shared node reached only
       through a chain position is refused and that an operation inside a
@@ -239,8 +247,10 @@ only through lazy operands has none today.
 - [ ] Printer: every `.` node as `dot(…).end()`, then `?.`, `?.()` and the
       four steps; `Any::member_access` disappears from the generated text,
       so the fixtures under `nanvm-harness/fixtures` and the proofs that
-      pin the old spelling are regenerated in the same PR; refuse nothing
-      the README allows.
+      pin the old spelling are regenerated in the same PR, and the
+      argument-read sample in
+      [`callable-function-objects.md`](../../../../nanvm-lib/todo/callable-function-objects.md)
+      follows; refuse nothing the README allows.
 - [ ] `IFunction::call` gains a receiver, and `end_call` hands it over —
       the Stage 4 item in
       [`callable-function-objects.md`](../../../../nanvm-lib/todo/callable-function-objects.md).
