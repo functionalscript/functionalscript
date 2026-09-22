@@ -51,6 +51,8 @@ pub mod sharing;
 pub mod string;
 #[path = "../fixtures/throws.rs"]
 pub mod throws;
+#[path = "../fixtures/to-string.rs"]
+pub mod to_string;
 
 use core::fmt::{self, Debug, Display, Formatter};
 
@@ -135,7 +137,7 @@ mod tests {
     use crate::{
         RunError, arity, array, boolean, call, calls, escapes, function_scope, length, method,
         missing, named, nested, not_a_function, number, object, operators, property, rest, run,
-        sharing, string, throws,
+        sharing, string, throws, to_string,
     };
 
     #[test]
@@ -282,6 +284,16 @@ mod tests {
     #[test]
     fn method_call() {
         assert_eq!(run::<Naive>(method::module), Ok("42".into()));
+    }
+
+    /// `x.toString()` on every type, a built-in member function the
+    /// receiver does not own, and an own `toString` shadowing it.
+    #[test]
+    fn to_string_method() {
+        assert_eq!(
+            run::<Naive>(to_string::module),
+            Ok(r#"["1.5","true","ab","5","1,b","[object Object]","own"]"#.into())
+        );
     }
 
     #[test]

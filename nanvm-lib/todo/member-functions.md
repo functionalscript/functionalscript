@@ -1,7 +1,8 @@
 ## Member functions of the built-in types
 
 **Priority:** P2
-**Status:** open — nothing answered yet; every pair below is unchecked
+**Status:** open — `toString` is answered on every type, as a dispatch to
+`Any::to_string`; the rest is unchecked
 
 ### Problem
 
@@ -9,36 +10,36 @@ The compiler admits a method call whose name is a built-in member function,
 `[1, 2].at(0)` or `n.toFixed(2)`: the names `allowedCalls` in
 [`fjs/js/prototype`](../../fjs/js/prototype/module.f.mjs) lists, one row
 each with its reason in [its README](../../fjs/js/prototype/README.md).
-The VM does not answer any of them. A call step — `PropertyLambda::end_call`,
-`OptionPropertyLambda::call`, `option_call` and `end_call` in
-[`vm/lambda`](../src/vm/lambda/mod.rs) — reads the property and calls the
-value, so on a built-in name the read answers `undefined` and the call
-throws the `TypeError` for calling it, where JavaScript answers `1`. A
-compiled module that calls one is wrong on this VM until this lands, which
-is the divergence the two-list design exists to prevent: the compiler's
-list is the set of names the VM must answer.
+The VM answers `toString` and nothing else. A call step —
+`PropertyLambda::end_call`, `OptionPropertyLambda::call`, `option_call` and
+`end_call` in [`vm/lambda`](../src/vm/lambda/mod.rs) — resolves an own
+property or element, then the receiver type's built-in from the table in
+`vm/lambda/method.rs`, then throws the `TypeError` for calling `undefined`;
+every built-in but `toString` is missing from that table, so `[1, 2].at(0)`
+throws where JavaScript answers `1`. A compiled module that calls one is
+wrong on this VM until its entry lands, which is the divergence the
+two-list design exists to prevent: the compiler's list is the set of names
+the VM must answer.
 
 ### Proposal
 
 **The algorithm of a call step**, after the guard and the arguments — a
 nullish receiver throws first, and a guarded step skips a nullish receiver
-with its arguments untouched
-([`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)):
+with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
 
-1. **An object**: an own property of the name, `Object::member_access`. A
-   function is called with the arguments; any other value is the
-   `TypeError` for calling a non-function. An own property shadows the
-   built-in, as in JavaScript, so `{ toString: f }.toString()` calls `f`.
-2. **An array**: an element at a canonical index key,
-   `Array::member_access`, called or thrown the same way — `[f][0](1)` is a
-   legal program that calls `f`. A prototype name is never an index and an
-   index never a prototype name, so the two lookups never compete.
-3. **Every type**: the type's built-in of that name, the specification's
-   algorithm over the receiver and the arguments. A string's index owns a
-   character and a function owns `length`, neither callable, and the
-   primitives own nothing, so no other type needs the own-property step:
-   the built-in table and then the `TypeError` give what JavaScript gives.
-4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
+1. **The own property**, the same dispatch the read makes: an object's
+   property, an array's element, a string's character, a function's
+   `length`. A function is called with the arguments; any other value is
+   the `TypeError` for calling a non-function, never passed over for a
+   built-in. An own property shadows the built-in, as in JavaScript, so
+   `{ toString: f }.toString()` calls `f`, `[f][0](1)` calls the element,
+   and `"a"[0]()` throws. A prototype name is never an index and an index
+   never a prototype name, so the two lookups never compete. The guard of
+   `?.()` asks this same lookup, so `"a"[0]?.()` throws rather than skips,
+   the character being no more nullish than `f.length` is.
+2. **The built-in**: the receiver type's built-in of that name, the
+   specification's algorithm over the receiver and the arguments.
+3. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
 The lookup may follow the arguments because nothing here mutates, so its
@@ -84,10 +85,13 @@ evaluator in `fjs/edag/operations` has the same gap with a different
 placeholder, the text of the closure it wraps a function in. One task,
 Stage 7, closes all of it. A stub with its TODO is the accepted shape here;
 the design principle against a plausible wrong value binds the MVP
-surface. `Number`'s `toString` with a radix is the other stub: a
-non-integer with a radix other than ten is implementation-approximated by
-the specification, so this VM's entry throws for that shape rather than
-approximate, and the corpus pins integers and radix ten alone.
+surface. `Number`'s `toString` with a radix is the other stub, and today
+it is a stub in full: the entry reads no arguments, so `(255).toString(16)`
+answers `"255"` and `(1.5).toString(2)` answers `"1.5"`. The plan, the
+radix task below, is a radix for integers and for bigints, and a throw for
+a non-integer with a radix other than ten, which the specification leaves
+implementation-approximated, with the corpus pinning integers and radix
+ten alone.
 
 **`toString` is mostly written.** `Any::to_string`, the `String(x)`
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
@@ -103,11 +107,17 @@ once for both — and `Number`'s `toString` takes no radix.
 
 Infrastructure:
 
-- [ ] `vm/lambda`: the live state holds the receiver and the key; `end`
+- [x] `vm/lambda`: the live state holds the receiver and the key; `end`
       reads; the call exits run the algorithm above; `option_call`'s guard
-      uses the lookup.
-- [ ] The dispatch table per type, and the generated completeness test
-      over `allowedCalls`.
+      uses the lookup — `Member` in `vm/lambda/member.rs`, whose `own` is
+      one dispatch for the read, the callee and the guard.
+- [ ] The dispatch table per type — `method` in `vm/lambda/method.rs`
+      holds the first entry and matches on the key alone, since every type
+      has `toString` — and the generated completeness test over
+      `allowedCalls`.
+- [ ] `toString` reads its arguments: a radix for `Number` and `BigInt`.
+      Today the arguments are not read, so `(255).toString(16)` answers
+      `"255"` — a stub with this as its TODO.
 - [ ] Corpus cases for every entry, run on the host engine and as
       generated Rust.
 - [ ] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
@@ -115,7 +125,7 @@ Infrastructure:
 
 `Object`:
 
-- [ ] `toString`
+- [x] `toString`
 
 `Array`:
 
@@ -141,7 +151,7 @@ Infrastructure:
 - [ ] `toReversed`
 - [ ] `toSorted`
 - [ ] `toSpliced`
-- [ ] `toString`
+- [x] `toString`
 - [ ] `with`
 
 `String`:
@@ -165,7 +175,7 @@ Infrastructure:
 - [ ] `split`
 - [ ] `startsWith`
 - [ ] `substring`
-- [ ] `toString`
+- [x] `toString`
 - [ ] `toWellFormed`
 - [ ] `trim`
 - [ ] `trimEnd`
@@ -176,29 +186,32 @@ Infrastructure:
 - [ ] `toExponential`
 - [ ] `toFixed`
 - [ ] `toPrecision`
-- [ ] `toString` — radix ten, and a radix argument for integers alone,
-      the specification leaving other radices implementation-approximated
-      for non-integers.
+- [x] `toString` — radix ten; the radix argument is the infrastructure
+      task above, since the specification leaves other radices
+      implementation-approximated for non-integers.
 
 `Boolean`:
 
-- [ ] `toString`
+- [x] `toString`
 
 `BigInt`:
 
-- [ ] `toString` — every radix, fully specified.
+- [x] `toString` — radix ten; every radix is fully specified and is the
+      infrastructure task above.
 
 `Function`:
 
-- [ ] `toString` — a stub answering `fn_to_string`'s placeholder until a
+- [x] `toString` — a stub answering `fn_to_string`'s placeholder until a
       function carries its EDAG.
 
 ### Related
 
 - [`fjs/js/prototype/README.md`](../../fjs/js/prototype/README.md) — the
   table: both lists, one row per name with its reason.
-- [`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)
-  — the lambda types these exits belong to; its receiver task is this file.
+- [`fjs/edag/README.md`](../../fjs/edag/README.md), Chains — the two bits
+  and the four steps the lambda types transcribe; the printer's
+  per-position laziness is in
+  [`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs).
 - [`callable-function-objects.md`](./callable-function-objects.md) — Stage
   4, the method call, which this file completes.
 - [`vm/lambda/mod.rs`](../src/vm/lambda/mod.rs) — the exits that change,
