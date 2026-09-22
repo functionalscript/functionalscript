@@ -52,9 +52,13 @@ const any = range(` ${unicodeMax}`)
 /**
  * The three symbols that open a span. Everything else is text, which is why
  * a parenthesis, a bracket that closes one and a digit are all ordinary
+ * here. The backslash is not a span opener at all: it escapes the next
+ * punctuation mark in CommonMark, so `\\*a\\*` is the literal `*a*` there
+ * and would be emphasis here. Nothing in this subset reads it, so it is
+ * refused rather than read as the character it is not.
  * here.
  */
-const opening = '`*['
+const opening = '`*[\\'
 
 /**
  * A body that neither begins nor ends with a space: runs of ordinary
@@ -149,10 +153,19 @@ export const emphasis = /**@type {const}*/(['*', {
  * follows as the link's title, so `[x](u "t")` links to `u` there and
  * would link to `u "t"` here — the wrong address again, and the form a
  * writer reaches for when captioning a link.
+ *
+ * **A backslash is refused wherever it would escape something.**
+ * CommonMark escapes a punctuation mark with one, so `[x](a\\)b)` is a link
+ * to `a)b` — the closing parenthesis is content, not the end of the
+ * destination. Read without escapes the destination ends early and the
+ * link points somewhere else, the same wrong-address failure the
+ * parenthesis and the space are refused for. The label refuses one too,
+ * and so does a text run, where `\\*a\\*` would otherwise become emphasis
+ * the source does not have.
  */
 export const link = /**@type {const}*/([
-    '[', repeatFrom1(remove(any, set('][*`'))),
-    '](', repeatFrom1(remove(any, set(')( '))), ')',
+    '[', repeatFrom1(remove(any, set('][*`\\'))),
+    '](', repeatFrom1(remove(any, set(')( \\'))), ')',
 ])
 
 /**

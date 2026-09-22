@@ -1,4 +1,4 @@
-## The subset reads less than CommonMark, and refuses the difference
+## The subset reads less than CommonMark, and refuses only some of the difference
 
 **Priority:** P3
 **Status:** open
@@ -29,21 +29,49 @@ than argued from the spec:
 | a nested list marker | a list inside the item | refused |
 | a blank line inside an item | two paragraphs | refused |
 
-**The list is open, and that is the shape of the problem rather than an
-accident of how far review has got.** CommonMark defines far more than this
-subset reads — autolinks, entity references, hard line breaks, backslash
-escapes, raw HTML, setext headings — and each one found is another entry
-here. The refusals are cheap and correct one at a time; what they do not do
-is bound the set. Deciding that the changelog is read by a conformant reader,
-rather than by a grammar for the subset its entries have used, is the
-alternative this file does not take, and the one to weigh if the list keeps
-growing.
+### What is accepted and still read differently
+
+**This is the half the title used to claim did not exist.** Each of these
+parses without complaint and produces a document GitHub does not:
+
+| written | GitHub reads | this subset |
+| --- | --- | --- |
+| `_a_`, `__a__` | emphasis, strong | plain text |
+| `\\*a\\*` elsewhere than a link | the literal `*a*` | refused since a backslash is |
+| a backtick run inside a span | one span holding it | two spans |
+| `&amp;` | an entity | plain text |
+| `<br>`, `Array<T>` outside code | raw HTML | plain text |
+| `<https://…>` | an autolink | plain text |
+| a line ending in two spaces or a backslash | a hard line break | joined with a space |
+| `- # h`, `- > q`, `- 1. x`, `- - a` | a heading, quote or list in the item | prose |
+| `  1. x`, `  # h` on a continuation | the same | prose |
+
+The last two rows are the sharpest: an indented `- child` **is** refused, as a
+nested list, while the other markers at the same position are read as prose.
+The refusal is not wrong; it is alone.
+
+Also refused, and worth naming because each is ordinary prose a release
+author may write: `[WIP]` and any other bracket that opens no link, `2*3` and
+any other lone asterisk, and a tab anywhere. The first two are refused for
+the flanking and label rules above, the last because no rule admits it.
+
+### The list is open, and that is the shape of the problem
+
+CommonMark defines far more than this subset reads, and each round of review
+finds more of it. The refusals are cheap and correct one at a time; what they
+do not do is bound the set, and the table above is the evidence — it grew
+from nothing to nine rows without a line of the grammar changing.
+
+**The alternative this file does not take** is deciding that a released file
+is read by a conformant reader rather than by a grammar for the subset its
+entries have happened to use. That is a larger question than any row here,
+and the one to weigh if the list keeps growing.
 
 Two of the ten would have produced the **wrong address** rather than a
 different rendering: a destination stopped at the first `)`, and one that
 swallowed a title. Those are the reason the refusals are worth their cost.
 
-None of the ten appears in the tree. Measured by parsing rather than by
+None of the refusals appears in the tree. Measured by parsing rather than by
 pattern: of its 346 emphasised spans, none is padded and none holds a
 backtick or bracket; no code span is padded; no entry holds two adjacent
 backticks, a label with a span opener, a target with a parenthesis or a

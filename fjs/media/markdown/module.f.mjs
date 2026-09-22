@@ -130,24 +130,38 @@ const entryOf = node => {
  * @type {(text: string) => Result<readonly string[], string>}
  */
 export const entryTexts = text => {
-    const lines = text.split('\n')
+    // A carriage return is a line ending, not content. A file written on
+    // Windows carries one at every break, and refusing it would fail a
+    // build over the editor a contributor happened to use.
+    const lines = text.split('\n').map(line =>
+        line.endsWith('\r') ? line.slice(0, -1) : line)
     /** @type {readonly string[]} */
     let out = []
-    let blankSeen = false
+    let blankAt = -1
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i]
         const refuse = /** @type {(why: string) => Result<readonly string[], string>} */(
             why => error(`line ${i + 1}: ${why}`))
-        if (line.trim() === '') { blankSeen = true }
-        else if (blankSeen) {
-            // A blank line between two lines with words on them is a
-            // paragraph break, which an entry has no room for: CommonMark
-            // reads two paragraphs in one item, and joining them across the
-            // break would answer with one. Only the trailing newline every
-            // released file ends with is a blank this reads.
-            return refuse('a blank line inside an entry')
+        if (line.trim() === '') { blankAt = blankAt === -1 ? i : blankAt }
+        else if (blankAt !== -1) {
+            // The only blank a released file has is the newline it ends
+            // with. A blank anywhere else separates paragraphs inside an
+            // entry, or loosens the list between two — either way a
+            // structure the entries cannot carry, and joining across it
+            // answers with one where the source had two.
+            // Named for the blank rather than for the line that followed it:
+            // the line here is valid, and the one to delete is the one above.
+            return error(
+                `line ${blankAt + 1}: a blank line, which only the end of a file may be`)
         }
-        else if (line.startsWith('- ')) { out = [...out, line.slice(2)] }
+        else if (line.startsWith('- ')) {
+            // **The marker is the dash and the spaces after it.** A second
+            // space is indentation, not the first character of the entry:
+            // `changelog/0.44.0.md` has one, and keeping it gave that entry
+            // a leading `['text', ' ']` span that CommonMark strips and no
+            // reader of the page could see.
+            out = [...out, line.slice(2).trimStart()]
+        }
         else if (line.startsWith('  ') && out.length !== 0) {
             const content = line.trim()
             // An indented marker opens a nested list, which CommonMark

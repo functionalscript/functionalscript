@@ -28,6 +28,14 @@ export const proof = {
         // nothing and is not refused either — joining it would put a trailing
         // space on the entry above it.
         blankIndented: () => assertStructurallySame(unwrap(entryTexts('- a\n   \n')), ['a']),
+        // **The marker is the dash and the spaces after it.** A second
+        // space is indentation, not the entry's first character:
+        // `changelog/0.44.0.md` has one, and keeping it gave that entry a
+        // leading empty-looking `text` span that CommonMark strips.
+        twoSpacesAfterTheDash: () => assertStructurallySame(unwrap(entryTexts('-  a\n')), ['a']),
+        // A carriage return is a line ending, not content. A file written
+        // on Windows carries one at every break.
+        crlf: () => assertStructurallySame(unwrap(entryTexts('- a\r\n  b\r\n')), ['a b']),
         empty: () => assertStructurallySame(unwrap(entryTexts('')), []),
         /**
          * **A line that is neither is refused, and says which line it was.**
@@ -49,6 +57,13 @@ export const proof = {
             // A blank line between two lines with words on them is a
             // paragraph break, which an entry has no room for.
             interiorBlank: () => assertEq(entryTexts('- first\n\n  second\n')[0], 'error'),
+            // The same refusal covers a blank between two entries and one
+            // before the first, so it is named for what it checks rather
+            // than for the case that prompted it.
+            blankBetweenEntries: () => assertEq(entryTexts('- a\n\n- b\n')[0], 'error'),
+            leadingBlank: () => assertEq(entryTexts('\n- a\n')[0], 'error'),
+            namesTheBlank: () => assertEq(entryTexts('- a\n\n- b\n')[1],
+                'line 2: a blank line, which only the end of a file may be'),
             saysWhichLine: () => assertEq(entryTexts('- a\nb\n')[1], 'line 2: neither an entry nor a continuation of one'),
         },
     },

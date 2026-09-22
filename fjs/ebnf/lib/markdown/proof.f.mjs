@@ -126,6 +126,16 @@ export const proof = {
         // The title form: CommonMark ends the destination at the space and
         // reads the rest as the link title, so admitting it links elsewhere.
         linkTitle: () => assert(!accepts(`[x](https://example.com "t")`)),
+        /**
+         * **A backslash escapes the next punctuation mark in CommonMark**,
+         * so `[x](a\\)b)` is a link to `a)b` — the parenthesis is content,
+         * not the end of the destination. Read without escapes the
+         * destination ends early and the link points elsewhere, the same
+         * wrong address the parenthesis and the space are refused for.
+         */
+        backslashInATarget: () => assert(!accepts(`[x](a\\)b)`)),
+        backslashInText: () => assert(!accepts(`\\*a\\*`)),
+        backslashInALabel: () => assert(!accepts(`[a\\]b](u)`)),
         // What a released entry carries still reads.
         interiorSpaceInEmphasis: () => assert(accepts(`*type parameter*`)),
         interiorSpaceInCode: () => assert(accepts(`${tick}nix develop ./nix${tick}`)),
