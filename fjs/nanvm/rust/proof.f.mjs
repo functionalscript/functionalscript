@@ -228,6 +228,31 @@ export const proof = {
             rust.includes('let wrapper: Any<A> = [base.clone()].to_array().to_any();'),
             rust)
     },
+    /**
+     * A case that nests an operation in an eager position — the corpus's
+     * `unreached`, an operation, as an eager operand — is a scope: its
+     * temporary bound inside the closure with its `?`, the root's `Result`
+     * the closure's answer, handed to `check_throws` whole. A flat case
+     * beside it keeps its shape.
+     */
+    nestedOperationCase: () => {
+        const rust = generate({
+            shared: {},
+            groups: [{
+                op: '+',
+                arity: 2,
+                cases: [
+                    { name: 'nested', args: [unreached, 1], expected: throws },
+                    { name: 'flat', args: [1, 2], expected: 3 },
+                ],
+            }],
+        })
+        assert(rust.includes(`    check_throws::<A>("nested", scope(|| {
+        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+        c0 + f64_any(0x3ff0000000000000)
+    }));
+    check::<A>("flat", f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000), f64_any(0x4008000000000000));`), rust)
+    },
     generateData: () => {
         // The real corpus, which is what `gen` writes. Only its shape is
         // asserted here: its contents are checked by `cargo test`.
