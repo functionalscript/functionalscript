@@ -648,10 +648,15 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       node rather than bypassing the property-access safety rule. Done: the grammar
       takes a call as a step after a value, the callee picks the form in
       [`../edag/module.f.mjs`](../edag/module.f.mjs)'s `call`, and a method call's
-      property is the access's, so the rule that refuses a built-in prototype's name
-      refuses `a.toString()` where it refuses `a.toString`, and grouping the access is
-      no way around it: `(a.b)(c)` keeps the receiver and is that same method call,
-      while the detached `(0, a.b)(c)` waits on the comma operator.
+      property is the access's, judged by the call rule rather than the read rule:
+      a name on `fjs/js/prototype`'s `prohibitedCalls` is refused, `a.push(1)` as
+      `prohibited member function`, and every other prototype name is a member
+      function the VM answers by the receiver's type, so `a.toString()` compiles
+      where `a.toString` is refused
+      ([`fjs/js/prototype/README.md`](../../js/prototype/README.md)). Grouping the
+      access is no way around either rule: `(a.b)(c)` keeps the receiver and is
+      that same method call, while the detached `(0, a.b)(c)` waits on the comma
+      operator.
 - [x] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric method-call
       properties and rejection of prohibited/runtime-computed string properties. Done:
