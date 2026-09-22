@@ -110,8 +110,16 @@ the parser would not have built — a slot out of the body's first-use
 order, a slot the body never reads, a slot holding a primitive, which the
 parser inlines — has no text that reads back as the same graph, and the
 writer returns an error naming it, as it does for every shape it has no
-faithful text for; the compiler never builds one. Today the serializer
-returns an error for every frame, `a function with a frame`.
+faithful text for; the compiler never builds one. A frame element is
+written as the operand it is, so what the writer has no operand text for
+is not the frame's: an imported name whose module runs statements before
+its `export default` resolves to a comma node, which keeps JavaScript's
+order — the module's statements run, and if one throws the module fails
+to load — and the writer returns an error for a comma as an operand, in a
+frame as in an array literal today, until the comma operator has a source
+spelling ([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)).
+Today the serializer returns an error for every frame, `a function with a
+frame`.
 
 The spec's sentence that a capture is an error is replaced by the rule
 above in the same pull request that lifts the error.
