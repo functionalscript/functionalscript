@@ -29,6 +29,7 @@ pub use crate::vm::{
     bigint::BigInt,
     function::Function,
     internal::{IComplex, IContainer, IFunction, IStaticFunction, IVm, StaticCode},
+    lambda::{OptionLambda, OptionPropertyLambda, PropertyLambda},
     nullish::Nullish,
     number::Number,
     object::{Object, property::Property, to_object::ToObject},
