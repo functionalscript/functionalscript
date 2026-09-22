@@ -245,105 +245,21 @@ export const proof = {
             'Any::dot(Object::default().to_any(), f64_any(0x0000000000000000)).end()')
     },
     /**
-     * A `.` base folds through a literal object chain before `nullishBase`
-     * runs, so a nullish result reachable only several property reads away
-     * is caught exactly as a direct one is — {@link dotOnNestedMissingKey} in
-     * `throw` below pins the refusal this buys. Every case here is the other
-     * side of that: the fold resolving to something other than a nullish
-     * shape, printed rather than refused, however far down the chain that
-     * shape turns up.
+     * A read on a nullish base prints as any read does: what it answers is
+     * the VM's, a throw when the module runs, as JavaScript throws — the
+     * `.rs` output writes a program and predicts nothing of it, where the
+     * data outputs evaluate the module and report the throw as theirs.
      */
-    resolvedBase: () => {
-        // Resolves to an object two hops away: printed, not refused.
+    nullishBase: () => {
+        assertEq(printed(['.', null, 'a']), 'Any::dot(Nullish::Null.to_any(), string_any("a")).end()')
         assertEq(
-            printed(['.', ['.', ['{}', [[':', 'a', ['{}', [[':', 'c', 5]]]]]], 'a'], 'c']),
-            'Any::dot(Any::dot([(string_key("a"), [(string_key("c"), f64_any(0x4014000000000000))].to_object().to_any())].to_object().to_any(), string_any("a")).end(), string_any("c")).end()')
-        // The fold can just as well resolve to a non-object literal (an
-        // array, here) two hops away. `nullishBase` treats that the same as
-        // if the fold had left it opaque — neither is a literal `null` nor
-        // the tagged `['undefined']` node — so this prints either way; the
-        // assertion is that resolving this far changes nothing and breaks
-        // nothing, not that some refusal is being dodged.
+            printed(['.', ['.', ['{}', []], 'missing'], 'x']),
+            'Any::dot(Any::dot(Object::default().to_any(), string_any("missing")).end(), string_any("x")).end()')
+        // A function's `length` is a number, and a read on a number is
+        // `undefined`: `f.length.x` prints, as the VM answers it.
         assertEq(
-            printed(['.', ['.', ['{}', [[':', 'a', ['[]', [1]]]]], 'a'], 'length']),
-            'Any::dot(Any::dot([(string_key("a"), [f64_any(0x3ff0000000000000)].to_array().to_any())].to_object().to_any(), string_any("a")).end(), string_any("length")).end()')
-        // `resolvedBase` folds through a `.` node only as far as an actual
-        // literal object — a chain whose middle step resolves to something
-        // else (an empty array, here) stops there, unresolved, rather than
-        // assuming an object further down: its own tag check (`base[0] !==
-        // '{}'`) guards against reading an array's items as if they were
-        // `[':', key, value]` properties. Printed correctly all the same —
-        // the middle step's own base is checked directly when it is printed
-        // — proving the fold neither crashed nor misread the array's shape
-        // two hops up.
-        //
-        // The array is empty rather than, say, `[1]`: with a non-empty item
-        // list, dropping just this `base[0] !== '{}'` clause (leaving the
-        // rest of that guard and the spread check below it intact) still
-        // leaves this node unresolved, because the spread check's
-        // `p[0] !== ':'` happens to hold for a bare scalar item too — a
-        // mutation this test would then miss. An empty item list has
-        // nothing for `.some(...)` to fail on, so it cannot be
-        // coincidentally rescued that way: reading past the weakened guard,
-        // `props.some(...)` is vacuously `false`, `findLast` finds nothing,
-        // and the fold would incorrectly continue to `['undefined']` —
-        // wrongly refusing this print as a nullish base — if that clause
-        // were the only thing standing in the way.
-        assertEq(
-            printed(['.', ['.', ['[]', []], 'length'], 'toString']),
-            'Any::dot(Any::dot(Array::default().to_any(), string_any("length")).end(), string_any("toString")).end()')
-    },
-    /**
-     * `resolvedBase` also folds a literal array's or string's own canonical
-     * index — a number or its canonical decimal string, matching
-     * `Array`/`String::member_access` treating the two alike — and a
-     * literal object's own numeric key (stringified first), mirroring
-     * `Object::member_access`. The fold `throw` below needs
-     * (`dotOnArrayOutOfRangeIndex` and its neighbors) is what catches a
-     * nullish result several hops down an index, not just a property name.
-     * Here, the other side: an in-bounds index resolving to a non-nullish
-     * value, printed rather than refused. Every case nests two `.` steps
-     * deep — a direct `['.', literal, index]` never reaches this fold at
-     * all, since `resolvedBase` only inspects a *resolved* base, one level
-     * in from whichever `.` node is being checked.
-     */
-    resolvedBaseThroughIndex: () => {
-        // An array literal's in-bounds index resolves to its element, and
-        // the fold continues into that element — an object literal here —
-        // exactly as it would one property access away.
-        assertEq(
-            printed(['.', ['.', ['[]', [['{}', [[':', 'a', 1]]]]], 0], 'a']),
-            'Any::dot(Any::dot([[(string_key("a"), f64_any(0x3ff0000000000000))].to_object().to_any()].to_array().to_any(), f64_any(0x0000000000000000)).end(), string_any("a")).end()')
-        // A numeric key into an object literal is stringified first, the
-        // same way `{0:'x'}[0]` and `{0:'x'}['0']` read the same property
-        // in real JS: the fold matches the string-keyed property `"0"`
-        // here and continues into it, rather than leaving the object
-        // opaque to a numeric key.
-        assertEq(
-            printed(['.', ['.', ['{}', [[':', '0', 'x']]], 0], 'length']),
-            'Any::dot(Any::dot([(string_key("0"), string_any("x"))].to_object().to_any(), f64_any(0x0000000000000000)).end(), string_any("length")).end()')
-        // A string literal's in-bounds index resolves to the single-unit
-        // string at that position, the same way `{@link
-        // dotOnStringOutOfRangeIndex}` (`throw`, below) resolves an
-        // out-of-range one to `undefined` instead.
-        assertEq(
-            printed(['.', ['.', 'ab', 0], 'length']),
-            'Any::dot(Any::dot(string_any("ab"), f64_any(0x0000000000000000)).end(), string_any("length")).end()')
-        // `[1]["0"]` reads element `0` exactly as `[1][0]` does: `"0"` is
-        // the canonical decimal form of the index `0`, which
-        // `Array::member_access` accepts as an alternative spelling of the
-        // same key. Resolves to `1`, and `.x` on a number is `undefined`
-        // (never nullish), so this prints two hops in.
-        assertEq(
-            printed(['.', ['.', ['[]', [1]], '0'], 'x']),
-            'Any::dot(Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("0")).end(), string_any("x")).end()')
-        // `.length` on a string literal is a number, never nullish, so it
-        // is left opaque here exactly as an array's `.length` is above —
-        // proving the string branch's own `b === 'length'` guard behaves
-        // the same way.
-        assertEq(
-            printed(['.', ['.', 'ab', 'length'], 'toString']),
-            'Any::dot(Any::dot(string_any("ab"), string_any("length")).end(), string_any("toString")).end()')
+            printed(['.', ['.', ['=>', null, 1], 'length'], 'x']),
+            'Any::dot(Any::dot(A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any(), string_any("length")).end(), string_any("x")).end()')
     },
     /**
      * `,` — new relative to the operator-test printer, whose corpus has no
@@ -757,113 +673,15 @@ export const proof = {
          */
         numberCastIndex: () => printed(['.', ['{}', []], ['Number', 1]]),
         /**
-         * A property read on a nullish base throws at run time — refused
-         * rather than compiled to a Rust panic (`fjs/fsc/README.md`: "a
-         * `null` or `undefined` base is the one failure a data module can
-         * make").
-         */
-        dotOnNull: () => printed(['.', null, 'a']),
-        dotOnUndefined: () => printed(['.', ['undefined'], 'a']),
-        /**
-         * The same refusal, met through a base {@link resolvedBase} must fold
-         * through a literal object first — a nullish result from a key
-         * absent in a fully literal object, a hop further away than the
-         * direct cases above.
-         */
-        dotOnNestedMissingKey: () => printed(['.', ['.', ['{}', []], 'missing'], 'x']),
-        /**
-         * The same nullish-base refusal, met through a *numeric* index this
-         * time: an out-of-range array element, an out-of-range string
-         * character, a missing numeric object key, and a literal `null`
-         * array element all read `undefined`/`null` at run time — a nullish
-         * result `resolvedBase`'s array/string/object-numeric-key fold must
-         * see through, the same as its string-keyed object fold already
-         * does for {@link dotOnNestedMissingKey} above. Before that fold
-         * covered these shapes, `indexExpr` accepting a numeric literal let
-         * each of these compile to a call chain that throws at run time
-         * instead of refusing — the exact failure this refusal replaces.
-         */
-        dotOnArrayOutOfRangeIndex: () => printed(['.', ['.', ['[]', []], 0], 'x']),
-        dotOnStringOutOfRangeIndex: () => printed(['.', ['.', 'a', 1], 'x']),
-        dotOnObjectMissingNumericKey: () => printed(['.', ['.', ['{}', []], 0], 'x']),
-        dotOnArrayNullElement: () => printed(['.', ['.', ['[]', [null]], 0], 'x']),
-        /**
-         * A negative, fractional, or non-finite numeric index is never a
-         * valid array/string index in real JS either — `[1][-1]`, `[1][0.5]`,
-         * and `[1][NaN]` all read `undefined` — so `resolvedBase` treats
-         * every one of them as a miss the same way it treats an in-range
-         * check that fails, rather than leaving them opaque just because
-         * they are not themselves in-bounds indices.
-         */
-        dotOnArrayNegativeIndex: () => printed(['.', ['.', ['[]', [1]], -1], 'x']),
-        dotOnArrayFractionalIndex: () => printed(['.', ['.', ['[]', [1]], 0.5], 'x']),
-        dotOnArrayNanIndex: () => printed(['.', ['.', ['[]', [1]], NaN], 'x']),
-        /**
-         * The same numeric-index refusal again, this time through a *string*
-         * key that names no index at all: `Array::member_access`'s string
-         * branch answers `undefined` for any key that is neither `"length"`
-         * nor the canonical decimal form of an in-range index — a bare
-         * word like `"toString"` and a non-canonical numeral like `"01"`
-         * both miss unconditionally, the same as an out-of-range number.
-         */
-        dotOnArrayNonNumericStringIndex: () => printed(['.', ['.', ['[]', [1]], 'toString'], 'y']),
-        /**
-         * A two-element array, not one: `arrayIndexOf`'s round-trip check
-         * (`String(n) === b`) is the only thing standing between `"01"` and
-         * index `1` — drop the check and `Number('01')` still canonicalizes
-         * to `1`. With a single-element array that mutation is invisible,
-         * since index `1` is out of range either way and the refusal holds
-         * for an unrelated reason; a second element makes `1` a real,
-         * in-range index, so only the round-trip check still refuses this.
-         */
-        dotOnArrayNonCanonicalStringIndex: () => printed(['.', ['.', ['[]', [1, 2]], '01'], 'y']),
-        /**
-         * `Any::dot` never special-cases a number, a boolean, a
-         * bigint, or a function receiver — every key on one answers
-         * `undefined` unconditionally (see its own doc comment in
-         * `nanvm-lib`), the same as `Any::own_property` did for these
-         * before the read existed. `resolvedBase` folds straight to
-         * the tagged `['undefined']` node for one of these regardless of
-         * the key, the same way it folds a missing property or an
-         * out-of-range index — before this, a chain two hops past one of
-         * these primitives (or past a lambda a `.` node's own value
-         * resolved to) compiled to a call chain that panics.
-         */
-        dotOnNumberPrimitiveMiss: () => printed(['.', ['.', 1, 'x'], 'y']),
-        dotOnBooleanPrimitiveMiss: () => printed(['.', ['.', true, 'x'], 'y']),
-        dotOnBigintPrimitiveMiss: () => printed(['.', ['.', 5n, 'x'], 'y']),
-        dotOnFunctionMiss: () => printed(
-            ['.', ['.', ['.', ['{}', [[':', 'f', ['=>', ['[]', []], ['undefined']]]]], 'f'], 'x'], 'y']),
-        /**
-         * A `Number(...)` cast key one step into a chain, over an array or a
-         * string base this time (the object case is
-         * {@link resolvedBaseRefusals}'s `dotOnObjectWithNumberCastKey`):
-         * `resolvedBase`'s array and string branches accept only a literal
-         * `string` or `number` key, so a `NumberCast` key leaves the base
-         * unresolved rather than mistaking it for one. The refusal surfaces
-         * one level up regardless, from `indexExpr`'s own refusal of the
-         * same key when the inner node is printed — the same one
-         * `numberCastIndex` pins directly.
+         * A `Number(...)` cast key one step into a chain refuses as
+         * `numberCastIndex` above does, from `indexExpr`, when the inner
+         * node is printed.
          */
         dotOnArrayWithNumberCastKey: () => printed(['.', ['.', ['[]', []], ['Number', 1]], 'x']),
         dotOnStringWithNumberCastKey: () => printed(['.', ['.', 'ab', ['Number', 1]], 'x']),
         /** `Exps` admits an empty list in the schema; the Rust backend has no value for it. */
         emptyComma: () => printed([',', []]),
     },
-    /**
-     * `resolvedBase` shapes whose refusal a bare `throw` leaf cannot pin:
-     * the leaf only checks *that* `printed` throws, so a change to
-     * `resolvedBase` that swaps one refusal reason for another — a real
-     * regression — would still pass under `throw`. {@link refusalReason}
-     * reads `nodeExpr`'s `Result` directly, so each case here checks the
-     * exact reason instead. One shape used to live here —
-     * `dotOnNonObjectMiddleStep`, a chain whose middle step resolves to an
-     * array — but `Any::dot` reads an array correctly now, so it
-     * is no longer a refusal at all; {@link resolvedBase}'s own proof group
-     * above carries it as a print instead, and the mutation-detection
-     * reasoning that shape earned here (an empty array, not `[1]`, is
-     * load-bearing) carries with it.
-     */
     /**
      * Chains (`fjs/edag/README.md`, Chains). A `.` node is `Any::dot(a, key)`
      * and its exit — `.end()` with no continuation, the one spelling of
@@ -924,22 +742,16 @@ export const proof = {
                 printed(['-', ['?.', ['{}', []], 'b']]),
                 '-(Any::option_dot(Object::default().to_any(), || Ok(string_any("b"))).end())')
         },
-        /**
-         * A `.` node with a continuation as a base: `resolvedBase` folds
-         * through literal reads alone and leaves a chain opaque — a
-         * continuation is control flow, not a value — so the outer read
-         * prints over the chain's own text rather than being refused as a
-         * nullish base or misread as `{}.y`.
-         */
+        /** A `.` node with a continuation as a base: the outer read prints over the chain's own text. */
         opaqueBase: () => {
             assertEq(
                 printed(['.', ['.', ['{}', []], 'y', ['|()', ['[]', []]]], 'z']),
                 'Any::dot(Any::dot(Object::default().to_any(), string_any("y")).end_call(|| Ok(Array::default().to_any())), string_any("z")).end()')
         },
         /**
-         * A provably nullish base: `?.` and `?.()` guard it and print,
-         * `undefined` at run time; a `.` with a continuation on one is
-         * refused as a bare `.` is, since it throws.
+         * A nullish base: `?.` and `?.()` guard it, `undefined` at run
+         * time; a `.` with a continuation on one prints as a bare `.` does,
+         * and throws when the module runs.
          */
         nullishBase: () => {
             assertEq(
@@ -948,11 +760,9 @@ export const proof = {
             assertEq(
                 printed(['?.()', ['undefined'], ['[]', []]]),
                 'Any::option_call(Nullish::Undefined.to_any(), || Ok(Array::default().to_any())).end()')
-            /** @type {Exp} */
-            const e = ['.', null, 'a', ['|()', ['[]', []]]]
-            assertStructurallySame(
-                refusalReason(e),
-                ['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e])
+            assertEq(
+                printed(['.', null, 'a', ['|()', ['[]', []]]]),
+                'Any::dot(Nullish::Null.to_any(), string_any("a")).end_call(|| Ok(Array::default().to_any()))')
         },
         /**
          * Arguments are a lazy position: an operation inside them is the
@@ -1076,49 +886,26 @@ export const proof = {
                 ['no Rust for a Number(...) cast index', ['Number', 1]])
         },
     },
-    resolvedBaseRefusals: {
-        /**
-         * A key absent from an object holding a spread cannot be resolved
-         * soundly — the spread's own contribution isn't known statically —
-         * so `resolvedBase` declines to look inside it at all, the same way
-         * it declines a `const` or an import. The refusal surfaces from
-         * `propertyExpr`'s own spread check when the object is printed,
-         * the same one `objectSpread` (`fjs/nanvm/rust/proof.f.mjs`) pins.
-         */
+    /**
+     * Refusals met one step into a chain, each the inner node's own — a
+     * spread the printer cannot spell, a `Number(...)` cast key — surfacing
+     * with the inner node's reason when it is printed, and never a reason
+     * about the base's value, which the printer does not predict.
+     */
+    chainRefusals: {
+        /** The spread is refused where the object is printed, the same one `objectSpread` (`fjs/nanvm/rust/proof.f.mjs`) pins. */
         dotOnObjectWithSpread: () => {
             assertStructurallySame(
                 refusalReason(['.', ['.', ['{}', [['...', 'x']]], 'y'], 'z']),
                 ['not a property', ['...', 'x']])
         },
-        /**
-         * The same declines-to-look-inside choice, for an array holding a
-         * spread and a numeric index: a spread's own contribution to the
-         * positions after it isn't known statically, so `resolvedBase`
-         * leaves the whole array unresolved rather than risk reading the
-         * wrong element. Printing the array literal itself then refuses,
-         * for the same reason a spread anywhere in an array always does —
-         * `f`'s '`[]`' handling has no operator table entry for `'...'` —
-         * proving `resolvedBase`'s own bail did not crash or silently
-         * assume an index into the array's syntactic items is the same as
-         * an index into its run-time elements.
-         */
+        /** A spread in an array item list has no spelling, wherever the array stands. */
         dotOnArrayWithSpread: () => {
             assertStructurallySame(
                 refusalReason(['.', ['.', ['[]', [['...', 'x'], 1]], 0], 'y']),
                 ['no Rust for', '...'])
         },
-        /**
-         * A `Number(...)` cast key one step into a chain: `resolvedBase`'s
-         * object fold accepts only a literal `string` or `number` key
-         * ({@link resolvedBaseThroughNumericKey}), so a `NumberCast` key —
-         * itself an `Exp`, not a literal — leaves the object base
-         * unresolved rather than mistaking it for one or the other. The
-         * refusal surfaces one level up regardless, from `indexExpr`'s own
-         * refusal of the same key when the inner node is printed — the
-         * same one `numberCastIndex` (`throw`, above) pins directly —
-         * proving the fold neither crashed nor silently accepted the cast
-         * as a literal key on its way past.
-         */
+        /** The cast key is `indexExpr`'s refusal, the same one `numberCastIndex` pins directly. */
         dotOnObjectWithNumberCastKey: () => {
             assertStructurallySame(
                 refusalReason(['.', ['.', ['{}', []], ['Number', 1]], 'x']),

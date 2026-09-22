@@ -647,14 +647,21 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 }
 `)
         },
-        // A node shape the printer refuses even after the read widened
-        // what a `.`/`[]` base may be: a nullish base, which throws at run
-        // time in real JS — refused against the output rather than compiled
-        // to a Rust panic, since the module itself is sound.
+        // A property read on a nullish base compiles: the `.rs` output is a
+        // program, and the read throws when it runs, as JavaScript throws —
+        // the compiler predicts nothing of a program it writes, where the
+        // data outputs evaluate the module and report the throw as theirs.
+        nullishBase: () => {
+            assert(compileSource('const a = null; export default a.x;')('output.rs')
+                .includes('Any::dot(Nullish::Null.to_any(), string_any("x")).end()?'))
+        },
+        // A value no Rust literal can hold — a bigint outside `i64` — is
+        // refused against the output rather than written as text `rustc`
+        // then refuses, since the module itself is sound.
         refused: () => {
             assertEq(
-                rustRefused('const a = null; export default a.x;'),
-                'output.rs - error: no Rust spelling for this module: a property access on a nullish base throws at run time; refused rather than compiled to a panic: .,,x')
+                rustRefused('export default 9223372036854775808n;'),
+                'output.rs - error: no Rust spelling for this module: no Rust i64 for: 9223372036854775808')
         },
         // Every eager operator prints as a temporary, its `let` followed
         // by `?`: `pub fn module` answers the `Result` a throw lands in, so
