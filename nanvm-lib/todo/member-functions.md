@@ -213,6 +213,8 @@ Infrastructure:
   per-position laziness is in
   [`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs).
 - [`callable-function-objects.md`](./callable-function-objects.md) — Stage
-  4, the method call, which this file completes.
+  4, the method call: the mechanism a built-in here is reached through,
+  landed. Which built-ins it reaches is this file's own checklist, not
+  that stage's.
 - [`vm/lambda/mod.rs`](../src/vm/lambda/mod.rs) — the exits that change,
   and the `Region` state that grows a key.
