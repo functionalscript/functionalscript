@@ -1,7 +1,8 @@
 ## A complex node has no mapping to a `nanvm-lib` operation
 
 **Priority:** P2
-**Status:** open — the mapping is designed below; nothing has landed
+**Status:** open — the `nanvm-lib` half is on `main` (`vm/lambda`, `Any::dot`,
+`Any::option_dot`, `Any::option_call`); the printer and the receiver remain
 
 ### Problem
 
@@ -154,8 +155,9 @@ what makes the argument thunk on `PropertyLambda::end_call` necessary:
 (README, "Where the host engines disagree"), and only a thunk lets the
 terminal check the stored throw before it evaluates the arguments.
 
-So each lambda type has three internal states, not two: *live*, with the
-receiver and the current value it carries; *skipped*, a region that has
+So each option type has three internal states, not two — `PropertyLambda`,
+with no region to skip, has the two of its `Result` — : *live*, with the
+current value it carries; *skipped*, a region that has
 short-circuited; and *thrown*, with the thrown value. Every non-terminal
 step is a no-op on the last two. The terminals tell them apart: `end`
 answers `Err(thrown)` for the one and `Ok(undefined)` for the other, and
@@ -183,10 +185,13 @@ README as a type:
 `nanvm-lib/src/vm/function/mod.rs` takes arguments and no receiver, so
 `end_call` can only read the property and call the value today — the very
 composition the Problem forbids the *printer*. Behind the operation
-boundary it is where that composition is allowed to live: when
-`IFunction::call` gains a receiver parameter, `end_call` passes the one
-the lambda has been holding, and every generated module is already right.
-That change is `nanvm-lib`'s alone, which is the whole point.
+boundary it is where that composition is allowed to live, and where the
+receiver is added: a live `PropertyLambda` holds the property's value
+alone until there is a call to hand its receiver to, since a field nothing
+reads is dead code. When `IFunction::call` gains a receiver parameter, the
+property steps keep the receiver next to the value and `end_call` passes
+it, and every generated module is already right. That change is
+`nanvm-lib`'s alone, which is the whole point.
 
 **What the printer prints.** Every `.`, `?.` and `?.()` node opens with
 its entry point; each step is a method call on the result, its key or
@@ -227,15 +232,15 @@ only through lazy operands has none today.
 
 ### Tasks
 
-- [ ] `nanvm-lib`: the three structs, `#[must_use]`, not `Clone`, with
+- [x] `nanvm-lib`: the three structs, `#[must_use]`, not `Clone`, with
       the three-state interior and a doc comment on each saying why.
-- [ ] `nanvm-lib`: `Any::dot`, `Any::option_dot`, `Any::option_call`, and
+- [x] `nanvm-lib`: `Any::dot`, `Any::option_dot`, `Any::option_call`, and
       the step methods of the table above — no more, no fewer.
-- [ ] `nanvm-lib`: tests for every row of the table, and for the order
+- [x] `nanvm-lib`: tests for every row of the table, and for the order
       cases the README says JavaScript cannot pin: `a.b(...c)` against
       `(a?.b)(...c)` on a nullish base, and the skipped key and arguments
       inside a region.
-- [ ] `nanvm-lib`: a test per live step of *guard, thunk, operation* —
+- [x] `nanvm-lib`: a test per live step of *guard, thunk, operation* —
       a guarded step on a nullish current value never forces its thunk;
       a non-callable callee with throwing arguments answers the
       arguments' throw; a nullish base with a throwing key answers the
