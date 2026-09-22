@@ -138,16 +138,22 @@ hardening TODO after the baseline interpreter exists.
       not reuse memoized body results across different argument contexts.
 - [ ] Reject EDAGs that share an operation node across a function boundary; keep body
       graphs disjoint while allowing sharing inside one body.
-- [ ] Reject an access whose index is a prohibited name, by the parser's two
-      lists, in `validate`: a `.` node without a call continuation by the read
-      rule, `['.', ['{}', []], 'constructor']`, and a `.` or `?.` node whose
-      continuation is a call step — `|()`, `|?.()` or `|!()`, the three
-      receiver-preserving calls of `fjs/edag/README.md`'s Chains — by
-      `fjs/js/prototype`'s `prohibitedCalls` alone, since
-      `['.', a, 'toString', ['|()', args]]` is an EDAG the compiler emits and the
-      executor reads, and `['?.', a, 'toString', ['|!()', args]]` will be once
-      the grammar spells `?.`. Neither prohibited shape is emitted, and the
-      executor never reads one.
+- [ ] Reject a key that is a prohibited name, by the parser's two lists, in
+      `validate`. A chain carries a key at its node — `.` or `?.` — and at each
+      `|.` step, and every key is classified by what follows it: a call step,
+      `|()`, `|?.()` or `|!()`, the three receiver-preserving calls of
+      `fjs/edag/README.md`'s Chains, puts the key under `fjs/js/prototype`'s
+      `prohibitedCalls`; anything else — no continuation, or a `|.` step, whose
+      value becomes the next receiver — puts it under the read rule. So
+      `['.', ['{}', []], 'constructor']` is refused as a read,
+      `['.', a, 'toString', ['|()', args]]` is the EDAG the compiler emits and
+      the executor reads, and once the grammar spells `?.`,
+      `['?.', a, 'b', ['|.', 'toString', ['|()', args]]]` is admitted while
+      `['?.', a, 'b', ['|.', 'push', ['|()', args]]]` is refused at `push`, the
+      `|.` step's key, and `['?.', a, 'toString', ['|!()', args]]` is admitted.
+      The parser applies the same rule today on nested accesses, each access's
+      key judged by whether a call follows it. No prohibited shape is emitted,
+      and the executor never reads one.
 - [ ] Return the interpreted value for a valid final EDAG.
 - [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
       `transpile` / `fjs compile` path without changing its success result/output
