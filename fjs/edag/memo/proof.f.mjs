@@ -89,7 +89,7 @@ export const proof = {
             assertEq(run([tag, left, boom]), left)
         }
         // Comparison, arithmetic and bitwise force theirs.
-        for (const tag of ['===', '*', '&']) {
+        for (const tag of /** @type {const} */ (['===', '*', '&'])) {
             let threw = false
             try { run([tag, 1, boom]) } catch { threw = true }
             assert(threw, tag)

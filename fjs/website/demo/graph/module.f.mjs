@@ -149,8 +149,8 @@ export const graphSvg = g => {
     const at = /** @type {(id: number) => _Positioned} */ (id => positioned.find(p => p.id === id))
     const width = positioned.reduce((m, p) => Math.max(m, p.x + p.width), 0) + margin
     const height = margin + positioned.reduce((m, p) => Math.max(m, p.y + p.height), 0)
-    /** @type {readonly Element[]} */
     const merged = mergeParallel(g.edges)
+    /** @type {readonly Element[]} */
     const edgeEls = merged.flatMap((edge, i) => {
         // Lines between one pair that did not merge — they differ in kind —
         // would land on the same curve, so each after the first is bowed

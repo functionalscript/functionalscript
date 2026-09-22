@@ -82,7 +82,7 @@ const op12 = new Set(['+', '-'])
  * there". A node is drawn once however many references reach it, and one of
  * them being conditional says nothing about the others.
  */
-const lazyRight = new Set(lazyOp2Id)
+const lazyRight = /** @type {ReadonlySet<string>} */ (new Set(lazyOp2Id))
 
 /** @type {(index: unknown) => string} */
 const dotLabel = index => typeof index === 'number' || typeof index === 'string'
