@@ -33,12 +33,6 @@
  * whatever reaches it here, and a node is drawn once however many edges
  * arrive.
  *
- * **None of the four parses yet**, so nothing typed into the field reaches
- * that path — the front end accepts every eager operator and refuses these,
- * which is [`fsc/todo/stage-b-operators.md`](../todo/stage-b-operators.md).
- * The walk is ready for them, and its proofs build the nodes by hand, as
- * they do for `frame` and for the shapes this demo does not draw.
- *
  * **It needs no operations.** Parsing and lowering are pure functions of
  * the text, so `update` declares `never` and returns through `pureOk`.
  *
@@ -290,10 +284,19 @@ const graphOf = text => {
  * resemblance. The function's `frame` edge ends at `null` because the
  * compiler emits no captures yet.
  *
+ * **`m && a` is what makes the marking legible**, and not because it
+ * draws one dashed line. `a` is reached four times — twice by the array,
+ * once through `a * 3`, and once as that `&&`'s right operand — so one
+ * node carries three solid edges and one broken one. That is laziness
+ * being positional rather than nodal, in a picture: the node *is*
+ * evaluated, because three references want it whatever the fourth
+ * decides, and a mark on the box could not have said which of the four
+ * was the conditional one.
+ *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nexport default [a, a, a * 3, m, (...x) => x, undefined];',
+    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
         const g = graphOf(text)

@@ -942,6 +942,32 @@ export const proof = {
             assert(html.includes('>frame<'), html)
             assert(html.includes('>body<'), html)
         },
+        /**
+         * **The initial source draws the marking and the reason for it.**
+         * `a` is reached four times — twice by the array, once through
+         * `a * 3`, and once as `m && a`'s right operand — so one node
+         * carries three solid edges and one broken one. A mark on the box
+         * could not have said which of the four was conditional.
+         */
+        lazyEdgeInTheInitialSource: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
+        },
+        /**
+         * Every lazy position, through the parser rather than by hand —
+         * which `fsc` accepts since Stage B landed.
+         */
+        lazyThroughTheParser: () => {
+            const of = /** @type {(src: string) => number} */(src =>
+                htmlToString(demo.view(src)).split('data-graph-edge-kind="lazy"').length - 1)
+            assertEq(of('export default (...a) => a[0] && a[1];'), 1)
+            assertEq(of('export default (...a) => a[0] || a[1];'), 1)
+            assertEq(of('export default (...a) => a[0] ?? a[1];'), 1)
+            // Both arms of a conditional, and neither its condition.
+            assertEq(of('export default (...a) => a[0] ? a[1] : a[2];'), 2)
+            // An eager operator marks nothing.
+            assertEq(of('export default (...a) => a[0] + a[1];'), 0)
+        },
         // Arithmetic, comparison, a call and property access, all through
         // real source — the parser accepts this much today.
         realSource: () => {
