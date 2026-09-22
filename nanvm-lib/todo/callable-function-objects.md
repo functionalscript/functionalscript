@@ -401,10 +401,11 @@ remains is a call whose callee is a property read — `a.b(c)`, `f[0](1)` —
 which the lowering makes the `.` node's `|()` continuation, a method call
 carrying its receiver
 ([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), and the
-printer refuses every chain step today. Its spelling is a call with a
-receiver, which `nanvm-lib` has no operation for yet, and no composition
-of the operations it has spells it —
-[`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md).
+printer prints as `Any::dot(a, key).end_call(args)`
+([`fjs/edag/rust/todo/complex-operations.md`](../../fjs/edag/rust/todo/complex-operations.md)).
+What remains is what the call does with its receiver: the built-in member
+functions the compiler admits, own property first —
+[`member-functions.md`](./member-functions.md).
 
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:
