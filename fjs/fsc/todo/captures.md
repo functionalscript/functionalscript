@@ -8,8 +8,9 @@
 FunctionalScript is a subset of JavaScript, and a JavaScript arrow
 function closes over the scope it is written in. This compiler's parser
 restricts that: a function body may name its own parameter and its own
-`const`s and nothing else, and a reference to a module `const`, an import
-or an enclosing function's parameter is refused where it is written —
+`const`s and nothing else, and a reference to a module `const`, an
+imported name or an enclosing function's parameter is refused where it is
+written —
 `capture not supported` in [`parser/module.f.mjs`](../parser/module.f.mjs),
 the rule [`spec/README.md`](../../../spec/README.md) states under
 Functions and [`README.md`](../README.md) restates for the AST. So
@@ -56,11 +57,11 @@ many references reach it. The function node then carries what it
 captures, in the order of first use, and a reference to a capture names
 its slot. The lowering emits `['=>', ['[]', [c0, c1, …]], body]`, each
 `ci` the enclosing scope's own node for the captured value — a module
-`const`, an import, an argument read, a slot of the enclosing function's
-own frame — and inside the body a capture is `['.', ['frame'], i]`. A
-capture whose node is a primitive — an import whose default export is
-one, once the linker has put the module's node in its place — is not
-captured: it is written into the body as the primitive itself, the
+`const`, the node the linker resolved an imported name to, an argument
+read, a slot of the enclosing function's own frame — and inside the body
+a capture is `['.', ['frame'], i]`. A capture whose node is a primitive —
+an imported name the linker resolved to one — is not captured: it is
+written into the body as the primitive itself, the
 substitution the parser already makes for a `const` holding a literal,
 since a primitive has nothing to share and nothing to compute. A frame
 holds nodes with identity or computation alone.
