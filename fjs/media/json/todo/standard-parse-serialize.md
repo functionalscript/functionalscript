@@ -57,7 +57,9 @@ The default requirements are:
 - every supported finite `number` has a defined spelling;
 - reparsing the emitted numeric spelling under this codec produces the intended
   `number` value;
-- `-0`, `NaN`, `Infinity`, and `-Infinity` have explicit documented behavior;
+- `-0` is preserved, as specified by
+  [preserve-negative-zero](./preserve-negative-zero.md);
+- `NaN`, `Infinity`, and `-Infinity` have explicit documented behavior;
 - object-entry ordering follows the serializer's explicit ordering contract.
 
 The formatter does **not** need to emit the same bytes as native
@@ -98,7 +100,10 @@ This keeps parser/serializer policy separate from generic runtime conversion.
 - [ ] Define the FunctionalScript finite-number serialization contract: valid,
       deterministic JSON with correct reparsing semantics, without delegating to
       the host's `JSON.stringify`.
-- [ ] Choose explicit default behavior for `-0`, non-finite programmatic numbers,
+- [ ] Implement [negative-zero preservation](./preserve-negative-zero.md),
+      sharing the finite formatter with DataJS; this need not wait for replacing
+      the remaining host formatter.
+- [ ] Choose explicit default behavior for non-finite programmatic numbers
       and numeric overflow through [number-edge-cases.md](./number-edge-cases.md).
 - [ ] Keep the existing `Result`-returning parse API unless a separate task has a
       reason to change it.
@@ -110,6 +115,8 @@ This keeps parser/serializer policy separate from generic runtime conversion.
 
 ### Related
 
+- [Preserve negative zero](./preserve-negative-zero.md) — shared JSON/DataJS
+  finite-number spelling and parser/round-trip regression proofs.
 - [`fjs/media/json/README.md`](../README.md) — the shared lossless structural
   parse, its numeric-policy seam, and the extended codec built on it.
 - [Standard/extended value transforms](./standard-transform.md) — reusable
