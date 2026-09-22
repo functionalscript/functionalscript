@@ -463,6 +463,97 @@ export const proof = {
             assert(!page.includes('<script'), page)
         },
     },
+    /**
+     * The release history, which is the one part of the site read out of a
+     * directory rather than walked into one. A release is not a directory and
+     * cannot take the `index.html` name, so it takes the other name a
+     * generator may write here, as `_main.css` does.
+     */
+    changelog: {
+        indexAndAPagePerRelease: () => {
+            const { root } = generate({
+                changelog: {
+                    '0.2.0.md': file('- `a`: two\n'),
+                    '0.10.0.md': file('- **BREAKING CHANGES:** `b`: ten (#7)\n'),
+                },
+            })
+            const index = pageAt(root, ['changelog'])
+            // Ordered by version, not by name: 0.10.0 follows 0.2.0 as text
+            // and precedes it as a release.
+            assert(index.indexOf('_0.10.0.html') < index.indexOf('_0.2.0.html'), index)
+            const dir = /** @type {Dir} */ (root['changelog'])
+            assert(textOf(dir['_0.2.0.html'], '0.2.0').includes('<code>a</code>: two'), '0.2.0')
+            const ten = textOf(dir['_0.10.0.html'], '0.10.0')
+            assert(ten.includes('<strong>BREAKING CHANGES:</strong>'), ten)
+            // A bare reference becomes the link it names.
+            assert(ten.includes('/pull/7">#7</a>'), ten)
+        },
+        // The version is the file name, so a file whose name is not one
+        // describes the format rather than recording a release — and a file
+        // that is not Markdown at all is not even that.
+        skipsWhatIsNotARelease: () => {
+            const { root } = generate({
+                changelog: {
+                    '0.2.0.md': file('- `a`: two\n'),
+                    'README.md': file('# The format\n'),
+                    'notes.txt': file('not markdown at all'),
+                },
+            })
+            const index = pageAt(root, ['changelog'])
+            assert(index.includes('_0.2.0.html'), index)
+            assert(!index.includes('README'), index)
+        },
+        /**
+         * **The landing page links the releases**, which is the last of the
+         * four things the changelog issue asked for and was the one no proof
+         * watched: deleting the link left the whole suite green. It is also
+         * the only one a reader reaches the feature through at all.
+         */
+        theLandingPageLinksIt: () => {
+            const { root } = generate({ changelog: { '0.2.0.md': file('- a: two\n') } })
+            assert(pageAt(root, []).includes('href="/changelog/index.html"'), pageAt(root, []))
+        },
+        // A name that begins with a digit but is no version is not one.
+        // Publishing it would put a release whose numbers include `NaN` in
+        // the index, ordered against the rest as neither before nor after.
+        skipsAMisspeltVersion: () => {
+            const { root } = generate({
+                changelog: {
+                    '0.2.0.md': file('- `a`: two\n'),
+                    '0.51.O.md': file('- `b`: a typo for a zero\n'),
+                },
+            })
+            const index = pageAt(root, ['changelog'])
+            assert(index.includes('_0.2.0.html'), index)
+            assert(!index.includes('0.51.O'), index)
+        },
+        // An empty file records a release that shipped no notable change,
+        // which the page says rather than showing an empty list.
+        anEmptyReleaseSaysSo: () => {
+            const { root } = generate({ changelog: { '0.3.0.md': file('') } })
+            const page = textOf(/** @type {Dir} */ (root['changelog'])['_0.3.0.html'], '0.3.0')
+            assert(page.includes('shipped no notable change'), page)
+        },
+        // `unreleased/` is a directory, so the walk lists it among the
+        // directories and never among the files a release is read from.
+        passesOverUnreleased: () => {
+            const { root } = generate({
+                changelog: {
+                    '0.2.0.md': file('- `a`: two\n'),
+                    unreleased: { '99.md': file('- `x`: pending\n') },
+                },
+            })
+            const index = pageAt(root, ['changelog'])
+            assert(index.includes('_0.2.0.html'), index)
+            assert(!index.includes('_99.html'), index)
+        },
+        // A file that does not parse stops the build rather than being
+        // skipped into an index that quietly lacks a release.
+        anUnparsableReleaseStopsTheBuild: () => {
+            const [, code] = run({ changelog: { '0.4.0.md': file('- `unclosed\n') } })
+            assertEq(code, 1)
+        },
+    },
     demos: {
         /**
          * **A demo is found by its export, not its filename**, so it may live
