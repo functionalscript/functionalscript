@@ -391,21 +391,21 @@ frame — the general shape [function-frame](../../spec/todo/3111-function-frame
 and edag-stage1-discussion's `["frame"]` design are built around, though
 neither document spells this particular example.
 
-**Stage 4 — dynamic calls and higher-order functions. The plain call
-landed with Stage 1**: there is one call form, `Any::call`, whatever the
-callee — a function literal, a `const`, an argument, the result of another
-call — and a non-function callee throws the `TypeError` JavaScript's does,
-through `TryFrom<Any<A>> for Function<A>`, never a panic. Static and
-dynamic calls are not two forms to prove identical; they are one. What
-remains is a call whose callee is a property read — `a.b(c)`, `f[0](1)` —
-which the lowering makes the `.` node's `|()` continuation, a method call
-carrying its receiver
-([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), and the
-printer prints as `Any::dot(a, key).end_call(args)`, and
-[`vm/lambda`](../src/vm/lambda/mod.rs) calls the property on its receiver:
-an own property or element first, then the receiver type's built-in member
-function. What remains is the table of built-ins the compiler admits,
-entry by entry — [`member-functions.md`](./member-functions.md).
+**Stage 4 — dynamic calls and higher-order functions. Landed.** The
+plain call landed with Stage 1: there is one call form, `Any::call`,
+whatever the callee — a function literal, a `const`, an argument, the
+result of another call — and a non-function callee throws the `TypeError`
+JavaScript's does, through `TryFrom<Any<A>> for Function<A>`, never a
+panic. Static and dynamic calls are not two forms to prove identical; they
+are one. The method call landed with chains: a call whose callee is a
+property read — `a.b(c)`, `f[0](1)` — is the `.` node's `|()`
+continuation, a call carrying its receiver
+([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), which the
+printer prints as `Any::dot(a, key).end_call(args)` and
+[`vm/lambda`](../src/vm/lambda/mod.rs) calls on its receiver: an own
+property or element first, then the receiver type's built-in member
+function. What is not this stage's is the table of built-ins the compiler
+admits, entry by entry — [`member-functions.md`](./member-functions.md).
 
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:
@@ -488,10 +488,11 @@ generated-Rust test from one source of cases.
       named parameters exist.
 - [ ] Stage 3: capturing closures — approved function-node lowering, the
       frame built as an `Array<A>` and handed to `A::static_function`.
-- [ ] Stage 4: the plain call landed with Stage 1 — `Any::call` is the
+- [x] Stage 4: the plain call landed with Stage 1 — `Any::call` is the
       one call form, a non-function callee throwing through
-      `TryFrom<Any<A>> for Function<A>`; remaining, a call whose callee is
-      a property read, the `.` node's `|()` continuation.
+      `TryFrom<Any<A>> for Function<A>` — and the method call with chains,
+      the `.` node's `|()` continuation printed as `end_call`; the
+      built-ins it reaches are [`member-functions.md`](./member-functions.md)'s.
 - [ ] Stage 5: self-reference — the generator reads `["self"]` as the
       `self_` every static function receives, a call to it being a call
       like any other; plus a `self === self` fixture.
