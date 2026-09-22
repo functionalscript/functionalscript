@@ -290,11 +290,6 @@ export const proof = {
          * not empty, a body that is not a node, and a body that is not the
          * `undefined` node.
          */
-        lambdaFramePrimitive: () => nodeExpr(['=>', 1, 2]),
-        lambdaFrameNotArray: () => nodeExpr(['=>', ['undefined'], ['undefined']]),
-        lambdaFrameNotEmpty: () => nodeExpr(['=>', ['[]', [1]], ['undefined']]),
-        lambdaBodyPrimitive: () => nodeExpr(['=>', ['[]', []], 5]),
-        lambdaBodyNotUndefined: () => nodeExpr(['=>', ['[]', []], ['args']]),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

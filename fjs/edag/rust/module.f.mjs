@@ -316,7 +316,7 @@ const lines = statements => statements.flatMap(s => s.split('\n'))
  */
 const atomic = e => {
     const [id, a] = /** @type {readonly any[]} */ (e)
-    return ['undefined', 'args'].includes(id)
+    return ['undefined', 'args', 'frame'].includes(id)
         || (['[]', '{}'].includes(id) && a.length === 0)
         || (id === '=>' && a !== null)
 }
@@ -572,6 +572,7 @@ const printer = nested => shared => root => {
         // an ordinary `.` node over this, `Any::dot(…).end()` answering
         // `undefined` past the end as JavaScript does.
         if (id === 'args') { return ok('args.clone().to_any()') }
+        if (id === 'frame') { return ok('A::frame(_self).clone().to_any()') }
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
@@ -607,8 +608,8 @@ const printer = nested => shared => root => {
             // is the corpus's `() => undefined`, which no operator inspects
             // and the harness binds as `function_any`; any other frame is
             // refused rather than printed as a function it is not.
-            if (a === null) { return closure(b) }
-            return isSmallestLambda(a, b) ? ok('function_any()') : error(['no Rust for', e])
+            if (isSmallestLambda(a, b)) { return ok('function_any()') }
+            return closure(/** @type {Exp} */ (/** @type {unknown} */ (a)), /** @type {Exp} */ (/** @type {unknown} */ (b)))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
@@ -637,11 +638,11 @@ const printer = nested => shared => root => {
      * an unused parameter under `-D warnings` is otherwise an error in the
      * crate the module lands in.
      *
-     * @type {(body: Exp) => Result<string, readonly unknown[]>}
+     * @type {(frame: Exp, body: Exp) => Result<string, readonly unknown[]>}
      */
-    const closure = body => mapOk(statements =>
-        `A::static_function(|_self, ${readsArgs(body) ? 'args' : '_args'}| ${braced(statements)}, 0, Array::default()).to_any()`
-    )(statements(body))
+    const closure = (frame, body) => map2((frameText, bodyStatements) =>
+        `A::static_function(|_self, ${readsArgs(body) ? 'args' : '_args'}| ${braced(bodyStatements)}, 0, ${frameText}).to_any()`
+    )(frame === null ? ok('Array::default()') : f(frame), statements(body))
     /**
      * An operation — a `.` read, a call, or an operator node — as the bare
      * `Result<Any<A>, Any<A>>` its `nanvm-lib` call answers, or the
@@ -905,7 +906,9 @@ const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
  * @type {(root: Exp) => boolean}
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
-    .some(([node]) => tagOf(node) === '=>' && /** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1] === null)
+    .some(([node]) => tagOf(node) === '=>' && !isSmallestLambda(
+        /** @type {Exp} */ (/** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[1]),
+        /** @type {Exp} */ (/** @type {readonly unknown[]} */ (/** @type {unknown} */ (node))[2])))
 
 /**
  * The operands a walk descends into, read from a node's shape rather than

@@ -14,6 +14,7 @@ export type _Nodes = {
     readonly parameters: readonly Exp[]
     readonly consts: readonly Exp[]
     readonly args: Exp
+    readonly frame: Exp
 }
 
 /**

@@ -159,6 +159,8 @@ export type _AccessFrame = {
 /** A function whose body is being evaluated: the names bound outside it, to return to. */
 export type _FunctionFrame = {
     readonly outer: _Env
+    readonly captures: readonly AstConst[]
+    readonly names: readonly string[]
 }
 
 /**
@@ -174,6 +176,8 @@ export type _FunctionFrame = {
  */
 export type _BodyFrame = {
     readonly outer: _Env
+    readonly captures: readonly AstConst[]
+    readonly names: readonly string[]
     readonly statements: Block[1]
     readonly index: number
     readonly word: string

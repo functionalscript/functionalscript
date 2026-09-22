@@ -143,8 +143,8 @@ A function is `['=>', null, body]`: no frame yet, and the body a scope of
 its own, in which the rest parameter is `['args']` — one node however many
 references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
 nothing outside stands: a reference to a `const`, an import or an enclosing
-function's parameter is a capture, refused where it is written, so no module
-node is ever shared into a body. The body is any value except an object, since
+function's parameter is a capture, stored in the function's frame in first-use
+order and read from that frame when the closure runs. The body is any value except an object, since
 `=> {` opens a block in JavaScript — or that block, in which an object is a
 value again: any number of `const` statements and then one `return`. A body
 `const` is an entry of the function's own body, as a module `const` is of the

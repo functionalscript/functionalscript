@@ -31,15 +31,15 @@ export type AstModule = readonly [readonly AstImport[], AstBody]
 export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstArgs
 
 /**
- * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
+ * A function with an ordered capture frame: `(...a) => { const x = …; return v; }`,
  * an {@link AstBody} as a module has one — its entries the body's `const`s
  * in order, the last the value it returns, and `['cref', i]` naming an
  * entry of *this* body. `(...a) => v` is the same function as
  * `(...a) => { return v; }`, so it is the one-entry body `[v]`.
  *
- * {@link AstArgs} is the arguments array; no `aref` stands here, and no
- * `cref` of an enclosing body — a capture is refused where it is written,
- * since a function has no frame yet. The EDAG's `['=>', null, body]`, its
+ * {@link AstArgs} is the arguments array; no `aref` stands here. An outer
+ * binding is represented by an `fref` slot in the function body and by the
+ * corresponding value in the frame. The EDAG's `['=>', frame, body]`, its
  * body a comma where an entry is unreached, as a module's is.
  *
  * An `aref` is typed as any index all the same, as a `cref` is: the parser
@@ -47,7 +47,9 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCa
  * not rejected — `lower` gives it no node, as it gives none to a `cref`
  * past the entry holding it.
  */
-export type AstFunction = readonly ['=>', AstBody]
+export type AstFunction =
+    | readonly ['=>', AstBody]
+    | readonly ['=>', readonly AstConst[], AstBody]
 
 /** The arguments array of the function whose body holds it — the rest parameter, whatever it is named. The EDAG's `['args']`. */
 export type AstArgs = readonly ['args']
@@ -69,7 +71,7 @@ export type AstArgs = readonly ['args']
  * later entry is unsatisfiable. It is not rejected: it resolves to the most
  * recently evaluated entry instead.
  */
-export type AstModuleRef = readonly ['aref' | 'cref', number]
+export type AstModuleRef = readonly ['aref' | 'cref' | 'fref', number]
 
 /** An array value; its elements are evaluated in order. */
 export type AstArray = readonly ['array', readonly AstConst[]]

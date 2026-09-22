@@ -629,9 +629,11 @@ export const proof = {
                     '}, 0, Array::default()).to_any())',
                 ])
         },
-        /** Any frame but `null` and the corpus's empty one is refused. */
+        /** A capture frame is emitted as the closure's third argument. */
         otherFrame: () => {
-            assertEq(refusalReason(['=>', ['[]', [1]], 1])[0], 'no Rust for')
+            assertEq(
+                printed(['=>', ['[]', [1]], 1]),
+                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [f64_any(0x3ff0000000000000)].to_array().to_any()).to_any()')
         },
         /**
          * A `null`-frame function anywhere — an item, a call's callee, a
@@ -723,8 +725,6 @@ export const proof = {
         /** A string no Rust literal can hold, and a bigint no `i64` can. */
         loneSurrogate: () => printed('\ud800'),
         bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
-        /** A lambda other than `() => undefined`. */
-        lambdaBodyNotUndefined: () => printed(['=>', ['[]', []], ['args']]),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**

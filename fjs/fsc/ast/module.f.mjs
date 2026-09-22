@@ -170,6 +170,7 @@ const toDjs = state => ast => {
     switch (ast[0]) {
         case 'aref': { return ok(state.args[ast[1]]) }
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
+        case 'fref': { return error(noFunctionValue) }
         case 'array': { return mapOk(arrayOf)(fold(collect)(noValues)(ast[1].map(toDjs(state)))) }
         case 'object': { return mapOk(objectOf)(fold(collect)(noMembers)(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':

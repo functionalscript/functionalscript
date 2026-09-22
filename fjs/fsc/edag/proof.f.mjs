@@ -367,11 +367,8 @@ export const proof = {
             expectEdag(compile('const a = []; export default [a, 0][1];').edag, ['.', ['[]', [['[]', []], 0]], 1])
         },
     },
-    // A function is `['=>', null, body]`: no frame yet, and the body a
-    // scope of its own, in which the arguments are one node however many
-    // references reach them and no module node stands, since the parser
-    // refuses a capture — so two functions share nothing, and a function
-    // `const` is one node like any other.
+    // A function is `['=>', frame, body]`: a null frame is capture-free, while
+    // a non-null frame holds eager enclosing values and the body reads slots.
     func: () => {
         expectEdag(compile('export default (...a) => a;').edag, ['=>', null, ['args']])
         const shared = compile('export default (...a) => [a, a[0]];').edag
@@ -399,6 +396,8 @@ export const proof = {
         expectEdag(compile('export default (...a) => { return [a, a[0]]; };').edag, ['=>', null, ['[]', [['args'], ['.', ['args'], 0]]]])
         expectEdag(compile('export default (...a) => { return { x: a }; };').edag, ['=>', null, ['{}', [[':', 'x', ['args']]]]])
         expectEdag(compile('export default (...a) => { return (...b) => { return b; }; };').edag, ['=>', null, ['=>', null, ['args']]])
+        expectEdag(compile('const x = 10; export default (...a) => (...b) => a[0] + b[0] + x;').edag,
+            [',', [10, ['=>', ['[]', [10]], ['=>', ['[]', [['args'], ['.', ['frame'], 0]]], ['+', ['+', ['.', ['.', ['frame'], 0], 0], ['.', ['args'], 0]], ['.', ['frame'], 1]]]]]])
     },
     // Source blocks and returns survive parsing, but lowering still gives
     // equivalent bodies the same EDAG, including nested block functions.

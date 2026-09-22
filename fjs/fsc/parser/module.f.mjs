@@ -48,7 +48,7 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { BinaryTag } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
@@ -788,9 +788,6 @@ const duplicateId = foldError('duplicate id')
 /** A keyword where JavaScript wants an identifier, at the word. */
 const reservedWord = foldError('reserved word')
 
-/** A reference in a function's body to a name bound outside it, at the reference: a function has no frame yet. */
-const capture = foldError('capture not supported')
-
 /** The arguments of the function whose body is being resolved. @type {AstArgs} */
 const args = ['args']
 
@@ -1061,17 +1058,41 @@ const conditionalRound = (stack, env, frame) => {
 }
 
 /**
- * Whether a name is bound outside the function being resolved: bound by
- * the names a function frame on the stack holds for after its body, which
- * the body may not use — a function has no frame to capture with yet.
+ * The function frame nearest the reference that owns a name in its outer
+ * environment. Its capture list is updated in first-use order.
  *
- * @type {(stack: _Stack, word: string) => boolean}
+ * @type {(stack: _Stack, word: string) => readonly [_Stack, number] | null}
  */
-const bound = (stack, word) => {
-    for (let s = stack; s !== null; s = s.rest) {
-        if ('outer' in s.top && at(word)(s.top.outer) !== null) { return true }
+const captureSlot = (stack, word) => {
+    if (stack === null) { return null }
+    if ('outer' in stack.top) {
+        const existing = stack.top.names.indexOf(word)
+        if (existing !== -1) { return [stack, existing] }
+        const outer = at(word)(stack.top.outer)
+        if (outer !== null) {
+            const index = stack.top.captures.length
+            const top = {
+                ...stack.top,
+                captures: [...stack.top.captures, outer],
+                names: [...stack.top.names, word],
+            }
+            return [{ top, rest: stack.rest }, index]
+        }
+        const parent = captureSlot(stack.rest, word)
+        if (parent !== null) {
+            const index = stack.top.captures.length
+            /** @type {AstModuleRef} */
+            const fref = ['fref', parent[1]]
+            const top = {
+                ...stack.top,
+                captures: [...stack.top.captures, fref],
+                names: [...stack.top.names, word],
+            }
+            return [{ top, rest: parent[0] }, index]
+        }
     }
-    return false
+    const found = captureSlot(stack.rest, word)
+    return found === null ? null : [{ top: stack.top, rest: found[0] }, found[1]]
 }
 
 /**
@@ -1137,7 +1158,12 @@ const enter = (stack, env, node) => {
             if (tag === 'error') { return [stack, env, error(word)] }
             const ref = at(word)(env)
             if (ref !== null) { return [stack, env, ok(ref)] }
-            return [stack, env, error(bound(stack, word) ? capture(node[1]) : constNotFound(node[1]))]
+            const captured = captureSlot(stack, word)
+            if (captured === null) { return [stack, env, error(constNotFound(node[1]))] }
+            const [updated, index] = captured
+            /** @type {AstModuleRef} */
+            const fref = ['fref', index]
+            return [updated, extended(env)(word, fref), ok(fref)]
         }
         case '.': { return [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, env, ['enter', node[1]]] }
         case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
@@ -1160,8 +1186,8 @@ const enter = (stack, env, node) => {
             if (tag === 'error') { return [stack, env, error(inner)] }
             const body = node[2]
             return body[0] === 'block'
-                ? bodyRound(stack, inner, { outer: env, statements: body[1], index: 0, word: '', done: null })
-                : [{ top: { outer: env }, rest: stack }, inner, ['enter', body]]
+                ? bodyRound(stack, inner, { outer: env, captures: [], names: [], statements: body[1], index: 0, word: '', done: null })
+                : [{ top: { outer: env, captures: [], names: [] }, rest: stack }, inner, ['enter', body]]
         }
         // a block stands only as a function's body, which `'=>'` above
         // enters; the mapping writes one nowhere else
@@ -1207,11 +1233,21 @@ const returned = (stack, env, frame, value) => {
                 { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
         }
         /** @type {AstFunction} */
-        const withConsts = ['=>', [...toArray(frame.done), value]]
+        /** @type {AstBody} */
+        const body = [...toArray(frame.done), value]
+        /** @type {AstFunction} */
+        const withConsts = frame.captures.length === 0
+            ? ['=>', body]
+            : ['=>', frame.captures, body]
         return [stack, frame.outer, ok(withConsts)]
     }
     /** @type {AstFunction} */
-    const fn = ['=>', [value]]
+    /** @type {AstBody} */
+    const body = [value]
+    /** @type {AstFunction} */
+    const fn = frame.captures.length === 0
+        ? ['=>', body]
+        : ['=>', frame.captures, body]
     return [stack, frame.outer, ok(fn)]
 }
 

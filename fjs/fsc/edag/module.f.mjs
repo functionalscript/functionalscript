@@ -103,11 +103,20 @@ const lowerLeaf = nodes => ast => {
     switch (ast[0]) {
         case 'aref': { return nodes.parameters[ast[1]] }
         case 'cref': { return nodes.consts[ast[1]] }
+        case 'fref': { return ['.', ['frame'], ast[1]] }
         case 'array': { return ['[]', ast[1].map(lower(nodes))] }
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return ['=>', null, scope(ast[1])] }
+        case '=>': {
+            const captures = ast.length === 2 ? null : ast[1]
+            const body = ast.length === 2 ? ast[1] : ast[2]
+            /** @type {Exp} */
+            const frame = captures === null ? null : ['[]', captures.map(lower(nodes))]
+            /** @type {Exp} */
+            const fn = ['=>', frame, frame === null ? scope(body) : scope(body, frame)]
+            return fn
+        }
         case 'args': { return nodes.args }
         case '()': { return call(nodes)(ast[1], ast[2]) }
         // the EDAG's own form already, its key a constant the parser admitted
@@ -234,9 +243,9 @@ const lower = nodes => root => {
  * arguments node that body names: a fresh one per function, since a node
  * belongs to one scope and two bodies naming one `['args']` is no EDAG.
  *
- * @type {(parameters: readonly Exp[], args: Exp) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]}
+ * @type {(parameters: readonly Exp[], args: Exp, frame: Exp) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]}
  */
-const entry = (parameters, args) => (consts, ast) => [...consts, lower({ parameters, consts, args })(ast)]
+const entry = (parameters, args, frame) => (consts, ast) => [...consts, lower({ parameters, consts, args, frame })(ast)]
 
 /**
  * A body as one node: its entries lowered in order, each `cref` taking the
@@ -246,13 +255,13 @@ const entry = (parameters, args) => (consts, ast) => [...consts, lower({ paramet
  *
  * A module and a function body are the same shape and the same rule, and
  * `anchors` reads a body out of a module, so the body is handed over as one
- * that imports nothing: a function names no import, a reference out of it
- * being a capture the parser refused.
+ * that imports nothing. A function's frame is evaluated by its enclosing
+ * scope, while `fref` reads the function-local `frame` terminal.
  *
- * @type {(body: AstBody) => Exp}
+ * @type {(body: AstBody, frame?: Exp) => Exp}
  */
-const scope = body => {
-    const nodes = body.reduce(entry([], ['args']), [])
+const scope = (body, frame = ['[]', []]) => {
+    const nodes = body.reduce(entry([], ['args'], frame), [])
     const value = nodes[nodes.length - 1]
     const { consts } = anchors([[], body])([])
     return consts.length === 0 ? value : [',', [...consts.map(i => nodes[i]), value]]
@@ -279,7 +288,7 @@ const scope = body => {
  * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
  */
 const lowered = imports => module => {
-    const nodes = module[1].reduce(entry(imports, args), [])
+    const nodes = module[1].reduce(entry(imports, args, ['[]', []]), [])
     const exported = nodes[nodes.length - 1]
     const { consts, imports: unbound } = anchors(module)(imports)
     return unbound.length === 0 && consts.length === 0

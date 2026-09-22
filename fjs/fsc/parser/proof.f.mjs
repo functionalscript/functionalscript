@@ -747,9 +747,8 @@ export const proof = {
             // both operands are resolved, in order
             expect('export default 1 + zzz;', 'const not found', 20)
             expect('export default zzz + 1;', 'const not found', 16)
-            // a name bound outside a function's body is a capture through
-            // an operator exactly as it is bare
-            expect('const c = 1; export default (...a) => c + a[0];', 'capture not supported', 39)
+            const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => c + a[0];'))
+            assert(tag === 'ok', value)
         },
         // Stage B: the lazy operators, `[tag, left, right]` exactly as the
         // eager ones are — laziness is no shape difference here — above
@@ -860,7 +859,8 @@ export const proof = {
             expect('export default 1 ? 2 : zzz;', 'const not found', 24)
             expect('export default 1 && zzz;', 'const not found', 21)
             expect('export default zzz ?? 1;', 'const not found', 16)
-            expect('const c = 1; export default (...a) => a ? c : 1;', 'capture not supported', 43)
+            const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => a ? c : 1;'))
+            assert(tag === 'ok', value)
         },
     },
     memberOrder: () => {
@@ -937,8 +937,8 @@ export const proof = {
     // A function of its arguments alone: the rest parameter is `['args']`
     // in its body, an access on it is an access, and a name bound outside
     // — a `const`, an import, or an enclosing function's parameter — is a
-    // capture, refused where it is written, since a function has no frame
-    // yet. A parameter may shadow a module name, as in JavaScript, and is
+    // capture, assigned a stable frame slot. A parameter may shadow a module
+    // name, as in JavaScript, and is
     // an identifier, so a keyword is refused as one. The list may also be
     // empty, `() => body`, which binds no name at all.
     func: {
@@ -995,8 +995,13 @@ export const proof = {
                 assertEq(value.metadata?.column, column)
             }
             expect('export default () => a;', 'const not found', 22)
-            expect('const c = 1; export default () => c;', 'capture not supported', 35)
-            expect('export default (...a) => () => a;', 'capture not supported', 32)
+            /** @type {(source: string) => void} */
+            const capture = source => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+            }
+            capture('const c = 1; export default () => c;')
+            capture('export default (...a) => () => a;')
             expect('export default () => { const x = a; return x; };', 'const not found', 34)
         },
         refused: () => {
@@ -1007,9 +1012,14 @@ export const proof = {
                 assertEq(value.message, message)
                 assertEq(value.metadata?.column, column)
             }
-            expect('const c = 1; export default (...a) => c;', 'capture not supported', 39)
-            expect('import m from "./m.f.js"; export default (...a) => m;', 'capture not supported', 52)
-            expect('const c = 1; export default (...a) => (...b) => a;', 'capture not supported', 49)
+            /** @type {(source: string) => void} */
+            const capture = source => {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', value)
+            }
+            capture('const c = 1; export default (...a) => c;')
+            capture('import m from "./m.f.js"; export default (...a) => m;')
+            capture('const c = 1; export default (...a) => (...b) => a;')
             expect('export default (...a) => zzz;', 'const not found', 26)
             expect('export default (...if) => 1;', 'reserved word', 20)
             expect('export default (...return) => 1;', 'reserved word', 20)
@@ -1031,11 +1041,8 @@ export const proof = {
             // pins that the two are one tree
             expect('export default (...a) => { return { x: 1 }; };', '[[],[["object",[["default",["=>",[["object",[["x",1]]]]]]]]]]')
             expect('export default (...a) => { return (...b) => { return b; }; };', '[[],[["object",[["default",["=>",[["=>",[["args"]]]]]]]]]]')
-            // the parameter is still the arguments array, and a name bound
-            // outside is still a capture
             const [tag, value] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { return c; };'))
-            assert(tag === 'error', tag)
-            assertEq(value.message, 'capture not supported')
+            assert(tag === 'ok', value)
         },
         // A body `const` is an entry of the function's own body, as a
         // module's is of the module's: `['cref', i]` names entry `i` of the
@@ -1080,7 +1087,8 @@ export const proof = {
             expect('export default (...a) => { const NaN = zzz; return 1; };', 'reserved word', 34)
             // a statement's value is resolved in the body's scope: reaching
             // out of it is a capture, and a name nothing binds is not found
-            expect('const c = 1; export default (...a) => { const x = c; return x; };', 'capture not supported', 51)
+            const [captureTag, captureValue] = parseFromTokens(tokenizeString('const c = 1; export default (...a) => { const x = c; return x; };'))
+            assert(captureTag === 'ok', captureValue)
             expect('export default (...a) => { const x = zzz; return x; };', 'const not found', 38)
             // a `const` is not in its own initializer's scope
             expect('export default (...a) => { const x = x; return x; };', 'const not found', 38)
@@ -1193,8 +1201,8 @@ export const proof = {
             // no function
             expect('const o = {}; export default o.push(1);', 'prohibited member function', 32)
             expect('const o = {}; export default o.__proto__(1);', 'prohibited member function', 32)
-            // and a body still reaches nothing outside itself
-            expect('const f = (...a) => 1; export default (...b) => f(b);', 'capture not supported', 49)
+            const [tag, value] = parseFromTokens(tokenizeString('const f = (...a) => 1; export default (...b) => f(b);'))
+            assert(tag === 'ok', value)
         },
         // A method call's key is checked against `fjs/js/prototype`'s
         // `prohibitedCalls`, not the read rule: a member function the VM
