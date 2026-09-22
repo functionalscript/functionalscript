@@ -30,42 +30,39 @@ impl<A: IVm> Member<A> {
         Ok(Member { receiver, key })
     }
 
-    /// The property read, `a.b`. An `Array`, `String`, `Object` or
-    /// `Function` receiver is dispatched to its own `member_access`
-    /// (`vm/array/member_access.rs`, `vm/string/member_access.rs`,
-    /// `vm/object/member_access.rs`, `vm/function/member_access.rs` — a
-    /// function's one property is its `length`), the same split
-    /// `own_property` has between its dispatcher and `Object::own_property`.
-    /// Every remaining receiver — `Number`, `Boolean`, `BigInt` — has no own
-    /// properties, so it always answers `undefined`, the same fallback
-    /// `own_property` has. No prototype chain: a built-in member function
-    /// is reachable through a call alone, never as a value, which is the
-    /// compiler's rule too (`fjs/js/prototype/README.md`).
-    pub(crate) fn read(self) -> Any<A> {
-        let Member { receiver, key } = self;
-        match Unpacked::from(receiver) {
-            Unpacked::Array(a) => a.member_access(key),
-            Unpacked::String(s) => s.member_access(key),
-            Unpacked::Object(o) => o.member_access(key),
-            Unpacked::Function(f) => f.member_access(key),
-            _ => None,
-        }
-        .unwrap_or_else(|| Nullish::Undefined.to_any())
-    }
-
-    /// What a call step finds before the built-ins: an object's own
-    /// property or an array's element, which shadow a built-in of the same
-    /// name as they do in JavaScript — `{ toString: f }.toString()` calls
-    /// `f`, and `[f][0](1)` calls the element. No other type owns anything
-    /// callable: a string's index is a character and a function's `length`
-    /// a number, so for them the built-ins and then the `TypeError` give
-    /// what JavaScript gives (`nanvm-lib/todo/member-functions.md`).
+    /// The property the receiver owns under the key, or `None`. An
+    /// `Array`, `String`, `Object` or `Function` receiver is dispatched to
+    /// its own `member_access` (`vm/array/member_access.rs`,
+    /// `vm/string/member_access.rs`, `vm/object/member_access.rs`,
+    /// `vm/function/member_access.rs` — a function's one property is its
+    /// `length`), the same split `own_property` has between its dispatcher
+    /// and `Object::own_property`. Every remaining receiver — `Number`,
+    /// `Boolean`, `BigInt` — owns nothing. No prototype chain: a built-in
+    /// member function is reachable through a call alone, never as a
+    /// value, which is the compiler's rule too
+    /// (`fjs/js/prototype/README.md`).
+    ///
+    /// What the read answers, and what a call step finds before the
+    /// built-ins: an own property shadows a built-in of the same name as it
+    /// does in JavaScript — `{ toString: f }.toString()` calls `f`, and
+    /// `[f][0](1)` calls the element — and an own property that is no
+    /// function is called and thrown for, never passed over for a built-in:
+    /// `"a"[0]()` and `f.length()` are the `TypeError` JavaScript throws,
+    /// and `"a"[0]?.()` throws too, since the character is not nullish.
     fn own(&self) -> Option<Any<A>> {
         match Unpacked::from(self.receiver.clone()) {
-            Unpacked::Object(o) => o.member_access(self.key.clone()),
             Unpacked::Array(a) => a.member_access(self.key.clone()),
+            Unpacked::String(s) => s.member_access(self.key.clone()),
+            Unpacked::Object(o) => o.member_access(self.key.clone()),
+            Unpacked::Function(f) => f.member_access(self.key.clone()),
             _ => None,
         }
+    }
+
+    /// The property read, `a.b`: the own property, or `undefined` — the
+    /// same fallback `own_property` has.
+    pub(crate) fn read(self) -> Any<A> {
+        self.own().unwrap_or_else(|| Nullish::Undefined.to_any())
     }
 
     /// The guard of `|?.()`: whether the callee the call would find is
@@ -143,9 +140,10 @@ mod tests {
         );
     }
 
-    /// A name with no own property and no built-in: the `TypeError` for
-    /// calling `undefined`, on every type — a string's index and a
-    /// function's `length` among them, since neither is callable.
+    /// A name with no own property and no built-in is the `TypeError` for
+    /// calling `undefined`; an own property that is no function — a
+    /// string's character, a function's `length` — is the `TypeError` for
+    /// calling it. JavaScript throws for all four.
     #[test]
     fn no_method_throws() {
         let object: Any<A> = [].to_object().to_any();
@@ -169,13 +167,24 @@ mod tests {
     }
 
     /// The guard of `?.()` asks the same resolution: nothing to call skips,
-    /// a built-in does not, and an own nullish property skips.
+    /// a built-in does not, an own nullish property skips, and an own
+    /// property that is not nullish is called — and thrown for where it is
+    /// no function, as JavaScript does for `"a"[0]?.()` and `f.length?.()`.
     #[test]
     fn option_call_guard_sees_built_ins() {
         let object: Any<A> = [("u".into(), Nullish::Null.to_any())].to_object().to_any();
         assert_eq!(
             object.clone().dot("at".into()).option_call(no_args).end(),
             Ok(Nullish::Undefined.to_any())
+        );
+        let s: Any<A> = "a".into();
+        assert_eq!(
+            s.dot(0.0.to_any()).option_call(no_args).end(),
+            Err(TYPE_ERROR.into())
+        );
+        assert_eq!(
+            seven().dot("length".into()).option_call(no_args).end(),
+            Err(TYPE_ERROR.into())
         );
         assert_eq!(
             object.clone().dot("u".into()).option_call(no_args).end(),

@@ -25,20 +25,19 @@ list is the set of names the VM must answer.
 nullish receiver throws first, and a guarded step skips a nullish receiver
 with its arguments untouched ([`vm/lambda`](../src/vm/lambda/mod.rs)):
 
-1. **An object**: an own property of the name, `Object::member_access`. A
-   function is called with the arguments; any other value is the
-   `TypeError` for calling a non-function. An own property shadows the
-   built-in, as in JavaScript, so `{ toString: f }.toString()` calls `f`.
-2. **An array**: an element at a canonical index key,
-   `Array::member_access`, called or thrown the same way — `[f][0](1)` is a
-   legal program that calls `f`. A prototype name is never an index and an
-   index never a prototype name, so the two lookups never compete.
-3. **Every type**: the type's built-in of that name, the specification's
-   algorithm over the receiver and the arguments. A string's index owns a
-   character and a function owns `length`, neither callable, and the
-   primitives own nothing, so no other type needs the own-property step:
-   the built-in table and then the `TypeError` give what JavaScript gives.
-4. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
+1. **The own property**, the same dispatch the read makes: an object's
+   property, an array's element, a string's character, a function's
+   `length`. A function is called with the arguments; any other value is
+   the `TypeError` for calling a non-function, never passed over for a
+   built-in. An own property shadows the built-in, as in JavaScript, so
+   `{ toString: f }.toString()` calls `f`, `[f][0](1)` calls the element,
+   and `"a"[0]()` throws. A prototype name is never an index and an index
+   never a prototype name, so the two lookups never compete. The guard of
+   `?.()` asks this same lookup, so `"a"[0]?.()` throws rather than skips,
+   the character being no more nullish than `f.length` is.
+2. **The built-in**: the receiver type's built-in of that name, the
+   specification's algorithm over the receiver and the arguments.
+3. Otherwise the `TypeError` for calling `undefined`, as JavaScript throws
    on a type without the method.
 
 The lookup may follow the arguments because nothing here mutates, so its
@@ -105,7 +104,8 @@ Infrastructure:
 
 - [x] `vm/lambda`: the live state holds the receiver and the key; `end`
       reads; the call exits run the algorithm above; `option_call`'s guard
-      uses the lookup — `Member` in `vm/lambda/member.rs`.
+      uses the lookup — `Member` in `vm/lambda/member.rs`, whose `own` is
+      one dispatch for the read, the callee and the guard.
 - [ ] The dispatch table per type — `method` in `vm/lambda/method.rs`
       holds the first entry and matches on the key alone, since every type
       has `toString` — and the generated completeness test over
