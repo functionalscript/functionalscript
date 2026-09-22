@@ -26,8 +26,9 @@
  *
  * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
  * establish their right operand only where the left has not already
- * decided the answer, and `?:` establishes exactly one arm, so those edges
- * are marked and the shared module draws them broken. The mark is on the
+ * decided the answer, `?:` establishes exactly one arm, and `=>` builds a
+ * closure without running its body, so those edges are marked and the
+ * shared module draws them broken. The mark is on the
  * **edge** and not on the node it reaches, because laziness is positional:
  * a node reached from an eager position elsewhere is evaluated there
  * whatever reaches it here, and a node is drawn once however many edges
@@ -163,10 +164,16 @@ export const _shapeOf = exp => {
     // each to `['=>', null, body]`, the parser refusing a capture — and the
     // edge label is what makes that null read as the absent frame it is
     // rather than as a constant somebody passed.
+    //
+    // The body is lazy: building the closure establishes the frame and
+    // never the body, which runs only on a call and may never run at all.
     if (tag === '=>') {
         return {
             kind: 'op', label: '=>',
-            children: [['frame', /** @type {Exp} */ (exp[1])], ['body', /** @type {Exp} */ (exp[2])]],
+            children: [
+                ['frame', /** @type {Exp} */ (exp[1])],
+                ['body', /** @type {Exp} */ (exp[2]), 'lazy'],
+            ],
         }
     }
     if (typeof tag === 'string' && op0.has(tag)) {
@@ -283,7 +290,8 @@ const graphOf = text => {
  * body. That those two look identical and are still not shared is `a`'s
  * lesson from the other side: sharing is reference identity, never
  * resemblance. The function's `frame` edge ends at `null` because the
- * compiler emits no captures yet.
+ * compiler emits no captures yet, and its `body` edge is broken because
+ * building the function does not run it.
  *
  * **`m && a` is what makes the marking legible**, and not because it
  * draws one dashed line. `a` is reached four times — twice by the array,

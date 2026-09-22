@@ -149,9 +149,11 @@ export const proof = {
             assertEq(mixed.split('data-graph-edge-kind="lazy"').length - 1, 1)
             assert(!mixed.includes('>left, right<'), mixed)
             // Bowed apart, or they would land on one curve. Only the
-            // lines are counted: the arrowhead marker is a path too.
-            const curves = new Set(
-                [...mixed.matchAll(/<path d="([^"]+)" data-graph-edge=""/g)].map(m => m[1]))
+            // lines are counted: the arrowhead marker is a path too. Each
+            // piece before an edge marker ends with that line's `d`.
+            const open = '<path d="'
+            const curves = new Set(mixed.split('" data-graph-edge=""').slice(0, -1)
+                .map(before => before.slice(before.lastIndexOf(open) + open.length)))
             assertEq(curves.size, 2)
         },
         // Two of one kind are still one line, labelled with both.

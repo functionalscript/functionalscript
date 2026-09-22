@@ -846,10 +846,12 @@ export const proof = {
             // `right` like every other tag in that set; it is its own case
             // for the two names that say what a function's operands are. The
             // frame is `null` in everything the compiler emits today.
+            // Building a closure establishes its frame and never its body,
+            // which runs only on a call — so the body is marked.
             lambda: () => {
                 const shape = assertNotNullish(_shapeOf(['=>', null, ['args']]), 'expected a shape')
                 assertEq(shape.label, '=>')
-                assertStructurallySame(shape.children, [['frame', null], ['body', ['args']]])
+                assertStructurallySame(shape.children, [['frame', null], ['body', ['args'], 'lazy']])
             },
             // Every Op0 name renders with no children, and the three part
             // by meaning where `Op0Id` groups them by operand count:
@@ -949,19 +951,22 @@ export const proof = {
          * `a` is reached four times — twice by the array, once through
          * `a * 3`, and once as `m && a`'s right operand — so one node
          * carries three solid edges and one broken one. A mark on the box
-         * could not have said which of the four was conditional.
+         * could not have said which of the four was conditional. The
+         * other broken line is the function's body.
          */
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
-            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
+            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 2)
         },
         /**
          * Every lazy position, through the parser rather than by hand —
          * which `fsc` accepts since Stage B landed.
          */
         lazyThroughTheParser: () => {
+            // Each source is a function, whose body is one marked edge of
+            // its own; the count past it is the operator's.
             const of = /** @type {(src: string) => number} */(src =>
-                htmlToString(demo.view(src)).split('data-graph-edge-kind="lazy"').length - 1)
+                htmlToString(demo.view(src)).split('data-graph-edge-kind="lazy"').length - 2)
             assertEq(of('export default (...a) => a[0] && a[1];'), 1)
             assertEq(of('export default (...a) => a[0] || a[1];'), 1)
             assertEq(of('export default (...a) => a[0] ?? a[1];'), 1)
@@ -969,6 +974,9 @@ export const proof = {
             assertEq(of('export default (...a) => a[0] ? a[1] : a[2];'), 2)
             // An eager operator marks nothing.
             assertEq(of('export default (...a) => a[0] + a[1];'), 0)
+            // The body of a function that may never be called, as the
+            // review that found it wrote it.
+            assertEq(of('export default (...a) => null.x;'), 0)
         },
         // Arithmetic, comparison, a call and property access, all through
         // real source — the parser accepts this much today.

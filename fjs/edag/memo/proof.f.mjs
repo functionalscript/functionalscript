@@ -79,7 +79,7 @@ export const proof = {
      * tags; a second list is the one that drifts. So every tag it names is
      * shown here to leave its right operand undemanded given a left that
      * decides the answer, and a tag from each other corner of `op2` is shown
-     * to force it.
+     * to force it — under `throw` below, since forcing it throws.
      */
     lazyVocabulary: () => {
         // The left that short-circuits, per operator.
@@ -87,12 +87,6 @@ export const proof = {
         for (const tag of lazyOp2Id) {
             const left = deciding[tag]
             assertEq(run([tag, left, boom]), left)
-        }
-        // Comparison, arithmetic and bitwise force theirs.
-        for (const tag of /** @type {const} */ (['===', '*', '&'])) {
-            let threw = false
-            try { run([tag, 1, boom]) } catch { threw = true }
-            assert(threw, tag)
         }
     },
     // A body's slots are per call: a constructor inside is fresh per call
@@ -138,5 +132,10 @@ export const proof = {
         // Amnesia's throws are this executor's: a demanded lazy operand that throws, throws.
         forced: () => run(['&&', true, boom]),
         nullishBase: () => run(['.', ['undefined'], 'x']),
+        // Outside `lazyOp2Id`, the right operand is forced: comparison,
+        // arithmetic and bitwise, one from each other corner of `op2`.
+        eagerComparison: () => run(['===', 1, boom]),
+        eagerArithmetic: () => run(['*', 1, boom]),
+        eagerBitwise: () => run(['&', 1, boom]),
     },
 }
