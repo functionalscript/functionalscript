@@ -14,9 +14,9 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, attribute, block, body, constStatement, djsModule,
-    exportStatement, func, group, identifier, importStatement, index, items, key, member, object, parameters, paren, parenGroup,
-    parenthesized, primitive, sym, symbolOf, trivia, value,
+    _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
+    djsModule, exportStatement, func, group, identifier, importStatement, index, items, key, member, object, parameters, paren,
+    parenGroup, parenthesized, primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -73,6 +73,8 @@ export const proof = {
         parser(/** @type {Rule} */ (paren))
         parser(/** @type {Rule} */ (parenGroup))
         parser(/** @type {Rule} */ (body))
+        parser(/** @type {Rule} */ (circuitTail))
+        parser(/** @type {Rule} */ (conditionalTail))
         parser(/** @type {Rule} */ (block))
         parser(attribute)
         parser(/** @type {Rule} */ (importStatement))
@@ -343,6 +345,69 @@ export const proof = {
         // the grammar sees a value and not what it is
         assertStructurallySame(read('export default -1();'), ['ok'])
         assertStructurallySame(read('export default 1();'), ['ok'])
+    },
+    // Stage B of `spec/todo/2340-operators.md`: the lazy operators and the
+    // conditional, above the eager ladder. `&&` and `||` chain as in
+    // JavaScript, `??` chains with itself alone, and `?:` takes whole
+    // values for its arms. The shape refuses what JavaScript's grammar
+    // refuses — `??` beside `&&`/`||` at one nesting, and `**` after a
+    // prefix — at the token, with no check after the parse.
+    lazy: () => {
+        assertStructurallySame(read('const a = 1; const b = 2; export default a && b;'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a || b;'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a ?? b;'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a && b && a || b || a && b;'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a || b && a;'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a ?? b ?? a;'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a | b && a + b ?? a;'), ['error', '??'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a ?? b || a;'), ['error', '||'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a ?? b && a;'), ['error', '&&'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a && b ?? a;'), ['error', '??'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a || b ?? a;'), ['error', '??'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a || b && a ?? b;'), ['error', '??'])
+        // parentheses admit either mix, as JavaScript's do
+        assertStructurallySame(read('const a = 1; const b = 2; export default (a ?? b) || a;'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a ?? (b || a);'), ['ok'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default a && (b ?? a);'), ['ok'])
+        // the operand is the eager ladder's, so a lazy operator takes
+        // every eager operator without parentheses and no operand of its
+        // own is a function
+        assertStructurallySame(read('const a = 1; const b = 2; export default a + b && a | b ?? a;'), ['error', '??'])
+        assertStructurallySame(read('const a = 1; const b = 2; export default -a && ~b ** 2;'), ['error', '**'])
+        assertStructurallySame(read('const a = 1; export default a && (...b) => b;'), ['error', '...'])
+        assertStructurallySame(read('const a = 1; export default a && ((...b) => b);'), ['ok'])
+        // a chain stands wherever a value does, its own trivia around each token
+        assertStructurallySame(read('const a = 1; export default [a && a, { x: a ?? a }, (a || a).x];'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a /* c */ &&\n a;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default (...b) => b && a;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a &&;'), ['error', ';'])
+        assertStructurallySame(read('const a = 1; export default && a;'), ['error', '&&'])
+    },
+    // The conditional: `? value : value` after the short-circuit level,
+    // each arm a whole value, so a nested conditional in either arm needs
+    // no parentheses and a function may stand as an arm — its body ends
+    // where `:` cannot continue it, as JavaScript reads `a ? () => 1 : 2`.
+    conditional: () => {
+        assertStructurallySame(read('const a = 1; export default a ? 1 : 2;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a?1:2;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a ? a ? 1 : 2 : a ? 3 : 4;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a && a ? a || a : a ?? a;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a ? () => 1 : 2;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a ? 1 : () => 2;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a ? { x: a ? 1 : 2 } : [a ? 1 : 2];'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default (a ? 1 : 2).x;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default (...b) => b ? 1 : 2;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default -a ? -1 : ~1;'), ['ok'])
+        // the arms are values, not one of them a function's parameter
+        // list or a hole; both are required, and the conditional is no
+        // operand of the operators below it
+        assertStructurallySame(read('const a = 1; export default a ? 1;'), ['error', ';'])
+        assertStructurallySame(read('const a = 1; export default a ? : 2;'), ['error', ':'])
+        assertStructurallySame(read('const a = 1; export default a ? 1 : ;'), ['error', ';'])
+        assertStructurallySame(read('const a = 1; export default a ? 1 : 2 : 3;'), ['error', ':'])
+        assertStructurallySame(read('const a = 1; export default a ? 1 : 2 + 3 && a ? 4 : 5;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default -(a ? 1 : 2);'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default a ?. 1 : 2;'), ['error', 'error'])
     },
     // `;` ends every statement: a newline does not, and neither does the
     // end of input. A newline is trivia, read past, so the failure is at

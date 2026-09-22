@@ -647,14 +647,21 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 }
 `)
         },
-        // A node shape the printer refuses even after the read widened
-        // what a `.`/`[]` base may be: a nullish base, which throws at run
-        // time in real JS — refused against the output rather than compiled
-        // to a Rust panic, since the module itself is sound.
+        // A property read on a nullish base compiles: the `.rs` output is a
+        // program, and the read throws when it runs, as JavaScript throws —
+        // the compiler predicts nothing of a program it writes, where the
+        // data outputs evaluate the module and report the throw as theirs.
+        nullishBase: () => {
+            assert(compileSource('const a = null; export default a.x;')('output.rs')
+                .includes('Any::dot(Nullish::Null.to_any(), string_any("x")).end()?'))
+        },
+        // A value no Rust literal can hold — a bigint outside `i64` — is
+        // refused against the output rather than written as text `rustc`
+        // then refuses, since the module itself is sound.
         refused: () => {
             assertEq(
-                rustRefused('const a = null; export default a.x;'),
-                'output.rs - error: no Rust spelling for this module: a property access on a nullish base throws at run time; refused rather than compiled to a panic: .,,x')
+                rustRefused('export default 9223372036854775808n;'),
+                'output.rs - error: no Rust spelling for this module: no Rust i64 for: 9223372036854775808')
         },
         // Every eager operator prints as a temporary, its `let` followed
         // by `?`: `pub fn module` answers the `Result` a throw lands in, so
@@ -713,6 +720,63 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             expect(
                 'export default [-1, -1n, - -1, -Infinity, -0];',
                 '[f64_any(0xbff0000000000000), bigint_any(-1), f64_any(0x3ff0000000000000), f64_any(0xfff0000000000000), f64_any(0x8000000000000000)].to_array().to_any()')
+        },
+        // A lazy operator's conditionally established operand prints as
+        // the thunk `nanvm-lib` takes — `|| Ok(…)` around a value, an
+        // operation's own line bound to a closure — so the `1n / 0n` a
+        // `&&` never reaches, or the arm a `?:` does not select, is never
+        // run: `nanvm-harness/fixtures/lazy.mjs` runs each against the VM.
+        lazyOperators: () => {
+            /** The lines of the module's body. @type {(source: string) => readonly string[]} */
+            const body = source => compileSource(source)('output.rs').split('\n').filter(line => line.startsWith('    '))
+            const one = 'f64_any(0x3ff0000000000000)'
+            const two = 'f64_any(0x4000000000000000)'
+            assertStructurallySame(body('export default 1 && 2;'), [
+                `    let c0: Any<A> = (Any::logical_and(${one}, || Ok(${two})))?;`,
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default false || 1n / 0n;'), [
+                '    let c0 = || bigint_any(1) / bigint_any(0);',
+                '    let c1: Any<A> = (Any::logical_or(false.to_any(), c0))?;',
+                '    Ok([(string_key("default"), c1)].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default null ?? 1;'), [
+                `    let c0: Any<A> = (Any::nullish_coalescing(Nullish::Null.to_any(), || Ok(${one})))?;`,
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default true ? 1 : 2;'), [
+                `    let c0: Any<A> = (Any::conditional(true.to_any(), || Ok(${one}), || Ok(${two})))?;`,
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
+            // a `const` reached only lazily is anchored — a `let` before
+            // the root, as JavaScript establishes a `const` at its
+            // declaration — and each thunk clones it
+            assertStructurallySame(body('const c = [1]; export default [false && c, true && c];'), [
+                `    let c0: Any<A> = [${one}].to_array().to_any();`,
+                '    let c1: Any<A> = (Any::logical_and(false.to_any(), || Ok(c0.clone())))?;',
+                '    let c2: Any<A> = (Any::logical_and(true.to_any(), || Ok(c0.clone())))?;',
+                '    let c3: Any<A> = [c1, c2].to_array().to_any();',
+                '    Ok([(string_key("default"), c3)].to_object().to_any())',
+            ])
+            // a function's arguments reached only lazily are no `const`
+            // to anchor and need none: the parameter is bound already, so
+            // the body binds it once and each thunk clones it
+            assertStructurallySame(body('export default (...a) => true ? a : a;'), [
+                '    let c0: Any<A> = A::static_function(|_self, args| {',
+                '        let c0 = || Ok(args.clone().to_any());',
+                '        Any::conditional(true.to_any(), c0, c0)',
+                '    }, 0, Array::default()).to_any();',
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
+            assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
+                '    let c0: Any<A> = A::static_function(|_self, args| {',
+                '        let c0: Any<A> = args.clone().to_any();',
+                '        let c1 = || Ok([c0.clone()].to_array().to_any());',
+                '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
+                '        Any::conditional(true.to_any(), c1, c2)',
+                '    }, 0, Array::default()).to_any();',
+                '    Ok([(string_key("default"), c0)].to_object().to_any())',
+            ])
         },
         // A shared operation is established once, in its `let`, with the
         // same `?`; each reference clones the value it produced, where a

@@ -276,131 +276,6 @@ const indexExpr = index => {
 }
 
 /**
- * `true` for a `.` base a property read on always throws: `null` and the
- * tagged `['undefined']` node. Printing `Any::dot(…)` for
- * either would compile to a run-time throw in place of the compile-time refusal
- * every other DJS output gives the same input (`fjs/fsc/README.md`: "a
- * `null` or `undefined` base is the one failure a data module can make").
- * Provable only from the base's own literal shape: a `const`, an import, or
- * another `.` node's result could still be nullish at run time, and nothing
- * short of evaluating the module would know.
- *
- * @type {(base: Exp) => boolean}
- */
-const nullishBase = base => base === null || (base instanceof Array && base[0] === 'undefined')
-
-/**
- * `true` for a JS number that denotes a valid array/string index: a
- * non-negative integer. Mirrors `nanvm-lib`'s own `canonical_index`
- * (`vm/member_access.rs`) exactly but for one omission that is provably
- * harmless below: it does not cap the value at `u32::MAX`. Every caller
- * only trusts a `true` result once the same number is also less than a real
- * literal's `.length` — always far short of that cap — so a value beyond it
- * still reads as an out-of-range miss below, the same outcome
- * `canonical_index` gives it directly. `-0` passes (`Number.isInteger(-0)`
- * and `-0 >= 0` both hold), matching `canonical_index`'s own `-0` case; a
- * negative, fractional, `NaN`, or `Infinity` key fails, matching every
- * other rejection `canonical_index` makes — each of those always misses
- * below too, since a miss needs only "not a canonical in-range index",
- * never this predicate specifically.
- *
- * @type {(n: number) => boolean}
- */
-const isCanonicalIndex = n => Number.isInteger(n) && n >= 0
-
-/**
- * The array/string index an `.`/`[]` key `b` denotes, or `null` for a key
- * that denotes none — a negative, fractional, or non-finite number
- * ({@link isCanonicalIndex}), or a string that is not the exact canonical
- * decimal form of a non-negative integer. Mirrors `nanvm-lib`'s
- * `string_to_index` (`vm/member_access.rs`) via native JS coercion rather
- * than reimplementing its digit scan: `String(Number(b))` *is* ECMAScript's
- * `Number::toString` here (this printer runs inside the JS engine that
- * defines it), so it rejects exactly what `string_to_index` rejects for the
- * same reason — `"01"`, `"+0"`, `"1.0"`, `" 0"`, `"-0"`, and `""` each fail
- * to round-trip back to themselves, while `"0"` and `"1"` do.
- *
- * `null` is not itself "opaque" to a caller: {@link resolvedBase}'s array
- * and string branches treat it as a miss (`undefined`), the same as an
- * in-range check that fails, because every key `Array`/`String::member_access`
- * accepts but does not resolve to an element — a non-canonical string, an
- * out-of-range canonical one — answers `undefined` unconditionally, not
- * "unknown."
- *
- * @type {(b: number | string) => number | null}
- */
-const arrayIndexOf = b => {
-    if (typeof b === 'number') { return isCanonicalIndex(b) ? b : null }
-    const n = Number(b)
-    return isCanonicalIndex(n) && String(n) === b ? n : null
-}
-
-/**
- * The `Exp` a `.` node's base denotes when every step folding it is
- * statically visible: a literal receiver and a literal key fold to the
- * property or element's own value, the same way `{ a: 1 }.a` is `1` and
- * `[1][0]` is `1` at run time — so a base that is nullish only after such a
- * fold is still caught by {@link nullishBase} rather than missed just
- * because the nullish value sits one or more hops further away than the
- * node it is checked on: `{}.missing` and `[][0]` both fold to the tagged
- * `['undefined']` node the same way a missing property or an out-of-range
- * index reads as `undefined` at run time, and `{ a: null }.a.x` and
- * `[null][0].x` both fold their base to a literal `null` before
- * `nullishBase` ever sees it — exactly mirroring `Any::dot`'s own
- * dispatch: a receiver it does not special-case at all (a number, a
- * boolean, a bigint, or a function) always answers `undefined` regardless
- * of the key, an object's key is a string directly or a number stringified
- * first (matching `Object::member_access`'s own `ToString`), and an
- * array's or a string's key is its canonical index
- * ({@link arrayIndexOf}, matching `Array`/`String::member_access` —
- * including a key that denotes no index at all, which those two also read
- * as an unconditional miss) with the one string `"length"` left alone,
- * since a length is a number and a number is never nullish.
- *
- * Stops and hands back `e` unresolved wherever it cannot see through: a
- * `const`, an import, another operation, or an object or array holding a
- * spread — this is a fold over literal chains only, not a general
- * evaluator, so a shape it cannot prove is left opaque rather than guessed
- * at. Folding all the way through to a non-nullish literal — an array, a
- * string, another object — costs nothing and is harmless, but changes
- * nothing {@link nullishBase} decides either: it treats every such shape,
- * resolved or left opaque, alike as "not provably nullish." Only the
- * nullish outcomes above are what the fold exists for.
- *
- * @type {(e: Exp) => Exp}
- */
-const resolvedBase = e => {
-    if (!(e instanceof Array)) { return e }
-    const [id, a, b, c] = /** @type {readonly any[]} */ (e)
-    if (id !== '.' || c !== undefined) { return e }
-    const base = resolvedBase(a)
-    if (typeof base === 'boolean' || typeof base === 'number' || typeof base === 'bigint'
-        || (base instanceof Array && base[0] === '=>')) {
-        return ['undefined']
-    }
-    if (base instanceof Array && base[0] === '{}' && (typeof b === 'string' || typeof b === 'number')) {
-        const key = typeof b === 'number' ? String(b) : b
-        const props = /** @type {readonly any[]} */ (base[1])
-        if (props.some((/** @type {any} */ p) => p[0] !== ':')) { return e }
-        const prop = props.findLast((/** @type {any} */ p) => p[1] === key)
-        return resolvedBase(prop === undefined ? ['undefined'] : prop[2])
-    }
-    if (base instanceof Array && base[0] === '[]' && (typeof b === 'string' || typeof b === 'number')) {
-        if (b === 'length') { return e }
-        const items = /** @type {readonly any[]} */ (base[1])
-        if (items.some((/** @type {any} */ p) => p instanceof Array && p[0] === '...')) { return e }
-        const index = arrayIndexOf(b)
-        return resolvedBase(index !== null && index < items.length ? items[index] : ['undefined'])
-    }
-    if (typeof base === 'string' && (typeof b === 'string' || typeof b === 'number')) {
-        if (b === 'length') { return e }
-        const index = arrayIndexOf(b)
-        return resolvedBase(index !== null && index < base.length ? base[index] : ['undefined'])
-    }
-    return e
-}
-
-/**
  * The indentation of one level of generated Rust: a scope's statements
  * inside their function, a block's lines inside its braces.
  */
@@ -415,7 +290,7 @@ export const indent = '    '
  *
  * @type {(statements: readonly string[]) => string}
  */
-const braced = statements => statements.length === 1
+export const braced = statements => statements.length === 1
     ? `{ ${statements[0]} }`
     : `{\n${lines(statements).map(l => `${indent}${l}`).join('\n')}\n}`
 
@@ -518,10 +393,18 @@ const last = e => {
  * `c`, and a `let` before the root would — and no scope the lowering
  * links has the shape, an implicitly shared node being a `const`
  * referenced twice, which JavaScript establishes at its declaration
- * whatever the operators around its uses do, and which
- * [Stage B](../../fsc/todo/stage-b-operators.md)'s eager-restricted
- * `refsOf` anchors through the comma root when reached only lazily — an
- * eager reach, so the binding is right again.
+ * whatever the operators around its uses do, and which the
+ * eager-restricted reference sweep of `anchors`
+ * ([`fjs/fsc/ast`](../../fsc/ast/module.f.mjs)) anchors through the comma
+ * root when reached only lazily — an eager reach, so the binding is right
+ * again. An {@link atomic} node is the exception: its construction
+ * establishes nothing the program could skip — `args` is the closure's
+ * parameter, already bound, and `undefined` or an empty container is a
+ * value no evaluation precedes — so one shared only through lazy operands
+ * is not refused but bound by the scope's block before the root, where
+ * every thunk reaching it clones the one binding. `(...a) => true ? a :
+ * a` is the shape: its `args` is no `const` for `anchors` to anchor, and
+ * needs none.
  *
  * `nested` is the corpus's mode: the root prints as one expression, its
  * operation the bare `Result<Any<A>, Any<A>>` the `nanvm-lib` call answers
@@ -545,7 +428,7 @@ const printer = nested => shared => root => {
     const order = visit(node => isBound(/** @type {Exp} */ (/** @type {unknown} */ (node))) ? [] : operandsOf(node))([])(root)
         .filter(([n]) => !isBound(n))
     const eager = eagerNodesOf(root)
-    const lazyOnly = order.find(([n, count]) => count >= 2 && !eager.includes(n))
+    const lazyOnly = order.find(([n, count]) => count >= 2 && !eager.includes(n) && !atomic(n))
     if (lazyOnly !== undefined) {
         return error(['no Rust for a shared node reached only through lazy operands; a `let` binding would establish what the program may not', lazyOnly[0]])
     }
@@ -604,20 +487,26 @@ const printer = nested => shared => root => {
             : [/** @type {readonly [Exp, number]} */ ([n, count - discarded.filter(d => d === n).length])])
     /** @type {(e: Exp) => boolean} */
     const isTemporary = e => temporaries.some(([n]) => n === e)
-    /** What the scope's own block holds, established before the root as a `const` is at its declaration. */
-    const outer = held(root)
+    /**
+     * What the scope's own block holds, established before the root as a
+     * `const` is at its declaration: what the root holds, and every shared
+     * atom under it wherever it is reached — bound once by the scope, for
+     * the thunks that reach it to clone, since binding one early
+     * establishes nothing (see above).
+     */
+    const outer = [...held(root), ...order.flatMap(([n, count]) => atomic(n) && count >= 2 ? [n] : [])]
     /**
      * The temporaries `e`'s block binds, in dependency order: the ones it
      * holds — every one, for the scope's root; for a thunk's root, less the
      * ones the scope's block already holds — a value reached eagerly
-     * elsewhere, and the thunks over that value's own lazy operands, which
-     * the scope's block makes where the value is — and less the thunk
-     * itself, the block's own answer.
+     * elsewhere, a shared atom, and the thunks over that value's own lazy
+     * operands, which the scope's block makes where the value is — and
+     * less the thunk itself, the block's own answer.
      *
      * @type {(e: Exp) => readonly Exp[]}
      */
     const declaredBy = e => {
-        const own = held(e)
+        const own = e === root ? outer : held(e)
         return temporaries.filter(([n]) => n !== e && own.includes(n) && (e === root || !outer.includes(n))).map(([n]) => n)
     }
     /**
@@ -765,11 +654,10 @@ const printer = nested => shared => root => {
         const [id, a, b, c] = e
         // A chain: the node's entry point, then its continuation's steps,
         // then the exit — `Any::dot(a, key).end()` for a bare `a.b`, one
-        // spelling whether or not a continuation follows. A `.` read on a
-        // provably nullish base is refused as before; `?.` and `?.()` on
-        // one are `undefined`, and print.
+        // spelling whether or not a continuation follows. What the read
+        // answers is the VM's: `null.a` throws when the module runs, as
+        // JavaScript throws, and nothing here predicts it.
         if (isChain(id)) {
-            if (id === '.' && nullishBase(resolvedBase(a))) { return error(['a property access on a nullish base throws at run time; refused rather than compiled to a panic', e]) }
             const open = id === '.' ? map2((fa, k) => `Any::dot(${fa}, ${k})`)(f(a), indexExpr(b))
                 : id === '?.' ? map2((fa, k) => `Any::option_dot(${fa}, ${k})`)(f(a), keyThunk(b))
                 : map2((fa, t) => `Any::option_call(${fa}, ${t})`)(f(a), lazyOperand(b))
@@ -1143,20 +1031,43 @@ const held = e => {
  * through eager positions alone — in walk order, `root` first. A node
  * {@link sharedNodesOf} lists that is not among these is reached only
  * through lazy operands, and a `let` binding for it before the root would
- * establish what the program may not: the shape `fjs/fsc/rust` refuses.
+ * establish what the program may not: the shape `fjs/fsc/rust` refuses,
+ * an {@link atomic} node excepted, whose binding establishes nothing.
  *
  * @type {(root: Exp) => readonly Exp[]}
  */
 export const eagerNodesOf = root => reach([], root)
 
 /**
+ * The statements of one scope over the caller's own bindings — a corpus
+ * case's, over the group's shared values — as {@link scope} prints a
+ * module's over none: a `let` per temporary, then the root as the
+ * `Result` the scope answers.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => Result<readonly string[], readonly unknown[]>}
+ */
+export const statementsOf = shared => root => okThen(p => p.block(root))(printer(false)(shared)(root))
+
+/**
  * The statements of a scope's block — a compiled module's body, or a
- * function's — over no bindings but its own: {@link printer}'s
- * `block` of its root.
+ * function's — over no bindings but its own.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
-const statements = root => okThen(p => p.block(root))(printer(false)([])(root))
+const statements = statementsOf([])
+
+/**
+ * `true` when an operation stands in an eager position under `root`, a
+ * node the caller has bound aside: what a bare statement cannot hold,
+ * since an operation answers a `Result` where its operand position takes
+ * an `Any`, and a bare statement has no line before it to bind the
+ * temporary on. A lazy position holds one fine — its thunk's block binds
+ * it — and so does a bound node, its binding's `.clone()` being a value.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (root: Exp) => boolean}
+ */
+export const nestsOperation = shared => root => eagerNodesOf(root).slice(1)
+    .some(n => isOperation(n) && !shared.some(([s]) => s === n))
 
 /**
  * The lines of one scope — a compiled module's body, or a function's — or

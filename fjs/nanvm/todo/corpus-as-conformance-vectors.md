@@ -25,58 +25,31 @@ defers generic `Any` serialization to post-MVP, and this repository's
 cross-language bridge is generated Rust, so until the interpreter exists there
 is nothing to hand them to.
 
-### A nested operation does not yet print as compilable Rust
+### A nested operation prints as a scope
 
-An operation nested in an eager position — `['*', 1, ['*', 2, 3]]` — does
-not print as compilable Rust for the corpus; a lazy position is the one
-exception, below.
-
-Every `nanvm-lib` operator returns `Result<Any<A>, Any<A>>`:
+Every `nanvm-lib` operator answers `Result<Any<A>, Any<A>>`, and `check`
+consumes that `Result` at the top of a statement, which is why a flat case
+is one expression: an operation nested in an eager position would hand the
+outer one a `Result` where it takes an `Any`. Such a case — `['+',
+unreached, 1]`, its left operand the operation `1n / 0n` — prints as a
+scope instead, the shape a thunk's body and a compiled module already have:
 
 ```rust
-impl<A: IVm> Mul for Any<A> {
-    type Output = Result<Any<A>, Any<A>>;
+check_throws::<A>("unreachedPlusOne", scope(|| {
+    let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+    c0 + f64_any(0x3ff0000000000000)
+}));
 ```
 
-`check` takes that `Result` at the top of a statement, which is why every flat
-case compiles. An operation nested as an operand hands the outer one a
-`Result` where it needs an `Any`, so `['*', 1, ['*', 2, 3]]` prints as
-`f64_any(0x3ff0000000000000) * (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))`
-and fails to compile
-with E0308.
-
-Grouping is already right — an operation nested as an operand is
-parenthesized, so the printed text is the tree the node is, and
-`nestedOperation` in [`../rust/proof.f.mjs`](../rust/proof.f.mjs) pins that.
-What is missing is propagation. No corpus case reaches it today: a case is one
-operation over lowered values, and the one operation a value lowers to,
-`unreached`, sits in a lazy position, so `generated.rs` nests nothing in an
-eager one and `cargo test` has never had the chance to fail. The exported
-`nodeExpr` does reach it —
-it takes an arbitrary `Exp`, so a caller outside the corpus can print a nested
-operation and get text that fails with E0308. A chain is one more such
-operation: `['-', ['?.', o, 'b']]` prints as `-(Any::option_dot(…).end())`,
-a `Result` under `Neg` (E0600), and a chain as another node's receiver hands
-`Any::dot` a `Result` where it takes an `Any` — `chains.operand` and
-`chains.opaqueBase` in [`../../edag/rust/proof.f.mjs`](../../edag/rust/proof.f.mjs)
-pin that text as `nestedOperation` pins the operator's.
-
-A compiled module already has its answer: `fjs/edag/rust`'s `scope`
-binds every operation to a temporary, `let cN: Any<A> = (…)?;`, since
-`pub fn module` answers the `Result` a throw lands in. So does a lazy
-position in either printer: a lazy operand is a thunk whose block binds
-the operations inside it the same way, however deeply one nests, so a `?`
-there lands in the closure's own `Result` — which is how the corpus's
-`unreached` operand, an operation, prints in a bare `check` statement
-today. The corpus's eager positions print through `expExpr`,
-whose statements hand each `Result` to `check` bare, so their shape is
-still to decide. Deciding it is part of this issue rather than a detail of
-it, because it sets what every emitted statement looks like. `?` inside a
-closure — the thunk's answer, generalized — an `and_then` chain, or a
-harness helper that takes the operands already unwrapped are the obvious
-candidates; whichever is chosen, the flat statements should keep their
-present shape, since `generated.rs` staying byte-stable across a change
-like this is what makes the change reviewable.
+Its temporaries are bound inside the closure with their `?`, the root's
+own `Result` is the closure's answer, and `check` receives it whole;
+`scope` is the harness's, a name for the call rather than `(|| …)()`,
+which clippy calls redundant. `caseText` in
+[`../rust/module.f.mjs`](../rust/module.f.mjs) decides, by
+`fjs/edag/rust`'s `nestsOperation`, and a flat case keeps its shape, so
+`generated.rs` changed only where a case nests. `unreachedPlusOne` and
+`unreachedCondition` are the corpus's own instances: an eager position
+establishes its operand, and the throw is the case's.
 
 ### Proposal
 
@@ -105,8 +78,9 @@ not a second one beside it.
 
 ### Tasks
 
-- [ ] Decide and implement how a nested operation propagates its `Result` in
-      the printed Rust, keeping the flat statements as they are.
+- [x] Decide and implement how a nested operation propagates its `Result` in
+      the printed Rust, keeping the flat statements as they are: a scope,
+      `scope(|| { … })`.
 - [x] Add a `rustName` and an `op2Rust` entry for each of `&&`, `||`, and
       `??`, spelling the `nanvm-lib` API as it is implemented.
 - [x] Add `&&`, `||`, and `??` groups with their value results.
