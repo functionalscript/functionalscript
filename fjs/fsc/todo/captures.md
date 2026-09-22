@@ -57,7 +57,13 @@ captures, in the order of first use, and a reference to a capture names
 its slot. The lowering emits `['=>', ['[]', [c0, c1, …]], body]`, each
 `ci` the enclosing scope's own node for the captured value — a module
 `const`, an import, an argument read, a slot of the enclosing function's
-own frame — and inside the body a capture is `['.', ['frame'], i]`.
+own frame — and inside the body a capture is `['.', ['frame'], i]`. A
+capture whose node is a primitive — an import whose default export is
+one, once the linker has put the module's node in its place — is not
+captured: it is written into the body as the primitive itself, the
+substitution the parser already makes for a `const` holding a literal,
+since a primitive has nothing to share and nothing to compute. A frame
+holds nodes with identity or computation alone.
 
 That is JavaScript's closure by value, which is what a closure over
 `const`s is: nothing here mutates, so copying the value at creation is
