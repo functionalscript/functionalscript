@@ -73,9 +73,22 @@ in the pull request that lands it. Each entry's behavior is pinned against
 the JavaScript oracle as the operators are: the shared corpus drives both
 the amnesia evaluator on the host engine and the generated Rust tests.
 
-**Function `toString`** is on the list and throws on this VM until a
-function carries its EDAG (`callable-function-objects.md`, Stage 7): the
-compiler has transformed the source text it would answer.
+**Function `toString`** is on the list and is a stub until a function
+carries its EDAG (`callable-function-objects.md`, Stage 7): it answers the
+placeholder `fn_to_string` in `vm/primitive_coercion.rs` already answers,
+since the compiler has transformed the source text the real one would
+answer. A stub with its TODO is the accepted shape here; the design
+principle against a plausible wrong value binds the MVP surface.
+
+**`toString` is mostly written.** `Any::to_string`, the `String(x)`
+conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
+for a number, a boolean, a bigint and a string, `[object Object]` for an
+object and the comma-joined elements for an array, so the first entries
+are a dispatch over bodies that exist. Two gaps it shares with the
+conversion path: an own `toString` or `valueOf` on an object is not
+called by `ToPrimitive` yet, where JavaScript's `String({ toString: f })`
+calls `f` — the same own-property-first lookup as the call step, to wire
+once for both — and `Number`'s `toString` takes no radix.
 
 ### Tasks
 
@@ -88,6 +101,8 @@ Infrastructure:
       over `allowedCalls`.
 - [ ] Corpus cases for every entry, run on the host engine and as
       generated Rust.
+- [ ] `ToPrimitive` calls an object's own `toString` and `valueOf`, the
+      lookup the call step uses, so `String(o)` and `o.toString()` agree.
 
 `Object`:
 
@@ -166,7 +181,8 @@ Infrastructure:
 
 `Function`:
 
-- [ ] `toString` — throws until a function carries its EDAG.
+- [ ] `toString` — a stub answering `fn_to_string`'s placeholder until a
+      function carries its EDAG.
 
 ### Related
 
