@@ -117,7 +117,21 @@ export const _shapeOf = exp => {
     }
     if (tag === ',') {
         const items = /** @type {readonly Exp[]} */ (exp[1])
-        return { kind: 'op', label: ',', children: items.map((item, i) => [`${i}`, item]) }
+        // **A comma's operands are not alike, and numbering them says they
+        // are.** `fjs/edag`'s own doc: it "establishes all of its operands
+        // and takes the value of the last one; the earlier operands exist
+        // for their throw-potential only — the anchors of computations whose
+        // value nothing takes". Five edges labelled `0` to `4` show five
+        // equals where one is the answer and four only have to happen.
+        //
+        // The names carry that and the drawing carries the order, which is
+        // what the numbers were really for: the operands sit left to right
+        // as they were written.
+        const last = items.length - 1
+        return {
+            kind: 'op', label: ',',
+            children: items.map((item, i) => [i === last ? 'result' : 'anchor', item]),
+        }
     }
     if (tag === '?:') {
         return {
