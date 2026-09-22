@@ -6,9 +6,11 @@
 ### Trigger
 
 Unblocked when the [TC39 pattern matching proposal](https://github.com/tc39/proposal-pattern-matching)
-reaches Stage 4 and the standardized syntax is supported by FunctionalScript's
-declared JavaScript execution environment, without transpilation or experimental
-flags.
+reaches Stage 4 and the standardized syntax is supported natively, without
+transpilation or experimental flags, in stable releases of **all** of:
+
+- **Shells/runtimes:** Node.js, Deno, and Bun.
+- **Browsers:** Chrome, Firefox, and Safari.
 
 ### Problem
 
@@ -32,9 +34,11 @@ compatibility and purity review rather than silently different semantics.
 
 ### Tasks
 
-- [ ] Review the final specification and native runtime support; propose a
-      compatible subset with examples covering tagged values, nested patterns,
-      bindings, evaluation order, equality, and unmatched inputs.
+- [ ] Verify native support in all six environments above; record supporting
+      stable versions and evidence links for each.
+- [ ] Review the final specification; propose a compatible subset with examples
+      covering tagged values, nested patterns, bindings, evaluation order,
+      equality, and unmatched inputs.
 - [ ] Obtain formal, explicit approval from another language designer before
       implementation, recording the designer and approval link here as required
       by [the language-design policy](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
