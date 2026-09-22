@@ -503,6 +503,16 @@ export const proof = {
             assert(index.includes('_0.2.0.html'), index)
             assert(!index.includes('README'), index)
         },
+        /**
+         * **The landing page links the releases**, which is the last of the
+         * four things the changelog issue asked for and was the one no proof
+         * watched: deleting the link left the whole suite green. It is also
+         * the only one a reader reaches the feature through at all.
+         */
+        theLandingPageLinksIt: () => {
+            const { root } = generate({ changelog: { '0.2.0.md': file('- a: two\n') } })
+            assert(pageAt(root, []).includes('href="/changelog/index.html"'), pageAt(root, []))
+        },
         // A name that begins with a digit but is no version is not one.
         // Publishing it would put a release whose numbers include `NaN` in
         // the index, ordered against the rest as neither before nor after.

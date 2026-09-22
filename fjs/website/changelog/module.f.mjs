@@ -70,7 +70,16 @@ export const _reference = word => {
             ? ['link', word, `${repository}/pull/${digits}`]
             : null
     }
-    return word.length >= shaMin && [...word].every(isHex)
+    // **A run of hex is a SHA only if it is neither a number nor a word.**
+    // Every digit is hex, so a plain decimal — `(4294967295)` in a note about
+    // integer limits — would otherwise link to a commit that does not exist,
+    // and so would `(defaced)`. A 404 a reader cannot tell from a real link
+    // is worse than a reference left as the text it is, so a SHA must carry
+    // both a letter and a digit. A real short SHA of one or the other is
+    // possible and rare, and loses a link rather than gaining a wrong one.
+    const chars = [...word]
+    return word.length >= shaMin && chars.every(isHex)
+        && chars.some(isDigit) && chars.some(c => !isDigit(c))
         ? ['link', word, `${repository}/commit/${word}`]
         : null
 }
@@ -148,7 +157,8 @@ export const linked = entry => _merged(entry.flatMap(
 
 /**
  * Whether a name is a version: three numbers separated by dots, which is
- * what Semantic Versioning defines and what all 103 released files are.
+ * what Semantic Versioning defines and what every released file in the tree
+ * is named.
  *
  * **A leading digit is not enough.** `0.51.O.md` — a letter for the last
  * zero — begins with one, and accepting it publishes a release whose last

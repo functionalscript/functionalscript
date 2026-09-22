@@ -25,6 +25,14 @@ const core = {
         commit: () => assertStructurallySame(
             _reference('7b979e74'), ['link', '7b979e74', `${repository}/commit/7b979e74`]),
         // Shorter than a short SHA is a word, and a word is prose.
+        // **A run of hex is a SHA only if it is neither a number nor a
+        // word.** Every digit is hex, so a decimal in a note about integer
+        // limits would otherwise link to a commit that does not exist — a
+        // 404 a reader cannot tell from a real link.
+        decimalIsNotASha: () => assertEq(_reference('4294967295'), null),
+        wordIsNotASha: () => assertEq(_reference('defaced'), null),
+        allDigits: () => assertEq(_reference('1234567'), null),
+        mixedIsASha: () => assertEq(_reference('abcdef1')?.[0], 'link'),
         tooShort: () => assertEq(_reference('cafe'), null),
         notHex: () => assertEq(_reference('shipped'), null),
         hashWithoutDigits: () => assertEq(_reference('#'), null),

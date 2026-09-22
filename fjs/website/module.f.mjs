@@ -96,7 +96,7 @@ const rootPage = commit => dir => htmlUtf8(
         ['p', ['a', { href: repository }, 'GitHub Repository']],
         ['h1', 'FunctionalScript'],
         // The releases are linked here as well as in the catalogue below,
-        // where 'changelog/' is a directory among twenty. A reader looking
+        // where 'changelog/' is one directory among the repository's. A reader looking
         // for what changed in the version they have is looking for a
         // release note, not for the folder it is filed in.
         ['p', ['a', { href: '/changelog/index.html' }, 'Releases']],
