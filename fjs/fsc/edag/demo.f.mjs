@@ -24,6 +24,21 @@
  * shapes, and this demo does not walk it: a node it cannot describe is shown
  * as itself, not silently dropped or wrongly drawn.
  *
+ * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
+ * establish their right operand only where the left has not already
+ * decided the answer, and `?:` establishes exactly one arm, so those edges
+ * are marked and the shared module draws them broken. The mark is on the
+ * **edge** and not on the node it reaches, because laziness is positional:
+ * a node reached from an eager position elsewhere is evaluated there
+ * whatever reaches it here, and a node is drawn once however many edges
+ * arrive.
+ *
+ * **None of the four parses yet**, so nothing typed into the field reaches
+ * that path — the front end accepts every eager operator and refuses these,
+ * which is [`fsc/todo/stage-b-operators.md`](../todo/stage-b-operators.md).
+ * The walk is ready for them, and its proofs build the nodes by hand, as
+ * they do for `frame` and for the shapes this demo does not draw.
+ *
  * **It needs no operations.** Parsing and lowering are pure functions of
  * the text, so `update` declares `never` and returns through `pureOk`.
  *
@@ -59,6 +74,20 @@ const op2 = new Set([
     '&&', '||', '??',
 ])
 const op12 = new Set(['+', '-'])
+
+/**
+ * The `op2` tags whose **right** operand is lazy: established only where the
+ * left has not already decided the answer.
+ *
+ * `fjs/edag`'s own doc says they short-circuit "exactly as in JS: their right
+ * operand is conditional, never established eagerly", and that "all this
+ * laziness is positional, not nodal — the same node referenced from an
+ * eager position elsewhere is still evaluated there". That last sentence is
+ * why the mark belongs on the edge: a node is drawn once however many
+ * references reach it, and one of them being conditional says nothing about
+ * the others.
+ */
+const lazyRight = new Set(['&&', '||', '??'])
 
 /** @type {(index: unknown) => string} */
 const dotLabel = index => typeof index === 'number' || typeof index === 'string'
@@ -120,12 +149,14 @@ export const _shapeOf = exp => {
         return { kind: 'op', label: ',', children: items.map((item, i) => [`${i}`, item]) }
     }
     if (tag === '?:') {
+        // The condition is established, then exactly one arm — so both arms
+        // are lazy and neither is the operand that always runs.
         return {
             kind: 'op', label: '?:',
             children: [
                 ['cond', /** @type {Exp} */ (exp[1])],
-                ['then', /** @type {Exp} */ (exp[2])],
-                ['else', /** @type {Exp} */ (exp[3])],
+                ['then', /** @type {Exp} */ (exp[2]), 'lazy'],
+                ['else', /** @type {Exp} */ (exp[3]), 'lazy'],
             ],
         }
     }
@@ -158,7 +189,12 @@ export const _shapeOf = exp => {
     if (typeof tag === 'string' && op2.has(tag)) {
         return {
             kind: 'op', label: tag,
-            children: [['left', /** @type {Exp} */ (exp[1])], ['right', /** @type {Exp} */ (exp[2])]],
+            children: [
+                ['left', /** @type {Exp} */ (exp[1])],
+                lazyRight.has(tag)
+                    ? ['right', /** @type {Exp} */ (exp[2]), 'lazy']
+                    : ['right', /** @type {Exp} */ (exp[2])],
+            ],
         }
     }
     if (typeof tag === 'string' && op12.has(tag)) {
@@ -208,9 +244,12 @@ export const _walk = state => exp => {
     const ref = [exp, id]
     /** @type {_State} */
     const withNode = { refs: [...state.refs, ref], nodes: [...state.nodes, node], edges: state.edges, next: id + 1 }
-    const final = (shape?.children ?? []).reduce((acc, [label, child]) => {
+    const final = (shape?.children ?? []).reduce((acc, [label, child, kind]) => {
         const step = _walk(acc)(child)
-        return { ...step.state, edges: [...step.state.edges, { from: id, to: step.id, label }] }
+        return {
+            ...step.state,
+            edges: [...step.state.edges, { from: id, to: step.id, label, kind }],
+        }
     }, withNode)
     return { id, state: final }
 }

@@ -98,6 +98,64 @@ export const proof = {
             assert(html.includes('d="M35,36 Q35,56 35,76"'), html) // p: rank diff 1, straight
         },
         /**
+         * **A marked edge carries its kind to the line, not to the box.**
+         * A demo marks an edge its node may never follow; the node is drawn
+         * once however many edges reach it, so the mark cannot live there.
+         */
+        marksAnEdge: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x', kind: 'lazy' }],
+            }))
+            assert(html.includes('data-graph-edge-kind="lazy"'), html)
+        },
+        // An edge a demo does not mark says nothing, rather than saying
+        // "ordinary" in an attribute every graph would then carry.
+        anUnmarkedEdgeSaysNothing: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }))
+            assert(!html.includes('data-graph-edge-kind'), html)
+        },
+        /**
+         * **Merging keeps a kind only where every edge merged had it.** Two
+         * references to one node, one marked and one not, are a single line
+         * that cannot be both — and the unmarked reading holds, since a lazy
+         * operand says a node *may* go unevaluated, which an eager reference
+         * from the same place already answers.
+         */
+        mergingDropsAKindThatDiffers: () => {
+            const nodes = [
+                { id: 0, kind: 'a', label: 'root', rank: 0 },
+                { id: 1, kind: 'a', label: 'shared', rank: 1 },
+            ]
+            const both = htmlToString(graphSvg({
+                nodes,
+                edges: [
+                    { from: 0, to: 1, label: 'a', kind: 'lazy' },
+                    { from: 0, to: 1, label: 'b' },
+                ],
+            }))
+            assert(!both.includes('data-graph-edge-kind'), both)
+            assert(both.includes('>a, b<'), both)
+            // Both marked, and the one line keeps the mark.
+            const alike = htmlToString(graphSvg({
+                nodes,
+                edges: [
+                    { from: 0, to: 1, label: 'a', kind: 'lazy' },
+                    { from: 0, to: 1, label: 'b', kind: 'lazy' },
+                ],
+            }))
+            assert(alike.includes('data-graph-edge-kind="lazy"'), alike)
+        },
+        /**
          * **Boxes, then edges, then the node labels** — the document order
          * an SVG paints in. The same three ranks as above: `r` skips rank 1,
          * so it crosses that row, and the node there hid a quarter of it

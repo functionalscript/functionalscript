@@ -24,11 +24,24 @@ export type Node = {
 /** A {@link Node} once `ranked` (`./module.f.mjs`) has placed it. */
 export type Ranked = Node & { readonly rank: number }
 
-/** One edge, from a node's id to another's, labeled with the index or key that reaches it. */
+/**
+ * One edge, from a node's id to another's, labeled with the index or key
+ * that reaches it.
+ *
+ * @`kind` is the demo's own vocabulary, as a {@link Node}'s is, and is
+ * absent where a demo draws one kind of edge. `"lazy"` draws dashed by the
+ * site's stylesheet; any other value, and none, draws solid.
+ *
+ * **An edge's kind is about the edge, not about what it points at.** The
+ * EDAG demo marks an operand a node may never evaluate — `&&`'s right, an
+ * arm of `?:` — and the same node reached from an eager position elsewhere
+ * is still evaluated there, so the distinction cannot live on the node.
+ */
 export type Edge = {
     readonly from: number
     readonly to: number
     readonly label: string
+    readonly kind?: string | undefined
 }
 
 /** A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every edge named. */

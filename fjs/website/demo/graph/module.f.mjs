@@ -104,13 +104,23 @@ const layout = nodes => byRank(nodes).flatMap(
  * last label is ever visible, so they draw as one line labeled with every
  * index or key that reaches it.
  *
+ * **A merged edge keeps a kind only where every edge merged into it had
+ * that one.** Two references to a node, one a demo marked and one it did
+ * not, are one line that cannot be both, and the unmarked reading is the
+ * one that holds: a lazy operand says a node *may* go unevaluated, which an
+ * eager reference to the same node from the same place already answers.
+ *
  * @type {(edges: readonly Edge[]) => readonly Edge[]}
  */
 const mergeParallel = edges => edges.reduce((acc, edge) => {
     const at = acc.findIndex(e => e.from === edge.from && e.to === edge.to)
-    return at === -1
-        ? [...acc, edge]
-        : acc.with(at, { ...acc[at], label: `${acc[at].label}, ${edge.label}` })
+    if (at === -1) { return [...acc, edge] }
+    const kept = acc[at]
+    return acc.with(at, {
+        ...kept,
+        label: `${kept.label}, ${edge.label}`,
+        kind: kept.kind === edge.kind ? kept.kind : undefined,
+    })
 }, /** @type {readonly Edge[]} */ ([]))
 
 /**
@@ -162,7 +172,10 @@ export const graphSvg = g => {
         const d = `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`
         return [
             ['path', { d, 'data-graph-edge-casing': '' }],
-            ['path', { d, 'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)' }],
+            ['path', {
+                d, 'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
+                ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
+            }],
             ['text', {
                 x: String(lx), y: String(ly),
                 'text-anchor': 'middle', 'data-graph-edge-label': '',

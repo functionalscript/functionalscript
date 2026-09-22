@@ -809,7 +809,36 @@ export const proof = {
             ternary: () => {
                 const shape = assertNotNullish(_shapeOf(['?:', ['a'], 1, 2]), 'expected a shape')
                 assertEq(shape.label, '?:')
-                assertStructurallySame(shape.children, [['cond', ['a']], ['then', 1], ['else', 2]])
+                // The condition always runs; exactly one arm does, so both
+                // arms are marked.
+                assertStructurallySame(shape.children, [
+                    ['cond', ['a']], ['then', 1, 'lazy'], ['else', 2, 'lazy']])
+            },
+            /**
+             * **An operand a node may never evaluate is marked on its
+             * edge.** `&&`, `||` and `??` establish their right operand
+             * only where the left has not decided the answer, and `?:`
+             * exactly one arm. None of the four parses yet — the front
+             * end refuses them, which is `../todo/stage-b-operators.md` —
+             * so these build the nodes by hand, as the `frame` case does.
+             */
+            lazyRightOperand: () => {
+                for (const tag of ['&&', '||', '??']) {
+                    const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
+                    assertStructurallySame(shape.children, [
+                        ['left', ['a']], ['right', ['b'], 'lazy']])
+                }
+            },
+            // An eager binary operator marks neither operand.
+            eagerOperandsAreUnmarked: () => {
+                const shape = assertNotNullish(_shapeOf(['*', ['a'], ['b']]), 'expected a shape')
+                assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
+            },
+            // The condition always runs; exactly one arm does.
+            lazyArms: () => {
+                const shape = assertNotNullish(_shapeOf(['?:', ['a'], ['b'], ['c']]), 'expected a shape')
+                assertStructurallySame(shape.children, [
+                    ['cond', ['a']], ['then', ['b'], 'lazy'], ['else', ['c'], 'lazy']])
             },
             // `=>` is an Op2 by operand count, so it would draw `left` and
             // `right` like every other tag in that set; it is its own case
@@ -845,11 +874,13 @@ export const proof = {
             },
             // A sample across Op2's range, not all twenty-one tags: the
             // dispatch is one membership test per group, so one tag from
-            // each syntactic corner — comparison, arithmetic, bitwise,
-            // logical, and the two named rather than symbolic ones — is
-            // what could vary.
+            // each syntactic corner — comparison, arithmetic, bitwise, and
+            // the two named rather than symbolic ones — is what could vary.
+            // The logical corner is not sampled here: `&&`, `||` and `??`
+            // mark their right operand, and `lazyRightOperand` above covers
+            // all three rather than one standing for them.
             op2: () => {
-                for (const tag of ['===', '*', '&', '&&', 'own', 'is']) {
+                for (const tag of ['===', '*', '&', 'own', 'is']) {
                     const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
                     assertEq(shape.label, tag)
                     assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
