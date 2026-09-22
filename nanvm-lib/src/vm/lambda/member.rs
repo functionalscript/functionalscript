@@ -72,7 +72,7 @@ impl<A: IVm> Member<A> {
     pub(crate) fn is_nullish(&self) -> bool {
         match self.own() {
             Some(v) => matches!(Unpacked::from(v), Unpacked::Nullish(_)),
-            None => method(&self.key).is_none(),
+            None => method(&self.receiver, &self.key).is_none(),
         }
     }
 
@@ -87,7 +87,7 @@ impl<A: IVm> Member<A> {
     pub(crate) fn call(self, args: Any<A>) -> Result<Any<A>, Any<A>> {
         match self.own() {
             Some(callee) => callee.call(args),
-            None => match method(&self.key) {
+            None => match method(&self.receiver, &self.key) {
                 Some(f) => f(self.receiver, Array::try_from(args)?),
                 None => Nullish::Undefined.to_any().call(args),
             },

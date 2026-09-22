@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** open — `toString` is answered on every type, as a dispatch to
-`Any::to_string`; the rest is unchecked
+`Any::to_string`, and `Array`'s `at`; the rest is unchecked
 
 ### Problem
 
@@ -111,10 +111,11 @@ Infrastructure:
       reads; the call exits run the algorithm above; `option_call`'s guard
       uses the lookup — `Member` in `vm/lambda/member.rs`, whose `own` is
       one dispatch for the read, the callee and the guard.
-- [ ] The dispatch table per type — `method` in `vm/lambda/method.rs`
-      holds the first entry and matches on the key alone, since every type
-      has `toString` — and the generated completeness test over
-      `allowedCalls`.
+- [x] The dispatch table per type — `method` in `vm/lambda/method.rs`
+      answers `toString` on the key alone, since every type has it, and
+      every other name from the receiver type's own table, `array` the
+      first.
+- [ ] The generated completeness test over `allowedCalls`.
 - [ ] `toString` reads its arguments: a radix for `Number` and `BigInt`.
       Today the arguments are not read, so `(255).toString(16)` answers
       `"255"` — a stub with this as its TODO.
@@ -129,7 +130,8 @@ Infrastructure:
 
 `Array`:
 
-- [ ] `at`
+- [x] `at` — `vm/array/at.rs`; the index is `Number::to_integer_or_infinity`,
+      `ToIntegerOrInfinity` of the argument converted by `ToNumber`.
 - [ ] `concat`
 - [ ] `every`
 - [ ] `filter`

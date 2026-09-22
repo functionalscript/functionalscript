@@ -13,6 +13,8 @@
 pub mod arity;
 #[path = "../fixtures/array.rs"]
 pub mod array;
+#[path = "../fixtures/at.rs"]
+pub mod at;
 #[path = "../fixtures/boolean.rs"]
 pub mod boolean;
 #[path = "../fixtures/call.rs"]
@@ -137,7 +139,7 @@ mod tests {
     };
 
     use crate::{
-        RunError, arity, array, boolean, call, calls, escapes, function_scope, length, method,
+        RunError, arity, array, at, boolean, call, calls, escapes, function_scope, length, method,
         missing, named, nested, not_a_function, nullish, number, object, operators, property, rest,
         run, sharing, string, throws, to_string,
     };
@@ -292,6 +294,17 @@ mod tests {
     #[test]
     fn method_call() {
         assert_eq!(run::<Naive>(method::module), Ok("42".into()));
+    }
+
+    /// `a.at(i)`: a built-in member function of one type, reading its
+    /// receiver — from the start, from the end, out of range, and with
+    /// the index converted.
+    #[test]
+    fn at_method() {
+        assert_eq!(
+            run::<Naive>(at::module),
+            Ok("[10,30,true,true,20,20,10]".into())
+        );
     }
 
     /// `x.toString()` on every type, a built-in member function the
