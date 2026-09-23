@@ -102,25 +102,6 @@ const portsOf = label => out => {
 }
 
 /**
- * The lanes an edge needs: one in every rank strictly between its ends,
- * none for an edge to the next rank. `key` places the lane in its row —
- * just after its source's id, among the nodes ordered by id — so a lane
- * sits near where its edge starts rather than at the far end of a row.
- *
- * A lane carries its edge's `index`, its position in the graph's list,
- * because that is what tells two edges apart: the same `Edge` object may
- * be listed twice, and a lane found by object would belong to both.
- *
- * @type {(rankOf: (id: number) => number) => (edge: Edge, index: number) => readonly _Slot[]}
- */
-const lanesOf = rankOf => (edge, index) => {
-    const from = rankOf(edge.from)
-    const span = rankOf(edge.to) - from
-    return Array.from({ length: Math.max(0, span - 1) },
-        (_, i) => ({ lane: index, rank: from + 1 + i, key: edge.from + 0.5 }))
-}
-
-/**
  * What is wrong with one edge's ends, if anything: each end must name a
  * node of the graph.
  *
@@ -139,6 +120,23 @@ const missingEnds = ids => (edge, index) => [
  *
  * A node with outgoing edges is a header and a row of ports beneath it; a
  * node without is the header alone, so a leaf keeps the size it always had.
+ *
+ * **An edge has a lane in every rank strictly between its ends**, and none
+ * when it goes to the next rank. A lane's `key` places it just after its
+ * source's id, among the nodes ordered by id, so it sits near where its
+ * edge starts rather than at the far end of a row. It carries its edge's
+ * `index`, its position in the graph's list, because that is what tells
+ * two edges apart: the same `Edge` object may be listed twice, and a lane
+ * found by object would belong to both.
+ *
+ * **Nothing here scans more than it has to.** Lanes are the one part of
+ * the drawing that grows faster than the graph — a root reaching every
+ * node of an `n`-long chain needs about `n²/2` of them — so a row's lanes
+ * are read off each edge's span of ranks rather than filtered out of every
+ * lane there is, and a row is placed with a running `x` rather than by
+ * copying what it has placed so far at every step. Built the obvious way,
+ * both were quadratic in the lanes; a 300-node chain of that shape took
+ * five times as long as the drawing had before lanes existed.
  *
  * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }}
  */
@@ -160,54 +158,63 @@ const layout = nodes => edges => {
     const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
     const ranks = new Map(nodes.map(n => [n.id, n.rank]))
     const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
-    /** @type {readonly _Slot[]} */
-    const slots = [
-        ...nodes.map(node => ({ node, rank: node.rank, key: node.id })),
-        ...edges.flatMap(lanesOf(rankOf)),
-    ]
+    const spans = edges.map(edge => ({ from: rankOf(edge.from), to: rankOf(edge.to), key: edge.from + 0.5 }))
     const maxRank = nodes.reduce((m, n) => Math.max(m, n.rank), 0)
-    const rows = Array.from({ length: maxRank + 1 },
-        (_, rank) => slots.filter(slot => slot.rank === rank).toSorted((a, b) => a.key - b.key))
-    return rows.reduce((acc, row) => {
-        const heightOf = /** @type {(slot: _Slot) => number} */ (slot =>
-            slot.node === undefined || outgoingOf(slot.node.id).length === 0 ? headerHeight : headerHeight + portHeight)
+    /** @type {readonly (readonly _Slot[])[]} */
+    const rows = Array.from({ length: maxRank + 1 }, (_, rank) => [
+        ...nodes.filter(node => node.rank === rank).map(node => ({ node, rank, key: node.id })),
+        ...spans.flatMap((span, lane) => span.from < rank && rank < span.to ? [{ lane, rank, key: span.key }] : []),
+    ].toSorted((a, b) => a.key - b.key))
+    const heightOf = /** @type {(slot: _Slot) => number} */ (slot =>
+        slot.node === undefined || outgoingOf(slot.node.id).length === 0 ? headerHeight : headerHeight + portHeight)
+    let y = margin
+    const placed = rows.map(row => {
+        const top = y
         const tallest = row.reduce((m, slot) => Math.max(m, heightOf(slot)), 0)
-        const placed = row.reduce((r, slot) => {
+        y += tallest + rowGap
+        let x = margin
+        return row.map(slot => {
+            const left = x
             if (slot.node === undefined) {
+                x += laneWidth + colGap
                 /** @type {_Lane} */
-                const lane = { index: /** @type {number} */ (slot.lane), x: r.x + laneWidth / 2, top: acc.y, bottom: acc.y + tallest }
-                return { ...r, x: r.x + laneWidth + colGap, lanes: [...r.lanes, lane] }
+                const lane = { index: /** @type {number} */ (slot.lane), rank: slot.rank, x: left + laneWidth / 2, top, bottom: top + tallest }
+                return { lane }
             }
             const { width, ports } = portsOf(slot.node.label)(outgoingOf(slot.node.id))
+            x += width + colGap
             /** @type {_Positioned} */
-            const node = { ...slot.node, x: r.x, y: acc.y, width, height: heightOf(slot), ports }
-            return { ...r, x: r.x + width + colGap, nodes: [...r.nodes, node] }
-        }, { x: margin, nodes: /** @type {readonly _Positioned[]} */ ([]), lanes: /** @type {readonly _Lane[]} */ ([]) })
-        return {
-            y: acc.y + tallest + rowGap,
-            nodes: [...acc.nodes, ...placed.nodes],
-            lanes: [...acc.lanes, ...placed.lanes],
-        }
-    }, { y: margin, nodes: /** @type {readonly _Positioned[]} */ ([]), lanes: /** @type {readonly _Lane[]} */ ([]) })
+            const node = { ...slot.node, x: left, y: top, width, height: heightOf(slot), ports }
+            return { node }
+        })
+    }).flat()
+    return {
+        nodes: placed.flatMap(p => p.node === undefined ? [] : [p.node]),
+        lanes: placed.flatMap(p => p.lane === undefined ? [] : [p.lane]),
+    }
 }
 
 /**
  * Every edge's route: from the bottom of its port, straight down through
- * each of its lanes, to the top of its target. Lanes are listed a row at a
- * time, top to bottom, so an edge's own lanes come out in the order it
- * passes them.
+ * its lane in each rank it skips, to the top of its target. Nodes and
+ * lanes are looked up, not searched for, for the reason {@link layout}
+ * gives.
  *
  * @type {(placed: { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }) => readonly _Route[]}
  */
 const routesOf = placed => {
-    const at = /** @type {(id: number) => _Positioned} */ (id => placed.nodes.find(p => p.id === id))
+    const byId = new Map(placed.nodes.map(p => [p.id, p]))
+    const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
+    const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
     return placed.nodes.flatMap(from => from.ports.map(port => {
         const to = at(port.edge.to)
         /** @type {readonly _Point[]} */
         const points = [
             [from.x + port.x + port.width / 2, from.y + from.height],
-            ...placed.lanes.filter(lane => lane.index === port.index)
-                .flatMap(lane => /** @type {readonly _Point[]} */ ([[lane.x, lane.top], [lane.x, lane.bottom]])),
+            ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
+                const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
+                return /** @type {readonly _Point[]} */ ([[lane.x, lane.top], [lane.x, lane.bottom]])
+            }).flat(),
             [to.x + to.width / 2, to.y],
         ]
         return { edge: port.edge, points }

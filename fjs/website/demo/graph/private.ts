@@ -49,10 +49,12 @@ export type _Slot = {
 /**
  * A lane, placed: the vertical an edge runs down through one row it
  * skips, `x` its centre and `top`/`bottom` the row's own. `index` is the
- * edge's, as a port carries it.
+ * edge's, as a port carries it, and `rank` the row's, which together name
+ * the lane.
  */
 export type _Lane = {
     readonly index: number
+    readonly rank: number
     readonly x: number
     readonly top: number
     readonly bottom: number
