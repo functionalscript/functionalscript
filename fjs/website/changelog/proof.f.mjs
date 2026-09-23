@@ -150,7 +150,9 @@ const render = {
             assert(html.includes('<title>FunctionalScript 0.41.0</title>'), html)
             assert(html.includes('<h1>0.41.0</h1>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
-            // Every page of the site carries the same stylesheet and icons.
+            // Every page of the site carries the same language, stylesheet
+            // and icons.
+            assert(html.includes('<html lang="en">'), html)
             assert(html.includes('/_main.css'), html)
         },
         // `changelog/README.md`: "A `<version>.md` file that is empty records
