@@ -402,7 +402,7 @@ one for creating a closure.
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
 // inside f, building b — f puts its own ["self"] into b's frame:
-["=>", ["[]", ["self"]], /* b's body */ …]
+["=>", 1, ["[]", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
 ["()", [".", ["frame"], 0], ["[]", [".", ["args"], 0]]]
 ```

@@ -33,8 +33,9 @@ body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
 afterName ::= '=>' t body | n access* powTail tail
 parenthesized ::= '...' t id t ')' s '=>' t body
          | ')' s '=>' t body
-         | id t ( ',' t [ names ] ')' s '=>' t body
-                | access* powTail tail ')' s afterName )
+         | id s ( '=>' t body ')' t access* powTail tail
+                | n ( ',' t [ names ] ')' s '=>' t body
+                    | access* powTail tail ')' s afterName ) )
          | groupValue ')' t access* powTail tail
 groupValue ::= value less its `id s afterName` branch
 names  ::= id t [ ',' t [ names ] ]
