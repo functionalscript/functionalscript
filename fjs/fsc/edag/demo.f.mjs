@@ -276,7 +276,7 @@ export const _walk = state => exp => {
  *
  * @type {(text: string) => { readonly ok: true, readonly nodes: readonly Node[], readonly edges: readonly Edge[] } | { readonly ok: false, readonly error: string }}
  */
-const graphOf = text => {
+export const _graphOf = text => {
     const result = parse('')(text)
     if (result[0] === 'error') { return { ok: false, error: result[1].message } }
     const { edag } = unresolved(result[1])
@@ -330,7 +330,7 @@ export const demo = {
     init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
-        const g = graphOf(text)
+        const g = _graphOf(text)
         return ['div',
             ['p',
                 ['label', { for: 'edag' }, 'Source '],

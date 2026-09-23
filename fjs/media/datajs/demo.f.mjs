@@ -106,7 +106,7 @@ const walk = state => value => {
  *
  * @type {(text: string) => _Graph}
  */
-const graphOf = text => {
+export const _graphOf = text => {
     const result = tryParse(text)
     if (result[0] === 'error') { return { ok: false, error: result[1] } }
     const { state } = walk({ refs: [], nodes: [], edges: [], next: 0 })(result[1])
@@ -131,7 +131,7 @@ export const demo = {
     init: 'const $0=[1,2];\nexport default {"a":$0,"b":{"c":$0}};',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
-        const g = graphOf(text)
+        const g = _graphOf(text)
         return ['div',
             ['p',
                 ['label', { for: 'datajs' }, 'DataJS '],

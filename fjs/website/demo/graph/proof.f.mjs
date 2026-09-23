@@ -1,6 +1,29 @@
-import { ranked, graphSvg } from './module.f.mjs'
+/**
+ * @import { Graph } from './types.ts'
+ */
+
+import { _crossesBox, _crossings, ranked, graphSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+
+/**
+ * Three ranks, one node each, and an edge `r` from the root that skips the
+ * middle one — the smallest graph that needs a lane.
+ *
+ * @type {Graph}
+ */
+const skipLevel = {
+    nodes: [
+        { id: 0, kind: 'a', label: '{ }', rank: 0 },
+        { id: 1, kind: 'a', label: '{ }', rank: 1 },
+        { id: 2, kind: 'a', label: '[ ]', rank: 2 },
+    ],
+    edges: [
+        { from: 0, to: 1, label: 'p' },
+        { from: 1, to: 2, label: 'y' },
+        { from: 0, to: 2, label: 'r' },
+    ],
+}
 
 export const proof = {
     ranked: {
@@ -76,7 +99,7 @@ export const proof = {
             assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
             assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
             assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">x<'), html)
-            assert(html.includes('d="M35,56 Q35,76 35,96"'), html)
+            assert(html.includes('d="M35,56 L35,96"'), html)
         },
         // A node with no outgoing edge has no ports, and keeps the header's
         // height alone — a leaf is the size it always was.
@@ -131,28 +154,60 @@ export const proof = {
             assert(html.includes('<rect x="130" y="36" width="24" height="20" data-graph-port="">'), html)
         },
         /**
-         * **A skip-level edge bows; a one-rank edge runs straight to its
-         * target** — asserted by the exact control point, since the layout
-         * is pure arithmetic over the input. The root's two ports are 25px
-         * cells centred at x=22.5 and 47.5; every node's top centre is at
-         * x=35. A row is as tall as its tallest node, so the rows start at
-         * y=10, 96 and 182 — a 46px node with ports, then a 40px gap.
+         * **An edge that skips a rank runs down a lane of its own** —
+         * asserted by the exact route, since the layout is pure arithmetic
+         * over the input. `r` skips rank 1, so that row gets a 10px lane
+         * placed just after `r`'s source, centred at x=15, and the node
+         * there moves right to x=34. The row is 46px tall, so the lane
+         * spans y=96 to 142 and `r` runs straight down it; `p` and `y`,
+         * one rank each, are single segments across a gap.
          */
-        bowsASkipLevelEdge: () => {
-            const html = htmlToString(graphSvg({
+        laneForASkipLevelEdge: () => {
+            const html = htmlToString(graphSvg(skipLevel))
+            assert(html.includes('d="M47.5,56 L15,96 L15,142 L35,182"'), html) // r: through its lane
+            assert(html.includes('d="M22.5,56 L59,96"'), html) // p: one rank, one segment
+            assert(html.includes('d="M59,142 L35,182"'), html) // y: one rank, one segment
+            assert(html.includes('<rect x="34" y="96" width="50" height="46"'), html)
+            // The lane is part of the drawing's width, not just the nodes.
+            assert(html.includes('viewBox="0 0 94 218"'), html)
+        },
+        /**
+         * **No edge crosses a box** — the claim the lanes exist for,
+         * counted rather than eyeballed. A lane-less layout drew `r` from
+         * the root straight to rank 2, through the node on rank 1.
+         */
+        noEdgeCrossesABox: () => {
+            assertEq(_crossings(skipLevel), 0)
+            // Two skip-level edges from one source to one target take two
+            // lanes, one each, and still cross nothing.
+            assertEq(_crossings({
                 nodes: [
-                    { id: 0, kind: 'a', label: '{ }', rank: 0 },
-                    { id: 1, kind: 'a', label: '{ }', rank: 1 },
-                    { id: 2, kind: 'a', label: '[ ]', rank: 2 },
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'mid', rank: 1 },
+                    { id: 2, kind: 'leaf', label: 'deep', rank: 2 },
                 ],
                 edges: [
-                    { from: 0, to: 1, label: 'p' },
-                    { from: 1, to: 2, label: 'y' },
-                    { from: 0, to: 2, label: 'r' },
+                    { from: 0, to: 2, label: 'a' },
+                    { from: 0, to: 1, label: 'b' },
+                    { from: 1, to: 2, label: 'c' },
+                    { from: 0, to: 2, label: 'd', kind: 'lazy' },
                 ],
-            }))
-            assert(html.includes('d="M47.5,56 Q65.25,119 35,182"'), html) // r: rank diff 2, bows
-            assert(html.includes('d="M22.5,56 Q28.75,76 35,96"'), html) // p: rank diff 1, no bow
+            }), 0)
+        },
+        /**
+         * **The crossing check itself can tell a crossing from a touch**,
+         * or the zero above would say nothing: a line through a box
+         * crosses it; one that only starts or ends on its border, or runs
+         * beside it, does not.
+         */
+        crossesBox: () => {
+            const box = { id: 0, kind: 'a', label: 'x', rank: 0, x: 10, y: 10, width: 50, height: 26, ports: [] }
+            assert(_crossesBox(box)([35, 0])([35, 50])) // straight through
+            assert(_crossesBox(box)([0, 0])([70, 50])) // diagonally through
+            assert(!_crossesBox(box)([35, 36])([35, 80])) // leaves its bottom border
+            assert(!_crossesBox(box)([35, 0])([35, 10])) // ends on its top border
+            assert(!_crossesBox(box)([5, 0])([5, 50])) // beside it
+            assert(!_crossesBox(box)([0, 0])([70, 0])) // above it
         },
         /**
          * **A marked edge carries its kind to the line, not to the box.**
@@ -204,35 +259,18 @@ export const proof = {
         },
         /**
          * **Boxes, then edges, then the labels** — the document order
-         * an SVG paints in. The same three ranks as above: `r` skips rank 1,
-         * so it crosses that row, and the node there hid a quarter of it
-         * while the boxes drew last. The labels still draw after the edges,
-         * which is what the old order was protecting.
-         *
-         * Each edge is cased, and the casing carries its line's own curve —
-         * a casing on a straight path under a bowed one would leave the bow
-         * uncased, which is the half that crosses anything.
+         * an SVG paints in, so a line draws over the border it meets and
+         * every label draws over any line. No edge carries a casing: with
+         * no box crossed, it would only notch the borders an edge meets.
          */
         layersBoxesThenEdgesThenLabels: () => {
-            const html = htmlToString(graphSvg({
-                nodes: [
-                    { id: 0, kind: 'a', label: '{ }', rank: 0 },
-                    { id: 1, kind: 'a', label: '{ }', rank: 1 },
-                    { id: 2, kind: 'a', label: '[ ]', rank: 2 },
-                ],
-                edges: [
-                    { from: 0, to: 1, label: 'p' },
-                    { from: 1, to: 2, label: 'y' },
-                    { from: 0, to: 2, label: 'r' },
-                ],
-            }))
-            assert(html.indexOf('<rect') < html.indexOf('data-graph-edge-casing'), html)
-            assert(html.indexOf('data-graph-edge-casing') < html.indexOf('data-graph-label'), html)
-            assertEq(html.split('data-graph-edge-casing').length - 1, 3)
-            assert(html.includes('d="M47.5,56 Q65.25,119 35,182" data-graph-edge-casing'), html)
+            const html = htmlToString(graphSvg(skipLevel))
+            assert(html.lastIndexOf('<rect') < html.indexOf('data-graph-edge=""'), html)
+            assert(html.lastIndexOf('data-graph-edge=""') < html.indexOf('data-graph-label'), html)
             // A port's label is text too, and draws over the edges with
             // the node labels.
-            assert(html.lastIndexOf('data-graph-edge-casing') < html.indexOf('data-graph-edge-label'), html)
+            assert(html.lastIndexOf('data-graph-edge=""') < html.indexOf('data-graph-edge-label'), html)
+            assert(!html.includes('casing'), html)
         },
     },
 }

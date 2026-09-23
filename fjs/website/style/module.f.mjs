@@ -203,14 +203,13 @@ svg text { font: inherit }
    cell per edge holding that edge's label, and the edge leaves from the
    bottom of its cell — so a label always sits in the box it names rather
    than over a line. A port is a thinner, unfilled cell inside the node's
-   own border. An edge is cased in the page's background — a wide stroke
-   under the line — so that where an edge crosses a node it passes visibly
-   in front of the box rather than merging into its border. */
+   own border. No edge crosses a box — the layout routes one that skips a
+   rank down a lane of its own — so a line needs no casing to stand out
+   from a border it passes. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-kind="terminal"] { fill: var(--border) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
-[data-graph-edge-casing] { fill: none; stroke: var(--bg); stroke-width: 5 }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }

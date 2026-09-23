@@ -12,7 +12,8 @@
 import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
-import { _shapeOf, _walk, demo } from './demo.f.mjs'
+import { _graphOf, _shapeOf, _walk, demo } from './demo.f.mjs'
+import { _crossings, ranked } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
@@ -997,7 +998,7 @@ export const proof = {
             const [before] = html.split('" text-anchor="middle" data-graph-label="">+<')
             const at = before.slice(before.lastIndexOf('<text x="') + '<text x="'.length)
             const [x, y] = at.split('" y="')
-            assertEq(html.split(` ${x},${Number(y) - 13}" data-graph-edge=""`).length - 1, 4)
+            assertEq(html.split(`L${x},${Number(y) - 13}" data-graph-edge=""`).length - 1, 4)
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator
@@ -1024,6 +1025,14 @@ export const proof = {
          * own. A mark on the box could not have said which of the four was
          * conditional. The other broken line is the function's body.
          */
+        // The initial source has two edges that skip ranks — the array's
+        // `0` and `1`, reaching `+` past the row `*` sits in — and neither
+        // passes through a box: each runs down a lane of its own.
+        noEdgeCrossesABox: () => {
+            const g = _graphOf(demo.init)
+            assert(g.ok, g)
+            assertEq(_crossings({ nodes: ranked(g.nodes, g.edges), edges: g.edges }), 0)
+        },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 2)
