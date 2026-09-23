@@ -338,10 +338,27 @@ export const proof = {
         // An object with a closure's every field is not one: `mark` is
         // identity with an object no graph evaluates to.
         eq(['typeof', ['{}', [[':', 'mark', ['{}', [[':', 'closure', true]]]], [':', 'length', 0], [':', 'frame', null], [':', 'body', 1]]]], 'object')
-        // A host method takes a closure as the value it is, where it does
-        // not call it; one that would call it is `throw.hostCallback`.
+        // A host method takes a closure as the value it is where it does
+        // not call it, and at the position `callbacks` names it calls the
+        // closure through this evaluator: the host iterates, the executor
+        // calls, with the host's arguments — element, index, array.
         const held = ev(['.', ['[]', []], 'concat', ['|()', ['[]', [identity]]]])
         assert(held instanceof Array && isClosure(held[0]))
+        same(['.', ['[]', [1, 2]], 'map', ['|()', ['[]', [identity]]]], [1, 2])
+        same(['.', ['[]', [1, 2]], 'map', ['|()', ['[]', [['=>', ['[]', []], ['.', ['args'], 1]]]]]], [0, 1])
+        same(['.', ['[]', [1, 2, 3]], 'filter', ['|()', ['[]', [['=>', ['[]', []], ['<', 1, ['.', ['args'], 0]]]]]]], [2, 3])
+        eq(['.', ['[]', [1, 2, 3]], 'reduce', ['|()', ['[]', [['=>', ['[]', []], ['+', ['.', ['args'], 0], ['.', ['args'], 1]]], 10]]]], 16)
+        same(['.', ['[]', [3, 1, 2]], 'toSorted', ['|()', ['[]', [['=>', ['[]', []], ['-', ['.', ['args'], 0], ['.', ['args'], 1]]]]]]], [1, 2, 3])
+        eq(['.', 'a-b', 'replace', ['|()', ['[]', ['-', ['=>', ['[]', []], ['.', ['args'], 1]]]]]], 'a1b')
+        // a closure at any other position is a value: `reduce`'s initial
+        // value comes back as the record it went in as
+        assert(isClosure(ev(['.', ['[]', []], 'reduce', ['|()', ['[]', [identity, identity]]]])))
+        // the numeric coercions and an order against a number answer as
+        // JavaScript does for a function, without its text
+        eq(['<', identity, 1], false)
+        eq(['>=', identity, 1n], false)
+        assert(Number.isNaN(ev(['*', identity, 2])))
+        assert(Number.isNaN(ev(['+', identity])))
     },
     // `()` — the call with no receiver and no region. A call rebuilds the
     // callee's scope from two places: `frame` comes from the closure, `args`
@@ -652,11 +669,19 @@ export const proof = {
         // under, since the read is `undefined` (see `lambda`).
         closureMethod: () => ev(['.', identity, 'length', ['|()', noArgs]]),
         closureField: () => ev(['.', identity, 'body', ['|()', noArgs]]),
-        // A host method cannot call a closure — the record is no function
-        // to the host — so `[1].map(f)` is the host's `TypeError`; the
-        // callback-taking built-ins are the executor's to implement,
-        // `../operations/todo/host-callbacks.md`.
-        hostCallback: () => ev(['.', ['[]', [1]], 'map', ['|()', ['[]', [identity]]]]),
+        // A closure's text is not rendered yet, so what would read it is
+        // refused rather than answered with the record's host string —
+        // `../operations/todo/closure-text.md`.
+        closureText: {
+            string: () => ev(['String', identity]),
+            plusRight: () => ev(['+', identity, 'x']),
+            plusLeft: () => ev(['+', 1, identity]),
+            orderAgainstString: () => ev(['<', identity, 'a']),
+            orderStringAgainst: () => ev(['>=', 'a', identity]),
+            // two closures are ordered by their texts too, the same one
+            // included: `f >= f` is `true` in JavaScript only by its text
+            orderAgainstClosure: () => ev(['>=', identity, identity]),
+        },
         // An array spread iterates its operand, so a non-iterable one throws
         // where the object form would have contributed nothing.
         arraySpreadOfNumber: () => ev(['[]', [['...', 1]]]),

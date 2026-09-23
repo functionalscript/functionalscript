@@ -104,9 +104,11 @@ A closure is the one exception: it is a record the operations table keeps
 closed — `length` reads, every other key is `undefined` — since it is the
 language's function and not a host one
 ([`../operations/module.f.mjs`](../operations/module.f.mjs)). A host method
-handed one takes it as a value; one that would call it throws, as
-[`../operations/todo/host-callbacks.md`](../operations/todo/host-callbacks.md)
-records.
+handed one takes it as a value, except at the position
+`fjs/js/prototype`'s `callbacks` says the method calls, where the host is
+handed a function that invokes the closure through this evaluator. Its
+text is not rendered yet, so `String(f)` is refused
+([`../operations/todo/closure-text.md`](../operations/todo/closure-text.md)).
 
 [`spec/todo/2360-built-in.md`](../../../spec/todo/2360-built-in.md) lists both
 under **Prohibited Properties** — `constructor` because

@@ -137,3 +137,19 @@ export const allowedCalls = /** @type {const} */ ([
     'toExponential', 'toFixed', 'toPrecision', 'toReversed', 'toSorted', 'toSpliced', 'toString',
     'toWellFormed', 'trim', 'trimEnd', 'trimStart', 'with',
 ])
+
+/**
+ * The member functions of {@link allowedCalls} that call an argument, and
+ * the position of the one they call: the array methods that take a
+ * callback or a comparator, and the two string methods that take a
+ * replacer. A VM that answers these by the receiver's type calls the
+ * argument itself; the JavaScript executors
+ * ([`../../edag/operations`](../../edag/operations/module.f.mjs)) hand the
+ * host a function that invokes the closure at exactly this position, so a
+ * closure anywhere else — `reduce`'s initial value, `includes`'s needle —
+ * stays the value it is. No allowed call has a second such position.
+ */
+export const callbacks = /** @type {const} */ ({
+    every: 0, filter: 0, find: 0, findIndex: 0, findLast: 0, findLastIndex: 0, flatMap: 0, map: 0,
+    reduce: 0, reduceRight: 0, replace: 1, replaceAll: 1, some: 0, toSorted: 0,
+})

@@ -23,16 +23,21 @@
  * and the operations that look inside a value — a property read, `typeof`,
  * `own`, an object spread — answer for a closure what JavaScript answers for
  * a function: `length` and nothing else. A host method handed a closure
- * receives the record as a value; one that would *call* it throws the
- * host's `TypeError`, since the host cannot, and the callback-taking
- * built-ins are the executor's to implement, not the host's
- * (`./todo/host-callbacks.md`).
+ * receives the record as a value, save at the one position
+ * `fjs/js/prototype`'s `callbacks` says the method calls: there the host is
+ * handed a bridge that invokes the closure through the executor, so
+ * `[1, 2].map(f)` maps and the host never holds the closure as a function.
+ * What a closure has no answer for here is its text — `String(f)`, `f + x`,
+ * an order against a string or a closure — which the specification derives from the
+ * graph and no executor renders yet, so those are refused rather than
+ * answered with the record's `[object Object]` (`./todo/closure-text.md`).
  *
  * @import { ExpOp, Op1, Op2, Op12, Over, StepOver, TagMap } from '../types.ts'
  * @import { Closure, Evaluator, Mark, Operations } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
+import { callbacks } from '../../js/prototype/module.f.mjs'
 
 /**
  * What tells a closure from an object a program built: identity with this
@@ -153,6 +158,10 @@ const callValue = (x, v, e) => apply(x, v, argsOf(x, e))
  * language has no `this`, and a graph closure ignores one. A closure *as*
  * the receiver has no method a program can name, so its read is
  * `undefined` and the call is the host's `TypeError`, as `f.length()` is.
+ * A host method is handed its arguments as they are, a closure among them
+ * as the value it is, except at the position `callbacks` names: a closure
+ * there reaches the host as {@link bridge}, since the host iterates and
+ * the executor calls.
  *
  * @type {<E>(x: Evaluator<E>, obj: any, prop: any, e: E) => unknown}
  */
@@ -160,8 +169,49 @@ const callProperty = (x, obj, prop, e) => {
     const m = read(obj, prop)
     return isClosure(m) || isClosure(obj)
         ? apply(x, m, argsOf(x, e))
-        : obj[prop](...argsOf(x, e))
+        : obj[prop](...bridged(x, prop, argsOf(x, e)))
 }
+
+/**
+ * The arguments a host method is handed: the same, but a closure at the
+ * one position the method calls is replaced by a function the host can
+ * call, which invokes the closure through the executor with the host's
+ * arguments — the element, index and array of `map`, the match and its
+ * groups of `replace`. The host's callbacks give a function nothing back
+ * but values, so the bridge is never a value a program holds; a closure
+ * at any other position is a value and stays the record.
+ *
+ * @type {<E>(x: Evaluator<E>, prop: unknown, args: readonly unknown[]) => readonly unknown[]}
+ */
+const bridged = (x, prop, args) => {
+    const i = typeof prop === 'string' && Object.hasOwn(callbacks, prop) ? callbacks[/**@type {keyof typeof callbacks}*/(prop)] : undefined
+    return i === undefined ? args : args.map((v, j) => j === i && isClosure(v) ? bridge(x, v) : v)
+}
+
+/** @type {<E>(x: Evaluator<E>, v: Closure<never>) => (...a: readonly unknown[]) => unknown} */
+const bridge = (x, v) => (...a) => x.invoke(v.frame, a, v.body)
+
+/**
+ * A closure's text is the specification's to derive from the graph and no
+ * executor's to render yet, so an operation that would read it is refused:
+ * `String(f)`, `f + x` and `x + f`, whose value *is* the text, and an order
+ * against a string or another closure, which compares it. An order against
+ * anything else, and every numeric coercion, answer as JavaScript does for
+ * a function without reading the text — `f < 1` is `false`, `f * 2` is
+ * `NaN` — and stay.
+ *
+ * @type {(v: unknown) => void}
+ */
+const noText = v => { assert(!isClosure(v), ['no text for a closure', v]) }
+
+/** Whether an order of `a` against `b` would read a closure's text: `b` is a string or a closure. @type {(a: unknown, b: unknown) => boolean} */
+const orderedByText = (a, b) => isClosure(a) && (typeof b === 'string' || isClosure(b))
+
+/** A relational operator, refused where a closure would be ordered by its text. @type {(o: (a: any, b: any) => boolean) => <E>(x: Evaluator<E>) => (e: Over<Op2, E>) => unknown} */
+const order = o => o2((a, b) => {
+    assert(!orderedByText(a, b) && !orderedByText(b, a), ['no text for a closure', a, b])
+    return o(a, b)
+})
 
 /**
  * The short-circuit. A region whose guard failed produces `undefined` and
@@ -246,7 +296,11 @@ export const operations = {
     '**': o2((a, b) => a ** b),
     // Unary plus is JS's: `ToNumber`, which throws on a bigint where
     // `Number` converts — see `op12Id` in `../module.f.mjs`.
-    '+': o12(a => +a, (a, b) => a + b),
+    '+': o12(a => +a, (a, b) => {
+        noText(a)
+        noText(b)
+        return a + b
+    }),
     ',': ({ operand }) => ([, a]) => a.reduce((/**@type {unknown}*/_, c) => operand(c), undefined),
     '-': o12(a => -a, (a, b) => a - b),
     // Property access, owning whatever its receiver is used for: with no
@@ -270,9 +324,9 @@ export const operations = {
     // value unchanged. Its `|.` and `|!()` arms are unreachable from here.
     '.': x => ([, a, k, p]) => optionPropertyLambda(x, x.operand(a), x.operand(k), p),
     '/': o2((a, b) => a / b),
-    '<': o2((a, b) => a < b),
+    '<': order((a, b) => a < b),
     '<<': o2((a, b) => a << b),
-    '<=': o2((a, b) => a <= b),
+    '<=': order((a, b) => a <= b),
     '===': o2((a, b) => a === b),
     // The frame operand is evaluated here, in the enclosing invocation, and
     // the body is not: the value is the closure record — the captured frame
@@ -282,8 +336,8 @@ export const operations = {
     // crosses as one. No host function is made: the language's function is
     // the graph's, and `length` is the record's field.
     '=>': ({ operand }) => ([, frameExp, body]) => /**@type {Closure<typeof body>}*/({ mark, length: 0, frame: operand(frameExp), body }),
-    '>': o2((a, b) => a > b),
-    '>=': o2((a, b) => a >= b),
+    '>': order((a, b) => a > b),
+    '>=': order((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
     '>>>': o2((a, b) => a >>> b),
     // Optional property access, owning the rest of its optional region. On a
@@ -310,7 +364,10 @@ export const operations = {
     '?:': ({ operand }) => ([, c, t, e]) => operand(c) ? operand(t) : operand(e),
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
-    String: o1(String),
+    String: o1(a => {
+        noText(a)
+        return String(a)
+    }),
     // The equality the language's guarantees are stated in: `NaN` is `NaN`
     // and `0` is not `-0`, where `===` answers the other way on both.
     is: o2(Object.is),

@@ -125,6 +125,12 @@ export const proof = {
         same(['.', { g }, 'g', ['|()', [3]]], [3])
         same(['()', g, [4]], [4])
         same(['?.()', g, [5]], [5])
+        // a host method calls the closure at the position `callbacks`
+        // names, through this table's `invoke`, and holds it as a value
+        // anywhere else
+        same(['.', [1, 2], 'map', ['|()', [g]]], [[1, 0, [1, 2]], [2, 1, [1, 2]]])
+        const held = run(['.', [], 'concat', ['|()', [g]]])
+        assert(held instanceof Array && held[0] === g)
     },
     throw: {
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),
@@ -134,5 +140,9 @@ export const proof = {
         // a call step onto a closure's `length`, a number, is the host's
         // error, as `f.length()` is in JavaScript
         closureMethod: () => run(['.', run(['=>', null, 1]), 'length', ['|()', []]]),
+        // and a closure's text is refused, not the record's host string
+        closureString: () => run(['String', run(['=>', null, 1])]),
+        closurePlus: () => run(['+', run(['=>', null, 1]), '']),
+        closureOrder: () => run(['<', '', run(['=>', null, 1])]),
     },
 }

@@ -20,7 +20,9 @@ compile time:
   a value owns, is a call of what the value holds. An own property of the
   name on an object shadows the built-in, a type without the built-in throws
   the `TypeError` JavaScript throws, and a nullish receiver throws before the
-  arguments are evaluated.
+  arguments are evaluated. `callbacks` names the allowed calls that call an
+  argument — a callback, a comparator, a replacer — and its position, so
+  that a VM whose functions are its own data knows which argument to invoke.
 
 ✅ means allowed and ❌ prohibited. The lists are ECMAScript 2025's, Annex B
 included, string keys only; they grow with the language's types — `Map` and
