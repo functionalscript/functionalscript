@@ -24,10 +24,11 @@
  * @import { Document, Entry, Inline } from '../../media/markdown/types.ts'
  * @import { Element, Node } from '../../media/html/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Release } from './types.ts'
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { pageTitle, repository } from '../page/module.f.mjs'
+import { lang, pageTitle, repository } from '../page/module.f.mjs'
 import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 
 const zero = 0x30
@@ -202,6 +203,22 @@ export const descending = versions => versions.toSorted((x, y) => {
 })
 
 /**
+ * Every release with the releases either side of it, newest first.
+ *
+ * **By position, not by lookup.** Each release's neighbours are the entries
+ * beside it in the one sorted list, so there is no version to look up and no
+ * answer for a version that is not there — a lookup that missed would hand a
+ * page the newest release as its "previous", a plausible wrong link.
+ *
+ * @type {(versions: readonly string[]) => readonly Release[]}
+ */
+export const releases = versions => descending(versions).map((version, i, all) => ({
+    version,
+    previous: all[i + 1] ?? null,
+    next: all[i - 1] ?? null,
+}))
+
+/**
  * One span as the element it denotes. `text` is a string rather than an
  * element: a span of prose has no tag of its own, and wrapping it in one
  * would put a `span` around two thirds of every entry.
@@ -251,23 +268,58 @@ const nav = tail => ['nav',
 ]
 
 /**
+ * One neighbour as a link, its arrow hidden from a screen reader, which would
+ * otherwise read "leftwards arrow" before every link.
+ *
+ * @type {(rel: 'prev' | 'next') => (version: string) => Element}
+ */
+const neighbourLink = rel => version => rel === 'prev'
+    ? ['a', { href: releaseHref(version), rel }, ['span', { 'aria-hidden': 'true' }, '← '], `Previous: ${version}`]
+    : ['a', { href: releaseHref(version), rel }, `Next: ${version}`, ['span', { 'aria-hidden': 'true' }, ' →']]
+
+/**
+ * The links to the releases either side of this one, or nothing where there
+ * are none — a single release has no neighbours, and an empty `nav` would be
+ * a landmark with nothing in it.
+ *
+ * **At the top, under the heading**, where a reader stepping through releases
+ * finds it without scrolling past a long list of entries. `rel="prev"` and
+ * `rel="next"` say the same thing to anything that reads links rather than
+ * their text.
+ *
+ * @type {(release: Release) => readonly Element[]}
+ */
+const neighbours = ({ previous, next }) => {
+    const links = [
+        ...(previous === null ? [] : [neighbourLink('prev')(previous)]),
+        ...(next === null ? [] : [neighbourLink('next')(next)]),
+    ]
+    return links.length === 0
+        ? []
+        : [['nav', { 'aria-label': 'Releases' },
+            ...links.flatMap((link, i) => i === 0 ? [link] : [' · ', link])]]
+}
+
+/**
  * One release's page: its entries, in the order the file writes them, which
- * `changelog/README.md` fixes as order of importance rather than of merge.
+ * `changelog/README.md` fixes as order of importance rather than of merge,
+ * under links to the releases either side of it.
  *
  * An empty file is a release that shipped no notable change — the README
  * says so — and says that rather than showing an empty list, which would
  * read as a page that failed to load.
  *
- * @type {(version: string) => (document: Document) => Vec}
+ * @type {(release: Release) => (document: Document) => Vec}
  */
-export const releasePage = version => document => htmlUtf8(
-    pageTitle(version),
+export const releasePage = release => document => htmlUtf8(lang)(
+    pageTitle(release.version),
     stylesheetLink,
     ...faviconLinks,
 )(
     ['main',
-        nav([' / ', version]),
-        ['h1', version],
+        nav([' / ', release.version]),
+        ['h1', release.version],
+        ...neighbours(release),
         ...(document.length === 0
             ? [/** @type {Element} */(['p', 'This release shipped no notable change.'])]
             : [/** @type {Element} */(['ul', ...document.map(entryNode)])]),
@@ -284,7 +336,7 @@ export const releasePage = version => document => htmlUtf8(
  *
  * @type {(versions: readonly string[]) => Vec}
  */
-export const indexPage = versions => htmlUtf8(
+export const indexPage = versions => htmlUtf8(lang)(
     pageTitle('Releases'),
     stylesheetLink,
     ...faviconLinks,
@@ -292,7 +344,8 @@ export const indexPage = versions => htmlUtf8(
     ['main',
         nav([]),
         ['h1', 'Releases'],
-        ['ul', ...descending(versions).map(version =>
+        // One link per line, so marked for the stylesheet's tap-target rule.
+        ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
             /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],
     ],
 )
