@@ -67,13 +67,6 @@ lists record `0`; a list of `n` plain named parameters records `n`, including
 unused parameters. Parameter names remain erased. The count participates in
 canonical function identity because `length` can distinguish the values.
 
-The [function length pattern](./3130-function-length-pattern.md) proposes to
-make the count an ordinary operand of `=>` instead, evaluated when the
-function is built and a constant in compiled source, because the
-FunctionalScript executors need the same node for a run-time count. If that
-proposal is approved, "metadata, not an expression operand" above is
-withdrawn; the identity argument and everything else here stand.
-
 If approved, this supersedes the arity-erasure part of
 [EDAG stage 1, subject 2](../../todo/edag-stage1-discussion.md#2-arguments-reference)
 and selects the function node, rather than a separate constructor wrapper,
