@@ -12,7 +12,8 @@
 import { memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
-import { _shapeOf, _walk, demo } from './demo.f.mjs'
+import { _graphOf, _shapeOf, _walk, demo } from './demo.f.mjs'
+import { _crossings, ranked } from '../../website/demo/graph/module.f.mjs'
 import { parse } from '../transpiler/module.f.mjs'
 import { exp } from '../../edag/module.f.mjs'
 import { validate } from '../../rtti/validate/module.f.mjs'
@@ -990,8 +991,14 @@ export const proof = {
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
-            assert(html.includes('>0, 1<'), html) // the array's two direct refs, merged
-            assert(html.includes('>left<'), html) // a*3's left operand, the third edge to +
+            // Every edge ends at its target's top centre, and the `+` label
+            // is centred in a 26px header, so the lines that end 13px above
+            // it are the ones that reach it: `0`, `1`, `a * 3`'s `left` and
+            // `m && a`'s `right`, each from a port of its own.
+            const [before] = html.split('" text-anchor="middle" data-graph-label="">+<')
+            const at = before.slice(before.lastIndexOf('<text x="') + '<text x="'.length)
+            const [x, y] = at.split('" y="')
+            assertEq(html.split(`L${x},${Number(y) - 13}" data-graph-edge=""`).length - 1, 4)
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator
@@ -1014,11 +1021,18 @@ export const proof = {
          * **The initial source draws the marking and the reason for it.**
          * `a` is reached four times — twice by the array, once through
          * `a * 3`, and once as `m && a`'s right operand — so one node
-         * carries three eager edges and one lazy one, drawn as two solid
-         * lines (the array's two merge into `0, 1`) and one broken. A mark
-         * on the box could not have said which of the four was
+         * carries three solid lines and one broken, each from a port of its
+         * own. A mark on the box could not have said which of the four was
          * conditional. The other broken line is the function's body.
          */
+        // The initial source has two edges that skip ranks — the array's
+        // `0` and `1`, reaching `+` past the row `*` sits in — and neither
+        // passes through a box: each runs down a lane of its own.
+        noEdgeCrossesABox: () => {
+            const g = _graphOf(demo.init)
+            assert(g.ok, g)
+            assertEq(_crossings({ nodes: ranked(g.nodes, g.edges), edges: g.edges }), 0)
+        },
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 2)

@@ -26,7 +26,9 @@ export type Ranked = Node & { readonly rank: number }
 
 /**
  * One edge, from a node's id to another's, labeled with the index or key
- * that reaches it.
+ * that reaches it. The label is drawn in a port of the source node — a
+ * cell of its own under the node's label, which the edge leaves from — and
+ * a node's ports follow the order its edges are given in.
  *
  * `kind` is the demo's own vocabulary, as a {@link Node}'s is, and is
  * absent where a demo draws one kind of edge. `"lazy"` draws dashed by the
