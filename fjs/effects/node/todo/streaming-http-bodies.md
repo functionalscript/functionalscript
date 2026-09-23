@@ -56,6 +56,47 @@ so `fjs/web` waits on the handle effect
 bound holds" below. The request side needs an operation that does not exist yet
 either, so it is staged second and the runner keeps its `413` until it lands.
 
+**2026-09-22 — that blocker has an answer the paragraph above predates, and it
+is a trade rather than a removal.** [`ReadWhole`](../types.ts) was added on
+2026-09-14 (`11e3533f`), after this section was written. It answers a list of
+`Vec`s from **one `open`**, so the chunks it produces are one file's and the
+per-chunk splice the paragraph above describes cannot happen — and it is
+implemented in both runners and consumed by seven `fjs/git` modules, so it is a
+proven operation and not a sketch. Its own docstring states the property this
+section needs: *"The chunks are one open's, which is why this is not a fold
+over `readBytes`. That operation resolves the path per call, so reading a file
+in windows can straddle two files."*
+
+What it costs is laziness. Measured against the tree as it stands, the three
+routes to a body are distinct and none dominates:
+
+| | one inode | lazy |
+|---|---|---|
+| `ReadChunks` over `readBytes` | no — `readBytes` opens the path per call (`../module.mjs:355`) | yes |
+| `ReadWhole` | yes — one `open`, chunked to EOF (`../module.mjs:399`) | no, the whole file is materialized |
+| the handle effect [stat-then-read](../../../web/todo/stat-then-read.md) designs | yes | yes |
+
+So **Stage 1's `fjs/web` half is no longer blocked; it is a choice.** Serving
+past the cap through `ReadWhole` is available today and costs peak memory equal
+to the file — which for the case that prompted this, a static server for a
+development demo, is the cost of what `readFile` already does and the cap is
+what it cannot do. The handle effect remains the only route that is both, so it
+stays worth building; it stops being a prerequisite and becomes the
+optimization that makes a large body cheap rather than merely possible.
+
+**One thing `ReadWhole` does not fix, stated so this is not read as more than
+it is.** It calls `stat(path)` and then `open(path)` (`../module.mjs:400-404`),
+two operations on a name, so its own `isFile` guard carries exactly the race
+[stat-then-read](../../../web/todo/stat-then-read.md) opens with. That race is
+narrower than the one this section cited — a wrong guard outcome in a vanishing
+window, not two files spliced into one correctly-sized body — but it is the
+same shape, and it is that issue's to close.
+
+Which of the two to build first is the maintainer's call and is deliberately
+not decided here. This section is corrected rather than worked around, per
+[DESIGN.md](../../../../doc/DESIGN.md) §3 ("Design before implementation"), and separately from any implementation
+for the same reason.
+
 #### Stage 1 — the response body
 
 **The type.**
@@ -721,7 +762,10 @@ answering `413` is a listener with a size policy of its own — correctly.
       `release` it runs once on every one of those exits; the virtual runner's
       `RecordedResponse` with its `Overrun` and its `Underrun`, mirroring the
       gates, their order, the count, and the release.
-- [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
+- [ ] Stage 1, **no longer blocked — see the 2026-09-22 note above; `ReadWhole`
+      serves a large body today at the cost of materializing it, and this is the
+      route that makes it lazy as well.** Still owed to
+      [stat-then-read](../../../web/todo/stat-then-read.md):
       the handle effect — `open`, `fstat`, bounded read, `close` — modelled in
       the virtual file system, as the chunk source `fjs/web` reads through, with
       its open handles visible to a proof so an unreleased one fails a test.
