@@ -144,7 +144,8 @@ module they live in.
 - [ ] **`fjs/rtti/parse`'s hole producer**, gated on the first task and now
       owned by
       [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md),
-      which proposes the first arm below and says why. If the
+      which records the bug, what is known about it, and the directions a
+      fix could take without choosing one. If the
       exception was refused, `arrayRebuild` replaces `tupleRebuild` for both
       tuple kinds, and the three proofs whose subject is hole preservation go
       with it. If it was granted, the opposite edit: cite the new spec
