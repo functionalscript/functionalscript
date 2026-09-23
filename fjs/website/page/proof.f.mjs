@@ -52,7 +52,7 @@ export const proof = {
             '<body><details data-section="" open=""><summary>Files</summary>'
             + '<ul><li><a href="/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
         /**
-         * **Files and directories open, issues closed.** The first two are
+         * **Directories and files open, issues closed.** The first two are
          * bounded by the directory; the issue list is not, and an open one
          * would push the proofs below it off the screen.
          */
@@ -61,6 +61,16 @@ export const proof = {
             assert(html.includes('<details data-section=""><summary>Issues</summary>'), html)
             assert(html.includes('<details data-section="" open=""><summary>Directories</summary>'), html)
         },
+        /**
+         * **Directories come before files**, as GitHub and a file manager
+         * list them: the way deeper is what the page leads with.
+         */
+        dirsBeforeFiles: () => assertEq(
+            sectionsHtml({ ...empty, path: 'fjs', dirs: ['types'], files: ['module.f.mjs'] }),
+            '<body><details data-section="" open=""><summary>Directories</summary>'
+            + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'
+            + '<details data-section="" open=""><summary>Files</summary>'
+            + '<ul><li><a href="/fjs/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
         dirs: () => assertEq(
