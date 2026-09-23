@@ -155,6 +155,14 @@ export const proof = {
             const curves = new Set(mixed.split('" data-graph-edge=""').slice(0, -1)
                 .map(before => before.slice(before.lastIndexOf(open) + open.length)))
             assertEq(curves.size, 2)
+            // And their labels a line of text apart: the bow alone parts
+            // them by about 9px on one baseline, where they overlap. Each
+            // piece before a label marker ends with that label's `y`.
+            const yAt = ' y="'
+            const [first, second] = mixed.split('" text-anchor="middle" data-graph-edge-label=""')
+                .slice(0, -1)
+                .map(before => Number(before.slice(before.lastIndexOf(yAt) + yAt.length)))
+            assert(Math.abs(first - second) >= 12, `${first} ${second}`)
         },
         // Two of one kind are still one line, labelled with both.
         mergesWhenTheKindMatches: () => {

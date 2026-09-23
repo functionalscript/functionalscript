@@ -488,6 +488,23 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 // Binary Operations
 
 /**
+ * The `op2` tags whose **right operand is lazy**: established only where
+ * the left has not already decided the answer.
+ *
+ * **Named once, because two readers have to agree.** The operations table
+ * implements exactly these three with `o2lazy`
+ * ([`./operations/module.f.mjs`](./operations/module.f.mjs)) — the rest with
+ * `o2`, which forces the thunk — and anything that *draws* or *compiles* a
+ * graph has to know the same three. A second list somewhere else would be
+ * a second implementation, and the one that drifts is the one nobody runs.
+ * `lazyVocabulary` in [`./memo/proof.f.mjs`](./memo/proof.f.mjs) holds
+ * this list to the table's behaviour rather than to its text. It walks the
+ * list, so it catches a tag wrongly added and not one wrongly removed; a
+ * removed tag fails the `op2`, Rust printer and demo proofs instead.
+ */
+export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
+
+/**
  * `=>` builds a function from a frame and a body: the frame operand is one
  * node evaluated in the enclosing scope, while the body is the inner
  * function's graph — deferred, never established when the closure is built,
@@ -513,21 +530,6 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
  * eager position elsewhere is still evaluated there. `+` and `-` are not
  * here: each is also a unary operator, so both are `op12` below.
  */
-/**
- * The `op2` tags whose **right operand is lazy**: established only where
- * the left has not already decided the answer.
- *
- * **Named once, because two readers have to agree.** The operations table
- * implements exactly these three with `o2lazy`
- * ([`./operations/module.f.mjs`](./operations/module.f.mjs)) — the rest with
- * `o2`, which forces the thunk — and anything that *draws* or *compiles* a
- * graph has to know the same three. A second list somewhere else would be
- * a second implementation, and the one that drifts is the one nobody runs.
- * `./proof.f.mjs` holds this list to the table's behaviour rather than to
- * its text.
- */
-export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
-
 export const op2Id = or(
     '=>', 'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',

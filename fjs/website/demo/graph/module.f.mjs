@@ -172,7 +172,14 @@ export const graphSvg = g => {
         // naming siblings), and their midpoints sit closer together than
         // their children do. Nearer the child is nearer where the labels
         // have already spread apart.
-        const t = 0.65
+        //
+        // A sibling line's label moves back toward the parent along its own
+        // curve. The bow alone parts two labels by under half its offset —
+        // about 9px on one baseline, where `left` and `right` overlap and
+        // the second's halo rubs out the first — while one row's height is
+        // 40px, so stepping along the line parts them by a line of text and
+        // keeps each on the curve it names.
+        const t = 0.65 / (1 + sibling)
         const lx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2
         const ly = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2
         const d = `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`
