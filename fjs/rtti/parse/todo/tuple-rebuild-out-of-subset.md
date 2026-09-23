@@ -3,6 +3,10 @@
 **Priority:** P2 — shipped `.f.mjs` code is written outside the subset. No
 caller sees a wrong answer today, which is why it is not P1.
 **Status:** open
+**Blocked by:** the first task of
+[new-array-out-of-subset](../../../../todo/new-array-out-of-subset.md), the
+exception in writing. Nothing below is implemented until that ruling is
+taken; what this issue adds is the case for taking it one way.
 
 ### Problem
 
@@ -17,11 +21,13 @@ Its JSDoc concedes all of this and claims an exception by local freshness, that
 the array is the function's own and is returned before anything else sees it.
 No document grants that exception.
 [new-array-out-of-subset](../../../../todo/new-array-out-of-subset.md) records
-it as the one shipped `new Array` in the tree, and the function length
-pattern proposed in
+it as the one shipped `new Array` in the tree. The function length pattern
+proposed in
 [#2213](https://github.com/functionalscript/functionalscript/pull/2213),
-which admits one construction-time `defineProperty` as a complete matched
-pattern, says in as many words that it does not cover this one.
+which would admit one construction-time `defineProperty` as a complete
+matched pattern, says in as many words that it does not cover this one;
+nothing here depends on that proposal's fate, since the argument below rests
+on the readers' domain and not on any pattern.
 
 **What the code is for is an input the readers do not take.** The only thing
 `tupleRebuild` does that the subset-legal `arrayRebuild` beside it does not is
@@ -52,8 +58,17 @@ Two texts are already out of step with the code and go with the fix:
 
 ### Proposal
 
-Replace `tupleRebuild` with `arrayRebuild` for the tuple kinds and delete it.
-The domain does the rest: a hole is not a DataJS value, the README already
+The umbrella's first task asks whether the subset admits a fresh,
+never-escaped array built with `new Array(n)` and written by index, and
+prescribes one edit if the exception is granted, citing the new rule from
+the JSDoc, and the opposite if it is refused. This issue is the case for
+refusing it here, and everything below is that arm: the branch the
+exception would legalize serves no input the readers take, so there is
+nothing for an exception to keep. If the ruling nevertheless grants it, the
+umbrella's other arm applies and this issue closes without the edit below.
+
+Under a refusal: replace `tupleRebuild` with `arrayRebuild` for the tuple
+kinds and delete it. The domain does the rest: a hole is not a DataJS value, the README already
 tells a caller holding untrusted JavaScript to convert it to DataJS first, and
 [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 places the check where a value enters from IO, trusted from then on. A
@@ -79,12 +94,18 @@ input and stay.
 
 ### Tasks
 
-- [ ] Confirm the premise empirically before anything else: with
+- [x] Confirm the premise empirically before anything else: with
   `arrayRebuild` substituted for `tupleRebuild`, every entry of
   [`proof.f.mjs`](../proof.f.mjs) still passes except the three named above.
   A fourth failure means an interior gap has a dense source and the
-  proposal is wrong.
-- [ ] Make the substitution, delete `tupleRebuild` and the three proofs, and
+  proposal is wrong. Done at `c105badf` in
+  [review](https://github.com/functionalscript/functionalscript/pull/2214#pullrequestreview-5295696136):
+  substituted at both call sites, `tupleParse` and `restTupleParse`, the
+  suite fails exactly `interiorHoleSurvives`, `oddSegments` and
+  `largeSparse`, and `trailingRunShortens` and `structDropsTheKey` stay
+  green. Redo it on the commit that makes the change.
+- [ ] Once the exception is refused in writing: make the substitution,
+  delete `tupleRebuild` and the three proofs, and
   rewrite the tuple rebuild's JSDoc to say what remains true: members in
   order, a trailing absent run shortens the result.
 - [ ] Correct the rtti README's reader table, and say in the same section
