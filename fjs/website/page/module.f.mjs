@@ -141,6 +141,32 @@ const proofItem = proof => proof.blockers.length === 0
     : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
+ * A section's title: the `summary` a reader folds the section by, holding
+ * the section's heading.
+ *
+ * **A heading inside the summary, not the summary as the heading.** A
+ * `summary` is a button to assistive technology, so a section titled by one
+ * alone is invisible to a screen reader's list of headings, and a reader
+ * who moves by heading skips straight past every section on the page. The
+ * `h2` puts each one in that list under the page's `h1`, and the fold still
+ * works as it did.
+ *
+ * Anything after the heading — the suite's counts — is outside it, so the
+ * heading's name stays the section's name however a run changes the counts.
+ *
+ * **A heading beside other content is valid HTML.** The HTML Standard's
+ * content model for `summary` is "phrasing content, optionally intermixed
+ * with heading content", so the suite's `h2` followed by its counts `span`
+ * conforms. Older versions of the spec allowed either phrasing content or a
+ * single heading, and a validator or a reviewer quoting one of them will flag
+ * this markup; that rule is gone, and moving the counts out of the summary to
+ * satisfy it would take them out of sight when the section is folded.
+ *
+ * @type {(heading: string) => (...rest: readonly Node[]) => Element}
+ */
+const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
+
+/**
  * The demo section: what this module *does*, if it says.
  *
  * Two elements and nothing else. The section is the demo's own root, so the
@@ -151,7 +177,7 @@ const proofItem = proof => proof.blockers.length === 0
  * @type {(path: string) => readonly Node[]}
  */
 export const demoSection = path => [['details', { 'data-section': '', open: '' },
-    ['summary', 'Demo'],
+    summary('Demo')(),
     ['div', { 'data-demo': path }],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
@@ -195,11 +221,11 @@ export const testSection = dir => intro => {
         ['ul', { 'data-test-sources': '' }, ...dir.proofs.map(proofItem)],
     ]]
     const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
-    if (linkable.length === 0) { return section(['summary', 'Emergent Testing'])([]) }
+    if (linkable.length === 0) { return section(summary('Emergent Testing')())([]) }
     // **The run's counts go in the title**, so they stay in sight with the
     // section folded. The slot is there only where something can run: a title
     // waiting for counts over a suite with no control would wait for ever.
-    return section(['summary', 'Emergent Testing', ['span', { 'data-test-counts': '' }]])([
+    return section(summary('Emergent Testing')(['span', { 'data-test-counts': '' }]))([
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,
@@ -269,7 +295,7 @@ const section = heading => open => items =>
     items.length === 0
         ? []
         : [['details', { 'data-section': '', open: open ? '' : undefined },
-            ['summary', heading],
+            summary(heading)(),
             ['ul', { 'data-links': '' }, ...items]]]
 
 /** @type {(href: string) => (text: string) => Element} */
