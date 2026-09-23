@@ -172,6 +172,12 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
 [data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
+/* The summary holds the section's h2, so a screen reader lists every section
+   among the page's headings. The h2 is inline and takes the summary's own
+   size and weight: a block heading would push the disclosure triangle onto a
+   line of its own, and a browser's h2 size and margins would make the title
+   bigger than it has always been. */
+[data-section] > summary > h2 { display: inline; font: inherit; margin: 0 }
 [data-section] > ul { margin-top: .5rem }
 /* A section's list is one link per line with nothing under WCAG 2.2's 24px
    minimum to tap: at d05b70ce, rendered at 390px, a listed link was 19px
