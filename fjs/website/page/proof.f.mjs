@@ -45,12 +45,12 @@ export const proof = {
         files: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
             '<body><details data-section="" open=""><summary>Files</summary>'
-            + '<ul><li><a href="/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
+            + '<ul data-links=""><li><a href="/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
         // A file of the root directory has no directory in its path.
         filesAtRoot: () => assertEq(
             sectionsHtml({ ...empty, files: ['module.f.mjs'] }),
             '<body><details data-section="" open=""><summary>Files</summary>'
-            + '<ul><li><a href="/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
+            + '<ul data-links=""><li><a href="/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
         /**
          * **Directories and files open, issues closed.** The first two are
          * bounded by the directory; the issue list is not, and an open one
@@ -68,29 +68,29 @@ export const proof = {
         dirsBeforeFiles: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', dirs: ['types'], files: ['module.f.mjs'] }),
             '<body><details data-section="" open=""><summary>Directories</summary>'
-            + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'
+            + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'
             + '<details data-section="" open=""><summary>Files</summary>'
-            + '<ul><li><a href="/fjs/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
+            + '<ul data-links=""><li><a href="/fjs/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
         dirs: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', dirs: ['types'] }),
             '<body><details data-section="" open=""><summary>Directories</summary>'
-            + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
+            + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
         dirsAtRoot: () => assertEq(
             sectionsHtml({ ...empty, dirs: ['fjs'] }),
             '<body><details data-section="" open=""><summary>Directories</summary>'
-            + '<ul><li><a href="/fjs/index.html">fjs/</a></li></ul></details></body>'),
+            + '<ul data-links=""><li><a href="/fjs/index.html">fjs/</a></li></ul></details></body>'),
         // An issue is linked inside the `todo/` it was filed in, which has no
         // page of its own.
         todo: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'] }),
             '<body><details data-section=""><summary>Issues</summary>'
-            + '<ul><li><a href="/fjs/todo/a.md">a.md</a></li></ul></details></body>'),
+            + '<ul data-links=""><li><a href="/fjs/todo/a.md">a.md</a></li></ul></details></body>'),
         todoAtRoot: () => assertEq(
             sectionsHtml({ ...empty, todo: ['a.md'] }),
             '<body><details data-section=""><summary>Issues</summary>'
-            + '<ul><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
+            + '<ul data-links=""><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
         /**
          * **A file name that is not already a URL is encoded**, on this site
          * and on GitHub alike. `%` is in it on purpose: an encoder that
@@ -100,19 +100,19 @@ export const proof = {
             files: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs/x y', files: ['a b#c?100%.md'] }),
                 '<body><details data-section="" open=""><summary>Files</summary>'
-                + '<ul><li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md">a b#c?100%.md</a></li></ul></details></body>'),
+                + '<ul data-links=""><li><a href="/fjs/x%20y/a%20b%23c%3F100%25.md">a b#c?100%.md</a></li></ul></details></body>'),
             todo: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', todo: ['open issue.md'] }),
                 '<body><details data-section=""><summary>Issues</summary>'
-                + '<ul><li><a href="/fjs/todo/open%20issue.md">open issue.md</a></li></ul></details></body>'),
+                + '<ul data-links=""><li><a href="/fjs/todo/open%20issue.md">open issue.md</a></li></ul></details></body>'),
             dirs: () => assertEq(
                 sectionsHtml({ ...empty, path: 'fjs', dirs: ['x y'] }),
                 '<body><details data-section="" open=""><summary>Directories</summary>'
-                + '<ul><li><a href="/fjs/x%20y/index.html">x y/</a></li></ul></details></body>'),
+                + '<ul data-links=""><li><a href="/fjs/x%20y/index.html">x y/</a></li></ul></details></body>'),
             atCommit: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs/x y', files: ['中.md'] }),
                 '<body><details data-section="" open=""><summary>Files</summary>'
-                + `<ul><li><a href="${repository}/blob/${commit}/fjs/x%20y/%E4%B8%AD.md">中.md</a></li></ul></details></body>`),
+                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/fjs/x%20y/%E4%B8%AD.md">中.md</a></li></ul></details></body>`),
         },
         /**
          * **With a commit, a file a reader opens is read on GitHub**, at that
@@ -123,21 +123,21 @@ export const proof = {
             files: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
                 '<body><details data-section="" open=""><summary>Files</summary>'
-                + `<ul><li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>`),
+                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>`),
             filesAtRoot: () => assertEq(
                 sectionsAtCommit({ ...empty, files: ['README.md'] }),
                 '<body><details data-section="" open=""><summary>Files</summary>'
-                + `<ul><li><a href="${repository}/blob/${commit}/README.md">README.md</a></li></ul></details></body>`),
+                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/README.md">README.md</a></li></ul></details></body>`),
             todo: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', todo: ['a.md'] }),
                 '<body><details data-section=""><summary>Issues</summary>'
-                + `<ul><li><a href="${repository}/blob/${commit}/fjs/todo/a.md">a.md</a></li></ul></details></body>`),
+                + `<ul data-links=""><li><a href="${repository}/blob/${commit}/fjs/todo/a.md">a.md</a></li></ul></details></body>`),
             // A directory is one of this site's pages, which GitHub does not
             // have, so its link does not move.
             dirsStayHere: () => assertEq(
                 sectionsAtCommit({ ...empty, path: 'fjs', dirs: ['types'] }),
                 '<body><details data-section="" open=""><summary>Directories</summary>'
-                + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
+                + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
         },
     },
     subtree: {
@@ -298,7 +298,7 @@ export const proof = {
             const dir = { ...empty, path: 'fjs', dirs: ['types'] }
             assert(pageHtml(dir).includes(
                 '<details data-section="" open=""><summary>Directories</summary>'
-                + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'),
+                + '<ul data-links=""><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'),
                 pageHtml(dir))
         },
     },

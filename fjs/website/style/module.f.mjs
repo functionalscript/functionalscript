@@ -173,14 +173,17 @@ textarea { box-sizing: border-box; resize: vertical; width: 100% }
 [data-demo-working] button { cursor: default }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 [data-section] > ul { margin-top: .5rem }
-/* A section's list is one link per line with nothing under WCAG 2.2's 24px
-   minimum to tap: at d05b70ce, rendered at 390px, a listed link was 19px
-   tall. any-pointer, not pointer: a touch-screen laptop's primary pointer is
-   its trackpad, which pointer: coarse would read as fine and leave the list
+/* A list of links, one per line — a section's catalogue, the release index —
+   is marked data-links, and has nothing under WCAG 2.2's 24px minimum to tap:
+   at d05b70ce, rendered at 390px, a listed link was 19px tall. The marker is
+   what the rule matches rather than where the list sits, so a page that lists
+   links outside a section, as the changelog does, is not left dense by
+   accident. any-pointer, not pointer: a touch-screen laptop's primary pointer
+   is its trackpad, which pointer: coarse would read as fine and leave the list
    untouched for the screen's own finger. A desktop with no coarse pointer at
    all keeps the dense list. */
 @media (any-pointer: coarse) {
-    [data-section] > ul a { display: inline-block; padding-block: .25rem }
+    [data-links] a { display: inline-block; padding-block: .25rem }
 }
 /* SVG text does not inherit the page's font on its own, unlike every
    ordinary element — the DataJS demo's graph is the first thing on the site

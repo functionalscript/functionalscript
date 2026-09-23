@@ -292,7 +292,8 @@ export const indexPage = versions => htmlUtf8(
     ['main',
         nav([]),
         ['h1', 'Releases'],
-        ['ul', ...descending(versions).map(version =>
+        // One link per line, so marked for the stylesheet's tap-target rule.
+        ['ul', { 'data-links': '' }, ...descending(versions).map(version =>
             /** @type {Element} */(['li', ['a', { href: releaseHref(version) }, version]]))],
     ],
 )
