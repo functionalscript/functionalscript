@@ -3,6 +3,8 @@
  * same graph: the same value wherever sharing does not decide it, and both
  * answers pinned where it does.
  *
+ * @import { Operand } from '../analysis/types.ts'
+ * @import { Closure } from '../operations/types.ts'
  * @import { Exp } from '../types.ts'
  */
 
@@ -10,7 +12,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
-import { memo } from './module.f.mjs'
+import { call, memo } from './module.f.mjs'
 
 const context = { frame: { x: 1 }, args: [10, 20] }
 
@@ -35,8 +37,8 @@ const s = ['[]', [1]]
 /** @type {(v: unknown) => readonly any[]} */
 const array = v => /**@type {any}*/(v)
 
-/** @type {(v: unknown) => (...a: unknown[]) => unknown} */
-const callable = v => /**@type {any}*/(v)
+/** A value this executor built from a `=>`, as the record it is. @type {(v: unknown) => Closure<Operand>} */
+const closure = v => /**@type {any}*/(v)
 
 export const proof = {
     // The model: one node reached twice is one value. Amnesia gives two
@@ -94,22 +96,27 @@ export const proof = {
     body: () => {
         /** @type {Exp} */
         const inner = ['[]', []]
-        const f = callable(run(['=>', ['[]', [5]], ['[]', [inner, inner, ['args'], ['frame']]]]))
-        const first = array(f(1))
-        const second = array(f(2))
+        // A closure is called through `call` over the analysis it was built
+        // from, since it is a record whose body is an entry of that analysis.
+        const a = analysis(['=>', ['[]', [5]], ['[]', [inner, inner, ['args'], ['frame']]]])
+        const f = closure(memo(a)(context))
+        const first = array(call(a)(f)([1]))
+        const second = array(call(a)(f)([2]))
         assert(first[0] === first[1])
         assert(first[0] !== second[0])
         assertStructurallySame(first[2], [1])
         assertStructurallySame(first[3], [5])
         // A body inside a body, each its own scope: the inner closure's
         // constructor is fresh per inner call, whichever outer call made it.
-        const g = callable(run(['=>', null, ['=>', null, ['[]', [inner, inner]]]]))
-        const h = callable(g())
-        const x = array(h())
-        assert(x[0] === x[1] && x[0] !== array(h())[0])
+        const b = analysis(['=>', null, ['=>', null, ['[]', [inner, inner]]]])
+        const g = closure(memo(b)(context))
+        const h = closure(call(b)(g)([]))
+        const x = array(call(b)(h)([]))
+        assert(x[0] === x[1] && x[0] !== array(call(b)(h)([]))[0])
         // A primitive body is its value and opens no invocation, as a
         // primitive program is its value: no slot is built for either.
-        assertEq(callable(run(['=>', null, 5]))(), 5)
+        const c = analysis(['=>', null, 5])
+        assertEq(call(c)(closure(memo(c)(context)))([]), 5)
         eq(5, 5)
     },
     // Wherever sharing does not decide the value, the answer is amnesia's:

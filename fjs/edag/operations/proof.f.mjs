@@ -5,11 +5,11 @@
  * short-circuits, frames, calls and what throws — are amnesia's proofs,
  * which run every operation through this table over EDAG nodes.
  *
- * @import { Evaluator } from './types.ts'
+ * @import { Closure, Evaluator } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { operation } from './module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { isClosure, operation } from './module.f.mjs'
 
 /**
  * Operands are values; a call of a `=>` runs the body, which is a value
@@ -27,8 +27,17 @@ const values = {
 /** @type {(e: any) => unknown} */
 const run = e => operation(values)(e)
 
+/** A call of a closure this table built: the evaluator's `invoke` over the record, which is what every executor's `call` is. @type {(v: unknown) => (args: readonly unknown[]) => unknown} */
+const call = v => {
+    const { frame, body } = /**@type {Closure<unknown>}*/(v)
+    return args => values.invoke(frame, args, body)
+}
+
 /** @type {(e: any, expected: unknown) => void} */
 const eq = (e, expected) => { assertEq(run(e), expected) }
+
+/** @type {(e: any, expected: unknown) => void} */
+const same = (e, expected) => { assertStructurallySame(run(e), expected) }
 
 export const proof = {
     operators: () => {
@@ -96,16 +105,34 @@ export const proof = {
     },
     // `=>` closes over the frame operand's value and starts a new
     // invocation per call, whose body reads its own `args` and `frame`.
+    // The value is a record, not a host function: called through the
+    // executor, `'function'` to the language's `typeof`, `length` its one
+    // readable property.
     lambda: () => {
-        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 'captured', ['frame']]))
-        assertEq(f(), 'captured')
-        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', null, ['args']]))
-        assertStructurallySame(g(1, 2), [1, 2])
+        const f = run(['=>', 'captured', ['frame']])
+        assert(isClosure(f))
+        assertEq(typeof f, 'object')
+        assertEq(call(f)([]), 'captured')
+        const g = run(['=>', null, ['args']])
+        assertStructurallySame(call(g)([1, 2]), [1, 2])
+        eq(['typeof', f], 'function')
+        eq(['.', f, 'length'], 0)
+        eq(['.', f, 'frame'], undefined)
+        eq(['own', f, 'body'], undefined)
+        same(['{}', [['...', f]]], {})
+        // a call step onto a closure held in a property invokes it, and a
+        // bare `()` does the same
+        same(['.', { g }, 'g', ['|()', [3]]], [3])
+        same(['()', g, [4]], [4])
+        same(['?.()', g, [5]], [5])
     },
     throw: {
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),
         ownKey: () => run(['own', {}, 1]),
         ownNullish: () => run(['own', null, 'a']),
         bigintPlus: () => run(['+', 0n]),
+        // a call step onto a closure's `length`, a number, is the host's
+        // error, as `f.length()` is in JavaScript
+        closureMethod: () => run(['.', run(['=>', null, 1]), 'length', ['|()', []]]),
     },
 }

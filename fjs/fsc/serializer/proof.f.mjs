@@ -14,10 +14,12 @@
  * compiler meets, and every one of them names a feature that will replace it.
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Operand } from '../../edag/analysis/types.ts'
+ * @import { Closure } from '../../edag/operations/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { call, memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../types/result/module.f.mjs'
@@ -152,9 +154,10 @@ export const proof = {
         },
         functions: () => {
             const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
-            const result = /** @type {{ f: (...args: unknown[]) => unknown, default: unknown }} */ (moduleValue(moduleGraph(text)))
+            const a = analysis(moduleGraph(text))
+            const result = /** @type {{ f: Closure<Operand>, default: unknown }} */ (memo(a)({ frame: null, args: [] }))
             assert(result.f === result.default)
-            assertStructurallySame(result.f(1, 2), [1, 2])
+            assertStructurallySame(call(a)(result.f)([1, 2]), [1, 2])
         },
         refusals: () => {
             for (const graph of /** @type {readonly Exp[]} */ ([
