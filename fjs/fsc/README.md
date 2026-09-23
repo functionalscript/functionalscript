@@ -145,7 +145,8 @@ it, so `(...a) => [a, a]` shares as JavaScript does — and nothing outside
 stands. A reference to a `const`, an import, an enclosing function's
 parameter or an enclosing body's `const` is a capture: the frame is
 `['[]', slots]`, each slot the enclosing scope's own node for a captured
-value, one per node in the order the body first names them, and the body
+value, one per value — nodes the EDAG analysis merges, `o[0]` read by two
+`const`s, being one — in the order the body first names them, and the body
 reads slot `i` as `['.', ['frame'], i]` — so no outside node is ever shared
 into a body, only read through its frame. A captured primitive is written
 into the body rather than captured, and a function that captures nothing

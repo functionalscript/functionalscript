@@ -892,8 +892,8 @@ arguments and of what it captures:
 - A name the body reads from a scope around it — a `const`, an import, an
   enclosing function's parameter or an enclosing body's `const` — is a
   **capture**, as a JavaScript closure's is. The function's frame is the
-  array of the captured values, one per binding however many references
-  reach it, in the order the body first names them, built where the
+  array of the captured values, each value once however many bindings or
+  references reach it, in the order the body first names them, built where the
   function is written; the body reads a capture as a slot of it, and a
   nested function captures through its parent. Nothing mutates, so a frame
   copied when the function is made is unobservable from a closure over the

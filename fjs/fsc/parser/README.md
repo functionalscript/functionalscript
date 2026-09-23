@@ -209,9 +209,10 @@ import, an enclosing function's parameter or an enclosing body's `const` —
 is a **capture**. The body is resolved against its own names first — its
 parameter, and the `const`s it declares before the reference — and then
 against each scope around it, innermost first; a name found outside becomes
-a slot of the function's frame, one per binding in first-use order, which
-the function node lists as its third element and the body reads as
-`['fref', i]`. A function nested in another captures through it, so the
+a capture, one per binding in first-use order, which the function node
+lists as its third element and the body reads as `['fref', i]`. The frame
+is the lowering's: it gives each distinct captured value one slot, so two
+bindings of one value share one. A function nested in another captures through it, so the
 middle function takes the capture too.
 
 A `const`'s value is resolved *before* its own name is bound, so `const a = a;`
