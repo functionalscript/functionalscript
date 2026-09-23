@@ -106,12 +106,12 @@ fn b(frame: Array<Any>, param: Array<Any>) {
 }
 ```
 
-Neither spelling is in the language yet — a named parameter is
-[parameters](./3120-parameters.md), and reaching a name declared later is
-[forward-references](./3140-forward-references.md) — and the capture that
-makes `frame` necessary is what this issue holds: a body that names
-anything bound outside it is refused today
-([functions](../README.md#functions)).
+A named parameter is in the language ([functions](../README.md#functions));
+reaching a name declared later is not,
+[forward-references](./3140-forward-references.md). The capture that
+makes `frame` necessary is what this issue holds: the compiler's own
+frame is the one [functions](../README.md#functions) describes, and this
+document's is the bytecode interpreter's.
 
 This document's frame is the bytecode-interpreter design. The parallel plan
 for the AOT path — Rust code generated per FS function, called directly —

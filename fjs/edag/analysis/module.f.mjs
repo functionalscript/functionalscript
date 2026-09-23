@@ -277,14 +277,15 @@ const handlers = {
     '||': o2,
     '??': o2,
     '?:': o3,
-    // The frame is walked in the enclosing scope; the body is the scope
-    // this node opens, so its entries name this node as their scope and
-    // come before it, as operands come before the node that holds them.
+    // The count is no operand and stands; the frame is walked in the
+    // enclosing scope; the body is the scope this node opens, so its
+    // entries name this node as their scope and come before it, as
+    // operands come before the node that holds them.
     '=>': scope => (state, e) => {
-        const [, frame, body] = e
+        const [, count, frame, body] = e
         const [t, f] = walk(scope)(state, frame)
         const [u, b] = walk(e)(t, body)
-        return [u, ['=>', f, b]]
+        return [u, ['=>', count, f, b]]
     },
     ',': scope => (state, [, xs]) => {
         const [t, ops] = each(walk(scope))(state, xs)

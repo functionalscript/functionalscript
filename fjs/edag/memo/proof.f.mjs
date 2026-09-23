@@ -76,7 +76,7 @@ export const proof = {
     body: () => {
         /** @type {Exp} */
         const inner = ['[]', []]
-        const f = callable(run(['=>', ['[]', [5]], ['[]', [inner, inner, ['args'], ['frame']]]]))
+        const f = callable(run(['=>', 0, ['[]', [5]], ['[]', [inner, inner, ['args'], ['frame']]]]))
         const first = array(f(1))
         const second = array(f(2))
         assert(first[0] === first[1])
@@ -85,14 +85,20 @@ export const proof = {
         assertStructurallySame(first[3], [5])
         // A body inside a body, each its own scope: the inner closure's
         // constructor is fresh per inner call, whichever outer call made it.
-        const g = callable(run(['=>', null, ['=>', null, ['[]', [inner, inner]]]]))
+        const g = callable(run(['=>', 0, null, ['=>', 0, null, ['[]', [inner, inner]]]]))
         const h = callable(g())
         const x = array(h())
         assert(x[0] === x[1] && x[0] !== array(h())[0])
         // A primitive body is its value and opens no invocation, as a
         // primitive program is its value: no slot is built for either.
-        assertEq(callable(run(['=>', null, 5]))(), 5)
+        assertEq(callable(run(['=>', 0, null, 5]))(), 5)
         eq(5, 5)
+        // The count is the callable's `length`, as amnesia's is, and the
+        // slots are the body's whatever the count: a read of position `1`
+        // shared twice is one value per call.
+        const two = callable(run(['=>', 2, ['[]', []], ['[]', [['.', ['args'], 1], ['.', ['args'], 1]]]]))
+        assertEq(two.length, 2)
+        assertStructurallySame(two(1, inner), [inner, inner])
     },
     // Wherever sharing does not decide the value, the answer is amnesia's:
     // every operation once through both executors over one graph.
@@ -105,9 +111,11 @@ export const proof = {
         agrees(['own', ['{}', [[':', 'k', 9]]], 'k'])
         agrees([',', [1, ['!', 0]]])
         agrees(['?.', ['undefined'], 'x', ['|.', 'y']])
-        agrees(['()', ['=>', null, ['.', ['args'], 0]], ['[]', [7]]])
+        agrees(['()', ['=>', 0, null, ['.', ['args'], 0]], ['[]', [7]]])
+        agrees(['()', ['=>', 2, null, ['[]', [['.', ['args'], 1], ['.', ['args'], 'length']]]], ['[]', [7]]])
+        agrees(['.', ['=>', 2, null, 1], 'length'])
         agrees(['.', ['[]', [42]], 'at', ['|?.()', ['[]', [0]], ['|.', 'toFixed', ['|()', ['[]', [1]]]]]])
-        agrees(['?.()', ['=>', null, ['{}', [[':', 'y', 3]]]], ['[]', []], ['|.', 'y']])
+        agrees(['?.()', ['=>', 0, null, ['{}', [[':', 'y', 3]]]], ['[]', []], ['|.', 'y']])
         agrees(['typeof', ['&&', 1, 'a']])
     },
     throw: {

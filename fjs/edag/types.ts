@@ -21,6 +21,7 @@ import type {
     dot,
     exp,
     exps,
+    fn,
     items,
     numberCast,
     object,
@@ -56,6 +57,7 @@ export type Exp =
     | OptionDot
     | OptionCall
     | Comma
+    | Fn
     | Op3
     | Op12
     | Op2
@@ -207,6 +209,11 @@ export type OptionCall =
 
 export type Comma = readonly[',', Exps]
 
+// Fn — the function: its declared parameter count, a number and no
+// operand, then its frame and its body. See `fn` in `module.f.mjs`.
+
+export type Fn = readonly['=>', number, Exp, Exp]
+
 // Op0Ids
 
 export type Op0Id =
@@ -224,7 +231,7 @@ export type Op1 = readonly[Op1Id, Exp]
 // Op2Ids
 
 export type Op2Id =
-    | '=>' | 'own' | 'is'
+    | 'own' | 'is'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
@@ -284,6 +291,7 @@ type _PlusIsOp12 = Assert<Equal<TagMap['+'], Op12>>
 type _MinusIsOp12 = Assert<Equal<TagMap['-'], Op12>>
 type _ConditionalIsOp3 = Assert<Equal<TagMap['?:'], Op3>>
 type _BracketsIsArray = Assert<Equal<TagMap['[]'], Array>>
+type _ArrowIsFn = Assert<Equal<TagMap['=>'], Fn>>
 type _CallIsCall = Assert<Equal<TagMap['()'], Call>>
 type _DotIsDot = Assert<Equal<TagMap['.'], Dot>>
 
@@ -334,6 +342,8 @@ export type Over<T, E, I = E> = T extends readonly unknown[] ? { readonly [K in 
 
 type _OverExp = Assert<Equal<ExpOp extends Over<ExpOp, Exp> ? true : false, true>>
 type _OverOp2 = Assert<Equal<Over<Op2, 0>, readonly [Op2Id, 0, 0]>>
+// a count is no operand position, so it stays a number over any operand type
+type _OverFn = Assert<Equal<Over<Fn, 0>, readonly ['=>', number, 0, 0]>>
 type _OverDot = Assert<Equal<Over<Dot, 0, 1>,
     | readonly ['.', 0, 1]
     | readonly ['.', 0, 1, StepOver<0, 1>]>>
@@ -371,6 +381,7 @@ type _Dot = Assert<Check<Dot, typeof dot>>
 type _OptionDot = Assert<Check<OptionDot, typeof optionDot>>
 type _OptionCall = Assert<Check<OptionCall, typeof optionCall>>
 type _Comma = Assert<Check<Comma, typeof comma>>
+type _Fn = Assert<Check<Fn, typeof fn>>
 type _Op0Id = Assert<Check<Op0Id, typeof op0Id>>
 type _Op0 = Assert<Check<Op0, typeof op0>>
 type _Op1Id = Assert<Check<Op1Id, typeof op1Id>>

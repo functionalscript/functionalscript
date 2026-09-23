@@ -45,9 +45,8 @@ export type ParseError = {
  * converted from its token, a reference by the identifier token that spells
  * it — its name, and the position an error is anchored at — a property
  * access by the token its key is read from, a call by its arguments in the
- * order written, a negation by its operand, a function by the token naming
- * its parameter — `null` where the list is empty, there being no token —
- * and its body,
+ * order written, a negation by its operand, a function by its parameter
+ * list, {@link Parameters}, and its body,
  * a block body by its ordered, tagged statements, or a
  * container of its items in the order written.
  *
@@ -85,9 +84,25 @@ export type Node =
     | readonly ['~', Node]
     | readonly [BinaryTag, Node, Node]
     | readonly ['?:', Node, Node, Node]
-    | readonly ['=>', DjsTokenWithMetadata | null, Node]
+    | readonly ['=>', Parameters, Node]
     | Block
     | Container
+
+/**
+ * A function's parameter list as the grammar read it: the one rest
+ * parameter by the token naming it; the named parameters by their tokens
+ * in order, none for `()`, one for a bare `a => …` and for `(a) => …`; or
+ * a group the grammar read a value into and then met `=>` after — `(a.b)
+ * => 1` — by the arrow's token, where the fold refuses it. The grammar
+ * reads a name and the rest of a value after it before it can tell
+ * `(a) => 1` from `(a).b`, so a value that is more than the name reaches
+ * here as this third form rather than being unspellable; a list beginning
+ * with anything but a name never does.
+ */
+export type Parameters =
+    | readonly ['rest', DjsTokenWithMetadata]
+    | readonly ['names', readonly DjsTokenWithMetadata[]]
+    | readonly ['group', DjsTokenWithMetadata]
 
 /**
  * The block syntax currently understood: zero or more `const` declarations
@@ -153,6 +168,7 @@ export type Module = {
 export type Out =
     | { readonly id: 'value', readonly node: Node }
     | { readonly id: 'values', readonly items: List<Node> }
+    | { readonly id: 'names', readonly items: List<DjsTokenWithMetadata> }
     | { readonly id: 'member', readonly member: Entry }
     | { readonly id: 'members', readonly items: List<Entry> }
     | { readonly id: 'import', readonly statement: Import }

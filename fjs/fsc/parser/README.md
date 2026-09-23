@@ -20,11 +20,21 @@ import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string 
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
 value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | id t | array | object) access* powTail tail
-         | '(' t (func | group tail)
+         | id s afterName
+         | (primitive t | array | object) access* powTail tail
+         | '(' t parenthesized
 body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | id t | array) access* powTail tail
-         | '(' t (func | group tail) | block
+         | id s afterName
+         | (primitive t | array) access* powTail tail
+         | '(' t parenthesized | block
+afterName ::= '=>' t body | n access* powTail tail
+parenthesized ::= '...' t id t ')' s '=>' t body
+         | ')' s '=>' t body
+         | id t ( ',' t [ names ] ')' s '=>' t body
+                | access* powTail tail ')' s afterName )
+         | groupValue ')' t access* powTail tail
+groupValue ::= value less its `id s afterName` branch
+names  ::= id t [ ',' t [ names ] ]
 unary  ::= '-' t unaryOperand | '~' t unaryOperand
          | (primitive t | id t | array | object) access* powTail
          | '(' t group
@@ -32,7 +42,6 @@ unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
          | (primitive t | id t | array | object) access*
          | '(' t groupOperand
 block  ::= '{' t const* 'return' s value ';' t '}' t
-func   ::= [ '...' t id t ] ')' s '=>' t body
 group  ::= value ')' t access* powTail
 groupOperand ::= value ')' t access*
 powTail ::= [ '**' t unary ]
@@ -57,19 +66,26 @@ key    ::= id | string | '[' t string t ']'
 items  ::= item [ ',' t [ items ] ]
 t      ::= (ws | nl | comment)*
 s      ::= (ws | comment)*
+n      ::= [ nl t ]
 ```
 
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
 
-A `(` opens two things, so `paren` takes the `(` and `func` and `group` part
-at the symbol after it: `...` against a value's first set, which no `...`
-is in. That is how a function and a group live in one grammar without
-looking past the `)` — where JavaScript itself has to look, and where
-parenthesized parameters will
-([`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)).
-It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
-is a group, and nothing may follow a value there.
+A `(` opens a function or a group, so `paren` takes the `(` and
+`parenthesized` parts at the symbol after it: `...` and `)` are a
+function's, and a name is read before the two are told apart, since
+`(a) => 1` is a function and `(a).b` a group. JavaScript itself tells those
+apart only past the `)`, and so does this grammar without looking past it:
+the name is read with the rest of a value after it and the `)`, and `=>`
+on the same line as the `)` decides, one symbol. That reading admits
+`(a.b) => 1` — JavaScript's cover grammar, at one name's width — which the
+fold refuses as `invalid parameter list` at the arrow, and no more:
+`((a)) => 1` and `(1) => 1` open with no name and fail at the `=>`, as any
+value followed by one does. A bare name is read the same way, `a => 1` and
+`a.b` parting at the symbol after the name, and a newline there is where a
+value goes on and no arrow may follow, JavaScript's own
+`[no LineTerminator here]`.
 
 A `-` or a `~` takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript

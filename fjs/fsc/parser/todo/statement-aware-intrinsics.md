@@ -63,10 +63,10 @@ otherwise-prohibited components; every unmatched protected use remains refused.
 
 This does not require parsing all JavaScript immediately. It requires parsing
 every construct inside a proposed pattern with JavaScript's interpretation.
-For example, [named parameters](../../../../spec/todo/3120-parameters.md) must
-be represented before recognizing the `entry` helper. General EDAG lowering
-for every function using named parameters is not a prerequisite for that one
-approved pattern. Parsing a descriptor call, mutation or unsupported capture
+For example, [named parameters](../../../../spec/README.md#functions) had to
+be represented before recognizing the `entry` helper, and are. General EDAG
+lowering for every function using named parameters is not a prerequisite for
+that one approved pattern. Parsing a descriptor call, mutation or unsupported capture
 likewise does not grant permission to execute it.
 
 **The matcher does not see whitespace, perform ASI or decide statement
@@ -159,5 +159,5 @@ statement/expression recognition, before or after that expansion.
 - [Compatibility epic](../../../../todo/fjs-javascript-compatibility.md).
 - [Entry function](../../../edag/todo/entry.md).
 - [Enumerable presence](../../../../spec/todo/2345-has-own-property.md).
-- [Named parameters](../../../../spec/todo/3120-parameters.md).
+- [Named parameters](../../../../spec/README.md#functions).
 - [ECMAScript ASI](https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-automatic-semicolon-insertion).

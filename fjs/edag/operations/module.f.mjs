@@ -213,11 +213,18 @@ export const operations = {
     // the body is not: the value is a closure over the captured frame and the
     // body graph, and each call of it is a new invocation, which is the
     // executor's to start — the enclosing invocation's values do not cross,
-    // the captured frame is a value and crosses as one.
-    '=>': ({ operand, invoke }) => ([, frameExp, body]) => {
+    // the captured frame is a value and crosses as one. The closure's
+    // `length` is the declared count, which JavaScript reads off a
+    // function as it reads an array's: a rest parameter collects the
+    // complete arguments whatever the count, so the count is written onto
+    // the function rather than spelled as parameters — the one property a
+    // fresh function is given before anything holds it, as `slot` in
+    // `../memo` fills a slot after making it, and for the same reason.
+    '=>': ({ operand, invoke }) => ([, count, frameExp, body]) => {
         const frame = operand(frameExp)
         /**@type {(...arg: readonly unknown[]) => unknown}*/
-        return (...args) => invoke(frame, args, body)
+        const f = (...args) => invoke(frame, args, body)
+        return Object.defineProperty(f, 'length', { value: count })
     },
     '>': o2((a, b) => a > b),
     '>=': o2((a, b) => a >= b),

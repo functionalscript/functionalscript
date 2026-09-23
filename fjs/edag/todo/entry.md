@@ -75,7 +75,7 @@ complete pattern and enforces FJS restrictions. The matcher does not inspect
 newlines, perform semicolon insertion or repair syntax. A newline after
 `return` cannot be ignored to recover this pattern.
 
-The parser must understand the [named parameters](../../../spec/todo/3120-parameters.md),
+The parser must understand the [named parameters](../../../spec/README.md#functions),
 local declaration, return, optional access and conditional expression inside
 the helper before it can be matched. Syntactic support is the dependency;
 general EDAG lowering for every use of those constructs is not. A descriptor
@@ -178,8 +178,8 @@ need tests in addition to direct internal-operation tests.
 - [ ] Add `['entry']` to the schema and document the function/internal-operation
       distinction, subject to the P1 compatibility gates above.
 - [ ] Implement recognition in AST-to-EDAG compilation once the complete helper
-      syntax, including [named parameters](../../../spec/todo/3120-parameters.md),
-      is representable. Validate its bindings and keep protected uses outside
+      syntax is representable — [named parameters](../../../spec/README.md#functions)
+      are. Validate its bindings and keep protected uses outside
       matched patterns refused; general lowering of functions with named
       parameters may follow.
 - [ ] Implement the JavaScript and native operation changes together with the

@@ -31,22 +31,30 @@ export type AstModule = readonly [readonly AstImport[], AstBody]
 export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstArgs|AstFrameRef
 
 /**
- * A function: `(...a) => { const x = …; return v; }`, an {@link AstBody}
- * as a module has one — its entries the body's `const`s in order, the last
- * the value it returns, and `['cref', i]` naming an entry of *this* body.
- * `(...a) => v` is the same function as `(...a) => { return v; }`, so it is
- * the one-entry body `[v]`.
+ * A function: `(a, b) => { const x = …; return v; }`, its declared
+ * parameter count and an {@link AstBody} as a module has one — its entries
+ * the body's `const`s in order, the last the value it returns, and
+ * `['cref', i]` naming an entry of *this* body. `(...a) => v` is the same
+ * function as `(...a) => { return v; }`, so it is the one-entry body `[v]`.
  *
- * {@link AstArgs} is the arguments array. A name the body reads from the
- * scopes around it is a **capture**: the function's third element lists
- * them, each once, in the order the body first names them, each the
- * enclosing scope's own reference — a `cref` or `aref` of the module, a
- * `cref` of an enclosing body, its `args`, or a slot of *its* frame, since
- * a nested function captures through its parent — and the body names
- * capture `i` as {@link AstFrameRef} `['fref', i]`. A function that
- * captures nothing has no third element. The EDAG's `['=>', frame, body]`,
- * its frame the array of the captured values less the primitives — `lower`
- * writes a primitive into the body — and its body a comma where an entry is
+ * The count is `0` for an empty or a rest-only parameter list and `n` for
+ * `n` named parameters, unused ones included: it is what the function's
+ * `length` reads as, which JavaScript can observe, so the AST carries it
+ * where it erases the names. {@link AstArgs} is the complete arguments
+ * array under either list, and a named parameter `i` is the read
+ * {@link AstParameter} `['.', ['args'], i]` — a position in that array,
+ * missing arguments `undefined` and extra ones present, as in JavaScript.
+ *
+ * A name the body reads from the scopes around it is a **capture**: the
+ * function's fourth element lists them, each once, in the order the body
+ * first names them, each the enclosing scope's own reference — a `cref` or
+ * `aref` of the module, a `cref` of an enclosing body, its `args` or a
+ * parameter of it, or a slot of *its* frame, since a nested function
+ * captures through its parent — and the body names capture `i` as
+ * {@link AstFrameRef} `['fref', i]`. A function that captures nothing has
+ * no fourth element. The EDAG's `['=>', count, frame, body]`, its frame the
+ * array of the captured values less the primitives — `lower` writes a
+ * primitive into the body — and its body a comma where an entry is
  * unreached, as a module's is.
  *
  * An `aref` is typed as any index all the same, as a `cref` is: the parser
@@ -54,7 +62,16 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCa
  * not rejected — `lower` gives it no node, as it gives none to a `cref`
  * past the entry holding it.
  */
-export type AstFunction = readonly ['=>', AstBody] | readonly ['=>', AstBody, readonly AstConst[]]
+export type AstFunction = readonly ['=>', number, AstBody] | readonly ['=>', number, AstBody, readonly AstConst[]]
+
+/**
+ * Parameter `i` of the function whose body holds it: the `i`-th argument,
+ * an {@link AstAccess} on {@link AstArgs}, since a named parameter is a
+ * position in the arguments array and nothing more
+ * (`todo/edag-stage1-discussion.md`, subject 2). The EDAG's
+ * `['.', ['args'], i]`.
+ */
+export type AstParameter = readonly ['.', AstArgs, number]
 
 /**
  * Slot `i` of the frame of the function whose body holds it: the value its

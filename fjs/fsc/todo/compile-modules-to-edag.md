@@ -249,7 +249,7 @@ array order remains significant: position `i` in `imports` corresponds to import
 parameter `i` in the EDAG.
 
 **Import binding is scope-aware.** At module scope, `['args']` is the import-parameter
-array described above. A nested `['=>', frame, body]` introduces a new function scope,
+array described above. A nested `['=>', count, frame, body]` introduces a new function scope,
 where `['args']` means that function invocation's arguments instead. Module linking must
 therefore never descend into a nested function `body` while substituting module import
 parameters. The `frame` operand belongs to the enclosing scope and may be traversed
@@ -292,7 +292,7 @@ After unresolved modules can be represented as EDAG, add functions and calls.
 Introduce the function operation into EDAG:
 
 ```js
-['=>', frame, body]
+['=>', count, frame, body]
 ```
 
 **Stage 2 does not implement frames/captures.** This is a restriction on *this task's*
@@ -623,7 +623,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 2
 
-- [x] `['=>', frame, body]` is in the EDAG validation/type schema (`fjs/edag/`), with
+- [x] `['=>', count, frame, body]` is in the EDAG validation/type schema (`fjs/edag/`), with
       `frame` a general `exp` there and `['frame']` itself a separate validated node —
       neither restricted to Stage 2's scope.
 - [x] Stage 2's own parser is narrower than the schema: it emits only the placeholder

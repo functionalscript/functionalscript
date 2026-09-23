@@ -52,7 +52,7 @@ const { is } = Object
 const op0 = new Set(['undefined', 'args', 'frame'])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
-    '=>', 'own', 'is',
+    'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
@@ -129,18 +129,19 @@ export const _shapeOf = exp => {
             ],
         }
     }
-    // `=>` is an `Op2` by operand count and stays in that set above, which
-    // mirrors the type file for the eye-check the comment there describes; it
-    // is drawn here instead because `left`/`right` name nothing a reader of a
-    // function wants, and `frame`/`body` name exactly it. The frame is `null`
-    // in every function that captures nothing but primitives —
-    // `./module.f.mjs` lowers each to `['=>', null, body]` — and the edge
-    // label is what makes that null read as the absent frame it is rather
-    // than as a constant somebody passed.
+    // A function: its parameter count is in the label, since it is a number
+    // and no node to draw — `=>` for none, `(2)=>` for two — and its two
+    // operands are `frame` and `body`, which name what a reader of a
+    // function wants. The frame is `null` in every function that captures
+    // nothing but primitives — `./module.f.mjs` lowers each to
+    // `['=>', n, null, body]` — and the edge label is what makes that null
+    // read as the absent frame it is rather than as a constant somebody
+    // passed.
     if (tag === '=>') {
+        const count = /** @type {number} */ (exp[1])
         return {
-            kind: 'op', label: '=>',
-            children: [['frame', /** @type {Exp} */ (exp[1])], ['body', /** @type {Exp} */ (exp[2])]],
+            kind: 'op', label: count === 0 ? '=>' : `(${count})=>`,
+            children: [['frame', /** @type {Exp} */ (exp[2])], ['body', /** @type {Exp} */ (exp[3])]],
         }
     }
     if (typeof tag === 'string' && op0.has(tag)) {

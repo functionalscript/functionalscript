@@ -315,10 +315,10 @@ const lines = statements => statements.flatMap(s => s.split('\n'))
  * @type {(e: Exp) => boolean}
  */
 const atomic = e => {
-    const [id, a, b] = /** @type {readonly any[]} */ (e)
+    const [id, a] = /** @type {readonly any[]} */ (e)
     return ['undefined', 'args', 'frame'].includes(id)
         || (['[]', '{}'].includes(id) && a.length === 0)
-        || (id === '=>' && isSmallestLambda(a, b))
+        || (id === '=>' && isSmallestLambda(e))
 }
 
 /**
@@ -575,7 +575,7 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => Result<string, readonly unknown[]>}
      */
     const node = e => {
-        const [id, a, b] = /** @type {readonly any[]} */ (e)
+        const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return ok('Nullish::Undefined.to_any()') }
         // The arguments a function was called with: the `args` parameter of
         // the closure {@link closure} prints, an `Array<A>` — as a value, an
@@ -621,15 +621,16 @@ const printer = nested => shared => root => {
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
-            return isSmallestLambda(a, b) ? ok('function_any()') : closure(b)(frameExpr(a))
+            return isSmallestLambda(e) ? ok('function_any()') : closure(a, c)(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
     /**
-     * A function, `['=>', frame, body]`, as a function value: a closure
-     * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
-     * parameters, a `length` of `0` — a rest parameter or none counts
-     * nothing (`spec/README.md`, Functions) — and its frame, the
+     * A function, `['=>', count, frame, body]`, as a function value: a
+     * closure bound through `IStaticFunction`, the `StaticCode<A>`
+     * signature's two parameters, its `length` the declared parameter
+     * count — `0` for a rest parameter or none, `n` for `n` named ones
+     * (`spec/README.md`, Functions) — and its frame, the
      * `Array<A>` {@link frameExpr} prints in the scope around it. A
      * closure that captures nothing of Rust's coerces to the `fn` pointer
      * `StaticCode<A>` is, and rustc infers its parameters from it, so the
@@ -651,10 +652,10 @@ const printer = nested => shared => root => {
      * under `-D warnings` is otherwise an error in the crate the module
      * lands in.
      *
-     * @type {(body: Exp) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
+     * @type {(count: number, body: Exp) => (frame: Result<string, readonly unknown[]>) => Result<string, readonly unknown[]>}
      */
-    const closure = body => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
-        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(statements)}, 0, ${fr}).to_any()`
+    const closure = (count, body) => frame => map2((/** @type {readonly string[]} */ statements, /** @type {string} */ fr) =>
+        `A::static_function(|${readsFrame(body) ? 'self_' : '_self'}, ${readsArgs(body) ? 'args' : '_args'}| ${braced(statements)}, ${count}, ${fr}).to_any()`
     )(statements(body), frame)
     /**
      * A function's frame as the `Array<A>` its construction takes: none,
@@ -849,14 +850,17 @@ const printer = nested => shared => root => {
 export const expExpr = shared => e => okThen(p => p.f(e))(printer(true)(shared)(e))
 
 /**
- * `true` for the operands of `() => undefined`: an empty frame and the
- * `undefined` node — the one `=>` this printer has a spelling for.
+ * `true` for `() => undefined`: no parameter, an empty frame and the
+ * `undefined` node — the one `=>` the corpus binds as `function_any`.
  *
- * @type {(frame: Exp, body: Exp) => boolean}
+ * @type {(e: Exp) => boolean}
  */
-const isSmallestLambda = (frame, body) =>
-    frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
-    && body instanceof Array && body[0] === 'undefined'
+const isSmallestLambda = e => {
+    const [, count, frame, body] = /** @type {readonly any[]} */ (e)
+    return count === 0
+        && frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
+        && body instanceof Array && body[0] === 'undefined'
+}
 
 /**
  * The same, for a node nothing shares — every node reached from exactly one
@@ -939,8 +943,8 @@ const reads = tag => root => visit(operandsOf)([])(root).some(([node]) => tagOf(
  * @type {(node: Exp) => readonly Exp[]}
  */
 const frameOf = node => {
-    const [id, a, b] = /** @type {readonly any[]} */ (node)
-    return id === '=>' && a !== null && !isSmallestLambda(a, b) ? [a] : []
+    const [id, , frame] = /** @type {readonly any[]} */ (node)
+    return id === '=>' && frame !== null && !isSmallestLambda(node) ? [frame] : []
 }
 
 /**
@@ -957,7 +961,7 @@ const tagOf = node => /** @type {readonly unknown[]} */ (/** @type {unknown} */ 
  *
  * @type {(node: readonly unknown[]) => readonly unknown[]}
  */
-const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
+const withBodies = node => node[0] === '=>' ? node.slice(2) : operandsOf(node)
 
 /**
  * Whether an EDAG holds a function the printer binds — any `=>` node but
@@ -968,10 +972,7 @@ const withBodies = node => node[0] === '=>' ? node.slice(1) : operandsOf(node)
  * @type {(root: Exp) => boolean}
  */
 export const holdsFunction = root => visit(withBodies)([])(root)
-    .some(([node]) => {
-        const [id, a, b] = /** @type {readonly any[]} */ (node)
-        return id === '=>' && !isSmallestLambda(a, b)
-    })
+    .some(([node]) => tagOf(node) === '=>' && !isSmallestLambda(/** @type {Exp} */ (/** @type {unknown} */ (node))))
 
 /**
  * The operands a walk descends into, read from a node's shape rather than
@@ -992,7 +993,7 @@ export const holdsFunction = root => visit(withBodies)([])(root)
  */
 const operandsOf = node => {
     const [id] = node
-    return id === '=>' ? [node[1]]
+    return id === '=>' ? [node[2]]
         : ['[]', '{}', ','].includes(/** @type {string} */ (id)) ? /** @type {readonly unknown[]} */ (node[1])
         : isChain(id) ? [...eagerOperandsOf(node), ...lazyOperandsOf(/** @type {Exp} */ (/** @type {unknown} */ (node)))]
         : node.slice(1)

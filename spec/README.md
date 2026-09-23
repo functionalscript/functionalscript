@@ -644,10 +644,11 @@ each. A group is an operand of `-` as well, and the one way a function
 reaches the prefix at all: `-((...a) => 1)` is a value where `-(...a) => 1`
 is a syntax error, there and here.
 
-A parenthesized parameter list, `(a, b) => …`, is not a group and is not
-recognized yet ([parameters](./todo/3120-parameters.md)): JavaScript itself
-tells one from the other only past the `)`, so `(a) => 1` is read as a group
-and refused at the `=>`.
+A parenthesized parameter list, `(a, b) => …`, is not a group
+([functions](#functions)): JavaScript itself tells one from the other only
+past the `)`, and so does this language — `(a) => 1` is the function and
+`(a).b` the access, the `=>` after the `)` deciding — and a group that is
+more than a name followed by `=>`, `(a.b) => 1`, is refused there.
 
 ## Operators
 
@@ -868,6 +869,18 @@ See
 ## Functions
 
 ```js
+export default (a, b) => [a, b, a];
+```
+
+A function of one named parameter, written bare:
+
+```js
+export default a => [a, a];
+```
+
+A function of the rest parameter, the whole arguments array:
+
+```js
 export default (...args) => [args, args[0]];
 ```
 
@@ -883,12 +896,27 @@ A function that takes no arguments, its parameter list empty:
 export default () => 6;
 ```
 
-A function is written as an arrow function of one rest parameter or of none,
-and its body is an expression or a block. It denotes a function of its
-arguments and of what it captures:
+A function is written as an arrow function of named parameters, of one rest
+parameter or of none, and its body is an expression or a block. It denotes
+a function of its arguments and of what it captures:
 
-- The parameter is the arguments array, `args[0]` the first argument. The
-  parameter may shadow a module name, as in JavaScript.
+- **Named parameters** bind by position, as in JavaScript: `(a, b) => body`
+  binds `a` to the first argument and `b` to the second, a missing
+  argument is `undefined`, and an extra one is passed and named by nothing.
+  One parameter may be written bare, `a => body`, or in parentheses,
+  `(a) => body`, and a list may end with a comma, `(a, b,) => body`. A name
+  may not repeat (`duplicate id`) and may not be a keyword (`reserved
+  word`); it may shadow a module name, as in JavaScript. A default value, a
+  destructuring pattern and a rest parameter among names are not admitted,
+  and are refused by the syntax. A parenthesized list is not a group,
+  though JavaScript tells the two apart only past the `)` and so does this
+  language: `(a) => 1` is the function and `(a).b` the access, and a group
+  that is more than a name followed by `=>`, `(a.b) => 1`, is refused at
+  the arrow (`invalid parameter list`). Nothing else distinguishes a named
+  parameter from what JavaScript makes of it: it is a read of the
+  arguments at its position, and the language adds no rule of its own.
+- **The rest parameter** is the arguments array, `args[0]` the first
+  argument. The parameter may shadow a module name, as in JavaScript.
 - A name the body reads from a scope around it — a `const`, an import, an
   enclosing function's parameter or an enclosing body's `const` — is a
   **capture**, as a JavaScript closure's is. The function's frame is the
@@ -919,14 +947,12 @@ arguments and of what it captures:
   `const` is not bound in its own initializer, and a function has no
   `self` to read in its place.
 - An **empty parameter list** binds no name at all, so a body written under
-  one cannot reach its arguments: the arguments array is named by the
+  one cannot reach its arguments: the arguments array is named by the rest
   parameter and by nothing else, and a word the list does not spell is
   unbound here exactly as any other unbound word is. Nothing else
   distinguishes the two lists. `() => 1` and `(...args) => 1` denote the one
   function, and a body `const` may take the name a parameter would have
-  taken, there being no parameter to collide with. A list of **named**
-  parameters, `(a, b) => body`
-  ([parameters](./todo/3120-parameters.md)), is not recognized yet.
+  taken, there being no parameter to collide with.
 - The body is an expression or a block, and `value` and `{ return value; }`
   denote the same function. As an expression the body is any value except a
   bare object literal: after `=>` JavaScript reads `{` as a block, never as
@@ -939,23 +965,36 @@ arguments and of what it captures:
   the value share a line: a newline between them ends the statement in
   JavaScript, which would return `undefined`, so it is refused here rather
   than read another way, exactly as a newline before `=>` is.
-- A function **carries no name**. Its EDAG is `['=>', frame, body]`,
-  name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
-  `export default () => 0` compile to the same node whatever JavaScript
-  would name them, and no program observes the difference: `f.name` is
-  refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since
-  `name` is not an enumerable own property
+- A function **carries no name, and carries its arity**. Its EDAG is
+  `['=>', count, frame, body]`, name-erased, so `{ some: () => 0 }.some`,
+  `const hello = () => 0` and `export default () => 0` compile to the same
+  node whatever JavaScript would name them, and no program observes the
+  difference: `f.name` is refused at the key of `.`, and `entry(f, 'name')`
+  is `undefined`, since `name` is not an enumerable own property
   ([`fjs/edag/todo/entry.md`](../fjs/edag/todo/entry.md)), which is the
   decision that retired the proposals that would have exposed a name. The
   name a JavaScript engine gives a function it loads from the written
   output is the writer's spelling, not a result of the program
   ([principles](#principles)).
-  Nor is the arity observable, which is what leaves the two parameter lists nothing to be
-  told apart by: `f.length` is `0` for a rest parameter as it is for none,
-  a rest parameter not counting towards it in JavaScript.
+
+  The arity is observable, and so it is kept: `f.length` is the count of
+  named parameters the function declares, unused ones included, and `0`
+  for a rest parameter as for none, a rest parameter not counting towards
+  it in JavaScript — so `((a, b) => a).length` is `2` here as it is there,
+  the one thing that tells `(a, b) => a` from `(...a) => a[0]`. The count
+  is part of the function's identity in the graph, every executor's
+  callable carries it, and the writer spells a function with as many
+  parameters as its count. Under named parameters the writer spells the
+  arguments only as reads of the declared positions, which are the
+  parameters' names: the arguments array itself, or a read past the count,
+  has no text, since `[a, b]` would not be the complete arguments the graph
+  denotes — an omitted argument and an explicit `undefined` told apart,
+  and a third one kept — and is refused rather than padded or truncated
+  ([arity and complete arguments](./todo/arity-complete-arguments.md)).
+  That is a limit of the writer, not of the graph or of what runs.
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
-  written twice, and it is not in its own initializer's scope. The parameter
+  written twice, and it is not in its own initializer's scope. A parameter
   is a name of the body too, so a `const` may not take it. A body `const`
   *may* take a name a scope around it binds, shadowing it as in
   JavaScript ([no-shadowing](./todo/3150-shadowing.md)) — unless the body

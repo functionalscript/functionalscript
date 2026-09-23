@@ -53,17 +53,17 @@ const noArgs = ['[]', []]
  * case is about the call and not about what the callee computes.
  * @type {Exp}
  */
-const identity = ['=>', ['[]', []], ['.', ['args'], 0]]
+const identity = ['=>', 0, ['[]', []], ['.', ['args'], 0]]
 
 /** `(...a) => a` — hands back the whole argument array. @type {Exp} */
-const argsNode = ['=>', ['[]', []], ['args']]
+const argsNode = ['=>', 0, ['[]', []], ['args']]
 
 /**
  * `() => (a => a)` — one call away from `identity`, so a chain can spend a
  * call step and still have something to call.
  * @type {Exp}
  */
-const constIdentity = ['=>', ['[]', []], identity]
+const constIdentity = ['=>', 0, ['[]', []], identity]
 
 /**
  * `{ id: a => a, args: (...a) => a, f: () => (a => a), o: { id: a => a } }`
@@ -80,7 +80,7 @@ const methods = ['{}', [
 ]]
 
 /** `() => methods` — a chain starting with a call step needs one. @type {Exp} */
-const constMethods = ['=>', ['[]', []], methods]
+const constMethods = ['=>', 0, ['[]', []], methods]
 
 export const proof = {
     // The non-`Array` side of `vm`'s only branch: a primitive is its own
@@ -287,7 +287,7 @@ export const proof = {
         // A call is a new invocation, so nothing established crosses into a
         // body: the node inside evaluates fresh and is not the caller's value.
         /** @type {Exp} */
-        const body = ['=>', ['[]', []], node]
+        const body = ['=>', 0, ['[]', []], node]
         const f = /** @type {() => unknown} */ (
             vm({ ...context, memo: markerMemo })(body))
         assert(f() !== marker, ['the memo crossed a call boundary'])
@@ -567,25 +567,42 @@ export const proof = {
                 ev(['()', ['.', methods, 'absent', ['|?.()', boom]], noArgs]),
         },
     },
+    // A function's count is its `length` and nothing else: the arguments
+    // are the complete list the call passed under any count, a missing one
+    // `undefined` and an extra one present, as `(a, b) => …` has them in
+    // JavaScript.
+    count: () => {
+        const f = /** @type {(...a: unknown[]) => unknown} */ (vm(context)(['=>', 2, ['[]', []], ['args']]))
+        assertEq(f.length, 2)
+        assertStructurallySame(f(1), [1])
+        assertStructurallySame(f(1, undefined), [1, undefined])
+        assertStructurallySame(f(1, 2, 3), [1, 2, 3])
+        eq(['.', ['=>', 2, ['[]', []], ['args']], 'length'], 2)
+        eq(['.', identity, 'length'], 0)
+        // `(a, b) => a`, called short and long: the position is read
+        eq(['()', ['=>', 2, ['[]', []], ['.', ['args'], 0]], ['[]', [5]]], 5)
+        eq(['()', ['=>', 2, ['[]', []], ['.', ['args'], 1]], ['[]', [5]]], undefined)
+        eq(['()', ['=>', 2, ['[]', []], ['.', ['args'], 1]], ['[]', [5, 6, 7]]], 6)
+    },
     // The frame is the only channel outward: a body's leaves are constants,
     // `['args']` and `['frame']`, so a captured value has to arrive as data.
     closure: () => {
-        // `['=>', ['[]', [100]], …]` captures `100` at closure-creation time.
-        eq(['()', ['=>', ['[]', [100]],
+        // `['=>', 0, ['[]', [100]], …]` captures `100` at closure-creation time.
+        eq(['()', ['=>', 0, ['[]', [100]],
             ['+', ['.', ['args'], 0], ['.', ['frame'], 0]]],
             ['[]', [5]]], 105)
         // Nested: the outer call's argument is copied into the inner frame,
         // and the inner body reads it as `['frame']` — the same node
         // `['.', ['args'], 0]` could not have been shared across the `=>`.
         const outer = /** @type {Exp} */ ([
-            '=>', ['[]', []],
-            ['=>', ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]],
+            '=>', 0, ['[]', []],
+            ['=>', 0, ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]],
         ])
         eq(['()', ['()', outer, ['[]', [7]]], noArgs], 7)
         // The frame operand is evaluated in the enclosing scope, so it sees
         // that scope's `['args']` — the one place a `=>` node reaches out.
         assertEq(vm({ frame: null, args: [11] })(
-            ['()', ['=>', ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]],
+            ['()', ['=>', 0, ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]],
                 noArgs]),
             11)
     },
@@ -594,15 +611,15 @@ export const proof = {
     higherOrder: () => {
         // `(g, x) => g(x)`
         const apply = /** @type {Exp} */ ([
-            '=>', ['[]', []],
+            '=>', 0, ['[]', []],
             ['()', ['.', ['args'], 0], ['[]', [['.', ['args'], 1]]]],
         ])
         eq(['()', apply, ['[]', [identity, 7]]], 7)
         // `x => y => x + y`, applied twice — the classic case the frame
         // exists for.
         const add = /** @type {Exp} */ ([
-            '=>', ['[]', []],
-            ['=>', ['[]', [['.', ['args'], 0]]],
+            '=>', 0, ['[]', []],
+            ['=>', 0, ['[]', [['.', ['args'], 0]]],
                 ['+', ['.', ['frame'], 0], ['.', ['args'], 0]]],
         ])
         eq(['()', ['()', add, ['[]', [2]]], ['[]', [3]]], 5)

@@ -251,7 +251,7 @@ schema is free to change independently of both.
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
+|`["=>", count, frame, body]`|`(a, b) => …`|2|function; `count` is the declared parameter count, a nonnegative integer and no operand, which the callable's `length` reads as (subject 7); `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -393,7 +393,7 @@ copied into a frame when the function object is created — the scheme
 ordinary indexing, `[".", ["frame"], i]`, exactly as an argument is
 `[".", ["args"], 0]` (subject 2).
 
-Frame construction mirrors a call: `["=>", frame, body]`, where
+Frame construction mirrors a call: `["=>", count, frame, body]`, where
 `frame` is one node evaluating to an array — built in the *enclosing*
 scope, usually `["[]", …]` — and `body` is the inner function's
 graph. Compare `["()", f, args]`: same shape, one for entering a call,
@@ -748,9 +748,11 @@ authored and never part of the EDAG.
 
 #### 2. Arguments reference
 
-**Status:** decided for `['args']`; declared-arity representation reopened
-by the [named-parameter proposal](../spec/todo/3120-parameters.md), pending
-language-designer approval
+**Status:** decided — `['args']` for the arguments, and the declared
+parameter count recorded in every function node (subject 7). Named
+parameters were approved by the language designer, `sergey-shandar`, who
+directed their implementation with this representation
+([session](https://claude.ai/code/session_01Y4BkCELpd4injzeim5EyMn)).
 
 **Resolution: a zero-parameter `["args"]` command yields the array of
 arguments passed to the function.**
@@ -762,9 +764,9 @@ arguments passed to the function.**
   all ordinary array semantics, matching JS.
 - Parameter names are a compiler-side convention over the arguments array
   and remain erased. The former decision also erased declared arity; the
-  named-parameter prototype exposed a `.length` mismatch. The linked
-  proposal would supersede that part by recording the count in every
-  function node (subject 7), without changing `['args']`.
+  named-parameter prototype exposed a `.length` mismatch, and the count is
+  now recorded in every function node (subject 7), `['args']` unchanged
+  ([functions](../spec/README.md#functions)).
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
   `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
@@ -1068,26 +1070,27 @@ Word tags now survive only where JS genuinely has no expression spelling:
 
 #### 7. Top-level shape of a function
 
-**Status:** open
+**Status:** decided — `["=>", count, frame, body]`, the function node
+owning its declared arity. Approved by the language designer,
+`sergey-shandar`, with subject 2 ([session](https://claude.ai/code/session_01Y4BkCELpd4injzeim5EyMn)).
 
 With the body a single operation node, no special top-level shape
 remains — every position, the body included, is a node, and the body
-composes directly into `["=>", frame, body]`
-([Operations](#operations)).
-
-The [named-parameter proposal](../spec/todo/3120-parameters.md) would replace
-that current shape with `["=>", parameterCount, frame, body]`. If approved,
-it selects the function node as the owner of declared arity and supersedes
-the earlier alternative of keeping that metadata only in a `Function`
-constructor wrapper. It remains pending language-designer approval; do not
-implement both representations as parallel contracts. The constructor's
-input API otherwise remains open.
+composes directly into `["=>", count, frame, body]`
+([Operations](#operations)). `count` is metadata, not an operand: a
+nonnegative integer, `0` for an empty or a rest-only parameter list and
+`n` for `n` named parameters, unused ones included, which every executor's
+callable reads as `length`. It takes part in a function's identity, since
+`length` can tell the values apart. The function node, and not a separate
+`Function` constructor wrapper, owns the arity; the constructor's input API
+otherwise remains open.
 
 The function-text exception does not permit changing arity. Exact parameter
 spelling need not reproduce authored text; source rendering and callable
-reconstruction follow subject 12, with the explicit writer limitation in the
-named-parameter proposal for positive-arity graphs that inspect complete
-argument lists.
+reconstruction follow subject 12, with the explicit writer limitation in
+[functions](../spec/README.md#functions) for positive-arity graphs that
+inspect complete argument lists
+([arity and complete arguments](../spec/todo/arity-complete-arguments.md)).
 
 #### 8. `","`: anchored evaluation
 
@@ -1255,7 +1258,7 @@ const b = 3
 In `f`'s body, `a` is a captured value — frame slot 0 — while `f()` is
 `["()", ["self"], ["[]"]]`, needing no frame entry at all.
 
-This is exactly what makes frames constructible. `["=>", frame, body]`
+This is exactly what makes frames constructible. `["=>", count, frame, body]`
 evaluates its `frame` operand *first*, so every captured value must
 already exist; a forward reference would need a value that does not
 exist yet — a cycle, which subject 5 forbids. And it is why `["self"]`

@@ -101,15 +101,20 @@ see [serialization](./serialization.md).
    `(...a) => { return expression; }` and `() => expression`, capturing
    what its body names from the scopes around it
    ([functions](../README.md#functions))
-2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
-   named lists, with declared arity preserved
+2. [x] parameters — bare `a => …` and parenthesized named lists, with
+   declared arity preserved as the function's `length`
+   ([functions](../README.md#functions))
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
 4. [ ] [forward-references](./3140-forward-references.md)
 5. [x] `export const`, named-only and mixed modules
    ([exports](../README.md#exporting-a-value)). The selected `types/range`
-   candidate now reaches the named-parameter blocker above.
+   candidate, `fjs/types/range/module.f.mjs`, now stops at `13:1`, the
+   `export` after a statement written without its `;`: statement
+   terminators, which
+   [statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
+   plans as a syntax expansion of its own.
 
 ### 3.2. Priority 2
 

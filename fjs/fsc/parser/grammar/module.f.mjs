@@ -8,11 +8,21 @@
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
  * value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
- *          | (primitive t | id t | array | object) access* powTail tail
- *          | '(' t (func | group tail)
+ *          | id s afterName
+ *          | (primitive t | array | object) access* powTail tail
+ *          | '(' t parenthesized
  * body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
- *          | (primitive t | id t | array) access* powTail tail
- *          | '(' t (func | group tail) | block
+ *          | id s afterName
+ *          | (primitive t | array) access* powTail tail
+ *          | '(' t parenthesized | block
+ * afterName ::= '=>' t body | n access* powTail tail
+ * parenthesized ::= '...' t id t ')' s '=>' t body
+ *          | ')' s '=>' t body
+ *          | id t ( ',' t [ names ] ')' s '=>' t body
+ *                 | access* powTail tail ')' s afterName )
+ *          | groupValue ')' t access* powTail tail
+ * groupValue ::= value less its `id s afterName` branch
+ * names  ::= id t [ ',' t [ names ] ]
  * unary  ::= '-' t unaryOperand | '~' t unaryOperand
  *          | (primitive t | id t | array | object) access* powTail
  *          | '(' t group
@@ -20,7 +30,6 @@
  *          | (primitive t | id t | array | object) access*
  *          | '(' t groupOperand
  * block  ::= '{' t const* 'return' s value ';' t '}' t
- * func   ::= [ '...' t id t ] ')' s '=>' t body
  * group  ::= value ')' t access* powTail
  * groupOperand ::= value ')' t access*
  * powTail ::= [ '**' t unary ]
@@ -45,21 +54,28 @@
  * items  ::= item [ ',' t [ items ] ]
  * t      ::= (ws | nl | comment)*
  * s      ::= (ws | comment)*
+ * n      ::= [ nl t ]
  * ```
  *
- * A `(` opens two things, so it is read before either: {@link paren} takes
- * the `(` and {@link func} and {@link group} part at the next symbol, `...`
- * against a value's first, which is how a function and a group live in one
- * grammar without lookahead past the `)` — where JavaScript itself needs
- * it, and where parenthesized parameters will
- * ([`spec/todo/3120-parameters.md`](../../../../spec/todo/3120-parameters.md)).
+ * A `(` opens a function or a group, so it is read before either:
+ * {@link paren} takes the `(` and {@link parenthesized} parts at the next
+ * symbol — `...` and `)` are a function's, and a name is read before the
+ * two are told apart, since `(a) => 1` is a function and `(a).b` a group.
+ * JavaScript itself tells those two apart only past the `)`, and so does
+ * this grammar, without looking past it: a name is read with the rest of a
+ * value after it and the `)`, and `=>` on the same line as the `)` is what
+ * decides, one symbol. That reading admits `(a.b) => 1`, which the fold
+ * refuses — JavaScript's cover grammar, at one name's width — and no more:
+ * `((a)) => 1` and `(1) => 1` open with no name and are refused at the
+ * `=>` by the grammar. A bare name is read the same way, `a => 1` and
+ * `a.b` parting at the symbol after the name.
  *
  * `tail`, the binary-operator suffix — Stage A of
  * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md)
  * and Stage B, the lazy operators and the conditional, above it — is
  * spread inline onto every branch that may carry one, rather than
  * wrapping a shared primary the way a textbook precedence ladder would:
- * {@link func}'s body is unbounded, reading everything to its right as its
+ * a function's body is unbounded, reading everything to its right as its
  * own, so wrapping it in anything a binary layer also wraps would leak
  * that layer's own follow set down into the body and manufacture an LL(1)
  * conflict with no real ambiguity behind it. `unary` is every operand of
@@ -95,7 +111,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, Block, Body, CircuitTail, ConditionalTail, EagerTail, ExportStatement, Func, Group, GroupOperand, Items, Member, Parameters, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
+ * @import { Access, AfterName, Block, Body, CircuitTail, ConditionalTail, EagerTail, ExportStatement, Group, GroupOperand, GroupValue, Items, Member, Named, ParameterNames, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -201,6 +217,14 @@ export const sameLine = repeatFrom0({
     lineComment: sym('//'),
     blockComment: sym('/*'),
 })
+
+/**
+ * The rest of the trivia once a line may end: nothing, or a newline and
+ * the trivia after it. {@link sameLine} and then this is {@link trivia},
+ * split where a rule has to see the newline — after a name, which `=>`
+ * may follow on the same line and nothing may follow across one.
+ */
+export const lineBreak = option([sym('nl'), trivia])
 
 /**
  * Every word that may stand where an identifier is expected: `id`, and the
@@ -364,24 +388,16 @@ const logicalOrOp = /** @type {const} */ ({ logicalOr: sym('||') })
 const nullishOp = /** @type {const} */ ({ nullish: sym('??') })
 
 /**
- * A function's parameter list: the one rest parameter, `(...a)`, or
- * nothing, `()`. One symbol decides between them — `...` opens the
- * parameter and `)` closes an empty list, and a list is written nowhere
- * else, so neither reaches here any other way.
+ * The named parameters after the first, `b, c` in `(a, b, c)`: the items a
+ * list holds, each a name and its trivia, a trailing comma allowed as
+ * JavaScript allows one. A name is an {@link identifierName}, as a
+ * `const`'s is, so that `(a, null) => 1` reaches the fold and is refused
+ * as a `reserved word`. The first parameter is {@link parenthesized}'s
+ * own, read before the list is known to be one.
  *
- * It is what tells a function from a group past {@link paren}'s `(` as
- * well: a `...` or a `)` is this rule, and everything a group may start
- * with is a value's, the two sets sharing nothing.
- *
- * A list of named parameters is the rule this one grows into
- * ([parameters](../../../../spec/todo/3120-parameters.md)), which is why
- * the option is a rule of its own rather than spelled inside
- * {@link func}: what the list holds is this rule's to say, and a reader
- * takes the parameter from its mapping either way.
- *
- * @type {Parameters}
+ * @type {ParameterNames}
  */
-export const parameters = option([sym('...'), trivia, identifierName, trivia])
+export const parameterNames = items([identifierName, trivia])
 
 /**
  * What a `-` or a `~` takes: every value but a function. JavaScript's
@@ -414,7 +430,7 @@ export const parameters = option([sym('...'), trivia, identifierName, trivia])
  * LL(1) conflict `fjs/ebnf/ll1` has no way to resolve, even though no
  * parse is actually ambiguous: a greedy reader never needs the choice the
  * checker flags. So a binary operand is always this rule, whose own `(`
- * is {@link parenGroup} and reaches no function, and {@link func} stands
+ * is {@link parenGroup} and reaches no function, and a function stands
  * only where {@link value}/{@link body} put it directly — the leading
  * alternative of a whole value, never a repeated operand of one.
  *
@@ -487,7 +503,7 @@ export const unaryOperand = () => ['const', {
  * {@link value}/{@link body} themselves — see {@link unary}'s own comment
  * for why. Threaded inline as a suffix on every branch of `value`/`body`
  * that may be followed by one, rather than wrapping a shared primary as a
- * unit, which is what let {@link func}'s body leak a wide follow set in
+ * unit, which is what let a function's body leak a wide follow set in
  * the first place.
  */
 const multiplicativeTail = repeatFrom0([multiplicativeOp, trivia, unary])
@@ -593,14 +609,15 @@ export const circuitTail = option({
 })
 
 /**
- * A value: a primitive token, a reference, an array, an object, a `-`/`~`
- * prefix, or `(` — the choice between a function and a group,
- * {@link parenthesized} — each ending with its own {@link tail}, the
- * binary-operator suffix, except the function: nothing may follow one
- * unparenthesized, `=>` reading everything to its right as the body, so
- * {@link func} alone stands bare where the others carry {@link tail}. A
- * `const` thunk whose payload names the thunk, which is what lets a type
- * alias name itself.
+ * A value: a primitive token, an array, an object, a `-`/`~` prefix, a
+ * name — the choice between a function of that one parameter and a value
+ * the name opens, {@link afterName} — or `(` — the choice between a
+ * function and a group, {@link parenthesized} — each ending with its own
+ * {@link tail}, the binary-operator suffix, except a function: nothing may
+ * follow one unparenthesized, `=>` reading everything to its right as the
+ * body, so a function alone stands bare where the others carry
+ * {@link tail}. A `const` thunk whose payload names the thunk, which is
+ * what lets a type alias name itself.
  *
  * Any value takes accesses, as any expression does in JavaScript:
  * `[1].length`, `"ab"[0]`, `{ a: 1 }.a`. `1 .x` parses here too, with a
@@ -618,7 +635,26 @@ export const value = () => ['const', {
     neg: [sym('-'), trivia, unaryOperand, ...tail],
     bitnot: [sym('~'), trivia, unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
-    ref: [reference, powTail, ...tail],
+    name: [identifier, sameLine, afterName],
+    array: [[array, accesses], powTail, ...tail],
+    object: [[object, accesses], powTail, ...tail],
+    paren,
+}]
+
+/**
+ * A value that opens with no name: every branch of {@link value} but
+ * `name`, which is what a group inside {@link parenthesized} holds — a
+ * name there is the function-or-group question's, read by the `named`
+ * branch before the two are told apart, so this rule may not open with one
+ * without the two branches beginning alike. Everywhere else a group holds
+ * the whole {@link value}, {@link group}.
+ *
+ * @type {GroupValue}
+ */
+export const groupValue = () => ['const', {
+    neg: [sym('-'), trivia, unaryOperand, ...tail],
+    bitnot: [sym('~'), trivia, unaryOperand, ...tail],
+    primitive: [primitiveValue, powTail, ...tail],
     array: [[array, accesses], powTail, ...tail],
     object: [[object, accesses], powTail, ...tail],
     paren,
@@ -630,7 +666,7 @@ export const value = () => ['const', {
  * than read another way — or that block, {@link block}, in which an
  * object is an ordinary value again, or a group, which is the other
  * spelling of a body that is an object, `(...a) => ({ x: 1 })`. Every
- * branch but {@link func} and {@link block} carries {@link tail} exactly
+ * branch but a function's and {@link block} carries {@link tail} exactly
  * as {@link value}'s own branches do, for the same reason.
  *
  * `{` decides the block in one symbol, since no other branch starts with
@@ -645,7 +681,7 @@ export const body = () => ['const', {
     neg: [sym('-'), trivia, unaryOperand, ...tail],
     bitnot: [sym('~'), trivia, unaryOperand, ...tail],
     primitive: [primitiveValue, powTail, ...tail],
-    ref: [reference, powTail, ...tail],
+    name: [identifier, sameLine, afterName],
     array: [[array, accesses], powTail, ...tail],
     paren,
     block,
@@ -682,29 +718,55 @@ export const conditionalTail = option([sym('?'), trivia, value, sym(':'), trivia
  * The whole operator suffix, {@link eagerTail} and then the two lazy
  * positions above it, {@link circuitTail} and {@link conditionalTail},
  * spread onto every branch of {@link value} and {@link body} that may
- * carry one.
+ * carry one. Exported for the reader in `../module.f.mjs`, which splits a
+ * branch's positions at this list's length where a `)` follows them.
  *
  * @type {Tail}
  */
-const tail = [...eagerTail, circuitTail, conditionalTail]
+export const tail = [...eagerTail, circuitTail, conditionalTail]
 
 /**
- * A function after its `(`: its parameter list, the `)`, then `=>` on the
- * same line as that `)`, as JavaScript requires, and the body, which ends
- * with its own trivia as every value does. The parameter is the arguments
- * array, and the body names it and nothing outside — which names it may
- * use is the fold's to say, since a name is a word the grammar does not
- * see. A function with no parameter names nothing at all, its arguments
- * included.
+ * What follows a name, once the trivia on its line is read: `=>` and a
+ * body — the name was the one parameter, a bare `a => 1`, or `(a) => 1`
+ * past its `)` — or the rest of a value the name opened, {@link lineBreak}
+ * first so that a newline is where a value may go on and an arrow may
+ * not, then its steps, its power and the binary layers above it.
  *
- * The `(` is {@link paren}'s, since a group opens with the same symbol.
- * Nothing follows a function directly — see {@link unary}'s own comment —
- * so unlike every other branch of {@link value}/{@link body}, this one
- * carries no {@link tail}.
+ * `=>` decides in one symbol: a value goes on with a step, an operator, a
+ * newline, or what follows a value, and none of those is `=>` — which is
+ * also why the arrow alternative may not be reached across a newline,
+ * `[no LineTerminator here]` being JavaScript's own rule before `=>`. The
+ * body reads everything to the right of the arrow as its own, so this
+ * branch carries no {@link tail} of its own, as no function does.
  *
- * @type {Func}
+ * Declared after {@link tail} and {@link body}, which it names directly.
+ *
+ * @type {AfterName}
  */
-export const func = [parameters, sym(')'), sameLine, sym('=>'), trivia, body]
+export const afterName = {
+    arrow: [sym('=>'), trivia, body],
+    value: [lineBreak, accesses, powTail, ...tail],
+}
+
+/**
+ * What follows the first name inside a `(`: a comma, and the rest of a
+ * parameter list — `(a, b) => …`, and `(a,) => …` with a trailing comma
+ * — or the rest of a value the name opened, then the `)` and
+ * {@link afterName}: `=>` for the function `(a) => …`, or the steps and
+ * layers a group takes after its `)`.
+ *
+ * The second alternative is where the grammar reads past what it can
+ * decide, JavaScript's cover grammar at one name's width: `(a.b) => 1` is
+ * read, a value and then an arrow, and the fold refuses it, since a name
+ * followed by anything is no parameter. The comma decides the first in
+ * one symbol, a group holding one value and no comma operator.
+ *
+ * @type {Named}
+ */
+export const named = {
+    list: [sym(','), trivia, option(parameterNames), sym(')'), sameLine, sym('=>'), trivia, body],
+    cover: [accesses, powTail, ...tail, sym(')'), sameLine, afterName],
+}
 
 /**
  * A group after its `(`: any value, the `)`, and the steps after it. A
@@ -724,33 +786,51 @@ export const func = [parameters, sym(')'), sameLine, sym('=>'), trivia, body]
  * like.
  *
  * The steps after the `)` may raise the whole group to a power,
- * {@link powTail} — `(1 + 2) ** 2` — the one place a group needs its own,
- * since {@link unary}'s restricted `(` and {@link value}'s full one both
- * stand on this same rule and inherit it from here. {@link tail}, the
- * binary-operator suffix, is not this rule's: it belongs to whichever of
- * {@link parenthesized}'s two branches follows the `)`, since only one of
- * them — the group — may carry one.
+ * {@link powTail} — `(1 + 2) ** 2`. This is {@link unary}'s group, the
+ * operand of a `-`/`~` and of every binary operator, so it carries no
+ * {@link tail}: an operand is not where a layer may go on. A value's own
+ * `(` is {@link parenthesized}, which reads a group and its `tail` itself,
+ * since the name a group may open with is there the function-or-group
+ * question's.
  *
  * @type {Group}
  */
 export const group = [value, sym(')'), trivia, accesses, powTail]
 
 /**
- * What a `(` opens: the rest of a function, or a group followed by
- * {@link tail}, the binary-operator suffix — `(1 + 2) * 3` — the one
- * branch of {@link value}/{@link body}'s own `paren` choice that may carry
- * one, a function taking none. `...` decides it in one symbol — no value
- * begins with one — so the two share the `(` and the grammar never looks
- * past the `)`.
+ * What a `(` opens, at the symbol after it: `...`, the rest parameter's,
+ * then the `)`, `=>` on the same line as that `)`, as JavaScript requires,
+ * and the body; `)`, an empty list's, then the same; a name, which may
+ * open a parameter list or a group, {@link named}; or any other value,
+ * {@link groupValue}, and the `)`, the steps and the binary layers after
+ * it — `(1 + 2) * 3` — the one branch of the four that carries
+ * {@link tail}, since nothing follows a function unparenthesized (see
+ * {@link unary}'s own comment). The four begin with symbols no two share,
+ * so the grammar never looks past the `)`.
+ *
+ * The rest parameter is the arguments array, a named parameter one
+ * position of it, and the body names them and nothing outside — which
+ * names it may use is the fold's to say, since a name is a word the
+ * grammar does not see. A function with no parameter names nothing at
+ * all, its arguments included. The rest parameter and the names of a list
+ * are {@link identifierName}, so a reserved word among them reaches the
+ * fold and is refused there, as a `const`'s is; the first name is an
+ * {@link identifier} alone, since where the word denotes a value, `(null)`
+ * is that value in a group.
  *
  * @type {Parenthesized}
  */
-export const parenthesized = { func, group: [group, ...tail] }
+export const parenthesized = {
+    rest: [sym('...'), trivia, identifierName, trivia, sym(')'), sameLine, sym('=>'), trivia, body],
+    empty: [sym(')'), sameLine, sym('=>'), trivia, body],
+    named: [identifier, trivia, named],
+    group: [groupValue, sym(')'), trivia, accesses, powTail, ...tail],
+}
 
 /**
- * A `(` and what it opens: the `(`-alternative of {@link value} and of
- * {@link body} both, since a function and a group stand wherever a value
- * does.
+ * A `(` and what it opens: the `(`-alternative of {@link value}, of
+ * {@link groupValue} and of {@link body}, since a function and a group
+ * stand wherever a value does.
  *
  * @type {Paren}
  */
@@ -843,7 +923,7 @@ export const constStatement = /** @type {const} */ ([
  * `return [no LineTerminator here] Expression`: a newline there ends the
  * statement by automatic semicolon insertion, so `return` and the value on
  * two lines would return `undefined` in JavaScript and this value here.
- * The same reason {@link func} has `s` before `=>`.
+ * The same reason {@link parenthesized} has `s` before `=>`.
  *
  * The `;` is required, as it is after every statement: this language ends a
  * statement at a `;` and never where an engine infers one.

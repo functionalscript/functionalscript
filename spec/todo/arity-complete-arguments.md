@@ -5,12 +5,12 @@
 
 ### Problem
 
-The [named-parameter proposal](./3120-parameters.md) preserves declared arity
-but limits source serialization of positive-arity functions to indexed reads
-of declared parameters. Valid EDAGs can also observe the complete actual
+[Named parameters](../README.md#functions) preserve declared arity but limit
+source serialization of positive-arity functions to reads of the declared
+positions of the arguments. Valid EDAGs can also observe the complete actual
 argument list, which those source forms cannot reconstruct.
 
-Under the proposed format, `['=>', 2, ['[]', []], ['.', ['args'], 'length']]`
+Under the function format, `['=>', 2, ['[]', []], ['.', ['args'], 'length']]`
 describes a callable `f` with `f.length === 2`, `f() === 0`, `f(undefined) === 1` and
 `f(1, 2, 3) === 3`. Returning `['args']` or forwarding it must likewise
 preserve omissions and extra arguments.
@@ -18,8 +18,11 @@ preserve omissions and extra arguments.
 Mixed rest, `(a, b, ...rest) => …`, preserves declared arity and extra
 arguments, but `[a, b, ...rest]` pads omitted positions with `undefined`.
 It therefore does not solve the complete-argument case by itself. Until
-an approved representation exists, the writer must refuse these graphs
-explicitly; EDAG validation and execution still admit them.
+an approved representation exists, the writer refuses these graphs
+explicitly — `the arguments of a function with named parameters`, and `an
+argument that is no named parameter` for a read past the count or by a key
+that is no position (`fjs/fsc/serializer`); EDAG validation and execution
+admit them.
 
 ### Tasks
 
@@ -27,7 +30,8 @@ explicitly; EDAG validation and execution still admit them.
   and the complete actual argument list. Explain its benefits, drawbacks
   and any additional syntax or runtime support it needs.
 - [ ] Obtain language-designer approval before adding source capabilities;
-  update the writer boundary in the parameter plan when support is added.
+  update the writer boundary in [functions](../README.md#functions) when
+  support is added.
 - [ ] Prove callable round trips for omitted, explicit `undefined` and
   extra arguments, including returning and forwarding the argument array.
 

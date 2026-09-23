@@ -360,7 +360,7 @@ const refsOfOperand = view => ast => {
         }
         // a function names what it captures, the enclosing scope's own
         // references, which it establishes when it is made
-        case '=>': { return flat((ast[2] ?? []).map(refsOf(view))) }
+        case '=>': { return flat((ast[3] ?? []).map(refsOf(view))) }
         // its arguments and its frame are its own
         case 'args':
         case 'fref': { return empty }

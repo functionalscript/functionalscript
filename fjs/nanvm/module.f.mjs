@@ -189,7 +189,8 @@ export const arityOf = g => {
 
 /**
  * The expression a `functionValue` denotes: `() => undefined`, the smallest
- * closure — an empty frame and a body that is the `undefined` node.
+ * closure — no parameter, an empty frame and a body that is the `undefined`
+ * node.
  *
  * A fresh node on every call, like every other lowered value, so two
  * function operands are two closures and never one node reached twice.
@@ -199,7 +200,7 @@ export const arityOf = g => {
  *
  * @type {() => Exp}
  */
-export const lambdaExp = () => ['=>', ['[]', []], ['undefined']]
+export const lambdaExp = () => ['=>', 0, ['[]', []], ['undefined']]
 
 /**
  * The expression an `unreached` denotes: `1n / 0n`, which throws when

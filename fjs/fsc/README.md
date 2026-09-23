@@ -41,11 +41,13 @@ module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
-node it is. A function, `(...a) => body` or `() => body`, is written by the
-EDAG and FunctionalScript outputs — see below — and refused by the value
-outputs, since a value has no function in it. The AST carries no parameter,
-so the two spellings reach the outputs as the one node and the writer gives
-both the rest parameter. Nothing observes the difference: `f.name` is
+node it is. A function, `(a, b) => body`, `(...a) => body` or `() => body`,
+is written by the EDAG and FunctionalScript outputs — see below — and
+refused by the value outputs, since a value has no function in it. The AST
+carries the parameter count and no name, so the last two spellings reach
+the outputs as the one node and the writer gives both the rest parameter,
+and a function of named parameters is written with as many. Nothing
+observes the difference: `f.name` is
 refused at the key, and `f.length` is `0` for a rest parameter as it is for
 none, a rest parameter not counting towards a function's arity in
 JavaScript. Across modules the sweep is coarser: a module whose own value
@@ -139,10 +141,12 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
-A function is `['=>', frame, body]`, the body a scope of its own, in which
-the rest parameter is `['args']` — one node however many references reach
-it, so `(...a) => [a, a]` shares as JavaScript does — and nothing outside
-stands. A reference to a `const`, an import, an enclosing function's
+A function is `['=>', count, frame, body]`, the count its declared
+parameters' — `0` for a rest parameter or none, what `f.length` reads as —
+and the body a scope of its own, in which the arguments are `['args']` —
+one node however many references reach them, so `(...a) => [a, a]` shares
+as JavaScript does — a named parameter the read of its position,
+`['.', ['args'], i]`, and nothing outside stands. A reference to a `const`, an import, an enclosing function's
 parameter or an enclosing body's `const` is a capture: the frame is
 `['[]', slots]`, each slot the enclosing scope's own node for a captured
 value, one per value — nodes the EDAG analysis merges, `o[0]` read by two

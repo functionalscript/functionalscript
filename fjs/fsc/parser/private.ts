@@ -12,7 +12,7 @@ import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstArgs, AstConst, AstFrameRef, AstModuleRef, BinaryTag } from '../ast/types.ts'
+import type { AstArgs, AstConst, AstFrameRef, AstModuleRef, AstParameter, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { Block, Container, Node, Out, ParseError } from './types.ts'
 
@@ -85,13 +85,21 @@ export type _ListNode = readonly [
 ]
 
 /**
- * The node of a function's parameter list: no round, or one holding
- * `... t id t`, the parameter's token at the third position. The parameter
- * is an `identifierName`, a choice of one symbol per word, so its token is
- * one level in, under the alternative the word matched — as a `const`'s
- * name is.
+ * The node of a choice of one symbol per word — `identifier` or
+ * `identifierName` — where a name stands: the token one level in, under
+ * the alternative the word matched, as a `const`'s name is read.
  */
-export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown]>]>
+export type _NameNode = Unmapped<readonly [unknown, _Leaf]>
+
+/**
+ * The node of `afterName` where it stands past a `)` in `named`'s cover
+ * branch, after the tail lists a spread position leaves untyped: the
+ * branch taken, `arrow` holding `=> t body` and `value` holding
+ * `n access* powTail tail`, each unmapped where `afterNamed` reads it.
+ */
+export type _AfterNameNode = Unmapped<
+    | readonly ['arrow', Unmapped<readonly [_Leaf, unknown, _Leaf]>]
+    | readonly ['value', Unmapped<readonly [unknown, Unmapped<readonly _AccessNode[]>, _PowTailNode, ..._Leaf[]]>]>
 
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
 export type _AccessNode = Unmapped<readonly [string, unknown]>
@@ -119,11 +127,11 @@ export type _CallBranch = Unmapped<readonly [_Leaf, unknown, _OptionalList, ...u
  */
 export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
 
-/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments. */
-export type _Env = OrderedMap<AstModuleRef | AstArgs>
+/** The names bound so far, each to the reference that names it: a module's import or entry, a function's arguments, or one of its named parameters. */
+export type _Env = OrderedMap<AstModuleRef | AstArgs | AstParameter>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
-export type _Ref = AstModuleRef | AstArgs | AstFrameRef
+export type _Ref = AstModuleRef | AstArgs | AstParameter | AstFrameRef
 
 /**
  * The scope a node is resolved in: the names it binds itself, and — in a
@@ -132,6 +140,10 @@ export type _Ref = AstModuleRef | AstArgs | AstFrameRef
  * the order the body first named them, and the words it read from there,
  * which a `const` of the body may not then bind. The module's own scope
  * has no `outer` and captures nothing.
+ *
+ * `parameters` is how many named parameters the scope's function declares
+ * — its `length`, `0` for the module and for a rest parameter or none —
+ * carried to where the function is closed over its body.
  *
  * The captures grow while the body is resolved, and so do those of every
  * function around it that a capture passes through, so the whole chain is
@@ -142,6 +154,7 @@ export type _Scope = {
     readonly captures: readonly _Ref[]
     readonly read: readonly string[]
     readonly outer: _Scope | null
+    readonly parameters: number
 }
 
 

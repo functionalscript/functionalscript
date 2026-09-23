@@ -110,7 +110,7 @@ const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
-    '=>', 'own', 'is',
+    'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
@@ -584,10 +584,32 @@ export const proof = {
             assertEq(own(a, 'x'), undefined)
         },
     },
+    // The function: a count, a frame and a body, the count a number and no
+    // operand. Closed at four, so the earlier `['=>', frame, body]` is no
+    // node at all rather than a function of some count.
+    fn: {
+        ok: () => {
+            assertOk(v(['=>', 0, ['[]', []], ['undefined']]))
+            assertOk(v(['=>', 2, null, ['.', ['args'], 1]]))
+            assertOk(v(['=>', 1, ['[]', [1]], ['=>', 0, null, ['frame']]]))
+        },
+        countIsANumber: () => {
+            assertNoMatch(v(['=>', null, ['undefined']]))
+            assertNoMatch(v(['=>', ['[]', []], ['undefined']]))
+            assertNoMatch(v(['=>', '2', null, 1]))
+        },
+        // and no operand: `op2Id` has no `=>`, so the three-element tuple
+        // matches no arm of the union
+        notAnOp2: () => {
+            assertNoMatch(vOp2Id('=>'))
+            assertNoMatch(v(['=>', 1, 2]))
+            assertNoMatch(v(['=>', 0, null, 1, 2]))
+        },
+    },
     op2: {
         ok: () => {
             // Every id `op2` accepts, pinned individually: deleting any one
-            // of the twenty-two from `op2Id` reddens exactly this loop, not
+            // of the twenty-one from `op2Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op2Ids) {
                 assertOk(v([id, 1, 2]))

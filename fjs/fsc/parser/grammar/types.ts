@@ -21,6 +21,7 @@ import type {
     identifierName,
     index,
     key,
+    lineBreak,
     primitive,
     sameLine,
     trivia,
@@ -240,26 +241,40 @@ export type ConditionalTail = Option<readonly [number, typeof trivia, Value, num
  * The whole operator suffix: {@link EagerTail}, then the two lazy
  * positions above it, {@link CircuitTail} and {@link ConditionalTail},
  * this type's own top — spread onto every branch of {@link Value}/{@link
- * Body} that may carry one, every branch but {@link Func} and {@link
+ * Body} that may carry one, every branch but a function's and {@link
  * Block}.
  */
 export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
 
 /**
- * A value: a primitive token, a reference, an array of values, or an
- * object of members, each ending with its trivia and each followed by the
- * accesses after it and optionally raised to a power — or a `-`/`~`
- * prefix — each carrying {@link Tail}, the binary-operator suffix, above
- * it — or `(`, the choice between a function and a group, {@link Paren},
- * a function alone excepted, nothing following one unparenthesized. A
- * `const` thunk whose payload names the thunk, which is what lets a type
- * alias name itself.
+ * A value: a primitive token, an array of values, or an object of members,
+ * each ending with its trivia and each followed by the accesses after it
+ * and optionally raised to a power — or a `-`/`~` prefix — each carrying
+ * {@link Tail}, the binary-operator suffix, above it — or a name, its
+ * same-line trivia and {@link AfterName}, the choice between a function of
+ * that one parameter and a value the name opens — or `(`, the choice
+ * between a function and a group, {@link Paren}, a function alone
+ * excepted, nothing following one unparenthesized. A `const` thunk whose
+ * payload names the thunk, which is what lets a type alias name itself.
  */
 export type Value = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly name: readonly [typeof identifier, typeof sameLine, AfterName]
+    readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly paren: Paren
+}]
+
+/**
+ * A value that opens with no name: {@link Value} less its `name` branch,
+ * what a group inside {@link Parenthesized} holds.
+ */
+export type GroupValue = () => readonly ['const', {
+    readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
+    readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
@@ -274,22 +289,62 @@ export type Body = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly name: readonly [typeof identifier, typeof sameLine, AfterName]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
     readonly block: Block
 }]
 
+/**
+ * What follows a name: `=>`, trivia and a body — the name was the one
+ * parameter — or the rest of a value the name opened: the trivia past the
+ * end of the line, the accesses, the power and {@link Tail}.
+ */
+export type AfterName = {
+    readonly arrow: readonly [number, typeof trivia, Body]
+    readonly value: readonly [typeof lineBreak, RepeatFrom<0, Access>, PowTail, ...Tail]
+}
+
+/**
+ * The named parameters after the first: a list of names, each with its
+ * trivia. A name is an {@link identifierName}, as the rest parameter is,
+ * for the reason {@link Parenthesized} gives.
+ */
+export type ParameterNames = Items<readonly [typeof identifierName, typeof trivia]>
+
+/**
+ * What follows the first name inside a `(`: a comma, the rest of the list,
+ * `)`, same-line trivia, `=>`, trivia and a body — or the rest of a value
+ * the name opened, `)`, same-line trivia and {@link AfterName}.
+ */
+export type Named = {
+    readonly list: readonly [number, typeof trivia, Option<ParameterNames>, number, typeof sameLine, number, typeof trivia, Body]
+    readonly cover: readonly [RepeatFrom<0, Access>, PowTail, ...Tail, number, typeof sameLine, AfterName]
+}
+
 /** `(`, trivia, and what it opens: the one alternative a `(` starts. */
 export type Paren = readonly [number, typeof trivia, Parenthesized]
 
 /**
- * What a `(` opens: the rest of a function, or a group. Spelled here, as
- * {@link Value} is: the two reach the value rule, which names itself.
+ * What a `(` opens: the rest parameter, `)`, same-line trivia, `=>`,
+ * trivia and a body; an empty list's `)` and the same; a name, its trivia
+ * and {@link Named}; or a group of a value opening with no name, its `)`,
+ * the steps after it, its power and {@link Tail}. Spelled here, as
+ * {@link Value} is: every branch reaches the value rule, which names
+ * itself.
+ *
+ * The rest parameter is an {@link identifierName} and not an `identifier`:
+ * a binding takes every word a name may be, and the fold refuses the
+ * reserved ones by name. The narrower rule would still typecheck — it is
+ * assignable to the wider one — while leaving `Children<Parenthesized>`
+ * unable to hold a tree the grammar produces. The first name of a list is
+ * the one `identifier`, since `(null)` is a group of the value.
  */
 export type Parenthesized = {
-    readonly func: Func
-    readonly group: readonly [Group, ...Tail]
+    readonly rest: readonly [number, typeof trivia, typeof identifierName, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
+    readonly empty: readonly [number, typeof sameLine, number, typeof trivia, Body]
+    readonly named: readonly [typeof identifier, typeof trivia, Named]
+    readonly group: readonly [GroupValue, number, typeof trivia, RepeatFrom<0, Access>, PowTail, ...Tail]
 }
 
 /**
@@ -333,28 +388,7 @@ export type ParenGroupOperand = readonly [number, typeof trivia, GroupOperand]
  */
 export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constStatement>, number, typeof sameLine, Value, number, typeof trivia, number, typeof trivia]
 
-/**
- * The one rest parameter, when a function has one: `...`, trivia, the
- * parameter, and its trivia.
- *
- * The parameter is an {@link identifierName} and not an `identifier`: a
- * binding takes every word a name may be, and the fold refuses the reserved
- * ones by name. The narrower rule would still typecheck — it is assignable
- * to the wider one — while leaving `Children<Func>` unable to hold a tree
- * the grammar produces.
- */
-export type Parameter = readonly [number, typeof trivia, typeof identifierName, typeof trivia]
-
-/** A function's parameter list: the one rest parameter, or nothing. */
-export type Parameters = Option<Parameter>
-
-/**
- * A function after its `(`, which is {@link Paren}'s: the parameter list,
- * `)`, same-line trivia, `=>`, trivia, and the body.
- */
-export type Func = readonly [Parameters, number, typeof sameLine, number, typeof trivia, Body]
-
-// Which of the two rules the parameter is, pinned — one guard per
+// Which of the two rules a parameter is, pinned — one guard per
 // direction, since neither covers both:
 //
 // - narrow the *rule* in `./module.f.mjs` and the annotation catches it,
@@ -364,10 +398,12 @@ export type Func = readonly [Parameters, number, typeof sameLine, number, typeof
 //   narrower type, having more properties than it asks for, so `tsc` is
 //   silent — measured by removing this line and seeing a clean build.
 //
-// So this assertion guards the second direction alone, which is the one
-// that would leave `Children<Func>` unable to hold a tree the grammar
-// produces while every file still compiles.
-type _FuncParameterIsAName = Assert<Equal<Parameter[2], typeof identifierName>>
+// So these assertions guard the second direction alone, which is the one
+// that would leave `Children<Parenthesized>` unable to hold a tree the
+// grammar produces while every file still compiles: the rest parameter,
+// and a name of the list after the first.
+type _RestParameterIsAName = Assert<Equal<Parenthesized['rest'][2], typeof identifierName>>
+type _ListParameterIsAName = Assert<Equal<ReturnType<ParameterNames>[1][0][0], typeof identifierName>>
 
 /** An export and the declarations after a named export; default ends the module. */
 export type ExportStatement = () => readonly ['const', readonly [number, typeof trivia, {

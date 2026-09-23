@@ -39,6 +39,23 @@
  * `$a`. No two scopes share a spelling, so the writer emits no `const` that
  * shadows one — see {@link hoistName} for why that is the choice.
  *
+ * **A function's parameters are its count's.** A function of count `0` is
+ * written with the one rest parameter, which is the body's arguments; one
+ * of count `n` with `n` named parameters, `$a_0` to `$a_{n-1}` in the body
+ * whose letters are `$a`, unused ones included, since the count is what
+ * `length` reads as and JavaScript can observe it. Under named parameters
+ * the body's `['args']` is spelled only as a read of a declared position,
+ * `['.', ['args'], i]` with `i` below the count, which is the parameter's
+ * name; any other use is refused rather than padded or truncated, since
+ * `[$a_0, $a_1]` would not be the complete arguments — an omitted one and
+ * an explicit `undefined` told apart, and a third one kept — that the node
+ * denotes ([arity and complete
+ * arguments](../../../spec/todo/arity-complete-arguments.md)):
+ *
+ * ```js
+ * export default ($a_0,$a_1)=>[$a_1,$a_0];
+ * ```
+ *
  * **A function with a frame is a closure.** Each frame element takes a
  * `const` in the scope around the function, even one written in place
  * otherwise, since a capture is a name; a read of the frame's slot `i` is
@@ -84,7 +101,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Document } from './types.ts'
- * @import { _Hoisted, _Names, _Root, _Scope, _Statement } from './private.ts'
+ * @import { _Given, _Hoisted, _Names, _Root, _Scope, _Statement } from './private.ts'
  */
 
 import { _defaultExport, _moduleExports } from '../edag/module.f.mjs'
@@ -167,8 +184,33 @@ const column = n => {
     return `${q === 0 ? '' : column(q)}${codePointToString(latinSmallLetterA + (n - 1) % letters)}`
 }
 
-/** The parameter of the body at `depth`, `1` being the outermost. @type {(depth: number) => string} */
+/** The rest parameter of the body at `depth`, `1` being the outermost. @type {(depth: number) => string} */
 const parameter = depth => `$${column(depth)}`
+
+/**
+ * Named parameter `i` of the body at `depth`: the body's letters, `_` and
+ * the position, `$a_0` where the rest parameter would be `$a`. Neither a
+ * hoist name, `$a0`, nor another body's, so a body reads only its own —
+ * see {@link hoistName}.
+ *
+ * @type {(depth: number, i: number) => string}
+ */
+const parameterName = (depth, i) => `${parameter(depth)}_${i}`
+
+/** The named parameters of a function of `count` at `depth`, in order. @type {(depth: number, count: number) => readonly string[]} */
+const parameterNames = (depth, count) => Array.from({ length: count }, (_, i) => parameterName(depth, i))
+
+/**
+ * The parameter list a function of `count` is written with, in the body
+ * at `depth`: the rest parameter for none, one bare name, or a list —
+ * three spellings the parser reads as one function each, the shortest of
+ * each count's.
+ *
+ * @type {(depth: number, count: number) => string}
+ */
+const parameterList = (depth, count) => count === 0 ? `(...${parameter(depth)})=>`
+    : count === 1 ? `${parameterName(depth, 0)}=>`
+    : `(${parameterNames(depth, count).join(',')})=>`
 
 /**
  * The name a scope at `depth` gives the `const` in slot `i`: `$0` at the
@@ -222,6 +264,30 @@ const identifierKey = key => {
 
 /** Whether an operand is the `frame` node. @type {(a: Analysis, v: Operand) => boolean} */
 const isFrame = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'frame'
+
+/** Whether an operand is the `args` node. @type {(a: Analysis, v: Operand) => boolean} */
+const isArgs = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'args'
+
+/**
+ * Whether an entry reads a named parameter of the scope: `['.', ['args'],
+ * i]` with `i` a declared position — the read a parameter is, which the
+ * parser builds from the name and nothing else builds.
+ *
+ * @type {(s: _Scope, v: Ref) => boolean}
+ */
+const isParameterRead = (s, v) => {
+    const node = s.a.nodes[v[1]]
+    return node[0] === '.' && node.length === 3 && isArgs(s.a, node[1]) && parameterIndex(s)(node[2]) !== null
+}
+
+/**
+ * The position a key names among the scope's named parameters, or `null`
+ * where it names none: an integer from `0` below the count. A `-0` key is
+ * position `0`'s, as it is a frame slot's ({@link slotName}).
+ *
+ * @type {(s: _Scope) => (k: Operand) => number | null}
+ */
+const parameterIndex = s => k => typeof k === 'number' && Number.isInteger(k) && k >= 0 && k < s.parameters.length ? k : null
 
 /**
  * Whether an entry reads a slot of the frame: `['.', ['frame'], i]`, the
@@ -361,10 +427,28 @@ const slotName = s => k => typeof k === 'number' && Number.isInteger(k) && k >= 
 const slotRead = s => k => mapOk((/** @type {string} */ name) => [name])(slotName(s)(k))
 
 /**
+ * The name the argument at `k` reads as under named parameters: the
+ * parameter's, where `k` is a declared position — and none where it is
+ * not: `$a_0` names the argument at `0` and nothing names the rest, so
+ * `a.length` and `a[2]` under `(a, b)` have no text that reads back as the
+ * same graph.
+ *
+ * @type {(s: _Scope) => (k: Operand) => Result<string, string>}
+ */
+const argumentName = s => k => {
+    const i = parameterIndex(s)(k)
+    return i === null ? error('an argument that is no named parameter') : ok(s.parameters[i])
+}
+
+/** A read of the argument at `k` under named parameters, `['.', ['args'], k]`, written as the parameter's name. @type {(s: _Scope) => (k: Operand) => Document} */
+const parameterRead = s => k => mapOk((/** @type {string} */ name) => [name])(argumentName(s)(k))
+
+/**
  * The names a function's frame gives its slots, in the scope `s` the
  * function is written in: each element's own name there — the `const` the
- * hoisting walk gave it, or the name of the slot of `s`'s frame it reads —
- * and none for a `null` frame.
+ * hoisting walk gave it, the name of the slot of `s`'s frame it reads, or
+ * the name of the parameter of `s` it reads — and none for a `null`
+ * frame.
  *
  * A frame the parser would not have built has no text that reads back as
  * the same graph, and is refused: one that is no array literal, an empty
@@ -386,6 +470,8 @@ const frameNames = s => frame => {
         if (!(x instanceof Array)) { return error('a frame slot holding a primitive') }
         if (x[0] === '...') { return error('a spread') }
         if (isSlotRead(s.a, x)) { return slotName(s)(/** @type {Operand} */(s.a.nodes[x[1]][2])) }
+        // a parameter is a name already, as a slot is
+        if (isParameterRead(s, x)) { return argumentName(s)(/** @type {Operand} */(s.a.nodes[x[1]][2])) }
         // every other element was hoisted before the statement holding the
         // function, so a missing name is this writer's own mistake
         return ok(assertNotNullish(nameOf(s.names, ['entry', x[1]]), ['a frame element that was not hoisted', x]))
@@ -426,17 +512,17 @@ const firstUse = (names, text) => toArray(text).reduce(
  * A slot the body never reads is refused: the parser builds none, and no
  * text reads back as one.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, given: _Given) => (b: Operand) => Document}
  */
-const closureBody = (a, depth, names) => b => okThen(
+const closureBody = (a, depth, given) => b => okThen(
     /** @type {(text: List<string>) => Document} */
     (text => {
-        const order = firstUse(names, text)
-        return order.length !== names.length ? error('a frame slot the body never reads')
+        const order = firstUse(given.frame, text)
+        return order.length !== given.frame.length ? error('a frame slot the body never reads')
             : order.every((x, i) => x === i) ? ok(text)
-            : aliasedBody(a, depth, names)(b)
+            : aliasedBody(a, depth, given)(b)
     }),
-)(lambdaBody(a, depth, names)(b))
+)(lambdaBody(a, depth, given)(b))
 
 /**
  * A function's body that opens by naming its frame's slots in slot order,
@@ -453,13 +539,13 @@ const closureBody = (a, depth, names) => b => okThen(
  * eager in what this writer spells: a lazy operator is a node kind it has
  * none for.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, given: _Given) => (b: Operand) => Document}
  */
-const aliasedBody = (a, depth, names) => b => {
-    const aliases = names.map((_, i) => hoistName(depth, i))
+const aliasedBody = (a, depth, given) => b => {
+    const aliases = given.frame.map((_, i) => hoistName(depth, i))
     /** @type {_Statement} */
     const start = {
-        text: flat(names.map((name, i) => [`const ${aliases[i]}=`, name, ';'])),
+        text: flat(given.frame.map((name, i) => [`const ${aliases[i]}=`, name, ';'])),
         names: aliases.map(alias => /** @type {const} */ ([null, alias])),
     }
     return okThen(
@@ -467,7 +553,7 @@ const aliasedBody = (a, depth, names) => b => {
         (all => mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(a, depth, aliases, start)(all))),
+        )(scope(a, depth, { ...given, frame: aliases }, start)(all))),
     )(scopeOperands(a, b))
 }
 
@@ -490,19 +576,19 @@ const aliasedBody = (a, depth, names) => b => {
  * base, and a body's anchors are all written
  * ([spec: functions](../../../spec/README.md#functions)).
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[]) => (b: Operand) => Document}
+ * @type {(a: Analysis, depth: number, given: _Given) => (b: Operand) => Document}
  */
-const lambdaBody = (a, depth, frame) => b => okThen(
+const lambdaBody = (a, depth, given) => b => okThen(
     /** @type {(all: _Root) => Document} */
-    (all => all.length === 1 && hoists({ a, names: [], frame })(all[0]).length === 0
+    (all => all.length === 1 && hoists({ a, names: [], ...given })(all[0]).length === 0
         ? mapOk(
             /** @type {(text: List<string>) => List<string>} */
             (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
-        )(operand({ a, names: [], frame }, depth)(all[0]))
+        )(operand({ a, names: [], ...given }, depth)(all[0]))
         : mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(a, depth, frame, nothing)(all))),
+        )(scope(a, depth, given, nothing)(all))),
 )(scopeOperands(a, b))
 
 /**
@@ -517,7 +603,11 @@ const entry = (s, depth) => i => {
     switch (node[0]) {
         case 'undefined': { return ok(['undefined']) }
         case 'args': {
-            return depth === 0 ? error('the arguments outside a function') : ok([parameter(depth)])
+            // under named parameters the arguments have no name of their
+            // own, and a read of a declared position is the one spelling
+            return depth === 0 ? error('the arguments outside a function')
+                : s.parameters.length !== 0 ? error('the arguments of a function with named parameters')
+                : ok([parameter(depth)])
         }
         case '[]': { return mapOk(arrayWrap)(every(node[1].map(item(s, depth)))) }
         case '{}': { return mapOk(objectWrap)(every(node[1].map(property(s, depth)))) }
@@ -526,19 +616,20 @@ const entry = (s, depth) => i => {
             const [, b, k, continuation] = node
             if (continuation !== undefined) { return error('a chain step') }
             if (isFrame(s.a, b)) { return slotRead(s)(k) }
+            if (isArgs(s.a, b) && s.parameters.length !== 0) { return parameterRead(s)(k) }
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),
             )(every([base(s, depth)(b), key(k)]))
         }
         case '=>': {
-            const [, frame, body] = node
+            const [, count, frame, body] = node
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
                 (names => mapOk(
                     /** @type {(text: List<string>) => List<string>} */
-                    (text => flat([[`(...${parameter(depth + 1)})=>`], text])),
-                )(closureBody(s.a, depth + 1, names)(body))),
+                    (text => flat([[parameterList(depth + 1, count)], text])),
+                )(closureBody(s.a, depth + 1, { frame: names, parameters: parameterNames(depth + 1, count) })(body))),
             )(frameNames(s)(frame))
         }
         case '-': {
@@ -586,11 +677,11 @@ const hoists = s => {
         const i = v[1]
         if (slotOf(s.names, ['entry', i]) !== null) { return names }
         const node = s.a.nodes[i]
-        // every frame element but a spread and a slot of this scope's own
-        // frame takes a `const`, after what it reaches and before the
-        // function: a capture is a name
-        const inner = frameItems(s.a, node[0] === '=>' ? node[1] : null)
-            .filter(x => x instanceof Array && x[0] === '#' && !isSlotRead(s.a, /** @type {Ref} */(x)))
+        // every frame element but a spread, a slot of this scope's own
+        // frame and a parameter of it takes a `const`, after what it
+        // reaches and before the function: a capture is a name
+        const inner = frameItems(s.a, node[0] === '=>' ? node[2] : null)
+            .filter(x => x instanceof Array && x[0] === '#' && !isSlotRead(s.a, /** @type {Ref} */(x)) && !isParameterRead(s, /** @type {Ref} */(x)))
             .reduce((ns, x) => add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]), operands(node).reduce(found, names))
         const self = minting(node) && s.a.shared.includes(i) ? add(inner, ['entry', i]) : inner
         if (node[0] === '-' && node.length === 2 && negHoisted(s.a, node[1])) {
@@ -638,14 +729,14 @@ const hoistedText = (s, depth) => h => h[0] === 'leaf'
  * computation — and the comma would be lost with it. Linking emits no such
  * graph, dropping the alias where the source writes one.
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[], last: boolean) => (before: _Statement, v: Operand) => Result<_Statement, string>}
+ * @type {(a: Analysis, depth: number, given: _Given, last: boolean) => (before: _Statement, v: Operand) => Result<_Statement, string>}
  */
-const statement = (a, depth, frame, last) => ({ text, names }, v) => {
+const statement = (a, depth, given, last) => ({ text, names }, v) => {
     /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
     const emit = (acc, h) => {
         if (acc[0] === 'error') { return acc }
         const before = acc[1]
-        const s = { a, names: before.names, frame }
+        const s = { a, names: before.names, ...given }
         return mapOk(
             /** @type {(value: List<string>) => _Statement} */
             (value => ({
@@ -654,13 +745,13 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
             })),
         )(hoistedText(s, depth)(h))
     }
-    const hoisted = hoists({ a, names, frame })(v).reduce(emit, ok({ text, names }))
+    const hoisted = hoists({ a, names, ...given })(v).reduce(emit, ok({ text, names }))
     if (hoisted[0] === 'error') { return hoisted }
     const before = hoisted[1]
     if (!last && v instanceof Array && slotOf(before.names, ['entry', v[1]]) !== null) {
         return error('an anchor that repeats a hoisted value')
     }
-    const s = { a, names: before.names, frame }
+    const s = { a, names: before.names, ...given }
     return mapOk(
         /** @type {(value: List<string>) => _Statement} */
         (value => ({
@@ -682,24 +773,27 @@ const statement = (a, depth, frame, last) => ({ text, names }, v) => {
  * for a function body.
  *
  * The names start empty, a scope's `const`s being its own: a body reads a
- * name the scope around it bound through its frame alone, `frame` naming
- * each slot.
+ * name the scope around it bound through its frame alone, and its
+ * arguments through its parameters, `given` naming each.
  *
  * `start` is what the scope has written before them: nothing, or a body's
  * aliases of its frame ({@link aliasedBody}).
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[], start: _Statement) => (all: _Root) => Result<_Statement, string>}
+ * @type {(a: Analysis, depth: number, given: _Given, start: _Statement) => (all: _Root) => Result<_Statement, string>}
  */
-const scope = (a, depth, frame, start) => all => {
+const scope = (a, depth, given, start) => all => {
     /** @type {(acc: Result<_Statement, string>, v: Operand, i: number) => Result<_Statement, string>} */
     const step = (acc, v, i) => acc[0] === 'error'
         ? acc
-        : statement(a, depth, frame, i === all.length - 1)(acc[1], v)
+        : statement(a, depth, given, i === all.length - 1)(acc[1], v)
     return all.reduce(step, ok(start))
 }
 
 /** A scope that has written nothing yet. @type {_Statement} */
 const nothing = { text: null, names: [] }
+
+/** What a module is given from outside: nothing, a module having no frame and no parameters. @type {_Given} */
+const module = { frame: [], parameters: [] }
 
 /**
  * The operands a scope's statements are written from: a comma is the source
@@ -736,7 +830,7 @@ export const trySerialize = e => {
         (all => mapOk(
             /** @type {(s: _Statement) => List<string>} */
             (s => s.text),
-        )(scope(a, 0, [], nothing)(all))),
+        )(scope(a, 0, module, nothing)(all))),
     )(scopeOperands(a, a.root))
 }
 
@@ -755,7 +849,7 @@ const moduleBinding = (a, prefix, h) => before => {
     return mapOk(
         /** @type {(text: List<string>) => _Statement} */
         (text => ({ text: flat([before.text, [`const ${name}=`], text, [';']]), names: [...before.names, [h, name]] })),
-    )(hoistedText({ a, names: before.names, frame: [] }, 0)(h))
+    )(hoistedText({ a, names: before.names, ...module }, 0)(h))
 }
 
 /**
@@ -779,9 +873,9 @@ const moduleOperand = (a, prefix) => (before, v) => {
             return mapOk(
                 /** @type {(text: List<string>) => _Statement} */
                 (text => ({ text: flat([state.text, [`const ${name}=`], text, [';']]), names: [...state.names, [['entry', v[1]], name]] })),
-            )(operand({ a, names: state.names, frame: [] }, 0)(last))
+            )(operand({ a, names: state.names, ...module }, 0)(last))
         }
-        const prepared = hoists({ a, names: state.names, frame: [] })(v).reduce(
+        const prepared = hoists({ a, names: state.names, ...module })(v).reduce(
             /** @type {(acc: Result<_Statement, string>, h: _Hoisted) => Result<_Statement, string>} */
             ((acc, h) => okThen(moduleBinding(a, prefix, h))(acc)), ok(state))
         return okThen(ready => slotOf(ready.names, ['entry', v[1]]) !== null
@@ -814,7 +908,7 @@ const moduleBody = (a, prefix) => (state, v) => {
 const moduleExport = (a, state) => ([, key, v]) => mapOk(
     /** @type {(text: List<string>) => List<string>} */
     (text => flat([[key === 'default' ? 'export default ' : `export const ${key}=`], text, [';']])),
-)(operand({ a, names: state.names, frame: [] }, 0)(v))
+)(operand({ a, names: state.names, ...module }, 0)(v))
 
 /**
  * A module export object as source, preserving export names and declaration

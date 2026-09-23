@@ -49,6 +49,7 @@ import {
  *  typeof optionDot,
  *  typeof optionCall,
  *  typeof comma,
+ *  typeof fn,
  *  typeof op3,
  *  typeof op12,
  *  typeof op2,
@@ -65,6 +66,7 @@ export const _exp = () => (['or',
     optionDot,
     optionCall,
     comma,
+    fn,
     op3,
     op12,
     op2,
@@ -455,6 +457,42 @@ export const optionCall = or(
  */
 export const comma = /** @type {const} */ ([',', exps])
 
+// Function
+
+/**
+ * ```js
+ * (a, b) => body           // ['=>', 2, frame, body]
+ * (...args) => body        // ['=>', 0, frame, body]
+ * ```
+ *
+ * A function: its declared parameter count, its frame, and its body. The
+ * count is metadata and not an operand — a nonnegative integer, `0` for an
+ * empty or a rest-only parameter list and `n` for `n` named parameters,
+ * unused ones included — and it is what the callable's `length` reads as,
+ * so it takes part in a function's identity: JavaScript can tell
+ * `(a, b) => a` from `(...a) => a[0]` by it, and so must every executor.
+ * That a number is nonnegative and whole is a constraint the shape-only
+ * schema cannot state; the emitter keeps it, as it keeps the comma's
+ * contract, and an executor upholds it. A body reads its arguments as
+ * `['args']` whatever the count — the complete list the caller passed, an
+ * omitted argument and an explicit `undefined` told apart — so a named
+ * parameter `i` is the read `['.', ['args'], i]` and nothing else
+ * ([functions](../../spec/README.md#functions)).
+ *
+ * The frame operand is one node evaluated in the enclosing scope, while
+ * the body is the inner function's graph — deferred, never established
+ * when the closure is built, only on each call, against that function's
+ * own `args`/`frame`. Calling one is not an operation: `()` is `['()',
+ * exp, exp]`, a chain node, since a call's receiver comes from the node
+ * holding it, which no operation has anywhere to put.
+ *
+ * Its own node kind rather than an `op2` of a frame and a body, which it
+ * was: a count is no `exp`, and a tuple closed at four is what keeps the
+ * three-element function of the earlier format from being read as
+ * anything at all rather than as a function of some count.
+ */
+export const fn = /** @type {const} */ (['=>', number, exp, exp])
+
 // No-Args Operations
 
 /**
@@ -488,14 +526,7 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 // Binary Operations
 
 /**
- * `=>` builds a function from a frame and a body: the frame operand is one
- * node evaluated in the enclosing scope, while the body is the inner
- * function's graph — deferred, never established when the closure is built,
- * only on each call, against that function's own `args`/`frame`. Calling one
- * is not here: `()` is `['()', exp, exp]` and so *is* binary in operand
- * count, but it is a chain node rather than an operation — the whole point of
- * the chain vocabulary is that a call's receiver comes from the node holding
- * it, which no `op2` id has anywhere to put. `own` is exactly
+ * `own` is exactly
  * `Object.getOwnPropertyDescriptor(object, key)?.value` — no
  * getter invocation, no prototype chain — where the key operand must
  * evaluate to a string: a runtime-value constraint the shape-only schema
@@ -514,7 +545,7 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
  * here: each is also a unary operator, so both are `op12` below.
  */
 export const op2Id = or(
-    '=>', 'own', 'is',
+    'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

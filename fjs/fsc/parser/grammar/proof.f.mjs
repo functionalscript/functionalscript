@@ -14,9 +14,9 @@ import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
-    _ordinaryTokenNames as names, access, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, exportStatement, func, group, identifier, importStatement, index, items, key, member, object, parameters, paren,
-    parenGroup, parenthesized, primitive, sym, symbolOf, trivia, value,
+    _ordinaryTokenNames as names, access, afterName, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
+    djsModule, exportStatement, group, groupValue, identifier, importStatement, index, items, key, member, named, object,
+    parameterNames, paren, parenGroup, parenthesized, primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -66,8 +66,10 @@ export const proof = {
         parser(/** @type {Rule} */ (value))
         parser(/** @type {Rule} */ (array))
         parser(/** @type {Rule} */ (object))
-        parser(parameters)
-        parser(/** @type {Rule} */ (func))
+        parser(/** @type {Rule} */ (groupValue))
+        parser(/** @type {Rule} */ (afterName))
+        parser(/** @type {Rule} */ (parameterNames))
+        parser(/** @type {Rule} */ (named))
         parser(/** @type {Rule} */ (group))
         parser(/** @type {Rule} */ (parenthesized))
         parser(/** @type {Rule} */ (paren))
@@ -153,7 +155,8 @@ export const proof = {
     // A function: `(`, the parameter list, `)`, `=>`, and a body that is
     // a value less the object — `=> {` opens a block, which `block` below
     // covers — each token followed by its trivia. The list is the one rest
-    // parameter or nothing; no named form yet
+    // parameter, nothing, or names; a bare name is a list of one, `named`
+    // below
     func: () => {
         assertStructurallySame(read('export default (...a) => a;'), ['ok'])
         assertStructurallySame(read('export default ( ... a ) => /* c */ [ a , (...b) => 1 , ] ;'), ['ok'])
@@ -168,12 +171,6 @@ export const proof = {
         assertStructurallySame(read('export default () => () => 1;'), ['ok'])
         assertStructurallySame(read('export default () => { return 1; };'), ['ok'])
         assertStructurallySame(read('const f = () => 1; export default f();'), ['ok'])
-        // `(a)` is a group of a reference, so the failure is not at the
-        // name but at the `=>`, which cannot follow a value: parenthesized
-        // parameters wait on named parameters
-        // (`spec/todo/3120-parameters.md`), which JavaScript itself tells
-        // from a group only past the `)`
-        assertStructurallySame(read('export default (a) => 1;'), ['error', '=>'])
         assertStructurallySame(read('export default (...1) => 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a, ...b) => 1;'), ['error', ','])
         assertStructurallySame(read('export default (,) => 1;'), ['error', ','])
@@ -197,6 +194,75 @@ export const proof = {
         assertStructurallySame(read('export default (...a) /* x\u2029y */ => 1;'), ['error', 'error'])
         assertStructurallySame(read('export default (...a)\u2028=> 1;'), ['error', 'error'])
         assertStructurallySame(read('export default (...a)\u2029=> 1;'), ['error', 'error'])
+    },
+    // Named parameters: a bare name, `a => …`, and a parenthesized list of
+    // one or more, a trailing comma allowed. A name is read before the
+    // grammar knows whether it opens a list or a value — `a => 1` and
+    // `a.b`, `(a) => 1` and `(a).b` — and the `=>` decides, one symbol,
+    // on the same line as the name or the `)`, as JavaScript requires.
+    named: () => {
+        assertStructurallySame(read('export default a => a;'), ['ok'])
+        assertStructurallySame(read('export default a=>a;'), ['ok'])
+        assertStructurallySame(read('export default a /* c */ => a;'), ['ok'])
+        assertStructurallySame(read('export default a =>\na;'), ['ok'])
+        assertStructurallySame(read('export default (a) => a;'), ['ok'])
+        assertStructurallySame(read('export default ( a ) => a;'), ['ok'])
+        assertStructurallySame(read('export default (\na\n) => a;'), ['ok'])
+        assertStructurallySame(read('export default (a) /* c */ => a;'), ['ok'])
+        assertStructurallySame(read('export default (a, b) => [a, b];'), ['ok'])
+        assertStructurallySame(read('export default (a,b,c,)=>[a,b,c];'), ['ok'])
+        assertStructurallySame(read('export default (a,) => a;'), ['ok'])
+        assertStructurallySame(read('export default (a, b) => { return [a, b]; };'), ['ok'])
+        // either list nests in the other, and a function of one name
+        // stands wherever a value does — an item, an arm, a body
+        assertStructurallySame(read('export default a => (b, c) => (...d) => () => 1;'), ['ok'])
+        assertStructurallySame(read('export default [a => 1, (a, b) => 2, ((a) => 3)];'), ['ok'])
+        assertStructurallySame(read('export default 1 ? a => 1 : (a, b) => 2;'), ['ok'])
+        assertStructurallySame(read('export default 1 * (a => 2);'), ['ok'])
+        // the name is a name: a reserved word among them is the fold's to
+        // refuse, as a `const`'s is, and a value where a name may stand
+        // after the first is refused here — `null` denotes a value, so
+        // `(null)` is a group, and nothing follows a group with `=>`
+        assertStructurallySame(read('export default (a, null) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (null) => 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default (a, 1) => 1;'), ['error', 'number'])
+        // a group that opens with no name is refused at the `=>`, as any
+        // value is: nested parentheses, a literal, a prefix
+        assertStructurallySame(read('export default ((a)) => 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default (1) => 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default ([a]) => 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default (-a) => 1;'), ['error', '=>'])
+        // a group that opens with a name is read as one, and is the fold's
+        // to refuse where the name is followed by anything: what the
+        // grammar reads past what it can decide
+        assertStructurallySame(read('export default (a.b) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a + 1) => 1;'), ['ok'])
+        // a default, a rest among names, a hole, and a comma before the
+        // first name are no list
+        assertStructurallySame(read('export default (a = 1) => 1;'), ['error', '='])
+        assertStructurallySame(read('export default (a, ...b) => 1;'), ['error', '...'])
+        assertStructurallySame(read('export default (a,,b) => 1;'), ['error', ','])
+        assertStructurallySame(read('export default (,a) => 1;'), ['error', ','])
+        // a list is a function's, so `(a, b)` with no arrow is refused
+        // where the arrow should be, and a bare name with none is the
+        // value it always was
+        assertStructurallySame(read('export default (a, b);'), ['error', ';'])
+        assertStructurallySame(read('const a = {}; export default (a).b;'), ['ok'])
+        assertStructurallySame(read('const a = {}; export default (a\n).b;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default (a + 1) * 2;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default (a) ** 2;'), ['ok'])
+        assertStructurallySame(read('const a = 1; export default (a)\n+ 2;'), ['ok'])
+        // no line terminator before `=>`: after a bare name a newline is
+        // where a value goes on, so the arrow is the token refused; after
+        // a `)` likewise
+        assertStructurallySame(read('export default a\n=> 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default a // c\n=> 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default (a)\n=> 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default (a, b)\n=> 1;'), ['error', 'nl'])
+        // a function is no operand of a binary operator, so a name after
+        // one is a value and its arrow is refused
+        assertStructurallySame(read('export default 1 + a => 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default -a => 1;'), ['error', '=>'])
     },
     // A block body: `{ const* return value; }` — any number of `const`
     // statements and then the one `return`. The value is an ordinary value,

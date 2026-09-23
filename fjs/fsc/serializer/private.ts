@@ -27,14 +27,25 @@ export type _Hoisted = readonly ['entry', number] | readonly ['leaf', number | b
 export type _Names = readonly (readonly [_Hoisted | null, string])[]
 
 /**
- * The table being written, the hoisted values named so far in the scope
- * being written, and the names its frame's slots read as — none at the
- * module level.
+ * The names a body reads from outside its own statements, by position:
+ * the names its frame's slots read as — each the spelling the slot's value
+ * took in the scope around the function — and its named parameters' own.
+ * A module has neither, and so has a body under a rest parameter, whose
+ * arguments are one name, the writer's `$a`.
  */
-export type _Scope = {
+export type _Given = {
+    readonly frame: readonly string[]
+    readonly parameters: readonly string[]
+}
+
+/**
+ * The table being written, the hoisted values named so far in the scope
+ * being written, and the names the scope is given from outside, `_Given`
+ * — none at the module level.
+ */
+export type _Scope = _Given & {
     readonly a: Analysis
     readonly names: _Names
-    readonly frame: readonly string[]
 }
 
 /** A statement and the names it left behind. */

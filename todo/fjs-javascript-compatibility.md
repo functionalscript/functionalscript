@@ -273,8 +273,9 @@ its clarification is separate work in #2104.
 
 ### Preventive gates, not established defects
 
-**P2:** extend the [parameter plan](../spec/todo/3120-parameters.md) with
-observable arity before choosing its lowering:
+**P2, met:** [named parameters](../spec/README.md#functions) landed with
+observable arity: the function node carries its declared count, and every
+executor's callable reads it as `length`:
 
 ```js
 const f = a => 0;
@@ -283,8 +284,8 @@ export default [f.length, g.length]; // [1, 2]
 ```
 
 Rest-only and empty lists both have arity zero; general lists do not. Erasing
-this distinction while admitting `.length` would be P1. A thin TODO is not
-evidence that such an implementation exists. Keep purity, explicit inputs,
+this distinction while admitting `.length` would have been P1, which is why
+the lowering was not chosen before the gate was. Keep purity, explicit inputs,
 deterministic successful computation and checked host boundaries as independent
 requirements; compatibility alone would allow randomness and external mutation.
 

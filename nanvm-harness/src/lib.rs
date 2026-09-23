@@ -49,6 +49,8 @@ pub mod number;
 pub mod object;
 #[path = "../fixtures/operators.rs"]
 pub mod operators;
+#[path = "../fixtures/parameters.rs"]
+pub mod parameters;
 #[path = "../fixtures/property.rs"]
 pub mod property;
 #[path = "../fixtures/rest.rs"]
@@ -145,7 +147,7 @@ mod tests {
     use crate::{
         RunError, arity, array, at, boolean, call, calls, closure, escapes, function_scope, lazy,
         length, method, missing, named, nested, not_a_function, nullish, number, object, operators,
-        property, rest, run, sharing, string, throws, to_string,
+        parameters, property, rest, run, sharing, string, throws, to_string,
     };
 
     #[test]
@@ -243,6 +245,18 @@ mod tests {
     #[test]
     fn closures() {
         assert_eq!(run::<Naive>(closure::module), Ok("[3,15,[1,2,3,1]]".into()));
+    }
+
+    /// Named parameters, end to end: a parameter is a position of `args`,
+    /// a missing argument is `undefined` — the JSON `null` here — an
+    /// extra one is passed, and `length` is the declared count, `0` for a
+    /// rest parameter.
+    #[test]
+    fn named_parameters() {
+        assert_eq!(
+            run::<Naive>(parameters::module),
+            Ok("[[2,1],[2,1],4,5,2,1,2,0]".into())
+        );
     }
 
     /// A read past the arguments supplied answers `undefined` — which has

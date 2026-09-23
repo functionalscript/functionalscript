@@ -95,12 +95,22 @@ export const proof = {
         eq(['?.()', (/**@type {number}*/x) => ({ y: x }), [3], ['|.', 'y']], 3)
     },
     // `=>` closes over the frame operand's value and starts a new
-    // invocation per call, whose body reads its own `args` and `frame`.
+    // invocation per call, whose body reads its own `args` and `frame`;
+    // its `length` is the count, whatever the body reads, and the
+    // arguments are the complete list under any count.
     lambda: () => {
-        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 'captured', ['frame']]))
+        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, 'captured', ['frame']]))
         assertEq(f(), 'captured')
-        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', null, ['args']]))
+        assertEq(f.length, 0)
+        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, null, ['args']]))
         assertStructurallySame(g(1, 2), [1, 2])
+        const h = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 2, null, ['args']]))
+        assertEq(h.length, 2)
+        assertStructurallySame(h(1), [1])
+        assertStructurallySame(h(1, 2, 3), [1, 2, 3])
+        const k = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 3, null, ['args']]))
+        assertEq(k.length, 3)
+        assertStructurallySame(k(), [])
     },
     throw: {
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),

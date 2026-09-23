@@ -49,14 +49,12 @@ variables that the generated code and `nanvm-lib` agree on.
   all already tracked as open elsewhere (see Related) and explicitly
   staged-out by mvp-roadmap until the edag-spec lands. The plan below only
   notes where this work must plug back in once they do.
-- **Out of scope**: named parameter lists (`(a, b) => …`,
-  [3120-parameters](../../spec/todo/3120-parameters.md)) at the *parser*
-  level — today the language has only the rest-parameter and no-parameter
-  forms. This document's representation is written for `["args"]` (an
-  array), which named parameters still read positionally. The pending
-  parameter-count proposal also changes the function EDAG and requires AOT
-  lowering to preserve the count in the function value; parser work being
-  separate does not put that runtime obligation out of scope.
+- **Out of scope**: the parser's side of named parameter lists
+  (`(a, b) => …`, [functions](../../spec/README.md#functions)), which
+  landed on its own. This document's representation is written for
+  `["args"]` (an array), which named parameters read positionally; the
+  function node's count reaches the generated callable as its `length`,
+  the runtime obligation this document does own.
 
 #### Grounding: what is already decided
 
@@ -66,13 +64,11 @@ This is not a green field. The EDAG semantics
 function value must respect, and this plan is an implementation of that
 shape, not an alternative to it:
 
-- The current function node is `["=>", frame, body]`. The
-  [named-parameter proposal](../../spec/todo/3120-parameters.md), pending
-  language-designer approval, would replace it with
-  `["=>", parameterCount, frame, body]`. If approved, this plan must migrate
-  its generator and callable construction with that format. `frame` remains
-  one node, evaluated in the *enclosing* scope, that yields an array of
-  captured values; `body` remains the function's own closed graph.
+- The function node is `["=>", count, frame, body]`
+  ([functions](../../spec/README.md#functions)): `count` is the declared
+  parameter count, which the generator prints as the callable's `length`;
+  `frame` is one node, evaluated in the *enclosing* scope, that yields an
+  array of captured values; `body` is the function's own closed graph.
 - `["args"]` is the arguments array — always an array, positionally indexed;
   parameter names are compiler-side sugar over it. Declared arity is
   observable metadata, distinct from the actual argument count (subject 2).
@@ -220,11 +216,10 @@ program reads it as `f.length` once callable support lands — Stage 2's,
 and how it reaches the program (a `member_access` arm, a property table,
 something else) is decided there, against the code as it is then. Empty
 and rest-only parameter lists have length
-`0`. If the named-parameter proposal is approved, each generated callable
-carries the function node's `parameterCount`, including unused parameters,
-capturing or not; it is never inferred from argument reads or the caller's
-array length. The complete actual argument array still crosses the call
-boundary unchanged.
+`0`, and each generated callable carries the function node's count,
+including unused parameters, capturing or not; it is never inferred from
+argument reads or the caller's array length. The complete actual argument
+array still crosses the call boundary unchanged.
 
 Before that landed, `Function<A>` was a newtype over an `IContainer` with
 a name/length header, `(String<A>, u32)`, and a bag of `u8` items nothing
@@ -372,11 +367,11 @@ Landed with Stage 1**, there being no other shape: every function the
 generator prints is a `Function<A>` value already, whether it is called at
 once, stored, returned or exported, so the harness evaluates `export
 default` uniformly and a function value standing as the export is the one
-thing `to_json` refuses. The declared length is `0`, the only arity the
-language has, read as `f.length` through the `.` read — a
-function's one property; when named parameters are admitted, the generator prints the
-function node's count, and exported and returned functions' `length` is
-compared with native JavaScript, unused parameters included.
+thing `to_json` refuses. The declared length is the function node's count,
+read as `f.length` through the `.` read — a function's one property — `0`
+for a rest parameter or none and the list's length for named parameters,
+unused ones included; the `parameters` harness fixture compares exported
+functions' `length` and their positional binding with native JavaScript.
 
 **Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
@@ -492,8 +487,8 @@ generated-Rust test from one source of cases.
 - [x] Stage 1: a function is a closure bound through `A::static_function`,
       its body a scope of its own; a call is `Any::call`; harness fixtures.
 - [x] Stage 2: landed with Stage 1 — every function is a `Function<A>`
-      value, the module bounding on `IStaticFunction`; `length` `0` until
-      named parameters exist.
+      value, the module bounding on `IStaticFunction`; `length` the function
+      node's count since named parameters landed.
 - [x] Stage 3: capturing closures — a capture is a slot of the function's
       frame, built as an `Array<A>` in the enclosing scope and handed to
       `A::static_function`, the body reading it through `A::frame(self_)`;
