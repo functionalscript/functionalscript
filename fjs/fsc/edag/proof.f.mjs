@@ -1014,9 +1014,10 @@ export const proof = {
          * **The initial source draws the marking and the reason for it.**
          * `a` is reached four times — twice by the array, once through
          * `a * 3`, and once as `m && a`'s right operand — so one node
-         * carries three solid edges and one broken one. A mark on the box
-         * could not have said which of the four was conditional. The
-         * other broken line is the function's body.
+         * carries three eager edges and one lazy one, drawn as two solid
+         * lines (the array's two merge into `0, 1`) and one broken. A mark
+         * on the box could not have said which of the four was
+         * conditional. The other broken line is the function's body.
          */
         lazyEdgeInTheInitialSource: () => {
             const html = htmlToString(demo.view(demo.init))

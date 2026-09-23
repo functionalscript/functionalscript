@@ -310,7 +310,9 @@ const graphOf = text => {
  * **`m && a` is what makes the marking legible**, and not because it
  * draws one dashed line. `a` is reached four times — twice by the array,
  * once through `a * 3`, and once as that `&&`'s right operand — so one
- * node carries three solid edges and one broken one. That is laziness
+ * node carries three eager edges and one lazy one. Drawn, that is two
+ * solid lines and one broken: the array's two references merge into one
+ * line labelled `0, 1`. That is laziness
  * being positional rather than nodal, in a picture: the node *is*
  * evaluated, because three references want it whatever the fourth
  * decides, and a mark on the box could not have said which of the four
