@@ -141,7 +141,10 @@ module they live in.
       their covers in the same commit. Keep the const-tuple bound, which takes
       both arms on dense values. Run `npm run cov` before and after; anything
       below 100% means the unreachable-versus-live split is wrong somewhere.
-- [ ] **`fjs/rtti/parse`'s hole producer**, gated on the first task. If the
+- [ ] **`fjs/rtti/parse`'s hole producer**, gated on the first task and now
+      owned by
+      [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md),
+      which proposes the first arm below and says why. If the
       exception was refused, `arrayRebuild` replaces `tupleRebuild` for both
       tuple kinds, and the three proofs whose subject is hole preservation go
       with it. If it was granted, the opposite edit: cite the new spec
