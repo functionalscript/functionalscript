@@ -128,8 +128,13 @@ const lanesOf = rankOf => edge => {
  * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }}
  */
 const layout = nodes => edges => {
-    const outgoingOf = nodes.map(n => edges.filter(e => e.from === n.id))
-    const rankOf = /** @type {(id: number) => number} */ (id => nodes[id].rank)
+    // Keyed by id, not by position: a `Graph` does not promise its nodes
+    // in id order, and reading an array built in one order by the other
+    // would hang a node's ports on whichever node sat at that index.
+    const outgoing = new Map(nodes.map(n => [n.id, edges.filter(e => e.from === n.id)]))
+    const outgoingOf = /** @type {(id: number) => readonly Edge[]} */ (id => /** @type {readonly Edge[]} */ (outgoing.get(id)))
+    const ranks = new Map(nodes.map(n => [n.id, n.rank]))
+    const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
     /** @type {readonly _Slot[]} */
     const slots = [
         ...nodes.map(node => ({ node, rank: node.rank, key: node.id })),
@@ -140,7 +145,7 @@ const layout = nodes => edges => {
         (_, rank) => slots.filter(slot => slot.rank === rank).toSorted((a, b) => a.key - b.key))
     return rows.reduce((acc, row) => {
         const heightOf = /** @type {(slot: _Slot) => number} */ (slot =>
-            slot.node === undefined || outgoingOf[slot.node.id].length === 0 ? headerHeight : headerHeight + portHeight)
+            slot.node === undefined || outgoingOf(slot.node.id).length === 0 ? headerHeight : headerHeight + portHeight)
         const tallest = row.reduce((m, slot) => Math.max(m, heightOf(slot)), 0)
         const placed = row.reduce((r, slot) => {
             if (slot.node === undefined) {
@@ -148,7 +153,7 @@ const layout = nodes => edges => {
                 const lane = { edge: /** @type {Edge} */ (slot.lane), x: r.x + laneWidth / 2, top: acc.y, bottom: acc.y + tallest }
                 return { ...r, x: r.x + laneWidth + colGap, lanes: [...r.lanes, lane] }
             }
-            const { width, ports } = portsOf(slot.node.label)(outgoingOf[slot.node.id])
+            const { width, ports } = portsOf(slot.node.label)(outgoingOf(slot.node.id))
             /** @type {_Positioned} */
             const node = { ...slot.node, x: r.x, y: acc.y, width, height: heightOf(slot), ports }
             return { ...r, x: r.x + width + colGap, nodes: [...r.nodes, node] }

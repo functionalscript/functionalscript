@@ -101,6 +101,25 @@ export const proof = {
             assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">x<'), html)
             assert(html.includes('d="M35,56 L35,96"'), html)
         },
+        /**
+         * **Nodes are found by id, not by position.** A `Graph` does not
+         * promise its nodes in id order. Given the child first, the port
+         * still hangs on the root and the edge still points down from it;
+         * given the skip-level graph backwards, `r` still gets its lane.
+         * Either way the drawing is the one the id-ordered graph draws.
+         */
+        nodesOutOfIdOrder: () => {
+            const edges = [{ from: 0, to: 1, label: 'x' }]
+            const root = { id: 0, kind: 'a', label: 'root', rank: 0 }
+            const child = { id: 1, kind: 'leaf', label: '42', rank: 1 }
+            const html = htmlToString(graphSvg({ nodes: [child, root], edges }))
+            assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
+            assert(html.includes('d="M35,56 L35,96"'), html)
+            assertEq(html, htmlToString(graphSvg({ nodes: [root, child], edges })))
+            assertEq(
+                htmlToString(graphSvg({ ...skipLevel, nodes: skipLevel.nodes.toReversed() })),
+                htmlToString(graphSvg(skipLevel)))
+        },
         // A node with no outgoing edge has no ports, and keeps the header's
         // height alone — a leaf is the size it always was.
         noPortsWithoutEdges: () => {
