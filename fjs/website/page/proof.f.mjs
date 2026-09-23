@@ -280,9 +280,11 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes('<nav><a href="/index.html">root</a></nav>'), html)
         },
-        // The page names itself in the tab and links the stylesheet and the favicon.
+        // The page names its language, names itself in the tab, and links the
+        // stylesheet and the favicon.
         head: () => {
             const html = pageHtml({ ...empty, path: 'fjs' })
+            assert(html.includes('<html lang="en">'), html)
             assert(html.includes('<title>fjs</title>'), html)
             assert(html.includes('<link rel="stylesheet" href="/_main.css">'), html)
             assert(html.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), html)

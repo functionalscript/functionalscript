@@ -27,7 +27,7 @@
  */
 
 import { htmlUtf8 } from '../../media/html/module.f.mjs'
-import { repository } from '../page/module.f.mjs'
+import { lang, repository } from '../page/module.f.mjs'
 import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 
 const zero = 0x30
@@ -260,7 +260,7 @@ const nav = tail => ['nav',
  *
  * @type {(version: string) => (document: Document) => Vec}
  */
-export const releasePage = version => document => htmlUtf8(
+export const releasePage = version => document => htmlUtf8(lang)(
     ['title', `FunctionalScript ${version}`],
     stylesheetLink,
     ...faviconLinks,
@@ -284,7 +284,7 @@ export const releasePage = version => document => htmlUtf8(
  *
  * @type {(versions: readonly string[]) => Vec}
  */
-export const indexPage = versions => htmlUtf8(
+export const indexPage = versions => htmlUtf8(lang)(
     ['title', 'FunctionalScript releases'],
     stylesheetLink,
     ...faviconLinks,

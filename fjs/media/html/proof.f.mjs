@@ -2,10 +2,18 @@
  * @import { Element } from './types.ts'
  */
 
-import { htmlToString } from "./module.f.mjs"
+import { htmlToString, htmlUtf8 } from "./module.f.mjs"
 import { assertEq } from '../../asserts/module.f.mjs'
+import { utf8ToString } from '../../text/module.f.mjs'
 
 export const proof = {
+    // A document names its language on the root element, which is the only
+    // place WCAG 3.1.1 looks for it.
+    document: () => assertEq(
+        utf8ToString(htmlUtf8('uk')(['title', 'Сторінка'])(['h1', 'Привіт'])),
+        '<!DOCTYPE html><html lang="uk"><head><meta charset="UTF-8">'
+            + '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+            + '<title>Сторінка</title></head><body><h1>Привіт</h1></body></html>'),
     empty: () => {
         const r = htmlToString(['html'])
         if (r !== '<!DOCTYPE html><html></html>') { throw `empty: ${r}` }
