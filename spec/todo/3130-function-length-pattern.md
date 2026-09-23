@@ -166,14 +166,20 @@ plain call.
 **Writer.** A function whose count is a constant and whose `['args']` reads
 are all direct constant-index reads below that count renders as the named
 parameter list the parameter plan describes, which is the boundary #2200's
-writer enforces. Every other function renders as
+writer enforces, and only up to a bound of the writer's own: a JavaScript
+host refuses an arrow with tens of thousands of parameters (Node reports a
+malformed parameter list), so the named rendering stops at a writer
+constant chosen under every supported host's limit, and that constant is
+documented where the writer is. Every other function renders as
 `withLength(<count>, (...args) => …)`, with the helper emitted once per
-module: a count that is not a constant, and a constant count whose graph
-uses `['args']` in a way a named list cannot spell, such as
-`['=>', 2, frame, ['.', ['args'], 'length']]`, which the named rendering
-would pad from zero arguments to two. That second rendering is the source
-form [arity-complete-arguments](./arity-complete-arguments.md) asks for, and
-it is only with both renderings that nothing an executor accepts is
+module: a count that is not a constant, a constant count past the writer's
+bound, and a constant count whose graph uses `['args']` in a way a named
+list cannot spell, such as `['=>', 2, frame, ['.', ['args'], 'length']]`,
+which the named rendering would pad from zero arguments to two. The pattern
+builds no parameter list, so it renders any count in the domain. That
+second rendering is the source form
+[arity-complete-arguments](./arity-complete-arguments.md) asks for, and it
+is only with both renderings that nothing an executor accepts is
 unrenderable.
 
 **`toString` is not in this proposal.** An own `toString` is the same shape
@@ -229,10 +235,11 @@ neither this document nor those pull requests should be built on as settled.
   pattern and no variation. That is one more matcher in AST-to-EDAG
   compilation and one more paragraph in the specification.
 - `=>` grows a third operand. That is a break of the stable EDAG format,
-  planned by the parameter proposal and carried out by #2200; three-operand
-  nodes from before must not be read as the new shape.
+  planned by the parameter proposal and carried out by #2200; the old
+  two-operand nodes must not be read as the new shape.
 - The writer has two renderings of one node, chosen by whether the count is
-  a constant and the arguments are used the way a named list spells.
+  a constant under the writer's bound and the arguments are used the way a
+  named list spells.
 - The count's domain is a documented limit. A count of 2^32 or more is a
   valid nonnegative integer that no executor accepts, and a host running the
   pattern's source directly would accept it.
@@ -265,8 +272,9 @@ neither this document nor those pull requests should be built on as settled.
 - [ ] Compiler: recognize the complete pattern in AST-to-EDAG compilation,
   after its syntax, including named parameters, can be represented;
   `Object` resolved to the intrinsic; every variation refused.
-- [ ] Writer: named parameters within #2200's boundary, the pattern for
-  every other function, the helper emitted once.
+- [ ] Writer: named parameters within #2200's boundary and under a
+  documented bound below every supported host's parameter-list limit, the
+  pattern for every other function, the helper emitted once.
 - [ ] Proofs: `f.length` for constant and run-time counts, including unused
   parameters and functions passed through other functions; `g()` sees an
   empty `['args']` and `g(undefined)` sees `[undefined]`; a count outside the
