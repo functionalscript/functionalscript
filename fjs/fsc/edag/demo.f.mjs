@@ -268,13 +268,15 @@ const graphOf = text => {
  * `checked` is the one thing the export does not reach, so the compiler
  * anchors it with a comma and the whole module is that comma's result.
  * Its two edges carry the roles a number could not: `anchor` for a
- * computation that only has to happen, `result` for the value the
- * module is.
+ * computation that only has to happen — reading `.x` off the import can
+ * throw, which is why it is kept — and `result` for the value the module
+ * is. It reads `m` rather than `a`, so `a` keeps the three references the
+ * paragraph above counts.
  *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = a < 4;\nexport default [a, a, a * 3, m, (...x) => x, undefined];',
+    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m, (...x) => x, undefined];',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
         const g = graphOf(text)

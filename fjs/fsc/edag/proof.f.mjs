@@ -943,6 +943,12 @@ export const proof = {
         },
         // An unused const is anchored as a comma's first operand rather
         // than dropped, so the export default is not the whole EDAG.
+        commaAnchorsAnUnusedConst: () => {
+            const html = htmlToString(demo.view('const unused = 5; export default 1;'))
+            assert(html.includes('>,<'), html)
+            assert(html.includes('>5<'), html)
+            assert(html.includes('>1<'), html)
+        },
         /**
          * **The initial source draws a comma**, so a reader meets the two
          * roles before typing anything. `checked` is the one thing the
@@ -953,12 +959,6 @@ export const proof = {
             assert(html.includes('>,<'), html)
             assert(html.includes('>anchor<'), html)
             assert(html.includes('>result<'), html)
-        },
-        commaAnchorsAnUnusedConst: () => {
-            const html = htmlToString(demo.view('const unused = 5; export default 1;'))
-            assert(html.includes('>,<'), html)
-            assert(html.includes('>5<'), html)
-            assert(html.includes('>1<'), html)
         },
         // A parse failure is shown, not swallowed, and draws no graph.
         error: () => {
