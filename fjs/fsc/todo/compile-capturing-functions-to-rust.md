@@ -1,332 +1,132 @@
 # Compile Capturing Functions to Rust
 
 **Priority:** P2  
-**Status:** proposal  
-**Depends on:** `fjs/fsc/todo/compile-noncapturing-functions-to-rust.md`,
-`nanvm-lib/todo/callable-function-objects.md`, and the landed
-`IStaticFunction`/`Any::call` runtime support.
+**Status:** landed in #2197; this document records the shipped shape and the
+remaining gaps.  
+**Related:** [functions](../../../spec/README.md#functions),
+[function-frame](../../../spec/todo/3111-function-frame.md),
+[callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md),
+the Rust printer `fjs/edag/rust/module.f.mjs`, and the fixture
+`nanvm-harness/fixtures/closure.mjs`.
 
-## Problem
+## What shipped
 
-The Rust compiler can currently emit callable functions, but only when the
-function body is closed over no value from its enclosing scope. That excludes
-ordinary closures such as:
+A function body that reads a name bound outside it — a module `const`, an
+import, an enclosing function's parameter or an enclosing body's `const` — is a
+capture, as a JavaScript closure's is ([functions](../../../spec/README.md#functions)).
 
 ```js
-const increment = x => x + 1;
-export default increment(41);
+const base = [10];
+const add = (...a) => (...b) => a[0] + b[0];
+const offset = (...a) => base[0] + a[0];
+export default [add(1)(2), offset(5)];
 ```
 
-The generated function must preserve the value of `x` across the call boundary.
-A Rust local is not sufficient: the closure may outlive the activation that
-created it, and two closure instances created by the same source function must
-retain independent captured values and identity.
+### EDAG
 
-The existing callable runtime already provides the right boundary:
-`IStaticFunction::static_function` receives an owned frame and the call
-receives an owned argument array. This proposal specifies how the compiler
-builds and reads that frame.
+A function is `['=>', frame, body]`. The second operand *is* the frame:
 
-## Goal
+- `null` means the function captures nothing;
+- a capturing function has `['[]', [c0, c1, …]]`, one slot per captured value,
+  each value once however many bindings or references reach it, in the order
+  the body first names them;
+- inside the body, `['args']` is the call's argument array and `['frame']` the
+  captured array, so `['.', ['frame'], i]` reads slot `i`;
+- a nested function captures through its parent: its frame elements are
+  expressions of the parent's body, including the parent's `['frame']` slots
+  and `['args']`, never a pointer to the parent's activation.
 
-Compile a capture-free or capturing function to the same runtime shape:
+`['self']` is not an EDAG node (`fjs/edag/analysis/module.f.mjs` admits only
+`undefined`, `args` and `frame` as leaves), so a body has no way to name its
+own function; see [Remaining gaps](#remaining-gaps).
+
+A captured primitive is written into the body instead of a slot, as a `const`
+holding one is wherever it is read.
+
+### Rust
+
+The printer emits one runtime shape for every function, capturing or not:
 
 ```rust
-A::static_function(code, length, captured_frame).to_any()
+let c5: Any<A> = [f64_any(0x4024000000000000)].to_array().to_any();
+let c6: Any<A> = A::static_function(|self_, args| {
+    let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
+    let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
+    let c2: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end()?;
+    c1 + c2
+}, 0, [c5].to_array()).to_any();
 ```
 
-The generated code must:
-
-- evaluate captured expressions exactly once, in enclosing-scope order;
-- copy their values into an `Array<A>` when the function value is created;
-- read captures only through the function's frame parameter;
-- preserve `Result<Any<A>, Any<A>>` propagation through the function body;
-- preserve function identity by constructing one runtime function object per
-  source-level creation event;
-- continue to support nested functions and calls through `Any::call`.
-
-## Non-goals
-
-This change does not add:
-
-- mutual recursion between independently declared functions;
-- dynamic module linking or cross-module generated function references;
-- a bytecode interpreter implementation;
-- named-parameter syntax or arity inference from argument reads;
-- frame mutation or shared mutable closure state;
-- optimizations such as frame-slot reuse or capture elimination beyond the
-  existing analysis.
-
-Self-recursion remains governed by the callable-object design. A function used
-only as its own callee may use the generated static code path; a function value
-that escapes or is captured must retain normal function-object identity.
-
-## Source representation
-
-The compiler consumes the existing EDAG function shape:
-
-```js
-['=>', null, body]
-```
-
-The `null` frame marker identifies the compiler-generated function form. Capture
-analysis supplies the frame values; it does not change the public EDAG shape.
-Inside a function body:
-
-- `['args']` denotes the call's argument array;
-- `['frame']` denotes the function's captured-value array;
-- `['.', ['args'], index]` reads an argument;
-- `['.', ['frame'], index]` reads a captured value.
-
-The parser and EDAG linker remain responsible for producing valid frame reads.
-The Rust backend must refuse malformed frame nodes rather than emitting a
-plausible but incorrect Rust expression.
-
-## Capture analysis
-
-### Definition
-
-A function captures a value when its body reads a declaration owned by an
-outer lexical scope and that value is not a primitive constant available
-without storage. A function does not capture:
-
-- literals;
-- built-in operators or intrinsic names;
-- its own arguments;
-- declarations introduced inside the function body;
-- values already represented by an enclosing function's frame when the body
-  reads that frame slot directly.
-
-The analysis must be based on lexical ownership, not on textual name matching.
-A shadowing declaration in the function body is a different binding and must not
-be mistaken for a capture.
-
-### Stable frame order
-
-Assign frame slots in first lexical-use order after the EDAG has established the
-function's enclosing declarations. The order must be deterministic and shared
-by:
-
-1. the frame expression emitted at the creation site;
-2. every `['frame']` index emitted in the body;
-3. exact generator proofs and fixture expectations.
-
-If the existing linker already assigns a canonical declaration order, that order
-is preferable to adding a second traversal rule. The chosen order must be
-recorded in the analysis result rather than recomputed independently by the
-printer.
-
-### Nested functions
-
-A nested function captures from the nearest scope that owns the declaration.
-If a nested function needs a value captured by its parent, the parent may pass
-that value through its own frame construction, but the nested function must
-capture its own slot directly. It must not retain a live pointer to the parent's
-activation.
-
-Example:
-
-```js
-const make = x => y => x + y;
-export default make(40)(2);
-```
-
-The outer closure captures nothing when created at module scope. Calling it
-creates the inner closure with a frame containing the outer `x`; calling the
-inner closure reads that frame slot and its own `args` slot.
-
-## Generated Rust shape
-
-For a function with captures, generate a frame at the creation site:
-
-```rust
-let c0: Any<A> = A::static_function(
-    |_self, args| {
-        let captured = /* frame read or enclosing value */;
-        Ok(/* body using captured */)
-    },
-    1,
-    [captured].to_array(),
-).to_any();
-```
-
-The exact line wrapping is a readability concern of the Rust printer; the
-semantic requirements are the argument order and the three `static_function`
-arguments: code, declared length, and frame.
-
-The generated closure receives the frame through the runtime's established
-`_self`/function-object parameter. The printer must use the runtime-supported
-frame accessor rather than inventing a second ABI. If the runtime exposes the
-captured frame through `self_`, the generated body must use that name
-consistently; if it exposes it through a dedicated `frame` parameter, the
-printer must use that parameter consistently. The ABI choice belongs to the
-runtime and must be documented beside `IStaticFunction`.
-
-A frame expression is evaluated in the enclosing scope. Therefore its elements
-must use the enclosing printer context, while the function body uses the
-function context. This distinction prevents a frame element from accidentally
-reading the new function's `args` or `frame`.
-
-## Evaluation and errors
-
-Frame elements are eager. The generated enclosing scope must establish them in
-source order and propagate failures through the enclosing `Result`:
-
-```rust
-let captured: Any<A> = /* expression */?;
-let frame: Array<A> = [captured].to_array();
-```
-
-A failure while evaluating a capture occurs when the closure value is created,
-not when the closure is later called. This matches JavaScript lexical binding
-and the existing EDAG eager evaluation model.
-
-A failure in the function body occurs when the function is called and is
-returned through `Any::call`. Every generated operation inside the body must
-retain the current fallible printer behavior and use `?` at the function-body
-boundary.
-
-The compiler must refuse, with a structured `Result` error, when:
-
-- a capture has no valid Rust spelling;
-- a frame index is out of the analyzed frame range;
-- a function body reads an enclosing declaration without a corresponding frame
-  slot;
-- a frame expression depends on a value reachable only through a lazy operand;
-- a nested function would require a live enclosing activation;
-- a function shape is malformed or has an unsupported frame marker.
-
-No refusal may silently compile to `undefined`, an empty frame, or a fresh
-replacement value.
-
-## Identity and sharing
-
-A shared EDAG node representing one function creation event is emitted as one
-Rust binding and cloned at each use site. Two syntactically identical function
-nodes created at different source locations must remain distinct runtime objects.
-
-This gives the following expected behavior:
-
-```js
-const make = x => () => x;
-const a = make(1);
-const b = make(1);
-// a === b is false; a === a is true.
-```
-
-The compiler must not reconstruct a captured function from code and frame at
-every read of the same binding. That would change identity and violate the
-runtime's function equality contract.
-
-## Implementation plan
-
-### 1. Analysis result
-
-Extend the EDAG analysis result used by the Rust backend with a function-local
-capture description:
-
-- ordered captured declarations;
-- frame slot for each declaration;
-- function-local frame size;
-- whether the function reads `args`, `frame`, or `self`;
-- whether the function body can be emitted with the current Rust printer.
-
-Keep this result immutable and make the printer consume it. Do not make the
-printer independently rediscover lexical ownership.
-
-### 2. Printer contexts
-
-Separate the following contexts explicitly:
-
-- enclosing module/function expression context;
-- function creation context, where frame elements are evaluated;
-- function body context, where `args`, `frame`, and `self` are bound;
-- fallible expression context, where operations propagate with `?`.
-
-The existing non-capturing path should be represented as an empty frame in the
-same machinery, so captures do not create a second function ABI.
-
-### 3. Runtime adapter
-
-Confirm the public `IStaticFunction` contract supplies the generated body with
-access to its captured frame. If the current runtime only stores the frame but
-does not expose it to the static body, add the smallest runtime-facing accessor
-and test it in `nanvm-lib` before changing the compiler.
-
-The accessor must preserve VM abstraction: generated code may use `Array<A>` and
-public VM traits, but must not depend on `naive` internals or `Rc` layout.
-
-### 4. Generated fixtures
-
-Add fixtures covering:
-
-```js
-const f = x => x + 1;
-export default f(41);
-```
-
-```js
-const make = x => y => x + y;
-export default make(40)(2);
-```
-
-```js
-const make = x => () => x;
-const a = make(1);
-const b = make(1);
-export default [a(), b(), a === b];
-```
-
-Also cover a captured object/array, a missing argument, a throwing capture
-expression, nested capture chains, and a function that both captures and reads
-`args`.
-
-Each generated fixture must be regenerated by `npm run gen`; generated `.rs`
-files must not be hand-authored.
-
-### 5. Proofs and refusal corpus
-
-Add exact printer proofs for:
-
-- one capture and its frame index;
-- multiple captures and stable ordering;
-- nested function frame construction;
-- frame and argument reads in one body;
-- capture-time versus call-time failure propagation;
-- shared function identity;
-- every refusal listed above.
-
-The proof suite must retain 100% coverage for every new branch.
-
-## Acceptance criteria
-
-The implementation is complete when:
-
-1. A capture-free fixture still produces byte-for-byte equivalent semantics.
-2. A captured primitive survives closure creation and invocation.
-3. A nested closure can capture an outer value without retaining an activation.
-4. Captured arrays and objects preserve VM identity and value semantics.
-5. Capture-time throws and call-time throws are distinguishable and correct.
-6. Repeated use of one function binding shares identity; repeated creation does
-   not.
-7. Invalid capture/frame shapes are refused explicitly.
-8. `tsc`, `npm run gen`, `npm test`, `node --test`, and the Rust checks pass.
-9. The generated Rust remains readable: closure bodies, frame construction,
-   nested scopes, and continuation calls have stable indentation.
-
-## Open questions
-
-- What exact public accessor exposes a static function's captured frame to its
-  generated body?
-- Does the runtime pass the function object as `_self`, or should
-  `IStaticFunction` expose the frame as a separate closure parameter?
-- Does the existing linker already provide lexical declaration ownership, or is
-  a dedicated capture pass required?
-- Which capture order is canonical when two declarations are first reached
-  through different EDAG paths?
-- Should direct self-calls use a special generated Rust path before function
-  identity is observable, or always call through the runtime object?
-
-These questions must be answered in code and tests before implementation is
-merged. They should not be resolved by adding backend-specific assumptions to
-individual fixtures.
+(`offset` from the example above, as `nanvm-harness/fixtures/closure.rs`
+prints it.)
+
+- The frame's elements are bound in the enclosing scope, before
+  `static_function` is called, by the enclosing printer context; the body
+  cannot see them except through its frame.
+- The body reads its frame as `A::frame(self_)`: `StaticCode` receives
+  `&A::InternalFunction` and `IStaticFunction::frame(self_)` returns the
+  captured `Array<A>` (`nanvm-lib/src/vm/internal/istatic_function.rs`). A
+  body that reads no frame names its parameter `_self`.
+- A function with no captures passes `Array::default()`.
+- The `length` is `0`: `f.length` is `0` for a rest parameter as for none
+  ([functions](../../../spec/README.md#functions)).
+
+### Evaluation, errors and identity
+
+- Frame elements are eager. A failure computing one occurs when the closure is
+  created and propagates through the enclosing `Result`; a failure in the body
+  occurs when the closure is called and returns through `Any::call`.
+- One EDAG function node is one `let` binding, cloned at each use, so reading
+  one binding twice gives the same object. Each evaluation of a function node
+  — each call of the function that contains it — builds a new object:
+
+  ```js
+  const make = (...a) => () => a[0];
+  const f = make(1);
+  const g = make(1);
+  export default [f(), g(), f === g, f === f]; // [1, 1, false, true]
+  ```
+
+### Refusals
+
+The Rust printer refuses, with a structured error, rather than printing a
+plausible wrong value:
+
+- a frame that is not an array literal;
+- a frame node reached from anywhere but its own function;
+- a shared node reached only through lazy operands;
+- a module scope that reads `['args']` or `['frame']` (`fjs/fsc/rust`).
+
+The parser refuses `capture shadowed`: a body `const` that shadows a name the
+body has already read from outside.
+
+## Remaining gaps
+
+1. **Named parameters and arity.** `x => …` and `(a, b) => …` are not
+   recognized yet (`unexpected token`), and `length` is always `0`.
+   [#2200](https://github.com/functionalscript/functionalscript/pull/2200)
+   adds them with the declared count in the function node,
+   `['=>', count, frame, body]`, and passes that count as `static_function`'s
+   length. Nothing here changes until it lands.
+2. **Recursion.** A function that names itself is refused (`const not found`):
+   its `const` is not bound in its own initializer, and there is no `self` to
+   read in its place. Whether a direct self-call gets a special Rust path or
+   always calls through the runtime object is open, and belongs with
+   [callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md)
+   and [forward-references](../../../spec/todo/3140-forward-references.md).
+3. **Capture shadowing.** `capture shadowed` is a gap, not a rule; see
+   [`body-const-forward-reference.md`](../parser/todo/body-const-forward-reference.md).
+4. **Fixture coverage.** `closure.mjs` pins captures of an enclosing
+   argument, a module `const` and a three-deep nested chain. These behaviors
+   compile today but no generated fixture pins them:
+   - identity: two closures made by the same function are distinct, one
+     binding read twice is the same (the example above);
+   - a captured object or array keeps its identity (`get() === o.x`);
+   - a failure computing a frame element fails at creation, not at the call:
+
+     ```js
+     const make = (...a) => { const v = a[0].x; return () => v; };
+     export default make(undefined);
+     ```
+
+   Each fixture is generated by `npm run gen`, never written by hand.
