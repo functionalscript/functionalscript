@@ -26,7 +26,7 @@
 
 import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
-import { isCount } from '../module.f.mjs'
+import { isCount, lazyOp2Id } from '../module.f.mjs'
 
 /**
  * The `nanvm-lib` expression each unary operation prints as.
@@ -117,7 +117,9 @@ export const op3Rust = {
  * conditionally: `&&`, `||` and `??` establish the right operand only if the
  * left decides nothing, and `?:` establishes the one arm its condition
  * selects — the EDAG's positional laziness, as `op2Id` and `op3Id` in
- * [`../module.f.mjs`](../module.f.mjs) state it. In each the deciding
+ * [`../module.f.mjs`](../module.f.mjs) state it. The binary three are
+ * `lazyOp2Id` from there rather than a copy, so the printer cannot thunk a
+ * different set from the one the executor defers. In each the deciding
  * operand comes first and every later one is lazy, which is the rule the
  * printer prints by: a lazy operand is a thunk — `|| Ok(…)` around a value,
  * or an operation's own `Result` bare — the `impl FnOnce() ->
@@ -136,7 +138,7 @@ export const op3Rust = {
  *
  * @type {readonly string[]}
  */
-const lazy = ['&&', '||', '??', '?:']
+const lazy = [...lazyOp2Id, '?:']
 
 /**
  * `true` for the tag of a node that opens a chain: `.`, `?.` and `?.()`,

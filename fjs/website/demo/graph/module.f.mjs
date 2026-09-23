@@ -104,10 +104,19 @@ const layout = nodes => byRank(nodes).flatMap(
  * last label is ever visible, so they draw as one line labeled with every
  * index or key that reaches it.
  *
+ * **Only edges of one kind merge.** An earlier version merged by endpoints
+ * alone and dropped a kind the two did not share, which drew `a && a` — both
+ * operands one node — as a single solid line labelled `left, right`, saying
+ * the conditional operand was not conditional. The positions are what a
+ * kind describes, so two positions that differ in one stay two lines;
+ * {@link graphSvg} bows them apart, since same-pair lines otherwise land on
+ * the same curve.
+ *
  * @type {(edges: readonly Edge[]) => readonly Edge[]}
  */
 const mergeParallel = edges => edges.reduce((acc, edge) => {
-    const at = acc.findIndex(e => e.from === edge.from && e.to === edge.to)
+    const at = acc.findIndex(
+        e => e.from === edge.from && e.to === edge.to && e.kind === edge.kind)
     return at === -1
         ? [...acc, edge]
         : acc.with(at, { ...acc[at], label: `${acc[at].label}, ${edge.label}` })
@@ -140,15 +149,22 @@ export const graphSvg = g => {
     const at = /** @type {(id: number) => _Positioned} */ (id => positioned.find(p => p.id === id))
     const width = positioned.reduce((m, p) => Math.max(m, p.x + p.width), 0) + margin
     const height = margin + positioned.reduce((m, p) => Math.max(m, p.y + p.height), 0)
+    const merged = mergeParallel(g.edges)
     /** @type {readonly Element[]} */
-    const edgeEls = mergeParallel(g.edges).flatMap(edge => {
+    const edgeEls = merged.flatMap((edge, i) => {
+        // Lines between one pair that did not merge — they differ in kind —
+        // would land on the same curve, so each after the first is bowed
+        // further out. A pair with one line is untouched, which is every
+        // pair a demo that marks nothing can produce.
+        const sibling = merged.filter(
+            (e, j) => j < i && e.from === edge.from && e.to === edge.to).length
         const from = at(edge.from)
         const to = at(edge.to)
         const x1 = from.x + from.width / 2
         const y1 = from.y + from.height
         const x2 = to.x + to.width / 2
         const y2 = to.y
-        const bow = to.rank - from.rank > 1 ? 24 : 0
+        const bow = (to.rank - from.rank > 1 ? 24 : 0) + sibling * 20
         const cx = (x1 + x2) / 2 + bow
         const cy = (y1 + y2) / 2
         // Two-thirds of the way to the child, not the midpoint: several
@@ -156,13 +172,23 @@ export const graphSvg = g => {
         // naming siblings), and their midpoints sit closer together than
         // their children do. Nearer the child is nearer where the labels
         // have already spread apart.
-        const t = 0.65
+        //
+        // A sibling line's label moves back toward the parent along its own
+        // curve. The bow alone parts two labels by under half its offset —
+        // about 9px on one baseline, where `left` and `right` overlap and
+        // the second's halo rubs out the first — while one row's height is
+        // 40px, so stepping along the line parts them by a line of text and
+        // keeps each on the curve it names.
+        const t = 0.65 / (1 + sibling)
         const lx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2
         const ly = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2
         const d = `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`
         return [
             ['path', { d, 'data-graph-edge-casing': '' }],
-            ['path', { d, 'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)' }],
+            ['path', {
+                d, 'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
+                ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
+            }],
             ['text', {
                 x: String(lx), y: String(ly),
                 'text-anchor': 'middle', 'data-graph-edge-label': '',
