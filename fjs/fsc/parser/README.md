@@ -171,15 +171,15 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
-- a reference in a function's body to a name bound outside it — a `const`, an
-  import, or an enclosing function's parameter — which is a capture, and a
-  function has no frame to capture with yet. The body is resolved against its
-  own names alone — its parameter, and the `const`s it declares before the
-  `return` — so the check is which map the name is found in;
 - a body `const` that takes a name the body already binds, its parameter
-  included, which is a duplicate as a module's is. A name the *module* binds
-  is not: the body cannot reach the module's scope at all, so that name was
-  unreachable rather than hidden;
+  included, which is a duplicate as a module's is. A name a scope *around*
+  the body binds is not: the body's `const` shadows it, as in JavaScript —
+  unless the body has already read that name from outside, before the
+  `const` or in its own initializer, which is `capture shadowed`: not a
+  rule of the language but a forward reference inside a body, not yet
+  supported
+  ([`todo/body-const-forward-reference.md`](todo/body-const-forward-reference.md)),
+  refused because JavaScript would read the body's `const` there;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
@@ -203,6 +203,17 @@ the fold's:
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
 to approximate these.
+
+A reference in a function's body to a name bound outside it — a `const`, an
+import, an enclosing function's parameter or an enclosing body's `const` —
+is a **capture**. The body is resolved against its own names first — its
+parameter, and the `const`s it declares before the reference — and then
+against each scope around it, innermost first; a name found outside becomes
+a capture, one per binding in first-use order, which the function node
+lists as its third element and the body reads as `['fref', i]`. The frame
+is the lowering's: it gives each distinct captured value one slot, so two
+bindings of one value share one. A function nested in another captures through it, so the
+middle function takes the capture too.
 
 A `const`'s value is resolved *before* its own name is bound, so `const a = a;`
 is `const not found` — a reference to a name before its declaration, as it is
