@@ -134,6 +134,11 @@ export const proof = {
             expect('export default (a) => (...b) => (c) => [a, b, c];', '[[],[["object",[["default",["=>",1,[["=>",0,[["=>",1,[["array",[["fref",0],["fref",1],[".",["args"],0]]]],[["fref",0],["args"]]]],[[".",["args"],0]]]]]]]]]]')
             // the three spellings of a list nest in one another
             expect('export default a => (b, c) => (...d) => () => 1;', '[[],[["object",[["default",["=>",1,[["=>",2,[["=>",0,[["=>",0,[1]]]]]]]]]]]]]')
+            // a bare arrow in a group is the function, and the group's
+            // steps apply to it: a call of it, and its `length`
+            expect('export default (a => [a, a])(1);', '[[],[["object",[["default",["()",["=>",1,[["array",[[".",["args"],0],[".",["args"],0]]]]],[1]]]]]]]')
+            expect('export default (a => a).length;', '[[],[["object",[["default",[".",["=>",1,[[".",["args"],0]]],"length"]]]]]]')
+            expect('export default [(a => 1)];', '[[],[["object",[["default",["array",[["=>",1,[1]]]]]]]]]')
         },
         // What a named list may not be: a keyword or a repeated name, each
         // at the name; a group the grammar read an arrow after, at the

@@ -33,7 +33,7 @@
  * @import { BinaryTag } from '../../ast/types.ts'
  * @import { ParseError } from '../types.ts'
  * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, Parameters } from './types.ts'
- * @import { AfterName, Body, Group, GroupValue, Items, Member, Named, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from '../grammar/types.ts'
+ * @import { AfterName, Body, Group, GroupValue, Items, Member, Named, NamedMore, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from '../grammar/types.ts'
  * @import { key, primitive } from '../grammar/module.f.mjs'
  * @import { _AccessNode, _AfterNameNode, _AttributeNode, _BaseNode, _CallBranch, _CircuitNode, _ConditionalNode, _KeyBranch, _Leaf, _ListNode, _NameNode, _OptionalList, _PowTailNode, _TailRound, _TokenStream } from './private.ts'
  */
@@ -554,18 +554,37 @@ const afterNamed = (value, parameters, node) => {
 
 /**
  * What follows the first name inside a `(`, {@link named} in
- * `./grammar/module.f.mjs`: a comma, the rest of the list — the optional
- * list at the third position of `, t [ names ] ) s => t body`, read as an
- * array's items are — and the body at the eighth, the function of every
- * name; or the rest of a value the name opened, `access* powTail tail`,
- * then the `)`, its same-line trivia and {@link afterNamed} at the
- * position after them — the parameter list `(a)` where the value is the
- * name alone, the node the steps and layers left being the reference
- * itself, and the refused one where it is more.
+ * `../grammar/module.f.mjs`: `=>` and the body at the third position of
+ * `=> t body ) t access* powTail tail` — a bare arrow in a group, the
+ * function of that one name with the group's steps at the sixth position,
+ * its power at the seventh and the layers after it applied — or, past the
+ * line's end, {@link namedMoreNode}.
  *
  * @type {(first: DjsTokenWithMetadata, node: Children<Named, DjsTokenWithMetadata, Out>) => Node}
  */
 const namedNode = (first, [tag, branch]) => {
+    if (tag === 'arrow') {
+        const [, , b, , , accesses, powTail, ...tailLists] = unmapped(branch)
+        return applyTail(withPow(steps(['=>', ['names', [first]], nodeAt(b)], unmapped(accesses)), powTail), tailLists)
+    }
+    const [, more] = unmapped(branch)
+    return namedMoreNode(first, unmapped(more))
+}
+
+/**
+ * What follows the first name inside a `(` where no arrow does,
+ * {@link namedMore} in `../grammar/module.f.mjs`: a comma, the rest of the
+ * list — the optional list at the third position of `, t [ names ] ) s =>
+ * t body`, read as an array's items are — and the body at the eighth, the
+ * function of every name; or the rest of a value the name opened,
+ * `access* powTail tail`, then the `)`, its same-line trivia and
+ * {@link afterNamed} at the position after them — the parameter list
+ * `(a)` where the value is the name alone, the node the steps and layers
+ * left being the reference itself, and the refused one where it is more.
+ *
+ * @type {(first: DjsTokenWithMetadata, node: Children<NamedMore, DjsTokenWithMetadata, Out>) => Node}
+ */
+const namedMoreNode = (first, [tag, branch]) => {
     if (tag === 'list') {
         const [, , rest, , , , , b] = unmapped(branch)
         return ['=>', ['names', [first, ...toArray(nameItems(rest))]], nodeAt(b)]

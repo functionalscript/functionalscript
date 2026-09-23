@@ -313,11 +313,23 @@ export type AfterName = {
 export type ParameterNames = Items<readonly [typeof identifierName, typeof trivia]>
 
 /**
- * What follows the first name inside a `(`: a comma, the rest of the list,
- * `)`, same-line trivia, `=>`, trivia and a body — or the rest of a value
- * the name opened, `)`, same-line trivia and {@link AfterName}.
+ * What follows the first name inside a `(`, once its line is read: `=>`,
+ * trivia, a body, the `)`, trivia, the group's steps, its power and
+ * {@link Tail} — a bare arrow in a group — or the line's end and
+ * {@link NamedMore}.
  */
 export type Named = {
+    readonly arrow: readonly [number, typeof trivia, Body, number, typeof trivia, RepeatFrom<0, Access>, PowTail, ...Tail]
+    readonly more: readonly [typeof lineBreak, NamedMore]
+}
+
+/**
+ * What follows the first name inside a `(` where no arrow does: a comma,
+ * the rest of the list, `)`, same-line trivia, `=>`, trivia and a body —
+ * or the rest of a value the name opened, `)`, same-line trivia and
+ * {@link AfterName}.
+ */
+export type NamedMore = {
     readonly list: readonly [number, typeof trivia, Option<ParameterNames>, number, typeof sameLine, number, typeof trivia, Body]
     readonly cover: readonly [RepeatFrom<0, Access>, PowTail, ...Tail, number, typeof sameLine, AfterName]
 }
@@ -343,7 +355,7 @@ export type Paren = readonly [number, typeof trivia, Parenthesized]
 export type Parenthesized = {
     readonly rest: readonly [number, typeof trivia, typeof identifierName, typeof trivia, number, typeof sameLine, number, typeof trivia, Body]
     readonly empty: readonly [number, typeof sameLine, number, typeof trivia, Body]
-    readonly named: readonly [typeof identifier, typeof trivia, Named]
+    readonly named: readonly [typeof identifier, typeof sameLine, Named]
     readonly group: readonly [GroupValue, number, typeof trivia, RepeatFrom<0, Access>, PowTail, ...Tail]
 }
 

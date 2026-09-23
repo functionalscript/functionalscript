@@ -18,8 +18,9 @@
  * afterName ::= '=>' t body | n access* powTail tail
  * parenthesized ::= '...' t id t ')' s '=>' t body
  *          | ')' s '=>' t body
- *          | id t ( ',' t [ names ] ')' s '=>' t body
- *                 | access* powTail tail ')' s afterName )
+ *          | id s ( '=>' t body ')' t access* powTail tail
+ *                 | n ( ',' t [ names ] ')' s '=>' t body
+ *                     | access* powTail tail ')' s afterName ) )
  *          | groupValue ')' t access* powTail tail
  * groupValue ::= value less its `id s afterName` branch
  * names  ::= id t [ ',' t [ names ] ]
@@ -111,7 +112,7 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Access, AfterName, Block, Body, CircuitTail, ConditionalTail, EagerTail, ExportStatement, Group, GroupOperand, GroupValue, Items, Member, Named, ParameterNames, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
+ * @import { Access, AfterName, Block, Body, CircuitTail, ConditionalTail, EagerTail, ExportStatement, Group, GroupOperand, GroupValue, Items, Member, Named, NamedMore, ParameterNames, Paren, ParenGroup, ParenGroupOperand, Parenthesized, PowTail, Tail, Unary, UnaryOperand, Value } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -749,11 +750,11 @@ export const afterName = {
 }
 
 /**
- * What follows the first name inside a `(`: a comma, and the rest of a
- * parameter list — `(a, b) => …`, and `(a,) => …` with a trailing comma
- * — or the rest of a value the name opened, then the `)` and
- * {@link afterName}: `=>` for the function `(a) => …`, or the steps and
- * layers a group takes after its `)`.
+ * What follows the first name inside a `(` where no arrow does: a comma,
+ * and the rest of a parameter list — `(a, b) => …`, and `(a,) => …` with a
+ * trailing comma — or the rest of a value the name opened, then the `)`
+ * and {@link afterName}: `=>` for the function `(a) => …`, or the steps
+ * and layers a group takes after its `)`.
  *
  * The second alternative is where the grammar reads past what it can
  * decide, JavaScript's cover grammar at one name's width: `(a.b) => 1` is
@@ -761,11 +762,30 @@ export const afterName = {
  * followed by anything is no parameter. The comma decides the first in
  * one symbol, a group holding one value and no comma operator.
  *
+ * @type {NamedMore}
+ */
+export const namedMore = {
+    list: [sym(','), trivia, option(parameterNames), sym(')'), sameLine, sym('=>'), trivia, body],
+    cover: [accesses, powTail, ...tail, sym(')'), sameLine, afterName],
+}
+
+/**
+ * What follows the first name inside a `(`, once the trivia on its line is
+ * read: `=>` and a body — a bare arrow in a group, `(a => a)(1)`, the `)`
+ * closing the group and its steps and layers after it — or, past the
+ * line's end, {@link namedMore}: a comma and the rest of a parameter list,
+ * or the rest of a value the name opened.
+ *
+ * `=>` decides in one symbol, as it does after a bare name outside a
+ * group ({@link afterName}), and for the same reason it may not be reached
+ * across a newline: `(a` and `=> a` on two lines is a syntax error in
+ * JavaScript, so the newline here is where a list or a value goes on.
+ *
  * @type {Named}
  */
 export const named = {
-    list: [sym(','), trivia, option(parameterNames), sym(')'), sameLine, sym('=>'), trivia, body],
-    cover: [accesses, powTail, ...tail, sym(')'), sameLine, afterName],
+    arrow: [sym('=>'), trivia, body, sym(')'), trivia, accesses, powTail, ...tail],
+    more: [lineBreak, namedMore],
 }
 
 /**
@@ -823,7 +843,7 @@ export const group = [value, sym(')'), trivia, accesses, powTail]
 export const parenthesized = {
     rest: [sym('...'), trivia, identifierName, trivia, sym(')'), sameLine, sym('=>'), trivia, body],
     empty: [sym(')'), sameLine, sym('=>'), trivia, body],
-    named: [identifier, trivia, named],
+    named: [identifier, sameLine, named],
     group: [groupValue, sym(')'), trivia, accesses, powTail, ...tail],
 }
 
