@@ -147,7 +147,7 @@ const render = {
     release: {
         page: () => {
             const html = utf8ToString(releasePage('0.41.0')([[['code', 'a']]]))
-            assert(html.includes('<title>FunctionalScript 0.41.0</title>'), html)
+            assert(html.includes('<title>0.41.0 · FunctionalScript</title>'), html)
             assert(html.includes('<h1>0.41.0</h1>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
             // Every page of the site carries the same stylesheet and icons.
@@ -168,6 +168,10 @@ const render = {
         newestFirst: () => {
             const html = utf8ToString(indexPage(['0.11.2', '0.11.10']))
             assert(html.indexOf('_0.11.10.html') < html.indexOf('_0.11.2.html'), html)
+        },
+        title: () => {
+            const html = utf8ToString(indexPage([]))
+            assert(html.includes('<title>Releases · FunctionalScript</title>'), html)
         },
         linksEvery: () => assertEq(
             utf8ToString(indexPage(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),

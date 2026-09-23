@@ -678,6 +678,8 @@ export const proof = {
             source)
         // The heading is the project; the suite is one section of its page.
         assert(source.includes('<h1>FunctionalScript</h1>'), source)
+        // The root is the site itself, so its title is the name alone.
+        assert(source.includes('<title>FunctionalScript</title>'), source)
         // The root page carries the same favicon links every other page does.
         assert(source.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), source)
         assert(source.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), source)
