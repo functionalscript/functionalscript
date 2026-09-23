@@ -192,18 +192,20 @@ const literalWordSet = new Set(/** @type {readonly string[]} */(literalWords))
  * The word a name token spells. A framing keyword is an identifier too,
  * arriving as the same `id` token; each of the six words that denote a
  * value is a token kind of its own, and *is* its own word. Exported for
- * the fold, which reads the words this reader only carries.
+ * the fold, which reads the words this reader only carries — linkage, not
+ * API, which the `_` says as it does for `_tokenKindNames` in
+ * `../grammar`.
  *
  * @type {(t: DjsTokenWithMetadata) => string}
  */
-export const nameOf = ({ token }) => {
+export const _nameOf = ({ token }) => {
     if (token.kind === 'id') { return token.value }
     assert(literalWordSet.has(token.kind), token.kind)
     return token.kind
 }
 
-/** The text a string token holds. Exported for the fold, as {@link nameOf} is. @type {(t: DjsTokenWithMetadata) => string} */
-export const textOf = ({ token }) => {
+/** The text a string token holds. Exported for the fold, as {@link _nameOf} is. @type {(t: DjsTokenWithMetadata) => string} */
+export const _textOf = ({ token }) => {
     assert(token.kind === 'string')
     return token.value
 }
@@ -355,7 +357,7 @@ const withPow = (base, powTail) => {
 
 /**
  * Every binary layer's own tag, read to its operator, in one flat map:
- * `multiplicativeOp` through `nullishOp` (`./grammar/module.f.mjs`) each
+ * `multiplicativeOp` through `nullishOp` (`../grammar/module.f.mjs`) each
  * key their own rounds by a name none of the other ten use, so one map
  * serves a round from any layer — no per-layer reader, and so no branch for
  * a tag no round can carry: a plain lookup has no branch to leave
@@ -498,7 +500,7 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * position, which is what lets the second `unmapped` below see a precise
  * shape instead of `unknown`. `UnaryOperand`'s own four leaves are wrapped
  * one tuple deep for exactly this reason — see its own comment in
- * `./grammar/module.f.mjs` — so the same reads serve both rules.
+ * `../grammar/module.f.mjs` — so the same reads serve both rules.
  *
  * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'name', unknown]>) => Node}
  */
@@ -528,7 +530,7 @@ const baseOf = ([tag, branch]) => {
 }
 
 /**
- * What follows a name, {@link afterName} in `./grammar/module.f.mjs`: `=>`
+ * What follows a name, {@link afterName} in `../grammar/module.f.mjs`: `=>`
  * and a body, at the first and third positions of `=> t body` — the
  * function of the parameter list `parameters` makes of the arrow's token —
  * or the rest of a value over `value`, `n access* powTail tail`, the steps
@@ -600,7 +602,7 @@ const namedMoreNode = (first, [tag, branch]) => {
 }
 
 /**
- * What a `(` opened, {@link parenthesized} in `./grammar/module.f.mjs`,
+ * What a `(` opened, {@link parenthesized} in `../grammar/module.f.mjs`,
  * by the branch its next symbol took: the rest parameter at the third
  * position of `... t name t ) s => t body` and the body at the ninth; an
  * empty list's body at the fifth position of `) s => t body`; a name and
@@ -608,7 +610,7 @@ const namedMoreNode = (first, [tag, branch]) => {
  * no name, the steps after its `)` at the fourth position, the power at
  * the fifth and the binary layers after it applied, {@link applyTail} — a
  * function takes none, nothing following one unparenthesized (`unary`'s
- * own comment in `./grammar/module.f.mjs` has why).
+ * own comment in `../grammar/module.f.mjs` has why).
  *
  * A group is no node of its own: `(x)` is whatever `x` is, and the steps
  * after the `)` apply to that same node, so nothing downstream can tell a
@@ -743,15 +745,15 @@ const keyOf = ([tag, branch]) => {
     switch (tag) {
         case 'plain': {
             const t = tokenAt(unmapped(branch)[1])
-            return [t, nameOf(t), false]
+            return [t, _nameOf(t), false]
         }
         case 'string': {
             const t = tokenAt(branch)
-            return [t, textOf(t), false]
+            return [t, _textOf(t), false]
         }
         case 'computed': {
             const t = tokenAt(unmapped(branch)[2])
-            return [t, textOf(t), true]
+            return [t, _textOf(t), true]
         }
     }
 }
@@ -778,7 +780,7 @@ const attributeOf = node => {
 
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toImport = ([, , name, , , , module, , attribute]) =>
-    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)), attribute: attributeOf(attribute) } })
+    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: _textOf(tokenAt(module)), attribute: attributeOf(attribute) } })
 
 /** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([, , name, , , , v]) =>
@@ -834,7 +836,7 @@ const toNames = node => symbol({ id: 'names', items: namesOf(node) })
 /**
  * The rewrite set: a value to its node, a list to its items, a member and
  * each statement to its record, and the module to the records of its
- * statements. Keyed by the rules `./grammar` holds, so that
+ * statements. Keyed by the rules `../grammar` holds, so that
  * `parser(djsModule, mappings)` yields one symbol carrying the module.
  *
  * @type {RewriteSet<DjsTokenWithMetadata, Out>}

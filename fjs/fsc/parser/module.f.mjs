@@ -52,7 +52,7 @@ import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs'
-import { nameOf, readFromTokens, textOf } from './reader/module.f.mjs'
+import { _nameOf, _textOf, readFromTokens } from './reader/module.f.mjs'
 
 /**
  * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
@@ -119,7 +119,7 @@ const keywordSet = new Set(keywords)
  * @type {(name: DjsTokenWithMetadata) => Result<string, ParseError>}
  */
 const identifierOf = name => {
-    const word = nameOf(name)
+    const word = _nameOf(name)
     return keywordSet.has(word) ? error(reservedWord(name)) : ok(word)
 }
 
@@ -140,8 +140,8 @@ const unknownType = foldError('unknown import type')
 const imported = ({ module, attribute }) => {
     if (attribute === null) { return ok({ specifier: module, json: false }) }
     const [key, value] = attribute
-    if (nameOf(key) !== 'type') { return error(unknownAttribute(key)) }
-    if (textOf(value) !== 'json') { return error(unknownType(value)) }
+    if (_nameOf(key) !== 'type') { return error(unknownAttribute(key)) }
+    if (_textOf(value) !== 'json') { return error(unknownType(value)) }
     return ok({ specifier: module, json: true })
 }
 
@@ -196,7 +196,7 @@ const keyNamed = t => {
     switch (token.kind) {
         case 'string': { return token.value }
         case 'number': { return parseFloat(token.value) }
-        default: { return nameOf(t) }
+        default: { return _nameOf(t) }
     }
 }
 

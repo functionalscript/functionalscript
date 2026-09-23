@@ -261,8 +261,9 @@ value-returning statement. This representation change adds no syntax or ASI.
 `readFromTokens`, the reader's own entry, hands that tree over before the
 fold. It does not establish binding validity, JavaScript early errors or FJS
 admission; `parseFromTokens` remains the checked compilation entry point. The
-reader reads no word: the two helpers it exports for the fold, `nameOf` and
-`textOf`, are how a token's word reaches the one module that judges it.
+reader reads no word: the two helpers it exports for the fold, `_nameOf`
+and `_textOf`, are how a token's word reaches the one module that judges it
+— linkage rather than API, which the `_` says.
 
 Nothing walks the tree. The machine's own stack is on the heap, so nesting
 depth is the input's; a list's mapping puts one item before the list its

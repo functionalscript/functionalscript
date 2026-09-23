@@ -33,7 +33,7 @@ import type { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
  *
  * A binary operator is `[tag, left, right]`, its tag the token itself —
  * Stage A of
- * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
+ * [`spec/todo/2340-operators.md`](../../../../spec/todo/2340-operators.md):
  * arithmetic, strict comparison, and bitwise — and Stage B's lazy `&&`,
  * `||` and `??` the same shape, laziness being no shape difference here
  * any more than in the EDAG. `-` alone is both a prefix and an infix, told
