@@ -25,7 +25,7 @@
  *
  * @import { Edge, Graph, Node, Ranked } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Positioned } from './private.ts'
+ * @import { _Port, _Positioned } from './private.ts'
  */
 
 /**
@@ -60,7 +60,8 @@ export const ranked = (nodes, edges) => {
     return current
 }
 
-const nodeHeight = 26
+const headerHeight = 26
+const portHeight = 20
 const rowGap = 40
 const colGap = 14
 const margin = 10
@@ -68,6 +69,32 @@ const charWidth = 7
 
 /** @type {(label: string) => number} */
 const widthOf = label => Math.max(50, label.length * charWidth + 16)
+
+/** @type {(label: string) => number} */
+const portWidthOf = label => Math.max(24, label.length * charWidth + 12)
+
+/**
+ * A node's ports: one cell per outgoing edge, in the order the demo gave
+ * the edges, laid side by side across the node's bottom row.
+ *
+ * **The cells fill the node.** A node is as wide as the wider of its own
+ * label and its cells laid end to end; where the label is the wider, the
+ * spare width is shared out evenly, so the bottom row is one unbroken
+ * strip rather than cells huddled at the left under a long label.
+ *
+ * @type {(label: string) => (out: readonly Edge[]) => { readonly width: number, readonly ports: readonly _Port[] }}
+ */
+const portsOf = label => out => {
+    const natural = out.map(e => portWidthOf(e.label))
+    const total = natural.reduce((a, b) => a + b, 0)
+    const width = Math.max(widthOf(label), total)
+    const extra = out.length === 0 ? 0 : (width - total) / out.length
+    const ports = out.reduce((acc, edge, i) => ({
+        x: acc.x + natural[i] + extra,
+        ports: [...acc.ports, { edge, x: acc.x, width: natural[i] + extra }],
+    }), { x: 0, ports: /** @type {readonly _Port[]} */ ([]) }).ports
+    return { width, ports }
+}
 
 /**
  * Every node at rank `r`, ordered by id — creation order, not rank order:
@@ -84,127 +111,115 @@ const byRank = nodes => {
     return Array.from({ length: maxRank + 1 }, (_, rank) => nodes.filter(n => n.rank === rank))
 }
 
-/** @type {(row: readonly Ranked[]) => (y: number) => readonly _Positioned[]} */
-const layoutRow = row => y => row.reduce((acc, node) => {
-    const width = widthOf(node.label)
+/**
+ * One rank's nodes, placed left to right at `y`. A node with outgoing
+ * edges is a header and a row of ports beneath it; a node without is the
+ * header alone, so a leaf keeps the size it always had.
+ *
+ * @type {(outgoingOf: readonly (readonly Edge[])[]) => (row: readonly Ranked[]) => (y: number) => readonly _Positioned[]}
+ */
+const layoutRow = outgoingOf => row => y => row.reduce((acc, node) => {
+    const out = outgoingOf[node.id]
+    const { width, ports } = portsOf(node.label)(out)
+    const height = headerHeight + (out.length === 0 ? 0 : portHeight)
     return {
         x: acc.x + width + colGap,
-        positioned: [...acc.positioned, { ...node, x: acc.x, y, width, height: nodeHeight }],
+        positioned: [...acc.positioned, { ...node, x: acc.x, y, width, height, ports }],
     }
 }, { x: margin, positioned: /** @type {readonly _Positioned[]} */ ([]) }).positioned
 
-/** @type {(nodes: readonly Ranked[]) => readonly _Positioned[]} */
-const layout = nodes => byRank(nodes).flatMap(
-    (row, rank) => layoutRow(row)(margin + rank * (nodeHeight + rowGap)))
-
 /**
- * `edges`, with same-pair edges combined into one line. Three array elements
- * sharing one value are three edges with the same `from`/`to` and different
- * labels — drawn separately they land on the same two points and only the
- * last label is ever visible, so they draw as one line labeled with every
- * index or key that reaches it.
+ * Every node placed, a rank to a row. A row is as tall as its tallest
+ * node, so the next row starts below the ports of any node in this one.
  *
- * **Only edges of one kind merge.** An earlier version merged by endpoints
- * alone and dropped a kind the two did not share, which drew `a && a` — both
- * operands one node — as a single solid line labelled `left, right`, saying
- * the conditional operand was not conditional. The positions are what a
- * kind describes, so two positions that differ in one stay two lines;
- * {@link graphSvg} bows them apart, since same-pair lines otherwise land on
- * the same curve.
- *
- * @type {(edges: readonly Edge[]) => readonly Edge[]}
+ * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => readonly _Positioned[]}
  */
-const mergeParallel = edges => edges.reduce((acc, edge) => {
-    const at = acc.findIndex(
-        e => e.from === edge.from && e.to === edge.to && e.kind === edge.kind)
-    return at === -1
-        ? [...acc, edge]
-        : acc.with(at, { ...acc[at], label: `${acc[at].label}, ${edge.label}` })
-}, /** @type {readonly Edge[]} */ ([]))
+const layout = nodes => edges => {
+    const outgoingOf = nodes.map(n => edges.filter(e => e.from === n.id))
+    return byRank(nodes).reduce((acc, row) => {
+        const placed = layoutRow(outgoingOf)(row)(acc.y)
+        const tallest = placed.reduce((m, p) => Math.max(m, p.height), 0)
+        return { y: acc.y + tallest + rowGap, positioned: [...acc.positioned, ...placed] }
+    }, { y: margin, positioned: /** @type {readonly _Positioned[]} */ ([]) }).positioned
+}
 
 /**
  * A graph, drawn: a node per {@link Ranked}, an edge per {@link Edge},
  * ranked by longest path from the root.
  *
- * **Three layers, not two: boxes, then edges, then the node labels.** An
+ * **Every edge leaves from a port of its own.** A node with outgoing
+ * edges draws a row of cells under its label, one per edge, each holding
+ * that edge's label, and the edge starts at the bottom of its cell. Drawn
+ * from one shared point, several edges fanned out of a node's bottom edge
+ * with their labels floating over the lines, and two edges to one node —
+ * `[a, a]`, or `a && a` — landed on one curve and had to be merged or bowed
+ * apart. From a cell each, no two edges share a start, a label always sits
+ * in the box it names, and nothing has to be merged.
+ *
+ * **Three layers, not two: boxes, then edges, then the labels.** An
  * edge whose rank difference is more than one crosses the ranks between its
  * ends, and a node sitting there is an opaque box — drawn over the edges,
  * as it was while nodes were one layer, it hid about a quarter of every
  * edge that passed under it, on roughly one edge in six of the graphs these
  * demos start with. Edges therefore draw over the boxes. What that order
- * used to protect is the node's own text, so the text moves above the
- * edges and keeps its protection, while the box — a background fill and a
- * border, carrying no information a line can obscure — gives it up.
+ * used to protect is the text, so node and port labels move above the
+ * edges and keep their protection, while the boxes — a background fill and
+ * a border, carrying no information a line can obscure — give it up.
  *
  * Each edge draws twice, a wide background-coloured casing under the line
  * itself, so a crossing reads as one line passing in front of a box rather
- * than as two strokes meeting at the border. It is the trick the edge
- * labels already use against each other, which `paint-order` does in one
- * element for text and a path needs two elements for.
+ * than as two strokes meeting at the border.
  *
  * @type {(g: Graph) => Element}
  */
 export const graphSvg = g => {
-    const positioned = layout(g.nodes)
+    const positioned = layout(g.nodes)(g.edges)
     const at = /** @type {(id: number) => _Positioned} */ (id => positioned.find(p => p.id === id))
     const width = positioned.reduce((m, p) => Math.max(m, p.x + p.width), 0) + margin
     const height = margin + positioned.reduce((m, p) => Math.max(m, p.y + p.height), 0)
-    const merged = mergeParallel(g.edges)
     /** @type {readonly Element[]} */
-    const edgeEls = merged.flatMap((edge, i) => {
-        // Lines between one pair that did not merge — they differ in kind —
-        // would land on the same curve, so each after the first is bowed
-        // further out. A pair with one line is untouched, which is every
-        // pair a demo that marks nothing can produce.
-        const sibling = merged.filter(
-            (e, j) => j < i && e.from === edge.from && e.to === edge.to).length
-        const from = at(edge.from)
+    const edgeEls = positioned.flatMap(from => from.ports.flatMap(port => {
+        const edge = port.edge
         const to = at(edge.to)
-        const x1 = from.x + from.width / 2
+        const x1 = from.x + port.x + port.width / 2
         const y1 = from.y + from.height
         const x2 = to.x + to.width / 2
         const y2 = to.y
-        const bow = (to.rank - from.rank > 1 ? 24 : 0) + sibling * 20
+        const bow = to.rank - from.rank > 1 ? 24 : 0
         const cx = (x1 + x2) / 2 + bow
         const cy = (y1 + y2) / 2
-        // Two-thirds of the way to the child, not the midpoint: several
-        // edges can fan out from one shared point (an object with two keys
-        // naming siblings), and their midpoints sit closer together than
-        // their children do. Nearer the child is nearer where the labels
-        // have already spread apart.
-        //
-        // A sibling line's label moves back toward the parent along its own
-        // curve. The bow alone parts two labels by under half its offset —
-        // about 9px on one baseline, where `left` and `right` overlap and
-        // the second's halo rubs out the first — while one row's height is
-        // 40px, so stepping along the line parts them by a line of text and
-        // keeps each on the curve it names.
-        const t = 0.65 / (1 + sibling)
-        const lx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2
-        const ly = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2
         const d = `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`
-        return [
+        return /** @type {readonly Element[]} */ ([
             ['path', { d, 'data-graph-edge-casing': '' }],
             ['path', {
                 d, 'data-graph-edge': '', 'marker-end': 'url(#graph-arrow)',
                 ...(edge.kind === undefined ? {} : { 'data-graph-edge-kind': edge.kind }),
             }],
-            ['text', {
-                x: String(lx), y: String(ly),
-                'text-anchor': 'middle', 'data-graph-edge-label': '',
-            }, edge.label],
-        ]
-    })
+        ])
+    }))
     /** @type {readonly Element[]} */
-    const boxEls = positioned.map(p => ['rect', {
-        x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: '4',
-        'data-graph-node': '', 'data-graph-kind': p.kind,
-    }])
+    const boxEls = positioned.flatMap(p => [
+        /** @type {Element} */ (['rect', {
+            x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: '4',
+            'data-graph-node': '', 'data-graph-kind': p.kind,
+        }]),
+        ...p.ports.map(port => /** @type {Element} */ (['rect', {
+            x: String(p.x + port.x), y: String(p.y + headerHeight),
+            width: String(port.width), height: String(portHeight),
+            'data-graph-port': '',
+        }])),
+    ])
     /** @type {readonly Element[]} */
-    const labelEls = positioned.map(p => ['text', {
-        x: String(p.x + p.width / 2), y: String(p.y + p.height / 2),
-        'text-anchor': 'middle', 'data-graph-label': '',
-    }, p.label])
+    const labelEls = positioned.flatMap(p => [
+        /** @type {Element} */ (['text', {
+            x: String(p.x + p.width / 2), y: String(p.y + headerHeight / 2),
+            'text-anchor': 'middle', 'data-graph-label': '',
+        }, p.label]),
+        ...p.ports.map(port => /** @type {Element} */ (['text', {
+            x: String(p.x + port.x + port.width / 2), y: String(p.y + headerHeight + portHeight / 2),
+            'text-anchor': 'middle', 'data-graph-edge-label': '',
+        }, port.edge.label])),
+    ])
     return ['svg', { viewBox: `0 0 ${width} ${height}`, width: String(width), height: String(height) },
         ['defs',
             ['marker', {
