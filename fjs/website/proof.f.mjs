@@ -340,7 +340,7 @@ export const proof = {
             })
             const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
             assert(page.includes('>notes.md</a>'), page)
-            assert(page.includes('<summary>Directories</summary>'), page)
+            assert(page.includes('<summary><h2>Directories</h2></summary>'), page)
         },
         /**
          * **`todo/` is a section of its parent, not a page.** Its issues are
@@ -441,7 +441,7 @@ export const proof = {
         aDirectoryWithoutProofsHasNoSection: () => {
             const { root } = generate({ a: { 'notes.md': file('# notes') } })
             const page = pageAt(root, ['a'])
-            assert(!page.includes('<summary>Emergent Testing'), page)
+            assert(!page.includes('<summary><h2>Emergent Testing</h2>'), page)
             assert(!page.includes('data-test-run'), page)
         },
         /**
@@ -487,6 +487,13 @@ export const proof = {
             assert(ten.includes('<strong>BREAKING CHANGES:</strong>'), ten)
             // A bare reference becomes the link it names.
             assert(ten.includes('/pull/7">#7</a>'), ten)
+            // Each page links the release before it by version, not by name:
+            // 0.2.0 is 0.10.0's previous, and 0.10.0 is 0.2.0's next.
+            assert(ten.includes('href="/changelog/_0.2.0.html" rel="prev"'), ten)
+            assert(!ten.includes('rel="next"'), ten)
+            const two = textOf(dir['_0.2.0.html'], '0.2.0')
+            assert(two.includes('href="/changelog/_0.10.0.html" rel="next"'), two)
+            assert(!two.includes('rel="prev"'), two)
         },
         // The version is the file name, so a file whose name is not one
         // describes the format rather than recording a release — and a file
@@ -572,7 +579,7 @@ export const proof = {
         omittedWithoutOne: () => {
             const { root } = generate({ a: { 'module.f.mjs': file('export const x = 1') } })
             const page = pageAt(root, ['a'])
-            assert(!page.includes('<summary>Demo</summary>'), page)
+            assert(!page.includes('<summary><h2>Demo</h2></summary>'), page)
             assert(!page.includes('data-demo'), page)
         },
         /**
@@ -669,12 +676,12 @@ export const proof = {
         assert(source.includes('data-state="idle"'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
-        assert(source.includes('<summary>Directories</summary>'), source)
+        assert(source.includes('<summary><h2>Directories</h2></summary>'), source)
         // The catalogue is above the suite: what the directory holds is what
         // the reader came for, and a run cannot move what is above it.
         assert(
-            source.indexOf('<summary>Directories</summary>')
-                < source.indexOf('<summary>Emergent Testing<span data-test-counts=""></span></summary>'),
+            source.indexOf('<summary><h2>Directories</h2></summary>')
+                < source.indexOf('<summary><h2>Emergent Testing</h2><span data-test-counts=""></span></summary>'),
             source)
         // The heading is the project; the suite is one section of its page.
         assert(source.includes('<h1>FunctionalScript</h1>'), source)

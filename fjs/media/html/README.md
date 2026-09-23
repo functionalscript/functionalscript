@@ -10,7 +10,7 @@
 ## Example
 
 ```html
-<html>
+<html lang="en">
     <head>
         <title>Page</title>
     </head>
@@ -21,7 +21,7 @@
 ```
 
 ```js
-['html',
+['html', { lang: 'en' },
     ['head',
         ['title', 'Page']
     ]
