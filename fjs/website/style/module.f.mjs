@@ -195,6 +195,10 @@ svg text { font: inherit }
    EDAG demo's args and frame do, and drawing it dashed would file an
    input with the constants. Two looks were enough while the DataJS demo
    was the only reader and a leaf and a container were the whole world.
+   An edge that a demo marks draws dashed: the EDAG demo marks an operand
+   its node may never evaluate, and a solid line there would say the value
+   is always wanted. A node is drawn once however many edges reach it, so
+   the marking has to be on the line rather than on the box.
    An edge label is haloed in the page's own background rather than boxed,
    so two crossing lines still read under it without a second shape per
    label, and an edge is cased in it — a wide background stroke under the
@@ -206,6 +210,7 @@ svg text { font: inherit }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }
 [data-graph-edge-casing] { fill: none; stroke: var(--bg); stroke-width: 5 }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
+[data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-edge-label] {
     dominant-baseline: middle; fill: var(--muted); font-size: .7rem;
     paint-order: stroke; stroke: var(--bg); stroke-linejoin: round; stroke-width: 3px;
