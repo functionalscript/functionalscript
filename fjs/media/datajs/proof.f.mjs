@@ -118,6 +118,12 @@ export const proof = {
                 assertEq(occurrences(html, 'data-graph-port=""'), 4)
                 assertEq(occurrences(html, 'data-graph-edge=""'), 4)
                 assert(!html.includes('>0, 1, 2<'), html)
+                // Four different lines, not three drawn on top of each
+                // other: each piece before an edge's marker ends with its
+                // path data.
+                const routes = html.split('" data-graph-edge=""').slice(0, -1)
+                    .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
+                assertEq(new Set(routes).size, 4)
             },
             // A shared node reached again from above an intervening rank
             // runs down a lane of its own through that rank; the edges

@@ -12,6 +12,15 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
  *
  * @type {Graph}
  */
+/**
+ * Every drawn edge's `d`, in document order. Each piece of the SVG before
+ * an edge's marker attribute ends with that edge's path data.
+ *
+ * @type {(html: string) => readonly string[]}
+ */
+const routes = html => html.split('" data-graph-edge=""').slice(0, -1)
+    .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
+
 const skipLevel = {
     nodes: [
         { id: 0, kind: 'a', label: '{ }', rank: 0 },
@@ -275,6 +284,30 @@ export const proof = {
             assertEq(html.split('data-graph-edge=""').length - 1, 2)
             assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
             assert(!html.includes('>left, right<'), html)
+            // Each from a port of its own: two different lines, not one
+            // line drawn twice.
+            assertEq(new Set(routes(html)).size, 2)
+        },
+        /**
+         * **An edge is its place in the list, not its object.** The same
+         * `Edge` object listed twice is two edges, two ports and two
+         * lanes. A lane found by object would belong to both, and each
+         * route would run down one lane, back up and down the other; found
+         * by position, each runs down its own — the drawing two separate
+         * but equal objects give.
+         */
+        sharedEdgeObject: () => {
+            const nodes = [
+                { id: 0, kind: 'a', label: 'root', rank: 0 },
+                { id: 1, kind: 'a', label: 'mid', rank: 1 },
+                { id: 2, kind: 'leaf', label: 'deep', rank: 2 },
+            ]
+            const e = { from: 0, to: 2, label: 'e' }
+            const middle = [{ from: 0, to: 1, label: 'm' }, { from: 1, to: 2, label: 'x' }]
+            const html = htmlToString(graphSvg({ nodes, edges: [e, ...middle, e] }))
+            assert(html.includes('d="M22,56 L15,96 L15,142 L35,182"'), html)
+            assert(html.includes('d="M70,56 L39,96 L39,142 L35,182"'), html)
+            assertEq(html, htmlToString(graphSvg({ nodes, edges: [{ ...e }, ...middle, { ...e }] })))
         },
         /**
          * **Boxes, then edges, then the labels** — the document order

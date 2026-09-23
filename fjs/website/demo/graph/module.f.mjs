@@ -29,7 +29,7 @@
  *
  * @import { Edge, Graph, Node, Ranked } from './types.ts'
  * @import { Element } from '../../../media/html/types.ts'
- * @import { _Lane, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
+ * @import { _Lane, _Out, _Point, _Port, _Positioned, _Route, _Slot } from './private.ts'
  */
 
 /**
@@ -87,16 +87,16 @@ const portWidthOf = label => Math.max(24, label.length * charWidth + 12)
  * spare width is shared out evenly, so the bottom row is one unbroken
  * strip rather than cells huddled at the left under a long label.
  *
- * @type {(label: string) => (out: readonly Edge[]) => { readonly width: number, readonly ports: readonly _Port[] }}
+ * @type {(label: string) => (out: readonly _Out[]) => { readonly width: number, readonly ports: readonly _Port[] }}
  */
 const portsOf = label => out => {
-    const natural = out.map(e => portWidthOf(e.label))
+    const natural = out.map(({ edge }) => portWidthOf(edge.label))
     const total = natural.reduce((a, b) => a + b, 0)
     const width = Math.max(widthOf(label), total)
     const extra = out.length === 0 ? 0 : (width - total) / out.length
-    const ports = out.reduce((acc, edge, i) => ({
+    const ports = out.reduce((acc, { edge, index }, i) => ({
         x: acc.x + natural[i] + extra,
-        ports: [...acc.ports, { edge, x: acc.x, width: natural[i] + extra }],
+        ports: [...acc.ports, { edge, index, x: acc.x, width: natural[i] + extra }],
     }), { x: 0, ports: /** @type {readonly _Port[]} */ ([]) }).ports
     return { width, ports }
 }
@@ -107,13 +107,17 @@ const portsOf = label => out => {
  * just after its source's id, among the nodes ordered by id — so a lane
  * sits near where its edge starts rather than at the far end of a row.
  *
- * @type {(rankOf: (id: number) => number) => (edge: Edge) => readonly _Slot[]}
+ * A lane carries its edge's `index`, its position in the graph's list,
+ * because that is what tells two edges apart: the same `Edge` object may
+ * be listed twice, and a lane found by object would belong to both.
+ *
+ * @type {(rankOf: (id: number) => number) => (edge: Edge, index: number) => readonly _Slot[]}
  */
-const lanesOf = rankOf => edge => {
+const lanesOf = rankOf => (edge, index) => {
     const from = rankOf(edge.from)
     const span = rankOf(edge.to) - from
     return Array.from({ length: Math.max(0, span - 1) },
-        (_, i) => ({ lane: edge, rank: from + 1 + i, key: edge.from + 0.5 }))
+        (_, i) => ({ lane: index, rank: from + 1 + i, key: edge.from + 0.5 }))
 }
 
 /**
@@ -131,8 +135,11 @@ const layout = nodes => edges => {
     // Keyed by id, not by position: a `Graph` does not promise its nodes
     // in id order, and reading an array built in one order by the other
     // would hang a node's ports on whichever node sat at that index.
-    const outgoing = new Map(nodes.map(n => [n.id, edges.filter(e => e.from === n.id)]))
-    const outgoingOf = /** @type {(id: number) => readonly Edge[]} */ (id => /** @type {readonly Edge[]} */ (outgoing.get(id)))
+    // Each edge travels with its index, which is what names it from here
+    // on: the same object may be listed twice and is then two edges.
+    const outgoing = new Map(nodes.map(n => [n.id,
+        edges.flatMap((edge, index) => edge.from === n.id ? [{ edge, index }] : [])]))
+    const outgoingOf = /** @type {(id: number) => readonly _Out[]} */ (id => /** @type {readonly _Out[]} */ (outgoing.get(id)))
     const ranks = new Map(nodes.map(n => [n.id, n.rank]))
     const rankOf = /** @type {(id: number) => number} */ (id => /** @type {number} */ (ranks.get(id)))
     /** @type {readonly _Slot[]} */
@@ -150,7 +157,7 @@ const layout = nodes => edges => {
         const placed = row.reduce((r, slot) => {
             if (slot.node === undefined) {
                 /** @type {_Lane} */
-                const lane = { edge: /** @type {Edge} */ (slot.lane), x: r.x + laneWidth / 2, top: acc.y, bottom: acc.y + tallest }
+                const lane = { index: /** @type {number} */ (slot.lane), x: r.x + laneWidth / 2, top: acc.y, bottom: acc.y + tallest }
                 return { ...r, x: r.x + laneWidth + colGap, lanes: [...r.lanes, lane] }
             }
             const { width, ports } = portsOf(slot.node.label)(outgoingOf(slot.node.id))
@@ -181,7 +188,7 @@ const routesOf = placed => {
         /** @type {readonly _Point[]} */
         const points = [
             [from.x + port.x + port.width / 2, from.y + from.height],
-            ...placed.lanes.filter(lane => lane.edge === port.edge)
+            ...placed.lanes.filter(lane => lane.index === port.index)
                 .flatMap(lane => /** @type {readonly _Point[]} */ ([[lane.x, lane.top], [lane.x, lane.bottom]])),
             [to.x + to.width / 2, to.y],
         ]

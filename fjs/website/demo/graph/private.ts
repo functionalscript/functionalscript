@@ -7,11 +7,19 @@
 import type { Edge, Ranked } from './types.ts'
 
 /**
+ * An outgoing edge and its `index`, its position in the graph's list of
+ * edges — what tells two listings of one `Edge` object apart.
+ */
+export type _Out = {
+    readonly edge: Edge
+    readonly index: number
+}
+
+/**
  * One cell of a node's bottom row: the edge that leaves from it, and where
  * the cell sits, `x` measured from the node's own left edge.
  */
-export type _Port = {
-    readonly edge: Edge
+export type _Port = _Out & {
     readonly x: number
     readonly width: number
 }
@@ -32,17 +40,19 @@ export type _Positioned = Ranked & {
  */
 export type _Slot = {
     readonly node?: Ranked | undefined
-    readonly lane?: Edge | undefined
+    /** The `index` of the edge whose lane this is. */
+    readonly lane?: number | undefined
     readonly rank: number
     readonly key: number
 }
 
 /**
  * A lane, placed: the vertical an edge runs down through one row it
- * skips, `x` its centre and `top`/`bottom` the row's own.
+ * skips, `x` its centre and `top`/`bottom` the row's own. `index` is the
+ * edge's, as a port carries it.
  */
 export type _Lane = {
-    readonly edge: Edge
+    readonly index: number
     readonly x: number
     readonly top: number
     readonly bottom: number
