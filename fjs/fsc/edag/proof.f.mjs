@@ -851,9 +851,24 @@ export const proof = {
                 assertEq(shape.label, '()')
                 assertStructurallySame(shape.children, [['callee', ['a']], ['arg', ['b']]])
             },
+            /**
+             * **A comma's operands are named, not numbered.** It establishes
+             * all of them and takes the value of the last; the earlier ones
+             * exist for their throw-potential only. Numbers showed five
+             * equals where one is the answer and the rest only have to
+             * happen.
+             */
             comma: () => {
                 const shape = assertNotNullish(_shapeOf([',', [1, 2, 3]]), 'expected a shape')
-                assertStructurallySame(shape.children, [['0', 1], ['1', 2], ['2', 3]])
+                assertStructurallySame(shape.children, [
+                    ['anchor', 1], ['anchor', 2], ['result', 3]])
+            },
+            // Two is the shortest a canonical comma has: one anchor and the
+            // value. A single operand would be the identity, which the
+            // emitter does not write.
+            commaOfTwo: () => {
+                const shape = assertNotNullish(_shapeOf([',', [1, 2]]), 'expected a shape')
+                assertStructurallySame(shape.children, [['anchor', 1], ['result', 2]])
             },
             ternary: () => {
                 const shape = assertNotNullish(_shapeOf(['?:', ['a'], 1, 2]), 'expected a shape')
@@ -970,7 +985,7 @@ export const proof = {
             },
         },
         // The initial source is the demo's whole reason for being: `a` is
-        // one `+` node reached by three edges, not three nodes that happen
+        // one `+` node reached by four edges, not four nodes that happen
         // to match.
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
@@ -1049,6 +1064,17 @@ export const proof = {
             assert(html.includes('>,<'), html)
             assert(html.includes('>5<'), html)
             assert(html.includes('>1<'), html)
+        },
+        /**
+         * **The initial source draws a comma**, so a reader meets the two
+         * roles before typing anything. `checked` is the one thing the
+         * export does not reach, which is what the compiler anchors.
+         */
+        commaRolesInTheInitialSource: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assert(html.includes('>,<'), html)
+            assert(html.includes('>anchor<'), html)
+            assert(html.includes('>result<'), html)
         },
         // A parse failure is shown, not swallowed, and draws no graph.
         error: () => {

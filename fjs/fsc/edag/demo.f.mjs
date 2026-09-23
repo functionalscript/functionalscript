@@ -142,7 +142,21 @@ export const _shapeOf = exp => {
     }
     if (tag === ',') {
         const items = /** @type {readonly Exp[]} */ (exp[1])
-        return { kind: 'op', label: ',', children: items.map((item, i) => [`${i}`, item]) }
+        // **A comma's operands are not alike, and numbering them says they
+        // are.** `fjs/edag`'s own doc: it "establishes all of its operands
+        // and takes the value of the last one; the earlier operands exist
+        // for their throw-potential only — the anchors of computations whose
+        // value nothing takes". Five edges labelled `0` to `4` show five
+        // equals where one is the answer and four only have to happen.
+        //
+        // The names carry that and the drawing carries the order, which is
+        // what the numbers were really for: the operands sit left to right
+        // as they were written.
+        const last = items.length - 1
+        return {
+            kind: 'op', label: ',',
+            children: items.map((item, i) => [i === last ? 'result' : 'anchor', item]),
+        }
     }
     if (tag === '?:') {
         // The condition is established, then exactly one arm — so both arms
@@ -276,9 +290,9 @@ const graphOf = text => {
  * drift apart.
  *
  * The initial source carries this demo's whole reason for existing. `a` is
- * referenced three times — twice in the array, once inside `a * 3` — and
- * every reference is the same `Exp` object, so the `+` node draws once with
- * three incoming edges.
+ * referenced four times — twice in the array, once inside `a * 3`, once as
+ * `m && a`'s right operand — and every reference is the same `Exp` object,
+ * so the `+` node draws once with four incoming edges.
  *
  * It carries one of every look the drawing has, too, so that what the
  * three mean is on screen before a reader has typed anything. The numbers
@@ -302,10 +316,18 @@ const graphOf = text => {
  * decides, and a mark on the box could not have said which of the four
  * was the conditional one.
  *
+ * `checked` is the one thing the export does not reach, so the compiler
+ * anchors it with a comma and the whole module is that comma's result.
+ * Its two edges carry the roles a number could not: `anchor` for a
+ * computation that only has to happen — reading `.x` off the import can
+ * throw, which is why it is kept — and `result` for the value the module
+ * is. It reads `m` rather than `a`, so `a` keeps the four references the
+ * paragraph above counts.
+ *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];',
+    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
         const g = graphOf(text)
