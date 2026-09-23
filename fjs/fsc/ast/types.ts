@@ -193,7 +193,7 @@ export type AstBitnot = readonly ['~', AstConst]
  */
 export type AstBinary = readonly [BinaryTag, AstConst, AstConst]
 
-/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
+/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/reader/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
 export type BinaryTag =
     | '*' | '/' | '%' | '**'
     | '+' | '-'
