@@ -19,7 +19,7 @@ export default (...a) => (...a) => a;   // three `a`s, the innermost read
 A duplicate in one scope, `const a = 1; const a = 2;`, is already refused
 (`duplicate id`). Across scopes nothing is, and the reader has to count
 arrows to know which `a` a body reads. The cost grows with the language:
-once a function can capture ([function-frame](./3111-function-frame.md)), a
+now that a function can capture ([function-frame](./3111-function-frame.md)), a
 name in a body may read its own parameter, an enclosing function's, or a
 module constant, and only the absence of shadowing makes the answer the
 nearest binding *and* the only binding of that name. A refactoring that
@@ -37,9 +37,11 @@ function. A parameter must not repeat an import, a constant, or an
 enclosing function's parameter, and neither must a body constant
 ([functions](../README.md#functions)), which the language has and which may
 take a module's name today — one of the spellings this issue would
-refuse, and the one with the least to hide: a body cannot reach the module's
-scope at all, a reference out being a capture, so the name it takes was
-unreachable rather than visible.
+refuse. A body that reads the name from outside before its `const` binds it
+is refused for now (`capture shadowed`), since JavaScript would read the
+`const` there — a forward reference not yet supported
+([`body-const-forward-reference.md`](../../fjs/fsc/parser/todo/body-const-forward-reference.md)),
+not a rule of this proposal's.
 Two modules are two functions with nothing enclosing them both, so they may
 bind the same names.
 

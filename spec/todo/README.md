@@ -96,9 +96,10 @@ see [serialization](./serialization.md).
 
 ### 3.1. Required
 
-1. [x] function — the non-capturing form is in the language with either
-   body and with either parameter list, `(...a) => expression`,
-   `(...a) => { return expression; }` and `() => expression`
+1. [x] function — in the language with either body and with either
+   parameter list, `(...a) => expression`,
+   `(...a) => { return expression; }` and `() => expression`, capturing
+   what its body names from the scopes around it
    ([functions](../README.md#functions))
 2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
    named lists, with declared arity preserved
