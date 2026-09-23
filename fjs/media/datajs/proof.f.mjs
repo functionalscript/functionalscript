@@ -14,7 +14,8 @@ import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { tryParse, tryParseBytes, trySerialize, tryStringify } from './module.f.mjs'
-import { demo } from './demo.f.mjs'
+import { _graphOf, demo } from './demo.f.mjs'
+import { _crossings } from '../../website/demo/graph/module.f.mjs'
 import { difference } from './vectors/module.f.mjs'
 import { htmlToString } from '../html/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -93,56 +94,76 @@ export const proof = {
                 assert(html.includes('>undefined<'), html)
                 assert(html.includes('>-0<'), html)
             },
-            // The label sits two-thirds of the way to the child, not at the
-            // midpoint — pinned by an exact coordinate, on a straight
-            // one-rank edge where the two positions are easy to tell apart
-            // by hand: y = 36 + (76-36)*t is 62 at t=0.65 and 56 at t=0.5.
+            // An index sits in a port of the array's own box, not on the
+            // line: the header is 26px and the port under it 20px, so the
+            // label is centred at y=46 and the edge leaves the port's
+            // bottom at y=56.
             edgeLabelPosition: () => {
                 const html = htmlToString(demo.view('export default [1];'))
-                assert(html.includes('<text x="35" y="62" text-anchor="middle" data-graph-edge-label="">0<'), html)
+                assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">0<'), html)
+                assert(html.includes('d="M35,56 L35,96"'), html)
             },
             // Two equal numbers are two leaf nodes, not one shared like a
             // container would be — "primitive sharing is not [written]".
-            // Merged, this would render as a single leaf with edges "0, 1"
-            // into it, the same shape `parallelEdgesMerge` below checks for
-            // an actually-shared container.
             equalLeavesDoNotShare: () => {
                 const html = htmlToString(demo.view('export default [1,1];'))
                 assertEq(occurrences(html, 'data-graph-kind="leaf"'), 2)
-                assert(!html.includes('>0, 1<'), html)
             },
-            // Three array elements sharing one value are three edges with
-            // the same endpoints — drawn separately only the last label
-            // would ever be visible, so they draw as one line.
-            parallelEdgesMerge: () => {
+            // Three array elements sharing one value are three ports and
+            // three lines into one node — each index in its own cell, so
+            // none is hidden under another and nothing has to be merged.
+            parallelEdgesArePorts: () => {
                 const html = htmlToString(demo.view('const $0={"n":1};\nexport default [$0,$0,$0];'))
-                assertEq(occurrences(html, 'data-graph-edge-label="">'), 2)
-                assert(html.includes('>0, 1, 2<'), html)
+                assertEq(occurrences(html, 'data-graph-kind="object"'), 1)
+                assertEq(occurrences(html, 'data-graph-port=""'), 4)
+                assertEq(occurrences(html, 'data-graph-edge=""'), 4)
+                assert(!html.includes('>0, 1, 2<'), html)
+                // Four different lines, not three drawn on top of each
+                // other: each piece before an edge's marker ends with its
+                // path data.
+                const routes = html.split('" data-graph-edge=""').slice(0, -1)
+                    .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
+                assertEq(new Set(routes).size, 4)
             },
             // A shared node reached again from above an intervening rank
-            // bows; the edges either side of it, one rank apart, do not —
-            // the exact control points, since the layout is pure arithmetic
-            // over document order and this document's order is fixed.
-            skipLevelBow: () => {
+            // runs down a lane of its own through that rank; the edges
+            // either side of it, one rank apart, are single segments — the
+            // exact routes, since the layout is pure arithmetic over
+            // document order and this document's order is fixed.
+            skipLevelLane: () => {
                 const html = htmlToString(
                     demo.view('const $0=[9];\nconst $1={"y":$0};\nexport default {"p":$1,"r":$0};'))
-                assert(html.includes('d="M35,36 Q59,89 35,142"'), html)
-                assert(html.includes('d="M35,36 Q35,56 35,76"'), html)
+                assert(html.includes('d="M59.5,56 L15,96 L15,142 L35,182"'), html)
+                assert(html.includes('d="M26.5,56 L59,96"'), html)
             },
             // The one case the first version of this demo got wrong: `$0` is
             // reached at rank 1 via `"a"`, then again at rank 3 via
             // `"b"."c"."d"` — the longer route. Rank by longest path moves
             // it to rank 3, so `"a"` becomes the one that skips ranks and
-            // bows, and no edge is left pointing back up the page the way
-            // `"a"` would if `$0` had kept its first-seen rank of 1.
+            // runs down a lane through every rank it skips, and no edge is
+            // left pointing back up the page the way `"a"` would if `$0`
+            // had kept its first-seen rank of 1.
             longestPathWins: () => {
                 const html = htmlToString(demo.view(
                     'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};'))
-                assert(html.includes('d="M35,36 Q59,122 35,208"'), html)
-                assert(html.includes('d="M35,168 Q35,188 35,208"'), html)
-                assert(html.includes('d="M35,102 Q35,122 35,142"'), html)
-                assert(html.includes('d="M35,36 Q35,56 35,76"'), html)
-                assert(html.includes('d="M35,234 Q35,254 35,274"'), html)
+                assert(html.includes('d="M26.5,56 L15,96 L15,142 L15,182 L15,228 L35,268"'), html)
+                assert(html.includes('d="M59.5,56 L59,96"'), html)
+                assert(html.includes('d="M59,142 L59,182"'), html)
+                assert(html.includes('d="M59,228 L35,268"'), html)
+                assert(html.includes('d="M35,314 L35,354"'), html)
+            },
+            // No edge of the initial document, or of the two skip-level
+            // documents above, passes through a node's box.
+            noEdgeCrossesABox: () => {
+                for (const text of [
+                    demo.init,
+                    'const $0=[9];\nconst $1={"y":$0};\nexport default {"p":$1,"r":$0};',
+                    'const $0=[1];\nexport default {"a":$0,"b":{"c":{"d":$0}}};',
+                ]) {
+                    const g = _graphOf(text)
+                    assert(g.ok, text)
+                    assertEq(_crossings(g), 0)
+                }
             },
             // A parse failure is shown, not swallowed, and draws no graph.
             error: () => {
