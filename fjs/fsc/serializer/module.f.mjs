@@ -212,8 +212,12 @@ const parameterNames = (depth, count) => Array.from({ length: count }, (_, i) =>
  * than answered with a different function. `u32` is the bound `length`
  * has everywhere the graph runs — `Array.from` has no list past it, and
  * neither has NaNVM's `static_function` — so a count past it is refused
- * here as the Rust printer refuses it, rather than met with a range error
- * or a list as long as the count.
+ * here as the Rust printer refuses it, rather than met with a range error.
+ * Within the bound the list is as long as the count, as the text of an
+ * array is as long as the array: a count of a billion is a function of a
+ * billion parameters, its text the graph's size and not a fault of the
+ * writer's, and no tighter bound is the language's to state — a host's
+ * own limit on a parameter list is the host's, and differs by engine.
  *
  * @type {(count: number) => Result<number, string>}
  */
