@@ -865,7 +865,9 @@ export const expExpr = shared => e => okThen(p => p.f(e))(printer(true)(shared)(
  */
 const isSmallestLambda = e => {
     const [, count, frame, body] = /** @type {readonly any[]} */ (e)
-    return count === 0
+    // `Object.is`: `-0 === 0`, and a count of `-0` is no count at all,
+    // refused below rather than bound as `function_any`
+    return Object.is(count, 0)
         && frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
         && body instanceof Array && body[0] === 'undefined'
 }
