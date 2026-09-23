@@ -7,12 +7,6 @@ import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
 /**
- * Three ranks, one node each, and an edge `r` from the root that skips the
- * middle one — the smallest graph that needs a lane.
- *
- * @type {Graph}
- */
-/**
  * Every drawn edge's `d`, in document order. Each piece of the SVG before
  * an edge's marker attribute ends with that edge's path data.
  *
@@ -21,6 +15,12 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 const routes = html => html.split('" data-graph-edge=""').slice(0, -1)
     .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
 
+/**
+ * Three ranks, one node each, and an edge `r` from the root that skips the
+ * middle one — the smallest graph that needs a lane.
+ *
+ * @type {Graph}
+ */
 const skipLevel = {
     nodes: [
         { id: 0, kind: 'a', label: '{ }', rank: 0 },
@@ -323,6 +323,28 @@ export const proof = {
             // the node labels.
             assert(html.lastIndexOf('data-graph-edge=""') < html.indexOf('data-graph-edge-label'), html)
             assert(!html.includes('casing'), html)
+        },
+        /**
+         * **An edge that names a node the graph does not have is refused**,
+         * at either end. Drawn anyway, one from a missing node had no port
+         * to leave from and vanished from a picture that looked complete —
+         * a plausible wrong answer where the input was simply wrong.
+         */
+        throw: {
+            fromAMissingNode: () => graphSvg({
+                nodes: skipLevel.nodes,
+                edges: [...skipLevel.edges, { from: 9, to: 1, label: 'ghost' }],
+            }),
+            toAMissingNode: () => graphSvg({
+                nodes: skipLevel.nodes,
+                edges: [...skipLevel.edges, { from: 0, to: 9, label: 'ghost' }],
+            }),
+            // The crossing count lays the graph out the same way, and
+            // refuses the same input.
+            crossings: () => _crossings({
+                nodes: skipLevel.nodes,
+                edges: [{ from: 9, to: 1, label: 'ghost' }],
+            }),
         },
     },
 }

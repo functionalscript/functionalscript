@@ -121,6 +121,17 @@ const lanesOf = rankOf => (edge, index) => {
 }
 
 /**
+ * What is wrong with one edge's ends, if anything: each end must name a
+ * node of the graph.
+ *
+ * @type {(ids: ReadonlySet<number>) => (edge: Edge, index: number) => readonly string[]}
+ */
+const missingEnds = ids => (edge, index) => [
+    ...(ids.has(edge.from) ? [] : [`edge ${index} ("${edge.label}") starts at node ${edge.from}, which is not in the graph`]),
+    ...(ids.has(edge.to) ? [] : [`edge ${index} ("${edge.label}") ends at node ${edge.to}, which is not in the graph`]),
+]
+
+/**
  * Every row, top to bottom: its nodes and lanes in `key` order, each
  * placed left to right, and the row as tall as its tallest node. A lane
  * spans its row's whole height, so the next row starts below it and below
@@ -132,6 +143,13 @@ const lanesOf = rankOf => (edge, index) => {
  * @type {(nodes: readonly Ranked[]) => (edges: readonly Edge[]) => { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }}
  */
 const layout = nodes => edges => {
+    // **An edge must name nodes the graph has, or the graph is refused.**
+    // An edge is drawn from a port of its source, so one whose source is
+    // missing would have nowhere to leave from and would simply vanish,
+    // leaving a picture that looks complete — a plausible wrong answer
+    // for input that is wrong.
+    const problems = edges.flatMap(missingEnds(new Set(nodes.map(n => n.id))))
+    if (problems.length !== 0) { throw `graph: ${problems[0]}` }
     // Keyed by id, not by position: a `Graph` does not promise its nodes
     // in id order, and reading an array built in one order by the other
     // would hang a node's ports on whichever node sat at that index.
