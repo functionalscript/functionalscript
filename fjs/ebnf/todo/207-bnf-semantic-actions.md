@@ -643,8 +643,9 @@ What is still open for the surviving backend:
 - [`fjs/common/monoid`](../../common/monoid/module.f.mjs) — the `Monoid<T>` this
   issue's classical factory took at construction. Note its `fold` is
   *balanced*, so it must not be reused for a `reduce` that is not associative.
-- [`fjs/fsc/parser`](../../fsc/parser/module.f.mjs) — the rewrite set over
-  the module grammar, with the names resolved in a second pass.
+- [`fjs/fsc/parser/reader`](../../fsc/parser/reader/module.f.mjs) — the rewrite set over
+  the module grammar, with the names resolved in a second pass by
+  [`fjs/fsc/parser`](../../fsc/parser/module.f.mjs).
 - [recognizer-backend](./recognizer-backend.md) — the payload-free mode the
   all-`unit` map supplies.
 - [layered parser](./layered-parser.md) — each layer is one grammar plus one map.

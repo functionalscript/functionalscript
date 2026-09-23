@@ -37,7 +37,7 @@ readers — `nodeAt`, `valuesAt`, `memberAt`, `membersAt`, `importAt`,
 the `id` and the field changed:
 
 ```js
-// fjs/fsc/parser/module.f.mjs, nodeAt and valuesAt
+// fjs/fsc/parser/reader/module.f.mjs, nodeAt and valuesAt
 const nodeAt = node => { const out = outAt(node); assert(out.id === 'value'); return out.node }
 const valuesAt = node => { const out = outAt(node); assert(out.id === 'values'); return out.items }
 ```

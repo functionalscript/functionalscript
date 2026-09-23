@@ -63,7 +63,7 @@ in the tree ends.
 
 `fjs/fsc/parser` is the evidence that synthesis costs its callers rather than
 saving them: `splitEof` in
-[`../../../fsc/parser/module.f.mjs`](../../../fsc/parser/module.f.mjs)
+[`../../../fsc/parser/reader/module.f.mjs`](../../../fsc/parser/reader/module.f.mjs)
 strips the tokenizer's real `eof` token to avoid a second end marker and then
 keeps that token's metadata in a side channel, because the synthesized symbol
 has none to report a failure at end-of-input from. Both halves of that

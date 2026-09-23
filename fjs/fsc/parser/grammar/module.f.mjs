@@ -483,7 +483,7 @@ const powTail = option([sym('**'), trivia, unary])
  * The four leaves are each still wrapped one tuple deep, `[primitiveValue]`
  * rather than `primitiveValue` bare, matching {@link unary}'s own
  * `[primitiveValue, powTail]` at the same depth minus the slot `powTail`
- * held — `./module.f.mjs`'s reader shares one function, `baseOf`, between
+ * held — the reader in `../reader/module.f.mjs` shares one function, `baseOf`, between
  * both rules, and that depth is what lets it.
  *
  * @type {UnaryOperand}
