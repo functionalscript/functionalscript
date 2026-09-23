@@ -487,6 +487,13 @@ export const proof = {
             assert(ten.includes('<strong>BREAKING CHANGES:</strong>'), ten)
             // A bare reference becomes the link it names.
             assert(ten.includes('/pull/7">#7</a>'), ten)
+            // Each page links the release before it by version, not by name:
+            // 0.2.0 is 0.10.0's previous, and 0.10.0 is 0.2.0's next.
+            assert(ten.includes('href="/changelog/_0.2.0.html" rel="prev"'), ten)
+            assert(!ten.includes('rel="next"'), ten)
+            const two = textOf(dir['_0.2.0.html'], '0.2.0')
+            assert(two.includes('href="/changelog/_0.10.0.html" rel="next"'), two)
+            assert(!two.includes('rel="prev"'), two)
         },
         // The version is the file name, so a file whose name is not one
         // describes the format rather than recording a release — and a file

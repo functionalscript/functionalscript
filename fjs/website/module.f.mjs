@@ -61,7 +61,7 @@ import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
-import { indexPage, isVersion, releasePage, releasePath } from './changelog/module.f.mjs'
+import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { faviconLinks, stylesheet, stylesheetLink } from './style/module.f.mjs'
 import { demoSection, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
@@ -605,8 +605,8 @@ const writeChangelog = tree => {
     if (dir === undefined) { return pureOk(undefined) }
     const versions = dir.files.map(versionOf).filter(v => v !== null)
     return step(
-        forEachStep(pureOk(versions), version => step(
-            readUtf8File(`${changelogDir}/${version}.md`),
+        forEachStep(pureOk(releases(versions)), release => step(
+            readUtf8File(`${changelogDir}/${release.version}.md`),
             text => {
                 const document = tryParse(text)
                 return document[0] === 'error'
@@ -614,8 +614,8 @@ const writeChangelog = tree => {
                     // is reported through it rather than beside it: `exitStep`
                     // prints the message and exits 1, as it does for a file
                     // that could not be read.
-                    ? pureError(ioError({ message: `changelog/${version}.md: ${document[1]}` }))
-                    : writeFile(releasePath(version), releasePage(version)(document[1]))
+                    ? pureError(ioError({ message: `changelog/${release.version}.md: ${document[1]}` }))
+                    : writeFile(releasePath(release.version), releasePage(release)(document[1]))
             })),
         () => step(
             writeFile(`${changelogDir}/index.html`, indexPage(versions)),
