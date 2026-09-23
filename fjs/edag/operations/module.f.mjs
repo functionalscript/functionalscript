@@ -15,12 +15,69 @@
  *
  * @module
  *
+ * A function is **data here, not a host function**: `=>` evaluates to a
+ * closure record — the captured frame, the body graph in the executor's own
+ * operand form, and `length` — and a call of one is the executor's `invoke`
+ * over that record, never a JavaScript call. The record is told from an
+ * object a program built by identity with `mark`, which no graph can name,
+ * and the operations that look inside a value — a property read, `typeof`,
+ * `own`, an object spread — answer for a closure what JavaScript answers for
+ * a function: `length` and nothing else. A host method handed a closure
+ * receives the record as a value, save at the one position
+ * `fjs/js/prototype`'s `callbacks` says the method calls: there the host is
+ * handed a bridge that invokes the closure through the executor, so
+ * `[1, 2].map(f)` maps and the host never holds the closure as a function.
+ * What a closure has no answer for here is its text — `String(f)`, `f + x`,
+ * an order against a string or a closure — which the specification derives from the
+ * graph and no executor renders yet, so those are refused rather than
+ * answered with the record's `[object Object]` (`./todo/closure-text.md`).
+ *
  * @import { ExpOp, Op1, Op2, Op12, Over, StepOver, TagMap } from '../types.ts'
- * @import { Evaluator, Operations } from './types.ts'
+ * @import { Closure, Evaluator, Mark, Operations } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
 import { isCount } from '../module.f.mjs'
+import { callbacks } from '../../js/prototype/module.f.mjs'
+
+/**
+ * What tells a closure from an object a program built: identity with this
+ * one object, which the module holds and no graph evaluates to. A program's
+ * `{ mark: …, length: 0, frame: …, body: … }` has every field of a closure
+ * and is not one.
+ *
+ * @type {Mark}
+ */
+const mark = { closure: true }
+
+/**
+ * @param {unknown} v
+ * @returns {v is Closure<never>}
+ */
+export const isClosure = v => typeof v === 'object' && v !== null && /**@type {{ readonly mark?: unknown }}*/(v).mark === mark
+
+/**
+ * A property read, `obj[prop]` — except on a closure, whose one readable
+ * property is `length`: its frame and body are the executor's, as a
+ * JavaScript function's are the engine's, so any other key reads as
+ * `undefined` there rather than as the record's field.
+ *
+ * @type {(obj: any, prop: any) => unknown}
+ */
+const read = (obj, prop) => isClosure(obj)
+    ? (prop === 'length' ? obj.length : undefined)
+    : obj[prop]
+
+/**
+ * A call of a value: a closure is invoked by the executor over its frame
+ * and body; anything else is called as the host calls it, which is the
+ * host's `TypeError` for a non-function. The arguments are evaluated before
+ * either, as JavaScript evaluates them before it finds the callee is no
+ * function.
+ *
+ * @type {<E>(x: Evaluator<E>, v: unknown, args: readonly unknown[]) => unknown}
+ */
+const apply = (x, v, args) => isClosure(v) ? x.invoke(v.frame, args, v.body) : /**@type {any}*/(v)(...args)
 
 /**
  * A binary operation whose right operand is a thunk, forced by the
@@ -50,6 +107,9 @@ const o1 = o => ({ operand }) => ([, a]) => o(operand(a))
 const o12 = (u, o) => ({ operand }) => e =>
     e.length === 2 ? u(operand(e[1])) : o(operand(e[1]), operand(e[2]))
 
+/** The own enumerable entries an object spread copies: none of a closure's. @type {(v: unknown) => readonly (readonly [string, unknown])[]} */
+const entriesOf = v => isClosure(v) ? [] : Object.entries(Object(v))
+
 /** Both ways of being nullish, which is what every optional step guards. */
 /** @type {(v: unknown) => boolean} */
 const nullish = v => v === undefined || v === null
@@ -60,9 +120,9 @@ const nullish = v => v === undefined || v === null
  * and `=>` collects with `(...args)`. Passed as a single argument instead,
  * the callee's `['args']` would be `[[a, b]]`.
  *
- * @type {<E>(f: (e: E) => unknown, e: E) => readonly any[]}
+ * @type {<E>(x: Evaluator<E>, e: E) => readonly any[]}
  */
-const argsOf = (f, e) => /**@type {any}*/(f(e))
+const argsOf = (x, e) => /**@type {any}*/(x.operand(e))
 
 /**
  * Calls a bare value — no receiver.
@@ -73,9 +133,9 @@ const argsOf = (f, e) => /**@type {any}*/(f(e))
  * method would then silently succeed on the wrapper instead of throwing:
  * `((a.at)(0))(0)` returned `Array.prototype.at`.
  *
- * @type {<E>(f: (e: E) => unknown, v: unknown, e: E) => unknown}
+ * @type {<E>(x: Evaluator<E>, v: unknown, e: E) => unknown}
  */
-const callValue = (f, v, e) => /**@type {any}*/(v)(...argsOf(f, e))
+const callValue = (x, v, e) => apply(x, v, argsOf(x, e))
 
 /**
  * Calls `obj[prop]` *on* `obj`. That receiver is the whole reason a property
@@ -95,9 +155,64 @@ const callValue = (f, v, e) => /**@type {any}*/(v)(...argsOf(f, e))
  * argument list ahead of the property read, and every test would still
  * pass.
  *
- * @type {<E>(f: (e: E) => unknown, obj: any, prop: any, e: E) => unknown}
+ * A closure held in a property is invoked, its receiver dropped — the
+ * language has no `this`, and a graph closure ignores one. A closure *as*
+ * the receiver has no method a program can name, so its read is
+ * `undefined` and the call is the host's `TypeError`, as `f.length()` is.
+ * A host method is handed its arguments as they are, a closure among them
+ * as the value it is, except at the position `callbacks` names: a closure
+ * there reaches the host as {@link bridge}, since the host iterates and
+ * the executor calls.
+ *
+ * @type {<E>(x: Evaluator<E>, obj: any, prop: any, e: E) => unknown}
  */
-const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
+const callProperty = (x, obj, prop, e) => {
+    const m = read(obj, prop)
+    return isClosure(m) || isClosure(obj)
+        ? apply(x, m, argsOf(x, e))
+        : obj[prop](...bridged(x, prop, argsOf(x, e)))
+}
+
+/**
+ * The arguments a host method is handed: the same, but a closure at the
+ * one position the method calls is replaced by a function the host can
+ * call, which invokes the closure through the executor with the host's
+ * arguments — the element, index and array of `map`, the match and its
+ * groups of `replace`. The host's callbacks give a function nothing back
+ * but values, so the bridge is never a value a program holds; a closure
+ * at any other position is a value and stays the record.
+ *
+ * @type {<E>(x: Evaluator<E>, prop: unknown, args: readonly unknown[]) => readonly unknown[]}
+ */
+const bridged = (x, prop, args) => {
+    const i = typeof prop === 'string' && Object.hasOwn(callbacks, prop) ? callbacks[/**@type {keyof typeof callbacks}*/(prop)] : undefined
+    return i === undefined ? args : args.map((v, j) => j === i && isClosure(v) ? bridge(x, v) : v)
+}
+
+/** @type {<E>(x: Evaluator<E>, v: Closure<never>) => (...a: readonly unknown[]) => unknown} */
+const bridge = (x, v) => (...a) => x.invoke(v.frame, a, v.body)
+
+/**
+ * A closure's text is the specification's to derive from the graph and no
+ * executor's to render yet, so an operation that would read it is refused:
+ * `String(f)`, `f + x` and `x + f`, whose value *is* the text, and an order
+ * against a string or another closure, which compares it. An order against
+ * anything else, and every numeric coercion, answer as JavaScript does for
+ * a function without reading the text — `f < 1` is `false`, `f * 2` is
+ * `NaN` — and stay.
+ *
+ * @type {(v: unknown) => void}
+ */
+const noText = v => { assert(!isClosure(v), ['no text for a closure', v]) }
+
+/** Whether an order of `a` against `b` would read a closure's text: `b` is a string or a closure. @type {(a: unknown, b: unknown) => boolean} */
+const orderedByText = (a, b) => isClosure(a) && (typeof b === 'string' || isClosure(b))
+
+/** A relational operator, refused where a closure would be ordered by its text. @type {(o: (a: any, b: any) => boolean) => <E>(x: Evaluator<E>) => (e: Over<Op2, E>) => unknown} */
+const order = o => o2((a, b) => {
+    assert(!orderedByText(a, b) && !orderedByText(b, a), ['no text for a closure', a, b])
+    return o(a, b)
+})
 
 /**
  * The short-circuit. A region whose guard failed produces `undefined` and
@@ -111,14 +226,14 @@ const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
  * every step is `[tag, operand, continuation]`, and a `|!()` is reachable
  * through `|.` steps from either — `(a?.(...b).c)(...d)` is exactly that.
  *
- * @type {<E>(f: (e: E) => unknown, k: StepOver<E> | undefined) => unknown}
+ * @type {<E>(x: Evaluator<E>, k: StepOver<E> | undefined) => unknown}
  */
-const skip = (f, k) => {
+const skip = (x, k) => {
     if (k === undefined) { return undefined }
     const [o, e, cont] = k
     return o === '|!()'
-        ? callValue(f, undefined, e)
-        : skip(f, cont)
+        ? callValue(x, undefined, e)
+        : skip(x, cont)
 }
 
 /**
@@ -128,14 +243,14 @@ const skip = (f, k) => {
  * `|?.()` and `|!()` are not productions of this state, and the schema keeps
  * them out; the walk carries no state, so it reads whatever step it is given.
  *
- * @type {<E>(f: (e: E) => unknown, v: unknown, k: StepOver<E> | undefined) => unknown}
+ * @type {<E>(x: Evaluator<E>, v: unknown, k: StepOver<E> | undefined) => unknown}
  */
-const optionLambda = (f, v, k) => {
+const optionLambda = (x, v, k) => {
     if (k === undefined) { return v }
     const [o, e, cont] = k
     switch (o) {
-        case '|.': { return optionPropertyLambda(f, v, f(e), cont) }
-        default: { return optionLambda(f, callValue(f, v, e), cont) }
+        case '|.': { return optionPropertyLambda(x, v, x.operand(e), cont) }
+        default: { return optionLambda(x, callValue(x, v, e), cont) }
     }
 }
 
@@ -149,19 +264,19 @@ const optionLambda = (f, v, k) => {
  * `obj[prop]` is read once per step, twice only where the guard has to see
  * the value before the call is made.
  *
- * @type {<E>(f: (e: E) => unknown, obj: any, prop: any, k: StepOver<E> | undefined) => unknown}
+ * @type {<E>(x: Evaluator<E>, obj: any, prop: any, k: StepOver<E> | undefined) => unknown}
  */
-const optionPropertyLambda = (f, obj, prop, k) => {
-    if (k === undefined) { return obj[prop] }
+const optionPropertyLambda = (x, obj, prop, k) => {
+    if (k === undefined) { return read(obj, prop) }
     const [o, e, cont] = k
     switch (o) {
-        case '|.': { return optionPropertyLambda(f, obj[prop], f(e), cont) }
-        case '|()': { return optionLambda(f, callProperty(f, obj, prop, e), cont) }
-        case '|!()': { return callProperty(f, obj, prop, e) }
+        case '|.': { return optionPropertyLambda(x, read(obj, prop), x.operand(e), cont) }
+        case '|()': { return optionLambda(x, callProperty(x, obj, prop, e), cont) }
+        case '|!()': { return callProperty(x, obj, prop, e) }
         case '|?.()': {
-            return nullish(obj[prop])
-                ? skip(f, cont)
-                : optionLambda(f, callProperty(f, obj, prop, e), cont)
+            return nullish(read(obj, prop))
+                ? skip(x, cont)
+                : optionLambda(x, callProperty(x, obj, prop, e), cont)
         }
     }
 }
@@ -177,12 +292,16 @@ export const operations = {
     // expression, so `(0, a.b)(...c)` is this node over a complete `.` while
     // `a.b(...c)` is that `.` node owning its call. The two differ, and
     // amnesia's `throw.detachedReceiver` is the difference.
-    '()': ({ operand }) => ([, a, b]) => callValue(operand, operand(a), b),
+    '()': x => ([, a, b]) => callValue(x, x.operand(a), b),
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
     // Unary plus is JS's: `ToNumber`, which throws on a bigint where
     // `Number` converts — see `op12Id` in `../module.f.mjs`.
-    '+': o12(a => +a, (a, b) => a + b),
+    '+': o12(a => +a, (a, b) => {
+        noText(a)
+        noText(b)
+        return a + b
+    }),
     ',': ({ operand }) => ([, a]) => a.reduce((/**@type {unknown}*/_, c) => operand(c), undefined),
     '-': o12(a => -a, (a, b) => a - b),
     // Property access, owning whatever its receiver is used for: with no
@@ -204,36 +323,31 @@ export const operations = {
     // `|()` is terminal here, so its continuation is `undefined` and the
     // wider walker's `optionLambda(f, v, undefined)` hands back the call's
     // value unchanged. Its `|.` and `|!()` arms are unreachable from here.
-    '.': ({ operand }) => ([, a, k, p]) => optionPropertyLambda(operand, operand(a), operand(k), p),
+    '.': x => ([, a, k, p]) => optionPropertyLambda(x, x.operand(a), x.operand(k), p),
     '/': o2((a, b) => a / b),
-    '<': o2((a, b) => a < b),
+    '<': order((a, b) => a < b),
     '<<': o2((a, b) => a << b),
-    '<=': o2((a, b) => a <= b),
+    '<=': order((a, b) => a <= b),
     '===': o2((a, b) => a === b),
     // The frame operand is evaluated here, in the enclosing invocation, and
-    // the body is not: the value is a closure over the captured frame and the
-    // body graph, and each call of it is a new invocation, which is the
-    // executor's to start — the enclosing invocation's values do not cross,
-    // the captured frame is a value and crosses as one. The closure's
-    // `length` is the declared count, which JavaScript reads off a
-    // function as it reads an array's: a rest parameter collects the
-    // complete arguments whatever the count, so the count is written onto
-    // the function rather than spelled as parameters — the one property a
-    // fresh function is given before anything holds it, as `slot` in
-    // `../memo` fills a slot after making it, and for the same reason. A
-    // count the language does not declare — `1.5`, `-1`, `NaN`, `-0` — is
-    // refused rather than written onto a callable as a `length` no
-    // JavaScript function has: the schema checks the number's shape only,
-    // and the executor is where the graph is last seen before it runs.
-    '=>': ({ operand, invoke }) => ([, count, frameExp, body]) => {
+    // the body is not: the value is the closure record — the captured frame
+    // and the body graph, as data — and each call of it is a new
+    // invocation, which is the executor's to start: the enclosing
+    // invocation's values do not cross, the captured frame is a value and
+    // crosses as one. No host function is made: the language's function is
+    // the graph's, and `length` is the record's field — the declared count,
+    // which JavaScript reads off a function as it reads an array's, while
+    // the arguments are the complete list under any count. A count the
+    // language does not declare — `1.5`, `-1`, `NaN`, `-0` — is refused
+    // rather than carried as a `length` no JavaScript function has: the
+    // schema checks the number's shape only, and the executor is where the
+    // graph is last seen before it runs.
+    '=>': ({ operand }) => ([, count, frameExp, body]) => {
         assert(isCount(count), ['=>: count is no nonnegative integer', count])
-        const frame = operand(frameExp)
-        /**@type {(...arg: readonly unknown[]) => unknown}*/
-        const f = (...args) => invoke(frame, args, body)
-        return Object.defineProperty(f, 'length', { value: count })
+        return /**@type {Closure<typeof body>}*/({ mark, length: count, frame: operand(frameExp), body })
     },
-    '>': o2((a, b) => a > b),
-    '>=': o2((a, b) => a >= b),
+    '>': order((a, b) => a > b),
+    '>=': order((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
     '>>>': o2((a, b) => a >>> b),
     // Optional property access, owning the rest of its optional region. On a
@@ -242,17 +356,17 @@ export const operations = {
     // any step of the continuation, `|!()` excepted. `skip` is what carries
     // that exception, and it is why `u?.b` and `(u?.b)(d)` part company:
     // the first is `undefined`, the second calls it.
-    '?.': ({ operand }) => ([, a, k, p]) => {
-        const obj = operand(a)
-        return nullish(obj) ? skip(operand, p) : optionPropertyLambda(operand, obj, operand(k), p)
+    '?.': x => ([, a, k, p]) => {
+        const obj = x.operand(a)
+        return nullish(obj) ? skip(x, p) : optionPropertyLambda(x, obj, x.operand(k), p)
     },
     // Optional call, the region-opening counterpart of `?.`. The callee is an
     // ordinary expression, so this node never carries a receiver — `a.b?.(c)`
     // is a `.` node with a `|?.()` continuation, not this one — and a nullish
     // callee leaves the arguments unevaluated.
-    '?.()': ({ operand }) => ([, a, b, k]) => {
-        const f = operand(a)
-        return nullish(f) ? skip(operand, k) : optionLambda(operand, callValue(operand, f, b), k)
+    '?.()': x => ([, a, b, k]) => {
+        const f = x.operand(a)
+        return nullish(f) ? skip(x, k) : optionLambda(x, callValue(x, f, b), k)
     },
     // The conditional: the condition, then exactly one arm. The other is
     // never established, which amnesia's `lazy` and
@@ -260,7 +374,10 @@ export const operations = {
     '?:': ({ operand }) => ([, c, t, e]) => operand(c) ? operand(t) : operand(e),
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
-    String: o1(String),
+    String: o1(a => {
+        noText(a)
+        return String(a)
+    }),
     // The equality the language's guarantees are stated in: `NaN` is `NaN`
     // and `0` is not `-0`, where `===` answers the other way on both.
     is: o2(Object.is),
@@ -288,9 +405,12 @@ export const operations = {
         // need can never be taken — only the throw matters on this path.
         if (nullish(a)) { Object.getOwnPropertyDescriptor(a, b) }
         assert(typeof b === 'string', ['own: key is not a string', b])
-        return Object.getOwnPropertyDescriptor(a, b)?.value
+        // a closure owns `length` as a function does, and nothing a program
+        // can name besides
+        return isClosure(a) ? read(a, b) : Object.getOwnPropertyDescriptor(a, b)?.value
     }),
-    typeof: o1(a => typeof a),
+    // a closure is the language's function, whatever the host says of the record
+    typeof: o1(a => isClosure(a) ? 'function' : typeof a),
     undefined: () => () => undefined,
     '{}': ({ operand }) => ([, a]) => {
         /**@type {(p: (typeof a)[number]) => readonly (readonly [unknown, unknown])[]}*/
@@ -299,7 +419,9 @@ export const operations = {
             // `Object(...)` is what makes a nullish operand contribute nothing
             // (`{...null}` is `{}`) while a string still contributes its
             // indices — `Object.entries` alone throws on `null`/`undefined`.
-            : Object.entries(Object(operand(p[1])))
+            // A closure contributes nothing, as `{...f}` is `{}` for a
+            // function: its fields are not a program's to copy.
+            : entriesOf(operand(p[1]))
         return Object.fromEntries(a.flatMap(g))
     },
     '|': o2((a, b) => a | b),

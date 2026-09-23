@@ -12,6 +12,7 @@ import type { Equal } from '../../types/ts/types.ts'
 import type {
     allowedCalls,
     arrayPrototype,
+    callbacks,
     bigintPrototype,
     booleanPrototype,
     functionPrototype,
@@ -30,6 +31,12 @@ export type ProhibitedCall = (typeof prohibitedCalls)[number]
 
 /** A prototype name a module may call as a member function. */
 export type AllowedCall = (typeof allowedCalls)[number]
+
+/** A member function that calls one of its arguments, and where that argument is. */
+export type Callback = keyof typeof callbacks
+
+/** Every member function that calls an argument is an allowed call. */
+type _CallbacksAllowed = Assert<Equal<Exclude<Callback, AllowedCall>, never>>
 
 /**
  * The two call lists and `length` partition the prototype names: their

@@ -1,6 +1,6 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import {
-    allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, functionPrototype, numberPrototype,
+    allowedCalls, arrayPrototype, bigintPrototype, booleanPrototype, callbacks, functionPrototype, numberPrototype,
     objectPrototype, prohibitedCalls, prototypeNames, stringPrototype,
 } from './module.f.mjs'
 
@@ -11,6 +11,20 @@ const lists = [objectPrototype, arrayPrototype, stringPrototype, numberPrototype
 const sorted = names => names.toSorted((a, b) => a < b ? -1 : 1).join()
 
 export const proof = {
+    // every member function that calls an argument is an allowed call, its
+    // position a nonnegative integer, and the list is sorted as the others
+    callbacks: () => {
+        const names = Object.keys(callbacks)
+        assertEq(names.join(), sorted(names))
+        for (const name of names) {
+            assertEq(allowedCalls.includes(/** @type {any} */ (name)), true)
+        }
+        for (const i of Object.values(callbacks)) {
+            assertEq(Number.isInteger(i) && i >= 0, true)
+        }
+        assertEq(callbacks.map, 0)
+        assertEq(callbacks.replace, 1)
+    },
     // each list is sorted and has each name once; none is checked against
     // the running engine, which is no reference — a newer release owns
     // more, and Deno deletes `Object.prototype.__proto__`
