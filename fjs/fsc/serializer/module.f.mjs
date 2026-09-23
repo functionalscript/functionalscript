@@ -105,6 +105,7 @@
  */
 
 import { _defaultExport, _moduleExports } from '../edag/module.f.mjs'
+import { isCount } from '../../edag/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { keySerialize, leafSerialize } from '../../media/datajs/serializer/module.f.mjs'
@@ -202,18 +203,23 @@ const parameterNames = (depth, count) => Array.from({ length: count }, (_, i) =>
 
 /**
  * A function's count where it is one the language declares — a
- * nonnegative integer — and the refusal otherwise. The schema admits any
- * number there, its shape being all it checks, and a count of `1.5`, `-1`,
- * `NaN` or `-0` has no list that reads back as the same graph: `Array.from`
- * would write one or no parameters and read back another count — `0` for
- * `-0`, which the analysis tells apart by `Object.is` — so the graph is
- * refused rather than answered with a different function.
+ * nonnegative integer within `u32` — and the refusal otherwise, decided
+ * before a name is made for it. The schema admits any number there, its
+ * shape being all it checks, and a count of `1.5`, `-1`, `NaN` or `-0`
+ * has no list that reads back as the same graph: `Array.from` would write
+ * one or no parameters and read back another count — `0` for `-0`, which
+ * the analysis tells apart by `Object.is` — so the graph is refused rather
+ * than answered with a different function. `u32` is the bound `length`
+ * has everywhere the graph runs — `Array.from` has no list past it, and
+ * neither has NaNVM's `static_function` — so a count past it is refused
+ * here as the Rust printer refuses it, rather than met with a range error
+ * or a list as long as the count.
  *
  * @type {(count: number) => Result<number, string>}
  */
-const declaredCount = count => Number.isInteger(count) && count >= 0 && !Object.is(count, -0)
-    ? ok(count)
-    : error('a parameter count that is no nonnegative integer')
+const declaredCount = count => !isCount(count) ? error('a parameter count that is no nonnegative integer')
+    : count > 0xffffffff ? error('a parameter count past u32')
+    : ok(count)
 
 /**
  * The parameter list a function of `count` is written with, in the body

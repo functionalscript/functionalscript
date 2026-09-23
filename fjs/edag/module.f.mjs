@@ -493,6 +493,17 @@ export const comma = /** @type {const} */ ([',', exps])
  */
 export const fn = /** @type {const} */ (['=>', number, exp, exp])
 
+/**
+ * Whether a number is a count the language declares: a nonnegative
+ * integer, `-0` excluded since `Object.is` tells it from `0` and a `length`
+ * of `-0` is none a parameter list can have. The one predicate every
+ * emitter refuses by and every executor asserts, so that the schema's
+ * shape-only `number` is narrowed in one place and not in each.
+ *
+ * @type {(count: number) => boolean}
+ */
+export const isCount = count => Number.isInteger(count) && count >= 0 && !Object.is(count, -0)
+
 // No-Args Operations
 
 /**

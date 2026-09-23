@@ -26,6 +26,7 @@
 
 import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
+import { isCount } from '../module.f.mjs'
 
 /**
  * The `nanvm-lib` expression each unary operation prints as.
@@ -626,7 +627,7 @@ const printer = nested => shared => root => {
             // has no Rust to print, and is refused as a frame that is no
             // array literal is.
             return isSmallestLambda(e) ? ok('function_any()')
-                : !(Number.isInteger(a) && a >= 0 && !Object.is(a, -0)) ? error(['no Rust for a parameter count that is no nonnegative integer', a])
+                : !isCount(a) ? error(['no Rust for a parameter count that is no nonnegative integer', a])
                 : a > 0xffffffff ? error(['no Rust for a parameter count past u32', a])
                 : closure(a, c)(frameExpr(b))
         }

@@ -43,7 +43,7 @@
 import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
-    exp, op0Id, op1Id, op12Id, op2Id, op3Id,
+    exp, isCount, op0Id, op1Id, op12Id, op2Id, op3Id,
     optionLambda, optionPropertyLambda, propertyLambda,
 } from './module.f.mjs'
 
@@ -597,6 +597,19 @@ export const proof = {
             assertNoMatch(v(['=>', null, ['undefined']]))
             assertNoMatch(v(['=>', ['[]', []], ['undefined']]))
             assertNoMatch(v(['=>', '2', null, 1]))
+        },
+        // and, past the shape, one the language declares: `isCount` is
+        // what the writer refuses by and an executor asserts, the schema
+        // admitting any number
+        isCount: () => {
+            assertEq(isCount(0), true)
+            assertEq(isCount(2), true)
+            assertEq(isCount(0x100000000), true)
+            assertEq(isCount(-0), false)
+            assertEq(isCount(-1), false)
+            assertEq(isCount(1.5), false)
+            assertEq(isCount(NaN), false)
+            assertEq(isCount(Infinity), false)
         },
         // and no operand: `op2Id` has no `=>`, so the three-element tuple
         // matches no arm of the union
