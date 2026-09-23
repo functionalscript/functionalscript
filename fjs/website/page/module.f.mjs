@@ -264,10 +264,14 @@ const section = heading => open => items =>
 const item = href => text => ['li', ['a', { href }, text]]
 
 /**
- * The catalogue of one directory: its files, its subdirectories, and the
+ * The catalogue of one directory: its subdirectories, its files, and the
  * issues filed against it.
  *
- * **Files and directories are open, issues are closed.** The first two are
+ * **Directories come before files**, as GitHub and a file manager list
+ * them: a directory is where a reader goes next, and a file is where the
+ * reading stops, so the way deeper is what the page leads with.
+ *
+ * **Directories and files are open, issues are closed.** The first two are
  * what the directory *is* and are bounded by it; the issue list is not — the
  * repository root has fifty — and a page that opened it would push whatever
  * follows off the screen. That is a judgement per section and not a length
@@ -282,10 +286,10 @@ const item = href => text => ['li', ['a', { href }, text]]
  * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
 export const sections = commit => dir => [
-    ...section('Files')(true)(dir.files.map(name =>
-        item(fileHref(commit)(dir.path)(name))(name))),
     ...section('Directories')(true)(dir.dirs.map(name =>
         item(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(`${name}/`))),
+    ...section('Files')(true)(dir.files.map(name =>
+        item(fileHref(commit)(dir.path)(name))(name))),
     ...section('Issues')(false)(dir.todo.map(name =>
         item(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
 ]

@@ -98,6 +98,90 @@ export const proof = {
             assert(html.includes('d="M35,36 Q35,56 35,76"'), html) // p: rank diff 1, straight
         },
         /**
+         * **A marked edge carries its kind to the line, not to the box.**
+         * A demo marks an edge its node may never follow; the node is drawn
+         * once however many edges reach it, so the mark cannot live there.
+         */
+        marksAnEdge: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x', kind: 'lazy' }],
+            }))
+            assert(html.includes('data-graph-edge-kind="lazy"'), html)
+        },
+        // An edge a demo does not mark says nothing, rather than saying
+        // "ordinary" in an attribute every graph would then carry.
+        anUnmarkedEdgeSaysNothing: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }))
+            assert(!html.includes('data-graph-edge-kind'), html)
+        },
+        /**
+         * **Only edges of one kind merge.** A kind describes the position,
+         * so two positions that differ in one stay two lines: merging them
+         * would draw `a && a` — both operands one node — as a single solid
+         * line labelled `left, right`, saying the conditional operand was
+         * not conditional.
+         */
+        keepsKindsApart: () => {
+            const nodes = [
+                { id: 0, kind: 'a', label: 'root', rank: 0 },
+                { id: 1, kind: 'a', label: 'shared', rank: 1 },
+            ]
+            const mixed = htmlToString(graphSvg({
+                nodes,
+                edges: [
+                    { from: 0, to: 1, label: 'left' },
+                    { from: 0, to: 1, label: 'right', kind: 'lazy' },
+                ],
+            }))
+            // Two lines, the marked one still marked, and neither label
+            // folded into the other.
+            assertEq(mixed.split('data-graph-edge=""').length - 1, 2)
+            assertEq(mixed.split('data-graph-edge-kind="lazy"').length - 1, 1)
+            assert(!mixed.includes('>left, right<'), mixed)
+            // Bowed apart, or they would land on one curve. Only the
+            // lines are counted: the arrowhead marker is a path too. Each
+            // piece before an edge marker ends with that line's `d`.
+            const open = '<path d="'
+            const curves = new Set(mixed.split('" data-graph-edge=""').slice(0, -1)
+                .map(before => before.slice(before.lastIndexOf(open) + open.length)))
+            assertEq(curves.size, 2)
+            // And their labels a line of text apart: the bow alone parts
+            // them by about 9px on one baseline, where they overlap. Each
+            // piece before a label marker ends with that label's `y`.
+            const yAt = ' y="'
+            const [first, second] = mixed.split('" text-anchor="middle" data-graph-edge-label=""')
+                .slice(0, -1)
+                .map(before => Number(before.slice(before.lastIndexOf(yAt) + yAt.length)))
+            assert(Math.abs(first - second) >= 12, `${first} ${second}`)
+        },
+        // Two of one kind are still one line, labelled with both.
+        mergesWhenTheKindMatches: () => {
+            const nodes = [
+                { id: 0, kind: 'a', label: 'root', rank: 0 },
+                { id: 1, kind: 'a', label: 'shared', rank: 1 },
+            ]
+            const alike = htmlToString(graphSvg({
+                nodes,
+                edges: [
+                    { from: 0, to: 1, label: 'then', kind: 'lazy' },
+                    { from: 0, to: 1, label: 'else', kind: 'lazy' },
+                ],
+            }))
+            assertEq(alike.split('data-graph-edge=""').length - 1, 1)
+            assert(alike.includes('data-graph-edge-kind="lazy"'), alike)
+            assert(alike.includes('>then, else<'), alike)
+        },
+        /**
          * **Boxes, then edges, then the node labels** — the document order
          * an SVG paints in. The same three ranks as above: `r` skips rank 1,
          * so it crosses that row, and the node there hid a quarter of it

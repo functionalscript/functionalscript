@@ -31,8 +31,9 @@ the two are separate, and this one is not quietly migrated into the other.
 ## Every directory gets a page
 
 One rule rather than two: whatever a directory holds, it gets an `index.html`
-listing its files, its subdirectories, the issues in its `todo/`, and the
-proofs of its subtree. Sections with nothing in them are omitted.
+listing its subdirectories, its files, the issues in its `todo/`, and the
+proofs of its subtree — directories first, as GitHub and a file manager list
+them. Sections with nothing in them are omitted.
 
 Because every directory has a page, every subdirectory link on every page
 resolves, which is what makes the tree walkable from the root. The root page is
