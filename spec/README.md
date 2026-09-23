@@ -648,7 +648,8 @@ A parenthesized parameter list, `(a, b) => …`, is not a group
 ([functions](#functions)): JavaScript itself tells one from the other only
 past the `)`, and so does this language — `(a) => 1` is the function and
 `(a).b` the access, the `=>` after the `)` deciding — and a group that is
-more than a name followed by `=>`, `(a.b) => 1`, is refused there.
+more than a name followed by `=>`, `(a.b) => 1`, is refused there. A bare
+arrow is a value a group holds, `(a => a)(1)`, as any function is.
 
 ## Operators
 
@@ -912,7 +913,9 @@ a function of its arguments and of what it captures:
   though JavaScript tells the two apart only past the `)` and so does this
   language: `(a) => 1` is the function and `(a).b` the access, and a group
   that is more than a name followed by `=>`, `(a.b) => 1`, is refused at
-  the arrow (`invalid parameter list`). Nothing else distinguishes a named
+  the arrow (`invalid parameter list`); a group holding a bare arrow,
+  `(a => a)(1)`, is the function, as a group holding any function is.
+  Nothing else distinguishes a named
   parameter from what JavaScript makes of it: it is a read of the
   arguments at its position, and the language adds no rule of its own.
 - **The rest parameter** is the arguments array, `args[0]` the first

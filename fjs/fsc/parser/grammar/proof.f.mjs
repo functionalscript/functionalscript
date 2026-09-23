@@ -15,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import {
     _ordinaryTokenNames as names, access, afterName, array, attribute, block, body, circuitTail, conditionalTail, constStatement,
-    djsModule, exportStatement, group, groupValue, identifier, importStatement, index, items, key, member, named, object,
+    djsModule, exportStatement, group, groupValue, identifier, importStatement, index, items, key, member, named, namedMore, object,
     parameterNames, paren, parenGroup, parenthesized, primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
@@ -70,6 +70,7 @@ export const proof = {
         parser(/** @type {Rule} */ (afterName))
         parser(/** @type {Rule} */ (parameterNames))
         parser(/** @type {Rule} */ (named))
+        parser(/** @type {Rule} */ (namedMore))
         parser(/** @type {Rule} */ (group))
         parser(/** @type {Rule} */ (parenthesized))
         parser(/** @type {Rule} */ (paren))
@@ -219,6 +220,15 @@ export const proof = {
         assertStructurallySame(read('export default [a => 1, (a, b) => 2, ((a) => 3)];'), ['ok'])
         assertStructurallySame(read('export default 1 ? a => 1 : (a, b) => 2;'), ['ok'])
         assertStructurallySame(read('export default 1 * (a => 2);'), ['ok'])
+        // a bare arrow in a group, and the group's steps after it: a call,
+        // an access, a power and a layer, as any group takes them
+        assertStructurallySame(read('export default (a => a)(1);'), ['ok'])
+        assertStructurallySame(read('export default (a => a);'), ['ok'])
+        assertStructurallySame(read('export default (a => a).length;'), ['ok'])
+        assertStructurallySame(read('export default (a => a) ** 2 + 1;'), ['ok'])
+        assertStructurallySame(read('export default [(a => 1), (a /* c */ => 1)];'), ['ok'])
+        assertStructurallySame(read('export default (a =>\n1);'), ['ok'])
+        assertStructurallySame(read('export default (a\n=> 1);'), ['error', '=>'])
         // the name is a name: a reserved word among them is the fold's to
         // refuse, as a `const`'s is, and a value where a name may stand
         // after the first is refused here — `null` denotes a value, so
