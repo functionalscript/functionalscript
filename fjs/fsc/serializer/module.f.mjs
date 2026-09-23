@@ -201,6 +201,21 @@ const parameterName = (depth, i) => `${parameter(depth)}_${i}`
 const parameterNames = (depth, count) => Array.from({ length: count }, (_, i) => parameterName(depth, i))
 
 /**
+ * A function's count where it is one the language declares — a
+ * nonnegative integer — and the refusal otherwise. The schema admits any
+ * number there, its shape being all it checks, and a count of `1.5`, `-1`,
+ * `NaN` or `-0` has no list that reads back as the same graph: `Array.from`
+ * would write one or no parameters and read back another count — `0` for
+ * `-0`, which the analysis tells apart by `Object.is` — so the graph is
+ * refused rather than answered with a different function.
+ *
+ * @type {(count: number) => Result<number, string>}
+ */
+const declaredCount = count => Number.isInteger(count) && count >= 0 && !Object.is(count, -0)
+    ? ok(count)
+    : error('a parameter count that is no nonnegative integer')
+
+/**
  * The parameter list a function of `count` is written with, in the body
  * at `depth`: the rest parameter for none, one bare name, or a list —
  * three spellings the parser reads as one function each, the shortest of
@@ -623,14 +638,17 @@ const entry = (s, depth) => i => {
             )(every([base(s, depth)(b), key(k)]))
         }
         case '=>': {
-            const [, count, frame, body] = node
+            const [, declared, frame, body] = node
             return okThen(
-                /** @type {(names: readonly string[]) => Document} */
-                (names => mapOk(
-                    /** @type {(text: List<string>) => List<string>} */
-                    (text => flat([[parameterList(depth + 1, count)], text])),
-                )(closureBody(s.a, depth + 1, { frame: names, parameters: parameterNames(depth + 1, count) })(body))),
-            )(frameNames(s)(frame))
+                /** @type {(count: number) => Document} */
+                (count => okThen(
+                    /** @type {(names: readonly string[]) => Document} */
+                    (names => mapOk(
+                        /** @type {(text: List<string>) => List<string>} */
+                        (text => flat([[parameterList(depth + 1, count)], text])),
+                    )(closureBody(s.a, depth + 1, { frame: names, parameters: parameterNames(depth + 1, count) })(body))),
+                )(frameNames(s)(frame))),
+            )(declaredCount(declared))
         }
         case '-': {
             // `op12` of two operands is the binary minus, which the language

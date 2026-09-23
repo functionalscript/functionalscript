@@ -397,6 +397,13 @@ export const proof = {
         refuses(['=>', 2, null, ['.', ['args'], 1.5]], 'an argument that is no named parameter')
         refuses(['=>', 1, null, ['=>', 0, ['[]', [['args']]], ['.', ['frame'], 0]]], 'the arguments of a function with named parameters')
         refuses(['=>', 1, null, ['=>', 0, ['[]', [arg(1)]], ['.', ['frame'], 0]]], 'an argument that is no named parameter')
+        // a count the language does not declare has no list that reads
+        // back as the same graph: the schema admits any number, the writer
+        // only a nonnegative integer, refused before a name is written
+        refuses(['=>', 1.5, null, 1], 'a parameter count that is no nonnegative integer')
+        refuses(['=>', -1, null, 1], 'a parameter count that is no nonnegative integer')
+        refuses(['=>', NaN, null, 1], 'a parameter count that is no nonnegative integer')
+        refuses(['=>', -0, null, 1], 'a parameter count that is no nonnegative integer')
     },
     // A body whose text opens with `{` is written as a block: `=> {` opens a
     // block and not an object, so the value has to be returned from it. The

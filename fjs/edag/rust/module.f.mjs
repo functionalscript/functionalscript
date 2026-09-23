@@ -621,7 +621,12 @@ const printer = nested => shared => root => {
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
-            return isSmallestLambda(e) ? ok('function_any()') : closure(a, c)(frameExpr(b))
+            // A count the language does not declare — no nonnegative integer
+            // — has no Rust `u32` to print, and is refused as a frame that
+            // is no array literal is.
+            return isSmallestLambda(e) ? ok('function_any()')
+                : !(Number.isInteger(a) && a >= 0 && !Object.is(a, -0)) ? error(['no Rust for a parameter count that is no nonnegative integer', a])
+                : closure(a, c)(frameExpr(b))
         }
         return bare(/** @type {readonly any[]} */ (e))
     }
