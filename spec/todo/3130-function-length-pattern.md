@@ -190,7 +190,18 @@ open, and a NaNVM derives text from the EDAG rather than from a property. When
 those close, a second admitted key in the same pattern is the natural
 extension, with the key's meaning defined per executor. #2206 refuses
 `String(f)` for a record for the same reason, so neither arm renders text
-yet.
+yet, and under this arm the refusal is the executor's to make: a host
+function has text of its own, the wrapper's source, and `String` in the
+operations table delegates to the host's `String`, so without a guard
+`['String', ['=>', …]]` would answer that text, plausible and wrong. Until
+the graph's text is rendered, the operations that reach a function's text,
+`String`, `+` with a string, and an order against a string or another
+function, refuse a value whose `typeof` is `'function'`, the same refusals
+#2206 makes for a record, at the same operations. Numeric coercions and an
+order against anything else answer as JavaScript does for a function
+without its text and stay. That guard is a prerequisite of this arm, not a
+follow-up: the second key replaces it, and until then nothing renders a
+function's text by accident.
 
 ### The decision this proposal is one arm of
 
@@ -206,7 +217,7 @@ JavaScript executors.**
 | `typeof`, reads, calls, spread, coercion | each an operation of the executor's | the host's |
 | a host method calling its argument | bridged at the positions `callbacks` lists | native |
 | consumers | call through the executor's `call` | call natively |
-| `String(f)` | refused until rendered | refused until rendered, by a second key here |
+| `String(f)` | refused until rendered | refused until rendered, by an interim guard in the operations table, then answered by a second key here |
 | what the executors are | interpreters of a closed value | builders of host functions from a graph |
 
 The record keeps the language closed and puts the cost in the executors;
@@ -275,6 +286,10 @@ neither this document nor those pull requests should be built on as settled.
 - [ ] Writer: named parameters within #2200's boundary and under a
   documented bound below every supported host's parameter-list limit, the
   pattern for every other function, the helper emitted once.
+- [ ] Interim text refusal: `String`, `+` with a string, and an order against
+  a string or a function refuse a value whose `typeof` is `'function'` in
+  the operations table, with the same proofs #2206 has for a record; lands
+  with the `=>` change, never after it.
 - [ ] Proofs: `f.length` for constant and run-time counts, including unused
   parameters and functions passed through other functions; `g()` sees an
   empty `['args']` and `g(undefined)` sees `[undefined]`; a count outside the
