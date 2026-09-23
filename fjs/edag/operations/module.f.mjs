@@ -20,6 +20,7 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
+import { isCount } from '../module.f.mjs'
 
 /**
  * A binary operation whose right operand is a thunk, forced by the
@@ -219,8 +220,13 @@ export const operations = {
     // complete arguments whatever the count, so the count is written onto
     // the function rather than spelled as parameters — the one property a
     // fresh function is given before anything holds it, as `slot` in
-    // `../memo` fills a slot after making it, and for the same reason.
+    // `../memo` fills a slot after making it, and for the same reason. A
+    // count the language does not declare — `1.5`, `-1`, `NaN`, `-0` — is
+    // refused rather than written onto a callable as a `length` no
+    // JavaScript function has: the schema checks the number's shape only,
+    // and the executor is where the graph is last seen before it runs.
     '=>': ({ operand, invoke }) => ([, count, frameExp, body]) => {
+        assert(isCount(count), ['=>: count is no nonnegative integer', count])
         const frame = operand(frameExp)
         /**@type {(...arg: readonly unknown[]) => unknown}*/
         const f = (...args) => invoke(frame, args, body)

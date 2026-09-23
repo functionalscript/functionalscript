@@ -404,6 +404,9 @@ export const proof = {
         refuses(['=>', -1, null, 1], 'a parameter count that is no nonnegative integer')
         refuses(['=>', NaN, null, 1], 'a parameter count that is no nonnegative integer')
         refuses(['=>', -0, null, 1], 'a parameter count that is no nonnegative integer')
+        // and one past `u32` before a list as long as it is made
+        refuses(['=>', 0x100000000, null, 1], 'a parameter count past u32')
+        refuses(['=>', Infinity, null, 1], 'a parameter count that is no nonnegative integer')
     },
     // A body whose text opens with `{` is written as a block: `=> {` opens a
     // block and not an object, so the value has to be returned from it. The

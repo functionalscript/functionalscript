@@ -117,5 +117,11 @@ export const proof = {
         ownKey: () => run(['own', {}, 1]),
         ownNullish: () => run(['own', null, 'a']),
         bigintPlus: () => run(['+', 0n]),
+        // a count the language does not declare is refused when the
+        // function is made, not carried as its `length`
+        fractionalCount: () => run(['=>', 1.5, null, ['args']]),
+        negativeCount: () => run(['=>', -1, null, ['args']]),
+        nanCount: () => run(['=>', NaN, null, ['args']]),
+        negativeZeroCount: () => run(['=>', -0, null, ['args']]),
     },
 }
