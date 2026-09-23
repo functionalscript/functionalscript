@@ -26,6 +26,8 @@
 import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
 
+const indent = '    '
+
 /**
  * The `nanvm-lib` expression each unary operation prints as.
  *
@@ -521,9 +523,11 @@ const printer = propagate => shared => {
      *
      * @type {(body: Exp) => Result<string, readonly unknown[]>}
      */
-    const closure = body => mapOk((/** @type {readonly string[]} */ parts) =>
-        `A::static_function(|_self, ${readsArgs(body) ? 'args' : '_args'}| { ${parts.join(' ')} }, 0, Array::default()).to_any()`
-    )(scope(body))
+    const closure = body => mapOk((/** @type {readonly string[]} */ parts) => [
+        `A::static_function(|_self, ${readsArgs(body) ? 'args' : '_args'}| {`,
+        ...parts.flatMap(part => part.split('\n').map(line => `${indent}${indent}${line}`)),
+        `${indent}}, 0, Array::default()).to_any()`,
+    ].join('\n'))(scope(body))
     /**
      * An operation — a `.` read, or an operator node — as the bare
      * `Result<Any<A>, Any<A>>` its `nanvm-lib` call answers, or the refusal.
