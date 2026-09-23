@@ -44,7 +44,10 @@ import { assert } from '../../asserts/module.f.mjs'
  */
 const mark = { closure: true }
 
-/** @type {(v: unknown) => v is Closure<never>} */
+/**
+ * @param {unknown} v
+ * @returns {v is Closure<never>}
+ */
 export const isClosure = v => typeof v === 'object' && v !== null && /**@type {{ readonly mark?: unknown }}*/(v).mark === mark
 
 /**
