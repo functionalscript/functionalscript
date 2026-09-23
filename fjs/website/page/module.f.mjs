@@ -44,6 +44,18 @@ import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 export const repository = 'https://github.com/functionalscript/functionalscript'
 
 /**
+ * The language every page of the site is written in, as its `<html lang>`.
+ *
+ * One value for the whole site, since every page is in English — the prose,
+ * the headings and the release notes alike. Paths and identifiers are not a
+ * language of their own, and a page made mostly of them is still read aloud
+ * in this one.
+ *
+ * @type {string}
+ */
+export const lang = 'en'
+
+/**
  * Where a run's results go: an empty container the runner fills with one
  * foldable group per module.
  *
@@ -284,7 +296,7 @@ const section = heading => open => items =>
         ? []
         : [['details', { 'data-section': '', open: open ? '' : undefined },
             summary(heading)(),
-            ['ul', ...items]]]
+            ['ul', { 'data-links': '' }, ...items]]]
 
 /** @type {(href: string) => (text: string) => Element} */
 const item = href => text => ['li', ['a', { href }, text]]
@@ -342,7 +354,7 @@ const ancestors = path => {
  *
  * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
-export const page = commit => dir => htmlUtf8(
+export const page = commit => dir => htmlUtf8(lang)(
     ['title', dir.path],
     stylesheetLink,
     ...faviconLinks,

@@ -150,7 +150,9 @@ const render = {
             assert(html.includes('<title>FunctionalScript 0.41.0</title>'), html)
             assert(html.includes('<h1>0.41.0</h1>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
-            // Every page of the site carries the same stylesheet and icons.
+            // Every page of the site carries the same language, stylesheet
+            // and icons.
+            assert(html.includes('<html lang="en">'), html)
             assert(html.includes('/_main.css'), html)
         },
         // `changelog/README.md`: "A `<version>.md` file that is empty records
@@ -171,6 +173,11 @@ const render = {
         },
         linksEvery: () => assertEq(
             utf8ToString(indexPage(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),
+        // One link per line, so the stylesheet's tap-target rule reaches it.
+        linkList: () => {
+            const html = utf8ToString(indexPage(['0.1.0']))
+            assert(html.includes('<ul data-links=""><li><a href="/changelog/_0.1.0.html">'), html)
+        },
     },
 }
 
