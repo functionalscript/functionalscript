@@ -64,7 +64,7 @@ import { log } from '../effects/common/module.f.mjs'
 import { indexPage, isVersion, releasePage, releasePath, releases } from './changelog/module.f.mjs'
 import { tryParse } from '../media/markdown/module.f.mjs'
 import { faviconLinks, stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { demoSection, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
+import { demoSection, lang, page, repository, sections, subtree, testSection } from './page/module.f.mjs'
 import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
 
 /**
@@ -87,7 +87,7 @@ import { toHex, tryFromHexOf } from '../git/oid/module.f.mjs'
  *
  * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
-const rootPage = commit => dir => htmlUtf8(
+const rootPage = commit => dir => htmlUtf8(lang)(
     ['title', 'FunctionalScript'],
     stylesheetLink,
     ...faviconLinks,

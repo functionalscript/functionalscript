@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { Edge, Node, Ranked } from '../../website/demo/graph/types.ts'
+import type { Edge, Node } from '../../website/demo/graph/types.ts'
 
 export type _State = {
     readonly refs: readonly (readonly [object, number])[]
@@ -14,7 +14,3 @@ export type _State = {
     readonly edges: readonly Edge[]
     readonly next: number
 }
-
-export type _Graph =
-    | { readonly ok: true, readonly nodes: readonly Ranked[], readonly edges: readonly Edge[] }
-    | { readonly ok: false, readonly error: string }
