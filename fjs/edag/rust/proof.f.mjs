@@ -696,6 +696,9 @@ export const proof = {
             // and a count that is no nonnegative integer has no `u32`
             assertEq(refusalReason(['=>', 1.5, null, 1])[0], 'no Rust for a parameter count that is no nonnegative integer')
             assertEq(refusalReason(['=>', -1, null, 1])[0], 'no Rust for a parameter count that is no nonnegative integer')
+            // `-0` included, and ahead of the `function_any` shortcut, which
+            // `===` would have let it through
+            assertEq(refusalReason(['=>', -0, ['[]', []], ['undefined']])[0], 'no Rust for a parameter count that is no nonnegative integer')
             // and one past `u32`, which is what `static_function` takes
             assertEq(refusalReason(['=>', 0x100000000, null, 1])[0], 'no Rust for a parameter count past u32')
             assertEq(printed(['=>', 0xffffffff, null, 1]).includes(', 4294967295, '), true)
