@@ -13,9 +13,10 @@ Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
 non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
 [property-accessor](../spec/todo/2330-property-accessor.md); source functions
-are in the language ([functions](../spec/README.md#functions)) and later
-captured frames are tracked by
-[function-frame](../spec/todo/3111-function-frame.md); VM-internal call
+are in the language ([functions](../spec/README.md#functions)), capturing
+ones included — the frame
+[function-frame](../spec/todo/3111-function-frame.md) describes, built by the
+compiler and printed to Rust; VM-internal call
 lowering belongs to
 [call-like-instructions](../spec/todo/9100-call-like-instructions.md).
 
@@ -224,9 +225,9 @@ DJS rollout in
 operation — not when the EDAG schema itself admits it.** The schema
 (`fjs/edag/module.f.mjs`) doesn't have to wait for a task before defining a shape, and
 in practice it doesn't: `"own"`, `"Number"`, `"String"`, and `","` are marked `later`
-below, `"=>"` is marked a not-yet-implemented Stage 2, and `["frame"]` is marked `later`
-too (further down, under [Operations](#operations)) — yet all are already validated by
-`exp` today. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
+below, `"=>"` was marked a not-yet-implemented Stage 2, and `["frame"]` was marked
+`later` too (further down, under [Operations](#operations)) — yet all were already
+validated by `exp`, before any compiler emitted them. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
 schema even though `?.` is not an FS source operator in its own right (see below), because
 the `Function` constructor takes EDAG from anywhere and a chain's hidden control flow has
 to be representable and validatable when it does. A node being schema-valid says nothing about whether any parser emits it or
@@ -250,7 +251,7 @@ schema is free to change independently of both.
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope is narrower and only emits/accepts a placeholder for it, captured frames come later|
+|`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -383,7 +384,7 @@ All operators are post-stage-1: stage 1 has no operators at all.
 |----|--|-----|-----|
 |`["throw", node]`|`throw v`|later|always fails; never produces a value|
 |`["self"]`|—|later|the function itself; recursion is `["()", ["self"], args]`|
-|`["frame"]`|—|later|the captured-consts frame, an array — as `["args"]` is for arguments|
+|`["frame"]`|—|captures|the captured-consts frame, an array — as `["args"]` is for arguments; emitted by the compiler task that made captures a frame slot, which read it as `[".", ["frame"], i]`|
 
 **`["frame"]` and the closed-scope model.** A closure's free values are
 copied into a frame when the function object is created — the scheme

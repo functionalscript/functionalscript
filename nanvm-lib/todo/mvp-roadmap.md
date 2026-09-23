@@ -334,12 +334,13 @@ as a generic `Any` facility, post-MVP.
       thunks so a compiled module establishes only the selected one, covered
       by the corpus as a `Group3`; the operator table in
       [`nanvm-lib/README.md`](../README.md) has the record.
-- [ ] **Nested functions** (function frame) (Rust).
+- [x] **Nested functions** (function frame) (Rust).
       See [functions](../../spec/README.md#functions),
       [function-frame](../../spec/todo/3111-function-frame.md). The staged
       plan for making generated Rust function bodies callable — arguments,
       captured-frame, and self-reference representation — is
-      [callable-function-objects](./callable-function-objects.md).
+      [callable-function-objects](./callable-function-objects.md): a
+      capturing closure is its Stage 3, landed; self-reference is Stage 5.
 - [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
       the generated stub trait against the OS; sync subset (fs, console)
       first. Preceded by defining the effect vocabulary as an RTTI schema

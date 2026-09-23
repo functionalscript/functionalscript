@@ -160,10 +160,10 @@ export const _shapeOf = exp => {
     // mirrors the type file for the eye-check the comment there describes; it
     // is drawn here instead because `left`/`right` name nothing a reader of a
     // function wants, and `frame`/`body` name exactly it. The frame is `null`
-    // in every function the compiler emits today — `./module.f.mjs` lowers
-    // each to `['=>', null, body]`, the parser refusing a capture — and the
-    // edge label is what makes that null read as the absent frame it is
-    // rather than as a constant somebody passed.
+    // in every function that captures nothing but primitives —
+    // `./module.f.mjs` lowers each to `['=>', null, body]` — and the edge
+    // label is what makes that null read as the absent frame it is rather
+    // than as a constant somebody passed.
     //
     // The body is lazy: building the closure establishes the frame and
     // never the body, which runs only on a call and may never run at all.
@@ -289,8 +289,8 @@ const graphOf = text => {
  * `.default` on argument 0, and the function's own, fresh for that
  * body. That those two look identical and are still not shared is `a`'s
  * lesson from the other side: sharing is reference identity, never
- * resemblance. The function's `frame` edge ends at `null` because the
- * compiler emits no captures yet, and its `body` edge is broken because
+ * resemblance. The function's `frame` edge ends at `null` because it
+ * captures nothing, and its `body` edge is broken because
  * building the function does not run it.
  *
  * **`m && a` is what makes the marking legible**, and not because it

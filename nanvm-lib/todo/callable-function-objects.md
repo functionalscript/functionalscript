@@ -378,7 +378,7 @@ function's one property; when named parameters are admitted, the generator print
 function node's count, and exported and returned functions' `length` is
 compared with native JavaScript, unused parameters included.
 
-**Stage 3 — capturing closures.**
+**Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
 that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
@@ -390,6 +390,14 @@ closure fixture over an ordinary (non-`self`) captured value — e.g.
 frame — the general shape [function-frame](../../spec/todo/3111-function-frame.md)
 and edag-stage1-discussion's `["frame"]` design are built around, though
 neither document spells this particular example.
+
+It landed as described, the frame an array literal whose items are the
+enclosing scope's own nodes, printed as `[…].to_array()` in the third
+argument of `A::static_function`, and `['frame']` as
+`A::frame(self_).clone().to_any()`. The fixture is
+`nanvm-harness/fixtures/closure.mjs`: `(...a) => (...b) => a[0] + b[0]`,
+the language's one parameter being a rest parameter, beside a capture of a
+module `const` and one through a parent's frame.
 
 **Stage 4 — dynamic calls and higher-order functions. Landed.** The
 plain call landed with Stage 1: there is one call form, `Any::call`,
@@ -486,9 +494,11 @@ generated-Rust test from one source of cases.
 - [x] Stage 2: landed with Stage 1 — every function is a `Function<A>`
       value, the module bounding on `IStaticFunction`; `length` `0` until
       named parameters exist.
-- [ ] Stage 3: capturing closures — approved function-node lowering, the
-      frame built as an `Array<A>` and handed to `A::static_function`;
-      the front end is [`fjs/fsc/todo/captures.md`](../../fjs/fsc/todo/captures.md).
+- [x] Stage 3: capturing closures — a capture is a slot of the function's
+      frame, built as an `Array<A>` in the enclosing scope and handed to
+      `A::static_function`, the body reading it through `A::frame(self_)`;
+      the `closure` harness fixture runs `(...a) => (...b) => a[0] + b[0]`
+      end to end.
 - [x] Stage 4: the plain call landed with Stage 1 — `Any::call` is the
       one call form, a non-function callee throwing through
       `TryFrom<Any<A>> for Function<A>` — and the method call with chains,
