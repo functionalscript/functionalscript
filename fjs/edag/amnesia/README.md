@@ -96,9 +96,19 @@ vm({ ...context, memo })(['===', shared, shared])   // true
 `.` is `a[b]`, so the entire JavaScript prototype chain is reachable:
 
 ```js
-vm(context)(['.', ['=>', 0, ['[]', []], 1], 'constructor'])   // Function
+vm(context)(['.', ['[]', []], 'constructor'])     // Array
 vm(context)(['.', ['{}', []], '__proto__'])       // resolves
 ```
+
+A closure is the one exception: it is a record the operations table keeps
+closed — `length` reads, every other key is `undefined` — since it is the
+language's function and not a host one
+([`../operations/module.f.mjs`](../operations/module.f.mjs)). A host method
+handed one takes it as a value, except at the position
+`fjs/js/prototype`'s `callbacks` says the method calls, where the host is
+handed a function that invokes the closure through this evaluator. Its
+text is not rendered yet, so `String(f)` is refused
+([`../operations/todo/closure-text.md`](../operations/todo/closure-text.md)).
 
 [`spec/todo/2360-built-in.md`](../../../spec/todo/2360-built-in.md) lists both
 under **Prohibited Properties** — `constructor` because

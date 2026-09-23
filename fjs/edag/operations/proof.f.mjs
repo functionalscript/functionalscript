@@ -5,11 +5,11 @@
  * short-circuits, frames, calls and what throws — are amnesia's proofs,
  * which run every operation through this table over EDAG nodes.
  *
- * @import { Evaluator } from './types.ts'
+ * @import { Closure, Evaluator } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { operation } from './module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { isClosure, operation } from './module.f.mjs'
 
 /**
  * Operands are values; a call of a `=>` runs the body, which is a value
@@ -27,8 +27,17 @@ const values = {
 /** @type {(e: any) => unknown} */
 const run = e => operation(values)(e)
 
+/** A call of a closure this table built: the evaluator's `invoke` over the record, which is what every executor's `call` is. @type {(v: unknown) => (args: readonly unknown[]) => unknown} */
+const call = v => {
+    const { frame, body } = /**@type {Closure<unknown>}*/(v)
+    return args => values.invoke(frame, args, body)
+}
+
 /** @type {(e: any, expected: unknown) => void} */
 const eq = (e, expected) => { assertEq(run(e), expected) }
+
+/** @type {(e: any, expected: unknown) => void} */
+const same = (e, expected) => { assertStructurallySame(run(e), expected) }
 
 export const proof = {
     operators: () => {
@@ -97,20 +106,40 @@ export const proof = {
     // `=>` closes over the frame operand's value and starts a new
     // invocation per call, whose body reads its own `args` and `frame`;
     // its `length` is the count, whatever the body reads, and the
-    // arguments are the complete list under any count.
+    // arguments are the complete list under any count. The value is a
+    // record, not a host function: called through the executor,
+    // `'function'` to the language's `typeof`, `length` its one readable
+    // property.
     lambda: () => {
-        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, 'captured', ['frame']]))
-        assertEq(f(), 'captured')
-        assertEq(f.length, 0)
-        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, null, ['args']]))
-        assertStructurallySame(g(1, 2), [1, 2])
-        const h = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 2, null, ['args']]))
-        assertEq(h.length, 2)
-        assertStructurallySame(h(1), [1])
-        assertStructurallySame(h(1, 2, 3), [1, 2, 3])
-        const k = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 3, null, ['args']]))
-        assertEq(k.length, 3)
-        assertStructurallySame(k(), [])
+        const f = run(['=>', 0, 'captured', ['frame']])
+        assert(isClosure(f))
+        assertEq(typeof f, 'object')
+        assertEq(call(f)([]), 'captured')
+        const g = run(['=>', 0, null, ['args']])
+        assertStructurallySame(call(g)([1, 2]), [1, 2])
+        eq(['typeof', f], 'function')
+        eq(['.', f, 'length'], 0)
+        const h = run(['=>', 2, null, ['args']])
+        eq(['.', h, 'length'], 2)
+        assertStructurallySame(call(h)([1]), [1])
+        assertStructurallySame(call(h)([1, 2, 3]), [1, 2, 3])
+        const k = run(['=>', 3, null, ['args']])
+        eq(['own', k, 'length'], 3)
+        assertStructurallySame(call(k)([]), [])
+        eq(['.', f, 'frame'], undefined)
+        eq(['own', f, 'body'], undefined)
+        same(['{}', [['...', f]]], {})
+        // a call step onto a closure held in a property invokes it, and a
+        // bare `()` does the same
+        same(['.', { g }, 'g', ['|()', [3]]], [3])
+        same(['()', g, [4]], [4])
+        same(['?.()', g, [5]], [5])
+        // a host method calls the closure at the position `callbacks`
+        // names, through this table's `invoke`, and holds it as a value
+        // anywhere else
+        same(['.', [1, 2], 'map', ['|()', [g]]], [[1, 0, [1, 2]], [2, 1, [1, 2]]])
+        const held = run(['.', [], 'concat', ['|()', [g]]])
+        assert(held instanceof Array && held[0] === g)
     },
     throw: {
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),
@@ -123,5 +152,12 @@ export const proof = {
         negativeCount: () => run(['=>', -1, null, ['args']]),
         nanCount: () => run(['=>', NaN, null, ['args']]),
         negativeZeroCount: () => run(['=>', -0, null, ['args']]),
+        // a call step onto a closure's `length`, a number, is the host's
+        // error, as `f.length()` is in JavaScript
+        closureMethod: () => run(['.', run(['=>', 0, null, 1]), 'length', ['|()', []]]),
+        // and a closure's text is refused, not the record's host string
+        closureString: () => run(['String', run(['=>', 0, null, 1])]),
+        closurePlus: () => run(['+', run(['=>', 0, null, 1]), '']),
+        closureOrder: () => run(['<', '', run(['=>', 0, null, 1])]),
     },
 }

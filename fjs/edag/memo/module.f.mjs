@@ -29,6 +29,7 @@
  * @module
  *
  * @import { Analysis, Operand } from '../analysis/types.ts'
+ * @import { Closure } from '../operations/types.ts'
  * @import { Invocation } from './types.ts'
  */
 
@@ -77,10 +78,22 @@ const invocation = (a, s) => (frame, args) => {
         frame,
         args,
         operand: v => v instanceof Array ? entry(v[1]) : v,
-        invoke: (frame, args, body) => body instanceof Array ? invocation(a, scope[body[1]])(frame, args)(body[1]) : body,
+        invoke: (frame, args, body) => call(a)({ frame, body })(args),
     })
     return entry
 }
+
+/**
+ * A call of a closure this executor built over `a`: a new invocation of
+ * the body's scope over the captured frame and the arguments, every slot
+ * empty. A primitive body is its value and opens no invocation, as a
+ * primitive program is its value. This is the one way to call a function
+ * value, since it is a record and not a host function.
+ *
+ * @type {(a: Analysis) => (closure: Pick<Closure<Operand>, 'frame' | 'body'>) => (args: readonly unknown[]) => unknown}
+ */
+export const call = a => ({ frame, body }) => args =>
+    body instanceof Array ? invocation(a, a.scope[body[1]])(frame, args)(body[1]) : body
 
 /** The program's value: its root, a primitive as it stands, an entry in the module's invocation. @type {(a: Analysis) => (i: Invocation) => unknown} */
 export const memo = a => ({ frame, args }) => {

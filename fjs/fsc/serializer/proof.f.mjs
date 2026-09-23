@@ -14,10 +14,12 @@
  * compiler meets, and every one of them names a feature that will replace it.
  *
  * @import { Exp } from '../../edag/types.ts'
+ * @import { Operand } from '../../edag/analysis/types.ts'
+ * @import { Closure } from '../../edag/operations/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { memo } from '../../edag/memo/module.f.mjs'
+import { call, memo } from '../../edag/memo/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../types/result/module.f.mjs'
@@ -154,9 +156,10 @@ export const proof = {
         },
         functions: () => {
             const text = unwrap(tryModuleStringify(moduleGraph('export const f=(...a)=>a; export default f;')))
-            const result = /** @type {{ f: (...args: unknown[]) => unknown, default: unknown }} */ (moduleValue(moduleGraph(text)))
+            const a = analysis(moduleGraph(text))
+            const result = /** @type {{ f: Closure<Operand>, default: unknown }} */ (memo(a)({ frame: null, args: [] }))
             assert(result.f === result.default)
-            assertStructurallySame(result.f(1, 2), [1, 2])
+            assertStructurallySame(call(a)(result.f)([1, 2]), [1, 2])
         },
         refusals: () => {
             for (const graph of /** @type {readonly Exp[]} */ ([
@@ -364,10 +367,11 @@ export const proof = {
         // the executor agrees with the text: the count is `length`, the
         // positions are the arguments, missing ones `undefined` and extra
         // ones passed
-        const f = /** @type {{ readonly default: (...a: unknown[]) => unknown }} */ (moduleValue(['{}', [[':', 'default', ['=>', 2, null, ['[]', [arg(1), arg(0)]]]]]])).default
+        const a = analysis(['{}', [[':', 'default', ['=>', 2, null, ['[]', [arg(1), arg(0)]]]]]])
+        const f = /** @type {{ readonly default: Closure<Operand> }} */ (memo(a)({ frame: null, args: [] })).default
         assertEq(f.length, 2)
-        assertStructurallySame(f(1), [undefined, 1])
-        assertStructurallySame(f(1, 2, 3), [2, 1])
+        assertStructurallySame(call(a)(f)([1]), [undefined, 1])
+        assertStructurallySame(call(a)(f)([1, 2, 3]), [2, 1])
         // a body's own `const`s, a nested function and a block under names
         /** @type {Exp} */
         const o = ['{}', []]

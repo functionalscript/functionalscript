@@ -7,11 +7,13 @@
  * schema *accepts*; nothing here validates.
  *
  * @import { Exp, Index } from '../types.ts'
+ * @import { Closure } from '../operations/types.ts'
  * @import { Context } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { vm } from './module.f.mjs'
+import { isClosure } from '../operations/module.f.mjs'
+import { call, vm } from './module.f.mjs'
 
 /** @type {Context} */
 const context = { frame: { x: 1 }, args: [10, 20] }
@@ -22,6 +24,9 @@ const ev = e => vm(context)(e)
 /** `ev` composed with `assertEq`, the shape almost every case below has. */
 /** @type {(e: Exp, expected: unknown) => void} */
 const eq = (e, expected) => { assertEq(ev(e), expected) }
+
+/** A value this evaluator built from a `=>`, as the record it is. @type {(v: unknown) => Closure<Exp>} */
+const closure = v => /**@type {any}*/(v)
 
 /** The same for a value built by the node rather than passed through it. */
 /** @type {(e: Exp, expected: unknown) => void} */
@@ -113,7 +118,8 @@ export const proof = {
         eq(['Number', '42'], 42)
         eq(['String', 42], '42')
         // `typeof` — one tag per kind a value can have here; `null` is
-        // `'object'` as in JS, and a closure is a host function.
+        // `'object'` as in JS, and a closure is `'function'`, whatever the
+        // host says of the record it is.
         eq(['typeof', undef], 'undefined')
         eq(['typeof', null], 'object')
         eq(['typeof', true], 'boolean')
@@ -288,9 +294,8 @@ export const proof = {
         // body: the node inside evaluates fresh and is not the caller's value.
         /** @type {Exp} */
         const body = ['=>', 0, ['[]', []], node]
-        const f = /** @type {() => unknown} */ (
-            vm({ ...context, memo: markerMemo })(body))
-        assert(f() !== marker, ['the memo crossed a call boundary'])
+        const f = closure(vm({ ...context, memo: markerMemo })(body))
+        assert(call(f)([]) !== marker, ['the memo crossed a call boundary'])
     },
     // Operands are evaluated through `vm(context)`, so a node composes with
     // every other node kind and sees the same context at any depth.
@@ -305,16 +310,55 @@ export const proof = {
     },
     // `=>` evaluates its *frame* operand and not its body: the value is the
     // captured frame paired with the body graph, which is why a closure can
-    // outlive the scope that built it. Here that pair is a host function, so
-    // these also pin that representation choice — a `typeof`-`'function'`
-    // value the host can call directly, not an inert record.
+    // outlive the scope that built it. That pair is a record and not a host
+    // function — these pin the representation: data the executor calls
+    // through `call`, `'function'` to the language's `typeof`, and
+    // `length` its one readable property.
     lambda: () => {
-        const f = ev(identity)
-        assertEq(typeof f, 'function')
-        assertEq(/**@type {(a: unknown) => unknown}*/(f)(7), 7)
+        const f = closure(ev(identity))
+        assert(isClosure(f))
+        assertEq(typeof f, 'object')
+        assertEq(call(f)([7]), 7)
+        assertStructurallySame(f.frame, [])
+        assert(f.body === identity[3])
         // Every evaluation builds a fresh closure, as `x => x` does in JS —
         // the `=>` node is shared, the values it produces are not.
         assert(ev(identity) !== ev(identity))
+        // What a program sees of one is what it sees of a function: its
+        // `length`, and no field of the record — not through `.`, `?.`,
+        // `own`, nor an object spread, which copies nothing of a function.
+        eq(['.', identity, 'length'], 0)
+        eq(['?.', identity, 'length'], 0)
+        eq(['own', identity, 'length'], 0)
+        eq(['.', identity, 'frame'], undefined)
+        eq(['.', identity, 'body'], undefined)
+        eq(['.', identity, 'mark'], undefined)
+        eq(['own', identity, 'body'], undefined)
+        same(['{}', [['...', identity]]], {})
+        // An object with a closure's every field is not one: `mark` is
+        // identity with an object no graph evaluates to.
+        eq(['typeof', ['{}', [[':', 'mark', ['{}', [[':', 'closure', true]]]], [':', 'length', 0], [':', 'frame', null], [':', 'body', 1]]]], 'object')
+        // A host method takes a closure as the value it is where it does
+        // not call it, and at the position `callbacks` names it calls the
+        // closure through this evaluator: the host iterates, the executor
+        // calls, with the host's arguments — element, index, array.
+        const held = ev(['.', ['[]', []], 'concat', ['|()', ['[]', [identity]]]])
+        assert(held instanceof Array && isClosure(held[0]))
+        same(['.', ['[]', [1, 2]], 'map', ['|()', ['[]', [identity]]]], [1, 2])
+        same(['.', ['[]', [1, 2]], 'map', ['|()', ['[]', [['=>', 0, ['[]', []], ['.', ['args'], 1]]]]]], [0, 1])
+        same(['.', ['[]', [1, 2, 3]], 'filter', ['|()', ['[]', [['=>', 0, ['[]', []], ['<', 1, ['.', ['args'], 0]]]]]]], [2, 3])
+        eq(['.', ['[]', [1, 2, 3]], 'reduce', ['|()', ['[]', [['=>', 0, ['[]', []], ['+', ['.', ['args'], 0], ['.', ['args'], 1]]], 10]]]], 16)
+        same(['.', ['[]', [3, 1, 2]], 'toSorted', ['|()', ['[]', [['=>', 0, ['[]', []], ['-', ['.', ['args'], 0], ['.', ['args'], 1]]]]]]], [1, 2, 3])
+        eq(['.', 'a-b', 'replace', ['|()', ['[]', ['-', ['=>', 0, ['[]', []], ['.', ['args'], 1]]]]]], 'a1b')
+        // a closure at any other position is a value: `reduce`'s initial
+        // value comes back as the record it went in as
+        assert(isClosure(ev(['.', ['[]', []], 'reduce', ['|()', ['[]', [identity, identity]]]])))
+        // the numeric coercions and an order against a number answer as
+        // JavaScript does for a function, without its text
+        eq(['<', identity, 1], false)
+        eq(['>=', identity, 1n], false)
+        assert(Number.isNaN(ev(['*', identity, 2])))
+        assert(Number.isNaN(ev(['+', identity])))
     },
     // `()` — the call with no receiver and no region. A call rebuilds the
     // callee's scope from two places: `frame` comes from the closure, `args`
@@ -438,9 +482,10 @@ export const proof = {
         // shorter arity. Reading `a` and skipping the step would
         // evaluate to `a` itself, so these pin the index is applied.
         eq(['?.', ['{}', [[':', 'a', 7]]], 'a'], 7)
-        // A closure is a value like any other — compared by `typeof`, since
-        // every evaluation of a `=>` builds a fresh one (see `lambda`).
-        assert(typeof ev(['?.', methods, 'id']) === 'function')
+        // A closure is a value like any other — recognised as one rather
+        // than compared, since every evaluation of a `=>` builds a fresh
+        // one (see `lambda`).
+        assert(isClosure(ev(['?.', methods, 'id'])))
         same(['?.', ['[]', [1, 2, 3]], 1], 2)
         eq(['?.', ['[]', [1, 2, 3]], ['Number', '1']], 2)
         // An absent property is `undefined`, not an error: `?.` guards its
@@ -572,11 +617,11 @@ export const proof = {
     // `undefined` and an extra one present, as `(a, b) => …` has them in
     // JavaScript.
     count: () => {
-        const f = /** @type {(...a: unknown[]) => unknown} */ (vm(context)(['=>', 2, ['[]', []], ['args']]))
+        const f = closure(vm(context)(['=>', 2, ['[]', []], ['args']]))
         assertEq(f.length, 2)
-        assertStructurallySame(f(1), [1])
-        assertStructurallySame(f(1, undefined), [1, undefined])
-        assertStructurallySame(f(1, 2, 3), [1, 2, 3])
+        assertStructurallySame(call(f)([1]), [1])
+        assertStructurallySame(call(f)([1, undefined]), [1, undefined])
+        assertStructurallySame(call(f)([1, 2, 3]), [1, 2, 3])
         eq(['.', ['=>', 2, ['[]', []], ['args']], 'length'], 2)
         eq(['.', identity, 'length'], 0)
         // `(a, b) => a`, called short and long: the position is read
@@ -636,6 +681,24 @@ export const proof = {
         // `throw.callNonFunction` is for `()`.
         optionCallOnNonFunction: () =>
             ev(['?.()', ['.', ['{}', [[':', 'a', 1]]], 'a'], noArgs]),
+        // A closure has no method: `f.length()` is the host `TypeError`, as
+        // it is in JavaScript, and so is any name the record holds a field
+        // under, since the read is `undefined` (see `lambda`).
+        closureMethod: () => ev(['.', identity, 'length', ['|()', noArgs]]),
+        closureField: () => ev(['.', identity, 'body', ['|()', noArgs]]),
+        // A closure's text is not rendered yet, so what would read it is
+        // refused rather than answered with the record's host string —
+        // `../operations/todo/closure-text.md`.
+        closureText: {
+            string: () => ev(['String', identity]),
+            plusRight: () => ev(['+', identity, 'x']),
+            plusLeft: () => ev(['+', 1, identity]),
+            orderAgainstString: () => ev(['<', identity, 'a']),
+            orderStringAgainst: () => ev(['>=', 'a', identity]),
+            // two closures are ordered by their texts too, the same one
+            // included: `f >= f` is `true` in JavaScript only by its text
+            orderAgainstClosure: () => ev(['>=', identity, identity]),
+        },
         // An array spread iterates its operand, so a non-iterable one throws
         // where the object form would have contributed nothing.
         arraySpreadOfNumber: () => ev(['[]', [['...', 1]]]),

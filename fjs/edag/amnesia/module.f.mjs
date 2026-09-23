@@ -14,18 +14,27 @@
  * @module
  *
  * @import { Exp } from '../types.ts'
+ * @import { Closure } from '../operations/types.ts'
  * @import { Context } from './types.ts'
  */
 
 import { operation } from '../operations/module.f.mjs'
 
+/**
+ * A call of a closure this evaluator built: a new invocation of the body
+ * over the captured frame and the arguments, with nothing established —
+ * the caller's `memo` does not cross the boundary, the same way the
+ * model's per-invocation memo does not. This is the one way to call a
+ * function value, since it is a record and not a host function.
+ *
+ * @type {(closure: Pick<Closure<Exp>, 'frame' | 'body'>) => (args: readonly unknown[]) => unknown}
+ */
+export const call = ({ frame, body }) => args => vm({ frame, args })(body)
+
 /** @type {(context: Context) => (e: Exp) => unknown} */
 export const vm = context => {
     const { frame, args, memo } = context
-    // The body is a new invocation, so it starts with nothing established:
-    // the enclosing `memo` does not cross the boundary, the same way the
-    // model's per-invocation memo does not.
-    const run = operation({ frame, args, operand: e => f(e), invoke: (frame, args, body) => vm({ frame, args })(body) })
+    const run = operation({ frame, args, operand: e => f(e), invoke: (frame, args, body) => call({ frame, body })(args) })
     /** @type {(e: Exp) => unknown} */
     const f = e => {
         if (!(e instanceof Array)) { return e }

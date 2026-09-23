@@ -34,6 +34,7 @@
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { exp } from '../edag/module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
+import { isClosure } from '../edag/operations/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
     caseExp,
@@ -199,6 +200,17 @@ const exprOf = caseExp(nodes)
 const value = ev => v => ev(valuesExp(nodes)(v))
 
 /**
+ * A value as JavaScript holds it: `amnesia`'s closure is a record, and the
+ * JavaScript value it denotes is a function — `() => undefined`, the one
+ * every `functionValue` lowers to ({@link lambdaExp}) — so the reference
+ * operator meets a function where the executor met the record. Every other
+ * value is JavaScript's already.
+ *
+ * @type {(v: unknown) => unknown}
+ */
+const asHost = v => isClosure(v) ? () => undefined : v
+
+/**
  * The value one argument order produces: the case's expression evaluated
  * through `amnesia`'s `vm`.
  *
@@ -271,7 +283,9 @@ const group = g => {
  * {@link js}, and nothing else, which `referenceCoverage` pins. Every
  * operation that has one is a bare JavaScript operator on both sides, so
  * agreement is the only correct outcome, not a coincidence of scope. A
- * function operand is compared like any other: both sides see a closure, and
+ * function operand is compared like any other, through {@link asHost}: the
+ * reference is JavaScript over JavaScript values, and `amnesia`'s closure is
+ * a record, so the reference is handed the function that record denotes —
  * every operator here coerces one the same way. A case with an `unreached`
  * anywhere in an operand is skipped too: the reference is a JavaScript
  * operator over *values*, and that operand has none to hand it —
@@ -298,7 +312,7 @@ const crossCheck = g => {
         // operands must see the same object across a shared node, or
         // `arrayByItself` would compare two arrays here and one there.
         /** @type {(ev: (e: Exp) => unknown) => unknown} */
-        const refValue = ev => f(...args.map(value(ev)))
+        const refValue = ev => f(...args.map(value(ev)).map(asHost))
         const fn = isThrows(c.expected)
             ? () => { refValue(corpus()) }
             : () => {
@@ -344,7 +358,7 @@ const lambda = () => {
     assertStructurallySame(valueExp(functionValue), lambdaExp())
     assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
     assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])
-    assertEq(typeof value(corpus())(functionValue), 'function')
+    assert(isClosure(value(corpus())(functionValue)))
     // Two function operands are two closures, not one node reached twice.
     const [f, g] = /** @type {readonly unknown[]} */ (
         value(corpus())([functionValue, functionValue]))
