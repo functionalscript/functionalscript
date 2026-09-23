@@ -11,11 +11,12 @@
  *
  * A mapping sees one rule's node and no environment, so it builds a node
  * per value — a primitive, a reference by the token that spells it, a
- * container of nodes — and a record per statement, and nothing here reads
- * a word: what a name means is the fold's, once the grammar has matched
- * the whole module. A match that fails builds no module, so a malformed
- * suffix is found before any name is resolved. `../README.md` holds the
- * argument.
+ * container of nodes — and a record per statement. A word is kept as
+ * spelled and judged by nothing here — a property key's and a module
+ * specifier's are taken from their tokens, a name stays its token — and
+ * what a name means is the fold's, once the grammar has matched the whole
+ * module. A match that fails builds no module, so a malformed suffix is
+ * found before any name is resolved. `../README.md` holds the argument.
  *
  * Every walk is a mapping of one node: the machine's own stack is on the
  * heap, and a list's mapping puts one item before the list its tail's
