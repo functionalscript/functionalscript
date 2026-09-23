@@ -145,11 +145,14 @@ module they live in.
       owned by
       [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md),
       which records the bug, what is known about it, and the directions a
-      fix could take without choosing one. If the
-      exception was refused, `arrayRebuild` replaces `tupleRebuild` for both
-      tuple kinds, and the three proofs whose subject is hole preservation go
-      with it. If it was granted, the opposite edit: cite the new spec
-      paragraph in the JSDoc instead of arguing local freshness, and note in
+      fix could take without choosing one. That issue decides the edit under
+      either ruling. One thing it has already established binds every
+      choice: `arrayRebuild` alone reindexes a sparse input past its hole,
+      `[, 3]` becoming `[3]`, so a refused exception is not by itself the
+      substitution; a sparse input keeps its meaning or is refused, never
+      shifted. If the exception was granted, the edit is the one the issue
+      lists first: cite the new spec paragraph in the JSDoc instead of
+      arguing local freshness, and note in
       [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
       that `parse` output is the one source of sparse arrays its dense premise
       does not cover.
