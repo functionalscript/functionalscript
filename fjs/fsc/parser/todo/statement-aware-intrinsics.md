@@ -43,7 +43,7 @@ identifier references, parameter lists, block bodies and explicit returns
 one final result. Keep source metadata separate; preserving source order in
 this tree does not impose source-order execution barriers on the EDAG.
 
-Evolve the earlier representation in [`parser/types.ts`](../types.ts) rather
+Evolve the earlier representation in [`parser/reader/types.ts`](../reader/types.ts) rather
 than add another redundant source tree. The indexed `cref`/`aref` references,
 `args` and implicit final-result bodies in [`ast/types.ts`](../../ast/types.ts)
 already embody lowering decisions. They may be compiler-internal artifacts;

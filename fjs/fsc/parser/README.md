@@ -8,7 +8,10 @@ It is the upper layer of a layered parser: the tokenizer turns code points into
 tokens, and this turns tokens into an `AstModule`. Both layers are an LL(1)
 grammar read by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) and a fold over what
 the grammar matched; only the alphabet differs — code points there, token
-symbols here.
+symbols here. This layer is two modules: [`./reader`](./reader/module.f.mjs),
+the rewrite set that builds a module of nodes from the grammar's tree, and
+[`./module.f.mjs`](./module.f.mjs), the fold that resolves its names into
+the AST — the seam the next two sections describe.
 
 ## The grammar is written down
 
@@ -255,9 +258,11 @@ have different source bodies; the fold lowers them to the same executable
 body. The grammar still requires zero or more declarations followed by one
 value-returning statement. This representation change adds no syntax or ASI.
 
-`_parseSyntaxFromTokens` exposes that internal tree for proofs before the
+`readFromTokens`, the reader's own entry, hands that tree over before the
 fold. It does not establish binding validity, JavaScript early errors or FJS
-admission; `parseFromTokens` remains the checked compilation entry point.
+admission; `parseFromTokens` remains the checked compilation entry point. The
+reader reads no word: the two helpers it exports for the fold, `nameOf` and
+`textOf`, are how a token's word reaches the one module that judges it.
 
 Nothing walks the tree. The machine's own stack is on the heap, so nesting
 depth is the input's; a list's mapping puts one item before the list its
@@ -273,7 +278,8 @@ the list's own mapping, one symbol by then, rather than from the type. Every
 mapping is typed from its rule; the one reader the two list mappings share is
 typed by the shape of a list node, as a reader of a combinator's scaffolding
 is. The nodes the mappings build, and the alphabet they return them in, are
-public types in `./types.ts`, as the rewrite set is.
+public types in `./reader/types.ts`, as the rewrite set is; `./types.ts`
+holds the `ParseError` both modules report.
 
 ## Required keywords are terminals of their own
 
