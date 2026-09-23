@@ -86,6 +86,13 @@ descriptor field, another statement between, any other use of the constant,
 is not a partial match: it is refused like every `defineProperty` outside
 the pattern, and that prohibition does not change.
 
+The descriptor is `{ value: length }` and nothing more, by decision. An arrow
+already owns a `length`, and `defineProperty` on an existing property keeps
+every attribute the descriptor omits, so the result is a native function's
+`length` in every attribute. Spelling `writable`, `enumerable` and
+`configurable` would restate what the standard fixes and give the matcher
+four more fields to check for no observable difference.
+
 **Lowering.** The pattern is what makes the count an operand of `=>`:
 
 ```js
