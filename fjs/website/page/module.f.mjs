@@ -258,7 +258,7 @@ const section = heading => open => items =>
         ? []
         : [['details', { 'data-section': '', open: open ? '' : undefined },
             ['summary', heading],
-            ['ul', ...items]]]
+            ['ul', { 'data-links': '' }, ...items]]]
 
 /** @type {(href: string) => (text: string) => Element} */
 const item = href => text => ['li', ['a', { href }, text]]

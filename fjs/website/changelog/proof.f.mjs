@@ -171,6 +171,11 @@ const render = {
         },
         linksEvery: () => assertEq(
             utf8ToString(indexPage(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),
+        // One link per line, so the stylesheet's tap-target rule reaches it.
+        linkList: () => {
+            const html = utf8ToString(indexPage(['0.1.0']))
+            assert(html.includes('<ul data-links=""><li><a href="/changelog/_0.1.0.html">'), html)
+        },
     },
 }
 
