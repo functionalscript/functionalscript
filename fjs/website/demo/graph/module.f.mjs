@@ -190,7 +190,11 @@ const routesOf = placed => {
  * target's touches both and crosses neither. Liang–Barsky clipping of the
  * segment against the box shrunk by half a pixel.
  *
- * @type {(box: _Positioned) => (a: _Point) => (b: _Point) => boolean}
+ * Typed by shape rather than by `_Positioned` and `_Point`: it is exported
+ * for the proofs, and a private type in an exported signature names a file
+ * the published package does not carry.
+ *
+ * @type {(box: { readonly x: number, readonly y: number, readonly width: number, readonly height: number }) => (a: readonly [number, number]) => (b: readonly [number, number]) => boolean}
  */
 export const _crossesBox = box => ([x0, y0]) => ([x1, y1]) => {
     const inset = 0.5

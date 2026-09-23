@@ -30,8 +30,8 @@
  *
  * @import { Primitive, Unknown } from './types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
- * @import { Node } from '../../website/demo/graph/types.ts'
- * @import { _Graph, _State } from './private.ts'
+ * @import { Edge, Node, Ranked } from '../../website/demo/graph/types.ts'
+ * @import { _State } from './private.ts'
  */
 
 import { tryParse } from './module.f.mjs'
@@ -104,7 +104,7 @@ const walk = state => value => {
  * `text` as the graph it denotes, or the parser's own error if it does not
  * denote one.
  *
- * @type {(text: string) => _Graph}
+ * @type {(text: string) => { readonly ok: true, readonly nodes: readonly Ranked[], readonly edges: readonly Edge[] } | { readonly ok: false, readonly error: string }}
  */
 export const _graphOf = text => {
     const result = tryParse(text)
