@@ -873,16 +873,49 @@ export const proof = {
             ternary: () => {
                 const shape = assertNotNullish(_shapeOf(['?:', ['a'], 1, 2]), 'expected a shape')
                 assertEq(shape.label, '?:')
-                assertStructurallySame(shape.children, [['cond', ['a']], ['then', 1], ['else', 2]])
+                // The condition always runs; exactly one arm does, so both
+                // arms are marked.
+                assertStructurallySame(shape.children, [
+                    ['cond', ['a']], ['then', 1, 'lazy'], ['else', 2, 'lazy']])
+            },
+            /**
+             * **An operand a node may never evaluate is marked on its
+             * edge.** `&&`, `||` and `??` establish their right operand
+             * only where the left has not decided the answer, and `?:`
+             * exactly one arm.
+             *
+             * Built by hand here because `_shapeOf` is what these pin, one
+             * tag at a time; `lazyThroughTheParser` below reads the same
+             * four out of source, which `fsc` accepts since Stage B.
+             */
+            lazyRightOperand: () => {
+                for (const tag of ['&&', '||', '??']) {
+                    const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
+                    assertStructurallySame(shape.children, [
+                        ['left', ['a']], ['right', ['b'], 'lazy']])
+                }
+            },
+            // An eager binary operator marks neither operand.
+            eagerOperandsAreUnmarked: () => {
+                const shape = assertNotNullish(_shapeOf(['*', ['a'], ['b']]), 'expected a shape')
+                assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
+            },
+            // The condition always runs; exactly one arm does.
+            lazyArms: () => {
+                const shape = assertNotNullish(_shapeOf(['?:', ['a'], ['b'], ['c']]), 'expected a shape')
+                assertStructurallySame(shape.children, [
+                    ['cond', ['a']], ['then', ['b'], 'lazy'], ['else', ['c'], 'lazy']])
             },
             // `=>` is an Op2 by operand count, so it would draw `left` and
             // `right` like every other tag in that set; it is its own case
             // for the two names that say what a function's operands are. The
             // frame is `null` in everything the compiler emits today.
+            // Building a closure establishes its frame and never its body,
+            // which runs only on a call — so the body is marked.
             lambda: () => {
                 const shape = assertNotNullish(_shapeOf(['=>', null, ['args']]), 'expected a shape')
                 assertEq(shape.label, '=>')
-                assertStructurallySame(shape.children, [['frame', null], ['body', ['args']]])
+                assertStructurallySame(shape.children, [['frame', null], ['body', ['args'], 'lazy']])
             },
             // Every Op0 name renders with no children, and the three part
             // by meaning where `Op0Id` groups them by operand count:
@@ -909,11 +942,13 @@ export const proof = {
             },
             // A sample across Op2's range, not all twenty-one tags: the
             // dispatch is one membership test per group, so one tag from
-            // each syntactic corner — comparison, arithmetic, bitwise,
-            // logical, and the two named rather than symbolic ones — is
-            // what could vary.
+            // each syntactic corner — comparison, arithmetic, bitwise, and
+            // the two named rather than symbolic ones — is what could vary.
+            // The logical corner is not sampled here: `&&`, `||` and `??`
+            // mark their right operand, and `lazyRightOperand` above covers
+            // all three rather than one standing for them.
             op2: () => {
-                for (const tag of ['===', '*', '&', '&&', 'own', 'is']) {
+                for (const tag of ['===', '*', '&', 'own', 'is']) {
                     const shape = assertNotNullish(_shapeOf([tag, ['a'], ['b']]), tag)
                     assertEq(shape.label, tag)
                     assertStructurallySame(shape.children, [['left', ['a']], ['right', ['b']]])
@@ -950,7 +985,7 @@ export const proof = {
             },
         },
         // The initial source is the demo's whole reason for being: `a` is
-        // one `+` node reached by three edges, not three nodes that happen
+        // one `+` node reached by four edges, not four nodes that happen
         // to match.
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
@@ -974,6 +1009,39 @@ export const proof = {
             assert(html.includes('>undefined<'), html)
             assert(html.includes('>frame<'), html)
             assert(html.includes('>body<'), html)
+        },
+        /**
+         * **The initial source draws the marking and the reason for it.**
+         * `a` is reached four times — twice by the array, once through
+         * `a * 3`, and once as `m && a`'s right operand — so one node
+         * carries three eager edges and one lazy one, drawn as two solid
+         * lines (the array's two merge into `0, 1`) and one broken. A mark
+         * on the box could not have said which of the four was
+         * conditional. The other broken line is the function's body.
+         */
+        lazyEdgeInTheInitialSource: () => {
+            const html = htmlToString(demo.view(demo.init))
+            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 2)
+        },
+        /**
+         * Every lazy position, through the parser rather than by hand —
+         * which `fsc` accepts since Stage B landed.
+         */
+        lazyThroughTheParser: () => {
+            // Each source is a function, whose body is one marked edge of
+            // its own; the count past it is the operator's.
+            const of = /** @type {(src: string) => number} */(src =>
+                htmlToString(demo.view(src)).split('data-graph-edge-kind="lazy"').length - 2)
+            assertEq(of('export default (...a) => a[0] && a[1];'), 1)
+            assertEq(of('export default (...a) => a[0] || a[1];'), 1)
+            assertEq(of('export default (...a) => a[0] ?? a[1];'), 1)
+            // Both arms of a conditional, and neither its condition.
+            assertEq(of('export default (...a) => a[0] ? a[1] : a[2];'), 2)
+            // An eager operator marks nothing.
+            assertEq(of('export default (...a) => a[0] + a[1];'), 0)
+            // The body of a function that may never be called, as the
+            // review that found it wrote it.
+            assertEq(of('export default (...a) => null.x;'), 0)
         },
         // Arithmetic, comparison, a call and property access, all through
         // real source — the parser accepts this much today.
