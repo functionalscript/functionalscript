@@ -1,6 +1,7 @@
 /**
  * @import { DemoEvent } from '../demo/types.ts'
  * @import { Inline } from '../../media/markdown/types.ts'
+ * @import { Release } from './types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -11,9 +12,13 @@ import { tryParse } from '../../media/markdown/module.f.mjs'
 import { demo } from './demo.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
-import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, numbers, releaseHref, releasePage, spanNode } from './module.f.mjs'
+import { _group, _linked, _reference, descending, isVersion, entryNode, indexPage, linked, numbers, releaseHref, releasePage, releases, spanNode } from './module.f.mjs'
 
 const pull = /** @type {(n: string) => string} */(n => `${repository}/pull/${n}`)
+
+// A release with no neighbours, for a page whose links are not the point.
+/** @type {(version: string) => Release} */
+const alone = version => ({ version, previous: null, next: null })
 
 // The pure reading half: a reference, a group, a scan, and the order.
 const core = {
@@ -146,7 +151,7 @@ const render = {
         `<li>x (<a href="${pull('1421')}">#1421</a>)</li>`)),
     release: {
         page: () => {
-            const html = utf8ToString(releasePage('0.41.0')([[['code', 'a']]]))
+            const html = utf8ToString(releasePage(alone('0.41.0'))([[['code', 'a']]]))
             assert(html.includes('<title>FunctionalScript 0.41.0</title>'), html)
             assert(html.includes('<h1>0.41.0</h1>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
@@ -158,13 +163,60 @@ const render = {
         // `changelog/README.md`: "A `<version>.md` file that is empty records
         // a release that shipped no notable change." `0.1.608` is one.
         empty: () => {
-            const html = utf8ToString(releasePage('0.1.608')([]))
+            const html = utf8ToString(releasePage(alone('0.1.608'))([]))
             assert(html.includes('shipped no notable change'), html)
             assert(!html.includes('<ul>'), html)
         },
         // `index.html` and the `_`-prefixed names are the only two a
         // generator may write into the served tree.
         href: () => assertEq(releaseHref('0.41.0'), '/changelog/_0.41.0.html'),
+    },
+    /**
+     * **Previous is older, next is newer**, as a release's "previous" reads,
+     * and the list is in version order rather than name order.
+     */
+    releases: {
+        neighbours: () => assertStructurallySame(
+            releases(['0.11.2', '0.11.10', '0.10.0']),
+            [
+                { version: '0.11.10', previous: '0.11.2', next: null },
+                { version: '0.11.2', previous: '0.10.0', next: '0.11.10' },
+                { version: '0.10.0', previous: null, next: '0.11.2' },
+            ]),
+        one: () => assertStructurallySame(
+            releases(['0.1.0']), [{ version: '0.1.0', previous: null, next: null }]),
+        none: () => assertStructurallySame(releases([]), []),
+    },
+    /** The links sit under the heading, above the entries. */
+    navigation: {
+        both: () => {
+            const html = utf8ToString(releasePage(
+                { version: '0.47.0', previous: '0.46.0', next: '0.48.0' })([[['text', 'x']]]))
+            assert(html.includes(
+                '<h1>0.47.0</h1><nav aria-label="Releases">'
+                + '<a href="/changelog/_0.46.0.html" rel="prev"><span aria-hidden="true">← </span>Previous: 0.46.0</a>'
+                + ' · '
+                + '<a href="/changelog/_0.48.0.html" rel="next">Next: 0.48.0<span aria-hidden="true"> →</span></a>'
+                + '</nav><ul>'), html)
+        },
+        // The oldest release has nothing before it, and says only what is.
+        oldest: () => {
+            const html = utf8ToString(releasePage({ version: '0.1.0', previous: null, next: '0.1.1' })([]))
+            assert(html.includes('Next: 0.1.1'), html)
+            assert(!html.includes('Previous:'), html)
+            assert(!html.includes(' · '), html)
+        },
+        newest: () => {
+            const html = utf8ToString(releasePage({ version: '0.48.0', previous: '0.47.0', next: null })([]))
+            assert(html.includes('Previous: 0.47.0'), html)
+            assert(!html.includes('Next:'), html)
+        },
+        // A lone release has no neighbours, and an empty landmark would be
+        // one a screen reader announces with nothing in it.
+        alone: () => {
+            const html = utf8ToString(releasePage(alone('0.1.0'))([]))
+            assert(!html.includes('aria-label="Releases"'), html)
+        },
     },
     index: {
         newestFirst: () => {
