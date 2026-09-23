@@ -42,7 +42,7 @@ become `["{}", []]`:
 |-|-|
 |Baseline: an expression DAG with anchored evaluation|`["[]", x, x]` vs `["[]", ["{}"], ["{}"]]`, and the `export default` code block below it|
 |The core invariant|the same sharing pair; `["()", f, ["[]", a, b]]`|
-|Other operations|the `["=>", ["[]", ["self"]], …]` and `["()", …, ["[]", …]]` frame examples|
+|Other operations|the `["=>", 1, ["[]", ["self"]], …]` and `["()", …, ["[]", …]]` frame examples|
 |4. Object constructor: ordered entries|the integer-key ordering caveat, `["{}", [":", "2", a], [":", "1", b]]`|
 |9. Canonical graph serialization and hashing|the sharing pair again|
 |10. Free variables|`["()", ["self"], ["[]"]]`|
