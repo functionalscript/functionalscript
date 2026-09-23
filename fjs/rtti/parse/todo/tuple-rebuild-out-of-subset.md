@@ -2,7 +2,7 @@
 
 **Priority:** P2 — shipped `.f.mjs` code is written outside the subset. No
 caller sees a wrong answer today, which is why it is not P1.
-**Status:** open
+**Status:** blocked
 **Blocked by:** the first task of
 [new-array-out-of-subset](../../../../todo/new-array-out-of-subset.md), the
 exception in writing. Nothing below is implemented until that ruling is
@@ -59,38 +59,58 @@ Two texts are already out of step with the code and go with the fix:
 ### Proposal
 
 The umbrella's first task asks whether the subset admits a fresh,
-never-escaped array built with `new Array(n)` and written by index, and
-prescribes one edit if the exception is granted, citing the new rule from
-the JSDoc, and the opposite if it is refused. This issue is the case for
-refusing it here, and everything below is that arm: the branch the
-exception would legalize serves no input the readers take, so there is
+never-escaped array built with `new Array(n)` and written by index. Its last
+task, the `fjs/rtti/parse` hole producer, prescribes one edit if the
+exception is granted, citing the new rule from the JSDoc, and the opposite
+if it is refused, and names this issue as that task's owner. This issue is
+the case for refusing it here, and everything below is that arm: the branch
+the exception would legalize serves no input the readers take, so there is
 nothing for an exception to keep. If the ruling nevertheless grants it, the
 umbrella's other arm applies and this issue closes without the edit below.
 
 Under a refusal: replace `tupleRebuild` with `arrayRebuild` for the tuple
-kinds and delete it. The domain does the rest: a hole is not a DataJS value, the README already
-tells a caller holding untrusted JavaScript to convert it to DataJS first, and
+kinds, delete it, and **refuse an interior gap** where the container loop
+already refuses the other hole. That second half is not optional.
+`arrayRebuild` over the entries of `[, 3]` against `[or(option, number),
+3]` is `[3]`: every position after the gap shifts down by one, and the
+reader has answered a value outside its domain with a plausible wrong one,
+which is the single outcome
 [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-places the check where a value enters from IO, trusted from then on. A
-reader defending against a value its contract excludes would be a guard
-nothing the subset can build reaches, which
-[fjs/AGENTS.md §1.2](../../../AGENTS.md#12-proof-coverage-is-mandatory) says
-to restructure away rather than leave uncovered.
+never allows. Declaring the readers' domain to be DataJS does not change
+that: a value that violates the contract is refused at the boundary or
+asserted against inside it, never answered.
 
-The alternative, refusing an interior gap at the gate, was weighed and is not
-proposed. It is the safer answer to a hole, but its proof needs a sparse
-input, and a sparse input is exactly what
-[fjs/AGENTS.md §1.6](../../../AGENTS.md#16-do-not-prove-a-fmjs-api-from-plain-javascript)
-keeps out of a proof: a value the subset cannot build, handed over by a
-hypothetical JavaScript caller nobody has asked for. A branch that cannot be
-proven in this repository should not be in it. If a caller with holes ever
-appears, the boundary that admits it is where the refusal belongs, and this
-issue is where that reasoning is written down.
+The refusal has a precedent in the same file. `holePastThePrefixRejected`
+in [`proof.f.mjs`](../proof.f.mjs) pins that `parse([number])([1, ,])` is
+an error: a hole past the declared prefix is already refused, as a
+`ValidationError` like any other rejected input, and proven with an elision
+literal. An interior hole gets the same answer and the same kind of proof.
+The check needs nothing the rebuild does not already hold: `entries` is in
+reverse member order with the last present index at its head, so the
+entries are gap-free exactly when that index plus one is their count.
+Where the check sits, in the tuple's `_Rebuild` returning a result or in
+the container loop as an absent member followed by a present one, is the
+implementer's call; the answer is `verror('unexpected value')` either way.
 
-The three proofs whose subject is hole preservation, `interiorHoleSurvives`,
-`oddSegments` and `largeSparse`, describe the deleted branch and go with it.
+That refusal branch is reachable only by a value the subset cannot build,
+and its proof is an elision literal in a `.f.mjs`. The umbrella's sweep
+tolerates exactly that for a guard that survives: "leave the code, rewrite
+the prose to say which caller it defends against", and
+`holePastThePrefixRejected` is one such guard today. This is a different
+question from
+[fjs/AGENTS.md §1.6](../../../AGENTS.md#16-do-not-prove-a-fmjs-api-from-plain-javascript),
+which keeps host-built values out of a `proof.mjs`; the earlier draft of
+this issue conflated the two and dismissed the refusal on that ground,
+which was wrong.
+
+Of the three proofs whose subject is hole preservation,
+`interiorHoleSurvives` and `oddSegments` become refusal proofs of the same
+inputs, beside `holePastThePrefixRejected`, so the branch that replaces
+preservation is covered by the inputs that used to exercise it.
+`largeSparse` tested the segment join at scale; the join goes, and the
+proof goes with it, taking the file's `new Array` along.
 `trailingRunShortens` and `structDropsTheKey` describe absence on dense
-input and stay.
+input and stay as they are.
 
 ### Tasks
 
@@ -105,9 +125,12 @@ input and stay.
   `largeSparse`, and `trailingRunShortens` and `structDropsTheKey` stay
   green. Redo it on the commit that makes the change.
 - [ ] Once the exception is refused in writing: make the substitution,
-  delete `tupleRebuild` and the three proofs, and
-  rewrite the tuple rebuild's JSDoc to say what remains true: members in
-  order, a trailing absent run shortens the result.
+  delete `tupleRebuild`, add the interior-gap refusal, turn
+  `interiorHoleSurvives` and `oddSegments` into refusal proofs beside
+  `holePastThePrefixRejected`, delete `largeSparse`, and rewrite the tuple
+  rebuild's JSDoc to say
+  what remains true: members in order, a trailing absent run shortens the
+  result, an interior hole is refused as a hole past the prefix is.
 - [ ] Correct the rtti README's reader table, and say in the same section
   that `parse` output is dense.
 - [ ] Note in `structurally_same`'s README that `parse` output is one more
@@ -115,8 +138,9 @@ input and stay.
   covers it; the umbrella's opposite note, for the case the exception was
   granted, is not needed.
 - [ ] Tick the umbrella's `fjs/rtti/parse` task, which this issue now owns.
-- [ ] `npm run cov` at 100% before and after; a drop means a branch the
-  deleted proofs covered is still there.
+- [ ] `npm run cov` at 100% before and after; a drop means the refusal
+  branch is not the one the converted proofs reach, or a branch
+  `largeSparse` covered is still there.
 
 ### Related
 
