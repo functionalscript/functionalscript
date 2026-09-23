@@ -128,7 +128,7 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
 - [ ] Support Stage 1 `['.', object, property]` property access.
-- [ ] Support Stage 2 `['=>', null, body]`, `['()', callee, args]` for an ordinary
+- [ ] Support Stage 2 `['=>', 0, null, body]`, `['()', callee, args]` for an ordinary
       call, and `['.', object, property, ['|()', args]]` for a method call —
       the step is what supplies the `this` binding — when those operators land.
 - [ ] Do **not** implement `['frame']` or non-empty closure frames in Stage 2.

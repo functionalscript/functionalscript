@@ -693,6 +693,9 @@ export const proof = {
         otherFrame: () => {
             assertEq(refusalReason(['=>', 0, ['undefined'], 1])[0], 'no Rust for a frame that is not an array literal')
             assertEq(refusalReason(['=>', 0, 1, 1])[0], 'no Rust for a frame that is not an array literal')
+            // and a count that is no nonnegative integer has no `u32`
+            assertEq(refusalReason(['=>', 1.5, null, 1])[0], 'no Rust for a parameter count that is no nonnegative integer')
+            assertEq(refusalReason(['=>', -1, null, 1])[0], 'no Rust for a parameter count that is no nonnegative integer')
             /** @type {Exp} */
             const frame = ['[]', [1]]
             assertEq(refusalReason(['[]', [['=>', 0, frame, 1], frame]])[0], 'no Rust for a frame reached from anywhere but its function')

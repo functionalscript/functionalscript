@@ -350,7 +350,7 @@ Each stage should land independently testable and useful; later stages
 depend on earlier ones but do not require redesigning them.
 
 **Stage 1 — non-capturing functions and their calls. Landed.** The Rust
-code generator prints a function, `['=>', null, body]`, as a closure bound
+code generator prints a function, `['=>', 0, null, body]`, as a closure bound
 through `A::static_function` with `length` `0` and an empty frame — a
 closure over nothing coerces to the `fn` pointer `StaticCode<A>` is — its
 body a scope of its own, with its own `let` bindings, and a call,

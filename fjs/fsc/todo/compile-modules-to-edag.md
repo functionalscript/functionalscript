@@ -307,7 +307,7 @@ stage. For the initial canonical form, a function is therefore represented with 
 placeholder frame, for example:
 
 ```js
-['=>', null, body]
+['=>', 0, null, body]
 ```
 
 Then introduce the initial non-capturing arrow-function form into the parser:
@@ -366,7 +366,7 @@ The staged work builds on the basic structural forms already being defined for E
 - Stage 1 property access: `['.', object, property]`, with the restricted
   property operands described above — the absent fourth operand is the continuation,
   and leaving it out says the receiver this access produced is dropped;
-- Stage 2 non-capturing functions: `['=>', null, body]` (`frame` is a general `exp` in
+- Stage 2 non-capturing functions: `['=>', 0, null, body]` (`frame` is a general `exp` in
   the schema; `null` is what *this task's* parser and interpreter are scoped to, not a
   schema-level restriction);
 - Stage 2 calls: `['()', callee, args]` for an ordinary call, and
