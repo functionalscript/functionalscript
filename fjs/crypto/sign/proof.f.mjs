@@ -25,6 +25,9 @@ const v600 = vec(600n)
 const r32 = repeat(32n)
 const hmac256 = hmac(sha256)
 
+const q163 = 0x4000000000000000000020108A2E0CC0D99F8A5EFn
+const x163 = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
+
 export const proof = {
     bits2int: () => {
         assertEq(all(7n).bits2int(vec(5n)(0b10100n)), 0b101n, new Error("fail"))
@@ -103,11 +106,9 @@ export const proof = {
         assertEq(kk, 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn)
     },
     computeK: () => {
-        const q = 0x4000000000000000000020108A2E0CC0D99F8A5EFn
-        const a = all(q)
+        const a = all(q163)
         assertEq(a.qlen, 163n)
-        const x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
-        const k = computeK(a)(sha256)(x)(computeSync(sha256)([sample]))
+        const k = computeK(a)(sha256)(x163)(computeSync(sha256)([sample]))
         assertEq(k, 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn)
     },
     investigate: () => {
@@ -600,5 +601,12 @@ export const proof = {
         for (const v of Object.values(testVectors)) {
             check(v)
         }
-    }
+    },
+    // `computeK` takes a digest of `hf`, and refuses a `Vec` whose length
+    // says it is not one: the message itself, as callers passed before the
+    // digest became the parameter, and a digest of a different hash.
+    throw: {
+        message: () => computeK(all(q163))(sha256)(x163)(sample),
+        otherHash: () => computeK(all(q163))(sha256)(x163)(computeSync(sha512)([sample])),
+    },
 }

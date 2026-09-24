@@ -11,7 +11,7 @@
  * @import { All, _Signature } from './types.ts'
  */
 
-import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { bitLength, roundUp8 } from '../../types/bigint/module.f.mjs'
 import { empty, length, msb, repeat, unpack, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
@@ -63,7 +63,9 @@ export const concat = (...x) => listToVec(x)
  * Takes the message digest `h1 = H(m)`, not the message: step a of
  * RFC6979 §3.2 is the caller's, so `sign` hashes the message once and
  * derives both `h` and the nonce from the same digest. `hf` must be the
- * hash that produced `h1`; the HMAC steps use it too.
+ * hash that produced `h1`; the HMAC steps use it too. An `h1` that is not
+ * `hf.hashLength` bits long is not such a digest, and is refused: a message
+ * passed where its digest belongs, or a digest of another hash.
  *
  * @type {(_: All) => (_: Sha2) => (x: bigint) => (h1: Vec) => bigint}
  */
@@ -94,6 +96,7 @@ export const computeK =
             //      h1 = H(m)
             //   (h1 is a sequence of hlen bits).
             //    The caller's step: `h1` is the parameter.
+            assert(length(h1) === hf.hashLength, 'h1 is not a digest of hf')
             // d. Set:
             //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
             //    where '||' denotes concatenation.
