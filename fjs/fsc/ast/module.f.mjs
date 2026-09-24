@@ -638,7 +638,7 @@ const moduleGroup = id => `module ${id}`
  */
 const containerNode = (imports, consts) => ({ ref: [kind, i], keys }) => {
     const [group, value] = kind === 'cref' ? [`const ${i}`, consts[i]] : [moduleGroup(imports[i].id), imports[i].value]
-    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' }] : []
+    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' ? i : null }] : []
 }
 
 /**
@@ -706,9 +706,13 @@ const withinPrevious = sorted => (node, i) => {
 export const sharing = body => imports => consts => {
     const nodes = toArray(body.reduceRight(routeEntry, exported(body)).refs).flatMap(containerNode(imports, consts))
     const sorted = nodes.toSorted(byNode)
-    const reached = [...new Map(imports.map(byId)).values()].filter(m => nodes.some(n => n.aref && n.group === moduleGroup(m.id)))
+    const bindings = imports.filter((_, i) => nodes.some(n => n.aref === i))
+    const reached = [...new Map(bindings.map(byId)).values()]
+    // Routes are relative to each selected export. Different roots from one
+    // module may share descendants even when their relative keys differ.
+    const overlapping = bindings.some(m => reached.some(n => m.id === n.id && m.value !== n.value))
     /** @type {readonly string[]} */
     const reaches = [...reached.map(m => m.id), ...reached.flatMap(m => m.reaches)]
-    const shared = sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
+    const shared = overlapping || sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
     return { shared, reaches: shared ? [] : reaches }
 }

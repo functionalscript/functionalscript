@@ -41,6 +41,92 @@ const refusedSpecifier = (specifier, source, root) => {
 }
 
 export const proof = {
+    namedImports: {
+        values: () => {
+            for (const [source, expected] of /** @type {const} */ ([
+                ['import {a} from "./dep"; export default a;', [5]],
+                ['import d,{a as x,u,default as z} from "./dep"; export default [d,x,u,z];', [7,[5],undefined,7]],
+                ['import {u} from "./dep"; export default u;', undefined],
+                ['import {} from "./dep"; export default 1;', 1],
+                ['import {__proto__ as p,constructor as c} from "./dep"; export default [p,c];', [8,9]],
+            ])) {
+                const root = { 'main': [utf8(source)], 'dep': [utf8('export const a=[5]; export const u=undefined; export const __proto__=8; export const constructor=9; export default 7;')] }
+                assertStructurallySame(_own(unwrap(run(root)('main')).value, 'default'), expected)
+            }
+            const root = { 'main': [utf8('import {a} from "./dep"; import {a as b} from "./dep"; export default [a,b];')], 'dep': [utf8('export const a=[];')] }
+            const result = unwrap(run(root)('main'))
+            const pair = _own(result.value, 'default')
+            assert(pair instanceof Array && pair[0] === pair[1])
+            assert(result.shared)
+        },
+        sharing: () => {
+            // Different selected roots can still contain the same descendant.
+            const overlap = {
+                main: [utf8('import {a,b} from "./dep"; export default [a.x,b.y];')],
+                dep: [utf8('const shared=[]; export const a={x:shared}; export const b={y:shared};')],
+            }
+            const overlapResult = unwrap(run(overlap)('main'))
+            const descendants = _own(overlapResult.value, 'default')
+            assert(descendants instanceof Array && descendants[0] === descendants[1])
+            assert(overlapResult.shared)
+            const [state, code] = virtual({ ...emptyState, root: overlap })(compile(['main', 'output.json']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.root['output.json'], undefined)
+            // An unused leaf import must not overwrite the reached export's sharing facts.
+            const dep = [utf8('const x=[]; export const shared=[x,x]; export const leaf=1;')]
+            for (const source of [
+                'import {shared,leaf} from "./dep"; export default shared;',
+                'import {leaf,shared} from "./dep"; export default shared;',
+            ]) { assert(unwrap(run({ main: [utf8(source)], dep })('main')).shared) }
+            const selectedLeaf = 'import {shared,leaf} from "./dep"; export default leaf;'
+            assertEq(unwrap(run({ main: [utf8(selectedLeaf)], dep })('main')).shared, false)
+            const diamond = {
+                main: [utf8('import {a} from "./left"; import {b} from "./right"; export default [a,b];')],
+                left: [utf8('import {x} from "./dep"; export const a=x;')],
+                right: [utf8('import {x as y} from "./dep"; export const b=y;')],
+                dep: [utf8('export const x=[];')],
+            }
+            const result = unwrap(run(diamond)('main'))
+            const pair = _own(result.value, 'default')
+            assert(pair instanceof Array && pair[0] === pair[1])
+            assert(result.shared)
+        },
+        refusals: () => {
+            for (const source of [
+                'import {missing} from "./dep"; export default 1;',
+                'import {toString as x} from "./dep"; export default 1;',
+                'import {constructor as x} from "./dep"; export default 1;',
+                'import {__proto__ as x} from "./dep"; export default 1;',
+                'import d,{missing} from "./dep"; export default d;',
+            ]) {
+                const root = { main: [utf8(source)], dep: [utf8('export const a=1; export default undefined;')] }
+                const value = run(root)('main')
+                assertEq(value[0], 'error')
+                assertStructurallySame(virtual({ ...emptyState, root })(resolve('main'))[1], value)
+            }
+            for (const source of ['import {a} from "./dep";', 'import {} from "./dep";']) {
+                const root = { main: [utf8(`${source} export default 1;`)], dep: [utf8('export const a=1; export const bad=null.x;')] }
+                assertEq(run(root)('main')[0], 'error')
+                assertEq(run({ main: root.main })('main')[0], 'error')
+                assertEq(run({ ...root, dep: [utf8('import {} from "./main"; export const a=1;')] })('main')[0], 'error')
+            }
+        },
+        json: () => {
+            const root = { main: [utf8('import {default as data} from "./data.json" with {type:"json"}; export default data;')], 'data.json': [utf8('{"x":7}')] }
+            assertStructurallySame(unwrap(run(root)('main')).value, { default: { x: 7 } })
+            for (const source of [
+                'import {x} from "./data.json" with {type:"json"};',
+                'import {default as data} from "./data.json";',
+                'import {} from "./data.json";',
+                'import {} from "./dep" with {type:"json"};',
+            ]) {
+                const files = { ...root, main: [utf8(`${source} export default 1;`)], dep: [utf8('export const x=1;')] }
+                const value = run(files)('main')
+                assertEq(value[0], 'error')
+                assertStructurallySame(virtual({ ...emptyState, root: files })(resolve('main'))[1], value)
+            }
+        },
+    },
     moduleResult: () => {
         for (const [source, expected] of [
             ['export default 7;', { default: 7 }],
@@ -208,11 +294,11 @@ export const proof = {
     importSources: () => {
         assertStructurallySame(importSources('main.f.js')([]), ['ok', []])
         assertStructurallySame(importSources('/dir/main.f.js')([
-            { specifier: './dep.f.js', json: false },
-            { specifier: '../data.json', json: true },
-        ]), ['ok', [{ id: '/dir/dep.f.js', path: '/dir/dep.f.js', json: false }, { id: '/data.json', path: '/data.json', json: true }]])
+            { specifier: './dep.f.js', json: false, name: 'default' },
+            { specifier: '../data.json', json: true, name: 'default' },
+        ]), ['ok', [{ id: '/dir/dep.f.js', path: '/dir/dep.f.js', json: false, name: 'default' }, { id: '/data.json', path: '/data.json', json: true, name: 'default' }]])
         // Keep rooted input behavior separate from classifying import text.
-        assertStructurallySame(importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false }]), ['ok', [{ id: '/dep.f.js', path: '/dep.f.js', json: false }]])
+        assertStructurallySame(importSources('/main.f.js')([{ specifier: '/dep.f.js', json: false, name: 'default' }]), ['ok', [{ id: '/dep.f.js', path: '/dep.f.js', json: false, name: 'default' }]])
         for (const specifier of ['', '.', '..', '#alias', 'file:relative.mjs', 'file:///dep.f.js', 'FILE:/dep.f.js', 'node:fs', 'https://example.com/dep.f.js']) {
             refusedSpecifier(specifier, `import value from "${specifier}"; export default value;`, {})
         }

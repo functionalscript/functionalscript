@@ -7,7 +7,7 @@
  *
  * @import { Exp } from '../../edag/types.ts'
  * @import { AstBinary, AstBitnot, AstBody, AstConditional, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
- * @import { _Source } from '../transpiler/types.ts'
+ * @import { _ImportSource, _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
@@ -19,7 +19,7 @@
 
 import { anchors } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
-import { _attributeError, _importSources, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
+import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
@@ -50,7 +50,7 @@ const args = /** @type {const} */ (['args'])
 const undefinedNode = () => ['undefined']
 
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
-const parameter = (_, i) => ['.', ['.', args, i], 'default']
+const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', args, i], name]
 
 /** @type {(lower: (ast: AstConst) => Exp) => (member: AstMember) => readonly [':', string, Exp]} */
 const property = lower => ([key, value]) => [':', key, lower(value)]
@@ -415,7 +415,11 @@ const jsonEdag = value => {
  * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
  */
 const completed = id => context => edag => {
-    const resolved = { exports: edag, default: _moduleExports(edag).some(([, key]) => key === 'default') ? _defaultExport(edag) : undefined }
+    /** @type {_Resolved} */
+    const resolved = {
+        exports: edag,
+        bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
+    }
     return [{
         complete: setReplace(id)(resolved)(context.complete),
         stack: drop(1)(context.stack),
@@ -425,11 +429,13 @@ const completed = id => context => edag => {
 /** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
 const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonEdag(value)]]])
 
-/** One import resolved, with a default export required even if its binding is unused. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) =>
-    resolved.default === undefined
-        ? pureError({ message: 'module has no default export', metadata: null, path: source.path })
-        : pureOk({ context: linked, bound: [...bound, resolved.default] }))
+/** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
+const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) => {
+    const selected = source.name === null ? resolved.exports : resolved.bindings.find(([key]) => key === source.name)?.[1]
+    return selected === undefined
+        ? pureError(_missingExport(source))
+        : pureOk({ context: linked, bound: [...bound, selected] })
+})
 
 /**
  * A parsed module linked: its imports resolved in source order, each to its

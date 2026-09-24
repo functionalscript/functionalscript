@@ -87,7 +87,11 @@ constructor takes the members as written, which only the syntax still has.
 A module body's last entry is its export object: `export default 7;` lowers to
 `['object', [['default', 7]]]`. An ordinary function body still ends in its
 returned value. Module `aref`s denote selected import bindings; default imports
-bind the dependency's `default` property, including for JSON imports.
+bind the dependency's `default` property, including for JSON imports. Named
+imports retain the selected export in `AstImport.name`; aliases resolve to the
+same selected value, and `name: null` anchors an empty import list. A declaration
+with several bindings contributes one record per selection, all resolved through
+the same host module identity.
 `transpile` returns the complete export object as its denotation's `value`.
 JSON/DataJS output selects the default and its sharing facts; FunctionalScript
 output emits individual named/default exports. EDAG and generated Rust retain
