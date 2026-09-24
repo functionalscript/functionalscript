@@ -1125,7 +1125,9 @@ can deduplicate structurally identical closed functions across modules (and
 repositories). That is a reason to hoist what is already closed, not to close
 what isn't. Deduplication is an optimization, and it doesn't outweigh a simpler
 helper. For example, `loop` in `crypto/vdf` captures the field's `reduce` and
-stays inside `sloth_vdf`.
+stays inside `sloth_vdf`. Helpers shaped by an earlier text of this rule, which
+asked for the opposite and which their comments still cite, are migration debt,
+not precedent: [lifted-captures](./todo/lifted-captures.md) lists them.
 
 Don't split below the semantic seam, though — if a fragment can't be described by
 a one-line JSDoc claim ("renews the lease", "publishes the staging file"),
