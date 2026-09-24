@@ -21,7 +21,7 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
         let c1: Any<A> = Any::dot(c0, f64_any(0x0000000000000000)).end()?;
         let c2: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end()?;
         c1 + c2
-    }, 0, [c5].to_array()).to_any();
+    }, 0, [c5.clone()].to_array()).to_any();
     let c7: Any<A> = [f64_any(0x4014000000000000)].to_array().to_any();
     let c8: Any<A> = Any::call(c6, c7)?;
     let c9: Any<A> = A::static_function(|_self, args| { Ok(A::static_function(|self_, args| {
@@ -43,6 +43,23 @@ pub fn module<A: IStaticFunction>() -> Result<Any<A>, Any<A>> {
     let c13: Any<A> = Any::call(c11, c12)?;
     let c14: Any<A> = [f64_any(0x4008000000000000)].to_array().to_any();
     let c15: Any<A> = Any::call(c13, c14)?;
-    let c16: Any<A> = [c4, c8, c15].to_array().to_any();
-    Ok([(string_key("default"), c16)].to_object().to_any())
+    let c16: Any<A> = A::static_function(|self_, args| {
+        let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;
+        Ok(A::static_function(|self_, args| {
+            let c0: Any<A> = A::frame(self_).clone().to_any();
+            let c1: Any<A> = Any::dot(c0.clone(), f64_any(0x0000000000000000)).end()?;
+            let c2: Any<A> = Any::dot(c1, f64_any(0x0000000000000000)).end()?;
+            let c3: Any<A> = Any::dot(args.clone().to_any(), f64_any(0x0000000000000000)).end()?;
+            let c4: Any<A> = (c2 + c3)?;
+            let c5: Any<A> = Any::dot(c0.clone(), f64_any(0x3ff0000000000000)).end()?;
+            let c6: Any<A> = Any::dot(c5, f64_any(0x0000000000000000)).end()?;
+            c4 + c6
+        }, 0, [args.clone().to_any(), c0].to_array()).to_any())
+    }, 0, [c5.clone()].to_array()).to_any();
+    let c17: Any<A> = [f64_any(0x4034000000000000)].to_array().to_any();
+    let c18: Any<A> = Any::call(c16, c17)?;
+    let c19: Any<A> = [f64_any(0x4028000000000000)].to_array().to_any();
+    let c20: Any<A> = Any::call(c18, c19)?;
+    let c21: Any<A> = [c4, c8, c15, c20].to_array().to_any();
+    Ok([(string_key("default"), c21)].to_object().to_any())
 }
