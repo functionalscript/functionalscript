@@ -25,9 +25,6 @@ const v600 = vec(600n)
 const r32 = repeat(32n)
 const hmac256 = hmac(sha256)
 
-const q163 = 0x4000000000000000000020108A2E0CC0D99F8A5EFn
-const x163 = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
-
 export const proof = {
     bits2int: () => {
         assertEq(all(7n).bits2int(vec(5n)(0b10100n)), 0b101n, new Error("fail"))
@@ -106,23 +103,25 @@ export const proof = {
         assertEq(kk, 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn)
     },
     computeK: () => {
-        const a = all(q163)
+        const q = 0x4000000000000000000020108A2E0CC0D99F8A5EFn
+        const a = all(q)
         assertEq(a.qlen, 163n)
-        const k = computeK(a)(sha256)(x163)(computeSync(sha256)([sample]))
+        const x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
+        const k = computeK(a)(sha256)(x)(sample)
         assertEq(k, 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn)
     },
     investigate: () => {
         const q = 0xF2C3119374CE76C9356990B465374A17F23F9ED35089BD969F61C6DDE9998C1Fn
         const x = 0x69C7548C21D0DFEA6B9A51C9EAD4E27C33D3B3F180316E5BCAB92C933F0E4DBCn
         const a = all(q)
-        const k = computeK(a)(sha384)(x)(computeSync(sha384)([sample]))
+        const k = computeK(a)(sha384)(x)(sample)
         assertEq(k, 0xC345D5AB3DA0A5BCB7EC8F8FB7A7E96069E03B206371EF7D83E39068EC564920n)
     },
     kk: () => {
         const a = fromCurve(secp192r1)
         const x = 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n
         const m = utf8("sample")
-        const kk = computeK(a)(sha224)(x)(computeSync(sha224)([m]))
+        const kk = computeK(a)(sha224)(x)(m)
         assertEq(kk, 0x4381526B3FC1E7128F202E194505592F01D5FF4C5AF015D8n)
     },
     a2: () =>{
@@ -139,7 +138,7 @@ export const proof = {
             const a = all(q)
             /** @type {(sha: Sha2, expected: bigint, m: Vec) => void} */
             const check = (sha, expected, m) => {
-                const k = computeK(a)(sha)(x)(computeSync(sha)([m]))
+                const k = computeK(a)(sha)(x)(m)
                 assertEq(k, expected, [k.toString(16), expected.toString(16)])
             }
             /** @type {(m: Vec, h: _H) => void} */
@@ -387,7 +386,7 @@ export const proof = {
             const a = all(q.nf.p)
             /** @type {(sha: Sha2, result: _Result, m: Vec) => void} */
             const check = (sha, { k, r, s }, m) => {
-                const k0 = computeK(a)(sha)(x)(computeSync(sha)([m]))
+                const k0 = computeK(a)(sha)(x)(m)
                 assertEq(k0, k, [k0.toString(16), k.toString(16)])
                 const [r0, s0] = sign(q)(sha)(x)(m)
                 assertEq(r0, r, [r0, r])
@@ -601,12 +600,5 @@ export const proof = {
         for (const v of Object.values(testVectors)) {
             check(v)
         }
-    },
-    // `computeK` takes a digest of `hf`, and refuses a `Vec` whose length
-    // says it is not one: the message itself, as callers passed before the
-    // digest became the parameter, and a digest of a different hash.
-    throw: {
-        message: () => computeK(all(q163))(sha256)(x163)(sample),
-        otherHash: () => computeK(all(q163))(sha256)(x163)(computeSync(sha512)([sample])),
-    },
+    }
 }
