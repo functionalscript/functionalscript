@@ -57,6 +57,16 @@ reserved-name checks. Required module evaluation and failures survive unused
 bindings, and aliases or multiple routes to one module share its exported
 values. Retain the current refusal of circular dependencies.
 
+The target ordering is static export validation before module evaluation.
+For `import {missing} from "./dep"; export default 1;` with
+`dep` containing `export const bad=null.x;`, every output should report
+`module has no missing export` before the initializer runs. Apply the same
+rule to default imports; valid unused bindings and empty lists still require
+dependency evaluation. The current value and EDAG paths disagree on this
+case. Its reproduction, required proofs and deferred implementation live in
+[import-error-before-evaluation](../fjs/fsc/todo/import-error-before-evaluation.md);
+this proposal states the intended order, not a claim that it already works.
+
 Benefit: existing named-export modules compose using familiar JavaScript
 syntax, without default-export adapters. Cost: import records and binding
 validation must retain both the exported and local names through parsing and
