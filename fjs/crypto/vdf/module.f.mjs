@@ -39,13 +39,17 @@ export const sloth_vdf = modulus => {
     const { neg, pow2, reduce, quadRes } = field
     const root = modSqrt(field)
 
-    /** @type {(steps: bigint) => (value: bigint) => bigint} */
-    const squareLoop = steps => value =>
-        iterate(steps)(reduce(value))(pow2)
+    /**
+     * `eval` and `verify` iterate a mutually inverse pair over one field
+     * reduction; only the operator differs.
+     *
+     * @type {(op: (value: bigint) => bigint) => (steps: bigint) => (value: bigint) => bigint}
+     */
+    const loop = op => steps => value =>
+        iterate(steps)(reduce(value))(op)
 
-    /** @type {(steps: bigint) => (value: bigint) => bigint} */
-    const modSqrtLoop = steps => value =>
-        iterate(steps)(reduce(value))(root)
+    const squareLoop = loop(pow2)
+    const modSqrtLoop = loop(root)
 
     /** @type {(steps: bigint) => (x: bigint) => Nullable<bigint>} */
     const evalSteps = steps => x =>
