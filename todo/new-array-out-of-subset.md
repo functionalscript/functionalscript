@@ -90,9 +90,10 @@ module they live in.
   interior hole when its *input* already has one: for a dense input, every
   index below the highest present one is present, so the allocate-and-write
   body produces exactly what the subset-legal `arrayRebuild` beside it
-  produces. If the exception is refused, `arrayRebuild` replaces it for both
-  tuple kinds and the difference is visible only on an input the ruling says
-  cannot be constructed. **Confirm that empirically before acting on it.**
+  produces. Confirmed empirically, and the edit under either ruling is
+  [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md)'s
+  to choose: `arrayRebuild` alone would reindex a sparse input, so it is
+  not by itself the refused-exception edit.
 - **Guards that become unreachable.** The container and rest length checks
   across `fjs/rtti/parse`, `fjs/rtti/validate` and `fjs/rtti/data` are
   consulted only when no undeclared member was found, which for a dense array
