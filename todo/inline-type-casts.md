@@ -161,7 +161,11 @@ type, spelled through the three-parameter `Effect`. And the
 `fjs/fsc/proof.f.mjs:21` row names a file that has since been replaced: the
 range-map lexer stub it audited was deleted when the front end moved into
 `fjs/fsc`, and the `proof.f.mjs` at that path today is the compiler's,
-moved from `fjs/djs`, whose casts this table never recorded. All are left in
+moved from `fjs/djs`, whose casts this table never recorded. The three
+`fjs/types/btree/find/module.f.mjs` rows are gone too, and they were the
+`Index`/tuple arity case named above: `find` now builds each tuple inside the
+`switch` arm where `node` and the index are narrowed, and reads the child as
+`node[i]` there, so neither the tuple nor the indexed read needs a cast. All are left in
 place rather than removed with the totals re-derived around them; a re-audit
 is the way to refresh this file, not a partial edit.
 

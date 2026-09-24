@@ -41,8 +41,3 @@ content: the size guards, the chunk accumulation, the `Vec` conversion.
 - [ ] `withOpen` and `fill`; the three handlers over them; the note moves
       to `fill`.
 - [ ] `tsc`, `fjs test`.
-
-### Related
-
-- [write-from-stream-finalize.md](./write-from-stream-finalize.md) — the
-  neighbouring handler's cleanup; unaffected.
