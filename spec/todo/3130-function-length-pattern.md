@@ -51,23 +51,21 @@ constant; `withLength` itself has a read of its first argument. One node,
 one meaning. #2200 implements this node; if it lands first, the lowering is
 not this proposal's work.
 
-**Count.** Whatever JavaScript accepts as a `length`; a compiled parameter
-list yields a nonnegative integer. An executor that cannot represent a
-count refuses it as its own documented limit, as the Rust printer does
-today past `u32`. The language adds no bound.
+**No restrictions on `length` or `f`.** `withLength` is a value: once it
+exists, any program can call it with anything, so the pattern restricts
+neither argument, and a count is whatever JavaScript accepts as a `length`.
+An executor that cannot represent one refuses it as its own limit, as the
+Rust printer does today past `u32`.
 
 **Executors.** The `=>` operation becomes
 `withLength(count, (...args) => invoke(frame, args, body))`. A JavaScript
 host runs the pattern as written; a VM treats it as its intrinsic; NaNVM
 and the Rust printer store the arity in their own representation.
 
-**Writer.** Named parameters where the count is a constant nonnegative
-integer other than `-0`, every `['args']` read is a direct index below it,
-and the count is under a
-documented bound below the hosts' parameter-list limit. Otherwise
-`withLength(<count>, (...args) => …)`, the helper emitted once per module.
-That second rendering is what keeps a graph observing its complete
-arguments renderable.
+**Writer.** Every function renders as `withLength(<count>, (...args) => …)`,
+the helper emitted once per module. A writer may render a named parameter
+list instead where #2200's boundary already lets it; that is the writer's
+choice on what it can see, not a rule of the language.
 
 **Function text.** A host function carries the wrapper's source as its
 text, and every host conversion can reach it: `String`, a computed key, an
@@ -108,7 +106,8 @@ one call frame deeper. It cannot land before the function-text decisions.
 - [ ] Compiler: recognize the complete pattern; refuse every variation.
 - [ ] Function text rendered from the graph, then `operations`' `=>` built
   through the pattern.
-- [ ] Writer: the two renderings and the documented bound.
+- [ ] Writer: the pattern rendering, and named parameters where #2200's
+  boundary allows.
 - [ ] Proofs: `f.length` for constant and run-time counts; `g()` sees an
   empty `['args']`; a shadowed `Object` and each pattern variation refused.
 - [ ] Documents: [`fjs/edag/README.md`](../../fjs/edag/README.md),
