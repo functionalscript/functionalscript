@@ -45,6 +45,29 @@ const lead3Mask = 0b0000_1111
 const lead4Tag = 0b1111_0000
 const lead4Mask = 0b0000_0111
 
+/**
+ * Error-tag flags. A malformed sequence decodes to one `errorMask`-tagged code
+ * point whose low bits carry the bytes read so far, and whose flag, set just
+ * above that payload, names the partial sequence they came from, so that the
+ * encoder can re-emit exactly those bytes. These are the rows of the
+ * "utf8 error" table in `../README.md`, which names the same flags:
+ *
+ * | bytes    | utf8 code                       | code point            | flag                  |
+ * |----------|---------------------------------|-----------------------|-----------------------|
+ * | one byte | `1xxx_xxxx`                     | `0000_0000 1xxx_xxxx` | `errorByteFlag`       |
+ * | [d,c,]   | `1111_0xxx 10xx_xxxx`           | `0000_001x xxxx_xxxx` | `errorLead4ContFlag`  |
+ * | [c,b,]   | `1110_xxxx 10xx_xxxx`           | `0000_01xx xxxx_xxxx` | `errorLead3ContFlag`  |
+ * | [d,c,b,] | `1111_0xxx 10xx_xxxx 10xx_xxxx` | `1xxx_xxxx xxxx_xxxx` | `errorLead4Cont2Flag` |
+ *
+ * The decoder adds no flag to a lone byte: every byte that fails alone is at
+ * least `contTag`, so its own high bit is `errorByteFlag`. A lower flag can be
+ * a payload bit of a wider row, so the encoder tests them from the highest down.
+ */
+const errorByteFlag = 0b0000_0000_1000_0000
+const errorLead4ContFlag = 0b0000_0010_0000_0000
+const errorLead3ContFlag = 0b0000_0100_0000_0000
+const errorLead4Cont2Flag = 0b1000_0000_0000_0000
+
 const isInU8Range = contains(0x00, 0xff)
 
 /**
@@ -139,26 +162,26 @@ const codePointToUtf8 = input => {
         ]
     }
     if ((input & errorMask) !== 0) {
-        if ((input & 0b1000_0000_0000_0000) !== 0) {
+        if ((input & errorLead4Cont2Flag) !== 0) {
             return [
                 input >> 12 & lead4Mask | lead4Tag,
                 contByte(input >> 6),
                 contByte(input),
             ]
         }
-        if ((input & 0b0000_0100_0000_0000) !== 0) {
+        if ((input & errorLead3ContFlag) !== 0) {
             return [
                 input >> 6 & lead3Mask | lead3Tag,
                 contByte(input),
             ]
         }
-        if ((input & 0b0000_0010_0000_0000) !== 0) {
+        if ((input & errorLead4ContFlag) !== 0) {
             return [
                 input >> 6 & lead4Mask | lead4Tag,
                 contByte(input),
             ]
         }
-        if ((input & 0b0000_0000_1000_0000) !== 0) return [input & 0b1111_1111]
+        if ((input & errorByteFlag) !== 0) return [input & 0b1111_1111]
     }
     return [errorMask]
 }
@@ -191,15 +214,14 @@ export const utf8StateToError = state => {
         case 2: {
             const [s0, s1] = state
             x = s0 < lead4Tag
-                ? ((s0 & lead3Mask) << 6) + contPayload(s1) + 0b0000_0100_0000_0000
-                : ((s0 & lead4Mask) << 6) + contPayload(s1) +
-                    0b0000_0010_0000_0000
+                ? ((s0 & lead3Mask) << 6) + contPayload(s1) + errorLead3ContFlag
+                : ((s0 & lead4Mask) << 6) + contPayload(s1) + errorLead4ContFlag
             break
         }
         case 3: {
             const [s0, s1, s2] = state
             x = ((s0 & lead4Mask) << 12) + (contPayload(s1) << 6) +
-                contPayload(s2) + 0b1000_0000_0000_0000
+                contPayload(s2) + errorLead4Cont2Flag
             break
         }
         //default:

@@ -1150,14 +1150,14 @@ makes the computation's dependency structure visible: the scope a binding lives
 in tells the reader which arguments it needs without tracing the whole call
 chain.
 
-Example (`fjs/basen/module.f.mjs`): `chunkList(msb)` depends on neither `bits`
-nor `v`, so it's bound once at module scope (`chunkListMsb`), shared by every
-`baseN(...)` codec; `chunkListMsb(bits)` depends on `bits` but not `v`, so it's
-applied once inside `baseN`'s body, not once per `vecToString(v)` call. When the
-fully-applied chain is itself the thing captured once — assigned directly as an
-object property, e.g.
-`vecToString: compose(chunkListMsb(bits))(fold(chunkToString)(''))` — naming the
-intermediate halves separately adds nothing: the composition already shows,
+Example (`fjs/basen/module.f.mjs`): `tailPaddedUintChunkList(msb)` depends on
+neither `bits` nor `v`, so it's bound once at module scope (`uintChunkListMsb`),
+shared by every `baseN(...)` codec; `uintChunkListMsb(bits)` depends on `bits`
+but not `v`, so it's applied once inside `baseN`'s body, not once per
+`vecToString(v)` call. When the fully-applied chain is itself the thing captured
+once — assigned directly as an object property, e.g.
+`vecToString: compose(uintChunkListMsb(bits))(fold(chunkToString)(''))` — naming
+the intermediate halves separately adds nothing: the composition already shows,
 structurally, that neither operand depends on `v`. Content addressing gives a
 second reason beyond readability: each partial application bound at its own scope
 is a closed value with its own identity, shareable wherever the same layer
