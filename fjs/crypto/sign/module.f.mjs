@@ -60,7 +60,12 @@ export const concat = (...x) => listToVec(x)
 /**
  * Computes deterministic ECDSA nonce `k` as described by RFC6979.
  *
- * @type {(_: All) => (_: Sha2) => (x: bigint) => (m: Vec) => bigint}
+ * Takes the message digest `h1 = H(m)`, not the message: step a of
+ * RFC6979 §3.2 is the caller's, so `sign` hashes the message once and
+ * derives both `h` and the nonce from the same digest. `hf` must be the
+ * hash that produced `h1`; the HMAC steps use it too.
+ *
+ * @type {(_: All) => (_: Sha2) => (x: bigint) => (h1: Vec) => bigint}
  */
 export const computeK =
     ({ q, bits2int, qlen, int2octets, bits2octets }) => hf => {
@@ -82,13 +87,13 @@ export const computeK =
         //    such that the length of K, in bits, is equal to 8*ceil(hlen/8).
         const k0 = rep(x00)
         //
-        return x => m => {
+        return x => h1 => {
             let v = v0
             let k = k0
             // a. Process m through the hash function H, yielding:
             //      h1 = H(m)
             //   (h1 is a sequence of hlen bits).
-            const h1 = computeSync(hf)([m])
+            //    The caller's step: `h1` is the parameter.
             // d. Set:
             //      K = HMAC_K(V || 0x00 || int2octets(x) || bits2octets(h1))
             //    where '||' denotes concatenation.
@@ -160,7 +165,7 @@ export const sign = c => hf => x => m => {
     //    used to generate k.  In plain DSA or ECDSA, k should be selected
     //    through a random selection that chooses a value among the q-1
     //    possible values with uniform probability.
-    const k = computeK(a)(hf)(x)(m)
+    const k = computeK(a)(hf)(x)(hm)
     // 3.  A value r (modulo q) is computed from k and the key parameters:
     //
     //     *  For ECDSA: the point kG is computed; its X coordinate (a

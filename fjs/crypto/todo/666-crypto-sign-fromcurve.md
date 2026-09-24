@@ -80,7 +80,7 @@ Two distinct duplications here:
    const { rfc6979, nf: { div }, mul, g } = fromCurve(c)
    const { q, bits2int } = rfc6979
    ...
-   const k = computeK(rfc6979)(hf)(x)(m)   // computeK keeps taking the RFC6979 record unchanged
+   const k = computeK(rfc6979)(hf)(x)(hm)  // computeK keeps taking the RFC6979 record unchanged, and the digest `hm = H(m)`
    const rxy = mul(k)(g)
    ```
 

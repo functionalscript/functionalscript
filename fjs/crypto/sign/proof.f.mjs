@@ -107,21 +107,21 @@ export const proof = {
         const a = all(q)
         assertEq(a.qlen, 163n)
         const x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272Fn
-        const k = computeK(a)(sha256)(x)(sample)
+        const k = computeK(a)(sha256)(x)(computeSync(sha256)([sample]))
         assertEq(k, 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81Bn)
     },
     investigate: () => {
         const q = 0xF2C3119374CE76C9356990B465374A17F23F9ED35089BD969F61C6DDE9998C1Fn
         const x = 0x69C7548C21D0DFEA6B9A51C9EAD4E27C33D3B3F180316E5BCAB92C933F0E4DBCn
         const a = all(q)
-        const k = computeK(a)(sha384)(x)(sample)
+        const k = computeK(a)(sha384)(x)(computeSync(sha384)([sample]))
         assertEq(k, 0xC345D5AB3DA0A5BCB7EC8F8FB7A7E96069E03B206371EF7D83E39068EC564920n)
     },
     kk: () => {
         const a = fromCurve(secp192r1)
         const x = 0x6FAB034934E4C0FC9AE67F5B5659A9D7D1FEFD187EE09FD4n
         const m = utf8("sample")
-        const kk = computeK(a)(sha224)(x)(m)
+        const kk = computeK(a)(sha224)(x)(computeSync(sha224)([m]))
         assertEq(kk, 0x4381526B3FC1E7128F202E194505592F01D5FF4C5AF015D8n)
     },
     a2: () =>{
@@ -138,7 +138,7 @@ export const proof = {
             const a = all(q)
             /** @type {(sha: Sha2, expected: bigint, m: Vec) => void} */
             const check = (sha, expected, m) => {
-                const k = computeK(a)(sha)(x)(m)
+                const k = computeK(a)(sha)(x)(computeSync(sha)([m]))
                 assertEq(k, expected, [k.toString(16), expected.toString(16)])
             }
             /** @type {(m: Vec, h: _H) => void} */
@@ -386,7 +386,7 @@ export const proof = {
             const a = all(q.nf.p)
             /** @type {(sha: Sha2, result: _Result, m: Vec) => void} */
             const check = (sha, { k, r, s }, m) => {
-                const k0 = computeK(a)(sha)(x)(m)
+                const k0 = computeK(a)(sha)(x)(computeSync(sha)([m]))
                 assertEq(k0, k, [k0.toString(16), k.toString(16)])
                 const [r0, s0] = sign(q)(sha)(x)(m)
                 assertEq(r0, r, [r0, r])
