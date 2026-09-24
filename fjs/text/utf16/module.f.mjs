@@ -12,14 +12,13 @@
 
 import {
     map,
-    reduce,
     flatMap,
     empty,
 } from '../../types/list/module.f.mjs'
 
-import { concat } from '../../types/function/operator/module.f.mjs'
 import { contains } from '../../types/range/module.f.mjs'
-import { fn } from '../../types/function/module.f.mjs'
+import { compose } from '../../types/function/module.f.mjs'
+import { concat } from '../../types/string/module.f.mjs'
 
 import {
     decoder,
@@ -301,9 +300,7 @@ export const stringToCodePointList = input =>
  *
  * @type {(input: List<U16>) => string}
  */
-export const listToString = fn(map(String.fromCharCode))
-    .map(reduce(concat)(''))
-    .result
+export const listToString = compose(map(String.fromCharCode))(concat)
 
 /**
  * Converts a list of Unicode code points (CodePoint) to a string.
