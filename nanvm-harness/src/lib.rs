@@ -238,10 +238,6 @@ mod tests {
         );
     }
 
-    /// Closures, end to end: a function's frame is the values its body
-    /// names from outside, built where the function is made and read
-    /// through `A::frame` — an enclosing function's arguments, a module
-    /// `const`, and a capture through a parent's own frame.
     #[test]
     fn named_and_rest_parameters() {
         assert_eq!(
@@ -250,6 +246,10 @@ mod tests {
         );
     }
 
+    /// Closures, end to end: a function's frame is the values its body
+    /// names from outside, built where the function is made and read
+    /// through `A::frame` — an enclosing function's arguments, a module
+    /// `const`, and a capture through a parent's own frame.
     #[test]
     fn closures() {
         assert_eq!(

@@ -48,7 +48,7 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject, AstRest } from '../ast/types.ts'
  * @import { BinaryTag } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParameterBinding, ParameterList, ParseError } from './types.ts'
  * @import { ArrowOrRest, Body, Group, Items, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
@@ -884,8 +884,8 @@ const captureShadowed = foldError('capture shadowed')
 /** A keyword where JavaScript wants an identifier, at the word. */
 const reservedWord = foldError('reserved word')
 
-/** The arguments of the function whose body is being resolved. @type {AstArgs} */
-const args = ['rest']
+/** The rest array after the fixed parameters of the function whose body is being resolved. @type {AstRest} */
+const restBinding = ['rest']
 
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
@@ -1153,7 +1153,7 @@ const conditionalRound = (stack, scope, frame) => {
     return [stack, scope, ok(closed)]
 }
 
-/** Whether two references name one binding: element for element, a parameter's `args` being the one {@link args}. @type {(a: _Ref, b: _Ref) => boolean} */
+/** Whether two references name one binding: element for element, a rest parameter naming the one {@link restBinding}. @type {(a: _Ref, b: _Ref) => boolean} */
 const sameRef = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
 
 /**
@@ -1240,7 +1240,7 @@ const functionScope = list => {
     const bind = (acc, { name, rest }, i) => {
         if (acc[0] === 'error') { return acc }
         const [tag, word] = bindable(acc[1])(name)
-        return tag === 'error' ? error(word) : ok(extended(acc[1])(word, rest ? args : ['arg', i]))
+        return tag === 'error' ? error(word) : ok(extended(acc[1])(word, rest ? restBinding : ['arg', i]))
     }
     return mapOk(
         /** @type {(env: _Env) => readonly [_Env, number]} */
@@ -1436,7 +1436,7 @@ const bindable = env => name => {
     return at(word)(env) !== null ? error(duplicateId(name)) : ok(word)
 }
 
-/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstArgs | _Parameter) => _Env} */
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstRest | _Parameter) => _Env} */
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /**

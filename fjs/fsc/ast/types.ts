@@ -27,8 +27,8 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a function's arguments, or a slot of its frame. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstArgs|AstArg|AstFrameRef
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a fixed parameter, a rest array, or a slot of its frame. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef
 
 /**
  * A function: `(...a) => { const x = …; return v; }`, an {@link AstBody}
@@ -37,7 +37,7 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCa
  * `(...a) => v` is the same function as `(...a) => { return v; }`, so it is
  * the one-entry body `[v]`.
  *
- * {@link AstArgs} is the rest array. A name the body reads from the
+ * {@link AstRest} is the rest array. A name the body reads from the
  * scopes around it is a **capture**: the function's fourth element lists
  * them, each once, in the order the body first names them, each the
  * enclosing scope's own reference — a `cref` or `aref` of the module, a
@@ -65,7 +65,7 @@ export type AstFunction = readonly ['=>', number, AstBody] | readonly ['=>', num
 export type AstFrameRef = readonly ['fref', number]
 
 /** The rest array after the function's fixed prefix, whatever the source name. The EDAG's `['rest']`. */
-export type AstArgs = readonly ['rest']
+export type AstRest = readonly ['rest']
 
 /** A fixed parameter of the owning function. */
 export type AstArg = readonly ['arg', number]

@@ -12,7 +12,7 @@ import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstArgs, AstConst, AstFrameRef, AstModuleRef, BinaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstModuleRef, AstRest, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { Block, Container, Node, Out, ParseError } from './types.ts'
 
@@ -125,11 +125,11 @@ export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly 
 /** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
 export type _Parameter = readonly ['arg', number]
 
-/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments or one of its named parameters. */
-export type _Env = OrderedMap<AstModuleRef | AstArgs | _Parameter>
+/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's rest array or one of its fixed parameters. */
+export type _Env = OrderedMap<AstModuleRef | AstRest | _Parameter>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
-export type _Ref = AstModuleRef | AstArgs | _Parameter | AstFrameRef
+export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef
 
 /**
  * The scope a node is resolved in: the names it binds itself, and — in a
