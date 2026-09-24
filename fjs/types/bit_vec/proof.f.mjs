@@ -4,10 +4,10 @@
  * @import { List } from '../list/types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, u8List, chunkList, fromSentinel, bytesIn, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, u8List, u8ListToVecMsb, u8ListMsb, chunkList, fromSentinel, bytesIn, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -449,6 +449,14 @@ export const proof = {
                 throw `y.lenght: ${y.length}`
             }
         }
+    },
+    msbBytes: () => {
+        const bytes = [0x12, 0x34, 0x56]
+        const v = u8ListToVecMsb(bytes)
+        assertEq(v, u8ListToVec(msb)(bytes))
+        assertEq(v, vec(24n)(0x123456n))
+        assertStructurallySame(toArray(u8ListMsb(v)), bytes)
+        assertStructurallySame(toArray(u8ListMsb(vec(9n)(0x83n))), toArray(u8List(msb)(vec(9n)(0x83n))))
     },
     tryConcat: () => {
         const a = vec(8n)(0x45n)

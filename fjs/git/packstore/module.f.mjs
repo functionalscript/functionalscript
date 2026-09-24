@@ -96,6 +96,7 @@
  * @import { Effect } from '../../effects/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Envelope } from '../object/types.ts'
  * @import { Entry } from '../pack/types.ts'
  * @import { Idx } from '../packidx/types.ts'
@@ -109,15 +110,18 @@ import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError,
 import { inflate, leadsNowhere, namesNothing, notAFileCode, notAFileMessage, readBytes, readWholeBytes, readdir, stat } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
-import { length, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { length, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { headerBytes, tryApplyDelta, tryEntry, tryHeader } from '../pack/module.f.mjs'
 import { after, holdsEntryAt, offsetOf, tryIdx } from '../packidx/module.f.mjs'
 import { hexText } from '../oid/module.f.mjs'
 
-const toBytes = u8List(msb)
-
-const toVec = u8ListToVec(msb)
+/**
+ * The bytes a read hands back, as a dense array to index into.
+ *
+ * @type {(v: Vec) => readonly number[]}
+ */
+const denseBytes = v => byteArray(u8ListMsb(v))
 
 /** What a pack index is called, and so what a listing of the directory looks for. */
 const idxSuffix = /** @type {const} */ ('.idx')
@@ -345,8 +349,8 @@ const framedAt = (oidBytes, path, at, window) => {
         ? entryRefusal(path, at)('is no pack entry')
         : catchStep(
             mapStep(
-                inflate(toVec(window.slice(e.dataAt))),
-                v => /** @type {const} */ ([e, byteArray(toBytes(v))])),
+                inflate(u8ListToVecMsb(window.slice(e.dataAt))),
+                v => /** @type {const} */ ([e, denseBytes(v)])),
             c => entryRefusal(path, at)(`does not inflate: ${channelText(c)}`))
 }
 
@@ -449,7 +453,7 @@ const advance = (idx, path, at, chain, e, data) => {
 const linkOf = (path, oidBytes, idx, packLength) => at => chain => {
     const end = endOf(idx, oidBytes, packLength, at)
     if (end === null) { return entryRefusal(path, at)('is not where an entry begins') }
-    const window = history(mapStep(readBytes(path, at, end - at), v => byteArray(toBytes(v))))
+    const window = history(mapStep(readBytes(path, at, end - at), denseBytes))
     const got = historyStep(window, w => framedAt(oidBytes, path, at, w))
     return step(got, ([[e, data]]) => advance(idx, path, at, chain, e, data))
 }
@@ -479,7 +483,7 @@ const agrees = (path, oidBytes, idx, size, front, tail) => {
     if (h.count !== idx.ids.length) {
         return refuse(`holds ${h.count} objects where its index names ${idx.ids.length}`)
     }
-    return toVec(tail) === idx.packChecksum
+    return u8ListToVecMsb(tail) === idx.packChecksum
         ? pureOk(size)
         : refuse(`does not match the index, whose pack checksum is ${hexText(idx.packChecksum)}`)
 }
@@ -524,10 +528,10 @@ const framingOf = (path, oidBytes, idx) => {
             code: packFileCode,
             message: `${path} is ${size} bytes, too short to be a pack file`,
         }))
-        : mapStep(readBytes(path, 0, headerBytes), v => byteArray(toBytes(v))))
+        : mapStep(readBytes(path, 0, headerBytes), denseBytes))
     const back = historyStep(front, (_, size) => mapStep(
         readBytes(path, size - oidBytes, oidBytes),
-        v => byteArray(toBytes(v))))
+        denseBytes))
     return step(back, ([tail, head, size]) => agrees(path, oidBytes, idx, size, head, tail))
 }
 

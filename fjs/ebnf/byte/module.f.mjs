@@ -82,7 +82,7 @@ const symbol = b => ({ symbol: b, meta })
 /**
  * The input a parser over this alphabet is given: the bytes of a list, in
  * order, each with the shared metadata. A `Vec` is read through
- * `u8List(msb)` from `fjs/types/bit_vec`, and a `Uint8Array` through
+ * `u8ListMsb` from `fjs/types/bit_vec`, and a `Uint8Array` through
  * `fromArrayLike` from `fjs/types/list`.
  *
  * @throws If an item is not a byte: the input is refused at the boundary,

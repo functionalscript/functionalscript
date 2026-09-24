@@ -442,6 +442,14 @@ export const tryU8ListToVec = mappedListToVec(u8ToUnpacked)
 export const u8ListToVec = bo =>
     mapUnwrap(tryU8ListToVec(bo))
 
+/**
+ * `u8ListToVec(msb)`: a vector from its bytes, most significant first — the
+ * byte order of every byte-oriented format in this repository.
+ *
+ * @type {(list: List<number>) => Vec}
+ */
+export const u8ListToVecMsb = u8ListToVec(msb)
+
 /** @type {({ unpackSplit }: BitOrder) => (n: bigint) => (u: Unpacked) => Thunk<Unpacked>} */
 const unpackChunkList = ({ unpackSplit }) => n => {
     const divUpN2 = divUp(n << 1n)
@@ -517,6 +525,14 @@ const vecToU8 = ({ unpackSplit }) => {
  */
 export const u8List = bo => v =>
     map(vecToU8(bo))(chunkList(bo)(8n)(v))
+
+/**
+ * `u8List(msb)`: the bytes of a vector, most significant first — the inverse
+ * of `u8ListToVecMsb`.
+ *
+ * @type {(v: Vec) => Thunk<number>}
+ */
+export const u8ListMsb = u8List(msb)
 
 /**
  * Repeats a vector to create a padded block of the desired length.

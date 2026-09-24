@@ -3,7 +3,7 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { empty, length, maxLengthBytes, msb, u8List, vec } from '../../types/bit_vec/module.f.mjs'
+import { empty, length, maxLengthBytes, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { cycle, take, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
 import { hexText, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
@@ -11,7 +11,7 @@ import { hexText, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
     const id = tryFromHex(latin1(hex))
-    return id === null ? [] : toArray(u8List(msb)(id))
+    return id === null ? [] : toArray(u8ListMsb(id))
 }
 
 /** @type {(id: Oid) => string} */

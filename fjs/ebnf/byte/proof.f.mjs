@@ -9,7 +9,7 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { fromArrayLike } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.mjs'
@@ -86,8 +86,8 @@ export const proof = {
         // The two inputs a caller holds at a boundary: a `Vec`, and a
         // `Uint8Array`.
         vec: () => {
-            const v = u8ListToVec(msb)([0x67, 0x69, 0x74])
-            assertStructurallySame(symbols(u8List(msb)(v)).map(({ symbol }) => symbol), [0x67, 0x69, 0x74])
+            const v = u8ListToVecMsb([0x67, 0x69, 0x74])
+            assertStructurallySame(symbols(u8ListMsb(v)).map(({ symbol }) => symbol), [0x67, 0x69, 0x74])
         },
         uint8Array: () => {
             const s = symbols(fromArrayLike(new Uint8Array([0xC3, 0xA9])))
