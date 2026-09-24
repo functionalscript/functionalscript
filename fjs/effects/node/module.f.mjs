@@ -413,17 +413,23 @@ const writeLoop = path => {
  * discarded, as `fjs/cas`'s staging cleanup discards it: the write's error is
  * what the caller needs to hear, and a failed `rm` has no better answer.
  *
+ * The removal names `path`, as every `writeBytes` before it does, so a file
+ * put there by someone else mid-write is written into and then removed —
+ * [write-from-stream-private-name.md](./todo/write-from-stream-private-name.md).
+ *
  * @template {Operation} O
  * @param {string} path
  * @param {List<O, Vec, IoChannel>} e
  * @returns {Effect<O | WriteBytes | CreateExclusive | Rm, void, IoChannel>}
  */
-export const writeFromStream = (path, e) =>
-    ioStep(
-        createExclusive(path),
-        () => catchStep(
-            writeLoop(path)(0, e),
-            err => resultStep(rm(path), () => pureError(err))))
+export const writeFromStream = (path, e) => {
+    // Only what runs after `createExclusive` is cleaned up after: an `EEXIST`
+    // is someone else's file, and removing it would be the failure's doing.
+    const written = catchStep(
+        writeLoop(path)(0, e),
+        err => resultStep(rm(path), () => pureError(err)))
+    return ioStep(createExclusive(path), () => written)
+}
 
 /** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
 const chunkBytes = Number(maxLengthBytes)
