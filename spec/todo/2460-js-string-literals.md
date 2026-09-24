@@ -4,14 +4,16 @@
 **Status:** open — [single quotes](#proposal-single-quotes-first) are
 implemented; the other spellings are deferred
 
-String literals at every level — JSON, DJS, FJS — use JSON string syntax:
-double quotes, the JSON escapes (`\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t`
-`\uXXXX`), and no literal control characters
-([RFC 8259 §7](https://www.rfc-editor.org/rfc/rfc8259#section-7)).
+A JSON string literal is double-quoted, with the JSON escapes (`\"` `\\` `\/`
+`\b` `\f` `\n` `\r` `\t` `\uXXXX`) and no literal control characters
+([RFC 8259 §7](https://www.rfc-editor.org/rfc/rfc8259#section-7)), and so is
+a DataJS one. A FunctionalScript string literal is JSON's between double
+quotes or, since [#2251](https://github.com/functionalscript/functionalscript/pull/2251),
+between single quotes ([scope](#scope)).
 
-ECMAScript's string literal syntax has four more spellings:
+ECMAScript's string literal syntax has four spellings beyond JSON's:
 
-- single-quoted strings: `'hello'`,
+- single-quoted strings: `'hello'` — FunctionalScript's, as above,
 - additional escapes: `\v`, `\0`, `\xHH`, `\u{XXXXXX}`,
 - literal C0 control characters, e.g. a raw TAB inside a string,
 - line continuations: `\` before a line terminator.
@@ -182,7 +184,7 @@ them.
 
 Design rule: we extend JSON only where JS has values JSON cannot express
 (`undefined`, `bigint`, functions), or where a spelling is common enough that
-refusing it keeps familiar code from compiling, as single quotes do. Keeping a
+refusing it keeps familiar code from compiling, as single quotes did. Keeping a
 single string grammar across the JSON ⊂ DJS ⊂ FS lattice avoids parser
 differentials ("is it valid JSON?" is answerable at the string level) and keeps
 values closer to a canonical byte form for content addressing.
