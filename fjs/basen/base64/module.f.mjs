@@ -20,10 +20,11 @@ const { vecToString, stringToVec } = baseN(6n, alphabet)
 export const encode = input => {
     // Base64 is a byte codec; reject non-octet-aligned inputs.
     if (!isWholeBytes(input)) { return null }
-    // `vecToString` (via `baseN`'s `chunkList`) already left-pads a trailing
-    // partial 6-bit chunk with zeros, so `input` needs no explicit padding —
-    // building one would risk pushing an intermediate `Vec` past `maxLength`
-    // for input already at or near that limit, for no benefit.
+    // `vecToString` (via `baseN`'s `tailPaddedUintChunkList(msb)`) already
+    // zero-extends a trailing partial 6-bit chunk in its low bits, so `input`
+    // needs no explicit padding — building one would risk pushing an
+    // intermediate `Vec` past `maxLength` for input already at or near that
+    // limit, for no benefit.
     let result = vecToString(input)
     // Append `=` padding to make total length a multiple of 4.
     while (result.length % 4 !== 0) { result += '=' }
