@@ -66,7 +66,9 @@ const shard = key => {
 }
 
 /** The inverse of `shard`: recovers a content key from its shard path relative
- * to the `.cas` directory, or `null` if the path is not a shard.
+ * to the `.cas` directory, or `null` if the path, without its separators, is
+ * not cBase32. It does not check the key's length, so a cBase32 path of the
+ * wrong length decodes to a key no hash produced.
  *
  * @type {(relPath: string) => Vec | null}
  */
