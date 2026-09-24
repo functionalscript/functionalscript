@@ -42,8 +42,10 @@ export const sloth_vdf = modulus => {
 
     /**
      * Iterates `op` `steps` times from `value` reduced into the field. `eval`
-     * and `verify` iterate a mutually inverse pair over one field reduction;
-     * only the operator differs.
+     * iterates the square root and `verify` the square over one field
+     * reduction; only the operator differs. The two are inverse only up to
+     * sign: a non-residue's root squares to its negation, which `verify`
+     * accounts for.
      *
      * @type {(op: Unary) => (steps: bigint) => (value: bigint) => bigint}
      */
