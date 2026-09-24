@@ -419,6 +419,20 @@ export const proof = {
             }
         }
     },
+    tryConcat: () => {
+        const a = vec(8n)(0x45n)
+        const b = vec(8n)(0x89n)
+        // Within the cap it is `concat`.
+        assertEq(lsb.tryConcat(a)(b), lsb.concat(a)(b))
+        assertEq(msb.tryConcat(a)(b), msb.concat(a)(b))
+        // Exactly `maxLength` is allowed; one bit past it is refused.
+        const one = vec(1n)(1n)
+        const full = vec(maxLength - 1n)(1n)
+        assertEq(lsb.tryConcat(full)(one), lsb.concat(full)(one))
+        assertEq(msb.tryConcat(full)(one), msb.concat(full)(one))
+        assertEq(lsb.tryConcat(vec(maxLength)(1n))(one), null)
+        assertEq(msb.tryConcat(one)(vec(maxLength)(1n)), null)
+    },
     tryListToVecOverflow: () => {
         /** @type {List<Vec>} */
         const list = [vec(maxLength)(1n), vec(1n)(1n)]

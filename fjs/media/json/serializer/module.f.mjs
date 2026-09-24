@@ -14,7 +14,7 @@
  *
  * @import { List } from '../../../types/list/types.ts'
  * @import { Reduce } from '../../../types/function/operator/types.ts'
- * @import { CodePoint } from '../../../text/utf16/types.ts'
+ * @import { CodePoint } from '../../../text/code_point/types.ts'
  * @import { Tree, TreeObject, TreeArray, TreeEntry, TreeEntries, TreeMapEntries } from '../types.ts'
  */
 
