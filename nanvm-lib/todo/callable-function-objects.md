@@ -509,12 +509,12 @@ generated-Rust test from one source of cases.
    `naive`-backend efficiency question, not a representation question, and
    can be deferred — [optimal-nanvm](./optimal-nanvm.md)'s NaN-boxing layer
    is where a genuinely allocation-free static function eventually belongs.
-3. **Generated-module linking.** Stage 1's direct Rust calls need generated
-   modules to call into each other's emitted `fn` items; this is the same
-   open "generated module imports" question mvp-roadmap already tracks
-   (`use` paths, file/directory layout) and is not reopened here — Stage 1
-   should reuse whatever that task decides rather than picking its own
-   convention.
+3. **Generated-module linking (resolved).** The
+   [compiler](../../fjs/fsc/module.f.mjs) resolves the complete source graph
+   before `toRust` emits one Rust file. Stage 1 therefore needs no per-dependency
+   Rust `use` paths or file layout; source imports are already linked within
+   that output. The embedding crate chooses where to include the generated
+   file, as recorded in the [MVP roadmap](./mvp-roadmap.md).
 4. **Does `StaticCode<A>` need `unsafe`/`extern "C"` anywhere?** No — this plan
    never crosses an FFI boundary; `StaticCode<A>` is an ordinary safe Rust `fn`
    pointer generic over `A: IStaticFunction`, monomorphized like everything else in
