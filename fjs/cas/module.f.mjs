@@ -13,7 +13,7 @@
  */
 
 import { join, normalize, parse } from '../path/module.f.mjs'
-import { empty, length, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { byteLength, empty, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
     catchStep,
@@ -223,7 +223,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                     return resultStep(writeBytes(curPath, offset, chunk), wb => {
                         if (wb[0] === 'error') { return fail(curPath, wb[1]) }
                         const newState = sha2.append(chunk)(state)
-                        const newOffset = offset + Number(length(chunk) / 8n)
+                        const newOffset = offset + Number(byteLength(chunk))
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
                         // so the rename captures it rather than closing over it.

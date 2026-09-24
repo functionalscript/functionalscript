@@ -7,7 +7,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { msb, length, vec } from '../../types/bit_vec/module.f.mjs'
+import { msb, isWholeBytes, vec } from '../../types/bit_vec/module.f.mjs'
 import { baseN } from "../module.f.mjs"
 
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -18,9 +18,8 @@ const { vecToString, stringToVec } = baseN(6n, alphabet)
 
 /** @type {(input: Vec) => Nullable<string>} */
 export const encode = input => {
-    const len = length(input)
     // Base64 is a byte codec; reject non-octet-aligned inputs.
-    if (len % 8n !== 0n) { return null }
+    if (!isWholeBytes(input)) { return null }
     // `vecToString` (via `baseN`'s `chunkList`) already left-pads a trailing
     // partial 6-bit chunk with zeros, so `input` needs no explicit padding —
     // building one would risk pushing an intermediate `Vec` past `maxLength`
