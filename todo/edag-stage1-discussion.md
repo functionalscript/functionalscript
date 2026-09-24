@@ -252,7 +252,7 @@ schema is free to change independently of both.
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`, `[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; a plain read leaves `k` out and is the shorter tuple; `property` is restricted (see below)|
 |`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is one node yielding an array (subject 6)|
-|`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
+|`["?.", object, property, k?]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
 |`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
 |`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
 |`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
@@ -1165,14 +1165,14 @@ these rules bind it.
   canonical graph serialization, subject 9). Not for the first
   implementation.
   How engines *prioritize* branches is deliberately unspecified — order
-  is not semantic, so any schedule is legal under the
-  opaque-error contract: racing cheap guards first (fail-fast), parking
-  expensive branches, full parallelism, or plain sequential. A `throw` in
-  FS is the analogue of a panic in other languages, so engines may reasonably
-  assume asserts rarely fire and optimize for the happy path. The spec assumes
-  nothing about any of this; the freedoms above are illustrations of what
-  A1–A4 make sound for any engine, with no coordination.
-- **Membership is never negotiable: a `","'s value is revealed only
+  is not semantic, so any schedule is legal: racing cheap guards first
+  (fail-fast), parking expensive branches, full parallelism, or plain
+  sequential. A `throw` in FS is the analogue of a panic in other
+  languages, so engines may reasonably assume asserts rarely fire and
+  optimize for the happy path. The spec assumes nothing about any of
+  this; the freedoms above are illustrations of what A1–A4 make sound
+  for any engine, with no coordination.
+- **Membership is never negotiable: a `","`'s value is revealed only
   after ALL its operands complete successfully.** Scheduling freedom is
   about *when* guards run, never *whether*. When the guarded `","` is
   the body root, its value is the function's value — so nothing escapes
@@ -1185,7 +1185,7 @@ these rules bind it.
   ```
 
   An engine may compute anything early — even the result operand
-  speculatively, which is unobservable — but the `","'s value must
+  speculatively, which is unobservable — but the `","`'s value must
   not be revealed until every assert operand has succeeded.
 
   "Succeeded" is an **as-if** rule — the engine must *establish* each
@@ -1225,7 +1225,7 @@ these rules bind it.
   content-addressed cache or otherwise escape the debugging session —
   they are not the function's outcome.
 - **Membership is semantic; order is not** (A4 rejected): every merged
-  operand is established before the merging `","'s value is revealed,
+  operand is established before the merging `","`'s value is revealed,
   so A3's always-fails holds — but any evaluation order of branches
   (including parallel, and asserts as fail-fast guards before the data
   path) is legal under the opaque-error contract. Data dependencies
