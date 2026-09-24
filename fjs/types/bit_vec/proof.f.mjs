@@ -7,7 +7,7 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, fromSentinel } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, tailPaddedUintChunkList, fromSentinel } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -516,6 +516,29 @@ export const proof = {
             assert(!(length(chunks[0]) !== 4n || uint(chunks[0]) !== 6n), chunks[0])
             assert(!(length(chunks[1]) !== 4n || uint(chunks[1]) !== 0xDn), chunks[1])
             assert(!(length(chunks[2]) !== 2n || uint(chunks[2]) !== 1n), chunks[2])
+        },
+    },
+    // 10-bit vector 0x1B5 = 0b01_1011_0101 in 4-bit chunks: the 2-bit trailing
+    // chunk is zero-extended at the tail of the bit order.
+    tailPaddedUintChunkList: {
+        empty: () => {
+            assertEq(toArray(tailPaddedUintChunkList(msb)(4n)(empty)).length, 0)
+        },
+        // LSB: the trailing chunk `01` keeps its value; zeros fill the high bits.
+        lsb: () => {
+            const [a, b, c, ...rest] = toArray(tailPaddedUintChunkList(lsb)(4n)(vec(10n)(0x1B5n)))
+            assertEq(rest.length, 0)
+            assertEq(a, 5n)
+            assertEq(b, 0xBn)
+            assertEq(c, 1n)
+        },
+        // MSB: the trailing chunk `01` is shifted left to `0100`; zeros fill the low bits.
+        msb: () => {
+            const [a, b, c, ...rest] = toArray(tailPaddedUintChunkList(msb)(4n)(vec(10n)(0x1B5n)))
+            assertEq(rest.length, 0)
+            assertEq(a, 6n)
+            assertEq(b, 0xDn)
+            assertEq(c, 4n)
         },
     },
 }

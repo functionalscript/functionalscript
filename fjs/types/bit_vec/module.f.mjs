@@ -445,22 +445,38 @@ export const uintChunkList
  */
 export const chunkList = mappedChunkList(unpack)(pack)
 
-/** @type {({ unpackSplit }: BitOrder) => (chunk: Vec) => number} */
-const vecToU8 = ({ unpackSplit }) => {
-    const unpackSplit8 = unpackSplit(8n)
-    return chunk => {
-        const u = unpack(chunk)
-        return Number(u.length < 8n ? unpackSplit8(u)[0] : u.uint)
-    }
+/**
+ * The unsigned value of an `n`-bit chunk. A chunk shorter than `n` is
+ * zero-extended at the tail of the bit order: `unpackSplit`'s shift amount
+ * goes negative, which per spec becomes a left shift. Under `msb` the value
+ * is shifted left (`101` reads as `10100000`, zeros in the low bits); under
+ * `lsb` it is unchanged (zeros in the high bits).
+ *
+ * @type {({ unpackSplit }: BitOrder) => (n: bigint) => (u: Unpacked) => bigint}
+ */
+const tailPaddedUint = ({ unpackSplit }) => n => {
+    const us = unpackSplit(n)
+    return u => u.length < n ? us(u)[0] : u.uint
 }
+
+/**
+ * Chunks a bit vector into fixed-size pieces of `n` bits using the provided bit order,
+ * returning each chunk as an unsigned `n`-bit integer. A short trailing chunk is
+ * zero-extended at the tail of the bit order — under `msb` the value is shifted
+ * left (zeros in the low bits), under `lsb` it is unchanged (zeros in the high bits).
+ *
+ * @type {(bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<bigint>}
+ */
+export const tailPaddedUintChunkList = bo => n =>
+    mappedChunkList(unpack)(tailPaddedUint(bo)(n))(bo)(n)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
  *
  * @type {(bo: BitOrder) => (v: Vec) => Thunk<number>}
  */
-export const u8List = bo => v =>
-    map(vecToU8(bo))(chunkList(bo)(8n)(v))
+export const u8List = bo =>
+    compose(tailPaddedUintChunkList(bo)(8n))(map(Number))
 
 /**
  * Repeats a vector to create a padded block of the desired length.

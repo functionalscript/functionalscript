@@ -72,5 +72,5 @@ asks `tryConcat` instead of restating the arithmetic.
 
 - [unpack-lift.md](./unpack-lift.md) — lifts ops over `Unpacked`; its
   rewrite of `concat` leaves it unchecked, so the two compose.
-- [padded-uint-chunk-list.md](./padded-uint-chunk-list.md) — the
+- `tailPaddedUintChunkList` in [`../module.f.mjs`](../module.f.mjs) — the
   short-chunk cousin, one layer down.
