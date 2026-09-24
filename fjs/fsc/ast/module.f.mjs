@@ -10,9 +10,9 @@
  * @import { _Node, _OperandStack, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
-import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
+import { concat, empty, flat, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
-import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { cmp as stringCmp } from '../../types/string/module.f.mjs'
 import { at as routesAt, empty as noRoutes, setReplace } from '../../types/ordered_map/module.f.mjs'
 
@@ -47,27 +47,6 @@ export const _own = (base, key) => {
 const ownProperty = key => base => base === null || base === undefined
     ? error(`cannot read property "${key}" of ${base}`)
     : ok(_own(base, key))
-
-/** @type {<T>(list: List<T>) => (value: T) => List<T>} */
-const appended = list => value => ({ head: list, tail: [value] })
-
-/**
- * The list so far with one more result's value, or the first failure.
- *
- * @template T
- * @param {Result<T, string>} item
- * @returns {(acc: Result<List<T>, string>) => Result<List<T>, string>}
- */
-const collect = item => okThen(
-    /** @type {(list: List<T>) => Result<List<T>, string>} */
-    (list => mapOk(appended(list))(item))
-)
-
-/** @type {Result<List<Unknown>, string>} */
-const noValues = ok(empty)
-
-/** @type {Result<List<readonly [string, Unknown]>, string>} */
-const noMembers = ok(empty)
 
 /** @type {(key: string) => (value: Unknown) => readonly [string, Unknown]} */
 const keyed = key => value => [key, value]
@@ -170,8 +149,8 @@ const toDjs = state => ast => {
     switch (ast[0]) {
         case 'aref': { return ok(state.args[ast[1]]) }
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
-        case 'array': { return mapOk(arrayOf)(fold(collect)(noValues)(ast[1].map(toDjs(state)))) }
-        case 'object': { return mapOk(objectOf)(fold(collect)(noMembers)(ast[1].map(memberValue(toDjs(state))))) }
+        case 'array': { return mapOk(arrayOf)(okList(ast[1].map(toDjs(state)))) }
+        case 'object': { return mapOk(objectOf)(okList(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
         case 'args':
         case 'fref': { return error(noFunctionValue) }
