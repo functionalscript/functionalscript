@@ -25,8 +25,6 @@ copy-pasted outright:
 - `noAccumulate` — `../validate/module.f.mjs:108`,
   `../parse/module.f.mjs:302`, and a third copy in
   `../data/module.f.mjs:1172` whose comment still says `` `validate` ``.
-- `noDeclared` — `../validate/module.f.mjs:112`, `../parse/module.f.mjs:220`,
-  identical doc comment included.
 - The array kind's empty-rest length bound, twice each:
   `../validate/module.f.mjs:167-168` ≡ `../parse/module.f.mjs:295-296`
   (identical cast-justification comment included) and

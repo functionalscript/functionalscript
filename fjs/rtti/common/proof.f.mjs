@@ -3,7 +3,7 @@
  * @import { ValidationError } from './types.ts'
  */
 
-import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from './module.f.mjs'
+import { declaredTest, eachEntry, noDeclared, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from './module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
@@ -58,26 +58,26 @@ export const proof = {
     // together with the own keys that are no position at all.
     undeclared: {
         struct: () => {
-            const r = undeclaredMembers(['a'], { a: 1, b: 2 })
+            const r = undeclaredMembers(declaredTest(['a']), { a: 1, b: 2 })
             assertStructurallySame(r, [['b', 2]])
         },
         // The positions come first, in index order, then the keys that name
         // none — so the reported error path is the leftmost failing member.
         tuple: () => {
-            const r = undeclaredMembers(['0'], Object.assign([1, 2], { foo: 3, '01': 4 }))
+            const r = undeclaredMembers(declaredTest(['0']), Object.assign([1, 2], { foo: 3, '01': 4 }))
             assertStructurallySame(r, [['1', 2], ['foo', 3], ['01', 4]])
         },
-        none: () => assertEq(undeclaredMembers(['a'], { a: 1 }).length, 0),
+        none: () => assertEq(undeclaredMembers(declaredTest(['a']), { a: 1 }).length, 0),
         // A hole is no member, so it meets no `rest` — which is why the array
         // kind also answers with its `length`; see `fits` in
         // `../parse/module.f.mjs`.
-        holeIsNoMember: () => assertEq(undeclaredMembers(['0'], [1, , 3]).length, 1),
+        holeIsNoMember: () => assertEq(undeclaredMembers(declaredTest(['0']), [1, , 3]).length, 1),
         // The walk is bounded by what the value and its prototypes carry, not
         // by `length` — this one carries a single own property, `length`, so
         // it answers at once. Materializing the range instead exhausted memory
         // long before any check could reject the value.
         lengthDoesNotBoundTheWalk: () =>
-            assertEq(undeclaredMembers([], new Array(2 ** 32 - 1)).length, 0),
+            assertEq(undeclaredMembers(noDeclared, new Array(2 ** 32 - 1)).length, 0),
     },
     // What a container schema declares, per kind. A tuple is read by length,
     // so a hole is a declared position whose schema is `undefined` — the same
