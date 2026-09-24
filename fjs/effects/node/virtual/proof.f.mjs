@@ -11,7 +11,7 @@ import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeF
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
-import { emptyState, virtual } from './module.f.mjs'
+import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
 import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
@@ -39,6 +39,11 @@ const assertIoMessage = (e, message) => {
 const resolvedModule = name => parent => virtual(emptyState)(resolveFileModule(name, parent))[1]
 
 export const proof = {
+    nodeProgramOptions: () => {
+        const options = nodeProgramOptions(['a', 'b'])
+        assertStructurallySame(options.args, ['a', 'b'])
+        assertStructurallySame({ ...options, args: [] }, defaultNodeProgramOptions)
+    },
     resolveFileModule: () => {
         assertStructurallySame(resolvedModule('./dir/../main.mjs')(null), ['ok', { id: 'main.mjs', path: './dir/../main.mjs' }])
         assertStructurallySame(resolvedModule('./%64ep.mjs')('main.mjs'), ['ok', { id: 'dep.mjs', path: 'dep.mjs' }])
