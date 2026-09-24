@@ -2,7 +2,7 @@
 
 **Priority:** P1 for [single quotes](#proposal-single-quotes-first); P5 for the
 [rest](#deferred-the-other-spellings)
-**Status:** open — single quotes proposed; awaiting language-design approval
+**Status:** open — single quotes approved, not yet implemented
 
 String literals at every level — JSON, DJS, FJS — use JSON string syntax:
 double quotes, the JSON escapes (`\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t`
@@ -25,11 +25,13 @@ value, each UTF-16 code unit, lone surrogates included, being reachable via
 `\uXXXX`. This document proposes the first spelling now and keeps the other
 three deferred.
 
-**Language-design approval:** not yet recorded. Before implementation, link an
-explicit decision by `sergey-shandar` approving the
-[single-quote scope](#scope) below, as
-[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
-requires.
+**Language-design approval:** `sergey-shandar` approved the
+[single-quote scope](#scope) in
+[#2243](https://github.com/functionalscript/functionalscript/pull/2243#pullrequestreview-5309337958),
+as [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+requires. The approval covers the scope; [where it lives](#where-it-lives)
+was corrected after it, in the same pull request, to agree with the lexing
+issue below, and changes no accepted spelling.
 
 ## Problem
 
@@ -80,17 +82,43 @@ A string literal may be delimited by `'` as well as `"`:
 
 ### Where it lives
 
-JSON's grammar does not change. `fjs/ebnf/lib/js` imports JSON's `string` rule
-today; it gains a single-quoted alternative next to it, sharing JSON's
-character and escape sub-rules and adding `\'`. So JSON ⊂ DJS stays a grammar
-fact: a single-quoted literal is a JS string, never a JSON one, and a reader of
-JSON never sees the new rule.
+Recognising a spelling and accepting it are two layers, and
+[single-quote-and-template-lexing](../../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md)
+already owns the first: it widens the JS token grammar to every JavaScript
+string spelling, while the compiler's fold in `fjs/fsc/tokenizer` goes on
+refusing what the language does not accept. This document is the second
+layer for single quotes: what the fold stops refusing.
 
-`fjs/js/tokenizer`'s `decodeJsonString` already strips the two delimiters
-whatever they are and decodes escapes through `escapeToCodePoint`, so decoding
-needs `\'` → `'` and nothing more. The tokenizer's contract with the parser, a
-`string` token carrying its value, does not change, so nothing in
-`fjs/fsc/parser` does either.
+- **Grammar.** JSON's grammar does not change. `fjs/ebnf/lib/js` gains a JS
+  string rule beside JSON's `string`, opened and closed by the same one of
+  `"` and `'`, sharing JSON's character and escape sub-rules. A single-quoted
+  literal is a JS string, never a JSON one, and a reader of JSON never sees
+  the rule. Whether this lands with `\'` alone or with the lexing issue's
+  whole escape rule is a sequencing choice; the fold below decides
+  acceptance either way.
+- **Decoding.** `\'` is decoded above `simpleEscapes` in
+  `fjs/js/string_escape`, in the JS string's own decoder, and **not** added
+  to that table: the table is shared with `fjs/media/json/serializer`'s
+  encoder, which would then write `\'` for every apostrophe, and JSON has no
+  such escape. This is the lexing issue's rule, the listed escapes, else the
+  character itself, of which `\'` is the first case.
+- **Token.** A cooked value alone cannot tell the fold what to accept once
+  the grammar recognises more than it: `'A'`, `"A"` and `"\x41"` all cook to
+  `A`, and a single "is JSON" bit cannot tell the first, accepted, from the
+  third, refused. So a `string` token records two facts, decided by the
+  decoder as it reads each escape:
+  - `quote`, `"` or `'`;
+  - `jsonEscapes`, true when every escape is one of JSON's or the literal's
+    own quote escaped, and no raw control character or line continuation
+    occurs.
+
+  The lexing issue's `json` flag is `quote === '"' && jsonEscapes`, derived
+  rather than stored. The fold accepts a string when `jsonEscapes` holds, of
+  either quote, so `'a\'b'` and `'a"b'` pass and `"\'"` and `'\x41'` do
+  not.
+- **Parser.** The fold turns a refused string into the error token it
+  produces today and hands an accepted one on as a `string` token with its
+  value, so nothing in `fjs/fsc/parser` changes.
 
 ### Benefits
 
@@ -98,7 +126,8 @@ needs `\'` → `'` and nothing more. The tokenizer's contract with the parser, a
   and in most JavaScript code.
 - The biggest unblock for repository coverage: the first error in most modules
   moves to their next real gap, which is what the coverage work needs to see.
-- Small and contained: one grammar alternative, one escape, proofs. No new
+- Small and contained: a grammar alternative, a decoder above the shared
+  escape table, two token fields and the fold's check, with proofs. No new
   value, node or output.
 
 ### Drawbacks
@@ -146,13 +175,17 @@ See
 
 ## Tasks
 
-- [ ] Record the approving language designer and a direct link to the
+- [x] Record the approving language designer and a direct link to the
       approval of the [scope](#scope).
-- [ ] `fjs/ebnf/lib/js`: a single-quoted string alternative sharing JSON's
-      character and escape rules, plus `\'`; JSON's grammar unchanged.
-- [ ] `fjs/js/tokenizer`: decode `\'`; prove `'…'` and `"…"` decode to the
-      same value, and that `"\'"`, a raw control character and a line
-      terminator inside `'…'` are refused.
+- [ ] `fjs/ebnf/lib/js`: the JS string rule, opened and closed by the same
+      one of `"` and `'`; JSON's grammar unchanged.
+- [ ] `fjs/js/tokenizer`: decode `\'` above `simpleEscapes`, leaving that
+      table and the JSON serializer unchanged; give the `string` token
+      `quote` and `jsonEscapes`, with proofs that `'…'` and `"…"` cook to the
+      same value.
+- [ ] `fjs/fsc/tokenizer`: accept a string when `jsonEscapes` holds and
+      refuse it otherwise, with proofs that `"\'"`, `'\x41'`, a raw control
+      character and a line terminator inside `'…'` are refused.
 - [ ] `fjs/fsc`: prove a single-quoted value, key and `import` path compile to
       the same EDAG and output as their double-quoted spellings.
 - [ ] `spec/README.md`, Strings: describe both delimiters and the refusals.
