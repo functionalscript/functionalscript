@@ -134,7 +134,7 @@ export const isSupplementaryPlane = contains(supplementaryMin, maxCodePoint)
  * `supplementaryMin`, as 20 bits: the high surrogate holds the upper ten bits
  * above `surrogateMin`, the low surrogate the lower ten above `lowSurrogateMin`.
  */
-const surrogatePayloadBits = 10
+const surrogatePayloadBits = /** @type {const} */ 10
 const surrogatePayloadMask = (1 << surrogatePayloadBits) - 1
 
 /**
