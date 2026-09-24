@@ -438,12 +438,19 @@ export const uintChunkList
     = mappedChunkList(identity/*<Unpacked>*/)(unpackedUint)
 
 /**
+ * {@link mappedChunkList} over a bit vector: `unpack` depends on neither the
+ * chunk mapping, `bo` nor `n`, so this layer is shared by every chunk list
+ * that starts from a `Vec`.
+ */
+const vecMappedChunkList = mappedChunkList(unpack)
+
+/**
  * Chunks a bit vector into fixed-size pieces of `n` bits using the provided bit order.
  * The last chunk may be smaller than `n` bits if the vector length is not a multiple of `n`.
  *
  * @type {(bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<Vec>}
  */
-export const chunkList = mappedChunkList(unpack)(pack)
+export const chunkList = vecMappedChunkList(pack)
 
 /**
  * The unsigned value of an `n`-bit chunk. A chunk shorter than `n` is
@@ -468,7 +475,7 @@ const tailPaddedUint = ({ unpackSplit }) => n => {
  * @type {(bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<bigint>}
  */
 export const tailPaddedUintChunkList = bo => n =>
-    mappedChunkList(unpack)(tailPaddedUint(bo)(n))(bo)(n)
+    vecMappedChunkList(tailPaddedUint(bo)(n))(bo)(n)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
