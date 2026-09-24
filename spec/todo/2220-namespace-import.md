@@ -64,6 +64,8 @@ an annotation: the import still has JavaScript dependency semantics.
 ## Related
 
 - [Import](../README.md#importing-other-modules).
+- [Named imports](./named-imports.md) — separate MVP task for selecting
+  exported bindings; namespace imports are not its prerequisite.
 - [Standard type annotations](../../todo/blocked/js-extension-type-annotations.md)
   — blocked until ECMAScript standardizes the syntax and declared runtimes support it.
 - [ECMAScript namespace imports](https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-NameSpaceImport).

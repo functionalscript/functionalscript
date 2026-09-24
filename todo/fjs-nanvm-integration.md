@@ -17,10 +17,43 @@ Integrating first means every later feature (operators, functions, control)
 lands into an already-working pipeline and is verified end-to-end from day
 one, instead of a big-bang integration at the end.
 
-A module has no starting point of its own, so merely compiling it would not
-prove much. The entry point is the module's `export default`: the harness
-evaluates it, runs it if it is a function, and prints the result to stdout
-as JSON.
+The EDAG module computation and generated Rust return the complete export
+object, as the [module contract](../spec/README.md#exporting-a-value) already
+requires on `main`. For example, `export const answer = 42; export default 7;`
+returns `{ answer: 42, default: 7 }`. Without `export default`, there is no
+`default` property. Module evaluation creates exported functions; invoking
+one is a separate consumer operation.
+
+The remaining gap is consuming named exports: the parser accepts only default
+imports, and `nanvm-harness::run` selects `default` and serializes it without
+invoking a function. Track [named imports](../spec/todo/named-imports.md) and
+[harness export selection](../nanvm-harness/todo/select-module-export.md) as
+unfinished integration work. Keep the completed export-object representation
+and `export const` support; neither task requires the fixed/rest parameter
+proposal or its implementation.
+
+### Named-module acceptance
+
+Proposed acceptance input once named imports are implemented:
+
+```js
+// math.f.js
+export const add = (...args) => args[0] + args[1];
+```
+
+```js
+// app.f.js
+import { add as sum } from "./math.f.js";
+export const main = () => sum(20, 22);
+```
+
+Compile `app.f.js` to Rust, build it with cargo, and have the harness select
+`main`, invoke it with no arguments, and print `42`. Native JavaScript and
+both JavaScript EDAG evaluators must agree. `main` is the fixture's selected
+export, not a required language-level name. The rest-only helper keeps this
+milestone independent of named function parameters. These are synthetic
+fixtures; renaming repository modules to `.f.js` retains its separate package
+prerequisite below.
 
 ### Repository compiler-compatibility migration
 
@@ -102,34 +135,25 @@ via the `Function` constructor — no rustc at the user's run time.
 ### Tasks
 
 - [x] Add the `.rs` branch to `fjs compile`: a generated Rust **module**
-      exposing the compiled module's value (e.g.
-      `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`), not a `main`. Covers literals,
-      arrays, objects, `const` sharing (generalized from the operator-test
-      printer's explicit named `shared` to a linked EDAG's implicit,
-      identity-based sharing), and property access (`.`, via
-      `Any::dot(…).end()`, a literal `number` or `string` key over an
-      array, string, object, boolean, number, or bigint receiver — a
-      `Number(...)` cast index, `a[Number(k)]`, is the one form still
-      refused, having no `nanvm-lib` cast primitive to route it through).
-      Unary `-` is the one operator the parser accepts; the lowering folds
-      one over a numeric literal, so `-1` prints as the number, and a
-      negation that survives the fold is refused — `Neg for Any<A>` answers
-      a `Result` a generated module cannot hold. No other operator
-      *expression* is accepted (see
-      [`fjs/fsc/README.md`](../fjs/fsc/README.md)'s
-      accepted subset), so there is nothing yet to print through the
-      `op1`/`op2`/`op3` tables. A function, `=>`, prints as a closure bound
-      through `IStaticFunction`, and a call, `()`, as `Any::call` — since
-      [callable-function-objects](../nanvm-lib/todo/callable-function-objects.md)'s
-      Stage 1 landed; the corpus's own placeholder closure (`() =>
-      undefined`) keeps its `function_any` spelling. The printer is
-      shared with the operator-test generator via
-      [`fjs/edag/rust`](../fjs/edag/rust/module.f.mjs), not duplicated. Wired
-      to the harness (next task) below. Not yet covered: multi-module output
-      layout (see the open question below).
+      exposing the complete export object (e.g.
+      `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`), not a `main`.
+      The original literal/container walking skeleton has grown to include
+      operators, calls and capturing functions; current coverage lives in
+      the [parser](../fjs/fsc/parser/README.md),
+      [shared Rust printer](../fjs/edag/rust/module.f.mjs) and
+      [harness fixtures](../nanvm-harness/fixtures).
 - [x] Create the harness: a crate (`nanvm-harness`) with a thin `main` that
-      evaluates a generated module's `export default` and prints the result
-      as JSON; wired into CI via `cargo test`.
+      selects a generated module's `default` property and prints that value
+      as JSON; wired into CI via `cargo test`. Exported functions are not
+      invoked by this completed walking-skeleton step.
+- [x] Preserve named and optional default properties in the module result
+      through EDAG, Rust and source output. `export const` is already
+      supported; do not file its implementation again.
+- [ ] Implement [named imports](../spec/todo/named-imports.md), selecting
+      properties from dependency export objects without discarding the object
+      or requiring a default export.
+- [ ] Implement [harness export selection](../nanvm-harness/todo/select-module-export.md)
+      and prove the named-module acceptance example above end to end.
 - [ ] Define the convention for generated module imports (`use` paths,
       file/directory layout — see the open question in
       [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)). The

@@ -61,6 +61,9 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 
 1. [ ] [namespace-import](./2220-namespace-import.md) — runtime JavaScript
    namespaces, not type-only imports. JSDoc type references need no runtime import.
+2. [ ] [named imports](./named-imports.md) — consume existing `export const`
+   bindings, including aliases, through the complete module export object;
+   required by the [MVP integration](../../todo/fjs-nanvm-integration.md).
 
 ### 2.2. Priority 2
 
