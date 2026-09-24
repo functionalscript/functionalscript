@@ -390,7 +390,15 @@ export const proof = {
             assertEq(tokenizeString("'value'"), tokenizeString('"value"'))
             assertEq(tokenizeString("''"), tokenizeString('""'))
             assertEq(tokenizeString("'\\u0041\\n\\t\\/\\\\'"), tokenizeString('"\\u0041\\n\\t\\/\\\\"'))
-            assertEq(tokenizeString("'é😀\u2028'"), tokenizeString('"é😀\u2028"'))
+            assertEq(tokenizeString("'é😀'"), tokenizeString('"é😀"'))
+        },
+        // U+2028 and U+2029 are line terminators to JavaScript but not
+        // control characters, so JSON admits them raw in a string, and so
+        // does either quote here; a line feed or carriage return does not
+        separators: () => {
+            assertEq(tokenizeString("'\u2028\u2029'"), '[{"kind":"string","value":"\u2028\u2029"},{"kind":"eof"}]')
+            assertEq(tokenizeString("'\u2028\u2029'"), tokenizeString('"\u2028\u2029"'))
+            assertEq(tokenizeString("'a\rb'"), 'error')
         },
         otherQuote: () => {
             assertEq(tokenizeString("'a\"b'"), '[{"kind":"string","value":"a\\"b"},{"kind":"eof"}]')

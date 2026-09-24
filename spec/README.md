@@ -494,7 +494,8 @@ Between double quotes it is exactly JSON's string: JSON's escapes — `\"`,
 `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, and `\uXXXX` — and no unescaped `"`,
 `\` or control character. Between single quotes it is the same with the
 delimiters swapped: a `"` stands for itself, and `\'` is the one escape it
-adds, so `'it\'s'` and `"it's"` are one string. The quote is a spelling, not
+adds, so `'it\'s'` and `"it's"` are one string. U+2028 and U+2029 may stand
+raw in either quote, as in JSON. The quote is a spelling, not
 part of the value, and every output writes the string between double quotes.
 
 `\'` stays refused between double quotes, where JavaScript accepts it, so a

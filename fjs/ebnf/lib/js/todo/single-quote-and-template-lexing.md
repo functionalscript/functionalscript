@@ -75,11 +75,12 @@ cannot satisfy this issue's own success check — see below.
 The grammar has three readers, and the widening reaches each differently.
 
 - [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs), the compiler's.
-  A `'x'` it reads as a string is a string the compiler must still refuse, so
-  the fold that classifies tokens gains the refusals the grammar loses: a
-  string outside what the language accepts, a template of any kind, and an
-  escape outside JSON's table plus `\u` are errors *there*, at the token,
-  until 2460 and 3440 accept them. That keeps the accepted language exactly
+  A spelling it reads that the language does not accept is one the compiler
+  must still refuse, so the fold that classifies tokens gains the refusals
+  the grammar loses: a string with an escape outside JSON's table, `\u` and
+  its own quote escaped, in either quote — `'x'` itself is accepted since
+  2460 — and a template of any kind are errors *there*, at the token, until
+  2460 and 3440 accept them. That keeps the accepted language exactly
   where it is, and it is the same place the fold already refuses `--`. The
   compiler's proofs pin it. **It can refuse only if the spelling survives
   the layer below it**, and today it does not: the fold there cooks a
@@ -333,10 +334,11 @@ the source view rests on.
 - [ ] **Do not add rows to `simpleEscapes`** for any of it; the JS decoder is
       a layer above the shared table.
 - [ ] The compiler keeps refusing what it refused: `fsc/tokenizer`'s fold
-      turns a single-quoted string, any template kind and a non-JSON escape
-      into the error token the grammar used to produce, with proofs, until
-      2460 and 3440 accept them. The accepted language does not move in this
-      PR.
+      turns a string whose `jsonEscapes` is false, of either quote, and any
+      template kind into the error token the grammar used to produce, with
+      proofs, until 2460 and 3440 accept them. A single-quoted string with
+      JSON's escapes and `\'` stays accepted, as it is since 2460. The
+      accepted language does not move in this PR.
 - [ ] Anchor a trivia run at its first symbol and drop the synthetic `nl`
       after a block comment, so that consecutive starts delimit tokens; the
       compiler's position proofs follow.

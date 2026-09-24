@@ -83,8 +83,11 @@ A string literal may be delimited by `'` as well as `"`:
 - Inside `'…'`, the escapes are JSON's plus `\'`. A literal `"` needs no
   escape, and `\"` is accepted too, as in JavaScript.
 - Everything JSON refuses inside `"…"` stays refused inside `'…'`: a literal
-  control character, a line terminator, and the other JavaScript escapes
-  (`\v`, `\0`, `\xHH`, `\u{…}`).
+  control character — a line feed and a carriage return among them — and the
+  other JavaScript escapes (`\v`, `\0`, `\xHH`, `\u{…}`). What JSON admits
+  stays admitted: U+2028 and U+2029, the two line terminators that are not
+  control characters, may stand raw in either quote, as they may in a JSON
+  string and, since ES2019, in a JavaScript one.
 - `"…"` does not change: it stays exactly JSON's string, so `"\'"` stays
   refused. JavaScript accepts it, so this is a restriction: it keeps "is this
   double-quoted string JSON?" answerable by the JSON grammar alone. Admitting
@@ -212,7 +215,7 @@ See
 - [x] `fjs/js/tokenizer`: decode `\'` above `simpleEscapes`, leaving that
       table and the JSON serializer unchanged, with proofs that `'…'` and
       `"…"` cook to the same value and that `"\'"`, `'\x41'`, a raw control
-      character and a line terminator inside `'…'` are refused.
+      character and a line feed inside `'…'` are refused.
 - [ ] `quote` and `jsonEscapes` on the `string` token, and the check in
       `fjs/fsc/tokenizer`'s fold: with the lexing issue's widening, not
       before ([as implemented](#where-it-lives)).
