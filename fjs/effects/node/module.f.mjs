@@ -28,7 +28,7 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
@@ -301,6 +301,13 @@ export const readBytes = do_('readBytes')
 const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
 
 /**
+ * The refusal of a `Vec` that is not whole bytes, where bytes are what a host
+ * is handed: {@link inflate}, {@link writeExclusive} and {@link writeFromStream}
+ * each refuse one with it.
+ */
+const invalidBufferSize = pureError(ioError({ message: 'invalid buffer size' }))
+
+/**
  * Inflates a zlib stream. The stream is bytes, so a `Vec` that is not
  * whole bytes is refused here as `invalid buffer size`, before any host
  * sees it, as {@link writeFromStream} refuses one: a host's conversion
@@ -309,9 +316,7 @@ const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
  * @type {Func<Inflate>}
  */
 export const inflate = data =>
-    (length(data) & 0b111n) !== 0n
-        ? pureError(ioError({ message: 'invalid buffer size' }))
-        : inflateOp(data)
+    isWholeBytes(data) ? inflateOp(data) : invalidBufferSize
 
 /**
  * The code an {@link Inflate} refuses bytes after the end of the stream
@@ -364,9 +369,7 @@ const writeExclusiveOp = /** @type {Func<WriteExclusive>} */ (do_('writeExclusiv
  * @type {Func<WriteExclusive>}
  */
 export const writeExclusive = (path, data) =>
-    (length(data) & 0b111n) !== 0n
-        ? pureError(ioError({ message: 'invalid buffer size' }))
-        : writeExclusiveOp(path, data)
+    isWholeBytes(data) ? writeExclusiveOp(path, data) : invalidBufferSize
 
 /**
  * Creates `path` and writes `content` to it as UTF-8 bytes, through one open,
@@ -392,13 +395,12 @@ const writeLoop = path => {
                 return pureOk(undefined)
             }
             const { first: v, tail } = node
-            const lenV = length(v)
-            if ((lenV & 0b111n) !== 0n) {
-                return pureError(ioError({ message: 'invalid buffer size' }))
+            if (!isWholeBytes(v)) {
+                return invalidBufferSize
             }
             return ioStep(
                 writeBytes(path, offset, v),
-                () => f(offset + Number(lenV >> 3n), tail))
+                () => f(offset + Number(byteLength(v)), tail))
         })
     return f
 }
@@ -462,13 +464,13 @@ export const readChunks = (source, bound) => {
     const cell = (chunk, offset) => {
         const bits = length(chunk)
         // A chunk that is not whole bytes is refused rather than rounded down.
-        // `_ChunkSource`'s type permits one, and `>> 3n` would report a 1-bit
+        // `_ChunkSource`'s type permits one, and `bytesIn` would report a 1-bit
         // chunk as nought — an EOF the source never signalled, with the bits
         // thrown away. That is DESIGN §10's plausible wrong value.
-        if (bits % 8n !== 0n) {
+        if (!isWholeBytesIn(bits)) {
             return pureError(ioError({ message: `chunk at ${offset} is ${bits} bits, not whole bytes` }))
         }
-        const got = Number(bits >> 3n)
+        const got = Number(bytesIn(bits))
         // An empty read ends an unbounded stream. Under a bound it is a file
         // that shrank mid-read: a truncated body under a declared length, so
         // it fails the cell instead of ending the stream short.

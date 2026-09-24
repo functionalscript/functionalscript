@@ -44,7 +44,26 @@ import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'
  */
 export { maxLength }
 
-export const maxLengthBytes = maxLength >> 3n
+/**
+ * The whole bytes in `bits`; `bits` need not be a multiple of eight, and a
+ * trailing partial byte is not counted.
+ *
+ * The primitive takes a bit count rather than a `Vec`, so a consumer that
+ * holds only a running length, never the vector, asks the same question.
+ *
+ * @type {(bits: bigint) => bigint}
+ */
+export const bytesIn = bits => bits >> 3n
+
+/**
+ * Whether `bits` is a whole number of bytes.
+ *
+ * @type {(bits: bigint) => boolean}
+ */
+export const isWholeBytesIn = bits => (bits & 0b111n) === 0n
+
+/** {@link maxLength} in whole bytes. */
+export const maxLengthBytes = bytesIn(maxLength)
 
 /**
  * An empty vector of bits.
@@ -59,6 +78,21 @@ export const empty = asNominal(0n)
  * @type {(v: Vec) => bigint}
  */
 export const length = v => bitLength(asBase(v))
+
+/**
+ * The whole bytes in `v`: {@link bytesIn} of its {@link length}.
+ *
+ * @type {(v: Vec) => bigint}
+ */
+export const byteLength = v => bytesIn(length(v))
+
+/**
+ * Whether `v` is a whole number of bytes: {@link isWholeBytesIn} of its
+ * {@link length}.
+ *
+ * @type {(v: Vec) => boolean}
+ */
+export const isWholeBytes = v => isWholeBytesIn(length(v))
 
 const lazyEmpty = () => empty
 

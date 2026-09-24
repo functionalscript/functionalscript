@@ -46,7 +46,7 @@ import {
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
-import { length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { byteLength, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import { percentDecode } from '../text/percent/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
@@ -236,7 +236,7 @@ const response = status => contentType => body => ({
     status,
     headers: {
         'content-type': contentType,
-        'content-length': `${length(body) >> 3n}`,
+        'content-length': `${byteLength(body)}`,
         // The `Content-Type` above is derived from a file name, and a browser
         // that sniffs past it decides for itself what a served file is — which
         // is the one thing this server has already answered.

@@ -5,7 +5,7 @@
  */
 
 import { utf8 } from '../../text/module.f.mjs'
-import { maxLength, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { bytesIn, maxLengthBytes, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
@@ -24,8 +24,8 @@ import { runPure } from '../../effects/module.f.mjs'
 const checkBytes = ({ hashLength, blockLength, hashBytes, blockBytes }) => (h, b) => {
     assertEq(hashBytes, h)
     assertEq(blockBytes, b)
-    assertEq(hashBytes, hashLength >> 3n)
-    assertEq(blockBytes, blockLength >> 3n)
+    assertEq(hashBytes, bytesIn(hashLength))
+    assertEq(blockBytes, bytesIn(blockLength))
 }
 
 const toVec = u8ListToVec(msb)
@@ -224,7 +224,7 @@ export const proof = {
     // which would be over the ceiling every host honours.
     remainderThenFull: () => {
         const a = vec(8n)(0x61n)
-        const check = heldThenFull(a, repeat(maxLength >> 3n)(a))
+        const check = heldThenFull(a, repeat(maxLengthBytes)(a))
         check(sha256)
         check(sha512)
     },

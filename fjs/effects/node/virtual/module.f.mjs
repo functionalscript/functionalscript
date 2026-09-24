@@ -16,7 +16,7 @@ import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, normalize, parse } from '../../../path/module.f.mjs'
 import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
-import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
+import { byteLength, empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import { emptyHost, emptyHostError, ioError, nodeCommands, notAFileCode, notAFileMessage } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
@@ -509,7 +509,7 @@ const directory = ok({ size: 0, isFile: false, isDirectory: true })
  * @type {(chunks: readonly Vec[]) => number}
  */
 const fileSizeBytes = chunks =>
-    chunks.reduce((acc, c) => acc + Number(length(c) / 8n), 0)
+    chunks.reduce((acc, c) => acc + Number(byteLength(c)), 0)
 
 /** Absent-path error for an already-existing exclusive create, mirroring `EEXIST`. */
 const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
