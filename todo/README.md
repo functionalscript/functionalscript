@@ -142,7 +142,7 @@ which is what it should mean.
 
 Those two targets are written as they would appear **from this file**, in
 `todo/`. Re-base them against the file you are editing rather than copying them
-across — `fjs/types/todo/185-byte-set-from-bigint-mask.md` reaches the same module as
+across — a file in `fjs/types/todo/` reaches the same module as
 `../bit_vec/module.f.mjs`. Relative paths surviving a move without being
 re-based is what put 105 broken links in this tree.
 

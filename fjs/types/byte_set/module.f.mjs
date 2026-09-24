@@ -8,6 +8,7 @@
  * @import { ByteSet, _Byte } from './types.ts'
  */
 
+import { mask } from '../bigint/module.f.mjs'
 import { compose } from '../function/module.f.mjs'
 import { reverse, countdown, flat, map } from '../list/module.f.mjs'
 
@@ -25,7 +26,7 @@ export const universe = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 export const one = n => 1n << BigInt(n)
 
 /** @type {(r: readonly [_Byte, _Byte]) => ByteSet} */
-export const range = ([b, e]) => one(e - b + 1) - 1n << BigInt(b)
+export const range = ([b, e]) => mask(BigInt(e - b + 1)) << BigInt(b)
 
 // set operations
 

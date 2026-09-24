@@ -14,14 +14,17 @@ bitmask-as-set algebra as `byte_set`"*.
 
 | operation | `byte_set` (bigint) | `nibble_set` (number) |
 |-----------|---------------------|-----------------------|
-| `has` | `n => s => ((s >> BigInt(n)) & 1n) === 1n` (`:15`) | `n => s => ((s >> n) & 1) === 1` (`:30`) |
-| `one` | `n => 1n << BigInt(n)` (`:24`) | `n => 1 << n` (`:27`) |
-| `range` | `([b, e]) => one(e - b + 1) - 1n << BigInt(b)` (`:27`) | `([a, b]) => one(b - a + 1) - 1 << a` (`:42`) |
-| `complement` | `n => universe ^ n` (`:38`) | `s => universe ^ s` (`:36`) |
-| `set` / `setRange` / `unset` | `:45-52` | `:33-45` |
+| `has` | `n => s => ((s >> BigInt(n)) & 1n) === 1n` (`:16`) | `n => s => ((s >> n) & 1) === 1` (`:30`) |
+| `one` | `n => 1n << BigInt(n)` (`:26`) | `n => 1 << n` (`:27`) |
+| `range` | `([b, e]) => mask(BigInt(e - b + 1)) << BigInt(b)` (`:29`) | `([a, b]) => one(b - a + 1) - 1 << a` (`:42`) |
+| `complement` | `n => universe ^ n` (`:40`) | `s => universe ^ s` (`:36`) |
+| `set` / `setRange` / `unset` | `:48-54` | `:33-45` |
+
+The two `range` rows are one algorithm: `byte_set` takes its run of set bits
+from `bigint.mask`, `nibble_set` builds the same run as `one(len) - 1`.
 
 `nibble_set` is also an *incomplete* copy: it lacks the binary set ops
-(`union`/`intersect`/`difference`) that `byte_set` has (`:32-42`).
+(`union`/`intersect`/`difference`) that `byte_set` has (`:34-43`).
 
 This is exactly the AGENTS.md DRY case: same algorithm, two real consumers,
 differing only in constants — the situation `fjs/basen` already solves for
@@ -39,7 +42,7 @@ export type BitSetOps<T> = {
     readonly or: (a: T) => (b: T) => T
     readonly and: (a: T) => (b: T) => T
     readonly xor: (a: T) => (b: T) => T
-    readonly dec: (a: T) => T          // for `range`: one(len) - 1
+    readonly mask: (len: number) => T  // for `range`: `len` set bits, bigint.mask for byte_set
     readonly shl: (a: T) => (n: number) => T
 }
 export const bitSet = <T>(ops: BitSetOps<T>) => ({ has, one, range, set, setRange, unset, union, intersect, complement, difference })
@@ -57,9 +60,8 @@ Rider: both modules inline `readonly [number, number]` for `range`'s
 parameter; the factory should use `Range` from `fjs/types/range/types.ts`.
 
 `has` on a `bigint` set may deserve a domain-specific override if the
-generic form costs (see [185](./185-byte-set-from-bigint-mask.md) for the mask-based direction) —
-the factory can accept per-domain overrides or `byte_set` can shadow the
-generic `has`.
+generic form costs — the factory can accept per-domain overrides or
+`byte_set` can shadow the generic `has`.
 
 ### Tasks
 
@@ -72,7 +74,7 @@ generic `has`.
 
 ### Related
 
-- [185](./185-byte-set-from-bigint-mask.md) — `byte_set`-internal `range`/`one` via `bigint.mask`;
-  orthogonal — the shared `range` can use `mask` internally once extracted.
+- `fjs/types/byte_set/module.f.mjs` — `range` is `bigint.mask` shifted into
+  place; the shared `range` can keep using `mask` once extracted.
 - `fjs/basen/module.f.mjs` — the codebase's precedent for
   constants-parameterized codec factories.
