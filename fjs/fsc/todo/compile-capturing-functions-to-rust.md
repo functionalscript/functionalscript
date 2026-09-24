@@ -24,7 +24,7 @@ export default [add(1)(2), offset(5)];
 
 ### EDAG
 
-A function is `['=>', frame, body]`. The second operand *is* the frame:
+A function is `['=>', count, frame, body]`. The third operand *is* the frame:
 
 - `null` means the function captures nothing;
 - a capturing function has `['[]', [c0, c1, …]]`, one slot per captured value,
