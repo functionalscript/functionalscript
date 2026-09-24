@@ -1367,4 +1367,34 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(state.root['output.data.js'], undefined)
         },
     },
+    // A string may be written between single quotes, with JSON's escapes
+    // and `\'` (`spec/todo/2460-js-string-literals.md`). The quote is a
+    // spelling: every output is what the double-quoted module compiles to,
+    // each writing the value in its own canonical form.
+    singleQuotes: {
+        valuesAndKeys: () => {
+            const single = "export default { 'k': ['a\"b', 'it\\'s', '\\u0041\\n'] };"
+            const double = 'export default { "k": ["a\\"b", "it\'s", "\\u0041\\n"] };'
+            for (const output of ['output.data.js', 'output.js', 'output.json', 'output.rs']) {
+                assertEq(compileSource(single)(output), compileSource(double)(output), output)
+            }
+        },
+        importPath: () => {
+            /** @type {(source: string) => string} */
+            const compiled = source => {
+                const root = { 'input.f.js': [utf8(source)], 'm.f.js': [utf8('export default [1];')] }
+                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+                assertEq(exitCode(code), 0, state.stderr)
+                return readOutput(state.root, 'output.data.js')
+            }
+            assertEq(compiled("import m from './m.f.js'; export default [m];"), compiled('import m from "./m.f.js"; export default [m];'))
+        },
+        // what JSON refuses stays refused: `\'` is not JSON's, so a
+        // double-quoted string may not hold it, and JavaScript's other
+        // escapes are not this language's in either quote
+        refused: () => {
+            assertEq(moduleRefused('export default "\\\'";'), 'input.f.js:1:16-21 - error: unexpected token')
+            assertEq(moduleRefused("export default '\\x41';"), 'input.f.js:1:16-23 - error: unexpected token')
+        },
+    },
 }
