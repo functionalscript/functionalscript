@@ -1,8 +1,12 @@
 # Function length pattern
 
 **Priority:** P2
-**Status:** open — a language feature, waiting on the designer's approval
+**Status:** wip — approved by `sergey-shandar`, the language designer, who
+directed the implementation in
+[#2213](https://github.com/functionalscript/functionalscript/pull/2213)
 ([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
+The EDAG node, the executors, the printer and the writer are done; what is
+left waits on the parser.
 
 ## Problem
 
@@ -71,17 +75,27 @@ the function-text decisions.
 
 ## Tasks
 
-- [ ] Record the designer's approval.
+- [x] Record the designer's approval.
+- [x] `['=>', count, frame, body]` in the schema, the analysis, the
+  executors, whose `=>` is built through the pattern, and the Rust printer,
+  which prints the count and refuses one its `u32` cannot hold.
+- [x] Writer: a count of `0` renders as the rest parameter it always did;
+  any other is refused, explicitly, until the compiler reads the pattern.
+- [x] Proofs: `f.length` for constant and run-time counts; `g()` sees an
+  empty `['args']`.
+- [x] Documents: [`fjs/edag/README.md`](../../fjs/edag/README.md), the
+  [specification](../README.md#functions), and the parameter plan.
 - [ ] Compiler: recognize the complete pattern; refuse every variation.
-- [ ] Function text rendered from the graph, then `operations`' `=>` built
-  through the pattern.
-- [ ] Writer: the pattern rendering.
-- [ ] Proofs: `f.length` for constant and run-time counts; `g()` sees an
-  empty `['args']`; a shadowed `Object` and each pattern variation refused.
-- [ ] Documents: [`fjs/edag/README.md`](../../fjs/edag/README.md),
-  [execution-models](../../fjs/edag/execution-models.md), the
-  [specification](../README.md#functions), and the parameter plan's
-  "metadata, not an expression operand".
+  Blocked on the parser, which reads neither a named parameter list nor
+  `Object` ([parameters](./3120-parameters.md),
+  [global names](./2365-global-names.md)); the pattern's own source is
+  `(f, length) => Object.defineProperty(…)`.
+- [ ] Writer: the pattern rendering, once the compiler reads it back.
+- [ ] Function text rendered from the graph. A host function's text was
+  reachable before this change, the executors having always built host
+  functions, so nothing regressed; the second key waits on the
+  [serialization](./serialization.md#function-text-and-serialization)
+  decisions.
 
 ## Related
 

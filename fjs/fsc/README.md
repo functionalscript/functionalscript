@@ -139,7 +139,7 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
-A function is `['=>', frame, body]`, the body a scope of its own, in which
+A function is `['=>', 0, frame, body]`, the body a scope of its own, in which
 the rest parameter is `['args']` — one node however many references reach
 it, so `(...a) => [a, a]` shares as JavaScript does — and nothing outside
 stands. A reference to a `const`, an import, an enclosing function's

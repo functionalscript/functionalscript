@@ -22,6 +22,17 @@
 import { assert } from '../../asserts/module.f.mjs'
 
 /**
+ * A function of `length` that hands `f` its complete argument list as one
+ * array: the one admitted spelling of a `defineProperty`, the pattern of
+ * `../../../spec/todo/3130-function-length-pattern.md`, and the only way a
+ * FunctionalScript executor builds a function of a positive `length`.
+ *
+ * @type {(f: (args: readonly unknown[]) => unknown, length: unknown) => (...args: readonly unknown[]) => unknown}
+ */
+const withLength = (f, length) =>
+    Object.defineProperty((...args) => f(args), 'length', { value: length })
+
+/**
  * A binary operation whose right operand is a thunk, forced by the
  * operation or not at all: the three short-circuiting operators.
  *
@@ -209,15 +220,16 @@ export const operations = {
     '<<': o2((a, b) => a << b),
     '<=': o2((a, b) => a <= b),
     '===': o2((a, b) => a === b),
-    // The frame operand is evaluated here, in the enclosing invocation, and
-    // the body is not: the value is a closure over the captured frame and the
-    // body graph, and each call of it is a new invocation, which is the
-    // executor's to start — the enclosing invocation's values do not cross,
-    // the captured frame is a value and crosses as one.
-    '=>': ({ operand, invoke }) => ([, frameExp, body]) => {
+    // The count and the frame are evaluated here, in the enclosing
+    // invocation, and the body is not: the value is a host function of the
+    // count's `length` over the captured frame and the body graph, and each
+    // call of it is a new invocation, which is the executor's to start — the
+    // enclosing invocation's values do not cross, the captured frame is a
+    // value and crosses as one.
+    '=>': ({ operand, invoke }) => ([, countExp, frameExp, body]) => {
+        const count = operand(countExp)
         const frame = operand(frameExp)
-        /**@type {(...arg: readonly unknown[]) => unknown}*/
-        return (...args) => invoke(frame, args, body)
+        return withLength(args => invoke(frame, args, body), count)
     },
     '>': o2((a, b) => a > b),
     '>=': o2((a, b) => a >= b),
