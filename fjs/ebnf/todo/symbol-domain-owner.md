@@ -75,7 +75,8 @@ strictest existing copy) with the other two importing it.
   blocked on `terminal/`.
 - [DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) — the
   migration that reserved the module.
-- [repeat-bounds.md](./repeat-bounds.md),
-  [malformed-utf16-symbols.md](./malformed-utf16-symbols.md) — both add
-  front-end domain checks; built on the shared predicate they strengthen
-  one owner instead of adding a fifth copy.
+- [malformed-utf16-symbols.md](./malformed-utf16-symbols.md) — adds a
+  front-end domain check; built on the shared predicate it strengthens one
+  owner instead of adding a fifth copy. The front end's `repeat` already
+  does: it asserts `data`'s `isRepeatBounds`, which is built on `data`'s
+  `isSymbol`.
