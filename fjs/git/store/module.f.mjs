@@ -66,7 +66,7 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { catchStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
 import { namesNothing, readUtf8File } from '../../effects/node/module.f.mjs'
-import { join, root, under } from '../../path/module.f.mjs'
+import { isDriveLetter, isDriveRoot, join, root, under } from '../../path/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryOidBytes } from '../config/module.f.mjs'
@@ -352,11 +352,18 @@ const isAbsolute = (od, entry) => entry.startsWith('/')
     || ((entry.startsWith('\\') || isDrive(entry)) && isWindows(od))
 
 /**
- * Whether a path begins with a drive's letter and colon — `C:` and not `/`.
+ * Whether a path begins with a drive's letter and colon — `C:` and not `/`,
+ * and not `1:` or `::` either, which [`fjs/path`](../../path/module.f.mjs)
+ * reads as no drive: this asks its {@link isDriveLetter}, so the two readers
+ * of one entry cannot disagree about whether it is rooted.
+ *
+ * No `/` is required after the colon, as Git's `has_dos_drive_prefix` requires
+ * none: `C:x` is drive C's current directory to Windows, which is somewhere of
+ * its own rather than a name below `od`.
  *
  * @type {(x: string) => boolean}
  */
-const isDrive = x => x.length > 1 && x[1] === ':'
+const isDrive = x => x.length > 1 && x[1] === ':' && isDriveLetter(x[0])
 
 /**
  * Whether an object directory is on a system where a drive and a backslash are
@@ -389,7 +396,7 @@ const isDrive = x => x.length > 1 && x[1] === ':'
  *
  * @type {(od: string) => boolean}
  */
-const isWindows = od => isDrive(root(od))
+const isWindows = od => isDriveRoot(root(od))
 
 /**
  * The code an object is refused with when the bytes at its path hash to
