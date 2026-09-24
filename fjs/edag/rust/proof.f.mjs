@@ -607,6 +607,12 @@ export const proof = {
             for (const count of [1.5, -1, -0, 0x100000000, 'x', ['.', ['args'], 0]]) {
                 assertEq(refusalReason(['=>', /** @type {Exp} */ (count), null, 1])[0], 'no Rust for a parameter count that is no integer from 0 to u32')
             }
+            // the corpus's lambda is the one of count `0` exactly: `-0` is
+            // refused as everywhere, and another count is a closure
+            assertEq(refusalReason(['=>', -0, ['[]', []], ['undefined']])[0], 'no Rust for a parameter count that is no integer from 0 to u32')
+            assertEq(
+                printed(['=>', 5, ['[]', []], ['undefined']]),
+                'A::static_function(|_self, _args| { Ok(Nullish::Undefined.to_any()) }, 5, Array::default()).to_any()')
         },
         /** A nested function's `args` are its own: the outer body reads none. */
         nested: () => {

@@ -25,10 +25,12 @@ observable parameter count across compiler outputs and executors.
 
 ## Compatibility blocker found by the prototype
 
-The existing function EDAG, `['=>', frame, body]`, does not record declared
-parameter count. Both its JavaScript executor and FSC's source writer create
+The function EDAG was `['=>', frame, body]`, recording no declared parameter
+count, until the [function length pattern](./3130-function-length-pattern.md)
+gave it one, `['=>', count, frame, body]`; the finding below is from before
+that. Both its JavaScript executor and FSC's source writer created
 rest-parameter functions, whose `length` is zero. Lowering named parameters
-only to indexed `['args']` reads therefore silently changes successful results:
+only to indexed `['args']` reads therefore silently changed successful results:
 
 ```js
 const f = (a, b) => a;
@@ -55,8 +57,9 @@ the implementation is not published or ready to land.
 
 ## Proposed decision: preserve declared parameter count
 
-Pending language-designer approval, extend function EDAG to carry an explicit
-nonnegative integer parameter count:
+The function EDAG carries the count as an operand that admits any value
+([function length pattern](./3130-function-length-pattern.md)); a named
+parameter list yields a nonnegative integer:
 
 ```js
 ['=>', parameterCount, frame, body]
@@ -73,9 +76,9 @@ If approved, this supersedes the arity-erasure part of
 and selects the function node, rather than a separate constructor wrapper,
 as the owner of arity in
 [subject 7](../../todo/edag-stage1-discussion.md#7-top-level-shape-of-a-function).
-Name erasure and the complete `['args']` semantics remain unchanged. Those
-sections now mark the representation question as reopened; this proposal
-does not claim approval or change the current three-element format.
+Name erasure and the complete `['args']` semantics remain unchanged. The
+representation is decided and landed, the four-element node; what this
+proposal still asks approval for is the syntax and the writer scope.
 
 AST lowering, schema validation, analysis, executors and source serialization
 must agree on this representation. This changes the stable EDAG format and

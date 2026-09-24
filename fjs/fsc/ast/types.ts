@@ -44,7 +44,7 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCa
  * `cref` of an enclosing body, its `args`, or a slot of *its* frame, since
  * a nested function captures through its parent — and the body names
  * capture `i` as {@link AstFrameRef} `['fref', i]`. A function that
- * captures nothing has no third element. The EDAG's `['=>', frame, body]`,
+ * captures nothing has no third element. The EDAG's `['=>', 0, frame, body]`,
  * its frame the array of the captured values less the primitives — `lower`
  * writes a primitive into the body — and its body a comma where an entry is
  * unreached, as a module's is.

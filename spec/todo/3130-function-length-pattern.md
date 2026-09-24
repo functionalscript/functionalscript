@@ -62,16 +62,16 @@ writer's choice, not a rule of the language.
 **Function text.** A host function carries the wrapper's source as its
 text, and every host conversion can reach it: `String`, a computed key, an
 array's join, a string method's argument. Guarding all of them is a check
-that grows with the host surface, so this proposal does not guard; it waits.
-Rendering the graph's text, a second admitted key in the same pattern, is a
-prerequisite, and the
+that grows with the host surface, so this proposal does not guard. A host
+function's text was reachable before it too, the executors having always
+built host functions, so the pattern regresses nothing; rendering the
+graph's text, a second admitted key in the same pattern, waits on the
 [serialization](./serialization.md#function-text-and-serialization)
-decisions it depends on are open.
+decisions.
 
 **Drawbacks.** The language admits a spelling containing a mutation, pure
 only because the matcher admits the whole definition. Under an interpreter
-a positive-arity function is one call frame deeper. It cannot land before
-the function-text decisions.
+a positive-arity function is one call frame deeper.
 
 ## Tasks
 
@@ -91,11 +91,9 @@ the function-text decisions.
   [global names](./2365-global-names.md)); the pattern's own source is
   `(f, length) => Object.defineProperty(…)`.
 - [ ] Writer: the pattern rendering, once the compiler reads it back.
-- [ ] Function text rendered from the graph. A host function's text was
-  reachable before this change, the executors having always built host
-  functions, so nothing regressed; the second key waits on the
-  [serialization](./serialization.md#function-text-and-serialization)
-  decisions.
+- [ ] Function text rendered from the graph, the second admitted key, when
+  the [serialization](./serialization.md#function-text-and-serialization)
+  decisions close.
 
 ## Related
 

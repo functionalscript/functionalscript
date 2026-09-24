@@ -863,7 +863,7 @@ export const expExpr = shared => e => okThen(p => p.f(e))(printer(true)(shared)(
  * @type {(count: Exp, frame: Exp, body: Exp) => boolean}
  */
 const isSmallestLambda = (count, frame, body) =>
-    count === 0
+    Object.is(count, 0)
     && frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
     && body instanceof Array && body[0] === 'undefined'
 

@@ -63,7 +63,7 @@ const { is } = Object
 const op0 = new Set(['undefined', 'args', 'frame'])
 const op1 = new Set(['String', 'Number', '!', '~', 'typeof'])
 const op2 = new Set([
-    '=>', 'own', 'is',
+    'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

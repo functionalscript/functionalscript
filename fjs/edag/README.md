@@ -65,8 +65,9 @@ first two counts (`+`, `-`)
 are their own kinds, because what distinguishes them is the hidden control
 flow they own rather than how many operands they take; see
 [Chains](#chains). So is `=>`: two operands established where the function
-is built and a body deferred to each call is no operation's shape. This table is an overview; the contract of
-record for each node is the JSDoc in [module.f.mjs](module.f.mjs) — on the
+is built and a body deferred to each call is no operation's shape. This
+table is an overview; the contract of record for each node is the JSDoc in
+[module.f.mjs](module.f.mjs) — on the
 node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`/`op12Id`/`op3Id`
 vocabularies.
 
