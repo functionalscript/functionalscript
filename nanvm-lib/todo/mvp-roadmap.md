@@ -22,17 +22,19 @@ property when present. A named-only module needs no default export. This
 representation already exists on `main`; it is not a pending EDAG change.
 
 For the MVP, the harness must consume that object, select an explicitly requested
-export, and print the selected value or invocation result as JSON. The remaining
-MVP work is [named imports](../../spec/todo/named-imports.md) and
-[harness export selection](../../nanvm-harness/todo/select-module-export.md),
-proven together on a named-only module and its dependency. The default-export
+export, and print the selected value or invocation result as JSON.
+[Named imports](../../spec/README.md#importing-other-modules) are implemented
+and proven with a named-only module and its dependency. The remaining MVP work
+is [harness export selection](../../nanvm-harness/todo/select-module-export.md):
+the compiler fixture already selects and invokes `main` through the VM API,
+but the harness API/CLI still needs to expose that operation. The default-export
 walking skeleton below is the starting point, not the complete acceptance test.
 
 The required parser scope is the
 [named-module acceptance example](../../todo/fjs-nanvm-integration.md#named-module-acceptance):
 the existing LL(1) parser already accepts its named exports, empty/rest-only
-functions, calls and arithmetic. Named-import syntax is tracked by the
-named-import task above, including its implementation status. Completing the
+functions, calls and arithmetic. Named-import syntax is also implemented.
+Completing the
 whole language grammar or compiling every repository module is not an
 additional MVP gate; further syntax follows the
 [language roadmap](../../spec/todo/README.md).
@@ -317,15 +319,16 @@ as a generic `Any` facility, post-MVP.
       compiled by `fjs compile` into sibling `.rs` files committed and
       drift-checked via `npm run gen`, and proven by `cargo test` in CI. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
-- [ ] **Named-module integration** — implement
-      [named imports](../../spec/todo/named-imports.md) and
+- [ ] **Named-module integration** — finish
       [harness export selection](../../nanvm-harness/todo/select-module-export.md).
-      Compile a named-only module importing a named function from another
-      module, select its exported entry function, call it, and compare the
-      result with native JavaScript and the JavaScript EDAG evaluators.
-      Keep all exports in the module result; no default-export adapter or
-      named-function-parameter feature is required. The acceptance example is
-      in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#named-module-acceptance).
+      [Named imports](../../spec/README.md#importing-other-modules) and the
+      compiler acceptance fixture are implemented: a named-only module imports
+      a named function, and its exported entry function returns `42` in native
+      JavaScript, both EDAG evaluators and generated Rust. The fixture uses
+      explicit VM selection/call operations; the general harness API/CLI is
+      still pending. Keep all exports in the module result; no default-export
+      adapter or named-function-parameter feature is required. See
+      [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#named-module-acceptance).
 - [x] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests, so
       every new operator is tested once, not twice. Doubly important now: the
@@ -343,9 +346,9 @@ as a generic `Any` facility, post-MVP.
       [`fjs/fsc/parser`](../../fjs/fsc/parser/README.md) uses
       [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/README.md) and implements the
       source subset used by the walking skeleton. This does not mark the
-      full language grammar complete. Parser support for named imports in
-      the acceptance example is owned by **Named-module
-      integration** above; there is no separate unspecified parser gate.
+      full language grammar complete. Named-import parsing is also
+      implemented; **Named-module integration** above tracks the remaining
+      harness work. There is no separate unspecified parser gate.
 - [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
       First complete the repository TypeScript-to-JavaScript Stage 1 and authored
       `.f.js` package support. Then, as compiler coverage grows, rename eligible

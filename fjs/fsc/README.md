@@ -52,7 +52,15 @@ JavaScript. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
-refusing is the answer that never writes a node twice. The classical grammars this package once
+refusing is the answer that never writes a node twice. In particular, two
+disjoint container exports selected from one module can be reported as shared:
+`export const a=[1]; export const b=[2];` imported with `import {a,b}` and
+returned as `[a,b]` currently fails JSON output. DataJS, FunctionalScript and
+Rust output accept this example. The
+[sharing-precision task](./todo/named-export-sharing-precision.md) records the
+required distinction between disjoint roots and shared descendants.
+
+The classical grammars this package once
 held were deleted rather than kept: nothing imported them, no proof covered
 them, and their FunctionalScript half separated statements by newline where
 the language requires `;`. Do not restore them; git history has them.
