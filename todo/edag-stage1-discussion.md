@@ -27,6 +27,15 @@ alternate source spelling. The affected sections below follow that decision;
 the remaining subjects retain their individual discussion status. Parsing
 JavaScript syntax does not itself admit it into FunctionalScript.
 
+**Pending argument-model migration:** the
+[named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
+proposed `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
+Subjects 2 and 7 below follow that plan now, before implementation. The
+remaining baseline examples and operation table using `['args']` describe
+the current zero-arity format or its history, not a positive-arity target.
+Current schema and executor behavior stay unchanged until an approved,
+coordinated migration; do not mix the two vocabularies.
+
 ### Baseline: an expression DAG with anchored evaluation
 
 *This baseline supersedes the original index-based sequence proposal; the
@@ -748,35 +757,50 @@ authored and never part of the EDAG.
 
 #### 2. Arguments reference
 
-**Status:** decided for `['args']`; declared-arity representation reopened
-by the [named-parameter proposal](../spec/todo/3120-parameters.md), pending
-language-designer approval
+**Status:** current `['args']` behavior unchanged; the replacement below is
+proposed in [named and rest parameters](../spec/todo/3120-parameters.md),
+pending language-designer approval.
 
-**Resolution: a zero-parameter `["args"]` command yields the array of
-arguments passed to the function.**
+**Current format:** `['=>', frame, body]` has length zero, and `['args']`
+yields its complete supplied argument array. This remains the implemented
+contract until migration; it is not the design for future named parameters.
 
-- The arguments array is first-class and always an array — the actual
-  arguments the caller passed, whatever the declaration looked like.
-  Missing arguments read as `undefined` via ordinary array indexing; extra
-  arguments are simply present; forwarding is `["()", f, ["args"]]` —
-  all ordinary array semantics, matching JS.
-- Parameter names are a compiler-side convention over the arguments array
-  and remain erased. The former decision also erased declared arity; the
-  named-parameter prototype exposed a `.length` mismatch. The linked
-  proposal would supersede that part by recording the count in every
-  function node (subject 7), without changing `['args']`.
-- The rejected `["arg", i]` (single-argument access, no reified array)
-  cannot express rest parameters (`(...xs) => xs`) or forwarding;
-  `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
-  is not.
+**Proposed replacement:** `['=>', length, frame, body]` records nonnegative
+integer `length` metadata and exposes two invocation bindings:
 
-Examples — named parameters are positions in the arguments array; the
-compiler erases names:
+- `['arg', N]` reads fixed position `N`, where `N` is a constant integer
+  and `0 <= N < length`. A missing fixed argument reads as `undefined`.
+  Validate the index against the owning function, not an enclosing or nested
+  function's length. Parameter names are erased after binding validation.
+- `['rest']` reads the supplied tail beginning at `length`, including any
+  explicitly supplied `undefined` in that tail. It is one array binding per
+  invocation, not a new slice on each read. Repeated reads share it; distinct
+  invocations have distinct rest arrays in the JS-compatible profile.
+
+The new format has no complete-list `['args']`. Omission versus explicit
+`undefined` within the fixed prefix is intentionally unobservable; at length
+zero, rest is the complete supplied list. Fixed values and rest captured by
+another function use the existing frame mechanism.
+
+The earlier rejection of `['arg', i]` concerned a design with no rest array.
+It does not apply to this pair: `['rest']` supplies the reified tail and can
+be forwarded through the ordinary array-valued call operand. Rebuilding the
+fixed prefix plus rest yields normalized arguments, not a promise to recover
+the original number of supplied fixed arguments.
+
+Proposed lowering examples (names erased):
 
 ```js
-const f = (...a) => a[5]   // [".", ["args"], 5]
-const g = (a) => a[5]      // [".", [".", ["args"], 0], 5]
+const f = (...a) => a[5];          // length 0; body ['.', ['rest'], 5]
+const g = a => a[5];               // length 1; body ['.', ['arg', 0], 5]
+const h = (a, b, ...tail) => tail; // length 2; body ['rest']
 ```
+
+For existing zero-arity nodes, migrate `['args']` to `['rest']` in its owning
+scope. Positive-arity/full-arguments sketches are a different, stronger
+contract and have no general lossless conversion. They remain only in the
+[complete-arguments alternative](../spec/todo/arity-complete-arguments.md),
+not as an implementation prerequisite for this proposal.
 
 #### 3. Lazy operators and the branch extension path
 
@@ -1075,19 +1099,29 @@ remains — every position, the body included, is a node, and the body
 composes directly into `["=>", frame, body]`
 ([Operations](#operations)).
 
-The [named-parameter proposal](../spec/todo/3120-parameters.md) would replace
-that current shape with `["=>", parameterCount, frame, body]`. If approved,
-it selects the function node as the owner of declared arity and supersedes
-the earlier alternative of keeping that metadata only in a `Function`
-constructor wrapper. It remains pending language-designer approval; do not
-implement both representations as parallel contracts. The constructor's
-input API otherwise remains open.
+The [named-and-rest parameter proposal](../spec/todo/3120-parameters.md)
+would replace that current shape with `['=>', length, frame, body]` and the
+fixed/rest bindings in subject 2. `length` is integer metadata, not an
+expression operand; the change is not merely a count added to the old
+complete-arguments model. It selects the function node as the owner of
+arity, rather than a separate constructor wrapper. The proposal remains
+pending language-designer approval; do not implement both argument models
+as parallel contracts. The constructor's input API otherwise remains open.
 
-The function-text exception does not permit changing arity. Exact parameter
-spelling need not reproduce authored text; source rendering and callable
-reconstruction follow subject 12, with the explicit writer limitation in the
-named-parameter proposal for positive-arity graphs that inspect complete
-argument lists.
+The function-text exception does not permit changing arity. The proposed
+writer emits fixed parameters plus rest, retaining unused fixed positions;
+`['arg', N]` and `['rest']` render as those bindings. The earlier writer
+obstruction for positive arity plus complete `['args']` does not apply to
+this new format, which cannot express that combination. Unrelated source
+serialization questions in subject 12 stay separate, but the adopted
+EDAG-derived default-text rule is still required: use the shared renderer
+or explicitly refuse unsupported observations before exposing wrapper text
+([default-text boundary](../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)).
+
+Pre-generated factories can materialize these functions without the
+[length pattern](../spec/todo/3130-function-length-pattern.md) for arity within
+an executor's table capacity. That capacity limits materialization, not valid
+source or EDAG: source writers emit the declared parameter list directly.
 
 #### 8. `","`: anchored evaluation
 
@@ -1131,14 +1165,14 @@ these rules bind it.
   canonical graph serialization, subject 9). Not for the first
   implementation.
   How engines *prioritize* branches is deliberately unspecified — order
-  is not semantic, so any schedule is legal: racing cheap guards first
-  (fail-fast), parking expensive branches, full parallelism, or plain
-  sequential. A `throw` in FS is the analogue of a panic in other
-  languages, so engines may reasonably assume asserts rarely fire and
-  optimize for the happy path. The spec assumes nothing about any of
-  this; the freedoms above are illustrations of what A1–A4 make sound
-  for any engine, with no coordination.
-- **Membership is never negotiable: a `","`'s value is revealed only
+  is not semantic, so any schedule is legal under the
+  opaque-error contract: racing cheap guards first (fail-fast), parking
+  expensive branches, full parallelism, or plain sequential. A `throw` in
+  FS is the analogue of a panic in other languages, so engines may reasonably
+  assume asserts rarely fire and optimize for the happy path. The spec assumes
+  nothing about any of this; the freedoms above are illustrations of what
+  A1–A4 make sound for any engine, with no coordination.
+- **Membership is never negotiable: a `","'s value is revealed only
   after ALL its operands complete successfully.** Scheduling freedom is
   about *when* guards run, never *whether*. When the guarded `","` is
   the body root, its value is the function's value — so nothing escapes
@@ -1151,7 +1185,7 @@ these rules bind it.
   ```
 
   An engine may compute anything early — even the result operand
-  speculatively, which is unobservable — but the `","`'s value must
+  speculatively, which is unobservable — but the `","'s value must
   not be revealed until every assert operand has succeeded.
 
   "Succeeded" is an **as-if** rule — the engine must *establish* each
@@ -1191,7 +1225,7 @@ these rules bind it.
   content-addressed cache or otherwise escape the debugging session —
   they are not the function's outcome.
 - **Membership is semantic; order is not** (A4 rejected): every merged
-  operand is established before the merging `","`'s value is revealed,
+  operand is established before the merging `","'s value is revealed,
   so A3's always-fails holds — but any evaluation order of branches
   (including parallel, and asserts as fail-fast guards before the data
   path) is legal under the opaque-error contract. Data dependencies
