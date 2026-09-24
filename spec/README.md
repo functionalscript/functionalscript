@@ -754,6 +754,9 @@ An `import` statement selects exports from another module's complete export
 object. The exported name selects the property; an alias changes only its local
 binding. Named-only modules need no default export.
 
+The completed [named-import proposal](./named-imports.md) records the design
+scope and language-designer authorization.
+
 - The selected export must exist, even when its binding is unused. A present
   export whose value is `undefined` is valid; an absent export is an error.
 - Named lists admit aliases, trailing commas, `default as name`, and an empty
