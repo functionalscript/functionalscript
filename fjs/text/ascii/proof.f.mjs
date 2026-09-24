@@ -55,7 +55,7 @@ export const proof = {
         },
         notAnInteger: () => {
             assertEq(lowerHexDigitValue(97.5), null)
-            assertEq(lowerHexDigitValue(Number.NaN), null)
+            assertEq(lowerHexDigitValue(NaN), null)
         },
         roundTrip: () => {
             assertEq(stringify(values.map(v => lowerHexDigitValue(hexDigitCodePoint(v)))), stringify(values))
