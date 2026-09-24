@@ -252,7 +252,7 @@ schema is free to change independently of both.
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`, `[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; a plain read leaves `k` out and is the shorter tuple; `property` is restricted (see below)|
 |`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is one node yielding an array (subject 6)|
-|`["?.", object, property, k?]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
+|`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
 |`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
 |`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
 |`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
