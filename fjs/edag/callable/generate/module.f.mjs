@@ -18,5 +18,5 @@ ${Array.from({ length: limit + 1 }, (_, length) => {
 }).join('')}];
 `
 
-/** @type {NodeProgram} */
+/** @returns {ReturnType<NodeProgram>} */
 export const main = () => exitStep(writeUtf8File('fjs/edag/callable/table.f.mjs', generate(32)))

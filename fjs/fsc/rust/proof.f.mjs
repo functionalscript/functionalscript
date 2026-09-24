@@ -8,6 +8,10 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { generate, toRust } from './module.f.mjs'
 
 export const proof = {
+    throw: {
+        invalidLength: [-0, -1, 0.5, NaN, Infinity].map(length => () => toRust(['=>', length, null, 1])),
+        invalidBindingThroughGenerate: () => generate(['=>', 1, null, ['arg', 1]]),
+    },
     /**
      * A whole module whose sharing is implicit — two references to the same
      * array by identity, as two `cref`s to one `const` lower — gets exactly
@@ -220,6 +224,29 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 `)
     },
     toRust: {
+        refusedParameterBindings: () => {
+            assertStructurallySame(toRust(['=>', 1, null, ['arg', 1]]),
+                ['error', 'no Rust spelling for this module: invalid fixed parameter index or scope: =>,1,,arg,1'])
+            for (const index of [-0, -1, 0.5, NaN, Infinity]) {
+                assertEq(toRust(['=>', 1, null, ['arg', index]])[0], 'error')
+            }
+            for (const e of /** @type {readonly Exp[]} */ ([
+                ['arg', 0], ['rest'], ['=>', 0, null, ['arg', 0]],
+                ['=>', 1, null, ['args']],
+                ['=>', 1, null, ['?:', true, 0, ['arg', 1]]],
+                // A nested body's index belongs to that function, not its parent.
+                ['=>', 2, null, ['=>', 0, null, ['arg', 1]]],
+                // A nested frame belongs to the parent, not the new function.
+                ['=>', 1, null, ['=>', 2, ['[]', [['arg', 1]]], ['arg', 0]]],
+            ])) { assertEq(toRust(e)[0], 'error') }
+        },
+        fixedAndCapturedBindings: () => {
+            for (const e of /** @type {readonly Exp[]} */ ([
+                ['=>', 1, null, ['arg', 0]],
+                ['=>', 33, null, ['arg', 32]],
+                ['=>', 2, null, ['=>', 0, ['[]', [['arg', 1], ['rest']]], ['frame']]],
+            ])) { assertEq(toRust(e)[0], 'ok') }
+        },
         ok: () => {
             const result = toRust(null)
             assertEq(result[0], 'ok')
@@ -318,9 +345,8 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(toRust(['=>', 0, null, ['?:', true, ['rest'], ['rest']]])[0], 'ok')
         },
         /**
-         * `args` in the module's own scope — a function body's node handed
-         * in directly — is refused: nothing binds it there. Inside a
-         * function it is the closure's parameter, as every fixture shows.
+         * Module imports must be linked before Rust output. Function-local
+         * rest is bound by its invocation and remains valid.
          */
         refusedArgsInModuleScope: () => {
             assertEq(toRust(['args'])[0], 'error')

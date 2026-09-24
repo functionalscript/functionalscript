@@ -1,6 +1,6 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { exitCode, readUtf8File } from '../../../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
+import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { generate, main } from './module.f.mjs'
 
 export const proof = {
@@ -16,7 +16,7 @@ export const proof = {
     },
     main: () => {
         const root = { fjs: { edag: { callable: {} } } }
-        const [state, result] = virtual({ ...emptyState, root })(main(defaultNodeProgramOptions))
+        const [state, result] = virtual({ ...emptyState, root })(main())
         assertEq(exitCode(result), 0)
         const [, [tag, source]] = virtual(state)(readUtf8File('fjs/edag/callable/table.f.mjs'))
         assert(tag === 'ok', source)
