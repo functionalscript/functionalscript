@@ -11,7 +11,7 @@
 import { empty, isVec, length, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
-import { mapStep, pureOk, step as ioStep } from "../module.f.mjs"
+import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
 import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
@@ -680,16 +680,37 @@ export const proof = {
             const file = state.root.hello
             assert(!(!Array.isArray(file) || uint(file[0]) !== 0x2An), file)
         },
+        writesEveryChunk: () => {
+            /** @type {List<never, Vec, IoChannel>} */
+            const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec8(0x02n), listEmpty()))
+            const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
+            assert(t === 'ok', result)
+            const file = state.root.hello
+            assert(Array.isArray(file), file)
+            assertStructurallySame(file.map(uint), [0x01n, 0x02n])
+        },
         invalidBufferSize: () => {
             // A chunk whose bit length isn't a multiple of 8 trips the
-            // byte-alignment guard before `writeBytes` is ever called.
+            // byte-alignment guard before `writeBytes` is ever called, and the
+            // file the good chunk before it went into is removed.
             /** @type {List<never, Vec, IoChannel>} */
-            const chunks = listNonEmpty(vec(4n)(0b1010n), listEmpty())
-            const [_, [t, result]] = virtual(emptyState)(
+            const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec(4n)(0b1010n), listEmpty()))
+            const [state, [t, result]] = virtual(emptyState)(
                 writeFromStream('hello', chunks)
             )
             assert(t === 'error', result)
             assertIoMessage(result, 'invalid buffer size')
+            assert(state.root.hello === undefined, state.root)
+        },
+        streamFails: () => {
+            // The stream itself fails after one chunk is written: the error is
+            // the stream's, and the partial file is gone.
+            /** @type {List<never, Vec, IoChannel>} */
+            const chunks = listNonEmpty(vec8(0x01n), pureError(ioError({ message: 'stream failed' })))
+            const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
+            assert(t === 'error', result)
+            assertIoMessage(result, 'stream failed')
+            assert(state.root.hello === undefined, state.root)
         },
     },
 }
