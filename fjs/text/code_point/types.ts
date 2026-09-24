@@ -18,7 +18,7 @@
  * - an error value — a malformed unit tagged with `errorMask`. A decoder emits
  *   it in place of a code point, and an encoder turns it back into the units
  *   it stood for. The bit layout under the tag is specified by the "utf8 error"
- *   and "utf16 error" tables in `fjs/text/README.md`; naming it in code is
- *   `fjs/text/utf8/todo/error-tag-layout-constants.md`.
+ *   and "utf16 error" tables in `fjs/text/README.md`; UTF-8's is named in code
+ *   by the `error…Flag` constants in `fjs/text/utf8/module.f.mjs`.
  */
 export type CodePoint = number
