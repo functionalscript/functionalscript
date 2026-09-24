@@ -69,7 +69,7 @@ AST-to-EDAG compilation resolves bindings, checks visibility and early errors,
 then admits only complete approved patterns and supported computations. The
 matcher never scans source tokens, inspects newlines or inserts semicolons.
 The parser must understand the pattern's syntax, including its
-[named parameters](./3120-parameters.md); general EDAG lowering for every
+[named parameters](../README.md#functions); general EDAG lowering for every
 function using that syntax is not a prerequisite. `Object` must resolve to
 the intended intrinsic, not a shadowing binding. Parsed descriptor operations
 outside an approved pattern remain refused by FJS admission.
@@ -90,7 +90,7 @@ also apply to this helper; it cannot silently choose a different conversion.
       reinterpretation; record the source prohibition and new pattern direction.
 - [ ] Confirm the helper name and raw-flag versus boolean API before encoding it.
 - [ ] Add the complete pattern to AST-to-EDAG compilation after its syntax,
-      including [named parameters](./3120-parameters.md), can be represented;
+      including [named parameters](../README.md#functions), can be represented;
       keep descriptor values and unmatched protected operations inaccessible.
 - [ ] Implement the selected operation across the applicable EDAG/execution
       paths and writer, with matching source semantics and explicit refusals.

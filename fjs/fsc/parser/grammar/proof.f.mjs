@@ -168,12 +168,43 @@ export const proof = {
         assertStructurallySame(read('export default () => () => 1;'), ['ok'])
         assertStructurallySame(read('export default () => { return 1; };'), ['ok'])
         assertStructurallySame(read('const f = () => 1; export default f();'), ['ok'])
-        // `(a)` is a group of a reference, so the failure is not at the
-        // name but at the `=>`, which cannot follow a value: parenthesized
-        // parameters wait on named parameters
-        // (`spec/todo/3120-parameters.md`), which JavaScript itself tells
-        // from a group only past the `)`
-        assertStructurallySame(read('export default (a) => 1;'), ['error', '=>'])
+        // a named list: `(a)` is read as a group's value, and the `=>`
+        // past the `)` makes it the one parameter, as JavaScript reads it;
+        // `,` after the value makes it the first of a list, and every name
+        // after it is a name outright, a trailing comma allowed
+        assertStructurallySame(read('export default (a) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a, b) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a,) => 1;'), ['ok'])
+        assertStructurallySame(read('export default ( a , b , ) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a\n, b\n) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a, b) => (c) => 1;'), ['ok'])
+        assertStructurallySame(read('export default (a, 1) => 1;'), ['error', 'number'])
+        assertStructurallySame(read('export default (a, b.c) => 1;'), ['error', '.'])
+        assertStructurallySame(read('export default (a, ...b) => 1;'), ['error', '...'])
+        assertStructurallySame(read('export default (a = 1) => 1;'), ['error', '='])
+        assertStructurallySame(read('export default (a, b) 1;'), ['error', 'number'])
+        assertStructurallySame(read('export default (a, b);'), ['error', ';'])
+        // the grammar admits a value at the head of the list, one symbol
+        // being unable to tell `(a) => 1` from `(a).b`; that the head is a
+        // name is the fold's check, `malformed parameter list`
+        assertStructurallySame(read('export default (1) => 2;'), ['ok'])
+        assertStructurallySame(read('export default ((a)) => 1;'), ['ok'])
+        // the bare one-parameter form, `a => …`, and the newline JavaScript
+        // refuses before its `=>`: the newline is the value's own trivia
+        // here, `a\n.b` being an access, so the refusal is at the `=>`
+        // that cannot follow a value, where JavaScript reports it too
+        assertStructurallySame(read('export default a => 1;'), ['ok'])
+        assertStructurallySame(read('export default a => b => [a, b];'), ['ok'])
+        assertStructurallySame(read('export default a /* c */ => 1;'), ['ok'])
+        assertStructurallySame(read('export default a =>\n1;'), ['ok'])
+        assertStructurallySame(read('export default a\n=> 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default (a)\n=> 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default a // c\n=> 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default a\n.b;'), ['ok'])
+        assertStructurallySame(read('export default (a)\n.b;'), ['ok'])
+        assertStructurallySame(read('export default a\n** 2;'), ['ok'])
+        assertStructurallySame(read('export default -a => 1;'), ['error', '=>'])
+        assertStructurallySame(read('export default 1 + a => 1;'), ['error', '=>'])
         assertStructurallySame(read('export default (...1) => 1;'), ['error', 'number'])
         assertStructurallySame(read('export default (...a, ...b) => 1;'), ['error', ','])
         assertStructurallySame(read('export default (,) => 1;'), ['error', ','])
@@ -299,7 +330,9 @@ export const proof = {
         // `)` there, below
         assertStructurallySame(read('export default ();'), ['error', ';'])
         assertStructurallySame(read('export default (,);'), ['error', ','])
-        assertStructurallySame(read('export default (1, 2);'), ['error', ','])
+        // a comma after the value opens the rest of a named list, so the
+        // refusal is at the item that is no name
+        assertStructurallySame(read('export default (1, 2);'), ['error', 'number'])
         assertStructurallySame(read('export default (1;'), ['error', ';'])
         assertStructurallySame(read('export default (1));'), ['error', ')'])
         // a group is a `-`'s operand, and the only way a function reaches

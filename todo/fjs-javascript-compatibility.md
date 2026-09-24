@@ -273,8 +273,8 @@ its clarification is separate work in #2104.
 
 ### Preventive gates, not established defects
 
-**P2:** extend the [parameter plan](../spec/todo/3120-parameters.md) with
-observable arity before choosing its lowering:
+**P2:** named parameters ([functions](../spec/README.md#functions)) carry
+their observable arity, which their lowering had to preserve:
 
 ```js
 const f = a => 0;

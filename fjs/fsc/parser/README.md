@@ -62,14 +62,16 @@ s      ::= (ws | comment)*
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
 
-A `(` opens two things, so `paren` takes the `(` and `func` and `group` part
-at the symbol after it: `...` against a value's first set, which no `...`
-is in. That is how a function and a group live in one grammar without
-looking past the `)` — where JavaScript itself has to look, and where
-parenthesized parameters will
-([`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)).
-It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
-is a group, and nothing may follow a value there.
+A `(` opens two things, so `paren` takes the `(` and `func` and a value
+part at the symbol after it: `...` or `)` against a value's first set,
+which holds neither. A named parameter list begins with a value too, since
+one symbol cannot tell `(a) => 1` from `(a).b` — JavaScript itself reads
+the two apart only past the `)` — so the grammar reads the value and what
+follows it decides, `afterValue`: `,` opens the names after the first, and
+`)` then `=>` makes the value the one parameter, where anything else makes
+it a group. That is JavaScript's own cover grammar in one symbol of
+lookahead, and the fold checks the value is a plain name where a parameter
+was meant, `malformed parameter list` at the `(` otherwise.
 
 A `-` or a `~` takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript

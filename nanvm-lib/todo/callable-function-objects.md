@@ -49,14 +49,11 @@ variables that the generated code and `nanvm-lib` agree on.
   all already tracked as open elsewhere (see Related) and explicitly
   staged-out by mvp-roadmap until the edag-spec lands. The plan below only
   notes where this work must plug back in once they do.
-- **Out of scope**: named parameter lists (`(a, b) => …`,
-  [3120-parameters](../../spec/todo/3120-parameters.md)) at the *parser*
-  level — today the language has only the rest-parameter and no-parameter
-  forms. This document's representation is written for `["args"]` (an
-  array), which named parameters still read positionally. The pending
-  parameter-count proposal also changes the function EDAG and requires AOT
-  lowering to preserve the count in the function value; parser work being
-  separate does not put that runtime obligation out of scope.
+- **In scope through the EDAG alone**: named parameter lists
+  (`(a, b) => …`, [functions](../../spec/README.md#functions)) reach the
+  VM as the function node's count and positional reads of `["args"]` (an
+  array), so this document's representation, written for `["args"]`, serves
+  them; AOT lowering must preserve the count in the function value.
 
 #### Grounding: what is already decided
 
@@ -66,13 +63,12 @@ This is not a green field. The EDAG semantics
 function value must respect, and this plan is an implementation of that
 shape, not an alternative to it:
 
-- The current function node is `["=>", frame, body]`. The
-  [named-parameter proposal](../../spec/todo/3120-parameters.md), pending
-  language-designer approval, would replace it with
-  `["=>", parameterCount, frame, body]`. If approved, this plan must migrate
-  its generator and callable construction with that format. `frame` remains
-  one node, evaluated in the *enclosing* scope, that yields an array of
-  captured values; `body` remains the function's own closed graph.
+- The function node is `["=>", length, frame, body]`
+  ([functions](../../spec/README.md#functions)), and this plan's generator
+  and callable construction carry that format, the `length` being the
+  function value's. `frame` is one node, evaluated in the *enclosing*
+  scope, that yields an array of captured values; `body` is the function's
+  own closed graph.
 - `["args"]` is the arguments array — always an array, positionally indexed;
   parameter names are compiler-side sugar over it. Declared arity is
   observable metadata, distinct from the actual argument count (subject 2).

@@ -748,9 +748,9 @@ authored and never part of the EDAG.
 
 #### 2. Arguments reference
 
-**Status:** decided for `['args']`; declared-arity representation reopened
-by the [named-parameter proposal](../spec/todo/3120-parameters.md), pending
-language-designer approval
+**Status:** decided for `['args']`; declared arity is the function node's
+own count, `['=>', length, frame, body]`
+([functions](../spec/README.md#functions))
 
 **Resolution: a zero-parameter `["args"]` command yields the array of
 arguments passed to the function.**
@@ -1075,13 +1075,11 @@ remains — every position, the body included, is a node, and the body
 composes directly into `["=>", frame, body]`
 ([Operations](#operations)).
 
-The [named-parameter proposal](../spec/todo/3120-parameters.md) would replace
-that current shape with `["=>", parameterCount, frame, body]`. If approved,
-it selects the function node as the owner of declared arity and supersedes
-the earlier alternative of keeping that metadata only in a `Function`
-constructor wrapper. It remains pending language-designer approval; do not
-implement both representations as parallel contracts. The constructor's
-input API otherwise remains open.
+Named parameters ([functions](../spec/README.md#functions)) replaced that
+shape with `["=>", length, frame, body]`: the function node owns the
+declared arity, which supersedes the earlier alternative of keeping that
+metadata only in a `Function` constructor wrapper. The constructor's input
+API otherwise remains open.
 
 The function-text exception does not permit changing arity. Exact parameter
 spelling need not reproduce authored text; source rendering and callable

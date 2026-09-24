@@ -82,5 +82,5 @@ error is the default to implement, since it needs nothing new.
   binding a name reads a question of scope.
 - [functions](../README.md#functions) — the body constant, the second kind
   of binding a body has.
-- [parameters](./3120-parameters.md) — named parameters, more names to
+- [functions](../README.md#functions) — named parameters, more names to
   shadow with.

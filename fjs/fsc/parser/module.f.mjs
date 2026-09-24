@@ -50,13 +50,13 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { BinaryTag } from '../ast/types.ts'
- * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
- * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
+ * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParameterList, ParseError } from './types.ts'
+ * @import { ArrowOrRest, Body, Group, Items, Member, ParameterNames, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _Ref, _Scope, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _NameNode, _Parameter, _Ref, _Scope, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
 
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
@@ -66,8 +66,8 @@ import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importStatement, member, members, symbolOf,
-    unary, unaryOperand, value, values,
+    body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importStatement, member, members,
+    parameterNames, symbolOf, unary, unaryOperand, value, values,
 } from './grammar/module.f.mjs'
 
 /**
@@ -137,11 +137,18 @@ const outAt = node => {
     return meta
 }
 
-/** @type {(node: _Leaf) => Node} */
+/** The node at a value's position, whether or not a `(` opened it. @type {(node: _Leaf) => Node} */
 const nodeAt = node => {
     const out = outAt(node)
-    assert(out.id === 'value')
+    assert(out.id === 'value' || out.id === 'paren')
     return out.node
+}
+
+/** @type {(node: _Leaf) => List<DjsTokenWithMetadata>} */
+const parametersAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'parameters')
+    return out.items
 }
 
 /** @type {(node: _Leaf) => List<Node>} */
@@ -281,6 +288,15 @@ const memberItems = optionalItems(membersAt)
 /** The items of a list of values, its tail already mapped. */
 const valuesOf = listOf(nodeAt, valuesAt)
 
+/** The names a parameter list's optional tail holds, `[ ',' t [ names ] ]` after the first. */
+const parameterItems = optionalItems(parametersAt)
+
+/** The token of a named parameter after the first, `id t`: under the alternative its word matched. @type {(node: _Leaf) => DjsTokenWithMetadata} */
+const nameTokenAt = node => tokenAt(unmapped(unmapped(/** @type {_NameNode} */ (node))[0])[1])
+
+/** The names of a parameter list after the first, its tail already mapped. */
+const parametersOf = listOf(nameTokenAt, parametersAt)
+
 /** The members of a list of members, its tail already mapped. */
 const membersOf = listOf(memberAt, membersAt)
 
@@ -297,17 +313,31 @@ const symbol = out => ({ symbol: 0, meta: out })
 const accessKey = branch => tokenAt(unmapped(unmapped(branch)[2])[1])
 
 /**
- * The token naming a function's parameter, when the list holds one: the
- * identifier at the third position of `... t id t`, under the alternative
- * its word matched, as a `const`'s name is. An empty list has no token,
- * which is what `null` says — and the fold has no word to bind, so a body
- * under it names nothing.
+ * A function's parameter list where it begins with no value: the rest
+ * parameter, its token the identifier at the third position of
+ * `... t id t`, under the alternative its word matched, as a `const`'s
+ * name is — or the empty list, which has no token, and the fold has no
+ * word to bind, so a body under it names nothing.
  *
- * @type {(node: _ParameterNode) => DjsTokenWithMetadata | null}
+ * @type {(node: _ParameterNode) => ParameterList}
  */
 const parameterOf = node => {
     const rounds = unmapped(node)
-    return rounds.length === 0 ? null : tokenAt(unmapped(unmapped(rounds[0])[2])[1])
+    return rounds.length === 0 ? [] : ['...', tokenAt(unmapped(unmapped(rounds[0])[2])[1])]
+}
+
+/**
+ * A named parameter list from the value at its head and the names after
+ * it: the head is a parameter where it is a plain name — a reference, and
+ * not one a `(` opened again, `((a)) => 1` being a syntax error in
+ * JavaScript — and otherwise the list is malformed, anchored at the `(`
+ * that opened it for the fold to refuse.
+ *
+ * @type {(open: DjsTokenWithMetadata, head: _Leaf, more: List<DjsTokenWithMetadata>) => ParameterList}
+ */
+const namedList = (open, head, more) => {
+    const out = outAt(head)
+    return out.id === 'value' && out.node[0] === 'ref' ? [out.node[1], ...toArray(more)] : ['(', open]
 }
 
 /**
@@ -487,10 +517,10 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * by its token, and a container of the items its list returned — `[ open t
  * [ items ] close t ]`, the list at the third position, under the
  * `[thing, accesses]` pair every one of these branches opens with, at the
- * first position of the branch itself. What a `(` opens, a block, a
- * negation and a bitwise not are not here: each of those takes no access of
- * its own, so its node is made whole in {@link toNode}, and a group's value
- * is reached through {@link parenNode}.
+ * first position of the branch itself. What a `(` opens, a name, a block,
+ * a negation and a bitwise not are not here: each of those takes no access
+ * of its own, so its node is made whole in {@link toNode}, and a group's
+ * value is reached through {@link parenNode}.
  *
  * Takes the whole node, tag and branch together, rather than a pre-peeled
  * `x`: the branch narrows by `tag` only inside the discriminated union
@@ -500,7 +530,7 @@ const tailStep = (acc, rounds) => foldLayer(acc, /** @type {readonly _TailRound[
  * one tuple deep for exactly this reason — see its own comment in
  * `./grammar/module.f.mjs` — so the same reads serve both rules.
  *
- * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot', unknown]>) => Node}
+ * @type {(node: Exclude<Children<Unary, DjsTokenWithMetadata, Out> | Children<UnaryOperand, DjsTokenWithMetadata, Out> | Children<Value, DjsTokenWithMetadata, Out> | Children<Body, DjsTokenWithMetadata, Out>, readonly ['paren' | 'group' | 'block' | 'neg' | 'bitnot' | 'name', unknown]>) => Node}
  */
 const baseOf = ([tag, branch]) => {
     switch (tag) {
@@ -528,28 +558,57 @@ const baseOf = ([tag, branch]) => {
 }
 
 /**
- * What a `(` opened, at the third position of `( t (func | group)`: a
- * function, by its parameter list at the first position of
- * `[ ... t id t ] ) s => t body` and its body at the sixth — or a group
- * through the binary layers above it, {@link applyTail} — a function takes
- * none, nothing following one unparenthesized (`unary`'s own comment in
- * `./grammar/module.f.mjs` has why).
+ * What follows a name or a `( value )`, `arrowOrRest`: the function whose
+ * one parameter it is, by the body at the third position of `=> t body`,
+ * `list` being that parameter — or the value with the steps at the second
+ * position of `[ nl t ] access* powTail tail`, the power at the third and
+ * the binary layers after them applied, exactly as {@link toNode} applies
+ * a value's own.
+ *
+ * @type {(list: ParameterList, base: Node, node: Ast<ArrowOrRest, DjsTokenWithMetadata, Out>) => Node}
+ */
+const continued = (list, base, node) => {
+    const [tag, branch] = unmapped(node)
+    if (tag === 'func') {
+        const [, , b] = unmapped(branch)
+        return ['=>', list, nodeAt(b)]
+    }
+    const [, accesses, powTail, ...tailLists] = unmapped(branch)
+    return applyTail(withPow(steps(base, unmapped(accesses)), powTail), tailLists)
+}
+
+/**
+ * What a `(` opened, at the third position of `( t (func | value afterValue)`:
+ * a function whose list begins with no value, by that list at the first
+ * position of `[ ... t id t ] ) s => t body` and its body at the sixth —
+ * or a value and what follows it: `,`, the names after the value, and the
+ * body at the eighth position of `, t [ names ] ) s => t body`, the value
+ * heading a named list; or `)` and then {@link continued}, the value the
+ * one parameter or a group.
  *
  * A group is no node of its own: `(x)` is whatever `x` is, and the steps
  * after the `)` apply to that same node, so nothing downstream can tell a
  * group was written. That is what JavaScript means by parentheses — they
  * keep even a property reference, so `(a.b)(c)` passes `a` as `a.b(c)`
- * does — and it leaves a group no canonical form to choose.
+ * does — and it leaves a group no canonical form to choose. The one
+ * reader that has to know is {@link namedList}, and the `paren` id of
+ * this rule's own output is what tells it.
  *
- * @type {(node: Children<Parenthesized, DjsTokenWithMetadata, Out>) => Node}
+ * @type {(open: DjsTokenWithMetadata, node: Children<Parenthesized, DjsTokenWithMetadata, Out>) => Node}
  */
-const parenNode = ([tag, branch]) => {
+const parenNode = (open, [tag, branch]) => {
     if (tag === 'func') {
         const [p, , , , , b] = unmapped(branch)
         return ['=>', parameterOf(p), nodeAt(b)]
     }
-    const [g, ...tailLists] = unmapped(branch)
-    return applyTail(groupNode(g), tailLists)
+    const [v, after] = unmapped(branch)
+    const [kind, rest] = unmapped(after)
+    if (kind === 'list') {
+        const [, , names, , , , , b] = unmapped(rest)
+        return ['=>', namedList(open, v, parameterItems(names)), nodeAt(b)]
+    }
+    const [, , next] = unmapped(rest)
+    return continued(namedList(open, v, null), nodeAt(v), next)
 }
 
 /**
@@ -586,7 +645,13 @@ const groupNode = node => {
  */
 const toNode = node => {
     if (node[0] === 'paren') {
-        return symbol({ id: 'value', node: parenNode(unmapped(unmapped(node[1])[2])) })
+        const [open, , p] = unmapped(node[1])
+        return symbol({ id: 'paren', node: parenNode(tokenAt(open), unmapped(p)) })
+    }
+    if (node[0] === 'name') {
+        const [id, , after] = unmapped(node[1])
+        const token = tokenAt(unmapped(id)[1])
+        return symbol({ id: 'value', node: continued([token], ['ref', token], after) })
     }
     if (node[0] === 'group') {
         return symbol({ id: 'value', node: groupNode(unmapped(node[1])[2]) })
@@ -733,6 +798,9 @@ const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
 /** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toMembers = node => symbol({ id: 'members', items: membersOf(node) })
 
+/** @type {(node: Children<ParameterNames, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+const toParameterNames = node => symbol({ id: 'parameters', items: parametersOf(node) })
+
 /**
  * The rewrite set: a value to its node, a list to its items, a member and
  * each statement to its record, and the module to the records of its
@@ -756,6 +824,9 @@ export const mappings = [
     map(callArguments, toValues),
     map(member, toMember),
     map(members, toMembers),
+    // the names after a named list's first, a list of its own so that a
+    // list of any length is read in as many steps
+    map(parameterNames, toParameterNames),
     map(importStatement, toImport),
     map(constStatement, toConst),
     map(exportStatement, toExport),
@@ -784,6 +855,15 @@ const constNotFound = foldError('const not found')
 
 /** A name bound twice, at the second binding. */
 const duplicateId = foldError('duplicate id')
+
+/**
+ * A parameter list whose first parameter is no plain name, at the `(` that
+ * opened it — `(1) => 2`, `(a.b) => 1`, `((a)) => 1` — JavaScript's own
+ * early error, by its own name. The grammar admits the value there so
+ * that one symbol can decide between a list and a group (`afterValue` in
+ * `./grammar/module.f.mjs`), and this is the check that decision left.
+ */
+const malformedParameters = foldError('malformed parameter list')
 
 /**
  * A body `const` binding a name the body has already read from a scope
@@ -1069,8 +1149,8 @@ const conditionalRound = (stack, scope, frame) => {
     return [stack, scope, ok(closed)]
 }
 
-/** Whether two references name one binding. @type {(a: _Ref, b: _Ref) => boolean} */
-const sameRef = (a, b) => a[0] === b[0] && a[1] === b[1]
+/** Whether two references name one binding: element for element, a parameter's `args` being the one {@link args}. @type {(a: _Ref, b: _Ref) => boolean} */
+const sameRef = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
 
 /**
  * What `word` names in `scope`, and the scope chain with any capture it
@@ -1128,23 +1208,44 @@ const captured = (body, word, [outer, ref]) => {
 }
 
 /**
- * The names a function's body begins with: its parameter bound to the
- * arguments array, and nothing else of its own — a name bound outside is
- * a capture, {@link resolve}.
+ * The names a function's body begins with, and the function's `length`:
+ * a rest parameter bound to the arguments array, or each named parameter
+ * bound to its position — the read of that argument, `['.', ['args'], i]`,
+ * the name erased — and nothing else of its own; a name bound outside is a
+ * capture, {@link resolve}. The `length` is what JavaScript gives the
+ * function, the named parameters counted, the rest parameter not.
  *
  * An empty parameter list binds nothing, so a body under it starts from no
  * names of its own: the arguments are unreachable, having no name, and
  * every other word is a capture or `const not found` exactly as it is
- * under a parameter that does not spell it. That is the whole of what an empty
- * list costs: the function the fold returns carries no parameter either
- * way, so nothing downstream can tell the two lists apart.
+ * under a parameter that does not spell it. That is the whole of what an
+ * empty list costs: the function the fold returns has the `length` a rest
+ * parameter gives it, `0`, so nothing downstream can tell the two lists
+ * apart.
  *
- * @type {(name: DjsTokenWithMetadata | null) => Result<_Env, ParseError>}
+ * A named parameter is refused as a `const` is: a reserved word, or a
+ * name the list already binds, `(a, a) => 1` being a syntax error in
+ * JavaScript for an arrow function. A list whose head is no name was
+ * refused before any word of it, {@link malformedParameters}.
+ *
+ * @type {(list: ParameterList) => Result<readonly [_Env, number], ParseError>}
  */
-const functionScope = name => {
-    if (name === null) { return ok(empty) }
-    const [tag, word] = identifierOf(name)
-    return tag === 'error' ? error(word) : ok(setReplace(word)(args)(empty))
+const functionScope = list => {
+    if (list[0] === '(') { return error(malformedParameters(list[1])) }
+    if (list[0] === '...') {
+        const [tag, word] = identifierOf(list[1])
+        return tag === 'error' ? error(word) : ok([setReplace(word)(args)(empty), 0])
+    }
+    /** @type {(acc: Result<_Env, ParseError>, name: DjsTokenWithMetadata, i: number) => Result<_Env, ParseError>} */
+    const bind = (acc, name, i) => {
+        if (acc[0] === 'error') { return acc }
+        const [tag, word] = bindable(acc[1])(name)
+        return tag === 'error' ? error(word) : ok(extended(acc[1])(word, ['.', args, i]))
+    }
+    return mapOk(
+        /** @type {(env: _Env) => readonly [_Env, number]} */
+        (env => [env, list.length]),
+    )(list.reduce(bind, ok(empty)))
 }
 
 /**
@@ -1210,10 +1311,11 @@ const enter = (stack, scope, node) => {
         }
         case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
         case '=>': {
-            const [tag, names] = functionScope(node[1])
-            if (tag === 'error') { return [stack, scope, error(names)] }
+            const [tag, bound] = functionScope(node[1])
+            if (tag === 'error') { return [stack, scope, error(bound)] }
+            const [names, count] = bound
             /** @type {_Scope} */
-            const inner = { names, captures: [], read: [], outer: scope }
+            const inner = { names, count, captures: [], read: [], outer: scope }
             const body = node[2]
             return body[0] === 'block'
                 ? bodyRound(stack, inner, { statements: body[1], index: 0, word: '', done: null })
@@ -1272,16 +1374,16 @@ const returned = (stack, scope, frame, value) => {
 
 /**
  * A function closed over its body, resolved in `scope`: the scope around
- * it in force again — with every capture the body took on the way — and
- * the body's own captures, where there are any, the function's third
- * element.
+ * it in force again — with every capture the body took on the way — its
+ * `length`, and the body's own captures, where there are any, the
+ * function's fourth element.
  *
  * @type {(stack: _Stack, scope: _Scope, body: readonly AstConst[]) => _State}
  */
 const closed = (stack, scope, body) => {
     const outer = assertNotNullish(scope.outer, ['a function body with no scope around it', body])
     /** @type {AstFunction} */
-    const fn = scope.captures.length === 0 ? ['=>', body] : ['=>', body, scope.captures]
+    const fn = scope.captures.length === 0 ? ['=>', scope.count, body] : ['=>', scope.count, body, scope.captures]
     return [stack, outer, ok(fn)]
 }
 
@@ -1300,7 +1402,7 @@ const closed = (stack, scope, body) => {
  */
 const evaluate = env => root => {
     /** @type {_State} */
-    let state = [null, { names: env, captures: [], read: [], outer: null }, ['enter', root]]
+    let state = [null, { names: env, count: 0, captures: [], read: [], outer: null }, ['enter', root]]
     while (true) {
         const [stack, scope, [tag, payload]] = state
         if (tag === 'enter') {
@@ -1334,7 +1436,7 @@ const bindable = env => name => {
     return at(word)(env) !== null ? error(duplicateId(name)) : ok(word)
 }
 
-/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstArgs) => _Env} */
+/** The environment with a word bound to a reference, its two questions already answered. @type {(env: _Env) => (word: string, ref: AstModuleRef | AstArgs | _Parameter) => _Env} */
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /**

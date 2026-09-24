@@ -172,12 +172,15 @@ const parameter = depth => `$${column(depth)}`
 
 /**
  * The name a scope at `depth` gives the `const` in slot `i`: `$0` at the
- * module level, and the body's own parameter with the slot after it one
- * level in — `$a0` in the body whose parameter is `$a`.
+ * module level, and the body's own rest parameter with the slot after it
+ * one level in — `$a0` in the body whose rest parameter is `$a`. A named
+ * parameter takes the first slots of its body, so `(a, b) => …` is written
+ * `($a0,$a1)=>…` and the body's first `const` is `$a2`.
  *
  * Every scope numbers from zero and no two scopes share a spelling: a
- * module's names are digits after the `$`, a body's are its parameter's
- * letters and then digits, and a parameter is letters alone.
+ * module's names are digits after the `$`, a body's are its rest
+ * parameter's letters and then digits, and a rest parameter is letters
+ * alone.
  *
  * Reading the output back needs that: a body names what it captures by the
  * name the value took in the scope around it, so a body `const` spelled the
@@ -195,6 +198,23 @@ const nameOf = (names, h) => {
     const i = slotOf(names, h)
     return i === null ? null : names[i][1]
 }
+
+/** The names a body at `depth` begins with: its `count` named parameters, each in its slot. @type {(depth: number, count: number) => _Names} */
+const parameterNames = (depth, count) =>
+    Array.from({ length: count }, (_, i) => /** @type {const} */ ([['parameter', i], hoistName(depth, i)]))
+
+/** Whether a scope's names hold a named parameter: the scope is the body of a function with a named list. @type {(names: _Names) => boolean} */
+const hasParameters = names => names.some(([h]) => h !== null && h[0] === 'parameter')
+
+/**
+ * The most names a parameter list this writer spells holds: its own
+ * limit, as `u32` is the Rust printer's, since a `length` is any value in
+ * the graph and a list is written one name per unit of it.
+ */
+const maxParameters = 0xffff
+
+/** Whether a number is a count a parameter list spells: an integer from `0` to {@link maxParameters}, `-0` being no spelling's. @type {(count: number) => boolean} */
+const isParameterCount = count => Number.isInteger(count) && count >= 0 && !Object.is(count, -0) && count <= maxParameters
 
 /** What may open an identifier: a Latin letter, `_` or `$`. @type {(codePoint: number) => boolean} */
 const identifierStart = codePoint =>
@@ -222,6 +242,9 @@ const identifierKey = key => {
 
 /** Whether an operand is the `frame` node. @type {(a: Analysis, v: Operand) => boolean} */
 const isFrame = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'frame'
+
+/** Whether an operand is the `args` node. @type {(a: Analysis, v: Operand) => boolean} */
+const isArgs = (a, v) => v instanceof Array && a.nodes[v[1]][0] === 'args'
 
 /**
  * Whether an entry reads a slot of the frame: `['.', ['frame'], i]`, the
@@ -361,6 +384,23 @@ const slotName = s => k => typeof k === 'number' && Number.isInteger(k) && k >= 
 const slotRead = s => k => mapOk((/** @type {string} */ name) => [name])(slotName(s)(k))
 
 /**
+ * A read of the arguments under a named parameter list, `['.', ['args'], k]`:
+ * parameter `k`'s name, and no text for any other key. The list spells
+ * the declared positions and nothing else — a key past the count, a
+ * string key such as `length`, or the arguments array itself is a use the
+ * named list has no name for, and padding or truncating the list to give
+ * it one would be another function
+ * ([arity and complete arguments](../../../spec/todo/arity-complete-arguments.md)).
+ * A `-0` key is no parameter either, as it is no key the writer spells.
+ *
+ * @type {(s: _Scope) => (k: Operand) => Document}
+ */
+const parameterRead = s => k => {
+    const name = typeof k === 'number' ? nameOf(s.names, ['parameter', k]) : null
+    return name === null ? error('an argument read that is no named parameter') : ok([name])
+}
+
+/**
  * The names a function's frame gives its slots, in the scope `s` the
  * function is written in: each element's own name there — the `const` the
  * hoisting walk gave it, or the name of the slot of `s`'s frame it reads —
@@ -426,17 +466,20 @@ const firstUse = (names, text) => toArray(text).reduce(
  * A slot the body never reads is refused: the parser builds none, and no
  * text reads back as one.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ * `start` is what the body has before its statements: its named
+ * parameters' names, and no text.
+ *
+ * @type {(a: Analysis, depth: number, names: readonly string[], start: _Statement) => (b: Operand) => Document}
  */
-const closureBody = (a, depth, names) => b => okThen(
+const closureBody = (a, depth, names, start) => b => okThen(
     /** @type {(text: List<string>) => Document} */
     (text => {
         const order = firstUse(names, text)
         return order.length !== names.length ? error('a frame slot the body never reads')
             : order.every((x, i) => x === i) ? ok(text)
-            : aliasedBody(a, depth, names)(b)
+            : aliasedBody(a, depth, names, start)(b)
     }),
-)(lambdaBody(a, depth, names)(b))
+)(lambdaBody(a, depth, names, start)(b))
 
 /**
  * A function's body that opens by naming its frame's slots in slot order,
@@ -453,21 +496,24 @@ const closureBody = (a, depth, names) => b => okThen(
  * eager in what this writer spells: a lazy operator is a node kind it has
  * none for.
  *
- * @type {(a: Analysis, depth: number, names: readonly string[]) => (b: Operand) => Document}
+ * The aliases take the slots after the named parameters, where the body
+ * has any, `start` holding those.
+ *
+ * @type {(a: Analysis, depth: number, names: readonly string[], start: _Statement) => (b: Operand) => Document}
  */
-const aliasedBody = (a, depth, names) => b => {
-    const aliases = names.map((_, i) => hoistName(depth, i))
+const aliasedBody = (a, depth, names, start) => b => {
+    const aliases = names.map((_, i) => hoistName(depth, start.names.length + i))
     /** @type {_Statement} */
-    const start = {
+    const aliased = {
         text: flat(names.map((name, i) => [`const ${aliases[i]}=`, name, ';'])),
-        names: aliases.map(alias => /** @type {const} */ ([null, alias])),
+        names: [...start.names, ...aliases.map(alias => /** @type {const} */ ([null, alias]))],
     }
     return okThen(
         /** @type {(all: _Root) => Document} */
         (all => mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(a, depth, aliases, start)(all))),
+        )(scope(a, depth, aliases, aliased)(all))),
     )(scopeOperands(a, b))
 }
 
@@ -490,19 +536,23 @@ const aliasedBody = (a, depth, names) => b => {
  * base, and a body's anchors are all written
  * ([spec: functions](../../../spec/README.md#functions)).
  *
- * @type {(a: Analysis, depth: number, frame: readonly string[]) => (b: Operand) => Document}
+ * `start` is what the body has before its statements: its named
+ * parameters' names, which the expression form reads as readily as the
+ * block, and no text.
+ *
+ * @type {(a: Analysis, depth: number, frame: readonly string[], start: _Statement) => (b: Operand) => Document}
  */
-const lambdaBody = (a, depth, frame) => b => okThen(
+const lambdaBody = (a, depth, frame, start) => b => okThen(
     /** @type {(all: _Root) => Document} */
-    (all => all.length === 1 && hoists({ a, names: [], frame })(all[0]).length === 0
+    (all => all.length === 1 && hoists({ a, names: start.names, frame })(all[0]).length === 0
         ? mapOk(
             /** @type {(text: List<string>) => List<string>} */
             (text => firstChunk(text).startsWith('{') ? flat([['{return '], text, [';}']]) : text),
-        )(operand({ a, names: [], frame }, depth)(all[0]))
+        )(operand({ a, names: start.names, frame }, depth)(all[0]))
         : mapOk(
             /** @type {(st: _Statement) => List<string>} */
             (st => flat([['{'], st.text, ['}']])),
-        )(scope(a, depth, frame, nothing)(all))),
+        )(scope(a, depth, frame, start)(all))),
 )(scopeOperands(a, b))
 
 /**
@@ -517,7 +567,10 @@ const entry = (s, depth) => i => {
     switch (node[0]) {
         case 'undefined': { return ok(['undefined']) }
         case 'args': {
-            return depth === 0 ? error('the arguments outside a function') : ok([parameter(depth)])
+            if (depth === 0) { return error('the arguments outside a function') }
+            // a named list names its positions, not the array they are read
+            // from: `parameterRead` has why the array has no spelling there
+            return hasParameters(s.names) ? error('the arguments of a function with named parameters') : ok([parameter(depth)])
         }
         case '[]': { return mapOk(arrayWrap)(every(node[1].map(item(s, depth)))) }
         case '{}': { return mapOk(objectWrap)(every(node[1].map(property(s, depth)))) }
@@ -526,6 +579,7 @@ const entry = (s, depth) => i => {
             const [, b, k, continuation] = node
             if (continuation !== undefined) { return error('a chain step') }
             if (isFrame(s.a, b)) { return slotRead(s)(k) }
+            if (isArgs(s.a, b) && hasParameters(s.names)) { return parameterRead(s)(k) }
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),
@@ -533,17 +587,22 @@ const entry = (s, depth) => i => {
         }
         case '=>': {
             const [, count, frame, body] = node
-            // A rest parameter is the one list this writer spells, and it
-            // counts nothing towards a `length`; a function of another
-            // length has no source until the compiler reads the pattern of
-            // `spec/todo/3130-function-length-pattern.md`.
-            if (!Object.is(count, 0)) { return error('a function whose length is not 0') }
+            // A `length` of `0` is the rest parameter, which counts nothing
+            // towards one and names the whole arguments array; any other
+            // count is a named list of as many parameters, whose body reads
+            // its positions and nothing else of the arguments. A `length`
+            // that is no count has no list: the pattern of
+            // `spec/todo/3130-function-length-pattern.md` builds one, and
+            // the writer spells it once the compiler reads that pattern.
+            if (typeof count !== 'number' || !isParameterCount(count)) { return error('a function whose length is no parameter count') }
+            const names = parameterNames(depth + 1, count)
+            const list = count === 0 ? `...${parameter(depth + 1)}` : names.map(([, name]) => name).join(',')
             return okThen(
-                /** @type {(names: readonly string[]) => Document} */
-                (names => mapOk(
+                /** @type {(frame: readonly string[]) => Document} */
+                (frame => mapOk(
                     /** @type {(text: List<string>) => List<string>} */
-                    (text => flat([[`(...${parameter(depth + 1)})=>`], text])),
-                )(closureBody(s.a, depth + 1, names)(body))),
+                    (text => flat([[`(${list})=>`], text])),
+                )(closureBody(s.a, depth + 1, frame, { text: null, names })(body))),
             )(frameNames(s)(frame))
         }
         case '-': {

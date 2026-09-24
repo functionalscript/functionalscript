@@ -88,11 +88,11 @@ const call = nodes => (callee, args) => {
 }
 
 /**
- * A function's EDAG, `['=>', 0, frame, body]`, in the scope `nodes` names:
- * its count `0`, since a rest parameter or none counts nothing towards a
- * `length` (`spec/README.md`, Functions); its captures lowered here, each
- * to the node the enclosing scope has for it; and its body a scope of its
- * own over them.
+ * A function's EDAG, `['=>', count, frame, body]`, in the scope `nodes`
+ * names: its count the `length` the parser recorded — the named parameters
+ * counted, `0` for a rest parameter or none (`spec/README.md`, Functions);
+ * its captures lowered here, each to the node the enclosing scope has for
+ * it; and its body a scope of its own over them.
  *
  * The frame holds each distinct node among them once, in the order the body
  * first names them — two bindings reaching one node, a `const` and its
@@ -108,9 +108,9 @@ const call = nodes => (callee, args) => {
  * references reach it, over one `['frame']` for the body — the node
  * `args` is, for the arguments.
  *
- * @type {(nodes: _Nodes) => (body: AstBody, captures: readonly AstConst[]) => Exp}
+ * @type {(nodes: _Nodes) => (count: number, body: AstBody, captures: readonly AstConst[]) => Exp}
  */
-const fn = nodes => (body, captures) => {
+const fn = nodes => (count, body, captures) => {
     const outer = captures.map(lower(nodes))
     const candidates = outer.filter(n => n instanceof Array)
     const keys = slotKeys(candidates)
@@ -124,7 +124,7 @@ const fn = nodes => (body, captures) => {
     /** @type {(n: typeof candidates[number]) => Exp} */
     const read = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
     const inner = outer.map(n => n instanceof Array ? read(n) : n)
-    return ['=>', 0, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
+    return ['=>', count, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
 }
 
 /**
@@ -164,7 +164,7 @@ const lowerLeaf = nodes => ast => {
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return fn(nodes)(ast[1], ast[2] ?? []) }
+        case '=>': { return fn(nodes)(ast[1], ast[2], ast[3] ?? []) }
         case 'args': { return nodes.args }
         case 'fref': { return nodes.frame[ast[1]] }
         case '()': { return call(nodes)(ast[1], ast[2]) }

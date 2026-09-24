@@ -259,7 +259,7 @@ export type Value = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly name: readonly [typeof identifier, typeof sameLine, ArrowOrRest]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly object: readonly [readonly [Container<Member>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
@@ -274,7 +274,7 @@ export type Body = () => readonly ['const', {
     readonly neg: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly bitnot: readonly [number, typeof trivia, UnaryOperand, ...Tail]
     readonly primitive: readonly [readonly [readonly [typeof primitive, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
-    readonly ref: readonly [readonly [readonly [typeof identifier, typeof trivia], RepeatFrom<0, Access>], PowTail, ...Tail]
+    readonly name: readonly [typeof identifier, typeof sameLine, ArrowOrRest]
     readonly array: readonly [readonly [Container<Value>, RepeatFrom<0, Access>], PowTail, ...Tail]
     readonly paren: Paren
     readonly block: Block
@@ -284,20 +284,47 @@ export type Body = () => readonly ['const', {
 export type Paren = readonly [number, typeof trivia, Parenthesized]
 
 /**
- * What a `(` opens: the rest of a function, or a group. Spelled here, as
- * {@link Value} is: the two reach the value rule, which names itself.
+ * What a `(` opens: the rest of a function whose list is the rest
+ * parameter or empty, or a value and what follows it, {@link AfterValue}.
+ * Spelled here, as {@link Value} is: the branches reach the value rule,
+ * which names itself.
  */
 export type Parenthesized = {
     readonly func: Func
-    readonly group: readonly [Group, ...Tail]
+    readonly value: readonly [Value, AfterValue]
 }
 
 /**
- * A group after its `(`: the value, `)`, the trivia after it, the steps
- * the group takes — which are the group's and not the value's, the one
- * thing the parentheses change — and the power it may be raised to,
- * {@link PowTail}, the one place a group needs its own since both
- * {@link Unary}'s restricted `(` and a value's full one stand on this rule.
+ * What follows the value a `(` opened: `,`, trivia, the names after the
+ * first, `)`, same-line trivia, `=>`, trivia and the body — a named
+ * parameter list — or `)`, same-line trivia and {@link ArrowOrRest}.
+ */
+export type AfterValue = {
+    readonly list: readonly [number, typeof trivia, Option<ParameterNames>, number, typeof sameLine, number, typeof trivia, Body]
+    readonly closed: readonly [number, typeof sameLine, ArrowOrRest]
+}
+
+/**
+ * What follows a name, or a `( value )`: `=>`, trivia and the body, the
+ * name or the value being the one parameter — or the rest of the value:
+ * the trivia from the newline `sameLine` stopped at, if any, the steps,
+ * the power and the binary layers, exactly as {@link Value}'s other
+ * branches carry them.
+ */
+export type ArrowOrRest = {
+    readonly func: readonly [number, typeof trivia, Body]
+    readonly rest: readonly [Option<readonly [number, typeof trivia]>, RepeatFrom<0, Access>, PowTail, ...Tail]
+}
+
+/** The named parameters after the first: each a name and its trivia, listed as {@link Items} lists anything. */
+export type ParameterNames = Items<readonly [typeof identifierName, typeof trivia]>
+
+/**
+ * A group after its `(`, under a `-`/`~`: the value, `)`, the trivia after
+ * it, the steps the group takes — which are the group's and not the
+ * value's, the one thing the parentheses change — and the power it may be
+ * raised to, {@link PowTail}. A value's own `(` reads its group through
+ * {@link AfterValue} instead, where `=>` may follow the `)`.
  */
 export type Group = readonly [Value, number, typeof trivia, RepeatFrom<0, Access>, PowTail]
 
@@ -345,12 +372,13 @@ export type Block = readonly [number, typeof trivia, RepeatFrom<0, typeof constS
  */
 export type Parameter = readonly [number, typeof trivia, typeof identifierName, typeof trivia]
 
-/** A function's parameter list: the one rest parameter, or nothing. */
+/** A function's parameter list where it begins with no value: the one rest parameter, or nothing. */
 export type Parameters = Option<Parameter>
 
 /**
- * A function after its `(`, which is {@link Paren}'s: the parameter list,
- * `)`, same-line trivia, `=>`, trivia, and the body.
+ * A function after its `(`, which is {@link Paren}'s, where the list is
+ * the rest parameter or empty: that list, `)`, same-line trivia, `=>`,
+ * trivia, and the body.
  */
 export type Func = readonly [Parameters, number, typeof sameLine, number, typeof trivia, Body]
 

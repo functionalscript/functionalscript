@@ -79,19 +79,19 @@ export const proof = {
     // a function has no value: what it denotes is its EDAG, and a data
     // module's value has no function in it — its arguments likewise
     func: () => {
-        assertStructurallySame(run([['=>', [['args']]]])([]), ['error', 'a function has no value'])
-        assertStructurallySame(values([['=>', [1]], 2])([]), ['error', 'a function has no value'])
+        assertStructurallySame(run([['=>', 0, [['args']]]])([]), ['error', 'a function has no value'])
+        assertStructurallySame(values([['=>', 0, [1]], 2])([]), ['error', 'a function has no value'])
         assertStructurallySame(run([['args']])([]), ['error', 'a function has no value'])
         // a function names nothing outside itself, so it is a leaf to the
         // sweep — a leaf, not a reference: read as one, its body would pass
         // for an import's index, and `0` would mark the import reached
-        assertEq(anchorsOf([[a], [['=>', [['args']]], 1]]), 'consts 0; imports 0')
-        assertEq(anchorsOf([[a], [['=>', [0]], 1]]), 'consts 0; imports 0')
-        assertEq(anchorsOf([[a], [['=>', [0]], ['cref', 0]]]), 'consts ; imports 0')
-        assertEq(anchorsOf([[a], [['=>', [['array', [['args'], ['args']]]]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [['args']]], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [0]], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [0]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [['array', [['args'], ['args']]]]], ['cref', 0]]]), 'consts ; imports 0')
         // a body `const` is an entry of the function's own body, so a `cref`
         // in it names that entry and not the module's
-        assertEq(anchorsOf([[a], [['=>', [['array', []], ['cref', 0]]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [['array', []], ['cref', 0]]], ['cref', 0]]]), 'consts ; imports 0')
     },
     // A call has no value: this evaluator has no function to apply, so what
     // a call returns is not a value it can reach. To the sweep it is not a

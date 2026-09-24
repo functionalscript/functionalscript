@@ -86,9 +86,8 @@ a positive-arity function is one call frame deeper.
 - [x] Documents: [`fjs/edag/README.md`](../../fjs/edag/README.md), the
   [specification](../README.md#functions), and the parameter plan.
 - [ ] Compiler: recognize the complete pattern; refuse every variation.
-  Blocked on the parser, which reads neither a named parameter list nor
-  `Object` ([parameters](./3120-parameters.md),
-  [global names](./2365-global-names.md)); the pattern's own source is
+  Blocked on the parser, which reads no `Object`
+  ([global names](./2365-global-names.md)); the pattern's own source is
   `(f, length) => Object.defineProperty(…)`.
 - [ ] Writer: the pattern rendering, once the compiler reads it back.
 - [ ] Function text rendered from the graph, the second admitted key, when
@@ -97,9 +96,9 @@ a positive-arity function is one call frame deeper.
 
 ## Related
 
-- [Parameters](./3120-parameters.md),
+- [Functions](../README.md#functions),
   [arity and complete arguments](./arity-complete-arguments.md) — the
-  syntax and the writer boundary.
+  named parameter syntax and the writer boundary.
 - [Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md),
   [built-in](./2360-built-in.md) — how a pattern is recognized; `defineProperty`
   stays prohibited outside it.

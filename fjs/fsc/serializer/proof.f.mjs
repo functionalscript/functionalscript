@@ -126,6 +126,54 @@ const moduleGraph = source => unresolved(unwrap(parse(path)(source))).edag
 const moduleValue = graph => memo(analysis(graph))({ frame: null, args: [] })
 
 export const proof = {
+    // A function of a positive `length` is a named list of as many
+    // parameters, the first names of its body, and the body reads each as
+    // the argument at its position: `['.', ['args'], i]` for `i` below the
+    // count is the name, and any other use of the arguments has no text,
+    // since the list spells the declared positions and nothing else.
+    parameters: () => {
+        /** @type {Exp} */
+        const args = ['args']
+        /** @type {(i: number) => Exp} */
+        const slot = i => ['.', ['frame'], i]
+        writes(['=>', 2, null, ['.', args, 0]], 'export default ($a0,$a1)=>$a0;')
+        writes(['=>', 1, null, ['[]', [['.', args, 0], ['.', args, 0]]]], 'export default ($a0)=>[$a0,$a0];')
+        writes(['=>', 2, null, 1], 'export default ($a0,$a1)=>1;')
+        // a body `const` takes the slot after the parameters
+        /** @type {Exp} */
+        const x = ['[]', [['.', args, 0]]]
+        writes(['=>', 1, null, ['[]', [x, x]]], 'export default ($a0)=>{const $a1=[$a0];return [$a1,$a1];};')
+        // a nested function captures a parameter as it captures anything of
+        // the body, through a `const`; its own list is its own
+        writes(['=>', 1, null, ['=>', 0, ['[]', [['.', args, 0]]], slot(0)]], 'export default ($a0)=>{const $a1=$a0;return (...$b)=>$a1;};')
+        writes(['=>', 1, null, ['=>', 0, null, args]], 'export default ($a0)=>(...$b)=>$b;')
+        writes(['=>', 1, null, ['=>', 2, null, ['.', args, 1]]], 'export default ($a0)=>($b0,$b1)=>$b1;')
+        refuses(['=>', 2, null, args], 'the arguments of a function with named parameters')
+        refuses(['=>', 2, null, ['.', args, 2]], 'an argument read that is no named parameter')
+        refuses(['=>', 2, null, ['.', args, 'length']], 'an argument read that is no named parameter')
+        refuses(['=>', 2, null, ['.', args, -0]], 'an argument read that is no named parameter')
+        refuses(['=>', 1, null, ['[]', [['.', args, 0], args]]], 'the arguments of a function with named parameters')
+        // what the executors make of the graph agrees with JavaScript's own
+        // function: the `length`, an unused parameter counted, and the
+        // binding of missing, explicit `undefined` and extra arguments
+        /** @type {(source: string) => (...a: unknown[]) => unknown} */
+        const defaultOf = source => /** @type {{ readonly default: (...a: unknown[]) => unknown }} */ (moduleValue(moduleGraph(source))).default
+        const f = defaultOf('export default (a, b) => [a, b];')
+        /** @type {(...a: unknown[]) => unknown} */
+        const native = (a, b) => [a, b]
+        assertEq(f.length, native.length)
+        assertStructurallySame(f(), native())
+        assertStructurallySame(f(1), native(1))
+        assertStructurallySame(f(undefined, 2), native(undefined, 2))
+        assertStructurallySame(f(1, 2, 3), native(1, 2, 3))
+        /** @type {(source: string) => number} */
+        const lengthOf = source => defaultOf(source).length
+        assertEq(lengthOf('export default a => 1;'), 1)
+        assertEq(lengthOf('export default (a, b, c) => 1;'), 3)
+        assertEq(lengthOf('const id = x => x; export default id((a, b) => a);'), 2)
+        assertEq(lengthOf('export default (...a) => a;'), 0)
+        assertEq(lengthOf('export default () => 1;'), 0)
+    },
     namedExports: {
         roundTrip: () => {
             for (const source of [
@@ -443,8 +491,10 @@ export const proof = {
             'const $0=[1];const $1=[2];export default (...$a)=>{const $a0=$0;const $a1=$1;const $a2=(...$b)=>$a1;return [$a0,$a2,$a2];};')
         // a frame the parser would not build has no text that reads back,
         // and one of the enclosing scope, a comma, has no text yet
-        refuses(['=>', 1, null, 1], 'a function whose length is not 0')
-        refuses(['=>', -0, null, 1], 'a function whose length is not 0')
+        refuses(['=>', -0, null, 1], 'a function whose length is no parameter count')
+        refuses(['=>', 1.5, null, 1], 'a function whose length is no parameter count')
+        refuses(['=>', 0x10000, null, 1], 'a function whose length is no parameter count')
+        refuses(['=>', ['undefined'], null, 1], 'a function whose length is no parameter count')
         refuses(['=>', 0, ['undefined'], 1], 'a frame that is not an array literal')
         refuses(['=>', 0, ['[]', []], 1], 'an empty frame')
         refuses(['=>', 0, ['[]', [1]], slot(0)], 'a frame slot holding a primitive')
