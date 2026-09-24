@@ -9,7 +9,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { normalize } from '../../path/module.f.mjs'
-import { msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -18,8 +18,6 @@ import { packIdxCode } from '../packstore/module.f.mjs'
 import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { commitPayload, latin1, packMixed, packMixedIdx, sha256Commit, tagLoose, tagPayload } from '../testlib.f.mjs'
 import { alternatesIn, maxBorrowDepth, objectIdCode, objectPath, objectsDirs, oidBytes, readIn, tryRead } from './module.f.mjs'
-
-const toVec = u8ListToVec(msb)
 
 /** @type {(hex: string) => Oid} */
 const id = hex => {
@@ -45,9 +43,9 @@ const wrongId = /** @type {const} */ ('ffffffffffffffffffffffffffffffffffffffff'
 /** An id whose file holds no object. */
 const junkId = /** @type {const} */ ('1111111111111111111111111111111111111111')
 
-const compressed = toVec(tagLoose)
+const compressed = u8ListToVecMsb(tagLoose)
 
-const tagEnvelope = toVec(toArray(writeEnvelope('tag', tagPayload)))
+const tagEnvelope = u8ListToVecMsb(toArray(writeEnvelope('tag', tagPayload)))
 
 /** The pack Git wrote that `repo` below keeps, and the two files it is. */
 const packName = /** @type {const} */ ('pack-9a32788c2cd72bdef63b26b7320c2fc2729359bf')
@@ -59,7 +57,7 @@ const packChecksum = /** @type {const} */ ('9a32788c2cd72bdef63b26b7320c2fc27293
 const packedId = /** @type {const} */ ('b00a3b66a7a094e6165bfcd39e0b8524042140db')
 
 /** The zlib stream of its entry, and what the host inflates it to. */
-const packedStream = toVec(packMixed.slice(510, 525))
+const packedStream = u8ListToVecMsb(packMixed.slice(510, 525))
 
 const packedBlob = latin1(`${'y'.repeat(300)}D\n`)
 
@@ -75,7 +73,7 @@ const u32 = n => [n >> 24 & 0xFF, n >> 16 & 0xFF, n >> 8 & 0xFF, n & 0xFF]
  *
  * @type {(hex: string) => readonly number[]}
  */
-const idBytes = hex => toArray(u8List(msb)(id(hex)))
+const idBytes = hex => toArray(u8ListMsb(id(hex)))
 
 /**
  * A version 2 index over `named`, each an id and the offset its entry begins
@@ -261,7 +259,7 @@ const dirent = (parentPath, n) => ({ name: n, parentPath, isFile: true, isDirect
 const hostOf = fs => ({
     readFile: path => log => {
         const file = at(fs, path)
-        return [[...log, `readFile ${path}`], file === undefined ? error(noFile(path)) : ok(toVec(file))]
+        return [[...log, `readFile ${path}`], file === undefined ? error(noFile(path)) : ok(u8ListToVecMsb(file))]
     },
     readdir: path => log => {
         // folded for the reason `at` folds: the module hands paths over as an
@@ -291,20 +289,20 @@ const hostOf = fs => ({
         const file = at(fs, path)
         return [
             [...log, `readBytes ${path} ${from} ${size}`],
-            file === undefined ? error(noFile(path)) : ok(toVec(file.slice(from, from + size))),
+            file === undefined ? error(noFile(path)) : ok(u8ListToVecMsb(file.slice(from, from + size))),
         ]
     },
     readWhole: path => log => {
         const file = at(fs, path)
         return [
             [...log, `readWhole ${path}`],
-            file === undefined ? error(noFile(path)) : ok([toVec(file)]),
+            file === undefined ? error(noFile(path)) : ok([u8ListToVecMsb(file)]),
         ]
     },
     inflate: data => log => [
         [...log, 'inflate'],
         ok(uint(data) === uint(compressed) ? tagEnvelope
-            : uint(data) === uint(packedStream) ? toVec(packedBlob)
+            : uint(data) === uint(packedStream) ? u8ListToVecMsb(packedBlob)
             : data),
     ],
 })

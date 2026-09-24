@@ -3,7 +3,7 @@
  * @import { DialectEntry } from './types.ts'
  */
 import { assertEq } from '../asserts/module.f.mjs'
-import { msb, u8ListToVec, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
 import { detect, dialectEntry } from './module.f.mjs'
 import { dialect, revisionDialect } from './revision/module.f.mjs'
 import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
@@ -12,7 +12,7 @@ import { number, open, string } from '../rtti/module.f.mjs'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
 /** @type {(s: string) => Vec} */
-const utf8Bytes = s => u8ListToVec(msb)([...s].map(c => c.charCodeAt(0)))
+const utf8Bytes = s => u8ListToVecMsb([...s].map(c => c.charCodeAt(0)))
 
 const revisionJson = `{"dialect":"${dialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
@@ -151,7 +151,7 @@ export const proof = {
 
     // Binary content (magic-byte hit) is unaffected by dialect detection.
     binaryFallsThrough: () => {
-        const m = detectRevision(u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+        const m = detectRevision(u8ListToVecMsb([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
         assertEq(m.type, 'base64')
         assertEq(m.mime_type, 'image/png')
     },

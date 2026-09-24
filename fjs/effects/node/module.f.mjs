@@ -28,7 +28,7 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
@@ -601,7 +601,7 @@ export const notAFileMessage = path => `${path} is not a regular file`
 export const readWholeBytes = path => ioMapStep(
     readWhole(path),
     chunks => chunks.reduce(
-        (bytes, v) => concat(bytes)(u8List(msb)(v)),
+        (bytes, v) => concat(bytes)(u8ListMsb(v)),
         /** @type {List_<number>} */ (null)))
 
 // createServer

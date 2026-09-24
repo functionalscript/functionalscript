@@ -305,7 +305,7 @@ first/follow check, found three of the eight.
 Optional, for fun, syntax sugar:
 
 - [x] comments. Ignore them. Not an error.
-- [ ] double/single quote strings
+- [x] double/single quote strings
 
 ## Decidable Language
 

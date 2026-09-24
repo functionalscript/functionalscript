@@ -57,11 +57,9 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { length, msb, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { length, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { take } from '../../types/list/module.f.mjs'
 import { digestOf } from '../oid/module.f.mjs'
-
-const toVec = u8ListToVec(msb)
 
 /** The four bytes a version 2 index begins with: `\377tOc`. */
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
@@ -99,7 +97,7 @@ const u64 = (b, at) => {
 }
 
 /** @type {(b: readonly number[], at: number, width: number) => Oid} */
-const oidAt = (b, at, width) => toVec(b.slice(at, at + width))
+const oidAt = (b, at, width) => u8ListToVecMsb(b.slice(at, at + width))
 
 /**
  * The first byte position at which the ids at `x` and `y` differ, or `width`
