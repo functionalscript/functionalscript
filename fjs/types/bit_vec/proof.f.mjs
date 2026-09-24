@@ -7,7 +7,7 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { mask } from '../bigint/module.f.mjs'
 import { asBase, asNominal } from '../nominal/module.f.mjs'
-import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, u8ListToVec, tryU8ListToVec, u8List, chunkList, tailPaddedUintChunkList, fromSentinel } from './module.f.mjs'
+import { length, empty, uint, vec, lsb, msb, repeat, vec8, maxLength, maxLengthBytes, u8ListToVec, tryU8ListToVec, u8List, chunkList, tailPaddedUintChunkList, fromSentinel, bytesIn, isWholeBytesIn, byteLength, isWholeBytes } from './module.f.mjs'
 import { repeat as listRepeat, toArray } from '../list/module.f.mjs'
 
 /** @type {(a: bigint) => Vec} */
@@ -174,6 +174,37 @@ export const proof = {
     length: () => {
         const len = length(empty)
         assertEq(len, 0n)
+    },
+    bytes: {
+        // Seven, eight and nine bits: short of a byte, exactly one, one past.
+        bytesIn: () => {
+            assertEq(bytesIn(7n), 0n)
+            assertEq(bytesIn(8n), 1n)
+            assertEq(bytesIn(9n), 1n)
+        },
+        isWholeBytesIn: () => {
+            assert(!isWholeBytesIn(7n))
+            assert(isWholeBytesIn(8n))
+            assert(!isWholeBytesIn(9n))
+        },
+        byteLength: () => {
+            assertEq(byteLength(empty), 0n)
+            assertEq(byteLength(vec(9n)(0n)), 1n)
+            assertEq(byteLength(vec(16n)(0n)), 2n)
+        },
+        isWholeBytes: () => {
+            assert(isWholeBytes(empty))
+            assert(!isWholeBytes(vec(9n)(0n)))
+            assert(isWholeBytes(vec(16n)(0n)))
+        },
+        // A negative count is refused, not answered: `-1n >> 3n` would be
+        // `-1n`, and `-8n` would pass as whole bytes.
+        negativeBytesIn: { throw: () => bytesIn(-1n) },
+        negativeIsWholeBytesIn: { throw: () => isWholeBytesIn(-8n) },
+        maxLengthBytes: () => {
+            assertEq(maxLengthBytes, 131_072n)
+            assert(isWholeBytesIn(maxLength))
+        },
     },
     bitset: () => {
         const v = vec(8n)(0x5FEn)

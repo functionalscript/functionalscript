@@ -8,7 +8,7 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { empty, isVec, length, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
@@ -76,7 +76,7 @@ const drain = (source, bound) => {
     /** @type {(l: any, acc: readonly number[]) => any} */
     const loop = (l, acc) => ioStep(l, cell => cell === undefined
         ? pureOk(acc)
-        : loop(cell.tail, [...acc, Number(length(cell.first) >> 3n)]))
+        : loop(cell.tail, [...acc, Number(byteLength(cell.first))]))
     return run(loop(readChunks(source, bound), []))[1]
 }
 
@@ -674,7 +674,7 @@ export const proof = {
             assertEq(result[0], 'error')
         },
         aChunkThatIsNotWholeBytesIsRefused: () => {
-            // The return type permits one, and `>> 3n` would report a 1-bit
+            // The return type permits one, and `bytesIn` would report a 1-bit
             // chunk as nought — an end-of-stream the source never signalled,
             // with the bits discarded.
             /** @type {_ChunkSource<never>} */
