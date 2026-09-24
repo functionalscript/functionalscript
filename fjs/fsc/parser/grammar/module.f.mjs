@@ -104,32 +104,25 @@
 import { assert } from '../../../asserts/module.f.mjs'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
+import { _djsTokenKinds } from '../../tokenizer/module.f.mjs'
 
 /**
  * The token kinds, every `DjsToken` kind but `eof`: the tokenizer's
  * physical end-of-input token is split off the stream before any name is
- * mapped, and the backend synthesizes its own logical one.
+ * mapped, and the backend synthesizes its own logical one. The kinds are
+ * the tokenizer's own list, {@link _djsTokenKinds}, rather than a copy of it.
  *
  * The names are the *token* vocabulary, not the tokenizer grammar's tag
  * vocabulary: only twelve punctuators survive into `DjsToken`, so the JS
  * operator set the tokenizer recognizes is far larger than what reaches
  * this layer.
  *
- * The `_…AreComplete` assertions in `./proof.f.mjs` check both halves
+ * The `_…AreComplete` assertions in `./types.ts` check both halves
  * against `DjsToken` and `_FramingKeyword` at compile time, so a kind or
  * keyword added there breaks the build rather than going unrepresented.
  * Exported with a leading `_` for that linkage — the export is not API.
  */
-export const _tokenKindNames = /** @type {const} */ ([
-    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
-    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
-    '+', '*', '/', '%', '**',
-    '===', '!==', '>', '>=', '<', '<=',
-    '&', '|', '^', '~', '<<', '>>', '>>>',
-    '&&', '||', '??', '?',
-    'string', 'number', 'error', 'id', 'bigint',
-    'ws', 'nl', '//', '/*',
-])
+export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
 
 /**
  * The keywords a rule below *requires* in some position, which the
