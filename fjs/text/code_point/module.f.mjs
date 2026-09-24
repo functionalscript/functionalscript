@@ -10,6 +10,7 @@
  *
  * @import { List } from '../../types/list/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
+ * @import { CodePoint } from './types.ts'
  */
 
 import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
@@ -110,7 +111,7 @@ const highBmp = contains(surrogateMax + 1, bmpMax)
  * BMP is the main Unicode plane that covers code points 0x0000 - 0xFFFF, except
  * for the range of surrogates.
  *
- * @type {(codePoint: number) => boolean}
+ * @type {(codePoint: CodePoint) => boolean}
  */
 export const isBmpCodePoint = codePoint =>
     lowBmp(codePoint) || highBmp(codePoint)
@@ -132,7 +133,7 @@ const isSurrogate = contains(surrogateMin, surrogateMax)
  * Checks whether the code point is a valid scalar value: within the assignable
  * Unicode range (0x0000 - 0x10FFFF) and not a surrogate.
  *
- * @type {(c: number) => boolean}
+ * @type {(c: CodePoint) => boolean}
  */
 export const isValidCodePoint = c =>
     validRange(c) && !isSurrogate(c)
@@ -156,7 +157,7 @@ const textWhitespace = contains(0x09, 0x0d)
  * 0x0009 - 0x000D (TAB, LF, VT, FF, CR), which is legitimate in text. Every
  * code point at or above 0x0020 that is not DEL or a C1 control is text.
  *
- * @type {(c: number) => boolean}
+ * @type {(c: CodePoint) => boolean}
  */
 export const isTextCodePoint = c =>
     textWhitespace(c) || !(c0Control(c) || delAndC1Control(c))

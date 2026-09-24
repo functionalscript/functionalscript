@@ -81,10 +81,11 @@ export const collectRead = stream => {
         ioStep(s, node => {
             if (node === undefined) { return pureOk(acc) }
             const { first, tail } = node
-            if (length(acc) + length(first) > maxLength) {
+            const next = msb.tryConcat(acc)(first)
+            if (next === null) {
                 return pureError(ioError({ message: `cas blob exceeds maximum vector length of ${maxLength} bits` }))
             }
-            return loop(msb.concat(acc)(first))(tail)
+            return loop(next)(tail)
         })
     return loop(empty)(stream)
 }

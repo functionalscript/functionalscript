@@ -334,11 +334,15 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
         const bu = unpack(b)
         return pack(unpackConcat(au)(bu))
     }
+    const { operation } = tryUnpackConcat(unpackConcat).monoid
+    /** @type {(a: Vec) => (b: Vec) => Nullable<Vec>} */
+    const tryConcat = a => b => nullableMap(pack)(operation(unpack(a))(unpack(b)))
     const tryListToVec = mappedListToVec(unpack)({ unpackConcat })
     return {
         front,
         removeFront,
         concat,
+        tryConcat,
         tryListToVec,
         listToVec: mapUnwrap(tryListToVec),
         xor: op(norm)(xor),

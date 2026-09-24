@@ -41,7 +41,7 @@
 import { pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
 import {
     createServer, errorExit, errorMessage, errorSummary, exitStep, forever, isNotFound, listen, log,
-    readFile, stat,
+    maxPort, readFile, stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
@@ -273,14 +273,6 @@ const allow = 'GET, HEAD'
  */
 const servedHosts = ['localhost', '127.0.0.1', '[::1]']
 
-/**
- * The largest port a number names — the one an authority may carry, and the one
- * `main` may bind.
- *
- * @type {number}
- */
-const maxPort = 0xffff
-
 /** Whether `s` is a decimal number, and a non-empty one.
  *
  * @type {(s: string) => boolean}
@@ -296,6 +288,11 @@ const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
  * than counted, because a parser reads `00008099` as `8099` and a length test
  * would not. Past what a number can hold the read is `Infinity`, which is out
  * of range like every other value that large.
+ *
+ * **Not `fjs/effects/node`'s `isPort`, which reads a number a runner binds.**
+ * This one reads the text of an authority, and only the bound is shared: `:0`
+ * is a valid authority and stays one, while `main` refusing a `0` on the
+ * command line is a binding policy of its own.
  *
  * @type {(s: string) => boolean}
  */

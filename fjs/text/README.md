@@ -2,7 +2,12 @@
 
 The shared code-point classification predicates (`isBmpCodePoint`,
 `isValidCodePoint`, `isTextCodePoint`, …) live in `code_point` — see
-[`code_point/README.md`](./code_point/README.md).
+[`code_point/README.md`](./code_point/README.md). So does the `CodePoint` type
+both codecs decode to and encode from,
+[`code_point/types.ts`](./code_point/types.ts): a scalar value, an untagged
+surrogate or above-`0x10FFFF` value the UTF-8 decoder passes through unchecked
+(gate on `isValidCodePoint` for a scalar), or an `errorMask`-tagged error value
+laid out by the error tables below.
 
 ## UTF-8
 
@@ -41,8 +46,8 @@ Total error states:
 ### utf8/module.f.mjs
 
 ```ts
-const toCodePointList: (input: List<u8|null>) => List<i32>
-const fromCodePointList: (input: List<i32>) => List<u8>
+const toCodePointList: (input: List<u8|null>) => List<CodePoint>
+const fromCodePointList: (input: List<CodePoint>) => List<u8>
 ```
 
 ## UTF-16
@@ -73,8 +78,8 @@ Total error states: 11 bit
 ### utf16/module.f.mjs
 
 ```ts
-const toCodePointList : List<u16|null>) => List<i32>
-const fromCodePointList: (input: List<i32>) => List<u16>
+const toCodePointList : List<u16|null>) => List<CodePoint>
+const fromCodePointList: (input: List<CodePoint>) => List<u16>
 const stringToList: (input: string) => List<u16>
 const listToString: (input: List<u16>) => string
 ```
