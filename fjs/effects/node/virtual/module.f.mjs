@@ -906,10 +906,11 @@ const testContext = { test: todo }
  * Safe, inert defaults for every {@link NodeProgramOptions} field, intended for
  * proof files that need to call a program without owning the full literal.
  *
- * Proofs spread-override only what their test cares about:
+ * Proofs spread-override only what their test cares about; for the common
+ * case of arguments alone, {@link nodeProgramOptions} does it:
  *
  * ```ts
- * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, args }
+ * const opts: NodeProgramOptions = { ...defaultNodeProgramOptions, env }
  * ```
  *
  * Future additions to `NodeProgramOptions` only need a default added here,
@@ -927,3 +928,10 @@ export const defaultNodeProgramOptions = {
     engine: 'node',
     inlineTestContext: false,
 }
+
+/**
+ * {@link defaultNodeProgramOptions} with the given command-line arguments.
+ *
+ * @type {(args: readonly string[]) => NodeProgramOptions}
+ */
+export const nodeProgramOptions = args => ({ ...defaultNodeProgramOptions, args })
