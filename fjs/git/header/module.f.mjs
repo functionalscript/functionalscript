@@ -100,16 +100,23 @@ export const tryRead = input => {
  * {@link keyIs} with `key` taken first, so a scan over headers encodes it
  * once rather than once per header.
  *
+ * The header's key is read through {@link byteArray} before it is compared,
+ * since `sameBytes` stops at the first byte that differs: a key of `x` then
+ * `0x100` would otherwise be answered "not `tree`" rather than refused, and
+ * a key holding a number that is no byte is a caller's bug, not a key.
+ *
  * @type {(key: string) => (h: Header) => boolean}
  */
 const isKey = key => {
     const same = sameBytes(ascii(key))
-    return ([k]) => same(k)
+    return ([k]) => same(byteArray(k))
 }
 
 /**
  * Whether a header's key is `key`, compared as bytes by `fjs/git/refname`'s
  * `sameBytes`: the well-known keys are ASCII, and a key is bytes.
+ *
+ * @throws If the header's key is not a list of bytes.
  *
  * @type {(h: Header, key: string) => boolean}
  */
