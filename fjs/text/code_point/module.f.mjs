@@ -139,13 +139,17 @@ const surrogatePayloadMask = (1 << surrogatePayloadBits) - 1
 
 /**
  * Splits a supplementary-plane code point into its `[high, low]` surrogate
- * pair — the inverse of {@link tryFromSurrogatePair}. Any other code point has
- * no surrogate pair and is refused with `null`.
+ * pair — the inverse of {@link tryFromSurrogatePair}. Any other value — a code
+ * point outside the supplementary planes, or a non-integer, which the range
+ * check alone would let through — has no surrogate pair and is refused with
+ * `null`.
  *
  * @type {(codePoint: CodePoint) => Nullable<readonly [number, number]>}
  */
 export const tryToSurrogatePair = codePoint => {
-    if (!isSupplementaryPlane(codePoint)) { return null }
+    if (!Number.isInteger(codePoint) || !isSupplementaryPlane(codePoint)) {
+        return null
+    }
     const n = codePoint - supplementaryMin
     return [
         (n >> surrogatePayloadBits) + surrogateMin,
@@ -155,13 +159,15 @@ export const tryToSurrogatePair = codePoint => {
 
 /**
  * Combines a high and a low surrogate into the supplementary-plane code point
- * they encode — the inverse of {@link tryToSurrogatePair}. Any other pair of
- * words encodes nothing and is refused with `null`.
+ * they encode — the inverse of {@link tryToSurrogatePair}. Any other pair —
+ * including a non-integer, which the range checks alone would let through —
+ * encodes nothing and is refused with `null`.
  *
  * @type {(high: number, low: number) => Nullable<CodePoint>}
  */
 export const tryFromSurrogatePair = (high, low) =>
-    isHighSurrogate(high) && isLowSurrogate(low)
+    Number.isInteger(high) && isHighSurrogate(high)
+        && Number.isInteger(low) && isLowSurrogate(low)
         ? ((high - surrogateMin) << surrogatePayloadBits)
             + (low - lowSurrogateMin)
             + supplementaryMin

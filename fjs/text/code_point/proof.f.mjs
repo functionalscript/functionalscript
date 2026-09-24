@@ -91,6 +91,8 @@ export const proof = {
         () => assertEq(tryToSurrogatePair(0xffff), null),
         () => assertEq(tryToSurrogatePair(0x110000), null),
         () => assertEq(tryToSurrogatePair(-1), null),
+        // a fraction inside the range: refused, not truncated
+        () => assertEq(tryToSurrogatePair(0x10000 + 0.5), null),
     ],
     tryFromSurrogatePair: [
         () => assertEq(tryFromSurrogatePair(0xd800, 0xdc00), 0x10000),
@@ -102,6 +104,9 @@ export const proof = {
         // `low` is not a low surrogate: refused
         () => assertEq(tryFromSurrogatePair(0xd800, 0xe000), null),
         () => assertEq(tryFromSurrogatePair(0xd800, 0xd800), null),
+        // a fraction inside either range: refused, not truncated
+        () => assertEq(tryFromSurrogatePair(0xd800 + 0.5, 0xdc00), null),
+        () => assertEq(tryFromSurrogatePair(0xd800, 0xdc00 + 0.5), null),
     ],
     surrogatePairRoundTrip: () => {
         // Each half of a pair is a surrogate of its kind, and the two

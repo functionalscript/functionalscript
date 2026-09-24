@@ -37,7 +37,8 @@ from the same constants as `isHighSurrogate`, `isLowSurrogate`, and
 Both refuse input outside their domain with `null` rather than answering it
 ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)): the
 arithmetic would otherwise turn `0xFFFF` into a "pair" whose first half is not a
-high surrogate, or a high surrogate and a BMP word into a plausible code point.
+high surrogate, a high surrogate and a BMP word into a plausible code point,
+and a fraction inside a range into the pair or code point of its truncation.
 The domain check is the same one a caller would have to make before calling, so
 UTF-16 branches on the `null` instead of gating first — each classification
 happens once.
