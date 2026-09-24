@@ -251,7 +251,7 @@ schema is free to change independently of both.
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
+|`["=>", count, frame, body]`|`(…) => …`|2|function; `count` is its `length` and `frame` a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -393,16 +393,17 @@ copied into a frame when the function object is created — the scheme
 ordinary indexing, `[".", ["frame"], i]`, exactly as an argument is
 `[".", ["args"], 0]` (subject 2).
 
-Frame construction mirrors a call: `["=>", frame, body]`, where
-`frame` is one node evaluating to an array — built in the *enclosing*
-scope, usually `["[]", …]` — and `body` is the inner function's
-graph. Compare `["()", f, args]`: same shape, one for entering a call,
-one for creating a closure.
+Frame construction mirrors a call: `["=>", count, frame, body]`, where
+`count` is the function's `length`, `frame` is one node evaluating to an
+array — both built in the *enclosing* scope, the frame usually
+`["[]", …]` — and `body` is the inner function's graph. Compare
+`["()", f, args]`: the frame is to the body what the arguments are to the
+callee, one pair for entering a call, one for creating a closure.
 
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
 // inside f, building b — f puts its own ["self"] into b's frame:
-["=>", ["[]", ["self"]], /* b's body */ …]
+["=>", 1, ["[]", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
 ["()", [".", ["frame"], 0], ["[]", [".", ["args"], 0]]]
 ```
@@ -748,9 +749,8 @@ authored and never part of the EDAG.
 
 #### 2. Arguments reference
 
-**Status:** decided for `['args']`; declared-arity representation reopened
-by the [named-parameter proposal](../spec/todo/3120-parameters.md), pending
-language-designer approval
+**Status:** decided for `['args']`; declared arity is the function node's
+own count, `['=>', count, frame, body]` ([function length pattern](../spec/todo/3130-function-length-pattern.md))
 
 **Resolution: a zero-parameter `["args"]` command yields the array of
 arguments passed to the function.**
@@ -1068,20 +1068,18 @@ Word tags now survive only where JS genuinely has no expression spelling:
 
 #### 7. Top-level shape of a function
 
-**Status:** open
+**Status:** decided for the node, `["=>", count, frame, body]`; the
+constructor's input API open
 
 With the body a single operation node, no special top-level shape
 remains — every position, the body included, is a node, and the body
-composes directly into `["=>", frame, body]`
+composes directly into `["=>", count, frame, body]`
 ([Operations](#operations)).
 
-The [named-parameter proposal](../spec/todo/3120-parameters.md) would replace
-that current shape with `["=>", parameterCount, frame, body]`. If approved,
-it selects the function node as the owner of declared arity and supersedes
-the earlier alternative of keeping that metadata only in a `Function`
-constructor wrapper. It remains pending language-designer approval; do not
-implement both representations as parallel contracts. The constructor's
-input API otherwise remains open.
+The [function length pattern](../spec/todo/3130-function-length-pattern.md) gave the node its count: the function node owns the declared
+arity, which supersedes the earlier alternative of keeping that metadata
+only in a `Function` constructor wrapper. The constructor's input API
+otherwise remains open.
 
 The function-text exception does not permit changing arity. Exact parameter
 spelling need not reproduce authored text; source rendering and callable
@@ -1255,8 +1253,8 @@ const b = 3
 In `f`'s body, `a` is a captured value — frame slot 0 — while `f()` is
 `["()", ["self"], ["[]"]]`, needing no frame entry at all.
 
-This is exactly what makes frames constructible. `["=>", frame, body]`
-evaluates its `frame` operand *first*, so every captured value must
+This is exactly what makes frames constructible. `["=>", count, frame, body]`
+evaluates its `count` and `frame` operands *first*, so every captured value must
 already exist; a forward reference would need a value that does not
 exist yet — a cycle, which subject 5 forbids. And it is why `["self"]`
 must be a primitive rather than a frame slot: self-reference is the one

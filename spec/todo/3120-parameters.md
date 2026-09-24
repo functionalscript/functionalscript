@@ -71,10 +71,9 @@ lists record `0`; a list of `n` plain named parameters records `n`, including
 unused parameters. Parameter names remain erased. The count participates in
 canonical function identity because `length` can distinguish the values.
 
-If approved, this supersedes the arity-erasure part of
+The node supersedes the arity-erasure part of
 [EDAG stage 1, subject 2](../../todo/edag-stage1-discussion.md#2-arguments-reference)
-and selects the function node, rather than a separate constructor wrapper,
-as the owner of arity in
+and is, rather than a separate constructor wrapper, the owner of arity in
 [subject 7](../../todo/edag-stage1-discussion.md#7-top-level-shape-of-a-function).
 Name erasure and the complete `['args']` semantics remain unchanged. The
 representation is decided and landed, the four-element node; what this
