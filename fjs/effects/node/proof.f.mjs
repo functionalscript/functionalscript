@@ -12,7 +12,7 @@ import { empty, isVec, length, maxLengthBytes, msb, u8List, u8ListToVec, uint, v
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -90,6 +90,29 @@ const lengths = (source, bound) => {
 
 
 export const proof = {
+    isPort: {
+        // Both ends are ports: `0` asks for an ephemeral one.
+        inRange: () => {
+            assert(isPort(0))
+            assert(isPort(8080))
+            assert(isPort(maxPort))
+        },
+        outOfRange: () => {
+            assert(!isPort(-1))
+            assert(!isPort(maxPort + 1))
+        },
+        notInteger: () => {
+            assert(!isPort(1.5))
+            assert(!isPort(NaN))
+            assert(!isPort(Infinity))
+        },
+    },
+    // Node's own words, byte-for-byte, as the virtual runner reports them.
+    badPort: () => {
+        assertEq(badPortCode, 'ERR_SOCKET_BAD_PORT')
+        assertEq(badPortMessage(-1), 'options.port should be >= 0 and < 65536. Received type number (-1).')
+        assertEq(badPortMessage(NaN), 'options.port should be >= 0 and < 65536. Received type number (NaN).')
+    },
     isNotFound: {
         enoent: () => {
             assert(isNotFound(ioError({ code: 'ENOENT', message: 'no such file or directory' })))
