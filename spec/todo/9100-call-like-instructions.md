@@ -5,6 +5,13 @@
 > functions is the EDAG (see [serialization](./serialization.md)).
 > This document describes a possible internal bytecode design.
 
+**Pending parameter migration:** sections 5 and 6 follow the
+[named-and-rest parameter proposal](./3120-parameters.md):
+`['=>', length, frame, body]`, `['arg', N]` and `['rest']`. They replace the
+older either-fixed-or-complete-array call-frame sketch, not current runtime
+behavior. The proposal still requires language-design approval and a coordinated
+migration. Bytecode layout is private; it must preserve the EDAG's bindings.
+
 Call-like bytecode instructions include following groups:
 
 1. **calls into host functions** (standard language runtime "intrinsics", including operators);
@@ -13,7 +20,7 @@ Call-like bytecode instructions include following groups:
 4. **other call-like instructions** (mentioned here thanks to similarities to above mentioned
 groups).
 
-Call-like instructions use lists of argument descriptors that will be considered later in this
+Call-like bytecode instructions use lists of argument descriptors that will be considered later in this
 document.
 
 ## 1. Calls into host functions
@@ -172,13 +179,19 @@ const b = () { a() }
 a() // this is OK at compile time, even though triggers stack overflow / infinite loop at run time
 ```
 
-It is tempting to introduce also yet another kind of location that corresponds to arguments of
-the caller function. However, each parsed function either has a fixed number of arguments &ndash;
-that occupy first slots of its stack frame &ndash; or a variable number of arguments (addressable
-within that function's body via `arguments` array). In the latter case the VM creates an array
-object referred as `arguments` and places a reference to that object to the zeroth slot of callee's
-stack frame. The VM distinguishes two cases via looking up metadata of the callee function object.
-See details below in the section **behind the scenes of user-defined function calls**.
+No separate descriptor kind is needed for the caller's parameter bindings.
+Fixed values and its rest-array reference can use local-frame locations;
+captured outer bindings use the captured-value locations above. A function
+may have **both** a fixed prefix and rest, so metadata must not select between
+fixed slots and a complete argument array as mutually exclusive layouts.
+
+The bytecode generator derives the fixed-prefix length `L` and binding
+locations from the validated EDAG. One simple layout reserves slots `0` through
+`L - 1` for fixed values and slot `L` for the rest-array reference; result and
+local slots are assigned separately. This is an illustrative internal layout,
+not a source or EDAG format. A raw argument vector/count used to fill these
+slots is private call transport, not a source `arguments` object or a new
+complete-list `['args']` operation. Section 6 defines the common binding rule.
 
 Thus, the list of argument descriptor kinds stays as of now at 4 values (2 bits). Where do we place
 a 2-bit argument descriptor kind value for each argument remains an open question. If we prioritize
@@ -197,41 +210,84 @@ upfront, then using simple encoding for each argument descriptor after that.
 
 ## 6. Behind the scenes of user-defined function calls
 
-When the parser finalizes processing of a function body, it creates function's metadata that among
-other things indicates, does this function use `arguments` array, or does not? Let's name functions
-that use that array "variadic" and other functions "non-variadic" (note: each non-variadic function
-has its number of parameters in metadata). The VM looks up that flag when it processes a call
-instruction; for non-variadic functions it looks up also function's number of parameter. Let's
-consider several cases here.
+Static and dynamic user-defined calls follow the same fixed/rest contract.
+Let `L` be the function node's declared `length`, and `M` the actual supplied
+argument count. `L` and fixed indices follow the parameter plan's canonical
+integer validation (including rejection of negative-zero metadata); argument
+values such as ordinary `-0` are not normalized. A dynamic call reads `L` from
+the selected callable, not from the caller's argument count.
+
+1. Initialize `L` fixed bindings with `undefined`, then fill positions below
+   `min(M, L)` with the corresponding supplied values. `['arg', N]` reads fixed
+   position `N`, already validated with `0 <= N < L`; missing values never
+   cause an out-of-bounds read.
+2. Bind `['rest']` to a new array containing only supplied positions `L`
+   through `M - 1`, with length `max(M - L, 0)`. Do not pad this array with
+   omitted fixed arguments or include the fixed prefix in it.
+3. Repeated rest reads in one invocation return the same array. Distinct calls
+   have distinct rest arrays under the JS-compatible identity profile, even
+   for an empty tail or repeated calls using the same input array. Capturing
+   rest retains that array's identity and lifetime, not a pointer into a
+   disposable call frame. Other profiles retain their specified identity rules.
+
+The supplied count is used to bind the call, but the new EDAG does not expose
+it for the fixed prefix. With `L = 0`, rest is the complete supplied list;
+with positive `L`, omitted and explicit `undefined` fixed values are
+intentionally indistinguishable. All argument expressions still obey the
+existing call-evaluation/failure contract, including arguments whose values
+the callee will not read.
 
 ### 6.1. Calls into variadic functions
 
-Each variadic function reserves exactly one slot of its stack frame to access arguments - the zeroth
-slot that contains a reference to the `arguments` array. While processing a call to such function
-the VM creates a new array of the size equal to the number of arguments in the call instruction.
-The VM processes argument descriptors, initializing all elements of that newly created array. The
-one and only reference to that array gets moved to the zeroth slot of the callee's stack frame, and
-that is all what needs to be done - all other slots of callee's stack frame are used for callee's
-locals.
+Here "variadic" means the body needs the rest binding, including through
+nested closure-frame construction. It does **not** imply `L = 0` or select
+an array-only frame. A mixed function uses the fixed slots **and** the rest
+reference. A rest-only function is the `L = 0` specialization of the same
+rule: it needs no fixed slots and rest contains every supplied argument.
+
+For `(a, b, ...rest) => [a, b, rest]`, `L = 2`:
+
+| Call | Fixed bindings | Rest binding |
+|------|----------------|--------------|
+| `f()` | `[undefined, undefined]` | `[]` |
+| `f(undefined)` | `[undefined, undefined]` | `[]` |
+| `f(1)` | `[1, undefined]` | `[]` |
+| `f(1, 2)` | `[1, 2]` | `[]` |
+| `f(1, 2, undefined)` | `[1, 2]` | `[undefined]` |
+| `f(1, 2, 3, 4)` | `[1, 2]` | `[3, 4]` |
+
+The full-tail array cannot replace the fixed bindings, and positive arity is
+not permission to discard the tail. This same binding rule is what the
+pre-generated JavaScript factories supply to the evaluator as `(fixed, rest)`;
+the bytecode backend does not need those factories or inherit their capacity.
 
 ### 6.2. Calls into non-variadic functions
 
-Each non-variadic function reserves a given number of its stack frame slots, at the beginning. Other
-stack frame slots are used for locals. When processing a call into such a non-variadic function,
-the VM starts with a state with all callee's parameter stack frame slots being default-initialized
-(by `undefined` values to follow ECMAScript standard). In case when the number of arguments is not
-greater than the number of parameters (that VM looks up in function's metadata), the VM fills out
-correspondent stack frame slots (leaving remaining slots with `undefined` values when the number
-of arguments is less than the number of parameters). When reaching the number of parameters (while
-the number of arguments is greater than the number of parameters) the VM keeps processing remaining
-argument descriptors, doing nothing &ndash; since the callee does not do anything with extra
-arguments. Still the VM has to "skip" remaining arguments to reach the next bytecode instruction
-after the end of the argument descriptor list.
+This heading names only the specialization where no body computation,
+including a nested closure's frame construction, can observe `['rest']`.
+It is not an alternative EDAG calling convention. Fixed values still follow
+section 6, and every unused declared fixed position still counts toward
+`f.length` and the start of the tail.
+
+A VM may omit unobservable rest storage and discard already-evaluated extra
+values in this case. It must not skip their argument computations or suppress
+failures: `((a) => a)(1, null.x)` still fails, even though the second value
+would be unused. If descriptors refer to already-computed values, skipping
+storage is not skipping evaluation. A mixed function whose rest is read or
+captured must take the fixed-plus-rest path above; neither `L > 0` nor an
+arity-mismatch flag proves the tail unused. An empty function with `L = 0`
+and no rest use is simply another specialization.
 
 ### 6.3. Stack frame allocation strategies
 
 First, let's postpone the idea of placing the stack of function's temporary values in the stack
 frame, focusing on locals only.
+
+Account for the fixed bindings and any materialized rest-reference slot in
+addition to result/local slots. Reusing a physical frame must not reuse an
+observable rest-array identity across calls or invalidate a rest array that
+escapes through a result or captured frame. These allocation strategies do
+not change the binding rule in section 6.
 
 A simple VM implementation calculates the size of a function body's stack frame by allocating one
 slot for each local in the body, maybe reusing slots in cases when one local stops being used at
@@ -272,3 +328,31 @@ this or that way (e.g. using a list of blocks for a joint stack as described abo
 the parser does not need to track temporary values data. Since we use two different kinds of
 argument descriptor locations for locals and for temporary values, various VM / parser
 implementation decisions are possible for the same bytecode specification.
+
+## Parameter-migration tasks
+
+- [ ] After parameter-design approval, lower `length`, fixed `arg` reads and
+      the rest binding together in bytecode call metadata and frame setup.
+      Do not retain the old either-fixed-or-complete-array convention.
+- [ ] Prove static and dynamic calls against the same cases: zero arity,
+      fixed-only and mixed lists, unused fixed parameters, omitted and explicit
+      `undefined`, and extra values including `-0`. Preserve fixed length and
+      the exact rest tail; no JavaScript factory-table cap in the bytecode format.
+- [ ] Prove repeated rest reads, returning/forwarding rest, and rest captured
+      by an escaping closure. In the JS-compatible profile, cover distinct
+      calls using the same supplied array and physical frame reuse.
+- [ ] Test that discarding an unused extra value preserves argument failures,
+      and that a rest value used only in nested frame construction is retained.
+- [ ] Migrate current zero-arity `['args']` uses to `['rest']` in their owning
+      scope with the coordinated format change; do not reinterpret old graphs
+      or admit the earlier positive-arity/full-list sketches as this contract.
+
+## Related
+
+- [Named and rest parameters](./3120-parameters.md) — syntax, canonical metadata,
+  fixed/rest semantics, executor limits and the coordinated migration.
+- [Function frames](./3111-function-frame.md) — private slots and capture lifetime.
+- [Native callables](../../nanvm-lib/todo/callable-function-objects.md) — the same
+  observable bindings with a separate Rust call-transport implementation.
+- [Mixed-rest bytecode review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4096466821)
+  — replace the incompatible either/or frame sketch before implementation.

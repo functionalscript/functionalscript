@@ -49,43 +49,46 @@ variables that the generated code and `nanvm-lib` agree on.
   all already tracked as open elsewhere (see Related) and explicitly
   staged-out by mvp-roadmap until the edag-spec lands. The plan below only
   notes where this work must plug back in once they do.
-- **Out of scope**: named parameter lists (`(a, b) => …`,
-  [3120-parameters](../../spec/todo/3120-parameters.md)) at the *parser*
-  level — today the language has only the rest-parameter and no-parameter
-  forms. This document's representation is written for `["args"]` (an
-  array), which named parameters still read positionally. The pending
-  parameter-count proposal also changes the function EDAG and requires AOT
-  lowering to preserve the count in the function value; parser work being
-  separate does not put that runtime obligation out of scope.
+- **Out of scope**: parsing fixed and mixed-rest parameter lists, owned by
+  [named and rest parameters](../../spec/todo/3120-parameters.md). Current
+  source support remains empty and rest-only. The pending AOT migration is
+  nevertheless in scope: preserve integer `length` metadata and lower
+  `['arg', N]` / `['rest']`, replacing the old EDAG `['args']` binding.
+  Named parameters do not merely become indexed reads of an unchanged
+  complete-list node. These are proposed obligations, not implemented
+  support; record language-design approval before the coordinated change.
 
 #### Grounding: what is already decided
 
-This is not a green field. The EDAG semantics
-([edag-stage1-discussion](../../todo/edag-stage1-discussion.md),
-[`fjs/edag/README.md`](../../fjs/edag/README.md)) already fix the shape a
-function value must respect, and this plan is an implementation of that
-shape, not an alternative to it:
+The [current EDAG](../../fjs/edag/README.md) and the pending
+[named-and-rest parameter plan](../../spec/todo/3120-parameters.md) are
+ different versions of the contract. The bullets below distinguish them;
+this AOT plan does not define an alternative argument model. Historical
+and landed-stage descriptions remain records of the current zero-arity
+implementation, not instructions for future named-parameter lowering.
 
-- The current function node is `["=>", frame, body]`. The
-  [named-parameter proposal](../../spec/todo/3120-parameters.md), pending
-  language-designer approval, would replace it with
-  `["=>", parameterCount, frame, body]`. If approved, this plan must migrate
-  its generator and callable construction with that format. `frame` remains
-  one node, evaluated in the *enclosing* scope, that yields an array of
-  captured values; `body` remains the function's own closed graph.
-- `["args"]` is the arguments array — always an array, positionally indexed;
-  parameter names are compiler-side sugar over it. Declared arity is
-  observable metadata, distinct from the actual argument count (subject 2).
-- `["frame"]` is the captured-values array inside the body, read the same
-  way `["args"]` is (`[".", ["frame"], i]`).
+- The current function node is `['=>', frame, body]`, with length zero.
+  If approved, migrate it to `['=>', length, frame, body]`, with nonnegative
+  integer `length` metadata and new invocation bindings. `frame` remains
+  an expression evaluated in the enclosing scope; `body` remains closed.
+- Current `['args']` reads the complete supplied list. In the new format it
+  is replaced by constant `['arg', N]`, with `0 <= N < length`, and one
+  per-invocation `['rest']` array containing the supplied tail starting at
+  `length`. Missing fixed arguments read as `undefined`. At length zero,
+  rest is the complete list; at positive length, the original supplied
+  count within the fixed prefix is not observable. This changes binding
+  semantics as well as preserving the function's declared arity.
+- `['frame']` remains the captured-values array, read as
+  `['.', ['frame'], i]`; it also carries captured outer fixed/rest bindings.
 - `["self"]` is direct self-reference, primitive because a top-level
   recursive function has no enclosing scope to seed a frame slot with itself
   (subject 10); it reaches only the innermost enclosing function (mutual
   recursion is explicitly not covered yet — subjects 9 and 10).
-- A function body is a **closed graph**: its only leaves are constants,
-  `["args"]`, `["frame"]`, and `["self"]`. Nothing reaches outward across a
-  `"=>"` boundary. This is exactly what makes a function's Rust translation
-  self-contained.
+- A function body is a **closed graph**. The current invocation binding is
+  `['args']`; the proposed one consists of `['arg', N]` and `['rest']`,
+  alongside constants and the existing frame/self capabilities. Nothing
+  reaches outward across a `=>` boundary. Argument indices are validated
+  in their owning function; captures go through its frame.
 - [function-frame](../../spec/todo/3111-function-frame.md) already decided,
   for the *bytecode* backend, to start with the simple scheme: captured
   values are **copied** into a devoted memory block at function-object
@@ -138,13 +141,16 @@ these same operators already would.
 
 #### Arguments — `["args"]`
 
-Represented as `Array<A>`, passed by value at the call boundary — the
-same wrapper every array-valued `Any<A>` already uses
-([`vm/array/mod.rs`](../src/vm/array/mod.rs)), built for the call and
-owned by nothing else. A generated function reads a
-declared position as a `.` node, in whatever spelling the Rust code
-generator ([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs))
-prints for every `.`/`[]` read — `Any::dot(…).end()`
+The current `StaticCode<A>` interface transports supplied arguments as an
+`Array<A>` ([`vm/array/mod.rs`](../src/vm/array/mod.rs)). Keeping that Rust
+parameter does not retain an EDAG-visible `['args']` operation in the new
+format. The generated body must establish the proposed invocation bindings:
+fixed values with missing positions normalized to `undefined`, and one rest
+array containing the tail beginning at the function's recorded `length`.
+
+Lowering `['arg', N]` may reuse a guarded read of the private transport array.
+The following existing read machinery illustrates an implementation choice,
+not lowering to `['.', ['args'], N]` in the new EDAG: `Any::dot(…).end()`
 ([`vm/any/dot.rs`](../src/vm/any/dot.rs),
 [`vm/lambda`](../src/vm/lambda/mod.rs),
 [`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — rather
@@ -165,11 +171,26 @@ fn f<A: IStaticFunction>(self_: &A::InternalFunction, args: Array<A>) -> Result<
 }
 ```
 
-Extra arguments are simply never read — matching
-[§6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
-"the callee does not do anything with extra arguments" exactly. A rest
-parameter (today's only parameter form) needs no destructuring at all — it
-*is* `args`.
+The sketch only demonstrates guarded fixed-position reads. For the proposed
+format, initialize rest once per invocation and reuse that binding for every
+`['rest']` read. Extra supplied values, including explicit `undefined`, must
+remain in that tail; they are ignored only when the body never observes it.
+Different calls have different rest-array identities under the JS-compatible
+profile. Do not return a caller's spread array as rest; reuse of internal
+transport is valid only when it already has the required fresh call identity.
+
+For length two, calls with no arguments and with one `undefined` both expose
+fixed values `[undefined, undefined]` and rest `[]`; a call with
+`(1, 2, undefined)` exposes fixed `[1, 2]` and rest `[undefined]`. At length
+zero, rest contains the complete supplied list. The raw transport count may
+help implement binding, but must not become an additional observable EDAG
+operation. Captured rest retains the same binding through the existing frame.
+
+Migrate existing zero-arity `['args']` reads to `['rest']` in their owning
+scope. Do not accept old positive-arity/full-arguments sketches as equivalent
+to the new format. The AOT backend initializes its native function metadata;
+it does not inherit a JavaScript evaluator's finite factory-table capacity
+or require the proposed `withLength` pattern for arity.
 
 #### Local variables and temporaries
 
@@ -221,10 +242,11 @@ and how it reaches the program (a `member_access` arm, a property table,
 something else) is decided there, against the code as it is then. Empty
 and rest-only parameter lists have length
 `0`. If the named-parameter proposal is approved, each generated callable
-carries the function node's `parameterCount`, including unused parameters,
+carries the function node's `length`, including unused fixed parameters,
 capturing or not; it is never inferred from argument reads or the caller's
-array length. The complete actual argument array still crosses the call
-boundary unchanged.
+array length. A complete supplied array may still cross the internal Rust
+call boundary, but the new EDAG body observes only the fixed/rest bindings
+specified above. A Rust parameter named `args` is not the retired EDAG tag.
 
 Before that landed, `Function<A>` was a newtype over an `IContainer` with
 a name/length header, `(String<A>, u32)`, and a bag of `u8` items nothing
@@ -277,9 +299,14 @@ compiled as part of writing this document:
    `Self::Assoc` projections allow a good deal of this, but this document
    does not assert it compiles.
 
-`toString`/hashing implications of a natively compiled function are a
-pre-existing, separately tracked question
-([object-identity](../../spec/todo/object-identity.md), Stage 7 below).
+`toString`/hashing representation work is tracked separately
+([object-identity](../../spec/todo/object-identity.md), Stage 7 below), but
+that staging does not permit an incorrect successful default conversion.
+The [named/rest plan's default-text boundary](../../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)
+requires the associated-EDAG renderer or explicit refusal on unsupported
+paths before function text becomes observable. Only the open rendering
+choices and full embedding work remain deferred; native placeholders and
+host wrapper text are not substitutes for the adopted default-text contract.
 Equality is settled with the representation: `PartialEq for Function<A>`
 is identity, `ptr_eq` on `naive`'s `Rc`, so two closures built from
 unrelated creation events compare unequal — JS gives two closures from two
@@ -370,13 +397,14 @@ prove it end to end, the spec's own sharing example among them.
 **Stage 2 — `Function<A>` as a real, callable first-class value.
 Landed with Stage 1**, there being no other shape: every function the
 generator prints is a `Function<A>` value already, whether it is called at
-once, stored, returned or exported, so the harness evaluates `export
+once, stored,returned or exported, so the harness evaluates `export
 default` uniformly and a function value standing as the export is the one
 thing `to_json` refuses. The declared length is `0`, the only arity the
 language has, read as `f.length` through the `.` read — a
 function's one property; when named parameters are admitted, the generator prints the
 function node's count, and exported and returned functions' `length` is
-compared with native JavaScript, unused parameters included.
+compared with native JavaScript, unused parameters included. The pending
+binding migration is part of Stage 6, not just this count field.
 
 **Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
@@ -428,14 +456,18 @@ captured into a nested closure's frame and called back out through it —
 plus a fixture asserting `self === self` across two separate reads.
 
 **Stage 6 — arity and variadic edge cases.**
-Confirm generated code matches
-[call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)'s
-semantics exactly for every arity-mismatch direction (fewer args than
-declared positions, more args than declared positions, the rest-parameter
-case which never truncates); these are exactly the cases where "the FJS
-compiler would only ever emit the matching-arity case" is not an admissible
-argument, because `Function::call` is reachable from Stage 4's dynamic call
-with an arbitrary caller-supplied `args` value.
+Migrate the generator and invocation bindings with the approved
+[named/rest EDAG format](../../spec/todo/3120-parameters.md): constant
+`['arg', N]`, one per-invocation `['rest']`, and recorded `length`. The
+private Rust argument array is transport, not a source-visible complete-list
+operation. Confirm fixed/rest values and identity against native JavaScript
+for omitted, explicit `undefined` and extra arguments, including captured
+and forwarded rest. Keep native capacity independent of the JS factory table.
+The older [call-like-instructions §6](../../spec/todo/9100-call-like-instructions.md#6-behind-the-scenes-of-user-defined-function-calls)
+notes describe call transport, not permission to restore the retired EDAG
+binding. Dynamic calls remain arbitrary-arity; no matching-arity assumption
+is permitted. Migrate zero-arity graphs by scope and refuse incompatible
+positive-arity/full-arguments sketches rather than silently normalize them.
 
 **Stage 7 — EDAG-embedding parity (deferred until edag-spec lands).**
 mvp-roadmap already stages this: a natively compiled function must
@@ -449,6 +481,9 @@ Effect-based alternative if that is the direction chosen) to carry it, for
 every `Function<A>` this plan's stages produce — including capturing
 closures, which is exactly the "open problem" that document flags as
 unsolved for nested functions today. This stage is what closes that gap.
+Until the required semantic association and renderer are available, explicitly
+refuse unsupported default-text observations; deferring full embedding never
+licenses a placeholder or host-implementation string as a successful result.
 
 **Stage 8 — convergence with the EDAG interpreter.**
 Once the separate `Function` constructor + interpreter task
@@ -507,8 +542,17 @@ generated-Rust test from one source of cases.
 - [ ] Stage 5: self-reference — the generator reads `["self"]` as the
       `self_` every static function receives, a call to it being a call
       like any other; plus a `self === self` fixture.
-- [ ] Stage 6: arity/variadic edge-case audit against
-      call-like-instructions §6.
+- [ ] Stage 6: migrate AOT lowering with the approved named/rest EDAG format,
+      not just the count field. Validate constant `arg` indices; establish
+      fixed values and one rest binding per invocation. Compare with native
+      JavaScript and the evaluator for omitted, explicit `undefined` and
+      extra arguments, unused fixed parameters, returning/forwarding rest,
+      repeated rest reads, distinct calls, spread-array identity and captures.
+      Cover zero-arity migration and refusal of legacy positive-arity/full-list
+      sketches. Keep native capacity separate from the JS factory table.
+- [ ] Before enabling default-text observations, integrate the shared EDAG
+      renderer or explicit refusal, covering direct/indirect conversions and
+      exported callables. Do not wait for Stage 7 to prevent wrong output.
 - [ ] Stage 7: EDAG embedding on natively compiled functions, once
       edag-spec lands.
 - [ ] Stage 8: shared call-contract test corpus once the EDAG interpreter
@@ -527,9 +571,11 @@ generated-Rust test from one source of cases.
 - [`spec/todo/9100-call-like-instructions.md`](../../spec/todo/9100-call-like-instructions.md)
   — static/dynamic call-site semantics and the arity rules Stage 6 checks
   against.
+- [Named and rest parameters](../../spec/todo/3120-parameters.md) — owns the
+  pending `length` / `arg` / `rest` contract, approval and migration.
 - [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md) —
-  the decided EDAG shape (`"=>"`, `["args"]`, `["frame"]`, `["self"]`) this
-  plan is an implementation of, not an alternative to.
+  current baseline and proposed argument-model migration, reconciled in
+  subjects 2 and 7 rather than deferred until implementation.
 - [`fjs/edag/README.md`](../../fjs/edag/README.md) — the current EDAG schema
   and chain semantics a real call site must also account for (method-call
   receivers, optional chains) once calls stop being data-only.

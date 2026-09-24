@@ -47,6 +47,32 @@ What the rendering must show, beyond a plain tree:
   frame — making the closed-scope model visible (a body's only inbound
   edges are its frame).
 
+### Pending fixed/rest migration
+
+The `['args']` and `['=>', frame, body]` spellings above describe the
+**current format only**, not the post-migration schema. Follow the
+[named-and-rest parameter plan](../spec/todo/3120-parameters.md#edag-fixed-prefix-and-rest)
+when its coordinated format change is approved and implemented.
+
+For `['=>', length, frame, body]`, show `length` as function metadata,
+not an evaluated operand or edge. Mark `['arg', N]` and `['rest']` as
+terminals of the owning invocation; `N` is metadata bounded by that
+function's length. Retain the `['frame']` and `['self']` terminals.
+The frame operand stays in the enclosing scope; only the body opens a
+new function cluster. A nested function's frame can therefore read its
+parent's fixed/rest bindings without assigning them to the child's scope.
+
+Unresolved modules retain module-owned `['args']` for imports, including
+reads in module-level closure frames. Do not rename those to `['rest']`
+or expose a complete-list `['args']` terminal inside a new-format body.
+Use the parameter plan's scope validation rather than a second schema.
+
+Before claiming new-format support, add rendering proofs for positive-arity
+fixed/rest functions, zero-arity rest-only functions, and nested closures
+capturing outer parameters/rest or module imports. Check metadata labels,
+scope placement and shared-node identity. Unsupported node forms must be
+refused explicitly, not silently omitted or reinterpreted as old tuples.
+
 ### Uses
 
 - reviewing EDAG designs and teaching the format;
