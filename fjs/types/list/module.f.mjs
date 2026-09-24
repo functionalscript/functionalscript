@@ -5,7 +5,7 @@
  *
  * @import { Nullable } from '../nullable/types.ts'
  * @import {Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts'
- * @import { Accumulator, Entry, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
+ * @import { Accumulator, Indexed, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
 import { identity, compose } from '../function/module.f.mjs'
@@ -268,13 +268,13 @@ const sum = reduce(addition)(0)
 /** @type {<T>(input: List<T>) => number} */
 export const length = input => sum(lengthList(input))
 
-/** @type {<T>(value: T, index: number) => readonly [Entry<T>, number]} */
+/** @type {<T>(value: T, index: number) => readonly [Indexed<T>, number]} */
 const entryOperator = (value, index) => [[index, value], index + 1]
 
-/** @type {<T>(input: List<T>) => Thunk<Entry<T>>} */
+/** @type {<T>(input: List<T>) => Thunk<Indexed<T>>} */
 export const entries = input => {
     /** @typedef {typeof input extends List<infer T> ? T : never} T */
-    /** @type {StateScan<T, number, Entry<T>>} */
+    /** @type {StateScan<T, number, Indexed<T>>} */
     const o = entryOperator
     return stateScan(o)(0)(input)
 }
