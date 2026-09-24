@@ -8,7 +8,7 @@
  * @import { Accumulator, Entry, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
-import { identity, fn, compose } from '../function/module.f.mjs'
+import { identity, compose } from '../function/module.f.mjs'
 import {
     addition,
     logicalNot,
@@ -181,21 +181,20 @@ export const find = def => f => compose(filter(f))(first(def))
 /** @type {(input: List<boolean>) => boolean} */
 export const some = find(false)(identity)
 
+/** Whether some element satisfies `p`. @type {<T>(p: (value: T) => boolean) => (input: List<T>) => boolean} */
+export const someBy = p => compose(map(p))(some)
+
+/** Whether no element satisfies `p`. @type {<T>(p: (value: T) => boolean) => (input: List<T>) => boolean} */
+export const none = p => compose(someBy(p))(logicalNot)
+
 /** @type {<T>(input: List<T>) => boolean} */
-export const isEmpty = fn(map(() => true))
-    .map(some)
-    .map(logicalNot)
-    .result
+export const isEmpty = none(() => true)
 
 /** @type {(_: List<boolean>) => boolean} */
-export const every = fn(map(logicalNot))
-    .map(some)
-    .map(logicalNot)
-    .result
+export const every = none(logicalNot)
 
 /** @type {<T>(value: T) => (sequence: List<T>) => boolean} */
-export const includes = value =>
-    compose(map(strictEqual(value)))(some)
+export const includes = value => someBy(strictEqual(value))
 
 /** @type {(count: number) => Thunk<number>} */
 export const countdown = count => () => {
