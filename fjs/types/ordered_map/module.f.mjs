@@ -20,12 +20,16 @@ import { map as nullableMap } from '../nullable/module.f.mjs'
 /** @type {(a: string) => <T>(b: Entry<T>) => Sign} */
 const keyCmp = a => ([b]) => cmp(a)(b)
 
-/** @type {<T>(entry: Entry<T>) => T} */
-const entryValue = ([, v]) => v
+/**
+ * Projects a found entry to its value, passing a miss through as `null`.
+ *
+ * @type {<T>(entry: Entry<T> | null) => T | null}
+ */
+const entryValue = nullableMap(([, v]) => v)
 
 /** @type {(name: string) => <T>(map: OrderedMap<T>) => T | null} */
 export const at = name => map =>
-    map === null ? null : nullableMap(entryValue)(value(find(keyCmp(name))(map).first))
+    map === null ? null : entryValue(value(find(keyCmp(name))(map).first))
 
 /** @type {<T>(reduce: Reduce<T>) => (entry: Entry<T>) => (map: OrderedMap<T>) => OrderedMap<T>} */
 const setReduceEntry = reduce => entry =>
