@@ -72,23 +72,28 @@ The grammar has three readers, and the widening reaches each differently.
 - [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs), the compiler's.
   A `'x'` it reads as a string is a string the compiler must still refuse, so
   the fold that classifies tokens gains the refusals the grammar loses: a
-  string opened by a single quote, a template of any kind, and an escape
-  outside JSON's table plus `\u` are errors *there*, at the token, until
-  2460 and 3440 accept them. That keeps the accepted language exactly where
-  it is, and it is the same place the fold already refuses `--`. The
+  string outside what the language accepts, a template of any kind, and an
+  escape outside JSON's table plus `\u` are errors *there*, at the token,
+  until 2460 and 3440 accept them. That keeps the accepted language exactly
+  where it is, and it is the same place the fold already refuses `--`. The
   compiler's proofs pin it. **It can refuse only if the spelling survives
   the layer below it**, and today it does not: the fold there cooks a
   string, so `"A"`, `'A'` and `"\x41"` would all arrive as one
-  `{ kind: 'string', value: 'A' }`. So `StringToken` gains a `json`
-  boolean, true exactly when the literal is one JSON's string grammar
-  accepts — opened by `"`, every escape from JSON's table — decided by the
-  decoder that already reads each escape as it cooks the value. A template
-  is a kind of its own and needs no flag. That is the second of the two
-  mechanisms 2460 offered, "recording which sub-language each matched token
-  stayed within", used on the *token* rather than on the grammar, where the
-  first mechanism already holds: the JS string rule cannot be two LL(1)
-  branches by dialect, since both begin with `"`, and one bit on the token
-  is what the compiler's fold reads.
+  `{ kind: 'string', value: 'A' }`. So `StringToken` gains two fields,
+  decided by the decoder that already reads each escape as it cooks the
+  value: `quote`, `"` or `'`, and `jsonEscapes`, true when every escape is
+  one of JSON's or the literal's own quote escaped and no raw control
+  character or line continuation occurs. A literal JSON's string grammar
+  accepts is `quote === '"' && jsonEscapes`, derived rather than stored. One
+  "is JSON" bit would not do: 2460 accepts `'A'` and refuses `"\x41"`, and
+  both are not JSON. A template is a kind of its own and needs no flag. That
+  is the second of the two mechanisms 2460 offered, "recording which
+  sub-language each matched token stayed within", used on the *token* rather
+  than on the grammar, where the first mechanism already holds: the JS string
+  rule cannot be two LL(1) branches by dialect, since both begin with `"`,
+  and the two fields on the token are what the compiler's fold reads. The
+  fold accepts a string when `jsonEscapes` holds, of either quote, once 2460's
+  single quotes land, and only when it is also double-quoted before then.
 - [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
   JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
@@ -345,8 +350,9 @@ the source view rests on.
   gone.
 - [2460-js-string-literals](../../../../../spec/todo/2460-js-string-literals.md) —
   the same spellings, as a language feature. Its lexical surface is what this
-  issue recognises; its question, whether FunctionalScript *accepts* those
-  spellings, stays deferred and untouched.
+  issue recognises; whether FunctionalScript *accepts* those spellings is its
+  question, answered for single quotes (approved, with JSON's escapes plus the
+  literal's own quote) and deferred for the rest.
 - [3440-template-literals](../../../../../spec/todo/3440-template-literals.md) —
   substitution typing, tagged templates and canonical form, none of which this
   issue settles.

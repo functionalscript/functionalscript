@@ -50,7 +50,7 @@
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 
-import { msb, length, u8List } from '../../types/bit_vec/module.f.mjs'
+import { msb, length, u8List, bytesIn, isWholeBytesIn } from '../../types/bit_vec/module.f.mjs'
 import { iterable } from '../../types/list/module.f.mjs'
 import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
@@ -234,10 +234,10 @@ export const push = s => chunk => {
  * @type {(s: DetectState) => DetectMeta}
  */
 export const finish = s => {
-    const byteLength = s.length >> 3n
+    const byteLength = bytesIn(s.length)
     const mime = magicMime(s.magic)
     if (mime !== null) { return { length: byteLength, mime_type: mime, type: 'base64' } }
-    if (utf8Text(s.utf8) && (s.length & 0b111n) === 0n) {
+    if (utf8Text(s.utf8) && isWholeBytesIn(s.length)) {
         return { length: byteLength, mime_type: 'text/plain', type: 'text' }
     }
     return { length: byteLength, mime_type: 'application/octet-stream', type: 'base64' }
