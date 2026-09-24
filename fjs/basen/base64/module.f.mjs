@@ -61,15 +61,9 @@ export const decode = input => {
     const lastChunk = stringToVec(body.slice(body.length - 1))
     if (lastChunk === null) { return null }
 
-    // No `head`/`realBits` overflow check is needed here: `head` is built
-    // from whole 6-bit chunks, so its length is always a multiple of 6, and
-    // the largest such length `stringToVec` can return without itself
-    // failing is `maxLength - (maxLength % 6)` = `maxLength - 4`. Adding
-    // `realBits` (at most 4, when `padChars` is 1) reaches `maxLength`
-    // exactly and never exceeds it.
     const [kept, pad] = popFront(realBits)(lastChunk)
     // Padding bits must be zero (RFC 4648 §3.5).
     if (pad !== vec(removeBits)(0n)) { return null }
 
-    return msb.concat(head)(vec(realBits)(kept))
+    return msb.tryConcat(head)(vec(realBits)(kept))
 }

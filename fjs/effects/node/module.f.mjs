@@ -109,6 +109,44 @@ export const emptyHostError = ioError({
 })
 
 /**
+ * The largest port a number names: ports are 16 bits wide.
+ *
+ * @type {number}
+ */
+export const maxPort = 0xffff
+
+/**
+ * Whether `port` is one a host would accept: an integer in `0`–{@link maxPort},
+ * where `0` asks for an ephemeral one. Node throws {@link badPortCode} for
+ * anything else, and a runner that accepted `-1` or `NaN` would let a program
+ * be proven that cannot run.
+ *
+ * @type {(port: number) => boolean}
+ */
+export const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
+
+/**
+ * Node's code for a port {@link isPort} refuses.
+ *
+ * Unlike {@link emptyHostCode}, this refusal is Node's own: the Node runner
+ * forwards the port and Node throws it, so only a runner without a socket
+ * has to restate it.
+ *
+ * @type {string}
+ */
+export const badPortCode = 'ERR_SOCKET_BAD_PORT'
+
+/**
+ * Node's message for {@link badPortCode}, byte-for-byte, type included: a runner
+ * that claims to report failures in the shape the host reports them makes a
+ * claim that is not true with a message that is nearly right.
+ *
+ * @type {(port: number) => string}
+ */
+export const badPortMessage = port =>
+    `options.port should be >= 0 and < 65536. Received type number (${port}).`
+
+/**
  * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
  *
  * Node's filesystem rejections are `Error`s carrying `code: 'ENOENT'`, which

@@ -156,8 +156,6 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
   reviewed.
 - [allreduce-combinator](./allreduce-combinator.md) — the parallel sibling;
   it is specified over `List<T>` and will want the same treatment.
-- [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — already
-  blocked by `fold-stream-combinator`, so transitively affected.
 - `fjs/effects/module.f.mjs` — `foldStep`'s JSDoc carries the step-variant /
   `do`-notation rationale that fixes the argument order; the header carries the
   one-argument-per-line rule it refers to.

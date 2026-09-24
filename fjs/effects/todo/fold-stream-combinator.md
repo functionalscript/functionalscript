@@ -123,6 +123,3 @@ consumers first; the writers follow only if the shape stays clean.
   parallel effects.
 - `step` (`fjs/effects/module.f.mjs`) — the short-circuit shape; this
   combinator's per-chunk step is a Kleisli function of the same shape.
-- [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — hoists
-  `fileCas.write`'s remaining nested helpers; its loop conversion depends on
-  this issue.

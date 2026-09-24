@@ -1,5 +1,6 @@
 /**
- * Types for UTF-16 code units and Unicode code points.
+ * Types for UTF-16 code units. The code point they encode is `CodePoint` from
+ * `../code_point/types.ts`.
  *
  * @module
  */
@@ -8,15 +9,3 @@
  * Represent an unsigned UTF16, used to store one word UTF-16 (code unit).
  */
 export type U16 = number
-
-/**
- * [0, 0x10_FFFF]: 16+5 = 21 bits
- *
- * 121_0000_0000: 16+16+9 = 41 bits
- */
-
-/**
- * Represent an Unicode code point.
- * Has range: from 0x0000 to 0x10_FFFF (21 bits).
- */
-export type CodePoint = number
