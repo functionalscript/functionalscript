@@ -37,8 +37,8 @@ import { codePointListToString } from '../utf16/module.f.mjs'
  * | 3-byte lead | `1110_xxxx`  | `lead3Tag`| `lead3Mask`  |
  * | 4-byte lead | `1111_0xxx`  | `lead4Tag`| `lead4Mask`  |
  */
-const asciiTag = 0b0000_0000
-const asciiMask = 0b0111_1111
+const asciiTag = /** @type {const} */ 0b0000_0000
+const asciiMask = /** @type {const} */ 0b0111_1111
 const contTag = 0b1000_0000
 const contMask = 0b0011_1111
 const lead2Tag = 0b1100_0000
@@ -54,7 +54,7 @@ const lead4Mask = 0b0000_0111
  * {@link seq} and {@link payload} are the only places that layout is spelled
  * out.
  */
-const contBits = 6
+const contBits = /** @type {const} */ 6
 
 /**
  * Error-tag flags. A malformed sequence decodes to one `errorMask`-tagged code
@@ -126,10 +126,24 @@ const contPayload = b => b & contMask
  *
  * @type {(tag: number, mask: number, k: number) => (value: number) => readonly U8[]}
  */
-const seq = (tag, mask, k) => value =>
-    k === 0
-        ? [value & mask | tag]
-        : [...seq(tag, mask, k - 1)(value >> contBits), contByte(value)]
+const seq = (tag, mask, k) => {
+    if (k === 0) { return value => [value & mask | tag] }
+    const lead = seq(tag, mask, k - 1)
+    return value => [...lead(value >> contBits), contByte(value)]
+}
+
+/**
+ * The sequences the encoder emits: one per valid length, then one per partial
+ * sequence it re-emits from an error-tagged code point (the rows of the
+ * error-tag table above, named after their flags).
+ */
+const seq1 = seq(asciiTag, asciiMask, 0)
+const seq2 = seq(lead2Tag, lead2Mask, 1)
+const seq3 = seq(lead3Tag, lead3Mask, 2)
+const seq4 = seq(lead4Tag, lead4Mask, 3)
+const seqLead4Cont2 = seq(lead4Tag, lead4Mask, 2)
+const seqLead3Cont = seq(lead3Tag, lead3Mask, 1)
+const seqLead4Cont = seq(lead4Tag, lead4Mask, 1)
 
 /**
  * Decodes the payload of a lead byte, selected by `mask`, followed by its
@@ -139,6 +153,13 @@ const seq = (tag, mask, k) => value =>
  */
 const payload = mask => ([lead, ...conts]) =>
     conts.reduce((acc, b) => (acc << contBits) + contPayload(b), lead & mask)
+
+/**
+ * The payloads the decoder reads, one per lead-byte kind.
+ */
+const lead2Payload = payload(lead2Mask)
+const lead3Payload = payload(lead3Mask)
+const lead4Payload = payload(lead4Mask)
 
 /**
  * The valid lead-byte range for 2-, 3-, and 4-byte sequences (RFC 3629);
@@ -173,26 +194,26 @@ const restart = prefix =>
  */
 const codePointToUtf8 = input => {
     if (input >= 0x0000 && input <= 0x007f) {
-        return seq(asciiTag, asciiMask, 0)(input)
+        return seq1(input)
     }
     if (input >= 0x0080 && input <= 0x07ff) {
-        return seq(lead2Tag, lead2Mask, 1)(input)
+        return seq2(input)
     }
     if (input >= 0x0800 && input <= bmpMax) {
-        return seq(lead3Tag, lead3Mask, 2)(input)
+        return seq3(input)
     }
     if (isSupplementaryPlane(input)) {
-        return seq(lead4Tag, lead4Mask, 3)(input)
+        return seq4(input)
     }
     if ((input & errorMask) !== 0) {
         if ((input & errorLead4Cont2Flag) !== 0) {
-            return seq(lead4Tag, lead4Mask, 2)(input)
+            return seqLead4Cont2(input)
         }
         if ((input & errorLead3ContFlag) !== 0) {
-            return seq(lead3Tag, lead3Mask, 1)(input)
+            return seqLead3Cont(input)
         }
         if ((input & errorLead4ContFlag) !== 0) {
-            return seq(lead4Tag, lead4Mask, 1)(input)
+            return seqLead4Cont(input)
         }
         if ((input & errorByteFlag) !== 0) return [input & 0b1111_1111]
     }
@@ -226,12 +247,12 @@ export const utf8StateToError = state => {
         }
         case 2: {
             x = state[0] < lead4Tag
-                ? payload(lead3Mask)(state) + errorLead3ContFlag
-                : payload(lead4Mask)(state) + errorLead4ContFlag
+                ? lead3Payload(state) + errorLead3ContFlag
+                : lead4Payload(state) + errorLead4ContFlag
             break
         }
         case 3: {
-            x = payload(lead4Mask)(state) + errorLead4Cont2Flag
+            x = lead4Payload(state) + errorLead4Cont2Flag
             break
         }
         //default:
@@ -267,7 +288,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
             case 1: {
                 const [s0] = state
                 if (s0 < lead3Tag) {
-                    return [[payload(lead2Mask)([s0, byte])], null]
+                    return [[lead2Payload([s0, byte])], null]
                 }
                 if (s0 < 0b1111_1000) {
                     // Reject overlong 3-/4-byte encodings: after lead `E0` the
@@ -282,13 +303,13 @@ export const utf8ByteToCodePointOp = (byte, state) => {
             case 2: {
                 const [s0, s1] = state
                 if (s0 < lead4Tag) {
-                    return [[payload(lead3Mask)([s0, s1, byte])], null]
+                    return [[lead3Payload([s0, s1, byte])], null]
                 }
                 if (s0 < 0b1111_1000) return [[], [s0, s1, byte]]
                 break
             }
             case 3: {
-                return [[payload(lead4Mask)([...state, byte])], null]
+                return [[lead4Payload([...state, byte])], null]
             }
         }
     }
