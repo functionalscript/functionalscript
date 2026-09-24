@@ -27,10 +27,9 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray, tryFold } from '../../types/list/module.f.mjs'
 import { rangeEncode, remove, union } from '../module.f.mjs'
-import { toData } from '../data/module.f.mjs'
+import { codePoints, toData } from '../data/module.f.mjs'
 import { parser } from '../ll1/module.f.mjs'
 
 const { isInteger } = Number
@@ -102,13 +101,6 @@ export const symbols = input => byteArray(input).map(symbol)
 export const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
 
 /**
- * The code points of `s`, in order.
- *
- * @type {(s: string) => readonly number[]}
- */
-const codePoints = s => toArray(stringToCodePointList(s))
-
-/**
  * Whether code point `c` is ASCII: below `0x80`, where a code point and its
  * byte coincide.
  *
@@ -121,7 +113,8 @@ const isAsciiCodePoint = c => c < 0x80
  * keyword as a string — `'commit'`, a header's key — and needs it as bytes.
  *
  * @throws If `s` is not ASCII: above `0x7F` a code point and its bytes
- * part ways, and no text spells such a byte here.
+ * part ways, and no text spells such a byte here. A lone surrogate is no
+ * code point at all.
  *
  * @type {(s: string) => readonly number[]}
  */

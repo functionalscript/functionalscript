@@ -129,6 +129,8 @@ export const proof = {
         throw: {
             latin1: () => asciiBytes('é'),
             astral: () => asciiBytes('😀'),
+            // A lone surrogate is no code point, not a byte below `0x80`.
+            loneSurrogate: () => asciiBytes('\uD800'),
         },
     },
     // A count that walks once and holds nothing, `null` at the first item
