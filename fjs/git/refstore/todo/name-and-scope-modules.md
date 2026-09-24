@@ -9,7 +9,7 @@
 holds three jobs that never touch each other's state:
 
 - **The byte-name ↔ host-path codec**: `nameBytes`, `nameText`, `nameKey`,
-  `sameName`, `nameForMessage`, `askable`, `isUnderRefs`, `headName` and
+  `nameForMessage`, `askable`, `isUnderRefs`, `headName` and
   the module-scope `toBytes`/`toVec`. None runs an effect; together they
   are the rule the module doc spends four paragraphs on ("a ref name is
   bytes and a path is text, joined by UTF-8 in both directions").
@@ -52,5 +52,5 @@ whole store.
 
 - [byte-ref-names.md](./byte-ref-names.md) — the codec's rewrite, easier
   against a module of its own.
-- [`../../todo/byte-list-equality.md`](../../todo/byte-list-equality.md) —
-  `sameName` goes to the shared owner rather than moving.
+- [`fjs/git/refname`](../../refname/module.f.mjs)'s `sameBytes` — the
+  comparison of two names, already shared rather than part of the codec.
