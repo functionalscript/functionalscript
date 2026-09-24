@@ -80,13 +80,16 @@ const idStart = /**@type {const}*/({
 
 const idChar = /**@type {const}*/({ ...idStart, digit })
 
+/** JSON's escape: the backslash, then a simple escape's character or `u`. */
+const [backslash, { c: simple, u: unicode }] = escape
+
 /**
  * An escape inside a single-quoted string: JSON's, whose simple escapes
  * gain `\'` — the one character the delimiter makes necessary to escape,
  * as `\"` is inside `"…"`. The rest of JavaScript's escapes are not
  * FunctionalScript's (`spec/todo/2460-js-string-literals.md`).
  */
-const singleQuoteEscape = /**@type {const}*/([escape[0], { ...escape[1], c: union(escape[1].c, set("'")) }])
+const singleQuoteEscape = /**@type {const}*/([backslash, { c: union(simple, set("'")), u: unicode }])
 
 /**
  * A string between single quotes: JSON's string with the delimiters
