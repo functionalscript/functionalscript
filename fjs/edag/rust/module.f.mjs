@@ -871,7 +871,7 @@ const isSmallestLambda = (count, frame, body) =>
  * `true` for a count `static_function`'s `u32` holds: an integer from `0`
  * to `0xffffffff`, `-0` excluded since `u32` cannot keep it apart from `0`.
  *
- * @type {(count: unknown) => count is number}
+ * @type {(count: unknown) => boolean}
  */
 const isU32 = count =>
     typeof count === 'number' && Number.isInteger(count) && count >= 0 && count <= 0xffffffff && !Object.is(count, -0)
