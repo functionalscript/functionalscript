@@ -4,6 +4,18 @@
 **Status:** open — a language feature, waiting on the designer's approval
 ([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
 
+## Alternative scope
+
+The [named-and-rest parameter plan](./3120-parameters.md) now proposes
+`['arg', N]`, `['rest']` and pre-generated arrow factories. For that contract,
+padding missing fixed arguments is unobservable, so the pattern below is
+**not a prerequisite for named parameters or their arity**. This document
+remains an alternative for construction with arbitrary `length` values and
+the complete original argument list. Its expression-valued count and
+full-`['args']` model must not be mixed silently with the parameter plan's
+integer metadata and fixed/rest bindings. Neither proposal is implemented by
+this documentation change.
+
 ## Problem
 
 A function compiled from `(a, b) => a` must have `length === 2`. The
@@ -87,7 +99,7 @@ the function-text decisions.
 
 - [Parameters](./3120-parameters.md),
   [arity and complete arguments](./arity-complete-arguments.md) — the
-  syntax and the writer boundary.
+  fixed/rest plan and the stronger alternative complete-list requirement.
 - [Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md),
   [built-in](./2360-built-in.md) — how a pattern is recognized; `defineProperty`
   stays prohibited outside it.
