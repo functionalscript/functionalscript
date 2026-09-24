@@ -1,8 +1,13 @@
 # Function length pattern
 
 **Priority:** P2
-**Status:** open — implementation pending. The earlier pattern approval is
-recorded in merged [PR #2213](https://github.com/functionalscript/functionalscript/pull/2213);
+**Status:** open — implementation pending.
+
+**Approval source:** [PR #2213's current GitHub description](https://github.com/functionalscript/functionalscript/pull/2213)
+reports approval of the earlier pattern by the language designer. In contrast,
+[the file committed by #2213](https://github.com/functionalscript/functionalscript/blob/161e003ffea2d05c8d3b0d3b71939371764853d6/spec/todo/3130-function-length-pattern.md)
+still says approval is pending. The approval attribution here is specifically
+to the PR description, not the merged document or merge commit.
 [PR #2220](https://github.com/functionalscript/functionalscript/pull/2220) proposes
 a fixed/rest replacement for named-parameter arity. Approval of that replacement
 is separate ([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
@@ -23,10 +28,10 @@ this documentation change.
 
 **The target proposed by #2220 is fixed/rest, not complete invocation arguments.**
 It proposes replacing the earlier pattern-based route for named-parameter arity,
-not adding a second meaning to the same function-node shape. The merged #2213
-records the earlier pattern's approval and contains no surviving implementation;
-that approval must not be rewritten as never having existed, nor treated as
-approval of the different fixed/rest contract.
+not adding a second meaning to the same function-node shape. PR #2213 merged
+the proposal without a surviving implementation. Its GitHub description reports
+the earlier approval, as cited above; this does not assert that its merged file
+or merge commit records approval, nor approve the different fixed/rest contract.
 
 The parallel implementation heads reviewed on September 24, 2026 are not
 implementations of this replacement:
@@ -126,8 +131,9 @@ the function-text decisions.
 
 ## Tasks
 
-- [x] Record the earlier pattern approval documented in merged
-  [#2213](https://github.com/functionalscript/functionalscript/pull/2213).
+- [x] Attribute the earlier approval report to
+  [PR #2213's GitHub description](https://github.com/functionalscript/functionalscript/pull/2213),
+  distinguishing it from the pending status in the committed file.
 - [ ] Record the designer's replacement/rollout decision and reconcile #2216
   and #2217 as described above before merging conflicting contracts.
 - [ ] Compiler: recognize the complete pattern; refuse every variation.
