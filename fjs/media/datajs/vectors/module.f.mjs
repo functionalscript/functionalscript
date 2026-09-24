@@ -56,8 +56,9 @@ const hexDigit = hex => i => lowerHexDigitValue(hex.charCodeAt(i))
  */
 const isHex = hex => {
     if (hex.length % 3 !== 2) { return false }
+    const digit = hexDigit(hex)
     for (let i = 0; i < hex.length; i += 3) {
-        if (hexDigit(hex)(i) === null || hexDigit(hex)(i + 1) === null) { return false }
+        if (digit(i) === null || digit(i + 1) === null) { return false }
         if (i + 2 < hex.length && hex.charCodeAt(i + 2) !== 0x20) { return false }
     }
     return true
@@ -73,9 +74,8 @@ const isHex = hex => {
  */
 export const bytes = hex => {
     if (!isHex(hex)) { return null }
-    /** @type {(i: number) => number} */
-    const digit = i => assertNotNullish(hexDigit(hex)(i))
-    return Array.from({ length: (hex.length + 1) / 3 }, (_, i) => digit(i * 3) * 16 + digit(i * 3 + 1))
+    const digit = hexDigit(hex)
+    return Array.from({ length: (hex.length + 1) / 3 }, (_, i) => assertNotNullish(digit(i * 3)) * 16 + assertNotNullish(digit(i * 3 + 1)))
 }
 
 // typed over the model's own arrays, which are read-only, so that the

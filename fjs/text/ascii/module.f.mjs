@@ -13,6 +13,8 @@
 
 import { contains } from '../../types/range/module.f.mjs'
 
+const { isInteger } = Number
+
 /** @type {(s: string) => (i: number) => number} */
 const at = s => i => {
     const r = s.codePointAt(i)
@@ -303,7 +305,7 @@ export const hexDigitValue = codePoint =>
  * @type {(codePoint: number) => Nullable<number>}
  */
 export const lowerHexDigitValue = codePoint =>
-    !Number.isInteger(codePoint) ? null
+    !isInteger(codePoint) ? null
         : isDigit(codePoint) ? codePoint - digit0
             : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
                 : null
