@@ -4,8 +4,10 @@ The shared code-point classification predicates (`isBmpCodePoint`,
 `isValidCodePoint`, `isTextCodePoint`, …) live in `code_point` — see
 [`code_point/README.md`](./code_point/README.md). So does the `CodePoint` type
 both codecs decode to and encode from,
-[`code_point/types.ts`](./code_point/types.ts): a valid code point or an
-`errorMask`-tagged error value laid out by the error tables below.
+[`code_point/types.ts`](./code_point/types.ts): a scalar value, an untagged
+surrogate or above-`0x10FFFF` value the UTF-8 decoder passes through unchecked
+(gate on `isValidCodePoint` for a scalar), or an `errorMask`-tagged error value
+laid out by the error tables below.
 
 ## UTF-8
 
