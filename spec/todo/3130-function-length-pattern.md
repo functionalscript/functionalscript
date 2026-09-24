@@ -51,8 +51,8 @@ not this proposal's work.
 **No restrictions on `length` or `f`.** `withLength` is a value: once it
 exists, any program can call it with anything, so the pattern restricts
 neither argument, and a count is whatever JavaScript accepts as a `length`.
-An executor that cannot represent one refuses it as its own limit, as the
-Rust printer does today past `u32`.
+An executor that cannot represent one refuses it as its own limit, as
+#2200's Rust printer does past `u32`.
 
 **Executors.** The `=>` operation becomes
 `withLength(args => invoke(frame, args, body), count)`. A JavaScript
