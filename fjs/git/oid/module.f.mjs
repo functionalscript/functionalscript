@@ -22,7 +22,7 @@ import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { isWholeBytesIn, length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { next, toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
 
@@ -161,7 +161,7 @@ export const digestOf = oidBytes => {
  */
 export const toHex = oid => {
     const bits = length(oid)
-    assert(bits !== 0n && bits % 8n === 0n, ['not whole bytes', oid])
+    assert(bits !== 0n && isWholeBytesIn(bits), ['not whole bytes', oid])
     return toArray(toBytes(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
 }
 
