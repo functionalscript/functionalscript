@@ -81,9 +81,11 @@ export const matchRule = v => rule => {
  * Whether the rule named `item` is nullable in `map` — an own entry only: a
  * rule may be named `constructor`, and `{}` inherits one.
  *
+ * Exported for `../ll1`, which reads the same map.
+ *
  * @type {(map: EmptyTagMap) => (item: string) => boolean}
  */
-const nullable = map => item => at(item)(map) !== null
+export const _nullable = map => item => at(item)(map) !== null
 
 /**
  * The nullability of one rule, given that of the rules it names.
@@ -105,7 +107,7 @@ const emptyTagVisitor = nullable => ({
 })
 
 /** @type {(map: EmptyTagMap) => (rule: Rule) => EmptyTag} */
-const emptyTagOf = map => matchRule(emptyTagVisitor(nullable(map)))
+const emptyTagOf = map => matchRule(emptyTagVisitor(_nullable(map)))
 
 /** @type {(ruleSet: RuleSet) => (map: EmptyTagMap) => EmptyTagMap} */
 const emptyTagStep = ruleSet => map => {
@@ -114,22 +116,38 @@ const emptyTagStep = ruleSet => map => {
 }
 
 /**
- * Relaxes `map` one round at a time until a round changes no rule.
+ * Relaxes `start` one round at a time until a round's result is `same` as
+ * what it was given.
  *
  * A loop rather than a recursion: a chain of rules each naming the next
- * advances one nullable fact per round, so the rounds are as many as the
- * rules, and a recursion that deep is a stack overflow on a few thousand.
+ * advances one fact per round, so the rounds are as many as the rules, and a
+ * recursion that deep is a stack overflow on a few thousand.
  *
- * @type {(step: (map: EmptyTagMap) => EmptyTagMap, names: readonly string[]) => (map: EmptyTagMap) => EmptyTagMap}
+ * `same` is the caller's, because only the caller knows its values: an
+ * `EmptyTag` is a primitive and `===` decides it, but a round that rebuilds
+ * an array rebuilds it even when its contents stop changing, and `===` would
+ * never see that round as the last.
+ *
+ * Exported for `../ll1`, whose follow sets are such arrays.
+ *
+ * @type {<T>(step: (value: T) => T, same: (a: T, b: T) => boolean) => (start: T) => T}
  */
-const fixpoint = (step, names) => map => {
-    let current = map
+export const _fixpoint = (step, same) => start => {
+    let current = start
     while (true) {
         const next = step(current)
-        if (names.every(name => at(name)(next) === at(name)(current))) { return next }
+        if (same(next, current)) { return next }
         current = next
     }
 }
+
+/**
+ * Whether two maps agree on every rule named — each read as an own entry,
+ * and compared by `===`, which an `EmptyTag` is decided by.
+ *
+ * @type {(names: readonly string[]) => (a: EmptyTagMap, b: EmptyTagMap) => boolean}
+ */
+const sameTags = names => (a, b) => names.every(name => at(name)(a) === at(name)(b))
 
 /**
  * Computes, for every rule in the set, whether it can match empty input, by
@@ -144,7 +162,7 @@ const fixpoint = (step, names) => map => {
  *
  * @type {(ruleSet: RuleSet) => EmptyTagMap}
  */
-export const emptyTagMap = ruleSet => fixpoint(emptyTagStep(ruleSet), keys(ruleSet))({})
+export const emptyTagMap = ruleSet => _fixpoint(emptyTagStep(ruleSet), sameTags(keys(ruleSet)))({})
 
 /** EOF, the one set with a negative boundary. */
 const eofSet = /** @type {const} */ ([-1, 0])
@@ -212,7 +230,7 @@ const validateVisitor = (name, ref, nullable) => ({
 
 /** @type {(ruleSet: RuleSet, empty: EmptyTagMap) => (name: string) => (rule: Rule) => void} */
 const validateRule = (ruleSet, empty) => name =>
-    matchRule(validateVisitor(name, defined(ruleSet)(name), nullable(empty)))
+    matchRule(validateVisitor(name, defined(ruleSet)(name), _nullable(empty)))
 
 /**
  * Refuses a rule set that is not a grammar, naming the rule: a reference to a
