@@ -92,8 +92,9 @@ module they live in.
   body produces exactly what the subset-legal `arrayRebuild` beside it
   produces. Confirmed empirically, and the edit under either ruling is
   [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md)'s
-  to choose: `arrayRebuild` alone would reindex a sparse input, so it is
-  not by itself the refused-exception edit.
+  to choose, including what a sparse input means: `arrayRebuild` alone
+  reindexes one, and whether that is a wrong answer or undefined behaviour
+  is settled there.
 - **Guards that become unreachable.** The container and rest length checks
   across `fjs/rtti/parse`, `fjs/rtti/validate` and `fjs/rtti/data` are
   consulted only when no undeclared member was found, which for a dense array
@@ -147,11 +148,9 @@ module they live in.
       [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md),
       which records the bug, what is known about it, and the directions a
       fix could take without choosing one. That issue decides the edit under
-      either ruling. One thing it has already established binds every
-      choice: `arrayRebuild` alone reindexes a sparse input past its hole,
-      `[, 3]` becoming `[3]`, so a refused exception is not by itself the
-      substitution; a sparse input keeps its meaning or is refused, never
-      shifted. If the exception was granted, the edit is the one the issue
+      either ruling, including what a sparse input means, since
+      `arrayRebuild` alone reindexes one, `[, 3]` becoming `[3]`. If the
+      exception was granted, the edit is the one the issue
       lists first: cite the new spec paragraph in the JSDoc instead of
       arguing local freshness, and note in
       [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
