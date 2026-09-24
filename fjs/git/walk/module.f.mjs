@@ -39,10 +39,9 @@ import { assert } from '../../asserts/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { strictEqual } from '../../types/function/operator/module.f.mjs'
-import { equal } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { tryTreeAt } from '../commit/module.f.mjs'
+import { sameBytes } from '../refname/module.f.mjs'
 import { tryTargetAt } from '../tag/module.f.mjs'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
 
@@ -59,17 +58,6 @@ import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
  */
 const treeAt = (read, entriesOf) => id => mapStep(read(id), e =>
     e === null || e.type !== 'tree' ? null : entriesOf(e.payload))
-
-/**
- * Whether two names are the same bytes: `fjs/types/list`'s `equal` over
- * `strictEqual`, which is byte-for-byte equality and nothing more. A name
- * is bytes the file system gave, compared as they are — no case folding, no
- * normalisation, since Git compares them so and two names differing by
- * either are two entries.
- *
- * @type {(a: readonly number[]) => (b: readonly number[]) => boolean}
- */
-const same = equal(strictEqual)
 
 /** The peel before it has read anything, and what a refused one answers. */
 const noTarget = /** @type {_PeelState} */ ({ seen: empty, target: null })
@@ -217,7 +205,7 @@ export const tryEntries = (read, oidBytes) => {
  * @type {(entries: readonly TreeEntry[], want: readonly number[]) => Nullable<TreeEntry>}
  */
 const only = (entries, want) => {
-    const found = entries.filter(e => same(byteArray(e.name))(want))
+    const found = entries.filter(e => sameBytes(byteArray(e.name))(want))
     return found.length === 1 ? found[0] : null
 }
 

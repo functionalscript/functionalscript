@@ -320,6 +320,11 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(toRust(['[]', [['args']]])[0], 'error')
             assertEq(toRust(['=>', null, ['args']])[0], 'ok')
         },
+        /** `frame` too: a module has none, a function body has its own. */
+        refusedFrameInModuleScope: () => {
+            assertEq(toRust(['frame'])[0], 'error')
+            assertEq(toRust(['=>', ['[]', [['[]', []]]], ['frame']])[0], 'ok')
+        },
         /**
          * A property read on a nullish base compiles: the `.rs` output is a
          * program, and the throw is the VM's when it runs, reported by the

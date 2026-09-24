@@ -27,29 +27,41 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a function's arguments, or a slot of its frame. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstArgs|AstFrameRef
 
 /**
- * A function with an ordered capture frame: `(...a) => { const x = …; return v; }`,
- * an {@link AstBody} as a module has one — its entries the body's `const`s
- * in order, the last the value it returns, and `['cref', i]` naming an
- * entry of *this* body. `(...a) => v` is the same function as
- * `(...a) => { return v; }`, so it is the one-entry body `[v]`.
+ * A function: `(...a) => { const x = …; return v; }`, an {@link AstBody}
+ * as a module has one — its entries the body's `const`s in order, the last
+ * the value it returns, and `['cref', i]` naming an entry of *this* body.
+ * `(...a) => v` is the same function as `(...a) => { return v; }`, so it is
+ * the one-entry body `[v]`.
  *
- * {@link AstArgs} is the arguments array; no `aref` stands here. An outer
- * binding is represented by an `fref` slot in the function body and by the
- * corresponding value in the frame. The EDAG's `['=>', frame, body]`, its
- * body a comma where an entry is unreached, as a module's is.
+ * {@link AstArgs} is the arguments array. A name the body reads from the
+ * scopes around it is a **capture**: the function's third element lists
+ * them, each once, in the order the body first names them, each the
+ * enclosing scope's own reference — a `cref` or `aref` of the module, a
+ * `cref` of an enclosing body, its `args`, or a slot of *its* frame, since
+ * a nested function captures through its parent — and the body names
+ * capture `i` as {@link AstFrameRef} `['fref', i]`. A function that
+ * captures nothing has no third element. The EDAG's `['=>', frame, body]`,
+ * its frame the array of the captured values less the primitives — `lower`
+ * writes a primitive into the body — and its body a comma where an entry is
+ * unreached, as a module's is.
  *
  * An `aref` is typed as any index all the same, as a `cref` is: the parser
  * never writes a module reference into a body, and one written by hand is
  * not rejected — `lower` gives it no node, as it gives none to a `cref`
  * past the entry holding it.
  */
-export type AstFunction =
-    | readonly ['=>', AstBody]
-    | readonly ['=>', readonly AstConst[], AstBody]
+export type AstFunction = readonly ['=>', AstBody] | readonly ['=>', AstBody, readonly AstConst[]]
+
+/**
+ * Slot `i` of the frame of the function whose body holds it: the value its
+ * capture `i` names in the scope around the function. The EDAG's
+ * `['.', ['frame'], i]`.
+ */
+export type AstFrameRef = readonly ['fref', number]
 
 /** The arguments array of the function whose body holds it — the rest parameter, whatever it is named. The EDAG's `['args']`. */
 export type AstArgs = readonly ['args']
@@ -71,7 +83,7 @@ export type AstArgs = readonly ['args']
  * later entry is unsatisfiable. It is not rejected: it resolves to the most
  * recently evaluated entry instead.
  */
-export type AstModuleRef = readonly ['aref' | 'cref' | 'fref', number]
+export type AstModuleRef = readonly ['aref' | 'cref', number]
 
 /** An array value; its elements are evaluated in order. */
 export type AstArray = readonly ['array', readonly AstConst[]]

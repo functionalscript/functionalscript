@@ -21,8 +21,8 @@ pub mod boolean;
 pub mod call;
 #[path = "../fixtures/calls.rs"]
 pub mod calls;
-#[path = "../fixtures/capture.rs"]
-pub mod capture;
+#[path = "../fixtures/closure.rs"]
+pub mod closure;
 #[path = "../fixtures/escapes.rs"]
 pub mod escapes;
 #[path = "../fixtures/function-scope.rs"]
@@ -143,8 +143,8 @@ mod tests {
     };
 
     use crate::{
-        RunError, arity, array, at, boolean, call, calls, capture, escapes, function_scope, lazy, length,
-        method, missing, named, nested, not_a_function, nullish, number, object, operators,
+        RunError, arity, array, at, boolean, call, calls, closure, escapes, function_scope, lazy,
+        length, method, missing, named, nested, not_a_function, nullish, number, object, operators,
         property, rest, run, sharing, string, throws, to_string,
     };
 
@@ -227,13 +227,24 @@ mod tests {
         assert_eq!(run::<Naive>(rest::module), Ok("[1,2,3]".into()));
         assert_eq!(run::<Naive>(calls::module), Ok("[1,2]".into()));
         assert_eq!(run::<Naive>(nested::module), Ok("[2,3]".into()));
-        assert_eq!(run::<Naive>(capture::module), Ok("42".into()));
         assert_eq!(run::<Naive>(length::module), Ok("0".into()));
         // spec/README.md's sharing example: `pair` is bound once inside the
         // function's own scope, where `a` is, and cloned at each reference.
         assert_eq!(
             run::<Naive>(function_scope::module),
             Ok("[[1,1],[1,1]]".into())
+        );
+    }
+
+    /// Closures, end to end: a function's frame is the values its body
+    /// names from outside, built where the function is made and read
+    /// through `A::frame` — an enclosing function's arguments, a module
+    /// `const`, and a capture through a parent's own frame.
+    #[test]
+    fn closures() {
+        assert_eq!(
+            run::<Naive>(closure::module),
+            Ok("[3,15,[1,2,3,1],42]".into())
         );
     }
 

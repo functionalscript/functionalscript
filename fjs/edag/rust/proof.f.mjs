@@ -12,7 +12,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, scope, sharedNodesOf, statementsOf } from './module.f.mjs'
+import { braced, eagerNodesOf, expExpr, holdsFunction, nestsOperation, nodeExpr, readsArgs, readsFrame, scope, sharedNodesOf, statementsOf } from './module.f.mjs'
 
 /** @type {(e: Exp) => string} */
 const printed = e => unwrap(nodeExpr(e))
@@ -566,8 +566,8 @@ export const proof = {
         },
     },
     /**
-     * Functions: a `null`-frame `=>` node — the compiler's every function —
-     * is a closure bound through `IStaticFunction`, its body a scope of its
+     * Functions: a `=>` node — the corpus's `() => undefined` aside — is a
+     * closure bound through `IStaticFunction`, its body a scope of its
      * own; `['args']` is the closure's parameter as a value; a call is
      * `Any::call` over two values, an operation in either mode.
      */
@@ -629,19 +629,66 @@ export const proof = {
                     '}, 0, Array::default()).to_any())',
                 ])
         },
-        /** A capture frame is emitted as the closure's third argument. */
-        otherFrame: () => {
+        /**
+         * A frame is the third argument of `A::static_function`: its items
+         * values of the scope around the function, collected as the
+         * `Array<A>` it takes — an empty one `Array::default()`, as `null`
+         * is — and `['frame']` in the body is that array, read through
+         * `self_`, which the closure then names.
+         */
+        frame: () => {
             assertEq(
-                printed(['=>', ['[]', [1]], 1]),
-                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, [f64_any(0x3ff0000000000000).clone()].to_array()).to_any()')
+                printed(['=>', ['[]', [1]], ['.', ['frame'], 0]]),
+                'A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [f64_any(0x3ff0000000000000)].to_array()).to_any()')
+            assertEq(
+                printed(['=>', ['[]', []], 1]),
+                'A::static_function(|_self, _args| { Ok(f64_any(0x3ff0000000000000)) }, 0, Array::default()).to_any()')
+            // A frame's items are the scope's temporaries, moved where the
+            // frame is their only reference and cloned where it is not.
+            /** @type {Exp} */
+            const read = ['.', ['{}', []], 'a']
+            assertStructurallySame(
+                scoped(['[]', [['=>', ['[]', [read]], ['frame']], read]]),
+                [
+                    'let c0: Any<A> = Any::dot(Object::default().to_any(), string_any("a")).end()?;',
+                    'let c1: Any<A> = A::static_function(|self_, _args| { Ok(A::frame(self_).clone().to_any()) }, 0, [c0.clone()].to_array()).to_any();',
+                    'Ok([c1, c0.clone()].to_array().to_any())',
+                ])
         },
         /**
-         * A `null`-frame function anywhere — an item, a call's callee, a
-         * body inside another function — is held; the corpus's own lambda
-         * binds nothing, and a primitive holds nothing.
+         * A nested function captures through its parent: the inner frame
+         * is built in the outer body, from the outer frame's slot, and each
+         * body reads its own frame alone.
+         */
+        nestedFrame: () => {
+            assertEq(
+                printed(['=>', ['[]', [['[]', []]]], ['=>', ['[]', [['.', ['frame'], 0]]], ['.', ['frame'], 0]]]),
+                'A::static_function(|self_, _args| {\n'
+                + '    let c0: Any<A> = Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end()?;\n'
+                + '    Ok(A::static_function(|self_, _args| { Any::dot(A::frame(self_).clone().to_any(), f64_any(0x0000000000000000)).end() }, 0, [c0].to_array()).to_any())\n'
+                + '}, 0, [Array::default().to_any()].to_array()).to_any()')
+        },
+        /**
+         * A frame that is no array literal is an `Any<A>` known to be an
+         * array only when the module runs, and one reached from anywhere
+         * but its function would be built twice: both refused.
+         */
+        otherFrame: () => {
+            assertEq(refusalReason(['=>', ['undefined'], 1])[0], 'no Rust for a frame that is not an array literal')
+            assertEq(refusalReason(['=>', 1, 1])[0], 'no Rust for a frame that is not an array literal')
+            /** @type {Exp} */
+            const frame = ['[]', [1]]
+            assertEq(refusalReason(['[]', [['=>', frame, 1], frame]])[0], 'no Rust for a frame reached from anywhere but its function')
+        },
+        /**
+         * A function anywhere — an item, a call's callee, a body inside
+         * another function, one with a frame — is held; the corpus's own
+         * lambda binds nothing, and a primitive holds nothing.
          */
         holdsFunction: () => {
             assertEq(holdsFunction(['=>', null, 1]), true)
+            assertEq(holdsFunction(['=>', ['[]', [1]], 1]), true)
+            assertEq(holdsFunction(['=>', ['[]', []], ['args']]), true)
             assertEq(holdsFunction(['[]', [1, ['=>', null, 1]]]), true)
             assertEq(holdsFunction(['()', ['=>', null, ['args']], ['[]', []]]), true)
             assertEq(holdsFunction(['=>', ['[]', []], ['=>', null, 1]]), true)
@@ -661,6 +708,8 @@ export const proof = {
             const deep = chain(40, ['[]', []])
             assertEq(readsArgs(deep), false)
             assertEq(readsArgs(chain(40, ['args'])), true)
+            assertEq(readsFrame(deep), false)
+            assertEq(readsFrame(chain(40, ['frame'])), true)
             assertEq(holdsFunction(deep), false)
             assertEq(holdsFunction(chain(40, ['=>', null, 1])), true)
             assertEq(sharedNodesOf(deep).length, 40)
@@ -725,6 +774,8 @@ export const proof = {
         /** A string no Rust literal can hold, and a bigint no `i64` can. */
         loneSurrogate: () => printed('\ud800'),
         bigintOutOfRange: () => printed(-(2n ** 63n) - 1n),
+        /** A frame that is no array literal. */
+        lambdaFrameNotArray: () => printed(['=>', ['undefined'], ['undefined']]),
         /** An object key the printer cannot spell. */
         computedKey: () => printed(['{}', [[':', ['undefined'], 1]]]),
         /**

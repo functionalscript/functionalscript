@@ -48,19 +48,19 @@
  * @import { Rule } from '../../ebnf/types.ts'
  * @import { Primitive } from '../../media/datajs/types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstBody, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
+ * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { BinaryTag } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
+ * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _Ref, _Scope, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
-import { assert } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { keywords, literalWords } from '../../js/keywords/module.f.mjs'
 import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
@@ -785,6 +785,18 @@ const constNotFound = foldError('const not found')
 /** A name bound twice, at the second binding. */
 const duplicateId = foldError('duplicate id')
 
+/**
+ * A body `const` binding a name the body has already read from a scope
+ * around it, at the binding. JavaScript resolves every reference in the
+ * body to the body's own `const`, the ones before it included — a read
+ * before it is initialized throws, and a function written before it reads
+ * it once called — so the capture already taken would be a different
+ * value, and the program is refused instead. Not a rule of the language,
+ * which leaks nothing here, but a forward reference inside a body not yet
+ * supported: `./todo/body-const-forward-reference.md`.
+ */
+const captureShadowed = foldError('capture shadowed')
+
 /** A keyword where JavaScript wants an identifier, at the word. */
 const reservedWord = foldError('reserved word')
 
@@ -985,15 +997,15 @@ const close = ([kind, members], done) => {
  * The next item of a container, its key checked first, or the container
  * closed when none is left.
  *
- * @type {(stack: _Stack, env: _Env, frame: _ContainerFrame) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _ContainerFrame) => _State}
  */
-const round = (stack, env, frame) => {
+const round = (stack, scope, frame) => {
     const { container, index, done } = frame
-    if (index >= container[1].length) { return [stack, env, ok(close(container, toArray(done)))] }
+    if (index >= container[1].length) { return [stack, scope, ok(close(container, toArray(done)))] }
     const rejected = badKey(container, index)
     return rejected === null
-        ? [{ top: frame, rest: stack }, env, ['enter', itemAt(container, index)]]
-        : [stack, env, error(rejected)]
+        ? [{ top: frame, rest: stack }, scope, ['enter', itemAt(container, index)]]
+        : [stack, scope, error(rejected)]
 }
 
 /**
@@ -1021,15 +1033,15 @@ const callOperandAt = (call, index) => index === 0 ? call[1] : call[2][index - 1
  * The next operand of a call, or the call closed when none is left: the
  * first value is the callee and the rest its arguments.
  *
- * @type {(stack: _Stack, env: _Env, frame: _CallFrame) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _CallFrame) => _State}
  */
-const callRound = (stack, env, frame) => {
+const callRound = (stack, scope, frame) => {
     const { call, index } = frame
-    if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, env, ['enter', callOperandAt(call, index)]] }
+    if (index < callOperandCount(call)) { return [{ top: frame, rest: stack }, scope, ['enter', callOperandAt(call, index)]] }
     const [callee, ...args] = toArray(frame.done)
     /** @type {AstCall} */
     const closed = ['()', callee, args]
-    return [stack, env, ok(closed)]
+    return [stack, scope, ok(closed)]
 }
 
 /**
@@ -1046,64 +1058,84 @@ const conditionalOperandAt = ([, condition, then, otherwise], index) => [conditi
  * three, since a name is checked where it is written whether or not the
  * program ever establishes the arm, as JavaScript's early errors are.
  *
- * @type {(stack: _Stack, env: _Env, frame: _ConditionalFrame) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _ConditionalFrame) => _State}
  */
-const conditionalRound = (stack, env, frame) => {
+const conditionalRound = (stack, scope, frame) => {
     const { conditional, index } = frame
-    if (index < 3) { return [{ top: frame, rest: stack }, env, ['enter', conditionalOperandAt(conditional, index)]] }
+    if (index < 3) { return [{ top: frame, rest: stack }, scope, ['enter', conditionalOperandAt(conditional, index)]] }
     const [condition, then, otherwise] = toArray(frame.done)
     /** @type {AstConditional} */
     const closed = ['?:', condition, then, otherwise]
-    return [stack, env, ok(closed)]
+    return [stack, scope, ok(closed)]
+}
+
+/** Whether two references name one binding. @type {(a: _Ref, b: _Ref) => boolean} */
+const sameRef = (a, b) => a[0] === b[0] && a[1] === b[1]
+
+/**
+ * What `word` names in `scope`, and the scope chain with any capture it
+ * takes, or `null` where nothing binds it: a name the scope binds itself,
+ * and otherwise what the scope around it resolves the word to, which the
+ * body captures — one slot of its frame per binding, however many
+ * references reach it, numbered in the order the body first names them —
+ * and names as `['fref', i]`. A function nested in another captures
+ * through it: the word resolved in the middle body first, as a capture of
+ * its own there, and that slot captured in turn.
+ *
+ * A loop rather than a recursion, as {@link evaluate} is: out to the scope
+ * that binds the word, then back in, each body on the way rebuilt around
+ * the one outside it with its capture taken — so a capture however many
+ * functions deep costs no call stack.
+ *
+ * @type {(scope: _Scope, word: string) => readonly [_Scope, _Ref] | null}
+ */
+const resolve = (scope, word) => {
+    /** The bodies the word is read through, the one just inside the binding scope on top. @type {List<_Scope>} */
+    let through = null
+    let binder = scope
+    let ref = at(word)(binder.names)
+    while (ref === null) {
+        if (binder.outer === null) { return null }
+        through = { first: binder, tail: through }
+        binder = binder.outer
+        ref = at(word)(binder.names)
+    }
+    /** @type {readonly [_Scope, _Ref]} */
+    let result = [binder, ref]
+    for (const body of toArray(through)) {
+        result = captured(body, word, result)
+    }
+    return result
 }
 
 /**
- * The function frame nearest the reference that owns a name in its outer
- * environment. Its capture list is updated in first-use order.
+ * A body with the value the scope around it resolved `word` to captured,
+ * that scope rebuilt as its `outer`: the slot the body already has for the
+ * binding, or a new one after the rest.
  *
- * @type {(stack: _Stack, word: string) => readonly [_Stack, number] | null}
+ * @type {(body: _Scope, word: string, outer: readonly [_Scope, _Ref]) => readonly [_Scope, _Ref]}
  */
-const captureSlot = (stack, word) => {
-    if (stack === null) { return null }
-    if ('outer' in stack.top) {
-        const existing = stack.top.names.indexOf(word)
-        if (existing !== -1) { return [stack, existing] }
-        const outer = at(word)(stack.top.outer)
-        if (outer !== null) {
-            const index = stack.top.captures.length
-            const top = {
-                ...stack.top,
-                captures: [...stack.top.captures, outer],
-                names: [...stack.top.names, word],
-            }
-            return [{ top, rest: stack.rest }, index]
-        }
-        const parent = captureSlot(stack.rest, word)
-        if (parent !== null) {
-            const index = stack.top.captures.length
-            /** @type {AstModuleRef} */
-            const fref = ['fref', parent[1]]
-            const top = {
-                ...stack.top,
-                captures: [...stack.top.captures, fref],
-                names: [...stack.top.names, word],
-            }
-            return [{ top, rest: parent[0] }, index]
-        }
-    }
-    const found = captureSlot(stack.rest, word)
-    return found === null ? null : [{ top: stack.top, rest: found[0] }, found[1]]
+const captured = (body, word, [outer, ref]) => {
+    const i = body.captures.findIndex(c => sameRef(c, ref))
+    /** @type {AstFrameRef} */
+    const slot = ['fref', i === -1 ? body.captures.length : i]
+    return [{
+        ...body,
+        outer,
+        captures: i === -1 ? [...body.captures, ref] : body.captures,
+        read: body.read.includes(word) ? body.read : [...body.read, word],
+    }, slot]
 }
 
 /**
  * The names a function's body begins with: its parameter bound to the
- * arguments array, and nothing else — the body is resolved against its own
- * names alone, so a reference to a name bound outside is a capture.
+ * arguments array, and nothing else of its own — a name bound outside is
+ * a capture, {@link resolve}.
  *
  * An empty parameter list binds nothing, so a body under it starts from no
- * names at all: the arguments are unreachable, having no name, and every
- * other word is `const not found` or a capture exactly as it is under a
- * parameter that does not spell it. That is the whole of what an empty
+ * names of its own: the arguments are unreachable, having no name, and
+ * every other word is a capture or `const not found` exactly as it is
+ * under a parameter that does not spell it. That is the whole of what an empty
  * list costs: the function the fold returns carries no parameter either
  * way, so nothing downstream can tell the two lists apart.
  *
@@ -1121,134 +1153,136 @@ const functionScope = name => {
  * statement wrong in both halves answers for the half a reader meets first
  * — or the expression of the explicit final `return`.
  *
- * @type {(stack: _Stack, env: _Env, frame: _BodyFrame) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _BodyFrame) => _State}
  */
-const bodyRound = (stack, env, frame) => {
+const bodyRound = (stack, scope, frame) => {
     const { statements, index } = frame
     const [kind, statement] = statements[index]
-    if (kind === 'return') { return [{ top: frame, rest: stack }, env, ['enter', statement]] }
-    const [tag, word] = bindable(env)(statement.name)
-    return tag === 'error'
-        ? [stack, env, error(word)]
-        : [{ top: { ...frame, word }, rest: stack }, env, ['enter', statement.value]]
+    if (kind === 'return') { return [{ top: frame, rest: stack }, scope, ['enter', statement]] }
+    const [tag, word] = bindable(scope.names)(statement.name)
+    if (tag === 'error') { return [stack, scope, error(word)] }
+    // a name the body already read from outside is refused before the
+    // value is read, and one its own initializer reads once it has been
+    // (`returned`)
+    if (scope.read.includes(word)) { return [stack, scope, error(captureShadowed(statement.name))] }
+    return [{ top: { ...frame, word }, rest: stack }, scope, ['enter', statement.value]]
 }
 
 /**
- * Enters a node: a primitive is its value, a reference the binding `env`
- * holds for its name, an access its base under a frame holding the key, a
- * container, a call or a conditional the first round of a new frame, an
- * operator its left operand under a frame holding the right, and a
- * function its body under a frame holding `env` — the body resolved against its own names alone, so
- * a reference to a name bound outside is a capture, refused where it is
- * written, and a name it does not find anywhere is `const not found` as
- * ever.
+ * Enters a node: a primitive is its value, a reference what `scope`
+ * resolves its name to — a capture, where a function's body names what a
+ * scope around it binds, {@link resolve} — an access its base under a
+ * frame holding the key, a container, a call or a conditional the first
+ * round of a new frame, an operator its left operand under a frame holding
+ * the right, and a function its body, in a scope of its own inside
+ * `scope`. A name no scope binds is `const not found`.
  *
  * A block body is entered the same way, under a frame that also holds its
  * statements: the parameter is the only name bound when the first of them
  * is resolved — none is, where the list is empty — and each binds its own
  * as the module's `const`s do.
  *
- * @type {(stack: _Stack, env: _Env, node: Node) => _State}
+ * @type {(stack: _Stack, scope: _Scope, node: Node) => _State}
  */
-const enter = (stack, env, node) => {
+const enter = (stack, scope, node) => {
     switch (node[0]) {
-        case 'primitive': { return [stack, env, ok(node[1])] }
+        case 'primitive': { return [stack, scope, ok(node[1])] }
         case 'ref': {
             const [tag, word] = identifierOf(node[1])
-            if (tag === 'error') { return [stack, env, error(word)] }
-            const ref = at(word)(env)
-            if (ref !== null) { return [stack, env, ok(ref)] }
-            const captured = captureSlot(stack, word)
-            if (captured === null) { return [stack, env, error(constNotFound(node[1]))] }
-            const [updated, index] = captured
-            /** @type {AstModuleRef} */
-            const fref = ['fref', index]
-            return [updated, extended(env)(word, fref), ok(fref)]
+            if (tag === 'error') { return [stack, scope, error(word)] }
+            const found = resolve(scope, word)
+            return found === null ? [stack, scope, error(constNotFound(node[1]))] : [stack, found[0], ok(found[1])]
         }
-        case '.': { return [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, env, ['enter', node[1]]] }
-        case '()': { return callRound(stack, env, { call: node, index: 0, done: null }) }
+        case '.': { return [{ top: { key: node[2], method: isCallee(stack) }, rest: stack }, scope, ['enter', node[1]]] }
+        case '()': { return callRound(stack, scope, { call: node, index: 0, done: null }) }
         case '-': {
             return node.length === 2
-                ? [{ top: { neg: true }, rest: stack }, env, ['enter', node[1]]]
-                : [{ top: { tag: node[0], right: node[2] }, rest: stack }, env, ['enter', node[1]]]
+                ? [{ top: { neg: true }, rest: stack }, scope, ['enter', node[1]]]
+                : [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]]
         }
-        case '~': { return [{ top: { bitnot: true }, rest: stack }, env, ['enter', node[1]]] }
+        case '~': { return [{ top: { bitnot: true }, rest: stack }, scope, ['enter', node[1]]] }
         case '*': case '/': case '%': case '**':
         case '+':
         case '===': case '!==': case '<': case '<=': case '>': case '>=':
         case '&': case '|': case '^': case '<<': case '>>': case '>>>':
         case '&&': case '||': case '??': {
-            return [{ top: { tag: node[0], right: node[2] }, rest: stack }, env, ['enter', node[1]]]
+            return [{ top: { tag: node[0], right: node[2] }, rest: stack }, scope, ['enter', node[1]]]
         }
-        case '?:': { return conditionalRound(stack, env, { conditional: node, index: 0, done: null }) }
+        case '?:': { return conditionalRound(stack, scope, { conditional: node, index: 0, done: null }) }
         case '=>': {
-            const [tag, inner] = functionScope(node[1])
-            if (tag === 'error') { return [stack, env, error(inner)] }
+            const [tag, names] = functionScope(node[1])
+            if (tag === 'error') { return [stack, scope, error(names)] }
+            /** @type {_Scope} */
+            const inner = { names, captures: [], read: [], outer: scope }
             const body = node[2]
             return body[0] === 'block'
-                ? bodyRound(stack, inner, { outer: env, captures: [], names: [], statements: body[1], index: 0, word: '', done: null })
-                : [{ top: { outer: env, captures: [], names: [] }, rest: stack }, inner, ['enter', body]]
+                ? bodyRound(stack, inner, { statements: body[1], index: 0, word: '', done: null })
+                : [{ top: { function: true }, rest: stack }, inner, ['enter', body]]
         }
         // a block stands only as a function's body, which `'=>'` above
         // enters; the mapping writes one nowhere else
-        default: { return round(stack, env, { container: /** @type {Container} */ (node), index: 0, done: null }) }
+        default: { return round(stack, scope, { container: /** @type {Container} */ (node), index: 0, done: null }) }
     }
 }
 
 /**
  * A value handed to the frame on top: the next round of a container with
  * the value among its items, an access closed over its base, or a function
- * closed over its body, the names bound outside it in force again.
+ * closed over its body, {@link closed}.
  *
- * @type {(stack: _Stack, env: _Env, frame: _Frame, value: AstConst) => _State}
+ * @type {(stack: _Stack, scope: _Scope, frame: _Frame, value: AstConst) => _State}
  */
-const returned = (stack, env, frame, value) => {
-    if ('container' in frame) { return round(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('call' in frame) { return callRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('conditional' in frame) { return conditionalRound(stack, env, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
-    if ('key' in frame) { return [stack, env, accessClosed(frame, value)] }
+const returned = (stack, scope, frame, value) => {
+    if ('container' in frame) { return round(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('call' in frame) { return callRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('conditional' in frame) { return conditionalRound(stack, scope, { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) }) }
+    if ('key' in frame) { return [stack, scope, accessClosed(frame, value)] }
     if ('neg' in frame) {
         /** @type {AstNeg} */
         const negated = ['-', value]
-        return [stack, env, ok(negated)]
+        return [stack, scope, ok(negated)]
     }
     if ('bitnot' in frame) {
         /** @type {AstBitnot} */
         const complemented = ['~', value]
-        return [stack, env, ok(complemented)]
+        return [stack, scope, ok(complemented)]
     }
-    if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, env, ['enter', frame.right]] }
+    if ('right' in frame) { return [{ top: { tag: frame.tag, left: value }, rest: stack }, scope, ['enter', frame.right]] }
     if ('left' in frame) {
         /** @type {AstBinary} */
         const binary = [frame.tag, frame.left, value]
-        return [stack, env, ok(binary)]
+        return [stack, scope, ok(binary)]
     }
     if ('statements' in frame) {
-        if (frame.statements[frame.index][0] === 'const') {
+        const [kind, statement] = frame.statements[frame.index]
+        if (kind === 'const') {
+            // a name its own initializer read from outside
+            if (scope.read.includes(frame.word)) { return [stack, scope, error(captureShadowed(statement.name))] }
             // the binding lands after the value, keeping the name out of its
             // own initializer's scope, and names entry `index` of this body
             return bodyRound(
                 stack,
-                extended(env)(frame.word, ['cref', frame.index]),
+                { ...scope, names: extended(scope.names)(frame.word, ['cref', frame.index]) },
                 { ...frame, index: frame.index + 1, done: concat(frame.done)([value]) })
         }
-        /** @type {AstFunction} */
-        /** @type {AstBody} */
-        const body = [...toArray(frame.done), value]
-        /** @type {AstFunction} */
-        const withConsts = frame.captures.length === 0
-            ? ['=>', body]
-            : ['=>', frame.captures, body]
-        return [stack, frame.outer, ok(withConsts)]
+        return closed(stack, scope, [...toArray(frame.done), value])
     }
+    return closed(stack, scope, [value])
+}
+
+/**
+ * A function closed over its body, resolved in `scope`: the scope around
+ * it in force again — with every capture the body took on the way — and
+ * the body's own captures, where there are any, the function's third
+ * element.
+ *
+ * @type {(stack: _Stack, scope: _Scope, body: readonly AstConst[]) => _State}
+ */
+const closed = (stack, scope, body) => {
+    const outer = assertNotNullish(scope.outer, ['a function body with no scope around it', body])
     /** @type {AstFunction} */
-    /** @type {AstBody} */
-    const body = [value]
-    /** @type {AstFunction} */
-    const fn = frame.captures.length === 0
-        ? ['=>', body]
-        : ['=>', frame.captures, body]
-    return [stack, frame.outer, ok(fn)]
+    const fn = scope.captures.length === 0 ? ['=>', body] : ['=>', body, scope.captures]
+    return [stack, outer, ok(fn)]
 }
 
 /**
@@ -1266,7 +1300,7 @@ const returned = (stack, env, frame, value) => {
  */
 const evaluate = env => root => {
     /** @type {_State} */
-    let state = [null, env, ['enter', root]]
+    let state = [null, { names: env, captures: [], read: [], outer: null }, ['enter', root]]
     while (true) {
         const [stack, scope, [tag, payload]] = state
         if (tag === 'enter') {

@@ -96,17 +96,21 @@ see [serialization](./serialization.md).
 
 ### 3.1. Required
 
-1. [x] function — the non-capturing form is in the language with either
-   body and with either parameter list, `(...a) => expression`,
-   `(...a) => { return expression; }` and `() => expression`
+1. [x] function — in the language with either body and with either
+   parameter list, `(...a) => expression`,
+   `(...a) => { return expression; }` and `() => expression`, capturing
+   what its body names from the scopes around it
    ([functions](../README.md#functions))
 2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
    named lists, with declared arity preserved
-3. [x] body-const — a function body takes `const` statements before its
+3. [ ] [function length pattern](./3130-function-length-pattern.md) — a
+   proposed, unapproved spelling that would build a function of a given
+   `length` in FunctionalScript
+4. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
-4. [ ] [forward-references](./3140-forward-references.md)
-5. [x] `export const`, named-only and mixed modules
+5. [ ] [forward-references](./3140-forward-references.md)
+6. [x] `export const`, named-only and mixed modules
    ([exports](../README.md#exporting-a-value)). The selected `types/range`
    candidate now reaches the named-parameter blocker above.
 
@@ -153,7 +157,8 @@ see [serialization](./serialization.md).
 3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), **withdrawn**
    (the repository was archived in April 2025):
    One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`.
-4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching), Stage 1.
+4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching)
+   — [blocked on Stage 4 and native runtime support](../../todo/blocked/pattern-matching.md).
 5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).
 6. [ ] [Temporal](https://github.com/tc39/proposal-temporal).
 7. [ ] [Import Text](https://github.com/tc39/proposal-import-text), Stage 3, and

@@ -24,7 +24,7 @@
  */
 
 import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
-import { holdsFunction, indent, readsArgs, scope } from '../../edag/rust/module.f.mjs'
+import { holdsFunction, indent, readsArgs, readsFrame, scope } from '../../edag/rust/module.f.mjs'
 import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
 
 /**
@@ -98,8 +98,8 @@ const importsFor = (text, bound) => [...new Set([
  * The module's scope, one line per temporary and its `Ok(…)` —
  * `fjs/edag/rust`'s {@link scope}, which also prints every function's body
  * the module holds, each a scope of its own inside its closure — or the
- * refusal. A module has no arguments, so an `['args']`
- * node in its own scope — a function body's node, which the lowering
+ * refusal. A module has no arguments and no frame, so an `['args']` or
+ * `['frame']` node in its own scope — a function body's node, which the lowering
  * never puts here, handed in directly — is refused rather than printed as
  * a name nothing binds.
  *
@@ -107,6 +107,8 @@ const importsFor = (text, bound) => [...new Set([
  */
 const bodyLines = root => readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
+    : readsFrame(root)
+    ? error(['no Rust for `frame` in a module\'s own scope; a module has no frame', root])
     : mapOk((/** @type {readonly string[]} */ lines) => lines.map(l => `${indent}${l}`))(scope(root))
 
 /**

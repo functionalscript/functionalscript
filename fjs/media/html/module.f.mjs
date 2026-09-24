@@ -147,21 +147,29 @@ const commonHead = /** @type {const} */ ([
 /**
  * Renders a complete UTF-8 encoded HTML document as a `Vec`.
  *
- * Produces a full page with `<!DOCTYPE html>`, a `<head>` containing a UTF-8
- * `<meta charset>` and a responsive-viewport `<meta>` followed by any extra
- * `head` nodes, and a `<body>` containing the provided `body` nodes.
+ * Produces a full page with `<!DOCTYPE html>`, an `<html lang>` naming the
+ * document's language, a `<head>` containing a UTF-8 `<meta charset>` and a
+ * responsive-viewport `<meta>` followed by any extra `head` nodes, and a
+ * `<body>` containing the provided `body` nodes.
+ *
+ * **The language is required, not defaulted.** A screen reader picks its
+ * voice from it, a browser decides whether to offer translation by it, and
+ * WCAG 2.2 makes it Level A (3.1.1, Language of Page). A default would be
+ * right for some callers and silently wrong for the rest, and an omitted
+ * attribute is the failure itself, so every document says what it is.
+ * `lang` is a BCP 47 tag such as `en` or `uk`.
  *
  * @example
  * ```js
- * htmlUtf8(['title', 'My Page'])(['h1', 'Hello'])
+ * htmlUtf8('en')(['title', 'My Page'])(['h1', 'Hello'])
  * // Vec of UTF-8 bytes for:
- * // <!DOCTYPE html><html><head><meta charset="UTF-8">...<title>My Page</title></head><body><h1>Hello</h1></body></html>
+ * // <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">...<title>My Page</title></head><body><h1>Hello</h1></body></html>
  * ```
  *
- * @type {(...head: readonly Node[]) => (...body: readonly Node[]) => Vec}
+ * @type {(lang: string) => (...head: readonly Node[]) => (...body: readonly Node[]) => Vec}
  */
-export const htmlUtf8 = (...head) => (...body) =>
-    utf8(htmlToString(['html',
+export const htmlUtf8 = lang => (...head) => (...body) =>
+    utf8(htmlToString(['html', { lang },
         ['head', ...commonHead, ...head],
         ['body', ...body]]
     ))

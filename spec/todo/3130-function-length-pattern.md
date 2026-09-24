@@ -1,0 +1,95 @@
+# Function length pattern
+
+**Priority:** P2
+**Status:** open — a language feature, waiting on the designer's approval
+([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
+
+## Problem
+
+A function compiled from `(a, b) => a` must have `length === 2`. The
+FunctionalScript executors, [amnesia](../../fjs/edag/amnesia/module.f.mjs)
+and [memo](../../fjs/edag/memo/module.f.mjs), build a host function per `=>`
+node, and no FunctionalScript expression can build one with a positive
+`length`: the `=>` operation makes `(...args) => invoke(frame, args, body)`,
+whose `length` is `0`; an arrow wrapper such as `(a0, ...rest) => f(a0, ...rest)`
+pads `g()` to `f(undefined)`, losing the distinction `['args']` keeps; and a
+`.f.mjs` cannot import a host helper.
+
+## Proposal
+
+Admit one complete source pattern, the way
+[enumerable presence](./2345-has-own-property.md) plans `hasEntity`: the
+`defineProperty` exists only inside the matched definition.
+
+```js
+const withLength = (f, length) =>
+    Object.defineProperty((...args) => f(args), 'length', { value: length })
+```
+
+`withLength(f, n)` hands `f` its complete argument list as one array and
+has `length` `n`. `defineProperty` returns its object, so the pattern is one
+expression, and the matcher admits exactly it: an arrow passing its rest
+parameter to a call of the first parameter, key `'length'`, descriptor
+`{ value: <second parameter> }`, `Object` resolved to the intrinsic. Any
+variation is refused as `defineProperty` is everywhere else. The descriptor
+omits the attributes on purpose: an arrow already owns a `length`, so the
+omitted ones are the native ones.
+
+**Lowering.** `['=>', count, frame, body]`, count and frame evaluated when
+the function is built, in the enclosing scope. Compiled source has a
+constant; `withLength` itself has a read of its second argument. One node,
+one meaning.
+
+**No restrictions on `length` or `f`.** `withLength` is a value: once it
+exists, any program can call it with anything, so the pattern restricts
+neither argument, and a count is whatever JavaScript accepts as a `length`.
+An executor that cannot represent one refuses it as its own limit.
+
+**Executors.** The `=>` operation becomes
+`withLength(args => invoke(frame, args, body), count)`. A JavaScript
+host runs the pattern as written; a VM treats it as its intrinsic; NaNVM
+and the Rust printer store the arity in their own representation.
+
+**Writer.** Every function renders as `withLength(args => …, <count>)`,
+the helper emitted once per module. A writer may render a named parameter
+list instead where it can see that the list means the same; that is the
+writer's choice, not a rule of the language.
+
+**Function text.** A host function carries the wrapper's source as its
+text, and every host conversion can reach it: `String`, a computed key, an
+array's join, a string method's argument. Guarding all of them is a check
+that grows with the host surface, so this proposal does not guard; it waits.
+Rendering the graph's text, a second admitted key in the same pattern, is a
+prerequisite, and the
+[serialization](./serialization.md#function-text-and-serialization)
+decisions it depends on are open.
+
+**Drawbacks.** The language admits a spelling containing a mutation, pure
+only because the matcher admits the whole definition. Under an interpreter
+a positive-arity function is one call frame deeper. It cannot land before
+the function-text decisions.
+
+## Tasks
+
+- [ ] Record the designer's approval.
+- [ ] Compiler: recognize the complete pattern; refuse every variation.
+- [ ] Function text rendered from the graph, then `operations`' `=>` built
+  through the pattern.
+- [ ] Writer: the pattern rendering.
+- [ ] Proofs: `f.length` for constant and run-time counts; `g()` sees an
+  empty `['args']`; a shadowed `Object` and each pattern variation refused.
+- [ ] Documents: [`fjs/edag/README.md`](../../fjs/edag/README.md),
+  [execution-models](../../fjs/edag/execution-models.md), the
+  [specification](../README.md#functions), and the parameter plan's
+  "metadata, not an expression operand".
+
+## Related
+
+- [Parameters](./3120-parameters.md),
+  [arity and complete arguments](./arity-complete-arguments.md) — the
+  syntax and the writer boundary.
+- [Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md),
+  [built-in](./2360-built-in.md) — how a pattern is recognized; `defineProperty`
+  stays prohibited outside it.
+- [new-array-out-of-subset](../../todo/new-array-out-of-subset.md) —
+  `tupleRebuild`'s `defineProperty`, which this pattern does not cover.

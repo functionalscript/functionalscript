@@ -44,6 +44,43 @@ import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 export const repository = 'https://github.com/functionalscript/functionalscript'
 
 /**
+ * The site's name, which the root page's title is on its own.
+ *
+ * @type {string}
+ */
+export const siteName = 'FunctionalScript'
+
+/**
+ * A page's `<title>`: what the page is, then the site it belongs to.
+ *
+ * **The site's name, because a title travels without the page.** It is the
+ * headline of a search result, the label of a bookmark and of a link pasted
+ * into a chat, and what a browser's history matches a search against. A
+ * directory's path alone — `fjs/types` — says nothing there about which
+ * project it belongs to.
+ *
+ * **The page first and the site last.** A browser narrows a tab by cutting
+ * its title from the right, so with the site first every tab of this site
+ * would read the same few letters; with it last, what is cut is the part
+ * that is the same on every tab.
+ *
+ * @type {(page: string) => Element}
+ */
+export const pageTitle = page => ['title', `${page} · ${siteName}`]
+
+/**
+ * The language every page of the site is written in, as its `<html lang>`.
+ *
+ * One value for the whole site, since every page is in English — the prose,
+ * the headings and the release notes alike. Paths and identifiers are not a
+ * language of their own, and a page made mostly of them is still read aloud
+ * in this one.
+ *
+ * @type {string}
+ */
+export const lang = 'en'
+
+/**
  * Where a run's results go: an empty container the runner fills with one
  * foldable group per module.
  *
@@ -129,6 +166,32 @@ const proofItem = proof => proof.blockers.length === 0
     : ['li', { 'data-blocked': '' }, `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
+ * A section's title: the `summary` a reader folds the section by, holding
+ * the section's heading.
+ *
+ * **A heading inside the summary, not the summary as the heading.** A
+ * `summary` is a button to assistive technology, so a section titled by one
+ * alone is invisible to a screen reader's list of headings, and a reader
+ * who moves by heading skips straight past every section on the page. The
+ * `h2` puts each one in that list under the page's `h1`, and the fold still
+ * works as it did.
+ *
+ * Anything after the heading — the suite's counts — is outside it, so the
+ * heading's name stays the section's name however a run changes the counts.
+ *
+ * **A heading beside other content is valid HTML.** The HTML Standard's
+ * content model for `summary` is "phrasing content, optionally intermixed
+ * with heading content", so the suite's `h2` followed by its counts `span`
+ * conforms. Older versions of the spec allowed either phrasing content or a
+ * single heading, and a validator or a reviewer quoting one of them will flag
+ * this markup; that rule is gone, and moving the counts out of the summary to
+ * satisfy it would take them out of sight when the section is folded.
+ *
+ * @type {(heading: string) => (...rest: readonly Node[]) => Element}
+ */
+const summary = heading => (...rest) => ['summary', ['h2', heading], ...rest]
+
+/**
  * The demo section: what this module *does*, if it says.
  *
  * Two elements and nothing else. The section is the demo's own root, so the
@@ -139,7 +202,7 @@ const proofItem = proof => proof.blockers.length === 0
  * @type {(path: string) => readonly Node[]}
  */
 export const demoSection = path => [['details', { 'data-section': '', open: '' },
-    ['summary', 'Demo'],
+    summary('Demo')(),
     ['div', { 'data-demo': path }],
     ['script', { type: 'module' },
         `import { startDemo } from '/fjs/website/demo-runtime.mjs'
@@ -183,11 +246,11 @@ export const testSection = dir => intro => {
         ['ul', { 'data-test-sources': '' }, ...dir.proofs.map(proofItem)],
     ]]
     const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
-    if (linkable.length === 0) { return section(['summary', 'Emergent Testing'])([]) }
+    if (linkable.length === 0) { return section(summary('Emergent Testing')())([]) }
     // **The run's counts go in the title**, so they stay in sight with the
     // section folded. The slot is there only where something can run: a title
     // waiting for counts over a suite with no control would wait for ever.
-    return section(['summary', 'Emergent Testing', ['span', { 'data-test-counts': '' }]])([
+    return section(summary('Emergent Testing')(['span', { 'data-test-counts': '' }]))([
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,
@@ -257,17 +320,21 @@ const section = heading => open => items =>
     items.length === 0
         ? []
         : [['details', { 'data-section': '', open: open ? '' : undefined },
-            ['summary', heading],
-            ['ul', ...items]]]
+            summary(heading)(),
+            ['ul', { 'data-links': '' }, ...items]]]
 
 /** @type {(href: string) => (text: string) => Element} */
 const item = href => text => ['li', ['a', { href }, text]]
 
 /**
- * The catalogue of one directory: its files, its subdirectories, and the
+ * The catalogue of one directory: its subdirectories, its files, and the
  * issues filed against it.
  *
- * **Files and directories are open, issues are closed.** The first two are
+ * **Directories come before files**, as GitHub and a file manager list
+ * them: a directory is where a reader goes next, and a file is where the
+ * reading stops, so the way deeper is what the page leads with.
+ *
+ * **Directories and files are open, issues are closed.** The first two are
  * what the directory *is* and are bounded by it; the issue list is not — the
  * repository root has fifty — and a page that opened it would push whatever
  * follows off the screen. That is a judgement per section and not a length
@@ -282,10 +349,10 @@ const item = href => text => ['li', ['a', { href }, text]]
  * @type {(commit: string | null) => (dir: Dir) => readonly Node[]}
  */
 export const sections = commit => dir => [
-    ...section('Files')(true)(dir.files.map(name =>
-        item(fileHref(commit)(dir.path)(name))(name))),
     ...section('Directories')(true)(dir.dirs.map(name =>
         item(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(`${name}/`))),
+    ...section('Files')(true)(dir.files.map(name =>
+        item(fileHref(commit)(dir.path)(name))(name))),
     ...section('Issues')(false)(dir.todo.map(name =>
         item(fileHref(commit)(dir.path)(`todo/${name}`))(name))),
 ]
@@ -312,8 +379,8 @@ const ancestors = path => {
  *
  * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
-export const page = commit => dir => htmlUtf8(
-    ['title', dir.path],
+export const page = commit => dir => htmlUtf8(lang)(
+    pageTitle(dir.path),
     stylesheetLink,
     ...faviconLinks,
 )(

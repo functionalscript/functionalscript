@@ -102,6 +102,21 @@ export const symbols = input => byteArray(input).map(symbol)
 export const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
 
 /**
+ * The code points of `s`, in order.
+ *
+ * @type {(s: string) => readonly number[]}
+ */
+const codePoints = s => toArray(stringToCodePointList(s))
+
+/**
+ * Whether code point `c` is ASCII: below `0x80`, where a code point and its
+ * byte coincide.
+ *
+ * @type {(c: number) => boolean}
+ */
+const isAsciiCodePoint = c => c < 0x80
+
+/**
  * ASCII text as the bytes it spells, for a reader or a writer that holds a
  * keyword as a string — `'commit'`, a header's key — and needs it as bytes.
  *
@@ -111,8 +126,8 @@ export const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
  * @type {(s: string) => readonly number[]}
  */
 export const ascii = s => {
-    const a = toArray(stringToCodePointList(s))
-    assert(a.every(c => c < 0x80), ['not ASCII', s])
+    const a = codePoints(s)
+    assert(a.every(isAsciiCodePoint), ['not ASCII', s])
     return a
 }
 
@@ -170,7 +185,7 @@ export const bytes = (...b) => {
  *
  * @type {(s: string) => boolean}
  */
-const isAscii = s => toArray(stringToCodePointList(s)).every(c => c < 0x80)
+const isAscii = s => codePoints(s).every(isAsciiCodePoint)
 
 /**
  * Refuses a rule the lowering met that reaches past the alphabet: a string
