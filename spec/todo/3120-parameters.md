@@ -31,6 +31,74 @@ compiler's current statement termination syntax compile successfully.
 
 The remaining sections retain the design and its unfinished obligations.
 
+### Blocking review: factory text escapes through exports
+
+[PR #2237's review](https://github.com/functionalscript/functionalscript/pull/2237#discussion_r4097743166)
+reports a P1 violation of the default-text contract. Reproduced at `32d18d87`
+under both Amnesia and memo:
+
+```js
+const f = (a) => a;
+export default f.toString();
+// Actual: '(a0, ...rest) => g([a0], rest)'
+```
+
+Exporting `f` itself retains `f.length === 1` and `f(42) === 42`, but
+`String(f)`, `String([f])`, a computed property key and `''.concat(f)` all
+expose the same wrapper. This is an unresolved defect, not an accepted
+limitation. The review stays open until the conversion paths are fixed.
+
+An operations-table guard cannot cover conversions performed by a consumer
+of an exported arrow. A side table associating functions with EDAGs cannot
+by itself change those host conversions either. The current generated arrows
+inherit native function conversion and have no renderer hook. This is also
+why rejecting callable exports or replacing only the `String` operation is
+not a fix.
+
+**Proposal requiring approval:** extend each generated factory with a renderer
+callback and admit only the complete fresh-arrow construction pattern:
+
+```js
+(g, render) => Object.defineProperty(
+    (a0, ...rest) => g([a0], rest),
+    'toString',
+    { value: render },
+)
+```
+
+The descriptor makes the property non-enumerable, non-writable and
+non-configurable. The target must be the arrow created in that expression,
+never an existing shared callable. This retains the requested fixed/rest
+arrow and its native arity, but adds a second factory input and a construction
+pattern that the original request did not authorize. It does not modify
+`length`, generate code at run time or patch prototypes.
+The renderer closes over the semantic function EDAG and invocation's captured
+frame, and is invoked only for conversion. Calls, allocation identity, nested
+returns and exports retain their existing behavior.
+
+The exact source pattern and freshness guarantee must be specified and
+approved under [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+before implementation. Calling `Object.defineProperty` from `.f.mjs`, hiding
+it in an unapproved host helper, or treating the arity factory approval as
+approval of this additional operation does not satisfy that requirement.
+
+For the first rendering increment, propose using the existing source writer
+for capture-free function graphs, retaining EDAG sharing and generated
+parameter names. Rendering a captured callable still needs the explicit
+[serialization decisions](./serialization.md#open-questions): code text versus
+a self-contained callable, whether to include captured values, and the finite
+representation of `self`. If captured values are selected, the lazy-string
+requirement applies; an eager `String` built from the entire capture graph is
+not that implementation. Refusal is at a genuinely unsupported conversion,
+never at creation, call, return or export. This paragraph is a proposal, not
+an answer to those open questions or authorization to regress supported text
+conversion.
+
+Three standalone JavaScript prototype tests passed for the proposed hook:
+arity/fixed/rest/identity, direct and indirect host conversions, and creation
+and calls that never demand text. They use supplied renderer callbacks; they
+do not implement EDAG rendering, compiler recognition or deferred strings.
+
 ### Problem
 
 Before this implementation, `fjs compile` accepted only empty and rest-only
