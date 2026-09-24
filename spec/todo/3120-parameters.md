@@ -21,8 +21,9 @@ fixed values and the rest array separately in EDAG, and instantiate real
 callables through pre-generated arrow factories. No mutation, prototype
 change, host helper, effect or recognized `defineProperty` pattern is needed
 for arity within the table-backed evaluator's documented range. The factories
-do not by themselves satisfy the default function-text contract; rendering
-or explicit refusal is part of the implementation plan below.
+do not by themselves satisfy the default function-text contract; the rendering
+mechanism must preserve supported callable behavior before these factories
+replace an existing materialization path.
 
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
 its restricted writer boundary. It is a proposal, not current compiler or
@@ -99,15 +100,23 @@ Proposed nodes:
 ['rest']
 ```
 
-`length` is nonnegative integer metadata, not an expression operand. For this
-syntax it is the number of fixed parameters, including unused ones. A rest
-parameter adds zero. Keep the count in canonical function content: different
-lengths are observable even when the bodies and frames match.
+`length` is finite, nonnegative integer metadata, not an expression operand.
+Zero must be positive zero: reject `Object.is(length, -0)`, rather than
+silently normalizing it. For this syntax it is the number of fixed parameters,
+including unused ones. A rest parameter adds zero. Keep the count in canonical
+function content: different lengths are observable even when the bodies and
+frames match.
 
-`['arg', N]` reads a fixed parameter. `N` must be a constant integer with
-`0 <= N < length`; it is not an EDAG expression. Validation checks it against
-the function whose invocation the node reads. A missing supplied argument
-produces `undefined`.
+`['arg', N]` reads a fixed parameter. `N` must be a constant finite integer
+with `0 <= N < length` and must not be negative zero; it is not an EDAG
+expression. Validation checks it against the function whose invocation the
+node reads. A missing supplied argument produces `undefined`.
+
+For both metadata fields, the numeric predicate is
+`Number.isInteger(value) && value >= 0 && !Object.is(value, -0)`, followed
+by the owning-length bound for `N`. Compiler output uses canonical positive
+zero. This restriction is on metadata only: `-0` remains a distinct, valid
+ordinary value in fixed parameters, rest arrays and other expressions.
 
 `['rest']` reads the array of arguments supplied at positions `length` and
 above. Its length is `max(actualArgumentCount - length, 0)`. Evaluate it as a
@@ -218,29 +227,36 @@ inside admitted host methods, and observations through returned/exported
 functions. Intercepting only the explicit `String` EDAG operation is not enough.
 Render the associated function graph, not the factory's or callback's graph.
 
-Before enabling a path, implement that rendering contract or explicitly refuse
-the unsupported conversion through the existing failure contract. No wrapper
-text, placeholder string or silently host-dependent fallback. If a host call
-or export would let the callable escape to conversions the executor cannot
-mediate, refuse that unsupported evaluation/export path before the escape;
-a guard on a later VM `String` call cannot fix it. Document and test the
-actual boundary, including indirect and nested escapes, rather than promise
-that a native arrow alone enforces it. This is implementation coverage, not
-a new source-language prohibition; source/EDAG-only outputs need not depend
-on materialization. JavaScript executing source outside the FJS VM still uses
-its native representation, exactly as the existing exception states.
+**Preserve supported function creation, calls, returns and exports.** Missing
+rendering support is not permission to reject a function-valued export, a
+nested returned callable or a host call merely because a callable can later
+be converted to text. In particular, a consumer that only calls the exported
+function must not acquire a new failure. Do not replace the existing callable
+path with raw factories until the semantic association/rendering mechanism
+preserves that supported API and its required default-text observations.
+Keep the existing implementation in place while that mechanism is developed.
 
-The mechanism for associating EDAG and covering host conversion paths must be
-specified before those execution paths ship. This TODO does not grant property
-mutation or select a new pattern instruction. The `withLength` pattern may
-still be unnecessary for arity; that does not discharge default rendering.
+The render-or-refuse rule applies to genuinely unsupported conversion cases,
+not to currently supported calls/returns/exports or as a new blanket source
+restriction. Those cases must fail at their established unsupported-operation
+boundary, never return wrapper text, placeholder strings or a silently
+host-dependent result. Handle conversions through exported functions and
+admitted host methods in the mechanism itself; rejecting the export to avoid
+later conversion is not an implementation option. Source/EDAG-only outputs
+remain independent of materialization. JavaScript executing source outside
+the FJS VM still uses its native representation under the existing exception.
+
+Specify and prove that mechanism before exposing the new materialization path.
+This TODO neither supplies that mechanism nor grants property mutation or a
+new pattern instruction. The `withLength` pattern may still be unnecessary
+for arity, but that conclusion alone does not discharge default rendering.
 
 Only genuinely open choices remain with the serialization TODO: whether
 `String(f)` shares the callable serializer's contract, whether it includes
 captures, and how `self` is represented. Resolve the choices needed by a
-supported case before implementing it; refuse unresolved cases explicitly,
-without blocking unrelated supported ones. Preserve the conditional lazy
-frame-rendering requirement if frame inclusion is selected. User-defined
+supported case before implementing it; refuse genuinely unsupported conversion
+cases without regressing the existing callable API. Preserve the conditional
+lazy frame-rendering requirement if frame inclusion is selected. User-defined
 `toString` overrides remain separate work, not a reason to defer the required
 default behavior.
 
@@ -278,11 +294,14 @@ previous design sketches have no general semantics-preserving conversion to
 this contract; refuse such input rather than claim a lossless migration.
 
 Reconcile pending design documents in this proposal, before implementation:
-[stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference)
-and the [native callable plan](../../nanvm-lib/todo/callable-function-objects.md)
-follow this `length` / `arg` / `rest` contract, not a count-only extension of
-complete `['args']`. This addresses the
-[argument-model review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094709899).
+[stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference),
+the [native callable plan](../../nanvm-lib/todo/callable-function-objects.md),
+the [capturing-function compiler plan](../../fjs/fsc/todo/compile-capturing-functions-to-rust.md#remaining-gaps)
+and the [function-frame plan](./3111-function-frame.md) follow this
+`length` / `arg` / `rest` contract, not a count-only extension of complete
+`['args']`. This addresses the
+[argument-model review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094709899)
+and the [remaining-plan review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4095100756).
 Their current-format and historical descriptions remain explicitly labeled.
 
 Update the current EDAG/schema documentation and executable consumers when
@@ -307,18 +326,22 @@ source rest binding in that future case or silently admit initializers now.
 - [ ] Extend source parameter AST, shared grammar and binding. Cover empty,
       rest-only, bare single, parenthesized fixed and fixed-plus-rest forms;
       retain correct grouping, commas, trivia, scopes and early errors.
-- [ ] Implement the coordinated EDAG change: length metadata, constant
-      `['arg', N]` validation and per-invocation `['rest']`. Update schema,
-      lowering, analysis, operations, executor contexts and native consumers.
+- [ ] Implement the coordinated EDAG change: canonical length metadata,
+      constant `['arg', N]` validation and per-invocation `['rest']`. Reject
+      negative zero for both metadata fields without normalizing ordinary
+      `-0` argument values. Update schema, lowering, analysis, operations,
+      executor contexts and native consumers.
 - [ ] Generate and share the factory table; check its capacity at EDAG
       materialization, separately from syntax and EDAG validation. Keep
-      unsupported execution paths refused until they preserve length and
-      bindings, without blocking source/EDAG outputs that do not use them.
-      Add co-located proofs for the generator and the generated table.
-- [ ] Specify callable-to-EDAG association and host-conversion coverage;
-      integrate the shared default renderer or explicit refusal before
-      enabling each observable conversion/export path. Resolve only the open
-      rendering choices those paths require; never return factory source.
+      unsupported new execution paths refused until they preserve length and
+      bindings, without regressing existing calls/returns/exports or blocking
+      source/EDAG outputs that do not use them. Add co-located proofs for the
+      generator and the generated table.
+- [ ] Specify callable-to-EDAG association and host-conversion coverage, and
+      implement the shared default renderer before switching supported
+      materialization/export paths to these factories. Preserve existing
+      callable behavior; permit explicit refusal only for genuinely unsupported
+      conversion cases, not as a substitute for working function exports.
 - [ ] Update source writers and migrations; remove the old complete-argument
       writer boundary for the new format and document the breaking change.
 - [ ] Add source -> tokens -> AST -> EDAG -> executor/source round-trip
@@ -328,15 +351,18 @@ source rest binding in that future case or silently admit initializers now.
       distinct calls/callables under each executor's profile. A standalone
       JavaScript factory test is not an FJS pipeline test.
 - [ ] Prove direct and indirect default conversion, host-method conversion
-      and returned/exported functions, including nested escapes. Compare
+      and returned/exported functions, including nested callables. Compare
       successful text with the selected EDAG renderer, not authored JavaScript
-      text; unsupported paths must refuse before wrapper text is observable.
-      Include `((a) => a).toString()` and distinguish it from its factory's text.
+      text. Include `((a) => a).toString()` and distinguish it from factory text.
+      Preserve call-only consumers of exported/returned functions and every
+      previously supported conversion; no export-level rendering refusal.
 - [ ] Add validation refusals for invalid length metadata (negative,
-      fractional or non-finite), nonconstant or out-of-range `arg` indices,
-      `arg` at length zero, duplicate names, invalid bindings, misplaced/rest
-      trailing commas, newlines before `=>`, and deferred default/destructuring
-      syntax. A count beyond a factory table is not a validation error.
+      fractional, non-finite or negative zero), negative-zero/nonconstant/
+      out-of-range `arg` indices, `arg` at length zero, duplicate names,
+      invalid bindings, misplaced/rest trailing commas, newlines before `=>`,
+      and deferred default/destructuring syntax. Test positive-zero metadata
+      round trips and preservation of ordinary `-0` arguments. A count beyond
+      a factory table is not a validation error.
 - [ ] Prove the executor capacity boundary and the first uncovered arity:
       source -> EDAG -> source preserves that larger arity, the limited
       evaluator refuses materialization, and a larger table executes the same
@@ -354,6 +380,10 @@ source rest binding in that future case or silently admit initializers now.
   — distinguish executor capacity from language validity.
 - [Default-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094801475)
   — EDAG-derived default rendering is required, not optional customization.
+- [Export-preservation review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4095048191)
+  — require rendering without regressing supported callable exports.
+- [Negative-zero review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4095048215)
+  — canonical positive-zero arity and index metadata.
 - [Statement-aware compilation](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
 - [Destructuring](./2450-destructuring.md) — separate binding-pattern work.

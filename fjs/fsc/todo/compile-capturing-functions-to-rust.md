@@ -9,6 +9,13 @@ remaining gaps.
 the Rust printer `fjs/edag/rust/module.f.mjs`, and the fixture
 `nanvm-harness/fixtures/closure.mjs`.
 
+**Format boundary:** "What shipped" records the current zero-arity
+`['=>', frame, body]` / `['args']` format. It is not the target argument
+model for named parameters. The pending
+[named-and-rest plan](../../../spec/todo/3120-parameters.md) owns the
+coordinated `length` / `['arg', N]` / `['rest']` migration described under
+Remaining gaps. This documentation update changes no executable behavior.
+
 ## What shipped
 
 A function body that reads a name bound outside it — a module `const`, an
@@ -102,12 +109,25 @@ body has already read from outside.
 
 ## Remaining gaps
 
-1. **Named parameters and arity.** `x => …` and `(a, b) => …` are not
-   recognized yet (`unexpected token`), and `length` is always `0`.
-   [#2200](https://github.com/functionalscript/functionalscript/pull/2200)
-   adds them with the declared count in the function node,
-   `['=>', count, frame, body]`, and passes that count as `static_function`'s
-   length. Nothing here changes until it lands.
+1. **Named parameters and arity.** The current zero-arity implementation
+   above does not recognize `x => ...` or `(a, b, ...rest) => ...`. The earlier
+   [count-only proposal](https://github.com/functionalscript/functionalscript/pull/2200)
+   is not the target contract. Follow
+   [named and rest parameters](../../../spec/todo/3120-parameters.md), pending
+   language-design approval: `['=>', length, frame, body]`, constant
+   `['arg', N]` with `0 <= N < length`, and one per-invocation `['rest']`.
+   Both metadata fields require canonical positive zero, not `-0`.
+   Missing fixed arguments yield `undefined`; rest contains only the actual
+   tail from `length`, preserving its identity through captures. Pass the
+   declared length to `static_function` and migrate binding lowering too;
+   merely changing its count while retaining EDAG-visible complete `['args']`
+   is insufficient. A Rust array named `args` may remain private call transport.
+   Migrate old zero-arity reads by owning scope, never silently reinterpret
+   positive-arity/full-arguments sketches. Add AOT/evaluator/source tests for
+   omitted, explicit `undefined` and extra arguments, unused fixed positions,
+   captured fixed/rest values and rest identity. Native capacity is independent
+   of the JavaScript factory table. Preserve supported callable exports and
+   the parameter plan's required default-rendering contract.
 2. **Recursion.** A function that names itself is refused (`const not found`):
    its `const` is not bound in its own initializer, and there is no `self` to
    read in its place. Whether a direct self-call gets a special Rust path or
