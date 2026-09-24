@@ -61,8 +61,8 @@ today past `u32`. The language adds no bound.
 host runs the pattern as written; a VM treats it as its intrinsic; NaNVM
 and the Rust printer store the arity in their own representation.
 
-**Writer.** Named parameters where the count is a constant, every
-`['args']` read is a direct index below it, and the count is under a
+**Writer.** Named parameters where the count is a constant nonnegative
+integer, every `['args']` read is a direct index below it, and the count is under a
 documented bound below the hosts' parameter-list limit. Otherwise
 `withLength(<count>, (...args) => …)`, the helper emitted once per module.
 That second rendering is what keeps a graph observing its complete
