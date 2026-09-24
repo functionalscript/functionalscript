@@ -97,7 +97,7 @@ import { _prohibitedNames } from '../parser/module.f.mjs'
 import { dollarSign, isDigit, isLatinLetter, latinSmallLetterA, latinSmallLetterZ, lowLine } from '../../text/ascii/module.f.mjs'
 import { codePointToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 
 /** Names the parser refuses to bind. */
 const reservedExports = new Set([...keywords, ...literalWords, 'then'])
@@ -247,22 +247,6 @@ const frameItems = (a, frame) => {
 }
 
 /**
- * The results of a list, or the first error in it. A list of values is
- * written only when every element is, and the refusal reported is the one
- * a reader meets first.
- *
- * @template T
- * @param {readonly Result<T, string>[]} xs
- * @returns {Result<readonly T[], string>}
- */
-const every = xs => {
-    const bad = xs.find(x => x[0] === 'error')
-    return bad === undefined
-        ? ok(xs.map(x => /** @type {readonly ['ok', T]} */(x)[1]))
-        : error(/** @type {readonly ['error', string]} */(bad)[1])
-}
-
-/**
  * The text of an operand at `depth`, `0` at the module level: a primitive
  * as the DataJS serializer spells it, a hoisted value by its name, and any
  * other entry in place.
@@ -393,7 +377,7 @@ const frameNames = s => frame => {
     return okThen(
         /** @type {(names: readonly string[]) => Result<readonly string[], string>} */
         (names => new Set(names).size === names.length ? ok(names) : error('a frame slot that repeats another')),
-    )(every(items.map(name)))
+    )(okList(items.map(name)))
 }
 
 /**
@@ -519,8 +503,8 @@ const entry = (s, depth) => i => {
         case 'args': {
             return depth === 0 ? error('the arguments outside a function') : ok([parameter(depth)])
         }
-        case '[]': { return mapOk(arrayWrap)(every(node[1].map(item(s, depth)))) }
-        case '{}': { return mapOk(objectWrap)(every(node[1].map(property(s, depth)))) }
+        case '[]': { return mapOk(arrayWrap)(okList(node[1].map(item(s, depth)))) }
+        case '{}': { return mapOk(objectWrap)(okList(node[1].map(property(s, depth)))) }
         case 'frame': { return error('the frame outside a slot read') }
         case '.': {
             const [, b, k, continuation] = node
@@ -529,7 +513,7 @@ const entry = (s, depth) => i => {
             return mapOk(
                 /** @type {(parts: readonly List<string>[]) => List<string>} */
                 (parts => flat(parts)),
-            )(every([base(s, depth)(b), key(k)]))
+            )(okList([base(s, depth)(b), key(k)]))
         }
         case '=>': {
             const [, frame, body] = node
@@ -842,7 +826,7 @@ export const tryModuleSerialize = e => {
     return okThen(state => mapOk(
         /** @type {(parts: readonly List<string>[]) => List<string>} */
         (parts => flat([state.text, ...parts])),
-    )(every([
+    )(okList([
         ...exports.filter(([, key]) => key !== 'default'),
         ...exports.filter(([, key]) => key === 'default'),
     ].map(moduleExport(a, state)))))(moduleBody(a, prefix)({ text: null, names: [] }, a.root))
