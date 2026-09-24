@@ -484,20 +484,28 @@ value is wanted, a `.json` or DataJS output being the value.
 
 ### Strings
 
-Currently we support only JSON strings:
+A string is JSON's, between double quotes or between single quotes:
 
 ```js
-export default "hello!";
+export default ["hello!", 'hello!'];
 ```
 
-Double quotes, and JSON's escapes — `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`,
-`\t`, and `\uXXXX`. No single-quoted strings and no template literals; both
-are deferred, see
+Between double quotes it is exactly JSON's string: JSON's escapes — `\"`,
+`\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, and `\uXXXX` — and no unescaped `"`,
+`\` or control character. Between single quotes it is the same with the
+delimiters swapped: a `"` stands for itself, and `\'` is the one escape it
+adds, so `'it\'s'` and `"it's"` are one string. The quote is a spelling, not
+part of the value, and every output writes the string between double quotes.
+
+`\'` stays refused between double quotes, where JavaScript accepts it, so a
+double-quoted string is always a JSON string. JavaScript's other spellings —
+the `\v`, `\0`, `\xHH` and `\u{…}` escapes, a raw control character, a line
+continuation — are refused in both quotes, as is a template literal; see
 [js-string-literals](./todo/2460-js-string-literals.md) and
 [template-literals](./todo/3440-template-literals.md).
 
 This holds at every level of a module — values, object keys, and the path of
-an `import` statement are all JSON strings.
+an `import` statement.
 
 ### Arrays
 
