@@ -194,14 +194,24 @@ yet, and under this arm the refusal is the executor's to make: a host
 function has text of its own, the wrapper's source, and `String` in the
 operations table delegates to the host's `String`, so without a guard
 `['String', ['=>', …]]` would answer that text, plausible and wrong. Until
-the graph's text is rendered, the operations that reach a function's text,
-`String`, `+` with a string, and an order against a string or another
-function, refuse a value whose `typeof` is `'function'`, the same refusals
-#2206 makes for a record, at the same operations. Numeric coercions and an
-order against anything else answer as JavaScript does for a function
-without its text and stay. That guard is a prerequisite of this arm, not a
-follow-up: the second key replaces it, and until then nothing renders a
-function's text by accident.
+the graph's text is rendered, every conversion that can reach a function's
+text refuses. A guard on the operand's `typeof` alone is not that: a
+function's text is reached indirectly as well, through an array that holds
+one at any depth, since `String([f])` joins its elements, through a computed
+property key, since `ToPropertyKey` converts a function to its text, and
+through a host member call the prototype table admits that converts its
+receiver or an element, `join` and `toString` among them. So the guard is on
+the conversion and walks the value: `String`, `+` with a string, an order
+against a string or another function, a computed key, and those member
+calls refuse when the value converted is a function or an array holding one
+at any depth, the same refusals #2206 makes for a record where it makes
+them, and the same paths, which this proposal does not claim #2206 already
+covers. Numeric coercions and an order against anything else answer as
+JavaScript does for a function without its text and stay. That guard is a
+prerequisite of this arm, not a follow-up: the second key replaces it, and
+until then nothing renders a function's text by accident. The walk is the
+cost of not rendering: it is the reason the text decision should close
+soon rather than a reason to render before it does.
 
 ### The decision this proposal is one arm of
 
@@ -217,7 +227,7 @@ JavaScript executors.**
 | `typeof`, reads, calls, spread, coercion | each an operation of the executor's | the host's |
 | a host method calling its argument | bridged at the positions `callbacks` lists | native |
 | consumers | call through the executor's `call` | call natively |
-| `String(f)` | refused until rendered | refused until rendered, by an interim guard in the operations table, then answered by a second key here |
+| `String(f)`, and text reached through an array, a computed key or a host member call | refused until rendered | refused until rendered, by an interim guard on every conversion that walks the value, then answered by a second key here |
 | what the executors are | interpreters of a closed value | builders of host functions from a graph |
 
 The record keeps the language closed and puts the cost in the executors;
@@ -286,10 +296,12 @@ neither this document nor those pull requests should be built on as settled.
 - [ ] Writer: named parameters within #2200's boundary and under a
   documented bound below every supported host's parameter-list limit, the
   pattern for every other function, the helper emitted once.
-- [ ] Interim text refusal: `String`, `+` with a string, and an order against
-  a string or a function refuse a value whose `typeof` is `'function'` in
-  the operations table, with the same proofs #2206 has for a record; lands
-  with the `=>` change, never after it.
+- [ ] Interim text refusal on every conversion that can reach a function's
+  text: `String`, `+` with a string, an order against a string or a
+  function, a computed property key, and the host member calls that convert
+  their receiver or an element, each refusing a function or an array holding
+  one at any depth; proofs for the direct case, the nested array, the
+  computed key and `join`; lands with the `=>` change, never after it.
 - [ ] Proofs: `f.length` for constant and run-time counts, including unused
   parameters and functions passed through other functions; `g()` sees an
   empty `['args']` and `g(undefined)` sees `[undefined]`; a count outside the
