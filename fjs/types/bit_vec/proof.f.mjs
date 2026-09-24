@@ -456,7 +456,10 @@ export const proof = {
         assertEq(v, u8ListToVec(msb)(bytes))
         assertEq(v, vec(24n)(0x123456n))
         assertStructurallySame(toArray(u8ListMsb(v)), bytes)
-        assertStructurallySame(toArray(u8ListMsb(vec(9n)(0x83n))), toArray(u8List(msb)(vec(9n)(0x83n))))
+        // not an inverse off whole bytes: the partial byte is zero-padded
+        const ragged = toArray(u8ListMsb(vec(9n)(0x83n)))
+        assertStructurallySame(ragged, [0x41, 0x80])
+        assertEq(u8ListToVecMsb(ragged), vec(16n)(0x4180n))
     },
     tryConcat: () => {
         const a = vec(8n)(0x45n)

@@ -527,8 +527,10 @@ export const u8List = bo => v =>
     map(vecToU8(bo))(chunkList(bo)(8n)(v))
 
 /**
- * `u8List(msb)`: the bytes of a vector, most significant first — the inverse
- * of `u8ListToVecMsb`.
+ * `u8List(msb)`: the bytes of a vector, most significant first. A trailing
+ * partial byte is zero-padded in its low bits (`vec(9n)(0x83n)` gives
+ * `[0x41, 0x80]`), so this inverts `u8ListToVecMsb` only on whole-byte
+ * vectors.
  *
  * @type {(v: Vec) => Thunk<number>}
  */
