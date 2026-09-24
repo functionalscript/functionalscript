@@ -88,9 +88,11 @@ const call = nodes => (callee, args) => {
 }
 
 /**
- * A function's EDAG, `['=>', frame, body]`, in the scope `nodes` names: its
- * captures lowered here, each to the node the enclosing scope has for it,
- * and its body a scope of its own over them.
+ * A function's EDAG, `['=>', 0, frame, body]`, in the scope `nodes` names:
+ * its count `0`, since a rest parameter or none counts nothing towards a
+ * `length` (`spec/README.md`, Functions); its captures lowered here, each
+ * to the node the enclosing scope has for it; and its body a scope of its
+ * own over them.
  *
  * The frame holds each distinct node among them once, in the order the body
  * first names them — two bindings reaching one node, a `const` and its
@@ -122,7 +124,7 @@ const fn = nodes => (body, captures) => {
     /** @type {(n: typeof candidates[number]) => Exp} */
     const read = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
     const inner = outer.map(n => n instanceof Array ? read(n) : n)
-    return ['=>', slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
+    return ['=>', 0, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
 }
 
 /**

@@ -532,7 +532,12 @@ const entry = (s, depth) => i => {
             )(every([base(s, depth)(b), key(k)]))
         }
         case '=>': {
-            const [, frame, body] = node
+            const [, count, frame, body] = node
+            // A rest parameter is the one list this writer spells, and it
+            // counts nothing towards a `length`; a function of another
+            // length has no source until the compiler reads the pattern of
+            // `spec/todo/3130-function-length-pattern.md`.
+            if (!Object.is(count, 0)) { return error('a function whose length is not 0') }
             return okThen(
                 /** @type {(names: readonly string[]) => Document} */
                 (names => mapOk(
@@ -589,7 +594,7 @@ const hoists = s => {
         // every frame element but a spread and a slot of this scope's own
         // frame takes a `const`, after what it reaches and before the
         // function: a capture is a name
-        const inner = frameItems(s.a, node[0] === '=>' ? node[1] : null)
+        const inner = frameItems(s.a, node[0] === '=>' ? node[2] : null)
             .filter(x => x instanceof Array && x[0] === '#' && !isSlotRead(s.a, /** @type {Ref} */(x)))
             .reduce((ns, x) => add(found(ns, /** @type {Ref} */(x)), ['entry', /** @type {Ref} */(x)[1]]), operands(node).reduce(found, names))
         const self = minting(node) && s.a.shared.includes(i) ? add(inner, ['entry', i]) : inner

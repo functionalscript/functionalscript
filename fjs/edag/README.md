@@ -64,7 +64,8 @@ first two counts (`+`, `-`)
 — not by semantic category. The four chain nodes follow a different rule and
 are their own kinds, because what distinguishes them is the hidden control
 flow they own rather than how many operands they take; see
-[Chains](#chains). This table is an overview; the contract of
+[Chains](#chains). So is `=>`: two operands established where the function
+is built and a body deferred to each call is no operation's shape. This table is an overview; the contract of
 record for each node is the JSDoc in [module.f.mjs](module.f.mjs) — on the
 node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`/`op12Id`/`op3Id`
 vocabularies.
@@ -85,7 +86,8 @@ vocabularies.
 | `['\|()', exp, k?]`, `['\|.', index, k?]`, `['\|?.()', exp, k?]`, `['\|!()', exp]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` |
-| `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `['=>', exp, exp, exp]` | function: its `length`, its frame, both evaluated where it is built, and its body, deferred to each call |
+| `[id, exp, exp]` | binary operation, `id` one of `own` `is` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 | `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
 
@@ -124,7 +126,7 @@ An `index` — the property operand of `.`, `?.`, and the `|.` step — is a
 number. Widening those positions to a bare `exp` was weighed and rejected:
 `exp` and `index` overlap, since `['Number', e]` is both a `numberCast` and
 an `op1`, so it would buy a second spelling of every computed key and no new
-expressive power. Among the binary ids, `=>` builds a function and `own` reads
+expressive power. Among the binary ids, `own` reads
 an own property, bypassing the prototype chain (including `__proto__` — see
 the `ownJs` proof); calling a function is not among them — `()` takes two
 `exp` operands and so *is* binary in count, but a call's receiver comes from
