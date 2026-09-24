@@ -28,6 +28,15 @@ MVP work is [named imports](../../spec/todo/named-imports.md) and
 proven together on a named-only module and its dependency. The default-export
 walking skeleton below is the starting point, not the complete acceptance test.
 
+The required parser scope is the
+[named-module acceptance example](../../todo/fjs-nanvm-integration.md#named-module-acceptance):
+the existing LL(1) parser already accepts its named exports, empty/rest-only
+functions, calls and arithmetic. Named-import syntax is tracked by the
+named-import task above, including its implementation status. Completing the
+whole language grammar or compiling every repository module is not an
+additional MVP gate; further syntax follows the
+[language roadmap](../../spec/todo/README.md).
+
 `fjs` never invokes cargo: the npm-shipped tool emits `.rs` files, and
 building/running them is an ordinary cargo workflow. Each ecosystem keeps its
 native tool. The self-hosted `nanvm` crate is the post-MVP milestone below
@@ -330,7 +339,13 @@ as a generic `Any` facility, post-MVP.
       tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../spec/todo/2340-operators.md).
-- [ ] **Parser**, using [`fjs/ebnf/`](../../fjs/ebnf/README.md) (FJS).
+- [x] **LL(1) parser foundation** —
+      [`fjs/fsc/parser`](../../fjs/fsc/parser/README.md) uses
+      [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/README.md) and implements the
+      source subset used by the walking skeleton. This does not mark the
+      full language grammar complete. Parser support for named imports in
+      the acceptance example is owned by **Named-module
+      integration** above; there is no separate unspecified parser gate.
 - [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
       First complete the repository TypeScript-to-JavaScript Stage 1 and authored
       `.f.js` package support. Then, as compiler coverage grows, rename eligible
