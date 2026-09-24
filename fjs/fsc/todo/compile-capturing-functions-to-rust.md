@@ -137,7 +137,8 @@ body has already read from outside.
 3. **Capture shadowing.** `capture shadowed` is a gap, not a rule; see
    [`body-const-forward-reference.md`](../parser/todo/body-const-forward-reference.md).
 4. **Fixture coverage.** `closure.mjs` pins captures of an enclosing
-   argument, a module `const` and a three-deep nested chain. These behaviors
+   argument, a module `const`, both at once in one nested function, and a
+   three-deep nested chain. These behaviors
    compile today but no generated fixture pins them:
    - identity: two closures made by the same function are distinct, one
      binding read twice is the same (the example above);
