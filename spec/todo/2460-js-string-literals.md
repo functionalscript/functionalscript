@@ -1,12 +1,15 @@
 # JS String Literals
 
+**Priority:** P1 for [single quotes](#proposal-single-quotes-first); P5 for the
+[rest](#deferred-the-other-spellings)
+**Status:** open — single quotes proposed; awaiting language-design approval
+
 String literals at every level — JSON, DJS, FJS — use JSON string syntax:
 double quotes, the JSON escapes (`\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t`
 `\uXXXX`), and no literal control characters
 ([RFC 8259 §7](https://www.rfc-editor.org/rfc/rfc8259#section-7)).
 
-This feature adds the rest of the ECMAScript string literal syntax as
-syntactic sugar:
+ECMAScript's string literal syntax has four more spellings:
 
 - single-quoted strings: `'hello'`,
 - additional escapes: `\v`, `\0`, `\xHH`, `\u{XXXXXX}`,
@@ -17,37 +20,141 @@ syntactic sugar:
 export default 'a\tb\x41\u{1F600}'
 ```
 
-## Rationale for deferring
+None of them adds a value: JSON string syntax already denotes every JS string
+value, each UTF-16 code unit, lone surrogates included, being reachable via
+`\uXXXX`. This document proposes the first spelling now and keeps the other
+three deferred.
 
-JSON string syntax already denotes every JS string value: each UTF-16 code
-unit, including lone surrogates, is reachable via `\uXXXX`. So this feature
-adds alternative spellings, not new values.
+**Language-design approval:** not yet recorded. Before implementation, link an
+explicit decision by `sergey-shandar` approving the
+[single-quote scope](#scope) below, as
+[DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)
+requires.
+
+## Problem
+
+Single quotes are the most common string spelling in this repository's own
+source, so this sugar is what keeps the compiler from reading the repository.
+At `a08c20a`, `fjs compile <module> <output>.rs` over every non-proof `.f.mjs`
+module under `fjs/` compiled 2 of 192: the two
+`fjs/fsc/examples` inputs. Of the 190 refusals, 177 were an
+`unexpected token` at a single-quoted string, 158 of them in the module's
+first `import` line (`import { … } from '../…'`). The first error is the only
+one reported, so every construct later in those modules is invisible until
+quotes parse.
+
+That matters for the MVP: the [roadmap](../../nanvm-lib/todo/mvp-roadmap.md)'s
+repository-coverage task, and self-hosting after it, are the compiler
+compiling these modules. The other route, rewriting every `'…'` in the
+repository as `"…"`, touches most source files, conflicts with every open pull
+request, and changes code that is already correct JavaScript to suit a
+restriction that protects no guarantee — the case
+[DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+tells us not to make.
+
+## Proposal: single quotes first
+
+### Scope
+
+A string literal may be delimited by `'` as well as `"`:
+
+- Inside `'…'`, the escapes are JSON's plus `\'`. A literal `"` needs no
+  escape, and `\"` is accepted too, as in JavaScript.
+- Everything JSON refuses inside `"…"` stays refused inside `'…'`: a literal
+  control character, a line terminator, and the other JavaScript escapes
+  (`\v`, `\0`, `\xHH`, `\u{…}`).
+- `"…"` does not change: it stays exactly JSON's string, so `"\'"` stays
+  refused. JavaScript accepts it, so this is a restriction: it keeps "is this
+  double-quoted string JSON?" answerable by the JSON grammar alone. Admitting
+  `\'` there too is the alternative, and it costs that property for a spelling
+  nobody needs.
+- The value is the same as the double-quoted spelling's: `'a"b'` and
+  `"a\"b"` denote one string. Nothing is added to the value model, the EDAG
+  or the Rust printer.
+- Every place a string is written takes it: values, object keys and `import`
+  paths.
+- Output is unchanged. Every `fjs compile` output that writes a string
+  (`.js`/`.mjs`, `.data.js`, `.json`) keeps writing JSON's double-quoted form,
+  the canonical spelling of the value. The output's spelling is the writer's,
+  not the source's.
+
+### Where it lives
+
+JSON's grammar does not change. `fjs/ebnf/lib/js` imports JSON's `string` rule
+today; it gains a single-quoted alternative next to it, sharing JSON's
+character and escape sub-rules and adding `\'`. So JSON ⊂ DJS stays a grammar
+fact: a single-quoted literal is a JS string, never a JSON one, and a reader of
+JSON never sees the new rule.
+
+`fjs/js/tokenizer`'s `decodeJsonString` already strips the two delimiters
+whatever they are and decodes escapes through `escapeToCodePoint`, so decoding
+needs `\'` → `'` and nothing more. The tokenizer's contract with the parser, a
+`string` token carrying its value, does not change, so nothing in
+`fjs/fsc/parser` does either.
+
+### Benefits
+
+- Familiar source compiles as written: the dominant spelling in the repository
+  and in most JavaScript code.
+- The biggest unblock for repository coverage: the first error in most modules
+  moves to their next real gap, which is what the coverage work needs to see.
+- Small and contained: one grammar alternative, one escape, proofs. No new
+  value, node or output.
+
+### Drawbacks
+
+- One more string spelling to read, and two spellings of one value in source.
+  Canonical output keeps content addressing on one form.
+- `"\'"` is refused where JavaScript accepts it (see [scope](#scope)).
+- Every input the FSC tokenizer (`fjs/fsc/tokenizer`) reads gains it at once.
+  DataJS's own grammar, `fjs/ebnf/lib/datajs`, is separate and does not
+  change here; whether it follows is its own decision, which the deferral
+  note below already calls "DJS-level sugar".
+
+## Deferred: the other spellings
+
+The extra escapes, raw control characters and line continuations stay deferred
+at the lowest priority. They are alternative spellings of values JSON already
+expresses, and unlike single quotes, no measured repository need stands behind
+them.
 
 Design rule: we extend JSON only where JS has values JSON cannot express
-(`undefined`, `bigint`, functions). Alternative spellings of expressible
-values are syntactic sugar and get the lowest priority.
+(`undefined`, `bigint`, functions), or where a spelling is common enough that
+refusing it keeps familiar code from compiling, as single quotes do. Keeping a
+single string grammar across the JSON ⊂ DJS ⊂ FS lattice avoids parser
+differentials ("is it valid JSON?" is answerable at the string level) and keeps
+values closer to a canonical byte form for content addressing.
 
-Keeping a single string grammar across the JSON ⊂ DJS ⊂ FS lattice also
-avoids parser differentials ("is it valid JSON?" is answerable at the string
-level) and keeps values closer to a canonical byte form for content
-addressing.
-
-Until implemented, JS spellings can be normalized into JSON spellings
-mechanically:
-`'x'` → `"x"`, literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
+Until implemented, they can be normalized into JSON spellings mechanically:
+literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 
 **Note**: template literals are not part of this feature — they involve
 expression interpolation, not just lexical syntax. They are tracked separately
 as [template-literals](./3440-template-literals.md).
 
 **Note**: if a universal parser — one that recognizes JSON, DJS, and FS in a
-single pass — implements this feature, it must still distinguish JS strings
-from JSON strings: a string literal using any of the JS-only spellings above
-is not a JSON string, and the parser has to report the input as outside
-JSON (it stays valid DJS/FS, since this feature is DJS-level sugar). For
-example, via two grammar rules (`json-string` ⊂ `js-string`) sharing the
-escape sub-rules, or by recording which sub-language each matched token
-stayed within.
+single pass — implements any of these spellings, it must still distinguish JS
+strings from JSON strings: a string literal using any JS-only spelling is not a
+JSON string, and the parser has to report the input as outside JSON (it stays
+valid DJS/FS, since this feature is DJS-level sugar). For example, via two
+grammar rules (`json-string` ⊂ `js-string`) sharing the escape sub-rules, or by
+recording which sub-language each matched token stayed within. Single quotes
+take the first of those.
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar#string_literals>
+
+## Tasks
+
+- [ ] Record the approving language designer and a direct link to the
+      approval of the [scope](#scope).
+- [ ] `fjs/ebnf/lib/js`: a single-quoted string alternative sharing JSON's
+      character and escape rules, plus `\'`; JSON's grammar unchanged.
+- [ ] `fjs/js/tokenizer`: decode `\'`; prove `'…'` and `"…"` decode to the
+      same value, and that `"\'"`, a raw control character and a line
+      terminator inside `'…'` are refused.
+- [ ] `fjs/fsc`: prove a single-quoted value, key and `import` path compile to
+      the same EDAG and output as their double-quoted spellings.
+- [ ] `spec/README.md`, Strings: describe both delimiters and the refusals.
+- [ ] Re-run the repository survey above and record where the modules stop
+      next.
