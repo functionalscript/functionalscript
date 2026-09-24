@@ -1,8 +1,8 @@
 /**
  * Provides ASCII code point constants and helpers for creating numeric code points and inclusive ranges.
  *
- * It also owns the hexadecimal digit codec (`hexDigitValue` /
- * `hexDigitCodePoint`), so no consumer has to rederive the `'0'`, `'a' - 10`
+ * It also owns the hexadecimal digit codec (`hexDigitValue`,
+ * `lowerHexDigitValue` / `hexDigitCodePoint`), so no consumer has to rederive the `'0'`, `'a' - 10`
  * and `'A' - 10` offsets for itself.
  *
  * @module
@@ -291,6 +291,21 @@ export const hexDigitValue = codePoint =>
     isDigit(codePoint) ? codePoint - digit0
         : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
             : isLatinCapitalLetterAF(codePoint) ? codePoint - latinCapitalLetterAFOffset
+                : null
+
+/**
+ * The value `0..15` denoted by a lowercase hexadecimal digit code point, or
+ * `null` when the code point is not one of `0-9`, `a-f`: `hexDigitValue`
+ * without `A-F`, for a spelling that admits only the lowercase form. A
+ * non-integer such as `97.5` is `null`, never the `10.5` a bare range test
+ * would spell.
+ *
+ * @type {(codePoint: number) => Nullable<number>}
+ */
+export const lowerHexDigitValue = codePoint =>
+    !Number.isInteger(codePoint) ? null
+        : isDigit(codePoint) ? codePoint - digit0
+            : isLatinSmallLetterAF(codePoint) ? codePoint - latinSmallLetterAFOffset
                 : null
 
 /**

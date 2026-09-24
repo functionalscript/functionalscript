@@ -1,4 +1,4 @@
-import { hexDigitCodePoint, hexDigitValue, one, range } from './module.f.mjs'
+import { hexDigitCodePoint, hexDigitValue, lowerHexDigitValue, one, range } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
@@ -32,6 +32,33 @@ export const proof = {
             assertEq(hexDigitValue(one('G')), null)
             assertEq(hexDigitValue(one('`')), null)
             assertEq(hexDigitValue(one('g')), null)
+        },
+    },
+    lowerHexDigitValue: {
+        digit: () => {
+            assertEq(lowerHexDigitValue(one('0')), 0)
+            assertEq(lowerHexDigitValue(one('9')), 9)
+        },
+        latinSmallLetterAF: () => {
+            assertEq(lowerHexDigitValue(one('a')), 10)
+            assertEq(lowerHexDigitValue(one('f')), 15)
+        },
+        latinCapitalLetterAF: () => {
+            assertEq(lowerHexDigitValue(one('A')), null)
+            assertEq(lowerHexDigitValue(one('F')), null)
+        },
+        notAHexDigit: () => {
+            assertEq(lowerHexDigitValue(one('/')), null)
+            assertEq(lowerHexDigitValue(one(':')), null)
+            assertEq(lowerHexDigitValue(one('`')), null)
+            assertEq(lowerHexDigitValue(one('g')), null)
+        },
+        notAnInteger: () => {
+            assertEq(lowerHexDigitValue(97.5), null)
+            assertEq(lowerHexDigitValue(Number.NaN), null)
+        },
+        roundTrip: () => {
+            assertEq(stringify(values.map(v => lowerHexDigitValue(hexDigitCodePoint(v)))), stringify(values))
         },
     },
     hexDigitCodePoint: {
