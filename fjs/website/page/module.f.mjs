@@ -44,6 +44,31 @@ import { faviconLinks, stylesheetLink } from '../style/module.f.mjs'
 export const repository = 'https://github.com/functionalscript/functionalscript'
 
 /**
+ * The site's name, which the root page's title is on its own.
+ *
+ * @type {string}
+ */
+export const siteName = 'FunctionalScript'
+
+/**
+ * A page's `<title>`: what the page is, then the site it belongs to.
+ *
+ * **The site's name, because a title travels without the page.** It is the
+ * headline of a search result, the label of a bookmark and of a link pasted
+ * into a chat, and what a browser's history matches a search against. A
+ * directory's path alone — `fjs/types` — says nothing there about which
+ * project it belongs to.
+ *
+ * **The page first and the site last.** A browser narrows a tab by cutting
+ * its title from the right, so with the site first every tab of this site
+ * would read the same few letters; with it last, what is cut is the part
+ * that is the same on every tab.
+ *
+ * @type {(page: string) => Element}
+ */
+export const pageTitle = page => ['title', `${page} · ${siteName}`]
+
+/**
  * The language every page of the site is written in, as its `<html lang>`.
  *
  * One value for the whole site, since every page is in English — the prose,
@@ -355,7 +380,7 @@ const ancestors = path => {
  * @type {(commit: string | null) => (dir: Dir) => Vec}
  */
 export const page = commit => dir => htmlUtf8(lang)(
-    ['title', dir.path],
+    pageTitle(dir.path),
     stylesheetLink,
     ...faviconLinks,
 )(
