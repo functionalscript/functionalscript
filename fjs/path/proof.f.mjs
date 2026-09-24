@@ -1,5 +1,48 @@
-import { concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parse, relativize, root, toPosix, under } from "./module.f.mjs"
+import { _dotSegmentFold, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parse, relativize, root, toPosix, under } from "./module.f.mjs"
 import { assertEq } from '../asserts/module.f.mjs'
+import { fold, toArray } from '../types/list/module.f.mjs'
+
+/**
+ * A classifier with spellings of its own, so the proof reads the fold rather
+ * than either consumer's: `~` is a parent, `-` is skipped.
+ *
+ * @type {(segment: string) => 'skip' | 'up' | 'keep'}
+ */
+const tilde = segment => segment === '-' ? 'skip' : segment === '~' ? 'up' : 'keep'
+
+const tildeDotSegments = _dotSegmentFold(tilde)
+
+/** @type {(rooted: boolean) => (segments: readonly string[]) => string} */
+const dots = rooted => segments => toArray(fold(tildeDotSegments(rooted))([])(segments)).join('/')
+
+const dotSegmentFoldTest = [
+    // A skipped segment and a kept one.
+    () => {
+        assertEq(dots(false)(['a', '-', 'b']), 'a/b')
+    },
+    // An `up` cancels the segment before it, in both states.
+    () => {
+        assertEq(dots(false)(['a', 'b', '~']), 'a')
+    },
+    () => {
+        assertEq(dots(true)(['a', 'b', '~']), 'a')
+    },
+    // With nothing to cancel, the clamp: a rooted fold drops the `up`, a
+    // relative one keeps it — written as `..`, whatever its spelling.
+    () => {
+        assertEq(dots(true)(['~', 'a']), 'a')
+    },
+    () => {
+        assertEq(dots(false)(['~', 'a']), '../a')
+    },
+    // A surviving `..` is not a segment to cancel: the next `up` stacks.
+    () => {
+        assertEq(dots(false)(['a', '~', '~', '~']), '../..')
+    },
+    () => {
+        assertEq(dots(true)(['a', '~', '~', '~']), '')
+    },
+]
 
 const normalizeTest = [
     () => {
@@ -526,4 +569,4 @@ const underThrowTest = {
     },
 }
 
-export const proof = { normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }
+export const proof = { dotSegmentFoldTest, normalizeTest, escapesTest, rootTest, driveTest, parseTest, concatTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }
