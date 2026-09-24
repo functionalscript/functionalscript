@@ -13,7 +13,7 @@
  */
 
 import { join, normalize, parse } from '../path/module.f.mjs'
-import { byteLength, empty, length, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
+import { byteLength, empty, maxLength, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import {
     catchStep,
