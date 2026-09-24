@@ -36,6 +36,7 @@ import { asBase, asNominal } from '../nominal/module.f.mjs'
 import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
 import { cmp, max, min } from '../function/compare/module.f.mjs'
 import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 
 /**
  * Maximum length of a bit vector in bits (1_048_576 = 0x10_0000).
@@ -45,22 +46,39 @@ import { map as nullableMap, mapUnwrap } from '../nullable/module.f.mjs'
 export { maxLength }
 
 /**
+ * `bits`, asserted to be a count. A negative one has no byte meaning, and the
+ * arithmetic below would answer it anyway: `-1n >> 3n` is `-1n`, and `-8n` is
+ * a multiple of eight. A caller can reach one only by subtracting lengths
+ * wrongly, so it panics rather than returns.
+ *
+ * @type {(bits: bigint) => bigint}
+ */
+const bitCount = bits => {
+    assert(bits >= 0n, ['negative bit count', bits])
+    return bits
+}
+
+/**
  * The whole bytes in `bits`; `bits` need not be a multiple of eight, and a
  * trailing partial byte is not counted.
  *
  * The primitive takes a bit count rather than a `Vec`, so a consumer that
  * holds only a running length, never the vector, asks the same question.
  *
+ * @throws On a negative `bits`.
+ *
  * @type {(bits: bigint) => bigint}
  */
-export const bytesIn = bits => bits >> 3n
+export const bytesIn = bits => bitCount(bits) >> 3n
 
 /**
  * Whether `bits` is a whole number of bytes.
  *
+ * @throws On a negative `bits`.
+ *
  * @type {(bits: bigint) => boolean}
  */
-export const isWholeBytesIn = bits => (bits & 0b111n) === 0n
+export const isWholeBytesIn = bits => (bitCount(bits) & 0b111n) === 0n
 
 /** {@link maxLength} in whole bytes. */
 export const maxLengthBytes = bytesIn(maxLength)

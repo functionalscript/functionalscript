@@ -197,6 +197,10 @@ export const proof = {
             assert(!isWholeBytes(vec(9n)(0n)))
             assert(isWholeBytes(vec(16n)(0n)))
         },
+        // A negative count is refused, not answered: `-1n >> 3n` would be
+        // `-1n`, and `-8n` would pass as whole bytes.
+        negativeBytesIn: { throw: () => bytesIn(-1n) },
+        negativeIsWholeBytesIn: { throw: () => isWholeBytesIn(-8n) },
         maxLengthBytes: () => {
             assertEq(maxLengthBytes, 131_072n)
             assert(isWholeBytesIn(maxLength))
