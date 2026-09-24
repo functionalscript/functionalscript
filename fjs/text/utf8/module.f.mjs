@@ -6,7 +6,8 @@
  * @import { List, Thunk } from '../../types/list/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { ByteOrEof, I32, U8, Utf8NonEmptyState, Utf8State, } from './types.ts'
+ * @import { U8, Utf8NonEmptyState, Utf8State, } from './types.ts'
+ * @import { CodePoint } from '../code_point/types.ts'
  */
 
 import { flatMap, toArray } from '../../types/list/module.f.mjs'
@@ -97,7 +98,7 @@ const isLeadByte = b => b >= leadMin && b <= leadMax
  * itself produces. Shared by the `state === null` arm and by error recovery
  * after {@link utf8StateToError}, which differ only in `prefix`.
  *
- * @type {(prefix: readonly I32[]) => (byte: number) => readonly [readonly I32[], Utf8State]}
+ * @type {(prefix: readonly CodePoint[]) => (byte: number) => readonly [readonly CodePoint[], Utf8State]}
  */
 const restart = prefix =>
     byte =>
@@ -107,7 +108,7 @@ const restart = prefix =>
 
 /**
  * Converts a Unicode code point to a sequence of UTF-8 bytes.
- * @param {number} input The Unicode code point to be converted. Valid range:
+ * @param {CodePoint} input The Unicode code point to be converted. Valid range:
  *   - 0x0000 to 0x007F for 1-byte sequences.
  *   - 0x0080 to 0x07FF for 2-byte sequences.
  *   - 0x0800 to 0xFFFF for 3-byte sequences.
@@ -168,7 +169,7 @@ const codePointToUtf8 = input => {
  * @param input - A list of Unicode code points to be converted.
  * @returns A thunk that lazily produces a sequence of UTF-8 bytes.
  *
- * @type {(input: List<number>) => Thunk<U8>}
+ * @type {(input: List<CodePoint>) => Thunk<U8>}
  */
 export const fromCodePointList = flatMap(
     codePointToUtf8,
@@ -178,7 +179,7 @@ export const fromCodePointList = flatMap(
  * Converts a non-empty UTF-8 decoding state to an error code.
  *
  * @param {Utf8NonEmptyState} state A non-empty UTF-8 decoding state.
- * @returns {I32} An I32 error code derived from the invalid UTF-8 state.
+ * @returns {CodePoint} An error-tagged code point derived from the invalid UTF-8 state.
  */
 export const utf8StateToError = state => {
     let x
@@ -222,7 +223,7 @@ export const utf8StateToError = state => {
  *   - A list of decoded Unicode code points or error codes.
  *   - The updated UTF-8 state.
  *
- * @type {StateScan<number, Utf8State, readonly I32[]>}
+ * @type {StateScan<number, Utf8State, readonly CodePoint[]>}
  */
 export const utf8ByteToCodePointOp = (byte, state) => {
     if (!u8(byte)) {
@@ -274,7 +275,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
  * sequence is flushed as a single error code and the state resets to `null`.
  * The flush itself is `eofFlush` from `code_point`, shared with UTF-16.
  *
- * @type {(state: Utf8State) => readonly [List<I32>, Utf8State]}
+ * @type {(state: Utf8State) => readonly [List<CodePoint>, Utf8State]}
  */
 export const utf8EofToCodePointOp = eofFlush(utf8StateToError)
 
@@ -284,7 +285,7 @@ export const utf8EofToCodePointOp = eofFlush(utf8StateToError)
  * @param input - A list of UTF-8 bytes.
  * @returns A list of Unicode code points or error codes.
  *
- * @type {(input: List<U8>) => List<I32>}
+ * @type {(input: List<U8>) => List<CodePoint>}
  */
 export const toCodePointList =
     decoder(utf8ByteToCodePointOp, utf8EofToCodePointOp)

@@ -61,7 +61,7 @@ express both string forms through it:
 
 ```ts
 // fjs/text/utf8/module.f.mjs
-export const vecToCodePointList = (v: Vec): List<I32> => toCodePointList(u8List(msb)(v))
+export const vecToCodePointList = (v: Vec): List<CodePoint> => toCodePointList(u8List(msb)(v))
 ```
 
 `fromVec` builds on it (adding its alignment/validity checks), and
