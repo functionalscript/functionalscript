@@ -1,4 +1,4 @@
-import { concat, dotSegmentFold, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parse, relativize, root, toPosix, under } from "./module.f.mjs"
+import { _dotSegmentFold, concat, escapes, isBareDrive, isDriveLetter, isDriveRoot, isProperPrefix, join, normalize, parse, relativize, root, toPosix, under } from "./module.f.mjs"
 import { assertEq } from '../asserts/module.f.mjs'
 import { fold, toArray } from '../types/list/module.f.mjs'
 
@@ -10,8 +10,10 @@ import { fold, toArray } from '../types/list/module.f.mjs'
  */
 const tilde = segment => segment === '-' ? 'skip' : segment === '~' ? 'up' : 'keep'
 
+const tildeDotSegments = _dotSegmentFold(tilde)
+
 /** @type {(rooted: boolean) => (segments: readonly string[]) => string} */
-const dots = rooted => segments => toArray(fold(dotSegmentFold(tilde)(rooted))([])(segments)).join('/')
+const dots = rooted => segments => toArray(fold(tildeDotSegments(rooted))([])(segments)).join('/')
 
 const dotSegmentFoldTest = [
     // A skipped segment and a kept one.

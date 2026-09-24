@@ -9,7 +9,7 @@ import { fold, map, toArray } from '../../types/list/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../text/code_point/module.f.mjs'
 import { percentDecode } from '../../text/percent/module.f.mjs'
-import { concat as pathConcat, dotSegmentFold } from '../module.f.mjs'
+import { concat as pathConcat, _dotSegmentFold } from '../module.f.mjs'
 
 /** A literal URL string replaces lone surrogates; percent-encoded bytes stay strict UTF-8. @type {(c: number) => number} */
 const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
@@ -47,6 +47,8 @@ const importSegmentKind = segment => {
     }
 }
 
+const importDotSegments = _dotSegmentFold(importSegmentKind)
+
 /**
  * Resolve an import's URL-path spelling against its importing file, or return
  * null for unsupported syntax or a surviving unsupported segment. URL dot
@@ -77,7 +79,7 @@ export const decode = specifier => {
         || specifier.includes('?') || specifier.includes('#')) { return null }
     const rooted = specifier.startsWith('/')
     const raw = specifier.split('/')
-    const components = toArray(fold(dotSegmentFold(importSegmentKind)(rooted))([])(rooted ? raw.slice(1) : raw))
+    const components = toArray(fold(importDotSegments(rooted))([])(rooted ? raw.slice(1) : raw))
     const segments = components.map(importSegment)
     return segments.every(segment => segment !== null)
         ? `${rooted ? '/' : ''}${segments.join('/')}`

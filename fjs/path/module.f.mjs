@@ -35,7 +35,7 @@ import { join as listJoin, concat as stringConcat } from '../types/string/module
  *
  * @type {(classify: (segment: string) => 'skip' | 'up' | 'keep') => (rooted: boolean) => Fold<string, List<string>>}
  */
-export const dotSegmentFold = classify => rooted => input => state => {
+export const _dotSegmentFold = classify => rooted => input => state => {
     switch(classify(input)) {
         case 'skip': { return state }
         case 'up': {
@@ -58,6 +58,8 @@ const pathSegment = segment =>
     segment === '' || segment === '.' ? 'skip'
     : segment === '..' ? 'up'
     : 'keep'
+
+const pathDotSegments = _dotSegmentFold(pathSegment)
 
 /**
  * Converts Windows separators (`\`) to POSIX separators (`/`).
@@ -122,7 +124,7 @@ const split = p =>
     : ['', p]
 
 /** @type {(rooted: boolean) => (rest: string) => readonly string[]} */
-const posixSegments = rooted => rest => toArray(fold(dotSegmentFold(pathSegment)(rooted))([])(rest.split('/')))
+const posixSegments = rooted => rest => toArray(fold(pathDotSegments(rooted))([])(rest.split('/')))
 
 /** @type {(s: readonly [string, string]) => string} */
 const rejoin = ([r, rest]) => stringConcat([r, listJoin('/')(posixSegments(r !== '')(rest))])
