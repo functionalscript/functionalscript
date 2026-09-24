@@ -39,6 +39,12 @@ whole language grammar or compiling every repository module is not an
 additional MVP gate; further syntax follows the
 [language roadmap](../../spec/todo/README.md).
 
+Source imports are already linked into one EDAG before `toRust` emits a single
+Rust file; see `rustText` in the [compiler](../../fjs/fsc/module.f.mjs) and the
+[import-inlining contract](../../spec/README.md#importing-other-modules).
+Generated source dependencies therefore need no separate Rust `use` or file
+layout convention. The embedding crate chooses where to include that output.
+
 `fjs` never invokes cargo: the npm-shipped tool emits `.rs` files, and
 building/running them is an ordinary cargo workflow. Each ecosystem keeps its
 native tool. The self-hosted `nanvm` crate is the post-MVP milestone below
@@ -230,8 +236,8 @@ byte-exactness, a direct correctness signal; mark the generated paths
 `linguist-generated=true` in `.gitattributes` so the diffs stay collapsed
 by default. The gitignored `_*` convention remains reserved for
 *uncommitted* generated scratch, so the committed generated code lives in a
-normally-named location (its layout is part of the generated-module-imports
-open question below).
+normally-named location chosen by the embedding crate. Each compiler invocation
+produces one Rust file containing the linked source dependency graph.
 
 This reverses the earlier publish-time-generation decision (gitignored
 `_*` output packaged via `Cargo.toml`'s `include`, published with
@@ -422,16 +428,11 @@ compiler-compatibility migration rather than a separate rewrite.
    conflicts with "always 8-byte doubles". Do we adopt RFC 8949 §4.2 as-is,
    or define our own profile (e.g. always 64-bit floats)? Belongs to the
    `Any` serialization task (P3).
-2. **Generated module imports.** An FJS module imports other modules. What is
-   the convention for how generated Rust modules reference each other
-   (`use` paths, file/directory layout mirroring the FJS module graph)? And
-   does `fjs compile <input> <output>.rs` emit the transitive closure as
-   multiple files, or is it invoked per module?
-3. **Result printing beyond JSON.** Keep the harness's explicit JSON refusal
+2. **Result printing beyond JSON.** Keep the harness's explicit JSON refusal
    for a selected value or call result that JSON cannot represent. Whether to
    add DJS output later remains open; serializing the entire export object is
    not a prerequisite for invoking one of its functions.
-4. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
+3. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
    crate's binary also be named `fjs` (same CLI surface, native), or `nanvm`?
 
 ### Related
