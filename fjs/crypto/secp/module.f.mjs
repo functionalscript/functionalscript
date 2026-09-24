@@ -21,18 +21,21 @@ import { repeat } from '../../common/monoid/module.f.mjs'
  * @example
  *
  * ```js
+ * // y² = x³ + x + 4 over F₂₃: 29 points, a prime order, so any finite
+ * // point generates the whole group
  * const curveParams = {
  *     p: 23n,
- *     c: [0n, 1n],
- *     g: [1n, 1n],
- *     n: 19n
+ *     c: [4n, 1n],
+ *     g: [0n, 2n],
+ *     n: 29n
  * };
  * const curveInstance = curve(curveParams);
  *
  * // Access curve operations
- * const point = curveInstance.add([1n, 1n])([2n, 5n]); // Add two points
- * const negPoint = curveInstance.neg([1n, 1n]); // Negate a point
- * const mulPoint = curveInstance.mul(3n)([1n, 1n]); // Multiply a point by 3
+ * const point = curveInstance.add([0n, 2n])([1n, 11n]); // [11n, 14n]
+ * const negPoint = curveInstance.neg([0n, 2n]); // [0n, 21n]
+ * const mulPoint = curveInstance.mul(3n)([0n, 2n]); // [11n, 9n]
+ * const identity = curveInstance.mul(29n)(curveInstance.g); // null
  * ```
  */
 export const curve = ({ p, c: [c0, c1], n, g }) => {
