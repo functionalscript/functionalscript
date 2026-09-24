@@ -58,9 +58,3 @@ shard path decomposes, and no second `dirname` consumer exists yet.
 - [ ] Extract `shard` in `fjs/cas/module.f.mjs`; express `toPath` and
       `publish`'s `dstDir` through it.
 - [ ] `tsc`, `fjs t`; existing CAS proofs pass unchanged.
-
-### Related
-
-- [write-closed-helpers.md](./write-closed-helpers.md) — hoists `publish`
-  wholesale but keeps the inline `parse(rel).slice(0, -1)` verbatim; this
-  issue removes it. Either order works.

@@ -55,10 +55,6 @@ lease-deadline path rule then exists once, next to its inverse.
 
 ### Related
 
-- [write-closed-helpers.md](./write-closed-helpers.md) — hoists `publish`,
-  `fail`, and the chunk loop; the two lease-path sites straddle the loop
-  boundary, so they remain two spellings even after that lands. Orthogonal;
-  coordinate if both are picked up together.
 - [../../effects/todo/fold-stream-combinator.md](../../effects/todo/fold-stream-combinator.md)
   — captures the loop skeleton, not the lease-path rule.
 - [../plan/staging-lease.md](../plan/staging-lease.md) —

@@ -18,7 +18,10 @@ import { resolve as resolveImportPath } from '../../../path/import/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
-import { emptyHost, emptyHostError, ioError, nodeCommands, notAFileCode, notAFileMessage } from '../module.f.mjs'
+import {
+    badPortCode, badPortMessage, emptyHost, emptyHostError, ioError, isPort, nodeCommands, notAFileCode,
+    notAFileMessage,
+} from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
@@ -651,19 +654,6 @@ const statOp = path => path === '' ? state => [state, enoent] : statPath(path)
 // of a socket. `forever` is the one HTTP-adjacent operation with no meaning
 // here; see the note on {@link virtual} below.
 
-/**
- * Whether `port` is one a host would accept: an integer in `0`–`65535`, where
- * `0` asks for an ephemeral one. Node throws `ERR_SOCKET_BAD_PORT` for anything
- * else, and a runner that accepted `-1` or `NaN` would let a program be proven
- * that cannot run.
- *
- * @type {(port: number) => boolean}
- */
-const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
-
-/** @type {number} */
-const maxPort = 0xffff
-
 /** The port that asks for any free port rather than naming one.
  *
  * @type {number}
@@ -757,13 +747,7 @@ const listen = (server, port, host) => state => {
         }))]
     }
     if (!isPort(port)) {
-        return [state, error(ioError({
-            code: 'ERR_SOCKET_BAD_PORT',
-            // Byte-for-byte what Node says, type included: this runner claims
-            // to report failures in the shape the host reports them, and a
-            // message that is nearly right is a claim that is not.
-            message: `options.port should be >= 0 and < 65536. Received type number (${port}).`,
-        }))]
+        return [state, error(ioError({ code: badPortCode, message: badPortMessage(port) }))]
     }
     // Lower-cased because a DNS name is case-insensitive and so is the
     // hexadecimal of an IPv6 literal: `LOCALHOST` and `localhost` are one
