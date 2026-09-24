@@ -105,8 +105,7 @@ see [serialization](./serialization.md).
    named lists, with declared arity preserved
 3. [ ] [function length pattern](./3130-function-length-pattern.md) — a
    proposed, unapproved spelling that would build a function of a given
-   `length` in FunctionalScript; one arm of a decision against the closure
-   record of #2206, and neither arm is settled
+   `length` in FunctionalScript
 4. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
