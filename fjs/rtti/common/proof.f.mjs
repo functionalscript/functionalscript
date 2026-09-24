@@ -68,6 +68,11 @@ export const proof = {
             assertStructurallySame(r, [['1', 2], ['foo', 3], ['01', 4]])
         },
         none: () => assertEq(undeclaredMembers(declaredTest(['a']), { a: 1 }).length, 0),
+        // A uniform container declares nothing, so every member is undeclared.
+        every: () => {
+            const r = undeclaredMembers(noDeclared, Object.assign([1], { foo: 2 }))
+            assertStructurallySame(r, [['0', 1], ['foo', 2]])
+        },
         // A hole is no member, so it meets no `rest` — which is why the array
         // kind also answers with its `length`; see `fits` in
         // `../parse/module.f.mjs`.
