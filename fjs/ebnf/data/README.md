@@ -208,8 +208,9 @@ entry rather than re-deriving any of it.
   boundary above them would name a different range than the one written.
 - **Repeat bounds**: `min` a non-negative safe integer, `max` a non-negative
   safe integer or `Infinity`, `min <= max`
-  ([repeat-bounds](../todo/repeat-bounds.md) puts the same check in the
-  constructor; the data form keeps it for the hand-written tuple).
+  (`isRepeatBounds`, which the front end's `repeat` also asserts, so a
+  constructor call is refused where it is written; the data form keeps the
+  check for the hand-written tuple).
 - **A nullable item under an unbounded `max`**: a round that consumes nothing
   would repeat forever. That covers the degenerate `R = repeatFrom0(R)`, which
   the classical LL(1) backend admits as "matches empty"; the grammar
