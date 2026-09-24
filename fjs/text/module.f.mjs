@@ -10,7 +10,7 @@
  * @import { Block, Item, Utf8 } from './types.ts'
  */
 
-import { msb, tryU8ListToVec, u8List } from '../types/bit_vec/module.f.mjs'
+import { msb, tryU8ListToVec, u8ListMsb } from '../types/bit_vec/module.f.mjs'
 import { flatMap } from '../types/list/module.f.mjs'
 import { fromCodePointList, toCodePointList } from './utf8/module.f.mjs'
 import { stringToCodePointList, codePointListToString } from './utf16/module.f.mjs'
@@ -59,4 +59,4 @@ export const utf8 =
  * @returns {string} The resulting string.
  */
 export const utf8ToString = msbV =>
-    codePointListToString(toCodePointList(u8List(msb)(msbV)))
+    codePointListToString(toCodePointList(u8ListMsb(msbV)))

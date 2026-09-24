@@ -22,13 +22,11 @@ import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { isWholeBytesIn, length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { isWholeBytesIn, length, msb, tryU8ListToVec, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { next, toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
 
 const toVec = tryU8ListToVec(msb)
-
-const toBytes = u8List(msb)
 
 /**
  * Reads an id from its hex spelling, or refuses it: a byte that is no hex
@@ -64,8 +62,6 @@ export const tryFromHexOf = oidBytes => hex => {
     return id !== null && length(id) === BigInt(oidBytes) * 8n ? id : null
 }
 
-const chunkVec = u8ListToVec(msb)
-
 /**
  * How many bytes of an object go into one `Vec` on the way to the hash:
  * an object is as long as its author made it and a `Vec` holds 128 KiB,
@@ -100,7 +96,7 @@ const chunks = bytes => () => {
     })
     return taken === 0
         ? null
-        : { first: chunkVec(taken === chunkBytes ? gathered : gathered.slice(0, taken)), tail: chunks(rest) }
+        : { first: u8ListToVecMsb(taken === chunkBytes ? gathered : gathered.slice(0, taken)), tail: chunks(rest) }
 }
 
 /**
@@ -162,7 +158,7 @@ export const digestOf = oidBytes => {
 export const toHex = oid => {
     const bits = length(oid)
     assert(bits !== 0n && isWholeBytesIn(bits), ['not whole bytes', oid])
-    return toArray(toBytes(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
+    return toArray(u8ListMsb(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
 }
 
 /**

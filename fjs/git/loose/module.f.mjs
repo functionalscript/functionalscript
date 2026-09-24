@@ -30,10 +30,8 @@
 
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { inflate, readFile } from '../../effects/node/module.f.mjs'
-import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { tryRead as readEnvelope } from '../object/module.f.mjs'
-
-const toBytes = u8List(msb)
 
 /**
  * Reads the loose object at `path`: the file, inflated, past its envelope.
@@ -47,5 +45,5 @@ const toBytes = u8List(msb)
 export const tryRead = path => {
     const compressed = readFile(path)
     const inflated = step(compressed, inflate)
-    return mapStep(inflated, v => readEnvelope(toBytes(v)))
+    return mapStep(inflated, v => readEnvelope(u8ListMsb(v)))
 }
