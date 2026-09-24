@@ -45,11 +45,10 @@ export type ParseError = {
  * converted from its token, a reference by the identifier token that spells
  * it — its name, and the position an error is anchored at — a property
  * access by the token its key is read from, a call by its arguments in the
- * order written, a negation by its operand, a function by the token naming
- * its parameter — `null` where the list is empty, there being no token —
- * and its body,
- * a block body by its ordered, tagged statements, or a
- * container of its items in the order written.
+ * order written, a negation by its operand, a function by its parameter
+ * list as written, {@link ParameterList}, and its body, a block body by
+ * its ordered, tagged statements, or a container of its items in the
+ * order written.
  *
  * A call carries no token of its own. It held the `(` while an error was
  * anchored there — a call on a numeric literal, which the fold refused —
@@ -85,7 +84,7 @@ export type Node =
     | readonly ['~', Node]
     | readonly [BinaryTag, Node, Node]
     | readonly ['?:', Node, Node, Node]
-    | readonly ['=>', DjsTokenWithMetadata | null, Node]
+    | readonly ['=>', ParameterList, Node]
     | Block
     | Container
 
@@ -145,13 +144,32 @@ export type Module = {
 }
 
 /**
+ * Ordered fixed names and an optional final rest name, with source tokens.
+ * An invalid expression in a binding position retains its opening token so
+ * the binding pass reports the early error at the parameter list.
+ */
+export type ParameterList =
+    | { readonly invalid: DjsTokenWithMetadata }
+    | readonly ParameterBinding[]
+
+/** A parameter token and whether it binds the tail. */
+export type ParameterBinding = { readonly name: DjsTokenWithMetadata, readonly rest: boolean }
+
+/**
  * The output alphabet: what the mappings return, each tagged by the rule it
  * came from. The input alphabet's metadata is the token itself, which has
  * no `id`, and that is what tells the two apart at a position typed as
  * either.
+ *
+ * A value a `(` opened is `paren` rather than `value`, holding the same
+ * node: a group is no node of its own, so this id is the one trace of the
+ * parentheses, and what tells the parameter `(a)` from `((a))`, which
+ * JavaScript refuses.
  */
 export type Out =
     | { readonly id: 'value', readonly node: Node }
+    | { readonly id: 'paren', readonly node: Node }
+    | { readonly id: 'parameters', readonly items: List<ParameterBinding> }
     | { readonly id: 'values', readonly items: List<Node> }
     | { readonly id: 'member', readonly member: Entry }
     | { readonly id: 'members', readonly items: List<Entry> }

@@ -27,14 +27,14 @@ alternate source spelling. The affected sections below follow that decision;
 the remaining subjects retain their individual discussion status. Parsing
 JavaScript syntax does not itself admit it into FunctionalScript.
 
-**Pending argument-model migration:** the
+**Implemented argument-model migration:** the
 [named-and-rest parameter plan](../spec/todo/3120-parameters.md) owns the
-proposed `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
-Subjects 2 and 7 below follow that plan now, before implementation. The
+implemented `['=>', length, frame, body]`, `['arg', N]` and `['rest']` contract.
+Subjects 2 and 7 below follow that contract. The
 remaining baseline examples and operation table using `['args']` describe
-the current zero-arity format or its history, not a positive-arity target.
-Current schema and executor behavior stay unchanged until an approved,
-coordinated migration; do not mix the two vocabularies.
+the historical zero-arity format, not the current fixed/rest target.
+Current schema, compiler and executors now use fixed/rest. Do not mix the
+historical invocation vocabulary with retained module-import `args`.
 
 ### Baseline: an expression DAG with anchored evaluation
 

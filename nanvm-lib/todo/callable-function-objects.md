@@ -60,24 +60,20 @@ variables that the generated code and `nanvm-lib` agree on.
 
 #### Grounding: what is already decided
 
-The [current EDAG](../../fjs/edag/README.md) and the pending
-[named-and-rest parameter plan](../../spec/todo/3120-parameters.md) are
- different versions of the contract. The bullets below distinguish them;
-this AOT plan does not define an alternative argument model. Historical
-and landed-stage descriptions remain records of the current zero-arity
-implementation, not instructions for future named-parameter lowering.
+The [current EDAG](../../fjs/edag/README.md) follows the
+[named-and-rest parameter plan](../../spec/todo/3120-parameters.md).
+Historical and landed-stage descriptions below retain the original zero-arity
+examples. The compiler and Rust printer now implement the new bindings; the
+remaining native callable work must use the same contract.
 
-- The current function node is `['=>', frame, body]`, with length zero.
-  If approved, migrate it to `['=>', length, frame, body]`, with nonnegative
-  integer `length` metadata and new invocation bindings. `frame` remains
-  an expression evaluated in the enclosing scope; `body` remains closed.
-- Current `['args']` reads the complete supplied list. In the new format it
-  is replaced by constant `['arg', N]`, with `0 <= N < length`, and one
-  per-invocation `['rest']` array containing the supplied tail starting at
-  `length`. Missing fixed arguments read as `undefined`. At length zero,
-  rest is the complete list; at positive length, the original supplied
-  count within the fixed prefix is not observable. This changes binding
-  semantics as well as preserving the function's declared arity.
+- The function node is `['=>', length, frame, body]`, with nonnegative
+  integer length metadata. `frame` belongs to the enclosing scope and
+  `body` opens its own invocation scope.
+- `['arg', N]` reads fixed position `N < length`; missing values are
+  `undefined`. `['rest']` reads the supplied tail starting at `length`,
+  materialized once per call. The old function-owned `['args']` is gone;
+  module-owned imports retain it. The original supplied count within the
+  fixed prefix is intentionally unobservable.
 - `['frame']` remains the captured-values array, read as
   `['.', ['frame'], i]`; it also carries captured outer fixed/rest bindings.
 - `["self"]` is direct self-reference, primitive because a top-level

@@ -93,6 +93,9 @@ export type _ListNode = readonly [
  */
 export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown]>]>
 
+/** The node of one named parameter after the first, `id t`: the name's token one level in, under the alternative its word matched, as a `const`'s name is. */
+export type _NameNode = Unmapped<readonly [Unmapped<readonly [unknown, _Leaf]>, unknown]>
+
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
 export type _AccessNode = Unmapped<readonly [string, unknown]>
 
@@ -119,11 +122,14 @@ export type _CallBranch = Unmapped<readonly [_Leaf, unknown, _OptionalList, ...u
  */
 export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
 
-/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments. */
-export type _Env = OrderedMap<AstModuleRef | AstArgs>
+/** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
+export type _Parameter = readonly ['arg', number]
+
+/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments or one of its named parameters. */
+export type _Env = OrderedMap<AstModuleRef | AstArgs | _Parameter>
 
 /** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
-export type _Ref = AstModuleRef | AstArgs | AstFrameRef
+export type _Ref = AstModuleRef | AstArgs | _Parameter | AstFrameRef
 
 /**
  * The scope a node is resolved in: the names it binds itself, and — in a
@@ -139,6 +145,8 @@ export type _Ref = AstModuleRef | AstArgs | AstFrameRef
  */
 export type _Scope = {
     readonly names: _Env
+    /** The `length` of the function whose body this is: its named parameters counted, `0` for a rest parameter, none, or the module. */
+    readonly count: number
     readonly captures: readonly _Ref[]
     readonly read: readonly string[]
     readonly outer: _Scope | null
