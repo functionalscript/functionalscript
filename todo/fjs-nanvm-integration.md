@@ -31,17 +31,15 @@ that complete graph, following the
 There is no pending convention for Rust imports between source dependencies.
 The embedding crate chooses where to include the generated file.
 
-The remaining gap is consuming named exports: the parser accepts only default
-imports, and `nanvm-harness::run` selects `default` and serializes it without
-invoking a function. Track [named imports](../spec/todo/named-imports.md) and
-[harness export selection](../nanvm-harness/todo/select-module-export.md) as
-unfinished integration work. Keep the completed export-object representation
-and `export const` support; neither task requires the fixed/rest parameter
-proposal or its implementation.
+[Named imports](../spec/README.md#importing-other-modules) now select named
+exports and aliases from dependency export objects. The remaining consumer gap
+is [harness export selection](../nanvm-harness/todo/select-module-export.md):
+`nanvm-harness::run` still selects `default` and serializes it without invoking
+a function. Neither feature requires named function parameters.
 
 ### Named-module acceptance
 
-Proposed acceptance input once named imports are implemented:
+Implemented compiler acceptance input:
 
 ```js
 // math.f.js
@@ -54,9 +52,13 @@ import { add as sum } from "./math.f.js";
 export const main = () => sum(20, 22);
 ```
 
-Compile `app.f.js` to Rust, build it with cargo, and have the harness select
-`main`, invoke it with no arguments, and print `42`. Native JavaScript and
-both JavaScript EDAG evaluators must agree. `main` is the fixture's selected
+The [named-imports fixture](../nanvm-harness/fixtures/named-imports.mjs)
+compiles this pattern to Rust. Its cargo test selects `main` through the VM API,
+invokes it with no arguments, and checks `42`, matching native JavaScript and
+both JavaScript EDAG evaluators. A general harness selection/call API and CLI
+remain the separate export-selection task. Source round trips cover the
+serializer's admitted expressions; calls and arithmetic are still refused by
+that serializer. `main` is the fixture's selected
 export, not a required language-level name. The rest-only helper keeps this
 milestone independent of named function parameters. These are synthetic
 fixtures; renaming repository modules to `.f.js` retains its separate package
@@ -156,11 +158,13 @@ via the `Function` constructor — no rustc at the user's run time.
 - [x] Preserve named and optional default properties in the module result
       through EDAG, Rust and source output. `export const` is already
       supported; do not file its implementation again.
-- [ ] Implement [named imports](../spec/todo/named-imports.md), selecting
+- [x] Implement [named imports](../spec/README.md#importing-other-modules), selecting
       properties from dependency export objects without discarding the object
       or requiring a default export.
+- [x] Prove the named-module compiler example in JavaScript, both EDAG
+      evaluators, and generated Rust using explicit VM selection/call operations.
 - [ ] Implement [harness export selection](../nanvm-harness/todo/select-module-export.md)
-      and prove the named-module acceptance example above end to end.
+      and expose the same selection/call behavior through the harness API/CLI.
 - [x] Inline source dependencies into one generated Rust output.
       `rustText` in the [compiler](../fjs/fsc/module.f.mjs) resolves the complete
       graph before calling `toRust`; source imports do not become separate

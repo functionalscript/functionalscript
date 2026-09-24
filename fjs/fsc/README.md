@@ -52,7 +52,15 @@ JavaScript. Across modules the sweep is coarser: a module whose own value
 holds a shared node is shared under any route an importer takes into it,
 `m.selected` included, and the modules it reaches count under any route
 too, since where in the module's value a node sits is not carried, and
-refusing is the answer that never writes a node twice. The classical grammars this package once
+refusing is the answer that never writes a node twice. In particular, two
+disjoint container exports selected from one module can be reported as shared:
+`export const a=[1]; export const b=[2];` imported with `import {a,b}` and
+returned as `[a,b]` currently fails JSON output. DataJS, FunctionalScript and
+Rust output accept this example. The
+[sharing-precision task](./todo/named-export-sharing-precision.md) records the
+required distinction between disjoint roots and shared descendants.
+
+The classical grammars this package once
 held were deleted rather than kept: nothing imported them, no proof covered
 them, and their FunctionalScript half separated statements by newline where
 the language requires `;`. Do not restore them; git history has them.
@@ -87,7 +95,11 @@ constructor takes the members as written, which only the syntax still has.
 A module body's last entry is its export object: `export default 7;` lowers to
 `['object', [['default', 7]]]`. An ordinary function body still ends in its
 returned value. Module `aref`s denote selected import bindings; default imports
-bind the dependency's `default` property, including for JSON imports.
+bind the dependency's `default` property, including for JSON imports. Named
+imports retain the selected export in `AstImport.name`; aliases resolve to the
+same selected value, and `name: null` anchors an empty import list. A declaration
+with several bindings contributes one record per selection, all resolved through
+the same host module identity.
 `transpile` returns the complete export object as its denotation's `value`.
 JSON/DataJS output selects the default and its sharing facts; FunctionalScript
 output emits individual named/default exports. EDAG and generated Rust retain

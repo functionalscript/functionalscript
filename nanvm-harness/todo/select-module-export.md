@@ -28,8 +28,8 @@ the harness consumer, not the EDAG module contract.
 The harness API and any CLI spelling are to be proposed in the implementation
 step. Keep `fjs compile` as a compiler that emits Rust; it does not run cargo.
 This task can be implemented against `main` with empty/rest-only functions.
-Named imports are needed for the cross-module acceptance example, not for
-export selection itself.
+Named imports and the cross-module compiler acceptance fixture are implemented;
+the fixture currently selects and calls its export directly through the VM API.
 
 ### Tasks
 
@@ -40,10 +40,10 @@ export selection itself.
       non-callable invocation; module/call failures; and non-JSON results.
       Prove that exported functions are not called during module evaluation
       or value selection and that selecting one retains other exports.
-- [ ] With [named imports](../../spec/todo/named-imports.md), compile the
-      [MVP example](../../todo/fjs-nanvm-integration.md#named-module-acceptance),
-      build it with cargo, select and call `main`, and check `42` against
-      native JavaScript and both JavaScript EDAG evaluators.
+- [ ] Run the implemented [MVP example](../../todo/fjs-nanvm-integration.md#named-module-acceptance)
+      through the new harness API, selecting and calling `main` to obtain `42`.
+      The compiler fixture already checks this through the VM API, native
+      JavaScript and both JavaScript EDAG evaluators.
 - [ ] Update the harness documentation and integration checklist when the
       behavior is implemented.
 

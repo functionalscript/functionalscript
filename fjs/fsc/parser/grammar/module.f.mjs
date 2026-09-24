@@ -4,7 +4,10 @@
  *
  * ```text
  * module ::= t import* const* export eof
- * import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+ * import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+ * clause ::= named | id t [ ',' t named ]
+ * named  ::= '{' t [ items(binding) ] '}' t
+ * binding ::= id t [ 'as' t id t ]
  * const  ::= 'const' t id t '=' t value ';' t
  * export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
  * value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
@@ -84,7 +87,7 @@
  *   grammar rested it on a failed repetition round rewinding.
  *
  * The alphabet is {@link _ordinaryTokenNames}: one name per token kind,
- * and the seven keywords with names of their own, since the
+ * and the framing keywords with names of their own, since the
  * tokenizer emits them as identifiers — encoded by `fjs/ebnf/token_symbol`;
  * `eof` has none, since the backend synthesizes the end of input. A symbol
  * is a rule of one symbol, so a terminal is the symbol a token is encoded
@@ -126,14 +129,14 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * tokenizer emits as `id` tokens carrying the word in `value`. Kept as its
  * own list because {@link symbolOf} has to recognize exactly these values,
  * not merely encode them. Six frame a module and `return` frames a
- * function's block body.
+ * function's block body; `as` introduces an import alias.
  *
  * **A grammar over this alphabet owes them an identifier rule.** Once each
  * carries its own symbol, a rule whose identifier terminal is the bare `id`
  * symbol rejects every one of them, which is what {@link identifier} is
- * for: the union of `id` and the seven. Which of them a position may hold is
- * the fold's to say, since it is a property of the word — JavaScript
- * reserves six and `from` alone is ordinary, and it lets every reserved
+ * for: the union of `id` and the framing keywords. Which words a position may
+ * hold is the fold's to say, since it is a property of the word — JavaScript
+ * reserves six while `from` and `as` are ordinary, and it lets every reserved
  * word stand as a key or after `.`, so `{ default: 3 }`, `{ return: 3 }`
  * and `a.with` parse and `const export = 1;` is refused by the fold, as
  * `const if = 1;` is.
@@ -141,7 +144,7 @@ export const _tokenKindNames = _djsTokenKinds.filter(kind => kind !== 'eof')
  * Giving a word its own symbol narrows where it is *required*, never where
  * it is *allowed*.
  */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from', 'with', 'return', 'as'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus
@@ -210,6 +213,7 @@ export const identifier = /** @type {const} */ ({
     from: sym('from'),
     with: sym('with'),
     return: sym('return'),
+    as: sym('as'),
 })
 
 /**
@@ -866,8 +870,25 @@ export const attribute = /** @type {const} */ ([
     sym('with'), trivia, sym('{'), trivia, identifierName, trivia, sym(':'), trivia, sym('string'), trivia, sym('}'), trivia,
 ])
 
+/** An exported identifier and an optional local alias. */
+export const importBinding = /** @type {const} */ ([
+    identifierName, trivia, option([sym('as'), trivia, identifierName, trivia]),
+])
+
+/** Named bindings use the same empty/trailing-comma convention as other lists. */
+export const importBindings = items(importBinding)
+
+export const namedImports = /** @type {const} */ ([
+    sym('{'), trivia, option(importBindings), sym('}'), trivia,
+])
+
+export const importClause = /** @type {const} */ ({
+    named: namedImports,
+    default: [identifierName, trivia, option([sym(','), trivia, namedImports])],
+})
+
 export const importStatement = /** @type {const} */ ([
-    sym('import'), trivia, identifierName, trivia, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
+    sym('import'), trivia, importClause, sym('from'), trivia, sym('string'), trivia, option(attribute), ...end,
 ])
 
 /** @type {ExportStatement} */

@@ -753,16 +753,28 @@ fails. A key computed at run time is not recognized yet.
 
 ```js
 import a from "./a.f.js";
+import { add, subtract as sub, } from "./math.f.js";
+import { default as config } from "./config.f.js";
+import d, { value as v } from "./mixed.f.js";
+import {} from "./checked.f.js";
 ```
 
-An `import` statement binds another module's `default` export to a name, so
-modules can be shared and reused — a common configuration, a shared table of
-constants, a fragment that several outputs include.
+An `import` statement selects exports from another module's complete export
+object. The exported name selects the property; an alias changes only its local
+binding. Named-only modules need no default export.
 
-- A default import requires an actual default export; a missing default is
-  an error, while `export default undefined;` is valid.
-- Only the **default import** form is recognized. Named imports and namespace
-  imports ([namespace-import](./todo/2220-namespace-import.md)) are not.
+The completed [named-import proposal](./named-imports.md) records the design
+scope and language-designer authorization.
+
+- The selected export must exist, even when its binding is unused. A present
+  export whose value is `undefined` is valid; an absent export is an error.
+- Named lists admit aliases, trailing commas, `default as name`, and an empty
+  list. A default binding may precede a named list.
+- An empty list still loads and evaluates the dependency. Unused imports and
+  unselected export initializers retain their required evaluation and failures.
+- Namespace imports ([namespace-import](./todo/2220-namespace-import.md)),
+  string-literal export names, bare side-effect imports, and re-exports remain
+  unsupported.
 - The module specifier is a [string literal](#strings), resolved using the
   declared host environment's module-resolution rules. Relative specifiers
   resolve against the importing module's identity; bare specifiers follow the
@@ -772,8 +784,9 @@ constants, a fragment that several outputs include.
   share its evaluation and exported value. Distinct module identities remain
   distinct even when they load the same file; loading paths are not cache
   keys. A circular dependency is an error.
-- The name is a JavaScript identifier that JavaScript does not reserve:
-  `import class from "./a.f.js";` is an error here as there.
+- Local bindings must be valid, unreserved identifiers and cannot duplicate
+  another import or module constant. Exported names are identifier names;
+  reserved words such as `default` require a valid local alias.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
 
@@ -787,8 +800,10 @@ file-module profile; preserve-symlinks modes are not supported profiles. The exi
 [module-resolution TODO](../fjs/fsc/todo/module-resolution-compatibility.md)
 records the host boundary, tests, and remaining support work.
 
-A JSON document is imported with the attribute JavaScript requires of it, and
-denotes the value `JSON.parse` gives it:
+A JSON document has only a `default` export. Both a default binding and
+`{ default as name }` may select it; its object keys are not named exports.
+The import requires the attribute JavaScript specifies and denotes the value
+`JSON.parse` gives it:
 
 ```js
 import a from "./a.json" with { type: "json" };
@@ -1061,6 +1076,8 @@ so every DataJS document parses here.
 |Statement|Form|
 |---------|----|
 |default import|`import name from "./path";`|
+|named imports|`import { name, other as local, } from "./path";`|
+|combined imports|`import value, { name } from "./path";`|
 |JSON import|`import name from "./path.json" with { type: "json" };`|
 |constant|`const name = expression;`|
 |named export|`export const name = expression;`|
