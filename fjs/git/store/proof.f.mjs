@@ -714,6 +714,15 @@ export const proof = {
             ['C:/donor/objects'])
         // a relative store is no drive either
         assertStructurallySame(alternatesIn('od', 'C:/donor/objects'), ['od/C:/donor/objects'])
+        // A drive is named by a letter, as `fjs/path` reads one, so on a
+        // drive-rooted store `1:` and `::` are ordinary names below `objects/`
+        // rather than roots handed to the host.
+        assertStructurallySame(
+            alternatesIn('C:/r/.git/objects', '1:/donor/objects'),
+            ['C:/r/.git/objects/1:/donor/objects'])
+        assertStructurallySame(alternatesIn('C:/r/.git/objects', '::'), ['C:/r/.git/objects/::'])
+        // while a drive with no `/` after it is one, as Git's drive prefix is
+        assertStructurallySame(alternatesIn('C:/r/.git/objects', 'D:x'), ['D:x'])
         // and a leading backslash is the same question: a separator on Windows,
         // an ordinary first character of a name on POSIX. Measured on Git
         // 2.43.0, an entry of `\\x` read objects from `objects/\\x`.

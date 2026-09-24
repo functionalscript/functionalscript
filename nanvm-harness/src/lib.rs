@@ -242,7 +242,10 @@ mod tests {
     /// `const`, and a capture through a parent's own frame.
     #[test]
     fn closures() {
-        assert_eq!(run::<Naive>(closure::module), Ok("[3,15,[1,2,3,1]]".into()));
+        assert_eq!(
+            run::<Naive>(closure::module),
+            Ok("[3,15,[1,2,3,1],42]".into())
+        );
     }
 
     /// A read past the arguments supplied answers `undefined` — which has
