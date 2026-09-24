@@ -39,10 +39,10 @@ spelling of the same lift, unmentioned. The binary operations repeat the
 ### Proposal
 
 One private lift per shape, each in the scope that holds what it captures.
-`unpackPopFront` is declared inside `bo` (`../module.f.mjs:262`), so the unary
-lift closes over it and stays inside `bo`: a helper that captures local state
-stays in the scope that holds it, rather than taking the capture as a
-parameter every call would pass the same value to (`fjs/AGENTS.md`, "Hoist
+`unpackPopFront` is a local of `bo` ([`../module.f.mjs`](../module.f.mjs)), so
+the unary lift closes over it and stays inside `bo`: a helper that captures
+local state stays in the scope that holds it, rather than taking the capture as
+a parameter every call would pass the same value to (`fjs/AGENTS.md`, "Hoist
 helpers to module scope"):
 
 ```js
@@ -74,9 +74,9 @@ const removeFront = len => {
 keeping `front`'s property of not packing a rest it does not return. A
 `lift2 = f => a => b => f(unpack(a))(unpack(b))` similarly opens `op`,
 `concat`, and `cmp`; it captures nothing, so it lives at module scope. Update
-the `:272-273` comment to name all three projections. This is a readability
-change, not an optimization: bound this way, the closures built per `len` and
-per codec stay exactly as they are.
+the comment above `front` in `bo` to name all three projections. This is a
+readability change, not an optimization: bound this way, the closures built per
+`len` and per codec stay exactly as they are.
 
 ### Tasks
 
