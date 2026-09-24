@@ -14,15 +14,20 @@ blocked the old issue is gone with the module it was about.
 ### Problem
 
 The JS token grammar in [`module.f.mjs`](../module.f.mjs) takes its `string`
-rule from JSON: the double quote opens a string and nothing else does, and
-there is no template literal. So the two spellings this repository is
-actually written in stop the grammar, and with it every reader of it:
+rule from JSON: JSON's string between double quotes, or the same between
+single quotes with `\'` added
+([2460](../../../../../spec/todo/2460-js-string-literals.md)), and no other
+escape; and there is no template literal. So the spellings this repository
+is also written in stop the grammar, and with it every reader of it:
 
 ```
-"const a = 'x'"        => invalid token
 "const a = `a${b}c`"   => invalid token
 "const a = \"\\x41\""  => invalid token
+"const a = '\\x41'"    => invalid token
 ```
+
+Single quotes with JSON's escapes read since 2460 landed; the measurement
+below predates that, when `'x'` was an `invalid token` too.
 
 Measured over every `.mjs` under `fjs/` and `spec/` (350 files) through
 [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)'s `tokenize`, the
@@ -92,8 +97,10 @@ The grammar has three readers, and the widening reaches each differently.
   than on the grammar, where the first mechanism already holds: the JS string
   rule cannot be two LL(1) branches by dialect, since both begin with `"`,
   and the two fields on the token are what the compiler's fold reads. The
-  fold accepts a string when `jsonEscapes` holds, of either quote, once 2460's
-  single quotes land, and only when it is also double-quoted before then.
+  fold accepts a string when `jsonEscapes` holds, of either quote. 2460's
+  single quotes landed before this widening, with a grammar that recognises
+  only what the language accepts, so the fields and the fold's check are this
+  widening's to add, as 2460 records.
 - [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
   JS stream over this grammar since the scanner went. It is the consumer this issue
   exists for: the website's
@@ -294,16 +301,19 @@ the source view rests on.
 
 ### Tasks
 
-- [ ] A JS `string` rule in this grammar beside the JSON one it shares escape
+- [x] A JS `string` rule in this grammar beside the JSON one it shares escape
       sub-rules with: opened and closed by the same one of `"` and `'`, the
-      other quote content inside it.
+      other quote content inside it. Landed with
+      [2460](../../../../../spec/todo/2460-js-string-literals.md), JSON's
+      escapes plus `\'`; the escape rule below widens it.
 - [ ] One escape rule for that string, **the listed escapes, otherwise the
       character itself**, plus line continuation — ECMAScript's rule, which
       covers `\'`, `` \` ``, `\$` and every case nobody has thought of, where a
       list would keep acquiring rows. The listed escapes grow by `\v`, `\0`,
       `\xHH` and `\u{...}`. JSON's `escape` rule in `ebnf/lib/json` does not
       change.
-- [ ] Fixtures for that rule, all currently failing:
+- [ ] Fixtures for that rule, all failing when this was written; the first
+      reads since 2460, whose `\'` it needs and nothing more:
       [`git/testlib.f.mjs:232`](../../../../git/testlib.f.mjs#L232)
       (`'Merge tag \'vt\''`),
       [`git/testlib.f.mjs:121-128`](../../../../git/testlib.f.mjs#L121-L128)

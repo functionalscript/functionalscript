@@ -1,8 +1,8 @@
 # JS String Literals
 
-**Priority:** P1 for [single quotes](#proposal-single-quotes-first); P5 for the
-[rest](#deferred-the-other-spellings)
-**Status:** open — single quotes approved, not yet implemented
+**Priority:** P5, for the [rest](#deferred-the-other-spellings)
+**Status:** open — [single quotes](#proposal-single-quotes-first) are
+implemented; the other spellings are deferred
 
 String literals at every level — JSON, DJS, FJS — use JSON string syntax:
 double quotes, the JSON escapes (`\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t`
@@ -22,8 +22,9 @@ export default 'a\tb\x41\u{1F600}'
 
 None of them adds a value: JSON string syntax already denotes every JS string
 value, each UTF-16 code unit, lone surrogates included, being reachable via
-`\uXXXX`. This document proposes the first spelling now and keeps the other
-three deferred.
+`\uXXXX`. The first spelling is FunctionalScript's
+([#2251](https://github.com/functionalscript/functionalscript/pull/2251)); the
+other three stay deferred.
 
 **Language-design approval:** `sergey-shandar` approved the
 [single-quote scope](#scope) in
@@ -60,6 +61,18 @@ request, and changes code that is already correct JavaScript to suit a
 restriction that protects no guarantee — the case
 [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
 tells us not to make.
+
+### After single quotes
+
+Re-run with single quotes in, the same command over the same file set at
+the head of [#2251](https://github.com/functionalscript/functionalscript/pull/2251)
+still compiles the same two modules, since each module's next gap was hidden
+behind its first. No module stops at a single-quoted string that uses JSON's
+escapes; six stop at one that uses another JavaScript escape, which stays
+deferred below. The first gap is now a template literal in about seventy
+modules, a named import in about as many, and a `0x`, `0b` or `_`-separated
+number literal in about forty, with named parameters, destructuring and
+statement terminators behind them.
 
 ## Proposal: single quotes first
 
@@ -127,6 +140,16 @@ layer for single quotes: what the fold stops refusing.
   produces today and hands an accepted one on as a `string` token with its
   value, so nothing in `fjs/fsc/parser` changes.
 
+**As implemented**, the grammar landed before the lexing issue's widening, so
+it recognises exactly what the language accepts: `fjs/ebnf/lib/js`'s `string`
+is JSON's double-quoted rule or a single-quoted one whose escape rule is
+JSON's with `'` added, and `"\'"` and `'\x41'` are refused by the grammar
+itself, as every non-JSON escape already was. With nothing recognised that
+the language refuses, `quote` and `jsonEscapes` would be constants and the
+fold would have nothing to check, so neither was added. They arrive with the
+widening, which is when the fold first needs them, and the design above is
+what they are to be.
+
 ### Benefits
 
 - Familiar source compiles as written: the dominant spelling in the repository
@@ -184,17 +207,17 @@ See
 
 - [x] Record the approving language designer and a direct link to the
       approval of the [scope](#scope).
-- [ ] `fjs/ebnf/lib/js`: the JS string rule, opened and closed by the same
+- [x] `fjs/ebnf/lib/js`: the JS string rule, opened and closed by the same
       one of `"` and `'`; JSON's grammar unchanged.
-- [ ] `fjs/js/tokenizer`: decode `\'` above `simpleEscapes`, leaving that
-      table and the JSON serializer unchanged; give the `string` token
-      `quote` and `jsonEscapes`, with proofs that `'…'` and `"…"` cook to the
-      same value.
-- [ ] `fjs/fsc/tokenizer`: accept a string when `jsonEscapes` holds and
-      refuse it otherwise, with proofs that `"\'"`, `'\x41'`, a raw control
+- [x] `fjs/js/tokenizer`: decode `\'` above `simpleEscapes`, leaving that
+      table and the JSON serializer unchanged, with proofs that `'…'` and
+      `"…"` cook to the same value and that `"\'"`, `'\x41'`, a raw control
       character and a line terminator inside `'…'` are refused.
-- [ ] `fjs/fsc`: prove a single-quoted value, key and `import` path compile to
-      the same EDAG and output as their double-quoted spellings.
-- [ ] `spec/README.md`, Strings: describe both delimiters and the refusals.
-- [ ] Re-run the repository survey above and record where the modules stop
-      next.
+- [ ] `quote` and `jsonEscapes` on the `string` token, and the check in
+      `fjs/fsc/tokenizer`'s fold: with the lexing issue's widening, not
+      before ([as implemented](#where-it-lives)).
+- [x] `fjs/fsc`: prove a single-quoted value, key and `import` path compile to
+      the same output as their double-quoted spellings.
+- [x] `spec/README.md`, Strings: describe both delimiters and the refusals.
+- [x] Re-run the repository survey above and record where the modules stop
+      next: see [after single quotes](#after-single-quotes).
