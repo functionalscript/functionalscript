@@ -20,24 +20,28 @@ Parse fixed named parameters and an optional final rest parameter. Represent
 fixed values and the rest array separately in EDAG, and instantiate real
 callables through pre-generated arrow factories. No mutation, prototype
 change, host helper, effect or recognized `defineProperty` pattern is needed
-for arity.
+for arity within the table-backed evaluator's documented range.
 
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
 its restricted writer boundary. It is a proposal, not current compiler or
 EDAG support. Before implementation, record explicit approval by
 `sergey-shandar` with a public approval link, as required by
 [DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo).
-The request to document the design does not select the arity bound below.
+The request to document the design does not select an evaluator table size.
 
 **Benefits:** familiar JavaScript syntax, ordinary callable results, and a
 shared representation that the compiler, writer and FJS-written evaluators
 can implement without privileged function construction.
 
 **Costs:** parameter/group disambiguation, an EDAG/API migration, and a finite
-factory table. Positive-arity EDAG functions no longer expose the original
-argument count within the fixed prefix. This preserves the proposed source
-forms, but deliberately does not preserve the earlier hypothetical EDAG
-contract that combined positive arity with the complete supplied list.
+factory table. The table-backed evaluator cannot materialize otherwise-valid
+functions beyond its table: this reduces its JavaScript execution coverage,
+not the syntax the language admits. Such functions remain compilable to EDAG
+and source; other backends may support them. Positive-arity EDAG functions no
+longer expose the original argument count within the fixed prefix. This
+preserves the proposed source forms, but deliberately does not preserve the
+earlier hypothetical EDAG contract that combined positive arity with the
+complete supplied list.
 
 ### Parsing and binding
 
@@ -122,7 +126,9 @@ list uses a rest-only function, whose length is zero.
 
 ### Instantiating functions from EDAG
 
-Generate one factory for each supported length. The beginning of the table is:
+Generate factories for lengths `0` through an executor-specific limit `T`.
+This is a materialization resource limit, not a language or EDAG arity cap.
+The beginning of the table is:
 
 ```js
 const factories = [
@@ -133,9 +139,13 @@ const factories = [
 ];
 ```
 
-After validating `length`, select `factories[length]` at run time. Its callback
-receives `(fixed, rest)` and evaluates the body with the captured frame and
-these invocation bindings. `['arg', N]` reads `fixed[N]`; `['rest']` reads
+After validating the EDAG's `length`, check the executor's table coverage
+before selecting `factories[length]` at run time. An uncovered length is a
+valid-but-unsupported materialization, not malformed EDAG; refuse it through
+the executor's existing failure contract, never clamp or substitute a callable.
+The selected factory's callback receives `(fixed, rest)` and evaluates the
+body with the captured frame and these invocation bindings. `['arg', N]`
+reads `fixed[N]`; `['rest']` reads
 `rest`. The returned arrow itself is the callable exported by the evaluator,
 not a thunk returning a VM-specific description.
 
@@ -176,6 +186,9 @@ Write a function of length `L` as `(a0, ..., aL_1, ...rest) => body`, with
 fresh names. Render `['arg', N]` as its fixed binding and `['rest']` as its
 rest binding. For zero arity, use `(...rest) => body`. Keep unused fixed
 parameters: dropping one changes both `length` and the start of the tail.
+Generate the parameter list directly from `L`, without consulting the executor's
+factory table. Source-to-EDAG compilation and EDAG-to-source writing must not
+inherit that table's limit; their own resource limits remain separate.
 
 This removes the earlier arity/complete-argument writer obstruction for the
 new nodes. It does not promise that unrelated unsupported EDAG capabilities
@@ -184,14 +197,31 @@ profile; follow the existing [function-text contract](./serialization.md#functio
 Custom `toString` and the remaining function-text questions are separate work,
 not capabilities implemented by these factories.
 
-### Bound and migration
+### Executor capacity and migration
 
-Choose and explicitly approve a shared maximum `length` before implementation.
-`16` is a candidate, not a selected language limit. Generate the table through
-that bound and reject out-of-range source arities and EDAG counts explicitly;
-never clamp or fall back to a zero-arity callable. The bound limits fixed
-parameter count, not supplied arguments or rest-array length. Keep integer
-metadata rather than encoding the current table bound into the EDAG format.
+This proposal introduces **no shared language-level maximum arity**. A finite
+factory table does not protect a language guarantee or prevent a source-level
+mistake, so its size does not justify rejecting otherwise-valid parameter
+lists ([DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+Document an initial table size for the table-backed evaluators; `16` is only a
+candidate for that implementation capacity, not an approved language limit.
+
+Keep integer metadata and `arg` validation independent of table coverage.
+An evaluator checks coverage only on a path that needs to materialize a host
+callable. A CLI output mode that evaluates EDAG inherits this executor limit;
+a source/EDAG output path must not invoke that evaluator merely to reject a
+larger arity. Report resource refusal through the existing failure contract,
+without adding a source-visible exception type or changing argument values.
+The table does not limit supplied argument count or rest-array length. Native
+backends may have different capacities; enlarging the generated table does
+not change the language or the meaning or encoding of an existing EDAG.
+
+For example, with a test table ending at length `2`,
+`(a, b, c, ...rest) => [a, b, c, rest]` still parses, lowers to a length-`3`
+EDAG and writes back to source with that arity. The table-backed evaluator
+refuses materialization; one with a larger table executes the same graph.
+This is an explicit coverage limitation, not an unbounded construction
+strategy or a claim that all backends can execute every valid function.
 
 Coordinate the format/API break across schema, compiler, analysis, operations,
 executors and writers. Existing three-element function nodes have arity zero;
@@ -216,17 +246,19 @@ source rest binding in that future case or silently admit initializers now.
 ### Tasks
 
 - [ ] Record language-design approval, including the EDAG/writer change and
-      an explicit maximum-arity decision.
+      separation of language validity from executor capacity. Document the
+      table-backed evaluators' initial capacity without imposing a language cap.
 - [ ] Extend source parameter AST, shared grammar and binding. Cover empty,
       rest-only, bare single, parenthesized fixed and fixed-plus-rest forms;
       retain correct grouping, commas, trivia, scopes and early errors.
 - [ ] Implement the coordinated EDAG change: length metadata, constant
       `['arg', N]` validation and per-invocation `['rest']`. Update schema,
       lowering, analysis, operations, executor contexts and native consumers.
-- [ ] Generate and share the factory table; use it for EDAG materialization.
-      Keep new inputs refused until their complete execution path preserves
-      length and argument bindings. Add co-located proofs for the generator
-      and the generated table.
+- [ ] Generate and share the factory table; check its capacity at EDAG
+      materialization, separately from syntax and EDAG validation. Keep
+      unsupported execution paths refused until they preserve length and
+      bindings, without blocking source/EDAG outputs that do not use them.
+      Add co-located proofs for the generator and the generated table.
 - [ ] Update source writers and migrations; remove the old complete-argument
       writer boundary for the new format and document the breaking change.
 - [ ] Add source -> tokens -> AST -> EDAG -> executor/source round-trip
@@ -235,11 +267,16 @@ source rest binding in that future case or silently admit initializers now.
       forwarding rest, captured parameters, repeated rest identity and
       distinct calls/callables under each executor's profile. A standalone
       JavaScript factory test is not an FJS pipeline test.
-- [ ] Add refusals for negative/fractional/out-of-bound length, nonconstant
-      or out-of-range `arg` indices, `arg` at length zero, duplicate names,
-      invalid bindings, misplaced/rest trailing commas, newlines before
-      `=>`, and deferred default/destructuring syntax. Test the selected bound
-      and its first unsupported arity.
+- [ ] Add validation refusals for invalid length metadata (negative,
+      fractional or non-finite), nonconstant or out-of-range `arg` indices,
+      `arg` at length zero, duplicate names, invalid bindings, misplaced/rest
+      trailing commas, newlines before `=>`, and deferred default/destructuring
+      syntax. A count beyond a factory table is not a validation error.
+- [ ] Prove the executor capacity boundary and the first uncovered arity:
+      source -> EDAG -> source preserves that larger arity, the limited
+      evaluator refuses materialization, and a larger table executes the same
+      graph correctly. Cover CLI output paths so a source/EDAG-only output
+      does not inherit an evaluator limit.
 - [ ] Run generation and repository-required checks; retry the unchanged
       [`types/range`](../../fjs/types/range/module.f.mjs) compilation candidate.
       Move implemented decisions into the current specification/EDAG docs and
@@ -248,6 +285,8 @@ source rest binding in that future case or silently admit initializers now.
 ### Related
 
 - [Current functions](../README.md#functions) — accepted syntax today.
+- [Arity-cap review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094327220)
+  — distinguish executor capacity from language validity.
 - [Statement-aware compilation](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
 - [Destructuring](./2450-destructuring.md) — separate binding-pattern work.
