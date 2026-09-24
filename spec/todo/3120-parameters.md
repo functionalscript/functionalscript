@@ -130,11 +130,37 @@ For `(a, b, c, ...args) => ...`, lower `a`, `b` and `c` to `['arg', 0]`,
 Functions without a source rest binding simply have no source reference to it.
 At `length = 0`, `['rest']` is the complete supplied argument array.
 
-**There is no complete-list `['args']` operation in the new format.** For
-positive arity, omitted arguments and explicit `undefined` in the fixed
+**New function invocation scopes have no complete-list `['args']` operation.**
+For positive arity, omitted arguments and explicit `undefined` in the fixed
 prefix are intentionally indistinguishable. The rest tail still distinguishes
 absence from a supplied `undefined`. Code needing the exact complete argument
 list uses a rest-only function, whose length is zero.
+
+#### Module import bindings are unchanged
+
+An unresolved module is not a function invocation. Its `['args']` remains the
+ordered array of imported module export objects, as specified by the
+[unresolved-module plan](../../fjs/fsc/todo/compile-modules-to-edag.md#resolve-unresolved-modules-to-one-edag).
+For example, `['.', ['.', ['args'], 0], 'default']` still reads the first
+import's default export. Import order, attributes, evaluation anchors and
+sharing are unchanged; no synthetic function arity or factory limit is added
+to module imports.
+
+Keep `['args']` in the shared node schema for that use. Scope validation
+permits it in an unresolved module's evaluation scope, but rejects it in a
+new-format function's invocation scope. Conversely, `['arg', N]` and
+`['rest']` require an owning function and are invalid at module scope.
+After linking, no unresolved module-scoped `['args']` may remain; valid
+function-local `arg`/`rest` bindings remain untouched.
+
+A function's `frame` is evaluated in its enclosing scope; only `body` opens
+the function's invocation scope. Thus a module-level closure's frame may read
+import `['args']`, while a nested closure's frame may capture its parent's
+`arg`/`rest`. Import substitution and reachability analysis traverse frames
+in the enclosing scope, never substitute inside function bodies, and preserve
+node sharing. The module plan's old function-argument examples describe the
+current format; their function-owned `['args']` migrate below, not the import
+binding. No module-loading protocol or replacement import opcode is proposed.
 
 ### Instantiating functions from EDAG
 
@@ -288,9 +314,12 @@ strategy or a claim that all backends can execute every valid function.
 
 Coordinate the format/API break across schema, compiler, analysis, operations,
 executors and writers. Existing three-element function nodes have arity zero;
-convert their `['args']` reads to `['rest']` in the proper owning scope. Do not
-silently reinterpret old nodes. Positive-arity/full-`['args']` graphs from
-previous design sketches have no general semantics-preserving conversion to
+convert their function-owned `['args']` reads to `['rest']`, including reads
+in a nested closure's frame that belongs to that function. Preserve
+module-owned import `['args']`, including reads in a module-level closure's
+frame. Migration visits each body in its own scope; a global tag replacement
+is incorrect. Do not silently reinterpret old nodes. Positive-arity/full-`['args']`
+graphs from previous design sketches have no general semantics-preserving conversion to
 this contract; refuse such input rather than claim a lossless migration.
 
 Reconcile pending design documents in this proposal, before implementation:
@@ -344,6 +373,13 @@ source rest binding in that future case or silently admit initializers now.
       conversion cases, not as a substitute for working function exports.
 - [ ] Update source writers and migrations; remove the old complete-argument
       writer boundary for the new format and document the breaking change.
+- [ ] Preserve unresolved-module imports through schema validation, migration
+      and linking. Test ordered imports alongside fixed/rest functions, an
+      imported value captured in a module-level closure's frame, a nested
+      closure capturing its parent's rest, and migration of old zero-arity
+      bodies. Reject function-local `args` in the new format and module-local
+      `arg`/`rest`; prove linking removes only module import bindings and keeps
+      function bindings, import failures and sharing intact.
 - [ ] Add source -> tokens -> AST -> EDAG -> executor/source round-trip
       proofs against native JavaScript. Cover all supported arities, unused
       parameters, omitted/explicit `undefined`/extra arguments, returning and
