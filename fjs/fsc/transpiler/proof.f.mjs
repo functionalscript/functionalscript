@@ -42,6 +42,29 @@ const refusedSpecifier = (specifier, source, root) => {
 
 export const proof = {
     namedImports: {
+        errorOrder: () => {
+            for (const [before, name] of [
+                ['import {missing} from "./one";', 'missing'],
+                ['import missing from "./one";', 'default'],
+                ['import {x,missing as alias} from "./one";', 'missing'],
+                ['import {} from "./one"; import {missing} from "./one";', 'missing'],
+            ]) {
+                const root = {
+                    main: [utf8(`${before} import {x as later} from "./two"; export default 1;`)],
+                    one: [utf8('export const x=undefined;')],
+                    two: [utf8('export const x=null.a;')],
+                }
+                const expected = error({ message: `module has no ${name} export`, metadata: null, path: 'one' })
+                assertStructurallySame(run(root)('main'), expected)
+                assertStructurallySame(virtual({ ...emptyState, root })(resolve('main'))[1], expected)
+                for (const output of ['output.json', 'output.data.js', 'output.f.js', 'output.rs']) {
+                    const [state, code] = virtual({ ...emptyState, root })(compile(['main', output]))
+                    assertEq(exitCode(code), 1)
+                    assertEq(state.stderr.trim(), `one - error: module has no ${name} export`)
+                    assertEq(state.root[output], undefined)
+                }
+            }
+        },
         values: () => {
             for (const [source, expected] of /** @type {const} */ ([
                 ['import {a} from "./dep"; export default a;', [5]],

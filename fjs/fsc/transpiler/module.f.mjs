@@ -176,19 +176,26 @@ export const _attributeError = ({ path, json }) => {
 /** A missing selected export, shared by the value and EDAG linkers. @type {(source: _ImportSource) => ParseError} */
 export const _missingExport = ({ path, name }) => ({ message: `module has no ${name} export`, metadata: null, path })
 
+/**
+ * Check each selection before loading the next dependency, as the EDAG linker
+ * does. A later evaluation failure must not hide an earlier missing export.
+ *
+ * @type {(source: _ImportSource) => (context: ParseContext) => Effect<ReadFile | ResolveFileModule, ParseContext, ParseError>}
+ */
+const foldImport = source => context => step(foldNextModuleOp(source)(context), next =>
+    source.name !== null && !mapDjs(next)(source.id).bindings.some(([key]) => key === source.name)
+        ? pureError(_missingExport(source))
+        : pureOk(next))
+
 /** @type {(source: _Source) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile | ResolveFileModule, ParseContext, ParseError>} */
 const transpileWithImports = source => module => context => {
     const { id, path } = source
     const resolved = _importSources(source)(module[0])
     const contextWithStack = { ...context, stack: { first: id, tail: context.stack } }
-    const x0 = historyStep(history(resolved), sources => foldStep(pureOk(sources), contextWithStack, foldNextModuleOp))
+    const x0 = historyStep(history(resolved), sources => foldStep(pureOk(sources), contextWithStack, foldImport))
     return step(
         x0,
         ([contextWithImports, sources]) => {
-            const missing = sources.find(({ id, name }) => name !== null && !mapDjs(contextWithImports)(id).bindings.some(([key]) => key === name))
-            if (missing !== undefined) {
-                return pureError(_missingExport(missing))
-            }
             const imports = sources.map(importAt(contextWithImports))
             // a body fails on a property read of `null` or `undefined`, as
             // JavaScript throws; the failure has no token, since the value
