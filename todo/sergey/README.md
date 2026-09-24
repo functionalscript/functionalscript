@@ -8,8 +8,7 @@
 - [ ] EBNF
   - [x] LL1 parser should support `Meta` propagation: the metadata channel
         of `fjs/ebnf/ast`.
-  - [ ] Check the `repeat` rule:
-        [repeat-bounds](../../fjs/ebnf/todo/repeat-bounds.md).
+  - [x] Check the `repeat` rule: `repeat` asserts `isRepeatBounds`.
   - [ ] Rule Transformers in the flow style (SHA2 and the rewrite set).
   - [ ] Map creation helpers.
   - [ ] A build-time check of a rewrite set's alphabets — what `checkMap`

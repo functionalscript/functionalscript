@@ -165,6 +165,17 @@ const domain = rangeSet([0])
 const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
 
 /**
+ * A repetition's bounds: `min` a non-negative integer, `max` one too or
+ * `Infinity`, and `min <= max`. An unbounded `min` is refused — it matches
+ * nothing. The front end's `repeat` refuses the same bounds at the call that
+ * wrote them; this checks the hand-written tuple.
+ *
+ * @type {(min: number, max: number) => boolean}
+ */
+export const isRepeatBounds = (min, max) =>
+    isSymbol(min) && (isSymbol(max) || max === Infinity) && min <= max
+
+/**
  * A reference is a string naming a rule of the set. The type is checked
  * because data is untyped: a number would reach the same rule through
  * property-key coercion, and an explicit `undefined` under a variant's tag
@@ -193,8 +204,7 @@ const validateVisitor = (name, ref, nullable) => ({
     // rather than read as absent.
     variant: branches => entries(branches).forEach(([, item]) => ref(item)),
     repeat: (min, max, item) => {
-        assert(isSymbol(min), ['min is not a non-negative integer', name, min])
-        assert((isSymbol(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
+        assert(isRepeatBounds(min, max), ['repeat bounds outside their domain', name, min, max])
         ref(item)
         assert(max !== Infinity || !nullable(item), ['a nullable item under an unbounded repeat', name, item])
     },

@@ -16,6 +16,7 @@
 
 import { assert } from "../asserts/module.f.mjs"
 import { unmapped } from "./ast/module.f.mjs"
+import { isRepeatBounds } from "./data/module.f.mjs"
 import { codePointListToString, stringToCodePointList } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
 import { toArray } from "../types/list/module.f.mjs"
@@ -116,6 +117,23 @@ export const remove = (a, b) => {
         ...intersection(rangeSet(a))(complement(rangeSet(b)))])
     return () => r
 }
+
+/**
+ * The repetition every repetition constructor returns: one function, so the
+ * bounds are checked once, at the call that wrote them rather than wherever
+ * the grammar is first consumed. Bounds outside `isRepeatBounds`' domain
+ * would build a rule that looks ordinary and matches nothing anyone asked
+ * for.
+ *
+ * @type {<A extends number, B extends number>(a: A, b: B) =>
+ *  <const R extends Rule>(rule: R) =>
+ *  Repeat<A, B, R>}
+ */
+const repeatInfo = (a, b) => {
+    assert(isRepeatBounds(a, b))
+    return rule => () => ['repeat', a, b, rule]
+}
+
 /**
  * `min..max` copies of a rule. A bound is spelled or refused: a literal
  * type says which bound is meant, where `number` — the type `Infinity` has,
@@ -129,8 +147,7 @@ export const remove = (a, b) => {
  *  <const R extends Rule>(rule: R) =>
  *  Repeat<A, B, R>}
  */
-export const repeat =
-    (a, b) => rule => () => ['repeat', a, b, rule]
+export const repeat = repeatInfo
 
 /**
  * `n` or more copies of a rule: the one repetition whose `max` is
@@ -140,7 +157,7 @@ export const repeat =
  *  <const R extends Rule>(rule: R) =>
  *  RepeatFrom<N, R>}
  */
-export const repeatFrom = n => rule => () => ['repeat', n, Infinity, rule]
+export const repeatFrom = n => repeatInfo(n, Infinity)
 
 export const repeatFrom0 = repeatFrom(0)
 export const repeatFrom1 = repeatFrom(1)
@@ -149,10 +166,10 @@ export const repeatFrom1 = repeatFrom(1)
  * @type {<const N extends number>(n: number extends N ? never : N) =>
  *  <const R extends Rule>(rule: R) => Times<N, R>}
  */
-export const times = n => rule => () => ['repeat', n, n, rule]
+export const times = n => repeatInfo(n, n)
 
 /** @type {<const R extends Rule>(rule: R) => Option<R>} */
-export const option = rule => () => ['repeat', 0, 1, rule]
+export const option = repeatInfo(0, 1)
 
 /**
  * A list of `r`s separated by `s`, optional as a whole so that an empty
