@@ -1,7 +1,7 @@
 /**
  * Short Weierstrass elliptic-curve arithmetic over a prime field: `curve`
  * builds point negation, addition, and scalar multiplication for any
- * `secp`-family curve from its `(p, a, g, n)` parameters.
+ * `secp`-family curve from its `(p, c, g, n)` parameters.
  *
  * @module
  *
@@ -23,7 +23,7 @@ import { repeat } from '../../common/monoid/module.f.mjs'
  * ```js
  * const curveParams = {
  *     p: 23n,
- *     a: [0n, 1n],
+ *     c: [0n, 1n],
  *     g: [1n, 1n],
  *     n: 19n
  * };
@@ -35,21 +35,21 @@ import { repeat } from '../../common/monoid/module.f.mjs'
  * const mulPoint = curveInstance.mul([1n, 1n])(3n); // Multiply a point by 3
  * ```
  */
-export const curve = ({ p, a: [a0, a1], n, g }) => {
+export const curve = ({ p, c: [c0, c1], n, g }) => {
     const pf = prime_field(p)
     const { pow2, pow3, sub, add, mul, neg, div } = pf
     const mul3 = mul(3n)
     const mul2 = mul(2n)
-    const addA1 = add(a1)
-    const mulA1 = mul(a1)
-    const addA0 = add(a0)
+    const addC1 = add(c1)
+    const mulC1 = mul(c1)
+    const addC0 = add(c0)
 
     /**
-     * y**2 = a1*x**3 + a0
+     * y**2 = x**3 + c1*x + c0
      *
      * @type {(x: bigint) => bigint}
      */
-    const y2 = x => addA0(add(pow3(x))(mulA1(x)))
+    const y2 = x => addC0(add(pow3(x))(mulC1(x)))
 
     /** @type {Reduce<Point>} */
     const addPoint = p => q => {
@@ -62,8 +62,8 @@ export const curve = ({ p, a: [a0, a1], n, g }) => {
         const [px, py] = p
         const [qx, qy] = q
         const md = px === qx
-            // (3 * px ** 2 + a1) / (2 * py)
-            ? py !== qy || py === 0n ? null : [addA1(mul3(pow2(px))), mul2(py)]
+            // (3 * px ** 2 + c1) / (2 * py)
+            ? py !== qy || py === 0n ? null : [addC1(mul3(pow2(px))), mul2(py)]
             // (py - qy) / (px - qx)
             : [sub(py)(qy), sub(px)(qx)]
         if (md === null) {
@@ -111,9 +111,9 @@ export const eq = a => b => {
  */
 export const secp192r1 = curve({
     p: 0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffffn,
-    a: [
-        0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n,
-        0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_fffffffcn
+    c: [
+        0x64210519_e59c80e7_0fa7e9ab_72243049_feb8deec_c146b9b1n, //< c0 = b
+        0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_fffffffcn, //< c1 = a
     ],
     g: [
         0x188da80e_b03090f6_7cbf20eb_43a18800_f4ff0afd_82ff1012n,
@@ -129,9 +129,9 @@ export const secp192r1 = curve({
 //  */
 // export const secp224r1: Curve = curve({
 //     p: 0xffffffff_ffffffff_ffffffff_ffffffff_00000000_00000000_00000001n,
-//     a: [
-//         0xb4050a85_0c04b3ab_f5413256_5044b0b7_d7bfd8ba_270b3943_2355ffb4n,
-//         0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffff_fffffffen,
+//     c: [
+//         0xb4050a85_0c04b3ab_f5413256_5044b0b7_d7bfd8ba_270b3943_2355ffb4n, //< c0 = b
+//         0xffffffff_ffffffff_ffffffff_fffffffe_ffffffff_ffffffff_fffffffen, //< c1 = a
 //     ],
 //     g: [
 //         0xb70e0cbd_6bb4bf7f_321390b9_4a03c1d3_56c21122_343280d6_115c1d21n,
@@ -146,7 +146,10 @@ export const secp192r1 = curve({
  */
 export const secp256k1 = curve({
     p: 0xffffffff_ffffffff_ffffffff_ffffffff_ffffffff_ffffffff_fffffffe_fffffc2fn,
-    a: [7n, 0n],
+    c: [
+        7n, //< c0 = b
+        0n, //< c1 = a
+    ],
     g: [
         0x79be667e_f9dcbbac_55a06295_ce870b07_029bfcdb_2dce28d9_59f2815b_16f81798n,
         0x483ada77_26a3c465_5da4fbfc_0e1108a8_fd17b448_a6855419_9c47d08f_fb10d4b8n
@@ -160,9 +163,9 @@ export const secp256k1 = curve({
  */
 export const secp256r1 = curve({
     p: 0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_ffffffffn,
-    a: [
-        0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< b
-        0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_fffffffcn, //< a
+    c: [
+        0x5ac635d8_aa3a93e7_b3ebbd55_769886bc_651d06b0_cc53b0f6_3bce3c3e_27d2604bn, //< c0 = b
+        0xffffffff_00000001_00000000_00000000_00000000_ffffffff_ffffffff_fffffffcn, //< c1 = a
     ],
     g: [
         0x6b17d1f2_e12c4247_f8bce6e5_63a440f2_77037d81_2deb33a0_f4a13945_d898c296n, //< x
@@ -176,9 +179,9 @@ export const secp256r1 = curve({
  */
 export const secp384r1 = curve({
     p: 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffffn,
-    a: [
-        0xb3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aefn, //< b
-        0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000fffffffcn, //< a
+    c: [
+        0xb3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aefn, //< c0 = b
+        0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000fffffffcn, //< c1 = a
     ],
     g: [
         0xaa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7n, //< x
@@ -192,9 +195,9 @@ export const secp384r1 = curve({
  */
 export const secp521r1 = curve({
     p: 0x01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn,
-    a: [
-        0x0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00n, //< b
-        0x01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcn, //< a
+    c: [
+        0x0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00n, //< c0 = b
+        0x01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffcn, //< c1 = a
     ],
     g: [
         0x00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66n,
