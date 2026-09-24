@@ -51,9 +51,10 @@ constant; `withLength` itself has a read of its first argument. One node,
 one meaning. #2200 implements this node; if it lands first, the lowering is
 not this proposal's work.
 
-**Count domain.** A nonnegative integer below 2^32, `-0` excluded, the
-`u32` NaNVM and the Rust printer hold; anything else is refused when the
-function is built, on every executor.
+**Count.** Whatever JavaScript accepts as a `length`; a compiled parameter
+list yields a nonnegative integer. An executor that cannot represent a
+count refuses it as its own documented limit, as the Rust printer does
+today past `u32`. The language adds no bound.
 
 **Executors.** The `=>` operation becomes
 `withLength(count, (...args) => invoke(frame, args, body))`. A JavaScript
@@ -67,14 +68,14 @@ documented bound below the hosts' parameter-list limit. Otherwise
 That second rendering is what keeps a graph observing its complete
 arguments renderable.
 
-**Function text.** `toString` is not in this proposal; the
+**Function text.** A host function carries the wrapper's source as its
+text, and every host conversion can reach it: `String`, a computed key, an
+array's join, a string method's argument. Guarding all of them is a check
+that grows with the host surface, so this arm does not guard; it waits.
+Rendering the graph's text, a second admitted key in the same pattern, is a
+prerequisite, and the
 [serialization](./serialization.md#function-text-and-serialization)
-decisions are open. Until the graph's text is rendered, every conversion
-that can reach a function's text refuses it: `String`, `+` with a string,
-an order against a string or a function, a computed key, and the admitted
-host calls that convert their receiver or elements, each refusing a
-function or an array holding one at any depth. A second admitted key in the
-same pattern replaces that guard when the text decisions close.
+decisions it depends on are open.
 
 ## The decision
 
@@ -88,7 +89,7 @@ to in the JavaScript executors.**
 | `typeof`, reads, calls, spread, coercion | operations of the executor's | the host's |
 | a host method calling its argument | bridged at the positions `callbacks` lists | native |
 | consumers | call through the executor's `call` | call natively |
-| function text | refused until rendered | refused until rendered |
+| function text | refused until rendered | rendered first; a prerequisite |
 
 The record keeps the language closed and puts the cost in the executors;
 the pattern opens the language by one spelling and takes the cost out of
@@ -97,20 +98,18 @@ them. The designer decides.
 **Drawbacks of the pattern.** The language admits a spelling containing a
 mutation, pure only because the matcher admits the whole definition. The
 writer has two renderings. Under an interpreter a positive-arity function is
-one call frame deeper. A JavaScript host running the source directly does
-not refuse a count outside the domain.
+one call frame deeper. It cannot land before the function-text decisions.
 
 ## Tasks
 
 - [ ] Record the designer's approval and the choice between record and
   pattern.
 - [ ] Compiler: recognize the complete pattern; refuse every variation.
-- [ ] `operations`' `=>` built through the pattern; the text refusal on
-  every conversion path, landing with it.
+- [ ] Function text rendered from the graph, then `operations`' `=>` built
+  through the pattern.
 - [ ] Writer: the two renderings and the documented bound.
 - [ ] Proofs: `f.length` for constant and run-time counts; `g()` sees an
-  empty `['args']`; counts outside the domain, a shadowed `Object`, each
-  pattern variation, and every text path refused.
+  empty `['args']`; a shadowed `Object` and each pattern variation refused.
 - [ ] Documents: [`fjs/edag/README.md`](../../fjs/edag/README.md),
   [execution-models](../../fjs/edag/execution-models.md), the
   [specification](../README.md#functions), and the parameter plan's
