@@ -25,10 +25,12 @@ import {
     decoder,
     eofFlush,
     errorMask,
+    fromSurrogatePair,
     isBmpCodePoint,
     isHighSurrogate,
     isLowSurrogate,
     isSupplementaryPlane,
+    toSurrogatePair,
 } from '../code_point/module.f.mjs'
 
 // The `number | null` state threaded through the decoder below is the UTF-16
@@ -36,8 +38,9 @@ import {
 // when no code unit is pending.
 
 /**
- * The BMP / surrogate / supplementary-plane predicates used below live in
- * `code_point`, the shared Unicode contract; see that module for their ranges.
+ * The BMP / surrogate / supplementary-plane predicates and the surrogate-pair
+ * arithmetic used below live in `code_point`, the shared Unicode contract; see
+ * that module for their ranges.
  *
  * Converts a Unicode code point to its corresponding UTF-16 representation.
  *
@@ -72,12 +75,7 @@ import {
  */
 const codePointToUtf16 = codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
-    if (isSupplementaryPlane(codePoint)) {
-        const n = codePoint - 0x1_0000
-        const high = (n >> 10) + 0xd800
-        const low = (n & 0b0011_1111_1111) + 0xdc00
-        return [high, low]
-    }
+    if (isSupplementaryPlane(codePoint)) { return toSurrogatePair(codePoint) }
     return [codePoint & 0xffff]
 }
 
@@ -191,11 +189,7 @@ const utf16ByteToCodePointOp = (word, state) => {
         if (isHighSurrogate(word)) { return [[], word] }
         return [[word | errorMask], null]
     }
-    if (isLowSurrogate(word)) {
-        const high = state - 0xd800
-        const low = word - 0xdc00
-        return [[(high << 10) + low + 0x10000], null]
-    }
+    if (isLowSurrogate(word)) { return [[fromSurrogatePair(state, word)], null] }
     // `isLowSurrogate`, `isBmpCodePoint`, and `isHighSurrogate` partition the
     // full `u16` range with no gap, and `isLowSurrogate` was already ruled out
     // above, so a non-BMP `word` here is always a high surrogate.

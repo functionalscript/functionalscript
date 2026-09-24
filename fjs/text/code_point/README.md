@@ -27,6 +27,13 @@ derived from one set of boundary constants so the surrogate bounds
 exactly once. UTF-8 and UTF-16 import them instead of redefining their own range
 checks.
 
+The surrogate-pair arithmetic lives beside them for the same reason:
+`toSurrogatePair` splits a supplementary-plane code point into its high and low
+surrogates and `fromSurrogatePair` combines them back. Both are derived from the
+same constants as `isHighSurrogate`, `isLowSurrogate`, and
+`isSupplementaryPlane`, which they invert, so UTF-16 re-spells none of
+`0xD800`, `0xDC00`, or `0x10000`.
+
 `isTextCodePoint` lives here too, but answers a different question: not whether a
 code point is *well-formed* (`isValidCodePoint`) but whether it is *text*. A code
 point is text unless it is a control character — C0 (`U+0000`–`U+001F`), `U+007F`

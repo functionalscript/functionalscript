@@ -3,12 +3,14 @@ import { toArray } from '../../types/list/module.f.mjs'
 import {
     bmpMax,
     eofFlush,
+    fromSurrogatePair,
     isBmpCodePoint,
     isHighSurrogate,
     isLowSurrogate,
     isSupplementaryPlane,
     isTextCodePoint,
     isValidCodePoint,
+    toSurrogatePair,
 } from './module.f.mjs'
 
 /** @type {(actual: boolean, expected: boolean) => void} */
@@ -81,6 +83,34 @@ export const proof = {
         () => check(isSupplementaryPlane(0xffff), false),
         () => check(isSupplementaryPlane(0x110000), false),
     ],
+    toSurrogatePair: [
+        // the first, a middle, and the last supplementary code point
+        () => assertEq(toSurrogatePair(0x10000).join(), [0xd800, 0xdc00].join()),
+        () => assertEq(toSurrogatePair(0x1f600).join(), [0xd83d, 0xde00].join()),
+        () => assertEq(toSurrogatePair(0x10ffff).join(), [0xdbff, 0xdfff].join()),
+    ],
+    fromSurrogatePair: [
+        () => assertEq(fromSurrogatePair(0xd800, 0xdc00), 0x10000),
+        () => assertEq(fromSurrogatePair(0xd83d, 0xde00), 0x1f600),
+        () => assertEq(fromSurrogatePair(0xdbff, 0xdfff), 0x10ffff),
+    ],
+    surrogatePairRoundTrip: () => {
+        // Each half of a pair is a surrogate of its kind, and the two
+        // functions invert each other across the supplementary planes.
+        /** @type {(cp: number) => void} */
+        const roundTrip = cp => {
+            const [high, low] = toSurrogatePair(cp)
+            check(isHighSurrogate(high), true)
+            check(isLowSurrogate(low), true)
+            assertEq(fromSurrogatePair(high, low), cp)
+        }
+        roundTrip(0x10000)
+        roundTrip(0x103ff)
+        roundTrip(0x10400)
+        roundTrip(0x1f600)
+        roundTrip(0x10fc00)
+        roundTrip(0x10ffff)
+    },
     isValidCodePoint: [
         // in range, not surrogate
         () => check(isValidCodePoint(0x0000), true),
