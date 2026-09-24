@@ -53,7 +53,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { listToString } from '../../../text/utf16/module.f.mjs'
 import { at } from '../../../types/object/module.f.mjs'
-import { error, mapOk, ok, unwrap } from '../../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList } from '../../../types/result/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
@@ -186,18 +186,6 @@ export const lexeme = node => listToString(unitsUnder(node))
  */
 const numberOf = policy => node => policy(lexeme(node))
 
-/**
- * Every value, or the first error among them: an item that is no JSON
- * value makes its container none, and the earliest in document order is
- * the one reported.
- *
- * @type {<T>(results: readonly Result<T, string>[]) => Result<readonly T[], string>}
- */
-const all = results => {
-    const errors = results.flatMap(r => r[0] === 'error' ? [r] : [])
-    return errors.length === 0 ? ok(results.map(unwrap)) : errors[0]
-}
-
 /** @type {<P>(key: string) => (value: ParseUnknown<P>) => readonly [string, ParseUnknown<P>]} */
 const pair = key => value => [key, value]
 
@@ -229,8 +217,8 @@ const toJson = node => {
     /** @type {(result: Result<ParseUnknown<P>, string>) => Meta<Json<P>>} */
     const symbol = jsonSymbol
     switch (node[0]) {
-        case 'array': { return symbol(all(items(unmapped(node[1])).map(jsonAt))) }
-        case 'object': { return symbol(mapOk(fromEntries)(all(items(unmapped(node[1])).map(entry)))) }
+        case 'array': { return symbol(okList(items(unmapped(node[1])).map(jsonAt))) }
+        case 'object': { return symbol(mapOk(fromEntries)(okList(items(unmapped(node[1])).map(entry)))) }
         case 'string': { return symbol(ok(textAt(node[1]))) }
         case 'number': { return symbol(jsonAt(node[1])) }
         case 'true': { return symbol(ok(true)) }

@@ -25,7 +25,7 @@
  */
 
 import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
-import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
 
 /**
@@ -184,23 +184,6 @@ const map3 = f => (ra, rb, rc) => map2((a, [b, c]) => f(a, b, c))(ra, map2((b, c
 
 /** The same, for four. @type {<A, B, C, D, R>(f: (a: A, b: B, c: C, d: D) => R) => (ra: Result<A, readonly unknown[]>, rb: Result<B, readonly unknown[]>, rc: Result<C, readonly unknown[]>, rd: Result<D, readonly unknown[]>) => Result<R, readonly unknown[]>} */
 const map4 = f => (ra, rb, rc, rd) => map2((a, [b, c, d]) => f(a, b, c, d))(ra, map3((b, c, d) => [b, c, d])(rb, rc, rd))
-
-/**
- * A list of `Result`s as one `Result` of a list, short-circuiting on the
- * first `error` — an array literal's items, an object literal's members
- * and a block's `let` lines are each printed this way, so one failed item
- * refuses the whole rather than a list of holes. An empty list is an empty
- * `ok`: a block with nothing to bind.
- *
- * Builds the prefix before appending the last element, so a prefix that
- * already carries an error short-circuits without `map2` ever looking at
- * the tail — the first `error` in the list is the one reported.
- *
- * @type {(results: readonly Result<string, readonly unknown[]>[]) => Result<readonly string[], readonly unknown[]>}
- */
-const allOk = results => results.length === 0
-    ? ok([])
-    : map2((xs, x) => [...xs, x])(allOk(results.slice(0, -1)), results[results.length - 1])
 
 const op1 = lookup(op1Rust)
 
@@ -594,12 +577,12 @@ const printer = nested => shared => root => {
         if (id === '[]') {
             return a.length === 0
                 ? ok('Array::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(allOk(a.map(f)))
+                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_array().to_any()`)(okList(a.map(f)))
         }
         if (id === '{}') {
             return a.length === 0
                 ? ok('Object::default().to_any()')
-                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(allOk(a.map(propertyExpr)))
+                : mapOk((/** @type {readonly string[]} */ items) => `[${items.join(', ')}].to_object().to_any()`)(okList(a.map(propertyExpr)))
         }
         if (id === ',') {
             // A comma is its last operand's value, the operands before it
@@ -617,7 +600,7 @@ const printer = nested => shared => root => {
                 ? mapOk((/** @type {readonly string[]} */ parts) => {
                     const before = parts.slice(0, -1).map(s => `let _: Any<A> = ${s}; `).join('')
                     return `{ ${before}${parts[parts.length - 1]} }`
-                })(allOk(a.map(f)))
+                })(okList(a.map(f)))
                 : f(last(e))
         }
         if (id === '=>') {
@@ -676,7 +659,7 @@ const printer = nested => shared => root => {
         const items = /** @type {readonly Exp[]} */ (frame[1])
         return items.length === 0
             ? ok('Array::default()')
-            : mapOk((/** @type {readonly string[]} */ xs) => `[${xs.join(', ')}].to_array()`)(allOk(items.map(f)))
+            : mapOk((/** @type {readonly string[]} */ xs) => `[${xs.join(', ')}].to_array()`)(okList(items.map(f)))
     }
     /**
      * An operation — a `.` read, a call, or an operator node — as the bare
@@ -821,7 +804,7 @@ const printer = nested => shared => root => {
      * @type {(e: Exp) => Result<readonly string[], readonly unknown[]>}
      */
     const block = e => map2((/** @type {readonly string[]} */ lets, /** @type {string} */ value) => [...lets, value])(
-        allOk(declaredBy(e).map(letLine)), result(e))
+        okList(declaredBy(e).map(letLine)), result(e))
     /**
      * One object entry.
      *
