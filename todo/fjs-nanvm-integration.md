@@ -24,6 +24,13 @@ returns `{ answer: 42, default: 7 }`. Without `export default`, there is no
 `default` property. Module evaluation creates exported functions; invoking
 one is a separate consumer operation.
 
+Source dependencies are already linked into one EDAG before Rust generation.
+Each `fjs compile <input> <output>.rs` invocation writes one Rust file containing
+that complete graph, following the
+[import-inlining contract](../spec/README.md#importing-other-modules).
+There is no pending convention for Rust imports between source dependencies.
+The embedding crate chooses where to include the generated file.
+
 The remaining gap is consuming named exports: the parser accepts only default
 imports, and `nanvm-harness::run` selects `default` and serializes it without
 invoking a function. Track [named imports](../spec/todo/named-imports.md) and
@@ -154,12 +161,11 @@ via the `Function` constructor — no rustc at the user's run time.
       or requiring a default export.
 - [ ] Implement [harness export selection](../nanvm-harness/todo/select-module-export.md)
       and prove the named-module acceptance example above end to end.
-- [ ] Define the convention for generated module imports (`use` paths,
-      file/directory layout — see the open question in
-      [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md#open-questions)). The
-      harness's own flat fixtures settle only their own layout
-      (`nanvm-harness/fixtures/<name>.rs` beside `<name>.mjs`, pulled into
-      `src/lib.rs` via `#[path]`), not the general multi-module question.
+- [x] Inline source dependencies into one generated Rust output.
+      `rustText` in the [compiler](../fjs/fsc/module.f.mjs) resolves the complete
+      graph before calling `toRust`; source imports do not become separate
+      Rust modules. The harness includes each generated fixture via `#[path]`
+      as its own embedding choice.
 - [x] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
       subset: a constant default export compiled by `fjs` to `.rs`, built and
       run by cargo, with the result printed to stdout as JSON —
