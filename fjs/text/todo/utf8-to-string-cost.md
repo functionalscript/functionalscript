@@ -47,9 +47,13 @@ measuring, cheapest first:
 - **Chunk the traversal.** The list is walked one cell per byte; a decoder that
   reads a whole `Vec` word at a time does the same work with a fraction of the
   cells.
-- **Build the string in blocks.** `codePointListToString` accumulates a string;
-  joining an array of chunks is the usual FunctionalScript answer to that shape
-  (catalog item 9's argument, applied to characters).
+- ~~**Build the string in blocks.**~~ Measured, and not where the time goes.
+  `listToString` now folds through `types/string`'s balanced `concat` instead
+  of a left `reduce`, and on 100 of this repository's `.f.mjs` files (1 MB,
+  node 22) neither the string build nor `utf8ToString` moved outside run-to-run
+  noise: `listToString` alone is ~0.2 s of `utf8ToString`'s ~1.6 s either way.
+  V8 concatenates into ropes, so the left fold was never quadratic there. The
+  remaining ~85% is upstream of the string: the byte list and the decoder.
 - **Let the host decode.** `readUtf8File` could hand bytes to a `TextDecoder`
   in `effects/node`'s impure shell. It is the smallest change and the least
   useful one: it fixes one operation on one host and leaves the pure decoder
