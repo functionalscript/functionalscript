@@ -65,7 +65,7 @@ export const proof = {
         /** @type {Init} */
         const curveParams = {
             p: 23n,
-            a: [0n, 1n],
+            c: [0n, 1n],
             g: [1n, 1n],
             n: 19n
         }
