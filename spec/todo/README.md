@@ -103,11 +103,14 @@ see [serialization](./serialization.md).
    ([functions](../README.md#functions))
 2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
    named lists, with declared arity preserved
-3. [x] body-const — a function body takes `const` statements before its
+3. [ ] [function length pattern](./3130-function-length-pattern.md) — a
+   proposed, unapproved spelling that would build a function of a given
+   `length` in FunctionalScript
+4. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
-4. [ ] [forward-references](./3140-forward-references.md)
-5. [x] `export const`, named-only and mixed modules
+5. [ ] [forward-references](./3140-forward-references.md)
+6. [x] `export const`, named-only and mixed modules
    ([exports](../README.md#exporting-a-value)). The selected `types/range`
    candidate now reaches the named-parameter blocker above.
 
