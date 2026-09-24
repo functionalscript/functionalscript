@@ -121,9 +121,9 @@ wrapper, accessed the way every other array-valued `Any<A>` already is.
 
 A third constraint: nothing here may run without a way to fail. Every
 existing operation that can throw already threads that through a plain
-`Result`, not a panic — `Any::add`, `Any::member_access`
+`Result`, not a panic — `Any::add`, `Any::dot(…).end()`
 ([`vm/any/add.rs`](../src/vm/any/add.rs),
-[`vm/any/member_access.rs`](../src/vm/any/member_access.rs)), and every
+[`vm/any/dot.rs`](../src/vm/any/dot.rs)), and every
 `TryFrom<Any<A>> for _` conversion
 ([`vm/impls/try_from.rs`](../src/vm/impls/try_from.rs)) return
 `Result<Any<A>, Any<A>>`, with `Err` an `Any<A>` value (`"Type Error"`,
@@ -142,15 +142,16 @@ Represented as `Array<A>`, passed by value at the call boundary — the
 same wrapper every array-valued `Any<A>` already uses
 ([`vm/array/mod.rs`](../src/vm/array/mod.rs)), built for the call and
 owned by nothing else. A generated function reads a
-declared position through `Any::member_access`
-([`vm/member_access.rs`](../src/vm/member_access.rs),
-[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — the same
-call the Rust code generator already prints for every other `.`/`[]` read
-([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs)) — rather
+declared position as a `.` node, in whatever spelling the Rust code
+generator ([`fjs/edag/rust/module.f.mjs`](../../fjs/edag/rust/module.f.mjs))
+prints for every `.`/`[]` read — `Any::dot(…).end()`
+([`vm/any/dot.rs`](../src/vm/any/dot.rs),
+[`vm/lambda`](../src/vm/lambda/mod.rs),
+[`vm/array/member_access.rs`](../src/vm/array/member_access.rs)) — rather
 than leaning on `Index<u32>` alone: `Array<A>::Index<u32>` panics out of
 bounds ([`vm/array/index.rs`](../src/vm/array/index.rs)), while
 `Array::member_access` already does its own length and canonical-index
-check internally and answers `None` (which `Any::member_access` turns into
+check internally and answers `None` (which `Any::dot` turns into
 `undefined`) for an out-of-range or otherwise non-canonical key, matching
 [call-like-instructions §6.2](../../spec/todo/9100-call-like-instructions.md#62-calls-into-non-variadic-functions)'s
 "a missing argument reads as `undefined`, never panics" with no separate
@@ -158,8 +159,8 @@ bounds check to write:
 
 ```rust
 fn f<A: IStaticFunction>(self_: &A::InternalFunction, args: Array<A>) -> Result<Any<A>, Any<A>> {
-    let a = Any::member_access(args.clone().to_any(), Number::from(0.0).to_any())?;
-    let b = Any::member_access(args.clone().to_any(), Number::from(1.0).to_any())?;
+    let a = Any::dot(args.clone().to_any(), Number::from(0.0).to_any()).end()?;
+    let b = Any::dot(args.clone().to_any(), Number::from(1.0).to_any()).end()?;
     Ok(a.add(b)?) // whatever the body computes, `?` propagating a failing sub-operation
 }
 ```
@@ -372,12 +373,12 @@ generator prints is a `Function<A>` value already, whether it is called at
 once, stored, returned or exported, so the harness evaluates `export
 default` uniformly and a function value standing as the export is the one
 thing `to_json` refuses. The declared length is `0`, the only arity the
-language has, read as `f.length` through `Any::member_access` — a
+language has, read as `f.length` through the `.` read — a
 function's one property; when named parameters are admitted, the generator prints the
 function node's count, and exported and returned functions' `length` is
 compared with native JavaScript, unused parameters included.
 
-**Stage 3 — capturing closures.**
+**Stage 3 — capturing closures. Landed.**
 Extend the generator to lower the approved function-node shape for a body
 that references `["frame"]`: build the `frame` operand (an array literal over the
 captured names) as an `Array<A>` in the enclosing scope, then construct the
@@ -390,18 +391,29 @@ frame — the general shape [function-frame](../../spec/todo/3111-function-frame
 and edag-stage1-discussion's `["frame"]` design are built around, though
 neither document spells this particular example.
 
-**Stage 4 — dynamic calls and higher-order functions. The plain call
-landed with Stage 1**: there is one call form, `Any::call`, whatever the
-callee — a function literal, a `const`, an argument, the result of another
-call — and a non-function callee throws the `TypeError` JavaScript's does,
-through `TryFrom<Any<A>> for Function<A>`, never a panic. Static and
-dynamic calls are not two forms to prove identical; they are one. What
-remains is a call whose callee is a property read — `a.b(c)`, `f[0](1)` —
-which the lowering makes the `.` node's `|()` continuation, a method call
-carrying its receiver
-([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), and the
-printer refuses every chain step today. Its spelling is a call with a
-receiver, which `nanvm-lib` has no operation for yet.
+It landed as described, the frame an array literal whose items are the
+enclosing scope's own nodes, printed as `[…].to_array()` in the third
+argument of `A::static_function`, and `['frame']` as
+`A::frame(self_).clone().to_any()`. The fixture is
+`nanvm-harness/fixtures/closure.mjs`: `(...a) => (...b) => a[0] + b[0]`,
+the language's one parameter being a rest parameter, beside a capture of a
+module `const` and one through a parent's frame.
+
+**Stage 4 — dynamic calls and higher-order functions. Landed.** The
+plain call landed with Stage 1: there is one call form, `Any::call`,
+whatever the callee — a function literal, a `const`, an argument, the
+result of another call — and a non-function callee throws the `TypeError`
+JavaScript's does, through `TryFrom<Any<A>> for Function<A>`, never a
+panic. Static and dynamic calls are not two forms to prove identical; they
+are one. The method call landed with chains: a call whose callee is a
+property read — `a.b(c)`, `f[0](1)` — is the `.` node's `|()`
+continuation, a call carrying its receiver
+([`fjs/edag/README.md`](../../fjs/edag/README.md), Chains), which the
+printer prints as `Any::dot(a, key).end_call(args)` and
+[`vm/lambda`](../src/vm/lambda/mod.rs) calls on its receiver: an own
+property or element first, then the receiver type's built-in member
+function. What is not this stage's is the table of built-ins the compiler
+admits, entry by entry — [`member-functions.md`](./member-functions.md).
 
 **Stage 5 — self-reference and recursion.**
 Implement the two cases under [Self-reference](#self-reference) above:
@@ -482,12 +494,16 @@ generated-Rust test from one source of cases.
 - [x] Stage 2: landed with Stage 1 — every function is a `Function<A>`
       value, the module bounding on `IStaticFunction`; `length` `0` until
       named parameters exist.
-- [ ] Stage 3: capturing closures — approved function-node lowering, the
-      frame built as an `Array<A>` and handed to `A::static_function`.
-- [ ] Stage 4: the plain call landed with Stage 1 — `Any::call` is the
+- [x] Stage 3: capturing closures — a capture is a slot of the function's
+      frame, built as an `Array<A>` in the enclosing scope and handed to
+      `A::static_function`, the body reading it through `A::frame(self_)`;
+      the `closure` harness fixture runs `(...a) => (...b) => a[0] + b[0]`
+      end to end.
+- [x] Stage 4: the plain call landed with Stage 1 — `Any::call` is the
       one call form, a non-function callee throwing through
-      `TryFrom<Any<A>> for Function<A>`; remaining, a call whose callee is
-      a property read, the `.` node's `|()` continuation.
+      `TryFrom<Any<A>> for Function<A>` — and the method call with chains,
+      the `.` node's `|()` continuation printed as `end_call`; the
+      built-ins it reaches are [`member-functions.md`](./member-functions.md)'s.
 - [ ] Stage 5: self-reference — the generator reads `["self"]` as the
       `self_` every static function receives, a call to it being a call
       like any other; plus a `self === self` fixture.

@@ -6,5 +6,29 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
     let c0: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
-    Ok([(string_key("default"), [(c0.clone() + f64_any(0x3ff0000000000000))?, (c0.clone() - f64_any(0x3ff0000000000000))?, (c0.clone() * f64_any(0x4000000000000000))?, (c0.clone() / f64_any(0x4010000000000000))?, (c0.clone() % f64_any(0x4010000000000000))?, (Any::pow(c0.clone(), f64_any(0x4000000000000000)))?, (-(c0.clone()))?, (Any::bitwise_not(c0.clone()))?, (strict_eq(c0.clone(), f64_any(0x4018000000000000)))?, (strict_ne(c0.clone(), f64_any(0x4018000000000000)))?, (Any::lt(c0.clone(), f64_any(0x401c000000000000)))?, (Any::le(c0.clone(), f64_any(0x4018000000000000)))?, (Any::gt(c0.clone(), f64_any(0x401c000000000000)))?, (Any::ge(c0.clone(), f64_any(0x4018000000000000)))?, (c0.clone() & f64_any(0x4008000000000000))?, (c0.clone() | f64_any(0x3ff0000000000000))?, (c0.clone() ^ f64_any(0x3ff0000000000000))?, (c0.clone() << f64_any(0x3ff0000000000000))?, (c0.clone() >> f64_any(0x3ff0000000000000))?, (Any::unsigned_right_shift(c0.clone(), f64_any(0x3ff0000000000000)))?, (string_any("a") + string_any("b"))?, (f64_any(0x3ff0000000000000) + (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?)?].to_array().to_any())].to_object().to_any())
+    let c1: Any<A> = (c0.clone() + f64_any(0x3ff0000000000000))?;
+    let c2: Any<A> = (c0.clone() - f64_any(0x3ff0000000000000))?;
+    let c3: Any<A> = (c0.clone() * f64_any(0x4000000000000000))?;
+    let c4: Any<A> = (c0.clone() / f64_any(0x4010000000000000))?;
+    let c5: Any<A> = (c0.clone() % f64_any(0x4010000000000000))?;
+    let c6: Any<A> = (Any::pow(c0.clone(), f64_any(0x4000000000000000)))?;
+    let c7: Any<A> = (-(c0.clone()))?;
+    let c8: Any<A> = (Any::bitwise_not(c0.clone()))?;
+    let c9: Any<A> = (strict_eq(c0.clone(), f64_any(0x4018000000000000)))?;
+    let c10: Any<A> = (strict_ne(c0.clone(), f64_any(0x4018000000000000)))?;
+    let c11: Any<A> = (Any::lt(c0.clone(), f64_any(0x401c000000000000)))?;
+    let c12: Any<A> = (Any::le(c0.clone(), f64_any(0x4018000000000000)))?;
+    let c13: Any<A> = (Any::gt(c0.clone(), f64_any(0x401c000000000000)))?;
+    let c14: Any<A> = (Any::ge(c0.clone(), f64_any(0x4018000000000000)))?;
+    let c15: Any<A> = (c0.clone() & f64_any(0x4008000000000000))?;
+    let c16: Any<A> = (c0.clone() | f64_any(0x3ff0000000000000))?;
+    let c17: Any<A> = (c0.clone() ^ f64_any(0x3ff0000000000000))?;
+    let c18: Any<A> = (c0.clone() << f64_any(0x3ff0000000000000))?;
+    let c19: Any<A> = (c0.clone() >> f64_any(0x3ff0000000000000))?;
+    let c20: Any<A> = (Any::unsigned_right_shift(c0.clone(), f64_any(0x3ff0000000000000)))?;
+    let c21: Any<A> = (string_any("a") + string_any("b"))?;
+    let c22: Any<A> = (f64_any(0x4000000000000000) * f64_any(0x4008000000000000))?;
+    let c23: Any<A> = (f64_any(0x3ff0000000000000) + c22)?;
+    let c24: Any<A> = [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c23].to_array().to_any();
+    Ok([(string_key("default"), c24)].to_object().to_any())
 }

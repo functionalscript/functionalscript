@@ -36,11 +36,19 @@ func   ::= [ '...' t id t ] ')' s '=>' t body
 group  ::= value ')' t access* powTail
 groupOperand ::= value ')' t access*
 powTail ::= [ '**' t unary ]
-tail   ::= { mulOp t unary }
+eagerTail ::= { mulOp t unary }
            { addOp t unary <the multiplicative repeat above> }
            …six more layers, each repeating over every layer below it the
            same way — shift, relational, equality, bitwiseAnd, bitwiseXor,
            bitwiseOr, JavaScript's own order
+logicalAndRound ::= '&&' t unary eagerTail
+logicalOrRound  ::= '||' t unary eagerTail { logicalAndRound }
+nullishRound    ::= '??' t unary eagerTail
+circuitTail ::= [ logicalAndRound { logicalAndRound } { logicalOrRound }
+                | logicalOrRound { logicalOrRound }
+                | nullishRound { nullishRound } ]
+conditionalTail ::= [ '?' t value ':' t value ]
+tail   ::= eagerTail circuitTail conditionalTail
 access ::= '.' t id t | '[' t (string | number) t ']' t | '(' t [ items(value) ] ')' t
 array  ::= '[' t [ items(value) ] ']' t
 object ::= '{' t [ items(member) ] '}' t
@@ -77,8 +85,9 @@ unary-prefixed operand, full stop, at any depth (`- -2 ** 2` exactly as
 parentheses that move the `**` to where it no longer immediately follows
 the prefix.
 
-`tail`, the Stage A binary-operator suffix
-([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)), is
+`tail`, the operator suffix — Stage A's eager ladder and Stage B's lazy
+operators and conditional above it
+([`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md)) — is
 threaded onto every branch of `value`/`body` that may carry one, inline,
 rather than wrapping a shared primary the way a textbook precedence ladder
 would. That wrapping was tried first and rejected: `func`'s body is
@@ -90,6 +99,25 @@ cannot see that. Spelling `tail` inline, with `unary` — narrow, `func`
 excluded — as every operand throughout, avoids the leak entirely: `func`
 is reachable only where `value`/`body` put it directly, never as a repeated
 operand any layer wraps.
+
+The short-circuit level, `circuitTail`, is a choice its first operator
+makes rather than one more repeat: JavaScript keeps `??` apart from
+`&&`/`||` at one nesting by giving the two their own productions,
+`LogicalORExpression` beside `CoalesceExpression`, and spelled as that
+choice the two alternatives open with one operand, a first/first conflict
+the checker refuses before any input. So the operand belongs to the branch
+its operator opens, the choice is made at that operator — one symbol — and
+a chain committed to `&&`/`||` has no round for `??`, nor a `??` chain for
+either: `a ?? b || c` fails at the `||`, refused by the grammar's shape and
+by nothing after it. The conditional is the top, `? value : value`, each
+arm the whole value rule — JavaScript's arms are `AssignmentExpression`s,
+and with no assignment the ladder's own top is the nearest — so a nested
+conditional associates to the right through the arms' recursion, and `:`
+follows a function's body there without a conflict, nothing a body may
+continue with beginning with it: `a ? () => 1 : 2` is the function and the
+else arm, as JavaScript reads it. Both are read by the same fold as the
+eager layers, a branch's round being a layer's round and its continuation
+the repeat lists a value's own tail is, plus one reader for the two arms.
 
 Three more things are spelled for one symbol of lookahead, each a conflict
 the backtracking grammar this replaced had
@@ -143,15 +171,15 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
-- a reference in a function's body to a name bound outside it — a `const`, an
-  import, or an enclosing function's parameter — which is a capture, and a
-  function has no frame to capture with yet. The body is resolved against its
-  own names alone — its parameter, and the `const`s it declares before the
-  `return` — so the check is which map the name is found in;
 - a body `const` that takes a name the body already binds, its parameter
-  included, which is a duplicate as a module's is. A name the *module* binds
-  is not: the body cannot reach the module's scope at all, so that name was
-  unreachable rather than hidden;
+  included, which is a duplicate as a module's is. A name a scope *around*
+  the body binds is not: the body's `const` shadows it, as in JavaScript —
+  unless the body has already read that name from outside, before the
+  `const` or in its own initializer, which is `capture shadowed`: not a
+  rule of the language but a forward reference inside a body, not yet
+  supported
+  ([`todo/body-const-forward-reference.md`](todo/body-const-forward-reference.md)),
+  refused because JavaScript would read the body's `const` there;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
@@ -163,11 +191,29 @@ the fold's:
   [spec: property accessor](../../../spec/todo/2330-property-accessor.md)
   prohibits. The key of an access is a constant — an identifier after `.`, a
   string or a number in `[ ]` — so what remains is the EDAG's own form,
-  `['.', base, key]`, and the grammar refuses a runtime key at the token.
+  `['.', base, key]`, and the grammar refuses a runtime key at the token;
+- a method call naming a member function a module may not call, `a.push(1)`
+  or `a.valueOf()` — the names `prohibitedCalls` in the same module lists,
+  its [README](../../js/prototype/README.md) saying why for each. An access
+  that is a call's callee, through a group as well, is checked against that
+  list instead of the read rule, so `a.at(0)` and `a.toString()` are calls
+  like any other while `a.at` stays a refused read: a detached built-in is a
+  function that only fails.
 
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
 to approximate these.
+
+A reference in a function's body to a name bound outside it — a `const`, an
+import, an enclosing function's parameter or an enclosing body's `const` —
+is a **capture**. The body is resolved against its own names first — its
+parameter, and the `const`s it declares before the reference — and then
+against each scope around it, innermost first; a name found outside becomes
+a capture, one per binding in first-use order, which the function node
+lists as its third element and the body reads as `['fref', i]`. The frame
+is the lowering's: it gives each distinct captured value one slot, so two
+bindings of one value share one. A function nested in another captures through it, so the
+middle function takes the capture too.
 
 A `const`'s value is resolved *before* its own name is bound, so `const a = a;`
 is `const not found` — a reference to a name before its declaration, as it is

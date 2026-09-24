@@ -9,11 +9,12 @@ import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { AstConst, BinaryTag } from '../ast/types.ts'
 
-/** The nodes a reference can name: one per import, one per entry lowered so far, and the arguments of the function being lowered. */
+/** The nodes a reference can name: one per import, one per entry lowered so far, the arguments of the function being lowered, and a read of each slot of its frame. */
 export type _Nodes = {
     readonly parameters: readonly Exp[]
     readonly consts: readonly Exp[]
     readonly args: Exp
+    readonly frame: readonly Exp[]
 }
 
 /**
@@ -34,16 +35,19 @@ export type _Binding = {
 
 /**
  * `lower`'s own explicit stack, in place of the recursion a chain of
- * operator/negation/bitwise-not nodes would otherwise call it through: a
- * node still to lower, an operator whose one operand is already on top of
- * `_LowerResults` and needs negating or complementing, or a binary
- * operator whose two operands are — right on top, left under it.
+ * operator/negation/bitwise-not/conditional nodes would otherwise call it
+ * through: a node still to lower, an operator whose one operand is already
+ * on top of `_LowerResults` and needs negating or complementing, a binary
+ * operator whose two operands are — right on top, left under it — or the
+ * conditional whose three are, the else arm on top and the condition
+ * lowest.
  */
 export type _LowerWork =
     | { readonly kind: 'expand', readonly ast: AstConst, readonly rest: _LowerWork }
     | { readonly kind: 'neg', readonly rest: _LowerWork }
     | { readonly kind: 'bitnot', readonly rest: _LowerWork }
     | { readonly kind: 'binary', readonly tag: BinaryTag, readonly rest: _LowerWork }
+    | { readonly kind: 'ternary', readonly rest: _LowerWork }
     | null
 
 /** The `Exp`s `_LowerWork`'s combine steps read and replace, most recently lowered on top. */

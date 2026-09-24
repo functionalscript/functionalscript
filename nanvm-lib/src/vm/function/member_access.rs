@@ -4,7 +4,7 @@ use crate::vm::{Any, IVm, Number, ToAny, Unpacked};
 impl<A: IVm> Function<A> {
     /// `self[key]`: the string key `"length"` reads the declared arity —
     /// `f.length`, the one property a function has — and every other key
-    /// is `None`, for the caller (`Any::member_access`) to turn into
+    /// is `None`, for the caller (`Any::dot`) to turn into
     /// `undefined`, the same contract `Array::member_access` has.
     pub(crate) fn member_access(&self, key: Any<A>) -> Option<Any<A>> {
         match Unpacked::from(key) {

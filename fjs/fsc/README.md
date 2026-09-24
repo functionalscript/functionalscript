@@ -33,7 +33,11 @@ base, never the prototype chain, as
 it — a name a built-in prototype gives a value, `a.toString` or `a.push`,
 is refused at the key rather than read as `undefined` where JavaScript
 finds a function, `length` excepted, since a value owns it
-([`fjs/js/prototype`](../js/prototype/module.f.mjs)); `undefined` where
+([`fjs/js/prototype`](../js/prototype/module.f.mjs)) — a method call is
+the exception the other way, `a.at(0)` and `a.toString()` being calls the
+VM answers by the receiver's type, and only the member functions the same
+module's `prohibitedCalls` names, `a.push(1)` or `a.valueOf()`, are refused
+([its README](../js/prototype/README.md) has the table); `undefined` where
 there is no such property; and a `null` or `undefined` base is the one
 failure a data module can make, reported as JavaScript's throw is. The sharing sweep reads an access by the keys it applies, so
 `{ x: cfg.a, y: cfg.b }` is the tree it is and `[cfg.a, cfg.a]` the shared
@@ -135,12 +139,19 @@ roots of the unreached part in source order, an entry another unreached entry
 reaches being anchored through it, an alias being the node it names, and two
 imports of one module being one node. A module the export reaches entirely
 has no comma.
-A function is `['=>', null, body]`: no frame yet, and the body a scope of
-its own, in which the rest parameter is `['args']` — one node however many
-references reach it, so `(...a) => [a, a]` shares as JavaScript does — and
-nothing outside stands: a reference to a `const`, an import or an enclosing
-function's parameter is a capture, refused where it is written, so no module
-node is ever shared into a body. The body is any value except an object, since
+A function is `['=>', frame, body]`, the body a scope of its own, in which
+the rest parameter is `['args']` — one node however many references reach
+it, so `(...a) => [a, a]` shares as JavaScript does — and nothing outside
+stands. A reference to a `const`, an import, an enclosing function's
+parameter or an enclosing body's `const` is a capture: the frame is
+`['[]', slots]`, each slot the enclosing scope's own node for a captured
+value, one per value — nodes the EDAG analysis merges, `o[0]` read by two
+`const`s, being one — in the order the body first names them, and the body
+reads slot `i` as `['.', ['frame'], i]` — so no outside node is ever shared
+into a body, only read through its frame. A captured primitive is written
+into the body rather than captured, and a function that captures nothing
+else has a `null` frame. A nested function captures through its parent, its
+slot a read of the parent's frame. The body is any value except an object, since
 `=> {` opens a block in JavaScript — or that block, in which an object is a
 value again: any number of `const` statements and then one `return`. A body
 `const` is an entry of the function's own body, as a module `const` is of the
@@ -184,6 +195,20 @@ operand, is every layer's operand instead, `./parser/README.md` has the
 argument. [`rust`](rust/module.f.mjs) already spelled every one of these
 EDAG nodes but `!==`, which this front end had no path to produce before —
 the front end is what was missing, not the code generator.
+
+Stage B added the lazy operators `&& || ??` and the conditional `?:` above
+them, each again the EDAG's own node — `op2`, and `op3` for the
+conditional — whose laziness the EDAG states positionally: the right
+operand, or the unselected arm, is not established there. The grammar
+keeps `??` apart from `&&`/`||` as JavaScript does, by shape, and the one
+piece of the front end laziness reaches is `anchors` in
+[`ast`](ast/module.f.mjs): a `const` the export reaches only through a
+lazy position is anchored, since its own statement runs at load whatever
+the operator later decides, so `const c = null.x; export default [a && c,
+b && c];` throws at load in both languages. The sharing sweep counts a
+lazy position as any other — identity does not care which position a
+reference is made from. The writer refuses every operator node, Stage B's
+as Stage A's, until it can spell their precedence.
 A call is a step after a value, as an access is, and the callee picks which of
 the EDAG's two forms it lowers to: an access as the callee is a method call,
 `a.b(c)`, whose receiver is that access's base, so the access owns the call

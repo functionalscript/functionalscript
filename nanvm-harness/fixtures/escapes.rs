@@ -5,5 +5,6 @@ use nanvm_lib::vm::{Any, IVm, ToAny, ToArray, ToObject};
 
 #[rustfmt::skip]
 pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
-    Ok([(string_key("default"), [string_any("\u{0}"), string_any("\u{1f}"), string_any("\u{7f}"), string_any("\u{202e}"), string_any("\u{2069}")].to_array().to_any())].to_object().to_any())
+    let c0: Any<A> = [string_any("\u{0}"), string_any("\u{1f}"), string_any("\u{7f}"), string_any("\u{202e}"), string_any("\u{2069}")].to_array().to_any();
+    Ok([(string_key("default"), c0)].to_object().to_any())
 }

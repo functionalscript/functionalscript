@@ -13,18 +13,26 @@
 pub mod arity;
 #[path = "../fixtures/array.rs"]
 pub mod array;
+#[path = "../fixtures/at.rs"]
+pub mod at;
 #[path = "../fixtures/boolean.rs"]
 pub mod boolean;
 #[path = "../fixtures/call.rs"]
 pub mod call;
 #[path = "../fixtures/calls.rs"]
 pub mod calls;
+#[path = "../fixtures/closure.rs"]
+pub mod closure;
 #[path = "../fixtures/escapes.rs"]
 pub mod escapes;
 #[path = "../fixtures/function-scope.rs"]
 pub mod function_scope;
+#[path = "../fixtures/lazy.rs"]
+pub mod lazy;
 #[path = "../fixtures/length.rs"]
 pub mod length;
+#[path = "../fixtures/method.rs"]
+pub mod method;
 #[path = "../fixtures/missing.rs"]
 pub mod missing;
 #[path = "../fixtures/named.rs"]
@@ -33,6 +41,8 @@ pub mod named;
 pub mod nested;
 #[path = "../fixtures/not-a-function.rs"]
 pub mod not_a_function;
+#[path = "../fixtures/nullish.rs"]
+pub mod nullish;
 #[path = "../fixtures/number.rs"]
 pub mod number;
 #[path = "../fixtures/object.rs"]
@@ -49,6 +59,8 @@ pub mod sharing;
 pub mod string;
 #[path = "../fixtures/throws.rs"]
 pub mod throws;
+#[path = "../fixtures/to-string.rs"]
+pub mod to_string;
 
 use core::fmt::{self, Debug, Display, Formatter};
 
@@ -116,7 +128,8 @@ pub fn run<A: IVm>(
 ) -> Result<std::string::String, RunError<A>> {
     module()
         .map_err(RunError::Thrown)?
-        .member_access("default".into())
+        .dot("default".into())
+        .end()
         .expect("a compiled module returns its export object")
         .to_json()
         .map_err(RunError::Json)
@@ -130,9 +143,9 @@ mod tests {
     };
 
     use crate::{
-        RunError, arity, array, boolean, call, calls, escapes, function_scope, length, missing,
-        named, nested, not_a_function, number, object, operators, property, rest, run, sharing,
-        string, throws,
+        RunError, arity, array, at, boolean, call, calls, closure, escapes, function_scope, lazy,
+        length, method, missing, named, nested, not_a_function, nullish, number, object, operators,
+        property, rest, run, sharing, string, throws, to_string,
     };
 
     #[test]
@@ -168,6 +181,12 @@ mod tests {
             run::<Naive>(throws::module),
             Err(RunError::Thrown(_))
         ));
+        // A property read on a nullish base: the compiler writes the read,
+        // and the VM throws the `TypeError` JavaScript throws.
+        assert!(matches!(
+            run::<Naive>(nullish::module),
+            Err(RunError::Thrown(_))
+        ));
     }
 
     /// Every eager operator, computed by `nanvm-lib` from the compiled
@@ -180,6 +199,21 @@ mod tests {
                 "[7,5,12,1.5,2,36,-6,-7,true,false,true,true,false,true,2,7,7,12,3,3,\"ab\",7]"
                     .into()
             )
+        );
+    }
+
+    /// The four lazy operators, each from source the grammar reads: the
+    /// operand a `&&`, `||` or `??` never reaches and the arm a `?:` does
+    /// not select is a thunk never run, so the `1n / 0n` standing in each
+    /// of those positions throws nowhere, and the module answers what a
+    /// JavaScript engine answers the same source. The last two are a
+    /// function's arguments reached only through lazy positions, bound
+    /// once by the body and cloned by each thunk.
+    #[test]
+    fn lazy_operators() {
+        assert_eq!(
+            run::<Naive>(lazy::module),
+            Ok("[0,2,null,1,3,\"x\",0,4,5,false,7,8,2,10,11,13,2]".into())
         );
     }
 
@@ -202,6 +236,15 @@ mod tests {
         );
     }
 
+    /// Closures, end to end: a function's frame is the values its body
+    /// names from outside, built where the function is made and read
+    /// through `A::frame` — an enclosing function's arguments, a module
+    /// `const`, and a capture through a parent's own frame.
+    #[test]
+    fn closures() {
+        assert_eq!(run::<Naive>(closure::module), Ok("[3,15,[1,2,3,1]]".into()));
+    }
+
     /// A read past the arguments supplied answers `undefined` — which has
     /// no JSON, so the value is checked as it is — and calling what is not
     /// a function throws.
@@ -209,7 +252,8 @@ mod tests {
     fn missing_argument_and_non_function_callee() {
         let value = missing::module::<Naive>()
             .unwrap()
-            .member_access("default".into())
+            .dot("default".into())
+            .end()
             .unwrap();
         assert_eq!(value, Nullish::Undefined.to_any());
         assert!(matches!(
@@ -271,6 +315,34 @@ mod tests {
     #[test]
     fn property_access() {
         assert_eq!(run::<Naive>(property::module), Ok("42".into()));
+    }
+
+    /// `o.f(42)`: the read's continuation calls `f` — a method call, one
+    /// chain — and the call reaches the function with its arguments.
+    #[test]
+    fn method_call() {
+        assert_eq!(run::<Naive>(method::module), Ok("42".into()));
+    }
+
+    /// `a.at(i)`: a built-in member function of one type, reading its
+    /// receiver — from the start, from the end, out of range, and with
+    /// the index converted.
+    #[test]
+    fn at_method() {
+        assert_eq!(
+            run::<Naive>(at::module),
+            Ok("[10,30,true,true,20,20,10]".into())
+        );
+    }
+
+    /// `x.toString()` on every type, a built-in member function the
+    /// receiver does not own, and an own `toString` shadowing it.
+    #[test]
+    fn to_string_method() {
+        assert_eq!(
+            run::<Naive>(to_string::module),
+            Ok(r#"["1.5","true","ab","5","1,b","[object Object]","own"]"#.into())
+        );
     }
 
     #[test]

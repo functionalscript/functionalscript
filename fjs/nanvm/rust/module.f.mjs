@@ -10,14 +10,14 @@
  * Each statement is printed from the EDAG expression the case denotes, the
  * same expression [`../proof.f.mjs`](../proof.f.mjs) evaluates, so the two
  * consumers read one program rather than each reading the case its own way.
- * The node printer and its `let`-binding sharing mechanism are not this
- * module's own: they live in
- * [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared with the `.rs`
- * output branch of `fjs compile` (`fjs/fsc/rust/module.f.mjs`), so the
- * operator tables and the sharing mechanism have one copy between the two
- * generators. What stays here is everything test-corpus-specific: naming a
- * group's Rust function, the per-group `let` bindings a case's shared
- * operands need, and the assertion statements themselves.
+ * The node printer and its binding mechanism are not this module's own:
+ * they live in [`fjs/edag/rust`](../../edag/rust/module.f.mjs), shared
+ * with the `.rs` output branch of `fjs compile`
+ * (`fjs/fsc/rust/module.f.mjs`), so the operator tables and the mechanism
+ * have one copy between the two generators. What stays here is everything
+ * test-corpus-specific: naming a group's Rust function, the per-group `let`
+ * bindings a case's shared operands need, and the assertion statements
+ * themselves.
  *
  * Rust naming is this module's alone and never leaks back into the shared
  * data: {@link rustName} maps a group's key to a Rust identifier explicitly,
@@ -54,7 +54,7 @@ import {
 } from '../module.f.mjs'
 import { snakeCase, stringLiteral } from '../../media/rust/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { expExpr as sharedExpExpr, nodeExpr as sharedNodeExpr } from '../../edag/rust/module.f.mjs'
+import { braced, expExpr as sharedExpExpr, indent, nestsOperation, statementsOf } from '../../edag/rust/module.f.mjs'
 
 /**
  * The shared printer as a throwing convenience, for this module's own use:
@@ -68,9 +68,24 @@ import { expExpr as sharedExpExpr, nodeExpr as sharedNodeExpr } from '../../edag
 const expExpr = shared => e => unwrap(sharedExpExpr(shared)(e))
 
 /** @type {(e: Exp) => string} */
-export const nodeExpr = e => unwrap(sharedNodeExpr(e))
+export const nodeExpr = e => unwrap(sharedExpExpr([])(e))
 
-const indent = '    '
+/**
+ * A case's result as the `Result` `check` takes: one bare operation over
+ * its operands as written — the flat statement every case has been —
+ * unless an operation stands in an eager position, which a bare statement
+ * has no line to bind on. Then the case is a scope, `scope(|| { … })`: its
+ * temporaries bound inside the closure with their `?`, and the root's own
+ * `Result` the closure's answer, handed to `check` whole — the shape a
+ * thunk's body and a compiled module already have (`fjs/edag/rust`'s
+ * `statementsOf`). `scope` is the harness's, a name for the call rather
+ * than `(|| …)()`, which clippy calls redundant.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
+ */
+const caseText = shared => e => nestsOperation(shared)(e)
+    ? `scope(|| ${braced(unwrap(statementsOf(shared)(e)))})`
+    : expExpr(shared)(e)
 
 /**
  * Where this printer's output goes, relative to the repository root.
@@ -142,20 +157,22 @@ const fnName = id => {
 }
 
 /**
- * Comments out a statement `nanvm-lib` cannot pass yet, keeping the case
- * visible in the generated file as the work still to do.
+ * A statement's lines, indented into the group's function — one, unless a
+ * lazy operand's thunk binds temporaries of its own, a block over several
+ * (`fjs/edag/rust`'s printer) — or, for a statement `nanvm-lib` cannot
+ * pass yet, the same commented out, keeping the case visible in the
+ * generated file as the work still to do.
  *
- * One line per case, reason and statement together: a group where every case
- * carries the same `rust` reason (an operator with no `nanvm-lib`
- * implementation at all, such as `&`) would otherwise repeat that reason on
- * its own line before each one, doubling the line count for no new
- * information.
+ * Reason and statement together, on the statement's first line: a group
+ * where every case carries the same `rust` reason (an operator with no
+ * `nanvm-lib` implementation at all, such as `&`) would otherwise repeat
+ * that reason on its own line before each one, doubling the line count for
+ * no new information.
  *
  * @type {(reason: string|undefined) => (statement: string) => readonly string[]}
  */
-const emit = reason => statement => reason === undefined
-    ? [`${indent}${statement}`]
-    : [`${indent}// TODO: ${reason}: ${statement}`]
+const emit = reason => statement => statement.split('\n').map((line, i) =>
+    `${indent}${reason === undefined ? '' : i === 0 ? `// TODO: ${reason}: ` : '// '}${line}`)
 
 /**
  * A case's name as the Rust string literal `check` takes. The names are the
@@ -215,7 +232,7 @@ const groupFn = shared => g => {
                 expExpr(used.slice(0, i).map(binding))(node)};`),
         ...casesOf(g).flatMap(c => orders(g)(c).flatMap(([name, args]) =>
             emit(c.rust)(assertion(c.expected)(name)(
-                expExpr(used.map(binding))(caseExp(shared)(g)(args)))))),
+                caseText(used.map(binding))(caseExp(shared)(g)(args)))))),
         '}',
         '',
     ]

@@ -434,6 +434,10 @@ fn sub<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 fn add<A: IStaticFunction>() {
+    check_throws::<A>("unreachedPlusOne", scope(|| {
+        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+        c0 + f64_any(0x3ff0000000000000)
+    }));
     check::<A>("nullPlusOne", Nullish::Null.to_any() + f64_any(0x3ff0000000000000), f64_any(0x3ff0000000000000));
     check::<A>("undefinedPlusOne", Nullish::Undefined.to_any() + f64_any(0x3ff0000000000000), f64_any(0x7ff8000000000000));
     check::<A>("truePlusTrue", true.to_any() + true.to_any(), f64_any(0x4000000000000000));
@@ -1034,7 +1038,10 @@ fn logical_and<A: IStaticFunction>() {
     check::<A>("nanAndUnreached", Any::logical_and(f64_any(0x7ff8000000000000), || bigint_any(1) / bigint_any(0)), f64_any(0x7ff8000000000000));
     check::<A>("emptyStringAndUnreached", Any::logical_and(string_any(""), || bigint_any(1) / bigint_any(0)), string_any(""));
     check::<A>("bigZeroAndUnreached", Any::logical_and(bigint_any(0), || bigint_any(1) / bigint_any(0)), bigint_any(0));
-    check::<A>("falseAndNestedUnreached", Any::logical_and(false.to_any(), || Ok([(bigint_any(1) / bigint_any(0))?].to_array().to_any())), false.to_any());
+    check::<A>("falseAndNestedUnreached", Any::logical_and(false.to_any(), || {
+        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+        Ok([c0].to_array().to_any())
+    }), false.to_any());
 }
 
 #[rustfmt::skip]
@@ -1083,6 +1090,10 @@ fn nullish_coalescing<A: IStaticFunction>() {
 
 #[rustfmt::skip]
 fn conditional<A: IStaticFunction>() {
+    check_throws::<A>("unreachedCondition", scope(|| {
+        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+        Any::conditional(c0, || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000)))
+    }));
     check::<A>("truePicksConsequent", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
     check::<A>("falsePicksAlternate", Any::conditional(false.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
     check::<A>("nullPicksAlternate", Any::conditional(Nullish::Null.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));

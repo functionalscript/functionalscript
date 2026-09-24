@@ -53,6 +53,16 @@ ranks strictly worse. The crash is real and worth fixing — it stayed a
 crash rather than becoming a wrong answer, but it is a real gap, hence
 P1 rather than P2.
 
+Deeply nested **functions** are a third shape, past the parser: the
+parser resolves a body 20,000 functions deep — a capture through every one
+of them included — but the lowering recurses once per function
+(`fn` → `scope` → `lower` in
+[`../../fsc/edag/module.f.mjs`](../../fsc/edag/module.f.mjs)), as does
+the Rust printer (`closure` → `statements` in
+[`../rust/module.f.mjs`](../rust/module.f.mjs)), so
+`export default ${'() => '.repeat(20000)}1;` still overflows there, with a
+capture or without one.
+
 ### Proposal
 
 The same shape again: convert the walk to an explicit stack (or adopt

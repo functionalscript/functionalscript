@@ -658,18 +658,35 @@ export default 1 + 2 * 3;
 Beyond unary `-` ([supported value types](#supported-value-types)), the
 language has arithmetic (`+ - * / % **`), strict comparison
 (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) — Stage A of
-[operators](./todo/2340-operators.md). `==`/`!=` stay refused, since neither
-language reads them the same way twice. The lazy operators (`&& || ??`), the
-conditional (`?:`), and the comma operator are not recognized yet.
+[operators](./todo/2340-operators.md) — and, above them, the lazy operators
+(`&& || ??`) and the conditional (`?:`), Stage B. `==`/`!=` stay refused,
+since neither language reads them the same way twice. The comma operator is
+not recognized yet.
 
 Precedence and associativity follow JavaScript's own: arithmetic binds
-tighter than comparison, which binds tighter than bitwise, `**` is
-right-associative (`2 ** 3 ** 2` is `2 ** (3 ** 2)`), and every other
-operator here is left-associative. `-`/`~` immediately before `**` are
-refused, matching JavaScript exactly: `-2 ** 2` and `~2 ** 2` are syntax
-errors here as there, at any depth of `-`/`~` nesting, and parentheses are
-the only way to write either reading — `(-2) ** 2` raises the negation,
-`-(2 ** 2)` negates the power.
+tighter than comparison, which binds tighter than bitwise, which binds
+tighter than `&&`, which binds tighter than `||`, and the conditional is
+above them all; `**` is right-associative (`2 ** 3 ** 2` is `2 ** (3 **
+2)`), the conditional nests to the right (`a ? b : c ? d : e` is `a ? b :
+(c ? d : e)`), and every other operator here is left-associative. `-`/`~`
+immediately before `**` are refused, matching JavaScript exactly: `-2 ** 2`
+and `~2 ** 2` are syntax errors here as there, at any depth of `-`/`~`
+nesting, and parentheses are the only way to write either reading — `(-2)
+** 2` raises the negation, `-(2 ** 2)` negates the power. `??` mixes with
+`&&`/`||` only under parentheses, as in JavaScript: `a ?? b || c` and
+`a && b ?? c` are syntax errors in both, and `(a ?? b) || c` is the one
+spelling of that reading.
+
+The lazy operators establish their right operand only when the left decides
+nothing — `a && b`'s `b` when `a` is truthy, `a || b`'s when `a` is falsy,
+`a ?? b`'s when `a` is `null` or `undefined` — and the conditional
+establishes exactly one of its arms, as JavaScript does. A `const` reached
+only through such a position is still evaluated when the module loads, as
+its own statement: `const c = null.x; export default [a && c, b && c];`
+throws at load in both languages, whatever `a` and `b` are. The
+[failure contract](#failure-is-one-outcome) says what an implementation may
+reorder around that; being reached only through a lazy position is not what
+decides whether a `const` runs.
 
 A function is an operand of none of these, unparenthesized: `(...a) => body`
 reads everything to its right as `body`, exactly as in JavaScript, so
@@ -679,10 +696,11 @@ value, however little multiplying by a function is worth.
 
 The front end computes none of these — it builds the operation and passes
 it on. Unary `-` alone folds over a numeric literal, exact and total
-arithmetic; every other operator here reaches the EDAG as a node, and a
-`.json` or DataJS output — the readers that compute a value — refuses one
-the same way it refuses a function or a call, until an interpreter answers
-for the rest of them ([roadmap](./todo/README.md)).
+arithmetic; every other operator here reaches the EDAG as a node, the lazy
+ones and the conditional included, and a `.json` or DataJS output — the
+readers that compute a value — refuses one the same way it refuses a
+function or a call, until an interpreter answers for the rest of them
+([roadmap](./todo/README.md)).
 
 ## Property Access
 
@@ -711,9 +729,16 @@ and the rest, listed in [`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)
 find a function there and this language nothing, and a module must mean one
 thing in both. `length` is the exception, since an array, a string and a
 function own it. The rules are
-[property-accessor](./todo/2330-property-accessor.md)'s, and they hold for a
-method call too, `a.toString()` being refused where `a.toString` is; a key
-computed at run time is not recognized yet.
+[property-accessor](./todo/2330-property-accessor.md)'s. A method call has a
+rule of its own: `a.toString()` and `a.at(0)` are calls the VM answers by the
+receiver's type, an own property of the name shadowing the built-in and a
+type without one throwing as JavaScript does, while `a.push(1)`, `a.valueOf()`
+and the other member functions
+[`fjs/js/prototype`](../fjs/js/prototype/module.f.mjs)'s `prohibitedCalls`
+names are compilation errors — one row per name, with the reason, in
+[its README](../fjs/js/prototype/README.md). The read stays refused where
+the call is allowed, since a detached built-in is a function that only
+fails. A key computed at run time is not recognized yet.
 
 ## Importing Other Modules
 
@@ -860,13 +885,39 @@ export default () => 6;
 
 A function is written as an arrow function of one rest parameter or of none,
 and its body is an expression or a block. It denotes a function of its
-arguments alone:
+arguments and of what it captures:
 
-- The parameter is the arguments array, `args[0]` the first argument, and
-  the body may name it and nothing declared outside — a `const`, an import,
-  or an enclosing function's parameter is a **capture**, which is an error
-  ([function-frame](./todo/3111-function-frame.md)). The parameter may shadow
-  a module name, as in JavaScript.
+- The parameter is the arguments array, `args[0]` the first argument. The
+  parameter may shadow a module name, as in JavaScript.
+- A name the body reads from a scope around it — a `const`, an import, an
+  enclosing function's parameter or an enclosing body's `const` — is a
+  **capture**, as a JavaScript closure's is. The function's frame is the
+  array of the captured values, each value once however many bindings or
+  references reach it, in the order the body first names them, built where the
+  function is written; the body reads a capture as a slot of it, and a
+  nested function captures through its parent. Nothing mutates, so a frame
+  copied when the function is made is unobservable from a closure over the
+  scope ([function-frame](./todo/3111-function-frame.md)). A captured
+  primitive is written into the body instead, as a `const` holding one is
+  wherever it is read, since it has nothing to share.
+
+  Captures are JavaScript's closures, not a feature of this language's
+  own: a capture was an error only while a function had no frame to
+  capture with, a restriction whose reason is gone
+  ([DESIGN.md §12](../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)).
+  The frame is the one [function-frame](./todo/3111-function-frame.md) and
+  the EDAG's closed-scope model
+  ([`["frame"]`](../todo/edag-stage1-discussion.md)) describe.
+
+  ```js
+  const base = [10];
+  const add = (...a) => (...b) => a[0] + b[0];
+  export default [add(1)(2), ((...a) => base[0] + a[0])(5)];
+  ```
+
+  A function that names itself — recursion — is not supported yet: its
+  `const` is not bound in its own initializer, and a function has no
+  `self` to read in its place.
 - An **empty parameter list** binds no name at all, so a body written under
   one cannot reach its arguments: the arguments array is named by the
   parameter and by nothing else, and a word the list does not spell is
@@ -905,12 +956,19 @@ arguments alone:
 - A body `const` is the body's, and binds as a module's does: it names a
   value the `return` and the statements after it may use, it may not be
   written twice, and it is not in its own initializer's scope. The parameter
-  is a name of the body too, so a `const` may not take it. What a body
-  `const` *may* take is a name the module binds — the body cannot reach the
-  module's scope at all, a reference out being a capture, so the module's
-  name is unreachable here rather than hidden
-  ([no-shadowing](./todo/3150-shadowing.md) has nothing to decide about this
-  case).
+  is a name of the body too, so a `const` may not take it. A body `const`
+  *may* take a name a scope around it binds, shadowing it as in
+  JavaScript ([no-shadowing](./todo/3150-shadowing.md)) — unless the body
+  has already read that name from outside, before the `const` or in its own
+  initializer. That is not supported yet and is refused (`capture
+  shadowed`) rather than compiled to another value: JavaScript resolves
+  every reference in the body to the body's `const`, a read before its
+  declaration throwing and a function written earlier reading it once
+  called, where this compiler would read the capture. It is no restriction
+  of the language — nothing leaks through it — but a forward reference
+  inside a body, which
+  [`body-const-forward-reference.md`](../fjs/fsc/parser/todo/body-const-forward-reference.md)
+  tracks.
 
   ```js
   export default (...args) => {
@@ -937,9 +995,11 @@ arguments alone:
   graph it compiles to; the detached spelling waits on the comma operator,
   so every call written on a property today is a call with a receiver.
 
-  A method call's property is the access's, so the names an access may not
-  read, a built-in prototype's among them
-  ([property access](#property-access)), it may not call either.
+  A method call's property is the access's, but its key is judged by the
+  call rule and not the read rule ([property access](#property-access)): a
+  member function on `fjs/js/prototype`'s `prohibitedCalls` is a compilation
+  error, every other prototype name is a call the VM answers by the
+  receiver's type, and the read of either stays refused.
 
   Only the EDAG output holds a call today, and the other three refuse one for
   two different reasons. `.data.js` and `.json` are values, and what a call

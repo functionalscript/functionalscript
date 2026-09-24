@@ -155,12 +155,12 @@ export type UnaryOperand = () => readonly ['const', {
 }]
 
 /**
- * One layer of the binary-operator precedence ladder above {@link Unary}:
- * zero or more `(op, Unary, ...Prev)` rounds, the op itself left untyped —
- * nothing downstream reads its shape at the type level, only at the value
- * level once a round is matched — and `Prev` the layers below this one,
- * threaded through so a repeated operand reaches back down to them, `1 + 2
- * * 3` nesting as `1 + (2 * 3)`.
+ * One round of a binary-operator layer above {@link Unary}: `(op, Unary,
+ * ...Prev)`, the op itself left untyped — nothing downstream reads its
+ * shape at the type level, only at the value level once a round is
+ * matched — and `Prev` the layers below this one, threaded through so a
+ * repeated operand reaches back down to them, `1 + 2 * 3` nesting as
+ * `1 + (2 * 3)`.
  *
  * The operand is always {@link Unary}, never {@link Value}/{@link Body}
  * themselves: a function's body is unbounded, reading everything to the
@@ -170,7 +170,10 @@ export type UnaryOperand = () => readonly ['const', {
  * conflict `fjs/ebnf/ll1` has no way to resolve. See `unary`'s own comment
  * in `./module.f.mjs`.
  */
-type _OpTail<Prev extends readonly Rule[]> = RepeatFrom<0, readonly [Rule, typeof trivia, Unary, ...Prev]>
+type _OpRound<Prev extends readonly Rule[]> = readonly [Rule, typeof trivia, Unary, ...Prev]
+
+/** One layer of the precedence ladder: zero or more {@link _OpRound}s over the layers below it. */
+type _OpTail<Prev extends readonly Rule[]> = RepeatFrom<0, _OpRound<Prev>>
 
 type _MultiplicativeTail = _OpTail<readonly []>
 type _AdditiveTail = _OpTail<readonly [_MultiplicativeTail]>
@@ -182,15 +185,65 @@ type _BitwiseXorTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _Sh
 type _BitwiseOrTail = _OpTail<readonly [_MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail, _EqualityTail, _BitwiseAndTail, _BitwiseXorTail]>
 
 /**
- * The whole binary-operator suffix, `multiplicative` through `bitwiseOr`,
- * each layer built on the ones below it, `bitwiseOr` this type's own top —
- * spread onto every branch of {@link Value}/{@link Body} that may carry
- * one, every branch but {@link Func} and {@link Block}.
+ * The eager binary-operator suffix, `multiplicative` through `bitwiseOr`,
+ * each layer built on the ones below it, `bitwiseOr` this type's own top:
+ * the first part of {@link Tail}, and every lazy operator's own operand —
+ * {@link Unary} followed by these eight, which is what a `bitwiseOr`-level
+ * expression is.
  */
-export type Tail = readonly [
+export type EagerTail = readonly [
     _MultiplicativeTail, _AdditiveTail, _ShiftTail, _RelationalTail,
     _EqualityTail, _BitwiseAndTail, _BitwiseXorTail, _BitwiseOrTail,
 ]
+
+/** One round of the `&&` layer: its operand every eager layer's, `a && b | c` being `a && (b | c)`. */
+type _LogicalAndRound = _OpRound<EagerTail>
+
+/** The `&&` rounds after a chain's first. */
+type _LogicalAndTail = RepeatFrom<0, _LogicalAndRound>
+
+/** One round of the `||` layer: its operand a `&&` chain, `a || b && c` being `a || (b && c)`. */
+type _LogicalOrRound = _OpRound<readonly [...EagerTail, _LogicalAndTail]>
+
+/** The `||` rounds after a chain's first. */
+type _LogicalOrTail = RepeatFrom<0, _LogicalOrRound>
+
+/** One round of the `??` layer: its operand every eager layer's, and never a `&&` or `||` chain. */
+type _NullishRound = _OpRound<EagerTail>
+
+/** The `??` rounds after a chain's first. */
+type _NullishTail = RepeatFrom<0, _NullishRound>
+
+/**
+ * The short-circuit level above {@link EagerTail}: nothing, or the chain
+ * its first operator commits to — each branch that operator's own round
+ * and then the repeat lists that may continue it, a `&&` chain continuing
+ * into `||` rounds and a `??` chain into `??` rounds alone, so that
+ * `a ?? b || c` and `a && b ?? c` have no parse, as JavaScript has none.
+ * The shape's own comment is on `circuitTail` in `./module.f.mjs`.
+ */
+export type CircuitTail = Option<{
+    readonly logicalAnd: readonly [_LogicalAndRound, _LogicalAndTail, _LogicalOrTail]
+    readonly logicalOr: readonly [_LogicalOrRound, _LogicalOrTail]
+    readonly nullish: readonly [_NullishRound, _NullishTail]
+}>
+
+/**
+ * The conditional above {@link CircuitTail}: nothing, or `?`, trivia, an
+ * arm, `:`, trivia, and the other arm — each arm a whole {@link Value}, so
+ * a nested conditional associates to the right through the arm's own
+ * recursion.
+ */
+export type ConditionalTail = Option<readonly [number, typeof trivia, Value, number, typeof trivia, Value]>
+
+/**
+ * The whole operator suffix: {@link EagerTail}, then the two lazy
+ * positions above it, {@link CircuitTail} and {@link ConditionalTail},
+ * this type's own top — spread onto every branch of {@link Value}/{@link
+ * Body} that may carry one, every branch but {@link Func} and {@link
+ * Block}.
+ */
+export type Tail = readonly [...EagerTail, CircuitTail, ConditionalTail]
 
 /**
  * A value: a primitive token, a reference, an array of values, or an

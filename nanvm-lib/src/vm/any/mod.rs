@@ -6,11 +6,12 @@ mod bitxor;
 mod call;
 mod conditional;
 mod div;
+mod dot;
 mod from;
-mod member_access;
 mod neg;
 mod not;
 mod nullish_coalescing;
+mod option_call;
 mod or;
 mod partial_eq;
 mod relational;
@@ -40,7 +41,7 @@ use crate::vm::{
 /// `Object.getOwnPropertyDescriptor`'s own message for a nullish receiver
 /// (one of `own_property`'s two throwing cases, the other being a
 /// non-`String` key — see its doc comment).
-const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
+pub(crate) const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
     "TypeError: Cannot convert undefined or null to object";
 
 /// ```

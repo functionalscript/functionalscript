@@ -18,7 +18,9 @@ const valueExpr = v => nodeExpr(valueExp(v))
 /**
  * One case of every shape the printer can emit: a shared value and a
  * reference to it, a skipped case, a throwing case, an `Op12` group at unary
- * arity, the ternary operation, and a commutative binary operator.
+ * arity, the ternary operation — with an arm holding an operation, whose
+ * thunk is a block over several lines, skipped so that every line of it
+ * is commented out — and a commutative binary operator.
  *
  * @type {Data}
  */
@@ -43,6 +45,7 @@ const sample = {
             cases: [
                 { name: 'pick', args: [true, 1, 2], expected: 1 },
                 { name: 'skip', args: [false, unreached, 2], expected: 2 },
+                { name: 'skipNested', args: [false, [unreached], 2], expected: 2, rust: 'not yet' },
             ],
         },
         {
@@ -77,6 +80,10 @@ fn unary_plus<A: IStaticFunction>() {
 fn conditional<A: IStaticFunction>() {
     check::<A>("pick", Any::conditional(true.to_any(), || Ok(f64_any(0x3ff0000000000000)), || Ok(f64_any(0x4000000000000000))), f64_any(0x3ff0000000000000));
     check::<A>("skip", Any::conditional(false.to_any(), || bigint_any(1) / bigint_any(0), || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
+    // TODO: not yet: check::<A>("skipNested", Any::conditional(false.to_any(), || {
+    //     let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+    //     Ok([c0].to_array().to_any())
+    // }, || Ok(f64_any(0x4000000000000000))), f64_any(0x4000000000000000));
 }
 
 #[rustfmt::skip]
@@ -221,6 +228,31 @@ export const proof = {
             rust.includes('let wrapper: Any<A> = [base.clone()].to_array().to_any();'),
             rust)
     },
+    /**
+     * A case that nests an operation in an eager position — the corpus's
+     * `unreached`, an operation, as an eager operand — is a scope: its
+     * temporary bound inside the closure with its `?`, the root's `Result`
+     * the closure's answer, handed to `check_throws` whole. A flat case
+     * beside it keeps its shape.
+     */
+    nestedOperationCase: () => {
+        const rust = generate({
+            shared: {},
+            groups: [{
+                op: '+',
+                arity: 2,
+                cases: [
+                    { name: 'nested', args: [unreached, 1], expected: throws },
+                    { name: 'flat', args: [1, 2], expected: 3 },
+                ],
+            }],
+        })
+        assert(rust.includes(`    check_throws::<A>("nested", scope(|| {
+        let c0: Any<A> = (bigint_any(1) / bigint_any(0))?;
+        c0 + f64_any(0x3ff0000000000000)
+    }));
+    check::<A>("flat", f64_any(0x3ff0000000000000) + f64_any(0x4000000000000000), f64_any(0x4008000000000000));`), rust)
+    },
     generateData: () => {
         // The real corpus, which is what `gen` writes. Only its shape is
         // asserted here: its contents are checked by `cargo test`.
@@ -252,17 +284,13 @@ export const proof = {
          */
         noRustNameForGroup: () => generate({ shared: {}, groups: [{ op: 'is', cases: [] }] }),
         /**
-         * A lambda other than `() => undefined`: no closure prints, so each
-         * way of not being the smallest one is refused — a frame that is a
-         * primitive, one that is a node but not an array literal, one that is
-         * not empty, a body that is not a node, and a body that is not the
-         * `undefined` node.
+         * A lambda whose frame is no array literal: every other prints, the
+         * corpus's `() => undefined` as `function_any()` and the rest as a
+         * closure, so these two alone are refused — a frame that is a
+         * primitive, and one that is a node but not an array literal.
          */
         lambdaFramePrimitive: () => nodeExpr(['=>', 1, 2]),
         lambdaFrameNotArray: () => nodeExpr(['=>', ['undefined'], ['undefined']]),
-        lambdaFrameNotEmpty: () => nodeExpr(['=>', ['[]', [1]], ['undefined']]),
-        lambdaBodyPrimitive: () => nodeExpr(['=>', ['[]', []], 5]),
-        lambdaBodyNotUndefined: () => nodeExpr(['=>', ['[]', []], ['args']]),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

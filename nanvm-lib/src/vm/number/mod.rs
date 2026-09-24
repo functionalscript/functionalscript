@@ -8,6 +8,7 @@ mod neg;
 mod pow;
 mod rem;
 mod sub;
+mod to_integer_or_infinity;
 
 /// A JavaScript number: an `f64` that holds one `NaN`.
 ///

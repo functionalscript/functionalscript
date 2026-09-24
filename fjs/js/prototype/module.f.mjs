@@ -86,3 +86,54 @@ export const prototypeNames = /** @type {const} */ ([
     'toUpperCase', 'toWellFormed', 'trim', 'trimEnd', 'trimLeft', 'trimRight', 'trimStart',
     'unshift', 'valueOf', 'values', 'with',
 ])
+
+/**
+ * The names of {@link prototypeNames} a module may not *call* as a member
+ * function either, `a.x(...)`: the mutators, the prototype and coercion
+ * protocol, everything that reads the host's locale or Unicode version,
+ * the regular-expression methods, the `this`-passing function methods,
+ * the iterator factories, `forEach`, Annex B's legacy methods, and the
+ * five data properties a read refuses, which are no functions. Each name's
+ * reason is in [`README.md`](./README.md), one row per name.
+ *
+ * Every prototype name but `length` is refused as a property *read*, `a.x`
+ * — a detached built-in is a function that only fails, and the language
+ * has no prototype to find it on — so the read rule is
+ * {@link prototypeNames} but `length`, and the call rule is this list: a
+ * name here is refused as a call too, and a name in {@link allowedCalls} is
+ * a member function the VM answers by the receiver's type. `length` is on
+ * neither list: a value owns it, so it is read, and called, as whatever
+ * the value holds there — a function on an object, a number and so a
+ * `TypeError` on an array, a string or a function, as in JavaScript. The
+ * two lists and `length` partition {@link prototypeNames}, which the proof
+ * and `./types.ts` pin.
+ */
+export const prohibitedCalls = /** @type {const} */ ([
+    '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__', '__proto__',
+    'anchor', 'apply', 'arguments', 'big', 'bind', 'blink', 'bold', 'call', 'caller', 'constructor',
+    'copyWithin', 'entries', 'fill', 'fixed', 'fontcolor', 'fontsize', 'forEach', 'hasOwnProperty',
+    'isPrototypeOf', 'italics', 'keys', 'link', 'localeCompare', 'match', 'matchAll',
+    'name', 'normalize', 'pop', 'propertyIsEnumerable', 'push', 'reverse', 'search', 'shift',
+    'small', 'sort', 'splice', 'strike', 'sub', 'substr', 'sup', 'toLocaleLowerCase',
+    'toLocaleString', 'toLocaleUpperCase', 'toLowerCase', 'toUpperCase', 'trimLeft', 'trimRight',
+    'unshift', 'valueOf', 'values',
+])
+
+/**
+ * The member functions a module may call, `a.x(...)`: every name of
+ * {@link prototypeNames} not in {@link prohibitedCalls}, `length` aside,
+ * which is no function — pure, specified
+ * exactly, and the same on every engine. On a receiver whose type has no
+ * such built-in the call throws the `TypeError` JavaScript throws, and an
+ * own property of the name on an object shadows the built-in, as in
+ * JavaScript; the reads stay refused, since a detached built-in is a
+ * function that only fails.
+ */
+export const allowedCalls = /** @type {const} */ ([
+    'at', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'endsWith', 'every', 'filter', 'find',
+    'findIndex', 'findLast', 'findLastIndex', 'flat', 'flatMap', 'includes', 'indexOf',
+    'isWellFormed', 'join', 'lastIndexOf', 'map', 'padEnd', 'padStart', 'reduce', 'reduceRight',
+    'repeat', 'replace', 'replaceAll', 'slice', 'some', 'split', 'startsWith', 'substring',
+    'toExponential', 'toFixed', 'toPrecision', 'toReversed', 'toSorted', 'toSpliced', 'toString',
+    'toWellFormed', 'trim', 'trimEnd', 'trimStart', 'with',
+])

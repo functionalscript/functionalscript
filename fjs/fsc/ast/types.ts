@@ -27,27 +27,41 @@ export type AstImport = {
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a function, or a function's arguments. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstFunction|AstArgs
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a function's arguments, or a slot of its frame. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstArgs|AstFrameRef
 
 /**
- * A function of its arguments alone: `(...a) => { const x = …; return v; }`,
- * an {@link AstBody} as a module has one — its entries the body's `const`s
- * in order, the last the value it returns, and `['cref', i]` naming an
- * entry of *this* body. `(...a) => v` is the same function as
- * `(...a) => { return v; }`, so it is the one-entry body `[v]`.
+ * A function: `(...a) => { const x = …; return v; }`, an {@link AstBody}
+ * as a module has one — its entries the body's `const`s in order, the last
+ * the value it returns, and `['cref', i]` naming an entry of *this* body.
+ * `(...a) => v` is the same function as `(...a) => { return v; }`, so it is
+ * the one-entry body `[v]`.
  *
- * {@link AstArgs} is the arguments array; no `aref` stands here, and no
- * `cref` of an enclosing body — a capture is refused where it is written,
- * since a function has no frame yet. The EDAG's `['=>', null, body]`, its
- * body a comma where an entry is unreached, as a module's is.
+ * {@link AstArgs} is the arguments array. A name the body reads from the
+ * scopes around it is a **capture**: the function's third element lists
+ * them, each once, in the order the body first names them, each the
+ * enclosing scope's own reference — a `cref` or `aref` of the module, a
+ * `cref` of an enclosing body, its `args`, or a slot of *its* frame, since
+ * a nested function captures through its parent — and the body names
+ * capture `i` as {@link AstFrameRef} `['fref', i]`. A function that
+ * captures nothing has no third element. The EDAG's `['=>', frame, body]`,
+ * its frame the array of the captured values less the primitives — `lower`
+ * writes a primitive into the body — and its body a comma where an entry is
+ * unreached, as a module's is.
  *
  * An `aref` is typed as any index all the same, as a `cref` is: the parser
  * never writes a module reference into a body, and one written by hand is
  * not rejected — `lower` gives it no node, as it gives none to a `cref`
  * past the entry holding it.
  */
-export type AstFunction = readonly ['=>', AstBody]
+export type AstFunction = readonly ['=>', AstBody] | readonly ['=>', AstBody, readonly AstConst[]]
+
+/**
+ * Slot `i` of the frame of the function whose body holds it: the value its
+ * capture `i` names in the scope around the function. The EDAG's
+ * `['.', ['frame'], i]`.
+ */
+export type AstFrameRef = readonly ['fref', number]
 
 /** The arguments array of the function whose body holds it — the rest parameter, whatever it is named. The EDAG's `['args']`. */
 export type AstArgs = readonly ['args']
@@ -93,8 +107,11 @@ export type AstObject = readonly ['object', readonly AstMember[]]
  * a string, or a number from `[0]`. The EDAG's own form, `['.', object,
  * index]`, so the lowering carries it as it is. A key naming a property of
  * a built-in prototype — every name `fjs/js/prototype` lists but `length`
- * — is refused by the parser, so `run` never reads one. A numeric literal
- * is an ordinary base: `1 .x` is `['.', 1, 'x']`.
+ * — is refused by the parser where the access is read, so `run` never
+ * reads one; where the access is a call's callee the parser checks the key
+ * against `prohibitedCalls` instead, so a callee access may carry a member
+ * function's name, `at` or `toString`. A numeric literal is an ordinary
+ * base: `1 .x` is `['.', 1, 'x']`.
  */
 export type AstAccess = readonly ['.', AstConst, string | number]
 
@@ -136,11 +153,11 @@ export type AstNeg = readonly ['-', AstConst]
 export type AstBitnot = readonly ['~', AstConst]
 
 /**
- * A binary operator, Stage A of
+ * A binary operator, Stages A and B of
  * [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md):
- * arithmetic, strict comparison, and bitwise — the EDAG's `op2Id`, and `-`
- * again at two operands, `op12Id`'s other arity, told from {@link AstNeg}
- * by length.
+ * arithmetic, strict comparison, bitwise, and the lazy `&&`/`||`/`??` —
+ * the EDAG's `op2Id`, and `-` again at two operands, `op12Id`'s other
+ * arity, told from {@link AstNeg} by length.
  *
  * `run` computes no value for one, the same refusal a function or a call
  * earns: JavaScript's `+` alone needs `ToPrimitive` to decide number or
@@ -148,15 +165,34 @@ export type AstBitnot = readonly ['~', AstConst]
  * an inconsistent line to draw, so every operator here waits on that
  * question rather than answering half of it. The EDAG is where each is
  * exact, over the graph's own values.
+ *
+ * A lazy operator's right operand is established only when the left
+ * decides nothing — `a && b`'s `b` when `a` is truthy, `a ?? b`'s when `a`
+ * is nullish — exactly as the EDAG's `op2Id` states it, positionally: the
+ * same node reached from an eager position elsewhere is established
+ * there. The shape says nothing of it; what reads the shape does, and
+ * `anchors` is where it matters, since a `const` reached only through a
+ * lazy position is still evaluated at module load.
  */
 export type AstBinary = readonly [BinaryTag, AstConst, AstConst]
 
-/** Every binary operator Stage A admits, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
+/** Every binary operator Stages A and B admit, the tag doubling as the EDAG's own — `op12Id`'s `-` included, told from the unary `['-', AstConst]` by arity. `../parser/types.ts`'s `Node` carries the same tags, imported from here, so `toNode`'s fold and `lower`'s dispatch both key off one name per operator. */
 export type BinaryTag =
     | '*' | '/' | '%' | '**'
     | '+' | '-'
     | '===' | '!==' | '<' | '<=' | '>' | '>='
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
+    | '&&' | '||' | '??'
+
+/**
+ * The conditional, `c ? t : e`: the EDAG's `op3`, `['?:', c, t, e]`, the
+ * one node of three operands — always three, so nothing decides its arity
+ * as length decides `-`'s. It establishes `c` and then exactly one arm,
+ * the one `ToBoolean(c)` selects; both arms are lazy positions to
+ * `anchors`, as `&&`'s right operand is. `run` refuses it as it refuses
+ * every operator.
+ */
+export type AstConditional = readonly ['?:', AstConst, AstConst, AstConst]
 
 /**
  * The constants of a body, in declaration order. The **last** entry is the
@@ -208,8 +244,9 @@ export type Import = Denotation & { readonly id: string }
 /**
  * What an EDAG of the module anchors, each by index: exactly the code the
  * graph would not otherwise hold — the body entries and the imports the
- * export does not reach, less what those entries reach themselves — each a
- * computation whose value nothing takes. An entry that is a bare reference
+ * export does not reach through eager positions alone, less what those
+ * entries reach themselves the same way — each a computation whose value
+ * nothing is guaranteed to take. An entry that is a bare reference
  * is not a node and is never named; an import is named by the first import
  * sharing its node.
  */
