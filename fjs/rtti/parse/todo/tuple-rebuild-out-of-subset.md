@@ -72,12 +72,16 @@ in [`proof.f.mjs`](../proof.f.mjs) pins `parse([number])([1, ,])` as an
 error, proven with an elision literal; that is the precedent for both a
 refusal of a hole and its proof.
 
-**Replacing the rebuild alone would be a silent wrong answer.**
+**Replacing the rebuild alone changes a sparse input's meaning.**
 `arrayRebuild` over the entries of `[, 3]` against `[or(option, number), 3]`
-is `[3]`: every position after the gap shifts down. Whatever the fix, a
-sparse input either keeps its meaning or is refused; a shifted array is the
-outcome [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-never allows.
+is `[3]`: every position after the gap shifts down. Two rules pull apart
+on whether that matters.
+[DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+never allows a plausible wrong answer;
+[fjs/AGENTS.md §3.1](../../../AGENTS.md#31-immutability-and-purity) says a
+value FunctionalScript cannot build is outside every `.f.mjs` function's
+domain, with no refusal owed and no proof owed. Which contract governs a
+hole handed in by a host is part of the choice below.
 
 ### Ideas
 
@@ -109,8 +113,9 @@ alone does not stand in for that approval.
 - **Rebuild dense and leave holes to the boundary.** `arrayRebuild` alone,
   with the DataJS domain as the contract and no guard, on the argument that
   a value is validated where it enters from IO and trusted from then on.
-  This is the cheapest, and the finding above rules it out unless something
-  upstream of `parse` already refuses every sparse value.
+  This is the cheapest, and it is the §3.1 reading of the finding above: a
+  hole is undefined behaviour, not a wrong answer. Choosing it means
+  saying so where the readers' contract is written.
 - **Keep hole preservation through an admitted pattern**, if the language
   ever admits a construction-time idiom for arrays the way #2213 proposes
   one for a function's `length`. Nothing proposes that today, and it would
