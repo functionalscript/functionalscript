@@ -12,6 +12,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { CodePoint } from './types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { empty, flat, stateScan } from '../../types/list/module.f.mjs'
@@ -138,12 +139,13 @@ const surrogatePayloadMask = (1 << surrogatePayloadBits) - 1
 
 /**
  * Splits a supplementary-plane code point into its `[high, low]` surrogate
- * pair — the inverse of {@link fromSurrogatePair}. The caller gates the input
- * with {@link isSupplementaryPlane}.
+ * pair — the inverse of {@link tryFromSurrogatePair}. Any other code point has
+ * no surrogate pair and is refused with `null`.
  *
- * @type {(codePoint: CodePoint) => readonly [number, number]}
+ * @type {(codePoint: CodePoint) => Nullable<readonly [number, number]>}
  */
-export const toSurrogatePair = codePoint => {
+export const tryToSurrogatePair = codePoint => {
+    if (!isSupplementaryPlane(codePoint)) { return null }
     const n = codePoint - supplementaryMin
     return [
         (n >> surrogatePayloadBits) + surrogateMin,
@@ -153,15 +155,17 @@ export const toSurrogatePair = codePoint => {
 
 /**
  * Combines a high and a low surrogate into the supplementary-plane code point
- * they encode — the inverse of {@link toSurrogatePair}. The caller gates the
- * input with {@link isHighSurrogate} and {@link isLowSurrogate}.
+ * they encode — the inverse of {@link tryToSurrogatePair}. Any other pair of
+ * words encodes nothing and is refused with `null`.
  *
- * @type {(high: number, low: number) => CodePoint}
+ * @type {(high: number, low: number) => Nullable<CodePoint>}
  */
-export const fromSurrogatePair = (high, low) =>
-    ((high - surrogateMin) << surrogatePayloadBits)
-        + (low - lowSurrogateMin)
-        + supplementaryMin
+export const tryFromSurrogatePair = (high, low) =>
+    isHighSurrogate(high) && isLowSurrogate(low)
+        ? ((high - surrogateMin) << surrogatePayloadBits)
+            + (low - lowSurrogateMin)
+            + supplementaryMin
+        : null
 
 /**
  * The full assignable code-point range and the surrogate block, used to gate

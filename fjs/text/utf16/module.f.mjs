@@ -25,12 +25,10 @@ import {
     decoder,
     eofFlush,
     errorMask,
-    fromSurrogatePair,
     isBmpCodePoint,
     isHighSurrogate,
-    isLowSurrogate,
-    isSupplementaryPlane,
-    toSurrogatePair,
+    tryFromSurrogatePair,
+    tryToSurrogatePair,
 } from '../code_point/module.f.mjs'
 
 // The `number | null` state threaded through the decoder below is the UTF-16
@@ -75,8 +73,8 @@ import {
  */
 const codePointToUtf16 = codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
-    if (isSupplementaryPlane(codePoint)) { return toSurrogatePair(codePoint) }
-    return [codePoint & 0xffff]
+    const pair = tryToSurrogatePair(codePoint)
+    return pair === null ? [codePoint & 0xffff] : pair
 }
 
 /**
@@ -189,10 +187,12 @@ const utf16ByteToCodePointOp = (word, state) => {
         if (isHighSurrogate(word)) { return [[], word] }
         return [[word | errorMask], null]
     }
-    if (isLowSurrogate(word)) { return [[fromSurrogatePair(state, word)], null] }
-    // `isLowSurrogate`, `isBmpCodePoint`, and `isHighSurrogate` partition the
-    // full `u16` range with no gap, and `isLowSurrogate` was already ruled out
-    // above, so a non-BMP `word` here is always a high surrogate.
+    const codePoint = tryFromSurrogatePair(state, word)
+    if (codePoint !== null) { return [[codePoint], null] }
+    // `state` is always a high surrogate, so the pair is refused exactly when
+    // `word` is not a low surrogate. `isLowSurrogate`, `isBmpCodePoint`, and
+    // `isHighSurrogate` partition the full `u16` range with no gap, so a
+    // non-BMP `word` here is always a high surrogate.
     if (isBmpCodePoint(word)) { return [[state | errorMask, word], null] }
     return [[state | errorMask], word]
 }
