@@ -46,25 +46,30 @@ that asks one of them has already been told the input is fine.
 | `text/ascii`'s `hexDigitValue` (`../text/ascii/module.f.mjs:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
 | `text/ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
 
-`isSupplementaryPlane` is the sharpest: it *is* the gate in front of the
-`>>`/`&` truncation in both encoders (`../text/utf8/module.f.mjs:132`,
-`../text/utf16/module.f.mjs:78`), so the fraction reaches the shift through the
-check meant to stop it, and both encoders then answer exactly as they would
-for the integer:
+`isSupplementaryPlane` is the sharpest: it *is* the gate in front of `utf8`'s
+`>>`/`&` truncation (`../text/utf8/module.f.mjs:156`), so the fraction reaches
+the shift through the check meant to stop it, and `utf8` answers exactly as it
+would for the integer. `utf16` no longer reaches its shift through the bare
+predicate: `code_point`'s `tryToSurrogatePair` checks `Number.isInteger` before
+the range and refuses the fraction, and `codePointToUtf16`
+(`../text/utf16/module.f.mjs:76`) then falls through to its out-of-range
+branch, which masks to 16 bits:
 
 ```
-utf16 fromCodePointList([0x10000.5])  ->  [55296, 56320]        // === [0x10000]
+utf16 fromCodePointList([0x10000.5])  ->  [0]                    // 0x10000.5 & 0xffff
 utf8  fromCodePointList([0x10000.5])  ->  [240, 144, 128, 128]  // === [0x10000]
 ```
 
-Gate-then-truncate is not hypothetical: `../text/utf8/module.f.mjs:299-305` filters
+Gate-then-truncate is not hypothetical: `../text/utf8/module.f.mjs:325-327` filters
 every code point through `!isValidCodePoint(cp)` before encoding, and
-`../media/type/module.f.mjs:157-158` gates on both predicates.
+`../media/type/module.f.mjs:164-165` gates on both predicates.
 
-In the BMP arm the two encoders disagree with each other — `utf8` truncates
-`[65.5]` to `[65]`, `utf16` emits `[65.5]` as a code unit — which is the tell
-that neither decided what a non-integer means; each inherited whatever its
-arithmetic did. Above the BMP they agree, because both truncate.
+The two encoders disagree on either side of the BMP boundary — below it `utf8`
+truncates `[65.5]` to `[65]` while `utf16` emits `[65.5]` as a code unit; above
+it `utf8` encodes the truncated integer while `utf16` refuses the pair and
+emits `[0]` — which is the tell that neither decided what a non-integer means.
+`utf16`'s refusal above the BMP is deliberate, but what it falls back to is
+still whatever its out-of-range arithmetic does.
 
 ### Proposal
 
