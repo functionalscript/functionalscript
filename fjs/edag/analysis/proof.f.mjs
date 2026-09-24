@@ -54,7 +54,7 @@ const nodesOf = e => an(e).nodes
 const empty = ['[]', []]
 
 /** `(...a) => a[0]`, no frame. @type {Exp} */
-const first = ['=>', 0, null, ['.', ['args'], 0]]
+const first = ['=>', null, ['.', ['args'], 0]]
 
 export const proof = {
     // A primitive is a leaf, written and evaluated in place: `export
@@ -94,7 +94,7 @@ export const proof = {
             shared: [],
         })
         assertStructurallySame(nodesOf(['[]', [['{}', []], ['{}', []]]]), [['{}', []], ['{}', []], ['[]', [['#', 0], ['#', 1]]]])
-        assertEq(nodesOf(['[]', [first, ['=>', 0, null, ['.', ['args'], 0]]]]).length, 7)
+        assertEq(nodesOf(['[]', [first, ['=>', null, ['.', ['args'], 0]]]]).length, 7)
     },
     // A plain read is decided by its inputs, so two spelled the same over
     // the same inputs are one entry — shared, since both edges stay — and
@@ -173,42 +173,35 @@ export const proof = {
     // body inside a body names the inner `=>`.
     scope: () => {
         // `(...a) => [a[0], a[0]]` — shared inside the body, cached per call.
-        table(['=>', 0, null, ['[]', [['.', ['args'], 0], ['.', ['args'], 0]]]], {
+        table(['=>', null, ['[]', [['.', ['args'], 0], ['.', ['args'], 0]]]], {
             root: ['#', 3],
-            nodes: [['args'], ['.', ['#', 0], 0], ['[]', [['#', 1], ['#', 1]]], ['=>', 0, null, ['#', 2]]],
+            nodes: [['args'], ['.', ['#', 0], 0], ['[]', [['#', 1], ['#', 1]]], ['=>', null, ['#', 2]]],
             scope: [3, 3, 3, -1],
             shared: [0, 1],
         })
-        // The count operand belongs to the enclosing scope too.
-        table(['=>', ['.', ['args'], 0], null, 5], {
-            root: ['#', 2],
-            nodes: [['args'], ['.', ['#', 0], 0], ['=>', ['#', 1], null, 5]],
-            scope: [-1, -1, -1],
-            shared: [],
-        })
         // The frame operand belongs to the enclosing scope.
-        table(['=>', 0, ['[]', [1]], ['.', ['frame'], 0]], {
+        table(['=>', ['[]', [1]], ['.', ['frame'], 0]], {
             root: ['#', 3],
-            nodes: [['[]', [1]], ['frame'], ['.', ['#', 1], 0], ['=>', 0, ['#', 0], ['#', 2]]],
+            nodes: [['[]', [1]], ['frame'], ['.', ['#', 1], 0], ['=>', ['#', 0], ['#', 2]]],
             scope: [-1, 3, 3, -1],
             shared: [],
         })
         // `[(...a) => "x".length, (...b) => "x".length]` keeps a `.` per body.
-        table(['[]', [['=>', 0, null, ['.', 'x', 'length']], ['=>', 0, null, ['.', 'x', 'length']]]], {
+        table(['[]', [['=>', null, ['.', 'x', 'length']], ['=>', null, ['.', 'x', 'length']]]], {
             root: ['#', 4],
-            nodes: [['.', 'x', 'length'], ['=>', 0, null, ['#', 0]], ['.', 'x', 'length'], ['=>', 0, null, ['#', 2]], ['[]', [['#', 1], ['#', 3]]]],
+            nodes: [['.', 'x', 'length'], ['=>', null, ['#', 0]], ['.', 'x', 'length'], ['=>', null, ['#', 2]], ['[]', [['#', 1], ['#', 3]]]],
             scope: [1, -1, 3, -1, -1],
             shared: [],
         })
         // A body inside a body: `() => () => "x".length`.
-        table(['=>', 0, null, ['=>', 0, null, ['.', 'x', 'length']]], {
+        table(['=>', null, ['=>', null, ['.', 'x', 'length']]], {
             root: ['#', 2],
-            nodes: [['.', 'x', 'length'], ['=>', 0, null, ['#', 0]], ['=>', 0, null, ['#', 1]]],
+            nodes: [['.', 'x', 'length'], ['=>', null, ['#', 0]], ['=>', null, ['#', 1]]],
             scope: [1, 2, -1],
             shared: [],
         })
         // A body's primitive root is an operand of the `=>`, and no entry.
-        table(['=>', 0, null, 5], { root: ['#', 0], nodes: [['=>', 0, null, 5]], scope: [-1], shared: [] })
+        table(['=>', null, 5], { root: ['#', 0], nodes: [['=>', null, 5]], scope: [-1], shared: [] })
     },
     // Every node kind and every step, walked in written order — the shapes
     // `order`, `access`, `calls` and `scope` do not reach.
@@ -244,8 +237,8 @@ export const proof = {
     // the EDAG's scope rule forbids it: refused where it is met, from either
     // side of the boundary.
     throw: {
-        outsideThenInside: () => an(['[]', [empty, ['=>', 0, null, empty]]]),
-        insideThenOutside: () => an(['[]', [['=>', 0, null, empty], empty]]),
-        siblingBodies: () => an(['[]', [['=>', 0, null, empty], ['=>', 0, null, empty]]]),
+        outsideThenInside: () => an(['[]', [empty, ['=>', null, empty]]]),
+        insideThenOutside: () => an(['[]', [['=>', null, empty], empty]]),
+        siblingBodies: () => an(['[]', [['=>', null, empty], ['=>', null, empty]]]),
     },
 }

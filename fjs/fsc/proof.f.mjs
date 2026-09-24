@@ -366,7 +366,7 @@ export const proof = {
             assertEq(compileSource('export default [1];')('x.data.js'), 'export default [1];')
             assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
             assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$a)=>$a;')
-            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["args"]]]]];')
+            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,["args"]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
         },
         // Any other JavaScript name is FunctionalScript: `.f.js` says which
@@ -540,10 +540,10 @@ export const proof = {
         // the value outputs refuse a module holding one, since a value has
         // no function in it
         func: () => {
-            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["args"]]]]];')
-            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["args"];export default ["{}",[[":","default",["=>",0,null,["[]",[$0,$0]]]]]];')
-            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",0,null,["args"]],["=>",0,null,["args"]]]]]]];')
-            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",0,null,1],["{}",[[":","default",2]]]]];')
+            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,["args"]]]]];')
+            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["args"];export default ["{}",[[":","default",["=>",null,["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",null,["args"]],["=>",null,["args"]]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",null,1],["{}",[[":","default",2]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: a function has no value')
             assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
@@ -553,8 +553,8 @@ export const proof = {
         // anchored by a comma inside the body — the first comma the
         // compiler emits anywhere but a module's root.
         bodyConst: () => {
-            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",0,null,["[]",[$0,$0]]]]]];')
-            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,[",",[["[]",[]],1]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",null,["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,[",",[["[]",[]],1]]]]]];')
             // the value outputs refuse the module for its function, as ever
             assertEq(moduleRefused('export default (...a) => { const x = 1; return x; };'), 'input.f.js - error: a function has no value')
             // and the FunctionalScript output writes the body back as a
@@ -580,7 +580,7 @@ export const proof = {
         // remaining Stage 2 task of
         // `fjs/fsc/todo/compile-modules-to-edag.md`.
         call: () => {
-            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",0,null,1],["[]",[1]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",null,1],["[]",[1]]]]]];')
             assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b",["|()",["[]",[2]]]]]]];')
             // a member function `fjs/js/prototype`'s `allowedCalls` names is
             // a method call like any other, where the same name is refused

@@ -110,7 +110,7 @@ const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
-    'own', 'is',
+    '=>', 'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
@@ -584,27 +584,10 @@ export const proof = {
             assertEq(own(a, 'x'), undefined)
         },
     },
-    // A function: its count and frame two eager operands, its body a third,
-    // every position an `exp` — a primitive count as a compiled parameter
-    // list yields, or a node, as the pattern's read of its argument is.
-    fn: {
-        ok: () => {
-            assertOk(v(['=>', 0, null, 1]))
-            assertOk(v(['=>', 2, ['[]', []], ['args']]))
-            assertOk(v(['=>', ['.', ['args'], 0], null, ['args']]))
-        },
-        // The two-operand shape is gone: a function always carries its count.
-        missingCountIsError: () => {
-            assertNoMatch(v(['=>', null, 1]))
-            assertNoMatch(v(['=>', 1]))
-        },
-        // `=>` is its own kind, not a binary operation.
-        notAnOp2: () => assertNoMatch(vOp2Id('=>')),
-    },
     op2: {
         ok: () => {
             // Every id `op2` accepts, pinned individually: deleting any one
-            // of the twenty-one from `op2Id` reddens exactly this loop, not
+            // of the twenty-two from `op2Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op2Ids) {
                 assertOk(v([id, 1, 2]))

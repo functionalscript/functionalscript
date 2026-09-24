@@ -96,7 +96,7 @@ vm({ ...context, memo })(['===', shared, shared])   // true
 `.` is `a[b]`, so the entire JavaScript prototype chain is reachable:
 
 ```js
-vm(context)(['.', ['=>', 0, ['[]', []], 1], 'constructor'])   // Function
+vm(context)(['.', ['=>', ['[]', []], 1], 'constructor'])   // Function
 vm(context)(['.', ['{}', []], '__proto__'])       // resolves
 ```
 

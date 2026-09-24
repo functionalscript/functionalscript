@@ -97,23 +97,10 @@ export const proof = {
     // `=>` closes over the frame operand's value and starts a new
     // invocation per call, whose body reads its own `args` and `frame`.
     lambda: () => {
-        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, 'captured', ['frame']]))
+        const f = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 'captured', ['frame']]))
         assertEq(f(), 'captured')
-        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 0, null, ['args']]))
+        const g = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', null, ['args']]))
         assertStructurallySame(g(1, 2), [1, 2])
-    },
-    // The count is the function's `length`, evaluated where the function is
-    // built, and it restricts nothing about the arguments: a call hands the
-    // body the complete list, an omitted argument and an explicit
-    // `undefined` kept apart.
-    length: () => {
-        const two = /**@type {(...a: unknown[]) => unknown}*/(run(['=>', 2, null, ['args']]))
-        assertEq(two.length, 2)
-        assertStructurallySame(two(), [])
-        assertStructurallySame(two(undefined), [undefined])
-        assertStructurallySame(two(1, 2, 3), [1, 2, 3])
-        // whatever JavaScript accepts as a `length`
-        assertEq(/**@type {unknown}*/(/**@type {(...a: unknown[]) => unknown}*/(run(['=>', 'x', null, 1])).length), 'x')
     },
     throw: {
         escapingStep: () => run(['?.', null, 'a', ['|!()', []]]),

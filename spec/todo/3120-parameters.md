@@ -62,8 +62,7 @@ nonnegative integer parameter count:
 ['=>', parameterCount, frame, body]
 ```
 
-The count is an operand of `=>`, evaluated where the function is built
-(`fn` in `fjs/edag`), and a constant in compiled source. Empty and rest-only
+`parameterCount` is metadata, not an expression operand. Empty and rest-only
 lists record `0`; a list of `n` plain named parameters records `n`, including
 unused parameters. Parameter names remain erased. The count participates in
 canonical function identity because `length` can distinguish the values.

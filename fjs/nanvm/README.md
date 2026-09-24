@@ -75,7 +75,7 @@ bigint_any(1) / bigint_any(0)`, the operation's own `Result`
 ([`fjs/edag/rust`](../edag/rust/module.f.mjs), `lazy`).
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
-the smallest closure — `['=>', 0, ['[]', []], ['undefined']]` — which `amnesia`
+the smallest closure — `['=>', ['[]', []], ['undefined']]` — which `amnesia`
 establishes like any `=>` and the Rust printer renders as the harness's one
 function value, `function_any()`; honest because no operator here inspects
 the function, and refused for any other lambda, since `nanvm-lib` has no

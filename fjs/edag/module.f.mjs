@@ -49,7 +49,6 @@ import {
  *  typeof optionDot,
  *  typeof optionCall,
  *  typeof comma,
- *  typeof fn,
  *  typeof op3,
  *  typeof op12,
  *  typeof op2,
@@ -66,7 +65,6 @@ export const _exp = () => (['or',
     optionDot,
     optionCall,
     comma,
-    fn,
     op3,
     op12,
     op2,
@@ -457,23 +455,6 @@ export const optionCall = or(
  */
 export const comma = /** @type {const} */ ([',', exps])
 
-// Function
-
-/**
- * `['=>', count, frame, body]` builds a function. The count and the frame
- * are evaluated in the enclosing scope when the function is built: the
- * count is the function's `length`, whatever value that is (a compiled
- * parameter list yields a nonnegative integer, and
- * `../../spec/todo/3130-function-length-pattern.md` restricts nothing), and
- * the frame is the captured values. The body is the inner function's graph —
- * deferred, never established when the closure is built, only on each call,
- * against that function's own `args`/`frame`. Calling one is not here: `()`
- * is a chain node, since a call's receiver comes from the node holding it.
- * Its own kind rather than an `op3`: two eager operands and one deferred is
- * not the conditional's shape either.
- */
-export const fn = /** @type {const} */ (['=>', exp, exp, exp])
-
 // No-Args Operations
 
 /**
@@ -524,7 +505,14 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
 
 /**
- * `own` is exactly
+ * `=>` builds a function from a frame and a body: the frame operand is one
+ * node evaluated in the enclosing scope, while the body is the inner
+ * function's graph — deferred, never established when the closure is built,
+ * only on each call, against that function's own `args`/`frame`. Calling one
+ * is not here: `()` is `['()', exp, exp]` and so *is* binary in operand
+ * count, but it is a chain node rather than an operation — the whole point of
+ * the chain vocabulary is that a call's receiver comes from the node holding
+ * it, which no `op2` id has anywhere to put. `own` is exactly
  * `Object.getOwnPropertyDescriptor(object, key)?.value` — no
  * getter invocation, no prototype chain — where the key operand must
  * evaluate to a string: a runtime-value constraint the shape-only schema
@@ -543,7 +531,7 @@ export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
  * here: each is also a unary operator, so both are `op12` below.
  */
 export const op2Id = or(
-    'own', 'is',
+    '=>', 'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

@@ -939,8 +939,8 @@ arguments and of what it captures:
   the value share a line: a newline between them ends the statement in
   JavaScript, which would return `undefined`, so it is refused here rather
   than read another way, exactly as a newline before `=>` is.
-- A function **carries no name**. Its EDAG is `['=>', 0, frame, body]`,
-  the `0` its `length`, name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
+- A function **carries no name**. Its EDAG is `['=>', frame, body]`,
+  name-erased, so `{ some: () => 0 }.some`, `const hello = () => 0` and
   `export default () => 0` compile to the same node whatever JavaScript
   would name them, and no program observes the difference: `f.name` is
   refused at the key of `.`, and `entry(f, 'name')` is `undefined`, since

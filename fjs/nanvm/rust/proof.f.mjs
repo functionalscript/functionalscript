@@ -289,8 +289,8 @@ export const proof = {
          * closure, so these two alone are refused — a frame that is a
          * primitive, and one that is a node but not an array literal.
          */
-        lambdaFramePrimitive: () => nodeExpr(['=>', 0, 1, 2]),
-        lambdaFrameNotArray: () => nodeExpr(['=>', 0, ['undefined'], ['undefined']]),
+        lambdaFramePrimitive: () => nodeExpr(['=>', 1, 2]),
+        lambdaFrameNotArray: () => nodeExpr(['=>', ['undefined'], ['undefined']]),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

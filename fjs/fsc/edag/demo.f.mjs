@@ -170,23 +170,23 @@ export const _shapeOf = exp => {
             ],
         }
     }
-    // `=>` is drawn with its operands named: `count`, `frame` and `body`
-    // name what a reader of a function wants. The frame is `null` in every
-    // function that captures nothing but primitives — `./module.f.mjs`
-    // lowers each to `['=>', 0, null, body]` — and the edge label is what
-    // makes that null read as the absent frame it is rather than as a
-    // constant somebody passed.
+    // `=>` is an `Op2` by operand count and stays in that set above, which
+    // mirrors the type file for the eye-check the comment there describes; it
+    // is drawn here instead because `left`/`right` name nothing a reader of a
+    // function wants, and `frame`/`body` name exactly it. The frame is `null`
+    // in every function that captures nothing but primitives —
+    // `./module.f.mjs` lowers each to `['=>', null, body]` — and the edge
+    // label is what makes that null read as the absent frame it is rather
+    // than as a constant somebody passed.
     //
-    // The body is lazy: building the closure establishes the count and the
-    // frame and never the body, which runs only on a call and may never run
-    // at all.
+    // The body is lazy: building the closure establishes the frame and
+    // never the body, which runs only on a call and may never run at all.
     if (tag === '=>') {
         return {
             kind: 'op', label: '=>',
             children: [
-                ['count', /** @type {Exp} */ (exp[1])],
-                ['frame', /** @type {Exp} */ (exp[2])],
-                ['body', /** @type {Exp} */ (exp[3]), 'lazy'],
+                ['frame', /** @type {Exp} */ (exp[1])],
+                ['body', /** @type {Exp} */ (exp[2]), 'lazy'],
             ],
         }
     }
