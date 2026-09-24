@@ -907,12 +907,10 @@ export const proof = {
                 assertStructurallySame(shape.children, [
                     ['cond', ['a']], ['then', ['b'], 'lazy'], ['else', ['c'], 'lazy']])
             },
-            // `=>` is an Op2 by operand count, so it would draw `left` and
-            // `right` like every other tag in that set; it is its own case
-            // for the two names that say what a function's operands are. The
-            // frame is `null` in everything the compiler emits today.
-            // Building a closure establishes its frame and never its body,
-            // which runs only on a call — so the body is marked.
+            // `=>` is a node kind of its own, `Fn`, and draws its three
+            // operands by what they are: the count, the frame and the body.
+            // Building a closure evaluates its count and its frame and never
+            // its body, which runs only on a call — so the body is marked.
             lambda: () => {
                 const shape = assertNotNullish(_shapeOf(['=>', 0, null, ['args']]), 'expected a shape')
                 assertEq(shape.label, '=>')
