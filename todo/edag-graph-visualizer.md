@@ -42,9 +42,9 @@ What the rendering must show, beyond a plain tree:
   `"??"`, `"?:"`);
 - **leaves** distinctly: constants inline in the node, and `["args"]`,
   `["frame"]`, `["self"]` as marked terminals;
-- **nested functions as clusters**: an `["=>", frame, body]` node draws
-  its body as a subgraph, with edges from the enclosing scope into the
-  frame — making the closed-scope model visible (a body's only inbound
+- **nested functions as clusters**: an `["=>", count, frame, body]` node
+  draws its body as a subgraph, with edges from the enclosing scope into
+  the count and the frame — making the closed-scope model visible (a body's only inbound
   edges are its frame).
 
 ### Uses

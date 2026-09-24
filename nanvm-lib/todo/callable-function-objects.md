@@ -63,12 +63,11 @@ This is not a green field. The EDAG semantics
 function value must respect, and this plan is an implementation of that
 shape, not an alternative to it:
 
-- The function node is `["=>", length, frame, body]`
-  ([functions](../../spec/README.md#functions)), and this plan's generator
-  and callable construction carry that format, the `length` being the
-  function value's. `frame` is one node, evaluated in the *enclosing*
-  scope, that yields an array of captured values; `body` is the function's
-  own closed graph.
+- The function node is `["=>", count, frame, body]` ([function length pattern](../../spec/todo/3130-function-length-pattern.md)), and this
+  plan's generator and callable construction carry that format, the count
+  being the function value's `length`. `count` and `frame` are evaluated
+  in the *enclosing* scope, `frame` yielding an array of captured values;
+  `body` is the function's own closed graph.
 - `["args"]` is the arguments array — always an array, positionally indexed;
   parameter names are compiler-side sugar over it. Declared arity is
   observable metadata, distinct from the actual argument count (subject 2).
@@ -216,8 +215,8 @@ program reads it as `f.length` once callable support lands — Stage 2's,
 and how it reaches the program (a `member_access` arm, a property table,
 something else) is decided there, against the code as it is then. Empty
 and rest-only parameter lists have length
-`0`. If the named-parameter proposal is approved, each generated callable
-carries the function node's `parameterCount`, including unused parameters,
+`0`. Each generated callable carries the function node's count,
+including the unused parameters a named list will count,
 capturing or not; it is never inferred from argument reads or the caller's
 array length. The complete actual argument array still crosses the call
 boundary unchanged.
@@ -351,8 +350,9 @@ Each stage should land independently testable and useful; later stages
 depend on earlier ones but do not require redesigning them.
 
 **Stage 1 — non-capturing functions and their calls. Landed.** The Rust
-code generator prints a function, `['=>', null, body]`, as a closure bound
-through `A::static_function` with `length` `0` and an empty frame — a
+code generator prints a function, `['=>', count, null, body]`, as a closure
+bound through `A::static_function` with the count as its `length` and an
+empty frame — a
 closure over nothing coerces to the `fn` pointer `StaticCode<A>` is — its
 body a scope of its own, with its own `let` bindings, and a call,
 `['()', callee, args]`, as `Any::call` over two values
