@@ -18,7 +18,7 @@ import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
-import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes, bytesIn } from '../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { encode as base64Encode } from '../basen/base64/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
@@ -285,7 +285,7 @@ const largeMultiChunkBlobMeta =
         const meta = casGetResultOf(metaResp)
         assertEq(meta.type, expectedType)
         assertEq(meta.mimeType, expectedMime)
-        assertEq(meta.length, Number((length(chunk0) + length(chunk1)) / 8n))
+        assertEq(meta.length, Number(bytesIn(length(chunk0) + length(chunk1))))
         assertEq(meta.text, undefined)
         assertEq(meta.blob, undefined)
     }

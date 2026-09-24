@@ -8,11 +8,11 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { empty, isVec, length, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
+import { badPortCode, badPortMessage, both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -76,7 +76,7 @@ const drain = (source, bound) => {
     /** @type {(l: any, acc: readonly number[]) => any} */
     const loop = (l, acc) => ioStep(l, cell => cell === undefined
         ? pureOk(acc)
-        : loop(cell.tail, [...acc, Number(length(cell.first) >> 3n)]))
+        : loop(cell.tail, [...acc, Number(byteLength(cell.first))]))
     return run(loop(readChunks(source, bound), []))[1]
 }
 
@@ -90,6 +90,29 @@ const lengths = (source, bound) => {
 
 
 export const proof = {
+    isPort: {
+        // Both ends are ports: `0` asks for an ephemeral one.
+        inRange: () => {
+            assert(isPort(0))
+            assert(isPort(8080))
+            assert(isPort(maxPort))
+        },
+        outOfRange: () => {
+            assert(!isPort(-1))
+            assert(!isPort(maxPort + 1))
+        },
+        notInteger: () => {
+            assert(!isPort(1.5))
+            assert(!isPort(NaN))
+            assert(!isPort(Infinity))
+        },
+    },
+    // Node's own words, byte-for-byte, as the virtual runner reports them.
+    badPort: () => {
+        assertEq(badPortCode, 'ERR_SOCKET_BAD_PORT')
+        assertEq(badPortMessage(-1), 'options.port should be >= 0 and < 65536. Received type number (-1).')
+        assertEq(badPortMessage(NaN), 'options.port should be >= 0 and < 65536. Received type number (NaN).')
+    },
     isNotFound: {
         enoent: () => {
             assert(isNotFound(ioError({ code: 'ENOENT', message: 'no such file or directory' })))
@@ -651,7 +674,7 @@ export const proof = {
             assertEq(result[0], 'error')
         },
         aChunkThatIsNotWholeBytesIsRefused: () => {
-            // The return type permits one, and `>> 3n` would report a 1-bit
+            // The return type permits one, and `bytesIn` would report a 1-bit
             // chunk as nought — an end-of-stream the source never signalled,
             // with the bits discarded.
             /** @type {_ChunkSource<never>} */
