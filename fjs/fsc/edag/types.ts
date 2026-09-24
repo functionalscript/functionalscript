@@ -42,5 +42,5 @@ export type _State = {
 export type _Shape = {
     readonly kind: string
     readonly label: string
-    readonly children: readonly (readonly [string, Exp])[]
+    readonly children: readonly (readonly [label: string, child: Exp, kind?: string])[]
 }

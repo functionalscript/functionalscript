@@ -24,6 +24,16 @@
  * shapes, and this demo does not walk it: a node it cannot describe is shown
  * as itself, not silently dropped or wrongly drawn.
  *
+ * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
+ * establish their right operand only where the left has not already
+ * decided the answer, `?:` establishes exactly one arm, and `=>` builds a
+ * closure without running its body, so those edges are marked and the
+ * shared module draws them broken. The mark is on the
+ * **edge** and not on the node it reaches, because laziness is positional:
+ * a node reached from an eager position elsewhere is evaluated there
+ * whatever reaches it here, and a node is drawn once however many edges
+ * arrive.
+ *
  * **It needs no operations.** Parsing and lowering are pure functions of
  * the text, so `update` declares `never` and returns through `pureOk`.
  *
@@ -37,6 +47,7 @@
  */
 
 import { parse } from '../transpiler/module.f.mjs'
+import { lazyOp2Id } from '../../edag/module.f.mjs'
 import { _defaultExport, unresolved } from './module.f.mjs'
 import { ranked, graphSvg } from '../../website/demo/graph/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
@@ -59,6 +70,20 @@ const op2 = new Set([
     '&&', '||', '??',
 ])
 const op12 = new Set(['+', '-'])
+
+/**
+ * The `op2` tags whose **right** operand is lazy, taken from `fjs/edag` rather
+ * than repeated here: the executor and this drawing have to agree about
+ * which operand may go unevaluated, and a second list is the one that
+ * drifts.
+ *
+ * Why the mark then belongs on the **edge** and not on the node it reaches:
+ * `fjs/edag`'s doc again — "all this laziness is positional, not nodal — the
+ * same node referenced from an eager position elsewhere is still evaluated
+ * there". A node is drawn once however many references reach it, and one of
+ * them being conditional says nothing about the others.
+ */
+const lazyRight = /** @type {ReadonlySet<string>} */ (new Set(lazyOp2Id))
 
 /** @type {(index: unknown) => string} */
 const dotLabel = index => typeof index === 'number' || typeof index === 'string'
@@ -134,12 +159,14 @@ export const _shapeOf = exp => {
         }
     }
     if (tag === '?:') {
+        // The condition is established, then exactly one arm — so both arms
+        // are lazy and neither is the operand that always runs.
         return {
             kind: 'op', label: '?:',
             children: [
                 ['cond', /** @type {Exp} */ (exp[1])],
-                ['then', /** @type {Exp} */ (exp[2])],
-                ['else', /** @type {Exp} */ (exp[3])],
+                ['then', /** @type {Exp} */ (exp[2]), 'lazy'],
+                ['else', /** @type {Exp} */ (exp[3]), 'lazy'],
             ],
         }
     }
@@ -151,10 +178,16 @@ export const _shapeOf = exp => {
     // `./module.f.mjs` lowers each to `['=>', null, body]` — and the edge
     // label is what makes that null read as the absent frame it is rather
     // than as a constant somebody passed.
+    //
+    // The body is lazy: building the closure establishes the frame and
+    // never the body, which runs only on a call and may never run at all.
     if (tag === '=>') {
         return {
             kind: 'op', label: '=>',
-            children: [['frame', /** @type {Exp} */ (exp[1])], ['body', /** @type {Exp} */ (exp[2])]],
+            children: [
+                ['frame', /** @type {Exp} */ (exp[1])],
+                ['body', /** @type {Exp} */ (exp[2]), 'lazy'],
+            ],
         }
     }
     if (typeof tag === 'string' && op0.has(tag)) {
@@ -172,7 +205,12 @@ export const _shapeOf = exp => {
     if (typeof tag === 'string' && op2.has(tag)) {
         return {
             kind: 'op', label: tag,
-            children: [['left', /** @type {Exp} */ (exp[1])], ['right', /** @type {Exp} */ (exp[2])]],
+            children: [
+                ['left', /** @type {Exp} */ (exp[1])],
+                lazyRight.has(tag)
+                    ? ['right', /** @type {Exp} */ (exp[2]), 'lazy']
+                    : ['right', /** @type {Exp} */ (exp[2])],
+            ],
         }
     }
     if (typeof tag === 'string' && op12.has(tag)) {
@@ -222,9 +260,12 @@ export const _walk = state => exp => {
     const ref = [exp, id]
     /** @type {_State} */
     const withNode = { refs: [...state.refs, ref], nodes: [...state.nodes, node], edges: state.edges, next: id + 1 }
-    const final = (shape?.children ?? []).reduce((acc, [label, child]) => {
+    const final = (shape?.children ?? []).reduce((acc, [label, child, kind]) => {
         const step = _walk(acc)(child)
-        return { ...step.state, edges: [...step.state.edges, { from: id, to: step.id, label }] }
+        return {
+            ...step.state,
+            edges: [...step.state.edges, { from: id, to: step.id, label, kind }],
+        }
     }, withNode)
     return { id, state: final }
 }
@@ -235,7 +276,7 @@ export const _walk = state => exp => {
  *
  * @type {(text: string) => { readonly ok: true, readonly nodes: readonly Node[], readonly edges: readonly Edge[] } | { readonly ok: false, readonly error: string }}
  */
-const graphOf = text => {
+export const _graphOf = text => {
     const result = parse('')(text)
     if (result[0] === 'error') { return { ok: false, error: result[1].message } }
     const { edag } = unresolved(result[1])
@@ -249,9 +290,9 @@ const graphOf = text => {
  * drift apart.
  *
  * The initial source carries this demo's whole reason for existing. `a` is
- * referenced three times — twice in the array, once inside `a * 3` — and
- * every reference is the same `Exp` object, so the `+` node draws once with
- * three incoming edges.
+ * referenced four times — twice in the array, once inside `a * 3`, once as
+ * `m && a`'s right operand — and every reference is the same `Exp` object,
+ * so the `+` node draws once with four incoming edges.
  *
  * It carries one of every look the drawing has, too, so that what the
  * three mean is on screen before a reader has typed anything. The numbers
@@ -262,24 +303,34 @@ const graphOf = text => {
  * `.default` on argument 0, and the function's own, fresh for that
  * body. That those two look identical and are still not shared is `a`'s
  * lesson from the other side: sharing is reference identity, never
- * resemblance. The function's `frame` edge ends at `null` because the
- * compiler emits no captures yet.
+ * resemblance. The function's `frame` edge ends at `null` because it
+ * captures nothing, and its `body` edge is broken because
+ * building the function does not run it.
+ *
+ * **`m && a` is what makes the marking legible**, and not because it
+ * draws one dashed line. `a` is reached four times — twice by the array,
+ * once through `a * 3`, and once as that `&&`'s right operand — so one
+ * node carries three solid lines and one broken, each leaving a port of
+ * its own. That is laziness being positional rather than nodal, in a
+ * picture: the node *is* evaluated, because three references want it
+ * whatever the fourth decides, and a mark on the box could not have said
+ * which of the four was the conditional one.
  *
  * `checked` is the one thing the export does not reach, so the compiler
  * anchors it with a comma and the whole module is that comma's result.
  * Its two edges carry the roles a number could not: `anchor` for a
  * computation that only has to happen — reading `.x` off the import can
  * throw, which is why it is kept — and `result` for the value the module
- * is. It reads `m` rather than `a`, so `a` keeps the three references the
+ * is. It reads `m` rather than `a`, so `a` keeps the four references the
  * paragraph above counts.
  *
  * @type {Demo<string, DemoEvent>}
  */
 export const demo = {
-    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m, (...x) => x, undefined];',
+    init: 'import m from "./m.f.js";\nconst a = 1 + 2;\nconst checked = m.x < 4;\nexport default [a, a, a * 3, m && a, (...x) => x, undefined];',
     update: state => event => pureOk(event.kind === 'input' ? event.value : state),
     view: text => {
-        const g = graphOf(text)
+        const g = _graphOf(text)
         return ['div',
             ['p',
                 ['label', { for: 'edag' }, 'Source '],
