@@ -1,20 +1,17 @@
 /**
- * @import { NodeProgram, NodeProgramOptions } from './effects/node/types.ts'
+ * @import { NodeProgram } from './effects/node/types.ts'
  * @import { Dir } from './effects/node/virtual/types.ts'
  */
 
 import { exitCode } from './effects/node/module.f.mjs'
 import { assert, assertEq } from './asserts/module.f.mjs'
 import { pureError, pureOk } from './effects/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from './effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
 import { vec8 } from './types/bit_vec/module.f.mjs'
 
-/** @type {(args: readonly string[]) => NodeProgramOptions} */
-const makeOptions = args => ({ ...defaultNodeProgramOptions, args })
-
 const run = (/** @type {Dir} */ root) => (/** @type {readonly string[]} */ args) =>
-    virtual({ ...emptyState, root })(main(makeOptions(args)))
+    virtual({ ...emptyState, root })(main(nodeProgramOptions(args)))
 
 // A program whose exit code is its argument count — non-zero, so it leaves
 // through the error branch like any other failing program.

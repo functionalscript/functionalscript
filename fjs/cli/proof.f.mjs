@@ -1,17 +1,13 @@
 /**
- * @import { NodeOp, NodeProgramOptions } from '../effects/node/types.ts'
+ * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Commands } from './types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { pureError, pureOk } from '../effects/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { dispatch } from './module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
-
-/** @type {(args: readonly string[]) => NodeProgramOptions} */
-const makeOptions = args =>
-    ({ ...defaultNodeProgramOptions, args })
 
 /** @type {Commands<NodeOp>} */
 const echoCommands = [
@@ -23,7 +19,7 @@ const echoCommands = [
 ]
 
 const run = (/** @type {Commands<NodeOp>} */ commands) => (/** @type {readonly string[]} */ args) =>
-    virtual(emptyState)(dispatch(commands)(makeOptions(args)))
+    virtual(emptyState)(dispatch(commands)(nodeProgramOptions(args)))
 
 export const proof = {
     knownCommand: () => {

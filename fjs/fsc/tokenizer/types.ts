@@ -5,6 +5,9 @@
  * @module
  */
 
+import type { Assert } from '../../asserts/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
+import type { _djsTokenKinds } from './module.f.mjs'
 import type {
     StringToken,
     NumberToken,
@@ -52,5 +55,9 @@ export type DjsToken = |
   NewLineToken |
   CommentToken |
   EofToken
+
+// The kinds are listed a second time, as the value `./module.f.mjs` tests
+// membership against; this pin keeps the list and the union agreeing.
+type _KindsAreComplete = Assert<Equal<(typeof _djsTokenKinds)[number], DjsToken['kind']>>
 
 export type DjsTokenWithMetadata = {readonly token: DjsToken, readonly metadata: TokenMetadata}
