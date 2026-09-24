@@ -762,9 +762,9 @@ arguments passed to the function.**
   all ordinary array semantics, matching JS.
 - Parameter names are a compiler-side convention over the arguments array
   and remain erased. The former decision also erased declared arity; the
-  named-parameter prototype exposed a `.length` mismatch. The linked
-  proposal would supersede that part by recording the count in every
-  function node (subject 7), without changing `['args']`.
+  named-parameter prototype exposed a `.length` mismatch, and every
+  function node now records the count (subject 7), without changing
+  `['args']`.
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
   `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
