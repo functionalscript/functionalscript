@@ -71,6 +71,6 @@ observable, that is when the row earns its place.
 
 ### Related
 
-- [error-tag-layout-constants.md](./error-tag-layout-constants.md) —
-  names the error/partial-state *flag* addends; this names the
-  shift/mask structure they are added to. Either order works.
+- The error/partial-state *flag* addends are already named — the
+  `error…Flag` constants in `../module.f.mjs`; this names the shift/mask
+  structure they are added to.
