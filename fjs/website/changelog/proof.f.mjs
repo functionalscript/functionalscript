@@ -152,7 +152,7 @@ const render = {
     release: {
         page: () => {
             const html = utf8ToString(releasePage(alone('0.41.0'))([[['code', 'a']]]))
-            assert(html.includes('<title>FunctionalScript 0.41.0</title>'), html)
+            assert(html.includes('<title>0.41.0 · FunctionalScript</title>'), html)
             assert(html.includes('<h1>0.41.0</h1>'), html)
             assert(html.includes('<li><code>a</code></li>'), html)
             // Every page of the site carries the same language, stylesheet
@@ -202,9 +202,13 @@ const render = {
         // The oldest release has nothing before it, and says only what is.
         oldest: () => {
             const html = utf8ToString(releasePage({ version: '0.1.0', previous: null, next: '0.1.1' })([]))
-            assert(html.includes('Next: 0.1.1'), html)
+            // The whole nav, so a missing separator is checked in the nav
+            // alone: the title carries a ` · ` of its own.
+            assert(html.includes(
+                '<nav aria-label="Releases">'
+                + '<a href="/changelog/_0.1.1.html" rel="next">Next: 0.1.1<span aria-hidden="true"> →</span></a>'
+                + '</nav>'), html)
             assert(!html.includes('Previous:'), html)
-            assert(!html.includes(' · '), html)
         },
         newest: () => {
             const html = utf8ToString(releasePage({ version: '0.48.0', previous: '0.47.0', next: null })([]))
@@ -222,6 +226,10 @@ const render = {
         newestFirst: () => {
             const html = utf8ToString(indexPage(['0.11.2', '0.11.10']))
             assert(html.indexOf('_0.11.10.html') < html.indexOf('_0.11.2.html'), html)
+        },
+        title: () => {
+            const html = utf8ToString(indexPage([]))
+            assert(html.includes('<title>Releases · FunctionalScript</title>'), html)
         },
         linksEvery: () => assertEq(
             utf8ToString(indexPage(['0.1.0', '0.2.0', '0.3.0'])).split('changelog/_').length - 1, 3),

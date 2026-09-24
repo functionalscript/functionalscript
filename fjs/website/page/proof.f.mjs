@@ -285,7 +285,8 @@ export const proof = {
         head: () => {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes('<html lang="en">'), html)
-            assert(html.includes('<title>fjs</title>'), html)
+            // What the page is, then the site, so a narrowed tab keeps the path.
+            assert(html.includes('<title>fjs · FunctionalScript</title>'), html)
             assert(html.includes('<link rel="stylesheet" href="/_main.css">'), html)
             assert(html.includes('<link rel="icon" href="/favicon.ico" sizes="32x32">'), html)
             assert(html.includes('<link rel="icon" type="image/svg+xml" href="/fjs/website/favicon.svg">'), html)
