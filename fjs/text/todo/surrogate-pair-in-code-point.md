@@ -84,5 +84,5 @@ string escape encoder) gets the arithmetic for free.
   "appear exactly once" intent.
 - [666-utf16-encode-errormask](./666-utf16-encode-errormask.md) — touches
   only the invalid branch of `codePointToUtf16`; orthogonal.
-- `fjs/text/utf8/todo/error-tag-layout-constants.md` — the analogous
-  "name the layout once" cleanup for utf8's bit layout.
+- `fjs/text/utf8/module.f.mjs` — the `error…Flag` constants are the
+  analogous "name the layout once" cleanup, done for utf8's bit layout.
