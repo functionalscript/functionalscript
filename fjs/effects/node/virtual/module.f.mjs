@@ -134,13 +134,45 @@ const okVoid = ok(undefined)
  */
 const fail = message => error(ioError({ message }))
 
-/** @type {(recursive: boolean) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
+/**
+ * Creates the directories `path` names below `dir`, the nearest directory
+ * `operation` could descend to — or refuses, creating nothing, with the code a
+ * host answers. Measured on node 22.22.2, for a directory `x`:
+ *
+ * | `mkdir('x/a/b')`, where `x/a` is… | `recursive: true` | non-recursive |
+ * | --- | --- | --- |
+ * | absent | `ok`, both created | `ENOENT` |
+ * | a directory | `ok`, `b` created | `ok`, `b` created |
+ * | a file | `ENOTDIR` | `ENOTDIR` |
+ *
+ * | `mkdir('x/a')`, where `x/a` is… | `recursive: true` | non-recursive |
+ * | --- | --- | --- |
+ * | absent | `ok`, created | `ok`, created |
+ * | a directory | `ok`, nothing changed | `EEXIST` |
+ * | a file | `EEXIST` | `EEXIST` |
+ *
+ * **Presence is asked before length.** `operation` hands this the whole
+ * remaining path both when its first name is absent and when that name holds
+ * something that is not a directory, so a length test alone would answer
+ * `ENOTDIR` for the absent case. `entryOf` tells them apart, exactly as in
+ * {@link statPath}; the check comes before anything is spread, because the
+ * spread is what used to replace the file with an empty directory and answer
+ * `ok`. A `JsModule` is not a directory either, and is refused the same way.
+ *
+ * @type {(recursive: boolean) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]}
+ */
 const mkdirOp = recursive => (dir, path) => {
+    if (path.length === 0) {
+        return [dir, recursive ? okVoid : eexist]
+    }
+    if (entryOf(dir, path[0]) !== undefined) {
+        return [dir, path.length === 1 ? eexist : enotdir]
+    }
+    if (path.length > 1 && !recursive) {
+        return [dir, enoent]
+    }
     let d = {}
     let i = path.length
-    if (i > 1 && !recursive) {
-        return [dir, fail('non-recursive')]
-    }
     while (i > 0) {
         i -= 1
         d = { [path[i]]: d }
@@ -156,7 +188,7 @@ const mkdir = recursive => operation(mkdirOp(recursive))
 const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
 
 /** What a POSIX host answers for a path that descends through a name which is
- * not a directory — see {@link statPath}, its only source here. */
+ * not a directory — see {@link statPath} and {@link mkdirOp}, its sources here. */
 const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 
 /**
@@ -514,7 +546,8 @@ const directory = ok({ size: 0, isFile: false, isDirectory: true })
 const fileSizeBytes = chunks =>
     chunks.reduce((acc, c) => acc + Number(byteLength(c)), 0)
 
-/** Absent-path error for an already-existing exclusive create, mirroring `EEXIST`. */
+/** A name that is already taken, mirroring `EEXIST`: an exclusive create of an
+ * existing name, or a `mkdir` of one — see {@link mkdirOp}. */
 const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
 
 /**

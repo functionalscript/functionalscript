@@ -1884,8 +1884,9 @@ export const proof = {
     // `'refs/heads/a' exists; cannot create 'refs/heads/a/b'`.
     //
     // The ref is still there afterwards, which is the point: nothing is created,
-    // and the `mkdir` that would replace the file with a directory on this runner
-    // (`../../effects/node/virtual/todo/mkdir-over-a-file.md`) is never reached.
+    // and the `mkdir` is never reached. (It would refuse too — this runner's
+    // `mkdirOp` answers the host's `ENOTDIR` for a file in the path — but the
+    // refusal here is the `stat`'s, before any lock is taken.)
     writeLooseIsAFile: () => {
         /** @type {Dir} */
         const root = { refs: { heads: { a: ref(b) } } }
