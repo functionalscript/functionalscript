@@ -165,7 +165,8 @@ export const proof = {
         assertStructurallySame(f(), native())
         assertStructurallySame(f(1), native(1))
         assertStructurallySame(f(undefined, 2), native(undefined, 2))
-        // an extra argument is dropped, as JavaScript drops one past the list
+        // a third argument is passed all the same, as in JavaScript, and
+        // no name of the list reaches it
         assertStructurallySame(f(1, 2, 3), [1, 2])
         /** @type {(source: string) => number} */
         const lengthOf = source => defaultOf(source).length
@@ -494,7 +495,10 @@ export const proof = {
         // and one of the enclosing scope, a comma, has no text yet
         refuses(['=>', -0, null, 1], 'a function whose length is no parameter count')
         refuses(['=>', 1.5, null, 1], 'a function whose length is no parameter count')
-        refuses(['=>', 0x10000, null, 1], 'a function whose length is no parameter count')
+        // the writer's own limit: the longest list V8 loads with the same
+        // `length`, and one name more is refused
+        assert(unwrap(tryStringify(['=>', 0x7fff, null, 1])).endsWith(',$a32766)=>1;'))
+        refuses(['=>', 0x8000, null, 1], 'a function whose length is no parameter count')
         refuses(['=>', ['undefined'], null, 1], 'a function whose length is no parameter count')
         refuses(['=>', 0, ['undefined'], 1], 'a frame that is not an array literal')
         refuses(['=>', 0, ['[]', []], 1], 'an empty frame')

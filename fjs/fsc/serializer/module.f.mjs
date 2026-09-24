@@ -210,8 +210,14 @@ const hasParameters = names => names.some(([h]) => h !== null && h[0] === 'param
  * The most names a parameter list this writer spells holds: its own
  * limit, as `u32` is the Rust printer's, since a `length` is any value in
  * the graph and a list is written one name per unit of it.
+ *
+ * V8 holds a function's `length` in 16 signed bits: a list of 32,768 names
+ * loads as a function whose `length` is `-32768`, and one of 65,535 does
+ * not parse at all. So the writer stops at the last list whose text reads
+ * back as a function of the same `length`, rather than write one that
+ * answers `f.length` wrongly.
  */
-const maxParameters = 0xffff
+const maxParameters = 0x7fff
 
 /** Whether a number is a count a parameter list spells: an integer from `0` to {@link maxParameters}, `-0` being no spelling's. @type {(count: number) => boolean} */
 const isParameterCount = count => Number.isInteger(count) && count >= 0 && !Object.is(count, -0) && count <= maxParameters
