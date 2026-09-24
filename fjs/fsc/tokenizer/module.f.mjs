@@ -46,64 +46,42 @@ const keywordSet = new Set(keywords)
 
 // -- layer 3: the DjsToken stream -------------------------------------------
 
-/** @type {(input: JsToken) => DjsToken} */
-const mapDjsToken = input => {
-    switch (input.kind) {
-        case '-':
-        case '+':
-        case '*':
-        case '/':
-        case '%':
-        case '**':
-        case '===':
-        case '!==':
-        case '>':
-        case '>=':
-        case '<':
-        case '<=':
-        case '&':
-        case '|':
-        case '^':
-        case '~':
-        case '<<':
-        case '>>':
-        case '>>>':
-        case '&&':
-        case '||':
-        case '??':
-        case '?':
-        case 'id':
-        case 'bigint':
-        case '{':
-        case '}':
-        case ':':
-        case ',':
-        case '[':
-        case ']':
-        case '.':
-        case '=':
-        case ';':
-        case '(':
-        case ')':
-        case '=>':
-        case '...':
-        case 'true':
-        case 'false':
-        case 'null':
-        case 'string':
-        case 'number':
-        case 'ws':
-        case 'nl':
-        case 'undefined':
-        case 'NaN':
-        case 'Infinity':
-        case '//':
-        case '/*':
-        case 'eof':
-        case 'error': return input
-        default: return keywordSet.has(input.kind) ? { kind: 'id', value: input.kind } : { kind: 'error', message: 'invalid token' }
-    }
-}
+/**
+ * Every `DjsToken` kind, `eof` included: the kinds a `JsToken` keeps
+ * unchanged on its way to the DJS stream. Pinned to `DjsToken['kind']` in
+ * `./types.ts`, so a kind added there and forgotten here breaks the build
+ * rather than becoming an invalid-token error at run time. The parser's
+ * alphabet is this list less `eof`.
+ *
+ * Exported with a leading `_` for that linkage — the export is not API.
+ */
+export const _djsTokenKinds = /** @type {const} */ ([
+    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
+    '{', '}', ':', ',', '[', ']', '.', '=', ';', '(', ')', '=>', '...', '-',
+    '+', '*', '/', '%', '**',
+    '===', '!==', '>', '>=', '<', '<=',
+    '&', '|', '^', '~', '<<', '>>', '>>>',
+    '&&', '||', '??', '?',
+    'string', 'number', 'error', 'id', 'bigint',
+    'ws', 'nl', '//', '/*',
+    'eof',
+])
+
+/** @type {ReadonlySet<string>} */
+const djsTokenKindSet = new Set(_djsTokenKinds)
+
+/**
+ * A JavaScript token as a DJS one: kept when its kind is one of
+ * {@link _djsTokenKinds} — the cast is that membership, which `Set#has`
+ * cannot state as a narrowing — an `id` when it is any other keyword, and
+ * an error otherwise: an operator the language does not admit.
+ *
+ * @type {(input: JsToken) => DjsToken}
+ */
+const mapDjsToken = input =>
+    djsTokenKindSet.has(input.kind) ? /** @type {DjsToken} */ (input)
+    : keywordSet.has(input.kind) ? { kind: 'id', value: input.kind }
+    : { kind: 'error', message: 'invalid token' }
 
 /** One token of the stream, with the metadata of the JavaScript token it came from. @type {(input: JsTokenWithMetadata) => DjsTokenWithMetadata} */
 const mapDjsTokenWithMetadata = ({ token, metadata }) => ({ token: mapDjsToken(token), metadata })

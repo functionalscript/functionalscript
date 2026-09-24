@@ -6,7 +6,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
-import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual/module.f.mjs'
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -372,7 +372,7 @@ export const proof = {
                 root: site,
                 requests: [request('GET', '/'), request('GET', '/docs/'), request('DELETE', '/')],
             }
-            const [s, result] = virtual(state)(main({ ...defaultNodeProgramOptions, args: [] }))
+            const [s, result] = virtual(state)(main(nodeProgramOptions([])))
             // Loopback, and the URL says so: a server that binds every
             // interface while announcing `localhost` is the trap this avoids.
             assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:8080')
@@ -392,7 +392,7 @@ export const proof = {
         // An empty root argument is the working directory, in the announced
         // line as well as in what gets served.
         emptyRoot: () => {
-            const options = { ...defaultNodeProgramOptions, args: [''] }
+            const options = nodeProgramOptions([''])
             const [s] = virtual({ ...emptyState, root: site })(main(options))
             assertEq(s.stdout, 'serving . on http://127.0.0.1:8080/\n')
         },
@@ -404,7 +404,7 @@ export const proof = {
                 root: { site },
                 requests: [request('GET', '/index.html')],
             }
-            const options = { ...defaultNodeProgramOptions, args: ['site', '9090'] }
+            const options = nodeProgramOptions(['site', '9090'])
             const [s] = virtual(state)(main(options))
             assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:9090')
             assertEq(s.stdout, 'serving site on http://127.0.0.1:9090/\n')
@@ -423,7 +423,7 @@ export const proof = {
             const root = { ...site, 'pipe.txt': () => ({}) }
             /** @type {(argument: string, reason: string) => void} */
             const rejects = (argument, reason) => {
-                const options = { ...defaultNodeProgramOptions, args: [argument] }
+                const options = nodeProgramOptions([argument])
                 const [s, result] = virtual({ ...emptyState, root })(main(options))
                 assertEq(exitCode(result), 1)
                 assertEq(s.stderr, `invalid root "${argument}": ${reason}\n`)
@@ -451,7 +451,7 @@ export const proof = {
         badPort: () => {
             /** @type {(argument: string) => void} */
             const rejects = argument => {
-                const options = { ...defaultNodeProgramOptions, args: ['.', argument] }
+                const options = nodeProgramOptions(['.', argument])
                 const [s, result] = virtual(emptyState)(main(options))
                 assertEq(exitCode(result), 1)
                 assertEq(s.stderr, `invalid port "${argument}"\n`)
@@ -472,7 +472,7 @@ export const proof = {
     // queue so a second call cannot answer the same request twice.
     virtualServer: {
         noRequests: () => {
-            const [s] = virtual(emptyState)(main({ ...defaultNodeProgramOptions, args: [] }))
+            const [s] = virtual(emptyState)(main(nodeProgramOptions([])))
             assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:8080')
             assertEq(s.responses.length, 0)
             assertEq(s.requests.length, 0)
