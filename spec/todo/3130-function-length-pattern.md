@@ -29,25 +29,22 @@ Admit one complete source pattern, the way
 `defineProperty` exists only inside the matched definition.
 
 ```js
-const withLength = (length, f) => {
-    const r = (...args) => f(...args)
-    Object.defineProperty(r, 'length', { value: length })
-    return r
-}
+const withLength = (f, length) =>
+    Object.defineProperty((...args) => f(...args), 'length', { value: length })
 ```
 
-`withLength(n, f)` forwards its complete argument list to `f` and has
-`length` `n`. The matcher admits exactly this definition: two parameters, a
-`const` bound to an arrow spreading its rest into a call of the second, one
-`defineProperty` on it with key `'length'` and descriptor `{ value: <first
-parameter> }`, `return` of the constant, `Object` resolved to the intrinsic.
-Any variation is refused as `defineProperty` is everywhere else. The
-descriptor omits the attributes on purpose: an arrow already owns a
-`length`, so the omitted ones are the native ones.
+`withLength(f, n)` forwards its complete argument list to `f` and has
+`length` `n`. `defineProperty` returns its object, so the pattern is one
+expression, and the matcher admits exactly it: an arrow spreading its rest
+into a call of the first parameter, key `'length'`, descriptor
+`{ value: <second parameter> }`, `Object` resolved to the intrinsic. Any
+variation is refused as `defineProperty` is everywhere else. The descriptor
+omits the attributes on purpose: an arrow already owns a `length`, so the
+omitted ones are the native ones.
 
 **Lowering.** `['=>', count, frame, body]`, count and frame evaluated when
 the function is built, in the enclosing scope. Compiled source has a
-constant; `withLength` itself has a read of its first argument. One node,
+constant; `withLength` itself has a read of its second argument. One node,
 one meaning. #2200 implements this node; if it lands first, the lowering is
 not this proposal's work.
 
@@ -58,11 +55,11 @@ An executor that cannot represent one refuses it as its own limit, as the
 Rust printer does today past `u32`.
 
 **Executors.** The `=>` operation becomes
-`withLength(count, (...args) => invoke(frame, args, body))`. A JavaScript
+`withLength((...args) => invoke(frame, args, body), count)`. A JavaScript
 host runs the pattern as written; a VM treats it as its intrinsic; NaNVM
 and the Rust printer store the arity in their own representation.
 
-**Writer.** Every function renders as `withLength(<count>, (...args) => …)`,
+**Writer.** Every function renders as `withLength((...args) => …, <count>)`,
 the helper emitted once per module. A writer may render a named parameter
 list instead where #2200's boundary already lets it; that is the writer's
 choice on what it can see, not a rule of the language.
