@@ -35,7 +35,7 @@ import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
-    mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    catchStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
@@ -404,15 +404,26 @@ const writeLoop = path => {
 }
 
 /**
+ * Creates `path` and writes the byte stream `e` to it, chunk by chunk.
+ *
+ * **It fails closed.** Once `path` exists, any failure — of the stream itself,
+ * of a chunk that is not whole bytes, of a `writeBytes` — removes it before
+ * the error is returned, so a failed write leaves no partial file behind for
+ * a later reader to mistake for the whole. The removal's own outcome is
+ * discarded, as `fjs/cas`'s staging cleanup discards it: the write's error is
+ * what the caller needs to hear, and a failed `rm` has no better answer.
+ *
  * @template {Operation} O
  * @param {string} path
  * @param {List<O, Vec, IoChannel>} e
- * @returns {Effect<O | WriteBytes | CreateExclusive, void, IoChannel>}
+ * @returns {Effect<O | WriteBytes | CreateExclusive | Rm, void, IoChannel>}
  */
 export const writeFromStream = (path, e) =>
     ioStep(
         createExclusive(path),
-        () => writeLoop(path)(0, e))
+        () => catchStep(
+            writeLoop(path)(0, e),
+            err => resultStep(rm(path), () => pureError(err))))
 
 /** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
 const chunkBytes = Number(maxLengthBytes)
