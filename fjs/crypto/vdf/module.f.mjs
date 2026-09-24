@@ -30,16 +30,6 @@ export const p =
     0xf2346eae06a23388_2814ff16f6a076d3_b8f2161c5c92171c_0b7b84eed4e9475b_cce0c13bde34512a_fdf90f41ab9b86dc_f834f85e04b27fad_ee712eed23a1d4e5_8cd1b09d9bfb1069_6d614f119179a40c_49dc8762edc29e81_15263913237e1471_8cbcd4dc6b35bace_13f8cdb1b5156c50_c47b4aaee0820c87_4e2864cb854367c3n
 
 /**
- * Iterates `op` `steps` times from `value` reduced by `reduce`. `eval` and
- * `verify` iterate a mutually inverse pair over one field reduction; only the
- * operator differs.
- *
- * @type {(reduce: Unary) => (op: Unary) => (steps: bigint) => (value: bigint) => bigint}
- */
-const loop = reduce => op => steps => value =>
-    iterate(steps)(reduce(value))(op)
-
-/**
  * Builds Sloth VDF operations over `modulus`.
  *
  * @type {(modulus: bigint) => Sloth}
@@ -50,8 +40,18 @@ export const sloth_vdf = modulus => {
     const { neg, pow2, reduce, quadRes } = field
     const root = modSqrt(field)
 
-    const squareLoop = loop(reduce)(pow2)
-    const modSqrtLoop = loop(reduce)(root)
+    /**
+     * Iterates `op` `steps` times from `value` reduced into the field. `eval`
+     * and `verify` iterate a mutually inverse pair over one field reduction;
+     * only the operator differs.
+     *
+     * @type {(op: Unary) => (steps: bigint) => (value: bigint) => bigint}
+     */
+    const loop = op => steps => value =>
+        iterate(steps)(reduce(value))(op)
+
+    const squareLoop = loop(pow2)
+    const modSqrtLoop = loop(root)
 
     /** @type {(steps: bigint) => (x: bigint) => Nullable<bigint>} */
     const evalSteps = steps => x =>

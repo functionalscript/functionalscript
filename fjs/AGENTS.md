@@ -1114,13 +1114,19 @@ If a `reduce`/`map` callback needs context that varies per call, thread it
 through the accumulator rather than closing over a local, so the step function
 itself can live at module scope.
 
-Treat "doesn't capture local state" as a target to restructure toward, not just a
-condition to check: for any nested helper meaningful enough to carry a name, lift
-its captures into leading curried parameters and hoist it — even a helper with a
-single call site and no per-call cost. A closed, module-scope function has a
-context-free identity: content-addressable FunctionalScript can deduplicate
-structurally identical closed functions across modules (and repositories), while
-a helper that captures enclosing locals hashes uniquely to its context.
+"Doesn't capture local state" is a condition to check, not a target to
+restructure toward. A helper that captures local state stays in the scope that
+holds it: don't lift a capture into a leading curried parameter just to hoist the
+helper. Every call site would pass the same local, so the parameter carries no
+information, each call repeats what the scope already says, and the helper is
+generalized for a caller that doesn't exist
+([DESIGN.md §1](../doc/DESIGN.md#1-simplicity-first)). A closed, module-scope
+function does have a context-free identity: content-addressable FunctionalScript
+can deduplicate structurally identical closed functions across modules (and
+repositories). That is a reason to hoist what is already closed, not to close
+what isn't. Deduplication is an optimization, and it doesn't outweigh a simpler
+helper. For example, `loop` in `crypto/vdf` captures the field's `reduce` and
+stays inside `sloth_vdf`.
 
 Don't split below the semantic seam, though — if a fragment can't be described by
 a one-line JSDoc claim ("renews the lease", "publishes the staging file"),
