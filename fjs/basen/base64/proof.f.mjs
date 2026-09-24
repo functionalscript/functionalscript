@@ -110,7 +110,8 @@ export const proof = {
     },
     encodeAtMaxLengthSucceeds: () => {
         // A `maxLength`-sized vector's trailing partial 6-bit chunk is
-        // left-padded by `vecToString` itself (see `baseN`), so `encode`
+        // zero-extended by `vecToString` itself (see `baseN` and
+        // `tailPaddedUintChunkList`), so `encode`
         // never needs to build an over-`maxLength` intermediate and must not
         // reject this boundary input.
         assertEq(encode(vec(maxLength)(0n)), 'A'.repeat(174_763) + '=')
