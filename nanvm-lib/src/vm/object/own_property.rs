@@ -10,14 +10,17 @@ impl<A: IVm> Object<A> {
     /// `nanvm-lib` objects have no `__proto__`/prototype chain at all, so
     /// this is simply what property lookup already is here — there is no
     /// second, chain-walking accessor for this to differ from. `None` is
-    /// "no such own property", for the caller to turn into `undefined`.
+    /// "no such own property": `Any::own_property` turns it into
+    /// `undefined`, and a caller that must tell an absent key from a
+    /// present `undefined` — the harness selecting an export — reads it
+    /// here.
     ///
     /// Searches from the *last* entry backward: an object's property list
     /// is never deduplicated on construction (`fjs/edag/module.f.mjs`'s own
     /// comment on `'{}'`: "duplicate keys are allowed with the later entry
     /// winning"), so the last-written entry for a repeated key is the one
     /// a lookup must answer with, not the first.
-    pub(crate) fn own_property(&self, key: &String<A>) -> Option<Any<A>> {
+    pub fn own_property(&self, key: &String<A>) -> Option<Any<A>> {
         (0..self.length())
             .rev()
             .map(|i| &self[i])
