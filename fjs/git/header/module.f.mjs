@@ -26,6 +26,7 @@ import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { flat, flatMap } from '../../types/list/module.f.mjs'
+import { sameBytes } from '../refname/module.f.mjs'
 
 const lf = /** @type {const} */ (0x0A)
 
@@ -96,16 +97,23 @@ export const tryRead = input => {
 }
 
 /**
- * Whether a header's key is `key`, compared as bytes: the well-known keys
- * are ASCII, and a key is bytes.
+ * {@link keyIs} with `key` taken first, so a scan over headers encodes it
+ * once rather than once per header.
+ *
+ * @type {(key: string) => (h: Header) => boolean}
+ */
+const isKey = key => {
+    const same = sameBytes(ascii(key))
+    return ([k]) => same(k)
+}
+
+/**
+ * Whether a header's key is `key`, compared as bytes by `fjs/git/refname`'s
+ * `sameBytes`: the well-known keys are ASCII, and a key is bytes.
  *
  * @type {(h: Header, key: string) => boolean}
  */
-export const keyIs = ([k], key) => {
-    const a = byteArray(k)
-    const b = ascii(key)
-    return a.length === b.length && a.every((x, j) => x === b[j])
-}
+export const keyIs = (h, key) => isKey(key)(h)
 
 /**
  * The value of the header at `i` where its key is `key`, or `null`: a
@@ -128,7 +136,7 @@ export const valueAt = (p, i, key) => {
  *
  * @type {(p: Payload, key: string) => readonly Bytes[]}
  */
-export const valuesOf = (p, key) => p.headers.flatMap(h => keyIs(h, key) ? [h[1]] : [])
+export const valuesOf = (p, key) => p.headers.filter(isKey(key)).map(([, v]) => v)
 
 /**
  * Whether a NUL sits in any header, key or value: the grammar reads one,

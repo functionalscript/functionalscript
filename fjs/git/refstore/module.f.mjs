@@ -224,7 +224,7 @@ import { length, maxLengthBytes, msb, u8List, u8ListToVec, uint } from '../../ty
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { hexText } from '../oid/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
-import { hasRefComponents, isWholeName, lockSuffix } from '../refname/module.f.mjs'
+import { hasRefComponents, isWholeName, lockSuffix, sameBytes } from '../refname/module.f.mjs'
 
 const toBytes = u8List(msb)
 
@@ -248,7 +248,7 @@ const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
  * One code unit per byte, which is **not** a decoding and never becomes a path —
  * {@link nameText} is the decoding, and it is UTF-8. This is only an injective
  * encoding: two names give the same key exactly when they are the same bytes, so
- * a `Map` or a `Set` over it answers what {@link sameName} answers, in one
+ * a `Map` or a `Set` over it answers what {@link sameBytes} answers, in one
  * lookup rather than a pass per name.
  *
  * That matters at the size a repository reaches. Comparing every packed line
@@ -260,13 +260,6 @@ const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
  * @type {(name: Bytes) => string}
  */
 const nameKey = name => codePointListToString(toArray(name))
-
-/** @type {(a: Bytes, b: Bytes) => boolean} */
-const sameName = (a, b) => {
-    const x = toArray(a)
-    const y = toArray(b)
-    return x.length === y.length && x.every((v, i) => y[i] === v)
-}
 
 /**
  * The bytes of a file, or `null` where there is no loose *file* at that name.
@@ -400,7 +393,7 @@ const special = /** @type {readonly string[]} */ (['FETCH_HEAD', 'MERGE_HEAD'])
  * @type {(packed: readonly PackedRef[], name: Bytes) => Nullable<Oid>}
  */
 const packedId = (packed, name) => {
-    const hits = packed.filter(e => sameName(e.name, name))
+    const hits = packed.filter(e => sameBytes(e.name)(name))
     return hits.length === 0 ? null : hits[hits.length - 1].id
 }
 
@@ -1244,8 +1237,8 @@ const packedDisagreement = packed => {
  * @type {(headFound: _Found, packed: readonly PackedRef[]) => boolean}
  */
 const packedHeadCollision = (headFound, packed) =>
-    toArray(headFound.names).some(n => sameName(n, headName))
-    && packed.some(p => sameName(p.name, headName))
+    toArray(headFound.names).some(n => sameBytes(n)(headName))
+    && packed.some(p => sameBytes(p.name)(headName))
 
 /**
  * The roots the walk found, then the packed lines nothing hides.
