@@ -33,9 +33,19 @@ export const proof = {
             assert(has(33)(s), s)
         }
     ],
-    setRange: () => {
-        const result = setRange([2, 5])(empty)
-        assertEq(result, 60n)
+    setRange: {
+        inner: () => {
+            const result = setRange([2, 5])(empty)
+            assertEq(result, 60n)
+        },
+        single: () => {
+            const result = setRange([7, 7])(empty)
+            assertEq(result, set(7)(empty))
+        },
+        full: () => {
+            const result = setRange([0, 255])(empty)
+            assertEq(result, universe)
+        },
     },
     unset: [
         () => {

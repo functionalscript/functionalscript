@@ -57,7 +57,7 @@ Rider: both modules inline `readonly [number, number]` for `range`'s
 parameter; the factory should use `Range` from `fjs/types/range/types.ts`.
 
 `has` on a `bigint` set may deserve a domain-specific override if the
-generic form costs (see [185](./185-byte-set-from-bigint-mask.md) for the mask-based direction) —
+generic form costs (`byte_set`'s `range` already builds from `bigint.mask`) —
 the factory can accept per-domain overrides or `byte_set` can shadow the
 generic `has`.
 
@@ -72,7 +72,7 @@ generic `has`.
 
 ### Related
 
-- [185](./185-byte-set-from-bigint-mask.md) — `byte_set`-internal `range`/`one` via `bigint.mask`;
-  orthogonal — the shared `range` can use `mask` internally once extracted.
+- `fjs/types/byte_set/module.f.mjs` — `range` is `bigint.mask` shifted into
+  place; the shared `range` can keep using `mask` once extracted.
 - `fjs/basen/module.f.mjs` — the codebase's precedent for
   constants-parameterized codec factories.
