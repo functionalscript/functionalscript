@@ -82,8 +82,12 @@ never allows.
 ### Ideas
 
 Directions a fix could take, in no order and none chosen. Each is subject to
-the umbrella's ruling and, for the last, to the language-design gate in
-[DESIGN.md §12](../../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions).
+the umbrella's ruling, and any that changes what the subset admits, the
+first and the last below, is a language change and passes the gate in
+[DESIGN.md §12](../../../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+as well: a proposal, its benefits and drawbacks, and formal approval by
+another language designer, recorded with a link. The umbrella's ruling
+alone does not stand in for that approval.
 
 - **Grant the freshness exception**, in `spec/README.md` and
   `fjs/AGENTS.md` §3.1, as the umbrella's `fjs/rtti/parse` task describes
@@ -98,8 +102,8 @@ the umbrella's ruling and, for the last, to the language-design gate in
   last present index is at the head of the reversed entries, and the
   entries are gap-free exactly when that index plus one is their count.
   `interiorHoleSurvives` and `oddSegments` would become refusal proofs
-  beside `holePastThePrefixRejected`; `largeSparse` would go with the
-  segment join it tests. The refusal branch is reachable only by a value the
+  beside `holePastThePrefixRejected`; `largeSparse`, the same claim at
+  scale, would go or become a third. The refusal branch is reachable only by a value the
   subset cannot build, and its proof is an elision literal in a `.f.mjs`,
   which the umbrella's sweep tolerates for a guard that survives.
 - **Rebuild dense and leave holes to the boundary.** `arrayRebuild` alone,
@@ -122,7 +126,11 @@ the umbrella's ruling and, for the last, to the language-design gate in
 - [ ] Correct the rtti README's reader table, and say in the same section
   what `parse` does with an absent member and with a hole.
 - [ ] Correct or delete `largeSparse`'s claim that FunctionalScript can build
-  a sparse value.
+  a sparse value, and the comments on `oddSegments` and `largeSparse` that
+  describe pairwise join rounds and halving: the rebuild they describe is
+  gone, `tupleRebuild` allocates once and writes in a loop, and those
+  comments are stale under every idea above, the granted exception
+  included.
 - [ ] Tick the umbrella's `fjs/rtti/parse` task, which this issue now owns.
 - [ ] `npm run cov` at 100% before and after.
 
