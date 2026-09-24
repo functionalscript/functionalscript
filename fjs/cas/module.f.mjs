@@ -53,7 +53,8 @@ const split2 = splitAt(2)
 const prefix = '.cas'
 
 /** The sharded location of a content key: its relative directory and file name.
- * The one owner of the shard layout; `toPath` and `publish` are its two views.
+ * The one owner of the shard layout; `toPath` and `publish` are its two views,
+ * and `unshard` is its inverse.
  *
  * @type {(key: Vec) => { readonly dir: string, readonly name: string }}
  */
@@ -63,6 +64,15 @@ const shard = key => {
     const [b, c] = split2(bc)
     return { dir: join(prefix, a, b), name: c }
 }
+
+/** The inverse of `shard`: recovers a content key from its shard path relative
+ * to the `.cas` directory, or `null` if the path, without its separators, is
+ * not cBase32. It does not check the key's length, so a cBase32 path of the
+ * wrong length decodes to a key no hash produced.
+ *
+ * @type {(relPath: string) => Vec | null}
+ */
+const unshard = relPath => cBase32ToVec(relPath.replaceAll('/', ''))
 
 /** Converts a content key to its sharded relative CAS file path.
  *
@@ -304,7 +314,7 @@ export const fileCas = sha2 => path => {
                         readdir(storePrefix, { recursive: true }),
                         r => r.flatMap(({ name, parentPath, isFile }) =>
                             toOption(isFile
-                                ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
+                                ? unshard(join(normalize(parentPath).substring(normalizedStorePrefix.length), name))
                                 : null)))),
         url: hash =>
             join(path, toPath(hash))
