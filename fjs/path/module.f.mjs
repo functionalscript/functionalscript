@@ -45,8 +45,13 @@ const foldNormalizeOp = rooted => input => state => {
  */
 export const toPosix = path => path.replaceAll('\\', '/')
 
-/** @type {(c: string) => boolean} */
-const isDriveLetter = c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+/**
+ * Whether `c` is one ASCII letter, which is what a Windows drive is named by.
+ * A digit, a colon and a longer string are not: `1:` and `::` are no drives.
+ *
+ * @type {(c: string) => boolean}
+ */
+export const isDriveLetter = c => c.length === 1 && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
 
 /**
  * A Windows drive root, and only in its absolute spelling: `C:/` roots the
@@ -55,7 +60,7 @@ const isDriveLetter = c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
  *
  * @type {(p: string) => boolean}
  */
-const isDriveRoot = p => p.length >= 3 && p[1] === ':' && p[2] === '/' && isDriveLetter(p[0])
+export const isDriveRoot = p => p.length >= 3 && p[1] === ':' && p[2] === '/' && isDriveLetter(p[0])
 
 /**
  * A bare drive, which {@link isDriveRoot} deliberately excludes — and which
@@ -72,7 +77,7 @@ const isDriveRoot = p => p.length >= 3 && p[1] === ':' && p[2] === '/' && isDriv
  *
  * @type {(p: string) => boolean}
  */
-const isBareDrive = p => p.length === 2 && p[1] === ':' && isDriveLetter(p[0])
+export const isBareDrive = p => p.length === 2 && p[1] === ':' && isDriveLetter(p[0])
 
 /**
  * Splits an already-POSIX path into its root and everything after it, so that
