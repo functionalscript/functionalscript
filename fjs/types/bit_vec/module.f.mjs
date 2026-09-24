@@ -478,8 +478,13 @@ const tailPaddedUint = ({ unpackSplit }) => n => {
  *
  * @type {(bo: BitOrder) => (n: bigint) => (v: Vec) => Thunk<bigint>}
  */
-export const tailPaddedUintChunkList = bo => n =>
-    vecMappedChunkList(tailPaddedUint(bo)(n))(bo)(n)
+export const tailPaddedUintChunkList = bo => {
+    const boTailPaddedUint = tailPaddedUint(bo)
+    return n => vecMappedChunkList(boTailPaddedUint(n))(bo)(n)
+}
+
+/** @type {(list: List<bigint>) => Thunk<number>} */
+const numberList = map(Number)
 
 /**
  * Converts a bit vector to a list of unsigned 8-bit integers based on the provided bit order.
@@ -487,7 +492,7 @@ export const tailPaddedUintChunkList = bo => n =>
  * @type {(bo: BitOrder) => (v: Vec) => Thunk<number>}
  */
 export const u8List = bo =>
-    compose(tailPaddedUintChunkList(bo)(8n))(map(Number))
+    compose(tailPaddedUintChunkList(bo)(8n))(numberList)
 
 /**
  * Repeats a vector to create a padded block of the desired length.
