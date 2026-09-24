@@ -19,17 +19,13 @@ input it reconstructs the tagged bytes (`fjs/text/utf8/module.f.mjs:74-96`). The
 UTF-16 *encoder* does the opposite — it silently truncates to 16 bits, losing the
 error tag:
 
-```ts
-// fjs/text/utf16/module.f.mjs:109-118
-const codePointToUtf16 = (codePoint: CodePoint): List<U16> => {
+```js
+// fjs/text/utf16/module.f.mjs, `codePointToUtf16`
+const codePointToUtf16 = codePoint => {
     if (isBmpCodePoint(codePoint)) { return [codePoint] }
-    if (isSupplementaryPlane(codePoint)) {
-        const n = codePoint - 0x1_0000
-        const high = (n >> 10) + 0xd800
-        const low = (n & 0b0011_1111_1111) + 0xdc00
-        return [high, low]
-    }
-    return [codePoint & 0xffff]   // :117 — invalid input: mask to 16 bits, drop the error tag
+    const pair = tryToSurrogatePair(codePoint)
+    // invalid input: mask to 16 bits, drop the error tag
+    return pair === null ? [codePoint & 0xffff] : pair
 }
 ```
 
