@@ -20,7 +20,9 @@ Parse fixed named parameters and an optional final rest parameter. Represent
 fixed values and the rest array separately in EDAG, and instantiate real
 callables through pre-generated arrow factories. No mutation, prototype
 change, host helper, effect or recognized `defineProperty` pattern is needed
-for arity within the table-backed evaluator's documented range.
+for arity within the table-backed evaluator's documented range. The factories
+do not by themselves satisfy the default function-text contract; rendering
+or explicit refusal is part of the implementation plan below.
 
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
 its restricted writer boundary. It is a proposal, not current compiler or
@@ -30,8 +32,8 @@ EDAG support. Before implementation, record explicit approval by
 The request to document the design does not select an evaluator table size.
 
 **Benefits:** familiar JavaScript syntax, ordinary callable results, and a
-shared representation that the compiler, writer and FJS-written evaluators
-can implement without privileged function construction.
+shared argument representation that the compiler, writer and FJS-written
+evaluators can implement without privileged arity construction.
 
 **Costs:** parameter/group disambiguation, an EDAG/API migration, and a finite
 factory table. The table-backed evaluator cannot materialize otherwise-valid
@@ -41,7 +43,8 @@ and source; other backends may support them. Positive-arity EDAG functions no
 longer expose the original argument count within the fixed prefix. This
 preserves the proposed source forms, but deliberately does not preserve the
 earlier hypothetical EDAG contract that combined positive arity with the
-complete supplied list.
+complete supplied list. Default text also needs an EDAG-aware conversion path;
+returning a correctly callable wrapper is not sufficient for that observation.
 
 ### Parsing and binding
 
@@ -147,7 +150,8 @@ The selected factory's callback receives `(fixed, rest)` and evaluates the
 body with the captured frame and these invocation bindings. `['arg', N]`
 reads `fixed[N]`; `['rest']` reads
 `rest`. The returned arrow itself is the callable exported by the evaluator,
-not a thunk returning a VM-specific description.
+not a thunk returning a VM-specific description. Observable conversion and
+export paths must also satisfy the default-text boundary below.
 
 ```js
 const f = factories[2]((fixed, rest) => [fixed[0], fixed[1], rest]);
@@ -193,9 +197,52 @@ inherit that table's limit; their own resource limits remain separate.
 This removes the earlier arity/complete-argument writer obstruction for the
 new nodes. It does not promise that unrelated unsupported EDAG capabilities
 can be serialized. Preserve captured sharing, scope and the selected identity
-profile; follow the existing [function-text contract](./serialization.md#function-text-and-serialization).
-Custom `toString` and the remaining function-text questions are separate work,
-not capabilities implemented by these factories.
+profile. Callable serialization and default function conversion follow the
+existing [function-text contract](./serialization.md#function-text-and-serialization);
+their output contracts are not automatically identical.
+
+### Default function text: render or refuse
+
+EDAG-derived **default** function text is already decided, not an optional
+future customization. A raw factory result's native `toString()` describes
+its wrapper, such as `(a0, ...rest) => g([a0], rest)`, not the EDAG function
+being executed. Returning that text from an FJS VM is a wrong successful
+result even though calls and `length` agree.
+
+Keep enough semantic association between a materialized callable and its
+function EDAG (and the captured frame where the selected contract needs it)
+for the shared default renderer. Every supported VM conversion path that
+reaches default function text must use that operation: direct `f.toString()`,
+`String(f)`, array/string conversion, property-key conversion, conversion
+inside admitted host methods, and observations through returned/exported
+functions. Intercepting only the explicit `String` EDAG operation is not enough.
+Render the associated function graph, not the factory's or callback's graph.
+
+Before enabling a path, implement that rendering contract or explicitly refuse
+the unsupported conversion through the existing failure contract. No wrapper
+text, placeholder string or silently host-dependent fallback. If a host call
+or export would let the callable escape to conversions the executor cannot
+mediate, refuse that unsupported evaluation/export path before the escape;
+a guard on a later VM `String` call cannot fix it. Document and test the
+actual boundary, including indirect and nested escapes, rather than promise
+that a native arrow alone enforces it. This is implementation coverage, not
+a new source-language prohibition; source/EDAG-only outputs need not depend
+on materialization. JavaScript executing source outside the FJS VM still uses
+its native representation, exactly as the existing exception states.
+
+The mechanism for associating EDAG and covering host conversion paths must be
+specified before those execution paths ship. This TODO does not grant property
+mutation or select a new pattern instruction. The `withLength` pattern may
+still be unnecessary for arity; that does not discharge default rendering.
+
+Only genuinely open choices remain with the serialization TODO: whether
+`String(f)` shares the callable serializer's contract, whether it includes
+captures, and how `self` is represented. Resolve the choices needed by a
+supported case before implementing it; refuse unresolved cases explicitly,
+without blocking unrelated supported ones. Preserve the conditional lazy
+frame-rendering requirement if frame inclusion is selected. User-defined
+`toString` overrides remain separate work, not a reason to defer the required
+default behavior.
 
 ### Executor capacity and migration
 
@@ -230,12 +277,21 @@ silently reinterpret old nodes. Positive-arity/full-`['args']` graphs from
 previous design sketches have no general semantics-preserving conversion to
 this contract; refuse such input rather than claim a lossless migration.
 
-Update the [stage-1 design](../../todo/edag-stage1-discussion.md), the current
-EDAG documentation and all consumers when the format lands. Until then,
-current `['args']` semantics remain unchanged. The
+Reconcile pending design documents in this proposal, before implementation:
+[stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference)
+and the [native callable plan](../../nanvm-lib/todo/callable-function-objects.md)
+follow this `length` / `arg` / `rest` contract, not a count-only extension of
+complete `['args']`. This addresses the
+[argument-model review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094709899).
+Their current-format and historical descriptions remain explicitly labeled.
+
+Update the current EDAG/schema documentation and executable consumers when
+the approved format lands. Until then, current `['args']` semantics remain
+unchanged. The
 [complete-arguments alternative](./arity-complete-arguments.md) and
 [length-pattern alternative](./3130-function-length-pattern.md) are not
-prerequisites for this proposal.
+prerequisites for this proposal's arity construction. The default-text
+obligation above remains regardless of which construction technique is used.
 
 If default parameters are added later, JavaScript's `length` stops before the
 first parameter with a top-level default. `['rest']` can still mean the raw
@@ -259,6 +315,10 @@ source rest binding in that future case or silently admit initializers now.
       unsupported execution paths refused until they preserve length and
       bindings, without blocking source/EDAG outputs that do not use them.
       Add co-located proofs for the generator and the generated table.
+- [ ] Specify callable-to-EDAG association and host-conversion coverage;
+      integrate the shared default renderer or explicit refusal before
+      enabling each observable conversion/export path. Resolve only the open
+      rendering choices those paths require; never return factory source.
 - [ ] Update source writers and migrations; remove the old complete-argument
       writer boundary for the new format and document the breaking change.
 - [ ] Add source -> tokens -> AST -> EDAG -> executor/source round-trip
@@ -267,6 +327,11 @@ source rest binding in that future case or silently admit initializers now.
       forwarding rest, captured parameters, repeated rest identity and
       distinct calls/callables under each executor's profile. A standalone
       JavaScript factory test is not an FJS pipeline test.
+- [ ] Prove direct and indirect default conversion, host-method conversion
+      and returned/exported functions, including nested escapes. Compare
+      successful text with the selected EDAG renderer, not authored JavaScript
+      text; unsupported paths must refuse before wrapper text is observable.
+      Include `((a) => a).toString()` and distinguish it from its factory's text.
 - [ ] Add validation refusals for invalid length metadata (negative,
       fractional or non-finite), nonconstant or out-of-range `arg` indices,
       `arg` at length zero, duplicate names, invalid bindings, misplaced/rest
@@ -287,6 +352,8 @@ source rest binding in that future case or silently admit initializers now.
 - [Current functions](../README.md#functions) — accepted syntax today.
 - [Arity-cap review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094327220)
   — distinguish executor capacity from language validity.
+- [Default-text review](https://github.com/functionalscript/functionalscript/pull/2220#discussion_r4094801475)
+  — EDAG-derived default rendering is required, not optional customization.
 - [Statement-aware compilation](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md)
   — preserve JavaScript syntax and bindings before EDAG admission/lowering.
 - [Destructuring](./2450-destructuring.md) — separate binding-pattern work.
