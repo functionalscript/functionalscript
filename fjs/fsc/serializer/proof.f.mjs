@@ -159,13 +159,14 @@ export const proof = {
         /** @type {(source: string) => (...a: unknown[]) => unknown} */
         const defaultOf = source => /** @type {{ readonly default: (...a: unknown[]) => unknown }} */ (moduleValue(moduleGraph(source))).default
         const f = defaultOf('export default (a, b) => [a, b];')
-        /** @type {(...a: unknown[]) => unknown} */
+        /** @type {(a?: unknown, b?: unknown) => unknown} */
         const native = (a, b) => [a, b]
         assertEq(f.length, native.length)
         assertStructurallySame(f(), native())
         assertStructurallySame(f(1), native(1))
         assertStructurallySame(f(undefined, 2), native(undefined, 2))
-        assertStructurallySame(f(1, 2, 3), native(1, 2, 3))
+        // an extra argument is dropped, as JavaScript drops one past the list
+        assertStructurallySame(f(1, 2, 3), [1, 2])
         /** @type {(source: string) => number} */
         const lengthOf = source => defaultOf(source).length
         assertEq(lengthOf('export default a => 1;'), 1)

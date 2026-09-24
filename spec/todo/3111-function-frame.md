@@ -106,9 +106,9 @@ fn b(frame: Array<Any>, param: Array<Any>) {
 }
 ```
 
-One spelling is not in the language yet — a named parameter is
-([functions](../README.md#functions)), and reaching a name declared later
-is [forward-references](./3140-forward-references.md) — and the capture that
+A named parameter is in the language ([functions](../README.md#functions));
+reaching a name declared later is not yet
+([forward-references](./3140-forward-references.md)). The capture that
 makes `frame` necessary is what this issue holds: a body that names
 anything bound outside it is refused today
 ([functions](../README.md#functions)).
