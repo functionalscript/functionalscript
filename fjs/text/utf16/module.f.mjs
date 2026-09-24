@@ -7,7 +7,8 @@
  *
  * @import { List, Result, Thunk } from '../../types/list/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
- * @import { CodePoint, U16 } from './types.ts'
+ * @import { U16 } from './types.ts'
+ * @import { CodePoint } from '../code_point/types.ts'
  */
 
 import {

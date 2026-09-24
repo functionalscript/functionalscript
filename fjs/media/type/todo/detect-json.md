@@ -71,7 +71,8 @@ per [streaming-recognizer](../../json/todo/streaming-recognizer.md), because it
 reuses scanners typed over `U16`. So a raw astral character arrives here once,
 as `0x1F600`, where the recognizer expects `0xD83D` then `0xDE00`, and
 **TypeScript cannot see the mistake**: `U16` and `CodePoint` are both
-`= number` in `fjs/text/utf16/types.ts`, measured. Hence the expansion above.
+`= number`, in `fjs/text/utf16/types.ts` and `fjs/text/code_point/types.ts`,
+measured. Hence the expansion above.
 `fjs/text/utf16` exports `fromCodePointList` (`List<CodePoint> => Thunk<U16>`);
 its per-code-point `codePointToUtf16` is module-private today, so either the
 one-element call above or exporting that helper, whichever reads better when
