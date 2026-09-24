@@ -236,5 +236,19 @@ export const proof = {
         rangeEncodeRejectsFractional: () => rangeEncode(0, 1.5),
         rangeEncodeRejectsUnsafeTop: () =>
             rangeEncode(0, Number.MAX_SAFE_INTEGER),
+        // A repetition bound is a count: `min` a non-negative integer, `max`
+        // one too or `Infinity`, and `min <= max`. Each of these would otherwise
+        // build a rule that looks ordinary and matches nothing anyone asked
+        // for, and the constructors built on `repeat` inherit the check.
+        repeatRejectsNegative: () => repeat(-1, 0),
+        repeatRejectsFractionalMin: () => repeat(1.5, 2),
+        repeatRejectsFractionalMax: () => repeat(0, 1.5),
+        repeatRejectsReversed: () => repeat(3, 2),
+        repeatRejectsNegativeZero: () => repeat(0, -0),
+        // `Infinity` and `NaN` are typed `number`, which the types already
+        // refuse; a caller the types do not reach meets the same refusal.
+        repeatFromRejectsInfinity: () => repeatFrom(/** @type {never} */ (Infinity)),
+        repeatFromRejectsNaN: () => repeatFrom(/** @type {never} */ (NaN)),
+        timesRejectsNegative: () => times(-1),
     },
 }
