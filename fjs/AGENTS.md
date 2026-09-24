@@ -1110,16 +1110,15 @@ duplicating it (e.g. `parse` reuses `Path`, `ValidationError`, `verror`,
 
 Hoist helpers (functions, types, constants) to module scope when they don't
 capture local state — don't redeclare them inside another function on every call.
-If a `reduce`/`map` callback needs context that varies per call, thread it
-through the accumulator rather than closing over a local, so the step function
-itself can live at module scope.
 
 "Doesn't capture local state" is a condition to check, not a target to
 restructure toward. A helper that captures local state stays in the scope that
-holds it: don't lift a capture into a leading curried parameter just to hoist the
-helper. Every call site would pass the same local, so the parameter carries no
-information, each call repeats what the scope already says, and the helper is
-generalized for a caller that doesn't exist
+holds it: don't lift a capture into a leading curried parameter just to hoist
+the helper, and don't thread a `reduce`/`map` callback's per-call context
+through the accumulator just so the step function can live at module scope.
+Either way every call passes the same local, so the extra parameter or
+accumulator field carries no information, each call repeats what the scope
+already says, and the helper is generalized for a caller that doesn't exist
 ([DESIGN.md §1](../doc/DESIGN.md#1-simplicity-first)). A closed, module-scope
 function does have a context-free identity: content-addressable FunctionalScript
 can deduplicate structurally identical closed functions across modules (and
