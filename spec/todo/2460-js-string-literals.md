@@ -37,13 +37,20 @@ issue below, and changes no accepted spelling.
 
 Single quotes are the most common string spelling in this repository's own
 source, so this sugar is what keeps the compiler from reading the repository.
-At `a08c20a`, `fjs compile <module> <output>.rs` over every non-proof `.f.mjs`
-module under `fjs/` compiled 2 of 192: the two
-`fjs/fsc/examples` inputs. Of the 190 refusals, 177 were an
-`unexpected token` at a single-quoted string, 158 of them in the module's
-first `import` line (`import { … } from '../…'`). The first error is the only
-one reported, so every construct later in those modules is invisible until
-quotes parse.
+At `a08c20a`, compiling each module that
+
+```sh
+find fjs -name '*.f.mjs' -not -name 'proof.f.mjs'
+```
+
+lists with `node ./fjs/module.mjs compile <module> <output>.rs`, and reading
+the character at each reported error, compiled 2 of 194: the two
+`fjs/fsc/examples` inputs. Of the 192 refusals, 179 were an
+`unexpected token` at a single-quoted string, 159 of them in the module's
+first `import` line (`import { … } from '../…'`). The rest stop at a template
+literal, a named parameter, a named import, a `0x` literal or a multi-line
+`const`. The first error is the only one reported, so every construct later in
+those modules is invisible until quotes parse.
 
 That matters for the MVP: the [roadmap](../../nanvm-lib/todo/mvp-roadmap.md)'s
 repository-coverage task, and self-hosting after it, are the compiler
