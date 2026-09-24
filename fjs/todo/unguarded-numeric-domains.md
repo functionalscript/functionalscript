@@ -43,8 +43,8 @@ that asks one of them has already been told the input is fine.
 |---|---|---|---|
 | `text/utf8`'s `fromCodePointList` | `[65.5]` | `[65]` | truncates to a valid byte, silently |
 | `text/utf16`'s `fromCodePointList` | `[65.5]` | `[65.5]` | emits the fraction as a code unit |
-| `text/ascii`'s `hexDigitValue` (`../text/ascii/module.f.mjs:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
-| `text/ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
+| `text/ascii`'s `hexDigitValue` (`../text/ascii/module.f.mjs:290`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
+| `text/ascii`'s `hexDigitCodePoint` (`:302`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
 
 `isSupplementaryPlane` is the sharpest: it *is* the gate in front of `utf8`'s
 `>>`/`&` truncation (`../text/utf8/module.f.mjs:156`), so the fraction reaches
