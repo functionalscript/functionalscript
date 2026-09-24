@@ -96,6 +96,16 @@ export const proof = {
         assert(!keyIs([latin1('tref'), []], 'tree'))
         assert(!keyIs([[0xE9, 0x72, 0x65, 0x65], []], 'tree'))
     },
+    // A key holding what is no byte is refused, not compared: even past a
+    // byte that already differs, where the comparison alone would stop and
+    // answer "not this key".
+    keyIsRefused: {
+        throw: {
+            nonByteAfterMismatch: () => keyIs([[0x78, 0x100], []], 'tree'),
+            hole: () => keyIs([hole, []], 'tree'),
+            valuesOf: () => valuesOf({ headers: [[[0x78, 0x100], []]], message: null }, 'tree'),
+        },
+    },
     // A NUL in a key or a value, wherever the header sits; none in a
     // real commit, and one in the message is not a header's.
     hasNulHeader: () => {
