@@ -31,8 +31,9 @@ the two are separate, and this one is not quietly migrated into the other.
 ## Every directory gets a page
 
 One rule rather than two: whatever a directory holds, it gets an `index.html`
-listing its files, its subdirectories, the issues in its `todo/`, and the
-proofs of its subtree. Sections with nothing in them are omitted.
+listing its subdirectories, its files, the issues in its `todo/`, and the
+proofs of its subtree — directories first, as GitHub and a file manager list
+them. Sections with nothing in them are omitted.
 
 Because every directory has a page, every subdirectory link on every page
 resolves, which is what makes the tree walkable from the root. The root page is
@@ -235,20 +236,26 @@ carry the `prefers-color-scheme` query itself, so it is fixed to the light
 value — the fallback for a browser that reads neither the SVG nor the
 scheme it would have picked.
 
-## A section's list pads its links for a finger, not a mouse
+## A list of links pads its links for a finger, not a mouse
 
 ```css
 @media (any-pointer: coarse) {
-    [data-section] > ul a { display: inline-block; padding-block: .25rem }
+    [data-links] a { display: inline-block; padding-block: .25rem }
 }
 ```
 
 A page lists its files, directories and issues one link per line with nothing
-under it, and at `d05b70ce`, rendered at 390px, every listed link measured
-19px tall — under the 24px minimum WCAG 2.2's Target Size (Minimum, AA) sets.
+under it — the release index lists its releases the same way — and at
+`d05b70ce`, rendered at 390px, every listed link measured 19px tall — under the 24px minimum WCAG 2.2's Target Size (Minimum, AA) sets.
 These lists are exactly how a reader moves through the tree, so a target a
 finger cannot pick without risking its neighbour is the site's own navigation
 working against the reader.
+
+**A marker, not a position.** A list of links carries `data-links`, and the
+rule matches that rather than where the list sits. It first matched
+`[data-section] > ul a`, which reached a directory's catalogue and nothing
+else: the release index lists its links straight under `main`, and stayed at
+19px on a phone. A new list of links opts in by carrying the marker.
 
 **`any-pointer`, not `pointer`.** `pointer: coarse` reads only the *primary*
 pointer, and a touch-screen laptop's primary pointer is its trackpad — fine,
