@@ -23,10 +23,10 @@ const sharedWithOperator = body => sharing(body)([])(body.map((_, i) => i < body
 const sharingWith = imports => body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
 
 /** @type {import('./types.ts').AstImport} */
-const a = { specifier: './a', json: false }
+const a = { specifier: './a', json: false, name: 'default' }
 
 /** @type {import('./types.ts').AstImport} */
-const b = { specifier: './b', json: false }
+const b = { specifier: './b', json: false, name: 'default' }
 
 /** @type {(module: import('./types.ts').AstModule) => string} */
 const anchorsOf = module => {
@@ -79,26 +79,26 @@ export const proof = {
     // a function has no value: what it denotes is its EDAG, and a data
     // module's value has no function in it — its arguments likewise
     func: () => {
-        assertStructurallySame(run([['=>', [['args']]]])([]), ['error', 'a function has no value'])
-        assertStructurallySame(values([['=>', [1]], 2])([]), ['error', 'a function has no value'])
-        assertStructurallySame(run([['args']])([]), ['error', 'a function has no value'])
+        assertStructurallySame(run([['=>', 0, [['rest']]]])([]), ['error', 'a function has no value'])
+        assertStructurallySame(values([['=>', 0, [1]], 2])([]), ['error', 'a function has no value'])
+        assertStructurallySame(run([['rest']])([]), ['error', 'a function has no value'])
         // a function names nothing outside itself, so it is a leaf to the
         // sweep — a leaf, not a reference: read as one, its body would pass
         // for an import's index, and `0` would mark the import reached
-        assertEq(anchorsOf([[a], [['=>', [['args']]], 1]]), 'consts 0; imports 0')
-        assertEq(anchorsOf([[a], [['=>', [0]], 1]]), 'consts 0; imports 0')
-        assertEq(anchorsOf([[a], [['=>', [0]], ['cref', 0]]]), 'consts ; imports 0')
-        assertEq(anchorsOf([[a], [['=>', [['array', [['args'], ['args']]]]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [['rest']]], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [0]], 1]]), 'consts 0; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [0]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [['array', [['rest'], ['rest']]]]], ['cref', 0]]]), 'consts ; imports 0')
         // a body `const` is an entry of the function's own body, so a `cref`
         // in it names that entry and not the module's
-        assertEq(anchorsOf([[a], [['=>', [['array', []], ['cref', 0]]], ['cref', 0]]]), 'consts ; imports 0')
+        assertEq(anchorsOf([[a], [['=>', 0, [['array', []], ['cref', 0]]], ['cref', 0]]]), 'consts ; imports 0')
     },
     // A call has no value: this evaluator has no function to apply, so what
     // a call returns is not a value it can reach. To the sweep it is not a
     // leaf, though — its callee and its arguments are written where they
     // stand, so what they name is reached.
     call: () => {
-        assertStructurallySame(run([['()', ['args'], []]])([]), ['error', 'a call has no value'])
+        assertStructurallySame(run([['()', ['rest'], []]])([]), ['error', 'a call has no value'])
         assertStructurallySame(run([['()', 1, [2]]])([]), ['error', 'a call has no value'])
         assertStructurallySame(values([['()', 1, []], 2])([]), ['error', 'a call has no value'])
         // the callee is reached

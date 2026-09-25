@@ -7,7 +7,7 @@
  *
  * @import { Exp } from '../../edag/types.ts'
  * @import { AstBinary, AstBitnot, AstBody, AstConditional, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
- * @import { _Source } from '../transpiler/types.ts'
+ * @import { _ImportSource, _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
@@ -19,7 +19,7 @@
 
 import { anchors } from '../ast/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
-import { _attributeError, _importSources, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
+import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
@@ -32,7 +32,7 @@ const args = /** @type {const} */ (['args'])
  * `undefined` is tagged in an EDAG, because a bare one is a missing tuple
  * position.
  *
- * A node per occurrence, as a body's `args` is, and for the same reason: a
+ * A node per occurrence, as a body's `rest` is, and for the same reason: a
  * node belongs to one scope. As a module-level constant this was one node
  * for every `undefined` in a module, so
  * `export default [undefined, (...a) => undefined];` — ordinary source the
@@ -50,7 +50,7 @@ const args = /** @type {const} */ (['args'])
 const undefinedNode = () => ['undefined']
 
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
-const parameter = (_, i) => ['.', ['.', args, i], 'default']
+const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', args, i], name]
 
 /** @type {(lower: (ast: AstConst) => Exp) => (member: AstMember) => readonly [':', string, Exp]} */
 const property = lower => ([key, value]) => [':', key, lower(value)]
@@ -88,7 +88,7 @@ const call = nodes => (callee, args) => {
 }
 
 /**
- * A function's EDAG, `['=>', frame, body]`, in the scope `nodes` names: its
+ * A function's EDAG, `['=>', length, frame, body]`, in the scope `nodes` names: its
  * captures lowered here, each to the node the enclosing scope has for it,
  * and its body a scope of its own over them.
  *
@@ -104,11 +104,11 @@ const call = nodes => (callee, args) => {
  *
  * Inside the body a slot is one node, `['.', ['frame'], i]`, however many
  * references reach it, over one `['frame']` for the body — the node
- * `args` is, for the arguments.
+ * `rest` is, for the rest arguments.
  *
- * @type {(nodes: _Nodes) => (body: AstBody, captures: readonly AstConst[]) => Exp}
+ * @type {(nodes: _Nodes) => (length: number, body: AstBody, captures: readonly AstConst[]) => Exp}
  */
-const fn = nodes => (body, captures) => {
+const fn = nodes => (length, body, captures) => {
     const outer = captures.map(lower(nodes))
     const candidates = outer.filter(n => n instanceof Array)
     const keys = slotKeys(candidates)
@@ -122,7 +122,7 @@ const fn = nodes => (body, captures) => {
     /** @type {(n: typeof candidates[number]) => Exp} */
     const read = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
     const inner = outer.map(n => n instanceof Array ? read(n) : n)
-    return ['=>', slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
+    return ['=>', length, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
 }
 
 /**
@@ -162,8 +162,9 @@ const lowerLeaf = nodes => ast => {
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return fn(nodes)(ast[1], ast[2] ?? []) }
-        case 'args': { return nodes.args }
+        case '=>': { return fn(nodes)(ast[1], ast[2], ast[3] ?? []) }
+        case 'arg': { return ['arg', ast[1]] }
+        case 'rest': { return nodes.args }
         case 'fref': { return nodes.frame[ast[1]] }
         case '()': { return call(nodes)(ast[1], ast[2]) }
         // the EDAG's own form already, its key a constant the parser admitted
@@ -308,7 +309,7 @@ const entry = (parameters, args, frame) => (consts, ast) => [...consts, lower({ 
  * @type {(body: AstBody, frame: readonly Exp[]) => Exp}
  */
 const scope = (body, frame) => {
-    const nodes = body.reduce(entry([], ['args'], frame), [])
+    const nodes = body.reduce(entry([], ['rest'], frame), [])
     const value = nodes[nodes.length - 1]
     const { consts } = anchors([[], body])([])
     return consts.length === 0 ? value : [',', [...consts.map(i => nodes[i]), value]]
@@ -415,7 +416,11 @@ const jsonEdag = value => {
  * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
  */
 const completed = id => context => edag => {
-    const resolved = { exports: edag, default: _moduleExports(edag).some(([, key]) => key === 'default') ? _defaultExport(edag) : undefined }
+    /** @type {_Resolved} */
+    const resolved = {
+        exports: edag,
+        bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
+    }
     return [{
         complete: setReplace(id)(resolved)(context.complete),
         stack: drop(1)(context.stack),
@@ -425,11 +430,13 @@ const completed = id => context => edag => {
 /** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
 const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonEdag(value)]]])
 
-/** One import resolved, with a default export required even if its binding is unused. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) =>
-    resolved.default === undefined
-        ? pureError({ message: 'module has no default export', metadata: null, path: source.path })
-        : pureOk({ context: linked, bound: [...bound, resolved.default] }))
+/** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
+const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) => {
+    const selected = source.name === null ? resolved.exports : resolved.bindings.find(([key]) => key === source.name)?.[1]
+    return selected === undefined
+        ? pureError(_missingExport(source))
+        : pureOk({ context: linked, bound: [...bound, selected] })
+})
 
 /**
  * A parsed module linked: its imports resolved in source order, each to its

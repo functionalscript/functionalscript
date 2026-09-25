@@ -12,6 +12,15 @@ to the PR description, not the merged document or merge commit.
 a fixed/rest replacement for named-parameter arity. Approval of that replacement
 is separate ([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
 
+## Implementation follow-up
+
+The September 24 implementation request explicitly selects #2220's fixed/rest
+model and pre-generated arrow factories. The implementation is stacked on
+#2220; it reuses the LL(1) parser factoring from #2217 and replaces its earlier
+argument lowering. The shared default-text renderer remains an integration
+gate, tracked in [3120](./3120-parameters.md). This does not authorize merging
+or closing #2216 or #2217, whose full-argument contracts differ.
+
 ## Alternative scope
 
 The [named-and-rest parameter plan](./3120-parameters.md) now proposes
@@ -21,8 +30,8 @@ padding missing fixed arguments is unobservable, so the pattern below is
 remains an alternative for construction with arbitrary `length` values and
 the complete original argument list. Its expression-valued count and
 full-`['args']` model must not be mixed silently with the parameter plan's
-integer metadata and fixed/rest bindings. Neither proposal is implemented by
-this documentation change.
+integer metadata and fixed/rest bindings. The current implementation follows the fixed/rest plan; this pattern remains
+an alternative, not an additional runtime mechanism.
 
 ## Parallel implementations and rollout
 
