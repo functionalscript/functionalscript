@@ -378,7 +378,7 @@ and runs the full check set.
       `pending` holding every pair not yet answered. No built-in lands here.
       The callback vocabulary lands with its first consumer, the iteration
       PR, rather than unused.
-- [ ] **Search.** `includes`, `indexOf`, `lastIndexOf`, with `present`,
+- [x] **Search.** `includes`, `indexOf`, `lastIndexOf`, with `present`,
       the relative-index helper (`at` refactored onto it) and `SameValueZero`.
 - [ ] **Copies.** `slice`, `concat`, `toReversed`, `with`, `toSpliced`, with
       the result-length `RangeError`.

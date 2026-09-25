@@ -1,6 +1,6 @@
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, Array, IVm, Nullish, ToAny, Unpacked},
+    vm::{Any, Array, IVm, Nullish, Number, ToAny, Unpacked},
 };
 
 /// A built-in member function: the receiver and the arguments, already the
@@ -30,10 +30,16 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
 
 /// `Array.prototype`'s.
 fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    if *key == "at".into() {
-        return Some(array_at);
-    }
-    None
+    let table: [(&str, Method<A>); 4] = [
+        ("at", array_at),
+        ("includes", array_includes),
+        ("indexOf", array_index_of),
+        ("lastIndexOf", array_last_index_of),
+    ];
+    table
+        .into_iter()
+        .find(|(name, _)| *key == (*name).into())
+        .map(|(_, m)| m)
 }
 
 /// The `i`-th argument, or `undefined` past the end, as a built-in reads
@@ -44,6 +50,19 @@ fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
     } else {
         Nullish::Undefined.to_any()
     }
+}
+
+/// The `i`-th argument if the call passed one, `undefined` included, and
+/// `None` if it did not: for the few built-ins whose answer depends on
+/// whether an argument is there, not only on its value — `lastIndexOf(x)`
+/// searches from the end, `lastIndexOf(x, undefined)` from `0`.
+fn present<A: IVm>(args: &Array<A>, i: u32) -> Option<Any<A>> {
+    (i < args.length()).then(|| args[i].clone())
+}
+
+/// A search's position as JavaScript answers it: the index, or `-1`.
+fn position<A: IVm>(found: Option<u32>) -> Any<A> {
+    Number::from(found.map_or(-1.0, f64::from)).to_any()
 }
 
 /// `toString()`: a dispatch to `Any::to_string`, the `String(x)` conversion,
@@ -78,6 +97,25 @@ fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>>
 /// [`method`] matched, so the conversion cannot throw.
 fn array_at<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     Array::try_from(receiver)?.at(argument(&args, 0))
+}
+
+/// `Array.prototype.includes`, `vm/array/includes.rs`.
+fn array_includes<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = Array::try_from(receiver)?.includes(&argument(&args, 0), argument(&args, 1))?;
+    Ok(found.to_any())
+}
+
+/// `Array.prototype.indexOf`, `vm/array/index_of.rs`.
+fn array_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = Array::try_from(receiver)?.index_of(&argument(&args, 0), argument(&args, 1))?;
+    Ok(position(found))
+}
+
+/// `Array.prototype.lastIndexOf`, `vm/array/last_index_of.rs`: the one of
+/// the three whose position is read only when passed.
+fn array_last_index_of<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let found = Array::try_from(receiver)?.last_index_of(&argument(&args, 0), present(&args, 1))?;
+    Ok(position(found))
 }
 
 #[cfg(test)]

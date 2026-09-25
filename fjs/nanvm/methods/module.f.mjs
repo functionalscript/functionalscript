@@ -64,8 +64,8 @@ export const types = [
 export const pending = {
     array: [
         'concat', 'every', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex', 'flat',
-        'flatMap', 'includes', 'indexOf', 'join', 'lastIndexOf', 'map', 'reduce', 'reduceRight',
-        'slice', 'some', 'toReversed', 'toSorted', 'toSpliced', 'with',
+        'flatMap', 'join', 'map', 'reduce', 'reduceRight', 'slice', 'some', 'toReversed',
+        'toSorted', 'toSpliced', 'with',
     ],
     string: [
         'at', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'endsWith', 'includes', 'indexOf',

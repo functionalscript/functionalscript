@@ -1,7 +1,7 @@
-use super::Array;
+use super::{Array, relative::relative};
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, IVm, Nullish, Number, ToAny},
+    vm::{Any, IVm, Nullish, ToAny},
 };
 
 impl<A: IVm> Array<A> {
@@ -14,18 +14,12 @@ impl<A: IVm> Array<A> {
     /// conversion's: a bigint argument is the `TypeError` `ToNumber` throws
     /// for one.
     ///
-    /// The arithmetic is on `f64`: a length fits, and an infinite relative
+    /// The position is [`relative`]'s, unclamped: an infinite relative
     /// index lands out of range on either side, so `Index<u32>` is reached
     /// only with an index the range check admitted.
     pub(crate) fn at(&self, index: Any<A>) -> Result<Any<A>, Any<A>> {
-        let len = f64::from(Number::from(self.length()));
-        let relative = f64::from(index.to_number()?.to_integer_or_infinity());
-        let k = if relative >= 0.0 {
-            relative
-        } else {
-            len + relative
-        };
-        Ok(if (0.0..len).contains(&k) {
+        let k = relative(index, self.length())?;
+        Ok(if (0.0..f64::from(self.length())).contains(&k) {
             self[k as u32].clone()
         } else {
             Nullish::Undefined.to_any()
