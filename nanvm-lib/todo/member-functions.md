@@ -175,7 +175,7 @@ the landing order are [array-member-functions](./array-member-functions.md):
 - [ ] `flatMap`
 - [x] `includes` — `vm/array/includes.rs`
 - [x] `indexOf` — `vm/array/index_of.rs`
-- [ ] `join`
+- [x] `join` — `vm/array/join.rs`
 - [x] `lastIndexOf` — `vm/array/last_index_of.rs`
 - [ ] `map`
 - [ ] `reduce`
