@@ -78,7 +78,7 @@ dominates:
 
 | | one inode | lazy |
 |---|---|---|
-| `ReadChunks` over [`readBytes`](../module.mjs) | no — that operation opens the path once per chunk | yes |
+| [`readChunks`](../module.f.mjs) over [`readBytes`](../module.mjs) | no — that operation opens the path once per chunk | yes |
 | [`readWhole`](../module.mjs) | yes — one `open`, chunked to EOF | no, the whole file is materialized |
 | the handle effect [stat-then-read](../../../web/todo/stat-then-read.md) designs | yes | yes |
 
@@ -92,6 +92,20 @@ development demo — is what `readFile` already costs, and the cap is what
 `readFile` cannot do. The handle effect remains the only route that is both, so
 it stays worth building; it stops being a prerequisite and becomes the
 optimization that makes a large body cheap rather than merely possible.
+
+**The eager route costs more than the memory, and the operation says why.**
+[`readWhole`](../module.mjs) rebuilds its chunk list on every window rather than
+appending, and its own comment gives the assumption that makes that free: *"a
+file is however many `Vec`s it takes and the count is small — 128 KiB a chunk, so
+eighty of them for ten megabytes."* Lifting a *web* cap is what breaks that
+assumption, because it is what makes an arbitrary size reachable from a request:
+a body of gigabytes is tens of thousands of windows, the rebuild is quadratic in
+that count, and all of it is spent before the first byte reaches the socket. So
+the eager route lifts the cap for the demo that prompted this issue and is not
+by itself enough for an arbitrary size; a linear collection in the operation, or
+the handle effect's retained bound, is what that needs. Recorded rather than
+fixed here: the rebuild is that operation's property and its `fjs/git` consumers
+are the small-count case its comment assumes, so changing it is its own change.
 
 **One thing `ReadWhole` does not fix, stated so this is not read as more than
 it is.** [`readWhole`](../module.mjs) `stat`s the path and then opens it, two
@@ -165,12 +179,18 @@ that issue is retired with this task. The question it held open — whether
 take a loop written elsewhere without a cast — is answered: it can. Ordinary
 `Effect` widening carries `List<ReadBytes, …>` into it, no cast needed.
 
-**`Content-Length` stays derivable, and stops being derived from the body.**
+**`Content-Length` stays derivable, and on the lazy route stops being derived
+from the body.**
 `fjs/web` writes it as `length(body) >> 3n` today, which a lazy list cannot
 answer without draining. It does not have to: the size is already in hand where
 it is needed, since `readBounded` is handed a `FileStat` and the `stat` that
 produced it is the one the FIFO guard is there for anyway — an `fstat` on the
-held handle, once the reads go through one, and the same value either way. A
+held handle, once the reads go through one. The eager route keeps the shape
+`fjs/web` has today, for the opposite reason: `ReadWhole` has already drained the
+file by the time there is a body at all, so `length(body) >> 3n` costs nothing
+and is the one figure that cannot disagree with what will be written. So the
+header comes from the `fstat` on the handle route and from the body on the eager
+one, and the 2026-09-22 note above records which is which. A
 producer that does not know its size omits the header, and what Node then frames
 the response with depends on the request: `Transfer-Encoding: chunked` for one
 that will understand it, and the closing connection itself for one that will
