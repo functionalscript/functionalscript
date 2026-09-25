@@ -343,12 +343,12 @@ export const proof = {
             assert(html.includes('viewBox="0 0 81 86"'), html)
         },
         /**
-         * **Beside an inline value, an edge still leaves from the node's
-         * bottom**, from a socket: its port is split like the value's, a
-         * label over an empty cell, so the node reads as a grid. And a node with
-         * ports is as tall as its row, so a shorter neighbour's edge does
-         * not cut across the taller one's lower part — the crossing an
-         * earlier version drew.
+         * **Beside an inline value, an edge's port fills both rows**, its
+         * key centred in it, and the edge leaves from the node's bottom:
+         * no cell of the node is empty. **A node keeps its own height**,
+         * so `narrow`, with no value, is 46px in a row whose `wide` is
+         * 66px, and its edge drops straight to the row's bottom before it
+         * turns rather than cutting across `wide`'s lower part.
          */
         inlineBesideAnEdge: () => {
             /** @type {Graph} */
@@ -369,13 +369,12 @@ export const proof = {
             }
             const html = htmlToString(graphSvg(g))
             assert(html.includes('<rect x="10" y="96" width="50" height="66" rx="4" data-graph-node=""'), html)
-            assert(html.includes('<rect x="74" y="96" width="58" height="66" rx="4" data-graph-node=""'), html)
-            assert(html.includes('<rect x="35" y="142" width="25" height="20" data-graph-socket="">'), html)
-            // `narrow` is stretched to its row and split the same way,
-            // with no value in it at all.
-            assert(html.includes('<rect x="74" y="142" width="58" height="20" data-graph-socket="">'), html)
-            assert(html.includes('d="M47.5,162 '), html)
-            assert(html.includes('d="M103,162 '), html)
+            assert(html.includes('<rect x="10" y="122" width="25" height="20" data-graph-port="">'), html)
+            assert(html.includes('<rect x="35" y="122" width="25" height="40" data-graph-port="">'), html)
+            assert(html.includes('<text x="47.5" y="142" text-anchor="middle" data-graph-edge-label="">e<'), html)
+            assert(html.includes('d="M47.5,162 L35,202"'), html)
+            assert(html.includes('<rect x="74" y="96" width="58" height="46" rx="4" data-graph-node=""'), html)
+            assert(html.includes('d="M103,142 L103,162 L35,202"'), html)
             assertEq(_crossings(g), 0)
         },
         // A marked edge to an inline value marks its value cell.

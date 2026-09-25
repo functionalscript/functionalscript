@@ -133,21 +133,19 @@ const missingEnds = ids => (edge, index) => [
  *
  * A node with outgoing edges is a header and a row of ports beneath it; a
  * node without is the header alone, so a leaf keeps the size it always had.
- * A node with an inline value adds a row for the values under the ports.
- * Every port in that row is split in two, its label over a lower cell
- * that holds the value or, for an edge, is the socket the edge leaves
- * from, so the node reads as a grid rather than as tall cells beside
- * short ones.
+ * A node with an inline value adds a row for the values under the ports:
+ * an inline port is its label over its value, and an edge's port fills
+ * both rows, its label centred in it, so no cell of the node is empty.
  *
- * **A node with ports is as tall as its row**, as a lane is. Its edges
- * leave from the row's bottom then, not from partway down it, so none
- * starts beside a taller neighbour and cuts across its lower part on the
- * way to the next row.
+ * **A node is as tall as its own content**, not as its row: a node with
+ * no inline value in a row with one would otherwise carry a row of empty
+ * cells. Its edges drop straight down to the row's bottom before they
+ * turn — see {@link routesOf}.
  *
  * **An edge has a lane in every rank strictly between its ends**, and none
  * when it goes to the next rank, or to an inline value, which has no
- * rank. A lane's `key` places it just after its source's id, among the nodes ordered by id, so it sits near where its
- * edge starts rather than at the far end of a row. It carries its edge's
+ * rank. A lane's `key` places it just after its source's id, among the
+ * nodes ordered by id, so it sits near where its edge starts rather than at the far end of a row. It carries its edge's
  * `index`, its position in the graph's list, because that is what tells
  * two edges apart: the same `Edge` object may be listed twice, and a lane
  * found by object would belong to both.
@@ -212,7 +210,7 @@ const layout = nodes => edges => {
             const { width, ports } = portsOf(slot.node.label)(outgoingOf(slot.node.id))
             x += width + colGap
             /** @type {_Positioned} */
-            const node = { ...slot.node, x: left, y: top, width, height: ports.length === 0 ? headerHeight : tallest, ports }
+            const node = { ...slot.node, x: left, y: top, width, height: heightOf(slot), ports }
             return { node }
         })
     }).flat()
@@ -223,10 +221,16 @@ const layout = nodes => edges => {
 }
 
 /**
- * Every edge's route but an inline one's: from the bottom of its port, straight down through
- * its lane in each rank it skips, to the top of its target. Nodes and
- * lanes are looked up, not searched for, for the reason {@link layout}
- * gives.
+ * Every edge's route but an inline one's: from the bottom of its port,
+ * straight down to its row's bottom where its node is shorter than the
+ * row, straight down through its lane in each rank it skips, and to the
+ * top of its target. Nodes and lanes are looked up, not searched for, for
+ * the reason {@link layout} gives.
+ *
+ * **The drop is what lets a node keep its own height.** An edge leaving a
+ * short node turned at once would cut across the lower part of a taller
+ * neighbour on its way to the next row; dropping first, it turns only in
+ * the gap between rows, where there are no boxes.
  *
  * @type {(placed: { readonly nodes: readonly _Positioned[], readonly lanes: readonly _Lane[] }) => readonly _Route[]}
  */
@@ -234,13 +238,19 @@ const routesOf = placed => {
     const byId = new Map(placed.nodes.map(p => [p.id, p]))
     const at = /** @type {(id: number) => _Positioned} */ (id => /** @type {_Positioned} */ (byId.get(id)))
     const lanes = new Map(placed.lanes.map(lane => [`${lane.index} ${lane.rank}`, lane]))
+    const rowBottoms = placed.nodes.reduce(
+        (m, p) => m.set(p.rank, Math.max(m.get(p.rank) ?? 0, p.y + p.height)), new Map())
+    const rowBottom = /** @type {(rank: number) => number} */ (rank => /** @type {number} */ (rowBottoms.get(rank)))
     return placed.nodes.flatMap(from => from.ports.flatMap(port => {
         const target = port.edge.to
         if (typeof target !== 'number') { return [] }
         const to = at(target)
+        const x = from.x + port.x + port.width / 2
+        const bottom = from.y + from.height
         /** @type {readonly _Point[]} */
         const points = [
-            [from.x + port.x + port.width / 2, from.y + from.height],
+            [x, bottom],
+            ...(bottom < rowBottom(from.rank) ? [/** @type {_Point} */ ([x, rowBottom(from.rank)])] : []),
             ...Array.from({ length: to.rank - from.rank - 1 }, (_, i) => {
                 const lane = /** @type {_Lane} */ (lanes.get(`${port.index} ${from.rank + 1 + i}`))
                 return /** @type {readonly _Point[]} */ ([[lane.x, lane.top], [lane.x, lane.bottom]])
@@ -297,6 +307,14 @@ export const _crossings = g => {
 }
 
 /**
+ * The height of a port's label cell: one row for an inline port, whose
+ * value sits under it, and the whole of the node's ports for an edge's.
+ *
+ * @type {(p: _Positioned) => (port: _Port) => number}
+ */
+const labelHeightOf = p => port => inlineOf(port.edge) === null ? p.height - headerHeight : portHeight
+
+/**
  * A graph, drawn: a node per {@link Ranked}, an edge per {@link Edge},
  * ranked by longest path from the root.
  *
@@ -311,11 +329,10 @@ export const _crossings = g => {
  *
  * **A primitive is a cell, not a box.** An inline value draws in its port,
  * under the label, and no line leaves for it: see the module's own doc.
- * A node taller than its header and one row of labels splits every port:
- * the label's cell, and under it a value cell or an empty socket the
- * edge leaves from. Values carry an attribute of their own, apart from
- * the node labels and the port labels, so the stylesheet can colour a
- * value unlike a key.
+ * An inline port is its label's cell over its value's; an edge's port is
+ * one cell as tall as the node's ports, its label centred in it. Values
+ * carry an attribute of their own, apart from the node labels and the
+ * port labels, so the stylesheet can colour a value unlike a key.
  *
  * **Boxes, then edges, then the labels.** Since no edge crosses a box the
  * order decides only where an edge meets its own ends, and there the line
@@ -348,18 +365,17 @@ export const graphSvg = g => {
         }]),
         ...p.ports.map(port => /** @type {Element} */ (['rect', {
             x: String(p.x + port.x), y: String(p.y + headerHeight),
-            width: String(port.width), height: String(portHeight),
+            width: String(port.width), height: String(labelHeightOf(p)(port)),
             'data-graph-port': '',
         }])),
-        ...(p.height === headerHeight + portHeight ? [] : p.ports.map(port => /** @type {Element} */ (['rect', {
+        ...p.ports.flatMap(port => inlineOf(port.edge) === null ? [] : [/** @type {Element} */ (['rect', {
             x: String(p.x + port.x), y: String(p.y + headerHeight + portHeight),
-            width: String(port.width), height: String(p.height - headerHeight - portHeight),
-            // A socket's edge carries its own kind on the line; a value
-            // has no line, so its cell carries the kind instead.
-            ...(inlineOf(port.edge) === null ? { 'data-graph-socket': '' }
-                : port.edge.kind === undefined ? { 'data-graph-value': '' }
-                    : { 'data-graph-value': '', 'data-graph-edge-kind': port.edge.kind }),
-        }]))),
+            width: String(port.width), height: String(valueHeight),
+            'data-graph-value': '',
+            // An edge carries its kind on its line; a value has no line,
+            // so its cell carries the kind instead.
+            ...(port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
+        }])]),
     ])
     /** @type {readonly Element[]} */
     const labelEls = positioned.flatMap(p => [
@@ -368,7 +384,7 @@ export const graphSvg = g => {
             'text-anchor': 'middle', 'data-graph-label': '',
         }, p.label]),
         ...p.ports.map(port => /** @type {Element} */ (['text', {
-            x: String(p.x + port.x + port.width / 2), y: String(p.y + headerHeight + portHeight / 2),
+            x: String(p.x + port.x + port.width / 2), y: String(p.y + headerHeight + labelHeightOf(p)(port) / 2),
             'text-anchor': 'middle', 'data-graph-edge-label': '',
         }, port.edge.label])),
         ...p.ports.flatMap(port => {
