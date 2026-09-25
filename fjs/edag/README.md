@@ -135,11 +135,11 @@ function-owned `args` to `rest` and insert length `0`; retain module import
 than reinterpreted. Earlier positive-arity/full-argument experiments have
 no general lossless migration to this format.
 
-Amnesia and memo share the
+A function's `length` is at most 16, the language's limit: `bindingError`
+refuses a larger one. Amnesia and memo share the
 [arrow factories](../types/function/length/README.md) of
-`fjs/types/function/length` for lengths 0–32. The limit applies when
-materializing a JavaScript callable; it does not bound valid EDAG or source
-output. The default-text renderer remains tracked in
+`fjs/types/function/length`, which cover every valid length. The default-text
+renderer remains tracked in
 [the parameter plan](../../spec/todo/3120-parameters.md).
 
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a

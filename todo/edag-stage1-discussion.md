@@ -1132,10 +1132,9 @@ EDAG-derived default-text rule is still required: use the shared renderer
 or explicitly refuse unsupported observations before exposing wrapper text
 ([default-text boundary](../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)).
 
-Hand-written factories can materialize these functions without the
-[length pattern](../spec/todo/arity-complete-arguments.md) for arity within
-an executor's table capacity. That capacity limits materialization, not valid
-source or EDAG: source writers emit the declared parameter list directly.
+Hand-written factories materialize these functions without the retired
+[length pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) for every
+valid arity: the language limits `length` to 16, and the table covers 0–16.
 
 #### 8. `","`: anchored evaluation
 
