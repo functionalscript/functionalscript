@@ -1,7 +1,8 @@
 ## A ref name is bytes and this host's path is text
 
 **Priority:** P4
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Paths as bytes](../../../effects/node/todo/byte-paths.md)
 
 ### Problem
 
@@ -67,11 +68,11 @@ one name — without holding two such files.
 ### Proposal
 
 The fix is not in this module: it is a `readdir` and a `readFile` that speak
-bytes, which is a question for [`fjs/effects/node`](../../../effects/node/).
-Node has the primitive — `{ encoding: 'buffer' }` on `readdir`, and a `Buffer`
-path for `readFile` — so the operations could carry `Bytes` beside the `string`
-they carry now, and this module would use the byte form for a name and keep the
-text form for the directory it was given.
+bytes, which is [Paths as bytes](../../../effects/node/todo/byte-paths.md) in
+`fjs/effects/node`. Node has the primitive — `{ encoding: 'buffer' }` on
+`readdir`, and a `Buffer` path for `readFile` — so the operations could carry
+`Bytes` beside the `string` they carry now, and this module would use the byte
+form for a name and keep the text form for the directory it was given.
 
 Until then the limitation is the host's and is written down here rather than
 worked around: a byte-oriented path API is a change to the effects, and pushing
@@ -84,3 +85,7 @@ it into this module would mean guessing which of two files a lossy name meant.
   spelling of a path cannot express.
 - [`fjs/git/refstore/module.f.mjs`](../module.f.mjs) — `nameText`, where the
   decision is made and measured.
+- [Paths as bytes](../../../effects/node/todo/byte-paths.md) — the effects change
+  this waits on.
+- [byte-paths](../../todo/byte-paths.md) — the same gap for a path read from
+  `objects/info/alternates`, waiting on the same change.

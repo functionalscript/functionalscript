@@ -737,11 +737,11 @@ module a browser can `import`. A JSON-shaped format could take
 JavaScript-shaped one has no such ladder.
 
 This follows the dialect design in
-[`fjs/todo/group-fs-subdirectories-by-concern.md`](../../fjs/todo/group-fs-subdirectories-by-concern.md),
+[`fjs/media/README.md`](../../fjs/media/README.md#dialects),
 which settled the question for FunctionalScript's formats generally. That
 document names the wider compiler subset's dialect `vnd.fjs.djs`; DataJS is
 narrower and takes its own segment, which is the one detail still to reconcile
-there — see [that todo](../../fjs/todo/group-fs-subdirectories-by-concern.md)
+there — see [that todo](../../fjs/media/todo/datajs-dialect-name.md)
 rather than duplicating the chain rules here.
 
 ## Conformance

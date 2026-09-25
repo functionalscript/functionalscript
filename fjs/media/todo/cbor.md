@@ -4,7 +4,7 @@
 **Status:** open
 
 The codec (this todo) and CBOR *detection*
-([detect-cbor.md](detect-cbor.md)) are two different tasks: this one builds the
+([detect-cbor.md](../type/todo/detect-cbor.md)) are two different tasks: this one builds the
 pure `fjs/media/cbor` module; detection consumes it (tiers 2–3) from the
 `fjs/media/type` classifier.
 
@@ -12,12 +12,12 @@ pure `fjs/media/cbor` module; detection consumes it (tiers 2–3) from the
 
 CBOR (RFC 8949) is the designated binary counterpart of the FS dialect scheme
 (registered `application/cbor` media type, registered `+cbor` suffix — see
-[fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)):
+[fjs/media/README.md](../README.md#dialects)):
 a dialect-tagged blob is served as `application/{dialect}+cbor` exactly as its
 JSON twin is served as `application/{dialect}+json`. Nothing in the repo can
 read or write CBOR, so binary-encoded FS formats cannot exist: no encoder to
 produce them, no decoder for schema validation, nothing for
-[detect-cbor](detect-cbor.md) tier 2 to decode tagged blobs with, and no
+[detect-cbor](../type/todo/detect-cbor.md) tier 2 to decode tagged blobs with, and no
 grammar for a future tier-3 recognizer to share.
 
 By the `fjs/media/` membership rule the codec belongs here: `media/cbor/`
@@ -56,7 +56,7 @@ Everything else CBOR allows (non-text map keys, `undefined`, simple values,
 other tags, indefinite lengths on decode) is **rejected** in the first
 iteration: a small, closed model keeps encode/decode a lossless round trip and
 keeps schema validation meaningful. One exception: a single leading tag 55799
-(self-described CBOR, [detect-cbor](detect-cbor.md) tier 1) on the top-level
+(self-described CBOR, [detect-cbor](../type/todo/detect-cbor.md) tier 1) on the top-level
 item is accepted and **transparently unwrapped** — it is an encoding marker,
 not data, and a self-described dialect blob must not fail tier-2 schema
 validation on the wrapper alone. Extensions widen the table deliberately,
@@ -68,7 +68,7 @@ One encoding, not options:
 
 - RFC 8949 §4.2 core deterministic encoding — shortest-form integer heads,
   definite lengths only, no duplicate keys, keys in §4.2 bytewise order
-  (detection is semantic — [detect-cbor.md](detect-cbor.md) §2 — so no
+  (detection is semantic — [detect-cbor.md](../type/todo/detect-cbor.md) §2 — so no
   entry-order deviation is needed);
 - no tag-55799 wrapper: the canonical form is the bare item (the dialect
   entry already identifies FS blobs, and canonical bytes must not fork on
@@ -108,7 +108,7 @@ identity function, so encoding options would silently fork identities.
       consumers that require byte-identity
 - [ ] Root `fjs/media/cbor/module.f.mjs` re-exporting serializer/parser and the
       `application/cbor` constant; reference the module from `fjs/media` docs
-- [ ] Unblock [detect-cbor](detect-cbor.md) tier 2: the strict parser's full
+- [ ] Unblock [detect-cbor](../type/todo/detect-cbor.md) tier 2: the strict parser's full
       decode of a size-bounded (128 KiB) blob is the detection primitive — tier 2
       decodes the whole blob and looks up the `dialect` key in the resulting map;
       no leading-entry or partial-decode helper is needed
@@ -117,12 +117,12 @@ identity function, so encoding options would silently fork identities.
 
 ### Related
 
-- [detect-cbor.md](detect-cbor.md) — detection; consumes this codec in tiers 2–3
-- [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
+- [detect-cbor.md](../type/todo/detect-cbor.md) — detection; consumes this codec in tiers 2–3
+- [fjs/media/README.md](../README.md)
   — the dialect naming rule and the `fjs/media/` membership rule placing the codec
 - [fjs/media/revision/README.md](../revision/README.md) — the tagged-format
   convention whose binary twin this enables
-- `fjs/media/json/` (`serializer/`, `parser/`, `tokenizer/`) — the sibling module
+- `fjs/media/json/` (`serializer/`, `parser/`) — the sibling module
   whose layout and purity conventions this follows
 - [fjs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md) —
   the payload-free recognizer pattern for the future tier-3 sibling

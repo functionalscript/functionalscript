@@ -3,7 +3,7 @@
 **Priority:** P4
 **Status:** on-hold
 
-### Idea
+### Problem
 
 An EDAG does not have to be interpreted directly. A compiler may instead compile an
 EDAG to a normal executable function and run that function using the host engine or a
@@ -22,7 +22,7 @@ and optimization machinery. However, compiling the EDAG away creates a reverse-l
 problem: if later code receives only the resulting `Function` and needs its EDAG, the
 association must be preserved somewhere outside the function value itself.
 
-### Effects
+### Proposal
 
 Represent that association through Effects rather than baking EDAG metadata into the
 function representation:
@@ -87,7 +87,13 @@ Nested functions, closure creation, and frames must be considered before the
 - Do not require every function to have an EDAG. Host/native functions may have no
   registered EDAG.
 - Do not embed the EDAG into the function merely to support lookup; the Effect exists
-  so runtimes can choose an appropriate external/internal registry.
+  so runtimes can choose an appropriate external/internal registry. **Open
+  question:** this conflicts with the
+  [MVP roadmap](../../../nanvm-lib/todo/mvp-roadmap.md#open-questions)'s
+  invariant that a natively compiled function carries its `Any` code
+  description, which
+  [callable-function-objects](../../../nanvm-lib/todo/callable-function-objects.md)
+  Stage 7 embeds. Which one a runtime follows is undecided.
 - The association should preserve the exact EDAG, including semantic node sharing;
   `edagGet` is retrieval, not regeneration or normalization.
 - This mechanism can coexist with direct EDAG interpretation. A runtime may interpret
@@ -95,7 +101,7 @@ Nested functions, closure creation, and frames must be considered before the
 - The lifetime/identity rules of the registry are runtime-specific and can be decided
   when an implementation needs them.
 
-### Possible future work
+### Tasks
 
 - [ ] Decide the canonical Effect type definitions and module location.
 - [ ] Decide how nested functions/closures and captured frames participate in
@@ -113,3 +119,5 @@ Nested functions, closure creation, and frames must be considered before the
   to EDAG before loading imported values.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — EDAG semantics and function representation design.
+- [MVP roadmap](../../../nanvm-lib/todo/mvp-roadmap.md#open-questions) — the
+  embedded-description invariant this note conflicts with.

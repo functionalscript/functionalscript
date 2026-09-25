@@ -10,8 +10,9 @@ the three Node jobs, then `deno`, then `wasm`, then `bun`. Each installs Nix thr
 command sequence one `nix develop` step per command. Nix runs in CI only where a job uses
 a flake — the temporary `nix-flakes` job that instantiated them to check them is gone,
 and every generated flake is now evaluated by the job that uses it. What needs no Nix is
-established by proofs over the generator's output. See the progress note in
-[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
+established by proofs over the generator's output. The Node milestone that set the
+shape every migrated job follows was tracked as `66B-dockerfile-nix-integration`,
+closed once all three Node jobs had migrated; its open tasks are this issue's.
 
 `setup-deno` is gone with the Deno migration, and `fjs/ci/config/module.f.mjs` no longer
 records that action version; its `deno` pin now names what the snapshot provides — 2.8.3
@@ -20,11 +21,11 @@ records that action version; its `deno` pin now names what the snapshot provides
 list.
 
 Separately from Nix, `deno` and `bun` both stopped installing and running a published
-`functionalscript`, and the three platform jobs that moved into the shared shell
+`functionalscript`, and the four platform jobs that moved into the shared shell
 went the same way — `npm install -g` writes to the read-only store from inside a
 shell, and the check tests a shipped release rather than the commit under review.
-`ubuntu-intel` and the two Windows jobs still run it, so it survives on three
-images rather than six. That is [built-package-checks](built-package-checks.md)'s
+Only the two Windows jobs still run it, so it survives on two images rather
+than six. That is [built-package-checks](built-package-checks.md)'s
 subject, not this issue's, but it is why those jobs are shorter than the
 migration alone would leave them.
 
@@ -243,8 +244,8 @@ What that cost is worth naming. Those jobs used to measure a stock runner image,
 and now measure a pinned toolchain running *on* one. The distinction is smaller
 than it sounds — `dtolnay/rust-toolchain` and `setup-node` were already pinned to
 the same versions — but the system libraries a Nix build links against are Nix's,
-so "builds with the distro's toolchain" is no longer something CI says. Windows
-and `ubuntu-intel` still say it.
+so "builds with the distro's toolchain" is no longer something CI says. Only
+the Windows jobs still say it.
 
 What remains here is the Nixpkgs update command and removing stale generated
 directories, which waits on a recursive `rm` effect — the four directories this
@@ -563,7 +564,10 @@ removed; `git log -- docker/` has it.
       provides fails this repository's suite.
 - [x] Generate one readable self-contained flake per job with
       `devShells.aarch64-linux.default`.
-- [ ] Remove stale generated job directories.
+- [ ] Remove stale generated job directories — only the ones the generator
+      wrote: it owns `flake.nix`, `run` and the subdirectories of `nix/`, not
+      the hand-written `nix/README.md` (`generatedDirectory` in
+      `fjs/ci/nix/module.f.mjs`). Needs a recursive `rm` effect.
 - [x] Generate a `run` script per job, so a workflow step names a command rather
       than a `nix develop` invocation.
 - [x] Generate and commit a `flake.lock` per flake, refreshed by a
@@ -597,7 +601,5 @@ removed; `git log -- docker/` has it.
 
 - [`fjs/media/nix`](../../media/nix/module.f.mjs) — generic Nix eDSL used by the
   generated-flake code generator.
-- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — the first Node
-  implementation, whose shape every migrated job follows.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — replacement design
   for real browser execution and the optional external Playwright runner.

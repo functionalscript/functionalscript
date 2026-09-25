@@ -7,3 +7,8 @@ Currently, FS has no way to store references (objects/functions) in a container 
 
 - add `Map` to the language
 - use content (serialization). This can be slow with a non-CA VM. Functions are still hard to serialize.
+
+### Related
+
+- [Object identity](../spec/todo/object-identity.md) — the same question in the
+  spec roadmap: functions as keys, and `Map` behind ownership tracking.

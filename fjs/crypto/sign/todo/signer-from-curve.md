@@ -1,0 +1,125 @@
+## `sign` bypasses `fromCurve` and re-derives RFC6979 helpers
+
+**Priority:** P4
+**Status:** open
+
+### Problem
+
+`fjs/crypto/sign/module.f.mjs` already exposes the intended abstraction for "derive
+the RFC6979 conversion helpers (`All`) from a `Curve`":
+
+```js
+// fromCurve
+export const fromCurve = c => all(c.nf.p)
+```
+
+But the module's primary in-module consumer, `sign`, ignores it and re-implements
+the same derivation by hand:
+
+```js
+// sign
+export const sign = c => hf => x => m => {
+    const { nf: { p: q, div }, g } = c   // pulls q out of the curve manually
+    const a = all(q)                      // this is exactly fromCurve(c)
+    const { bits2int } = a
+    ...
+    const hm = computeSync(hf)([m])
+    const h = bits2int(hm) % q            // duplicates bits2octets' `bits2int(b) % q`
+```
+
+Two distinct duplications here:
+
+1. **`const a = all(q)` where `q = c.nf.p` is precisely `fromCurve(c)`.** The
+   knowledge of "how to get the subgroup order out of a `Curve`" now lives in two
+   places. If `fromCurve` ever gains validation/caching, `sign` silently diverges.
+
+2. **`bits2int(hm) % q` re-implements the "bits2int then extra modular
+   reduction" step** that `all` already names internally for `bits2octets`:
+
+   ```js
+   // all
+   // since z2 < 2*q, we can use simple mod with `z1 < q ? z1 : z1 - q`
+   bits2octets: b => int2octets(bits2int(b) % q),
+   ```
+
+   RFC6979's "extra modular reduction" (documented in `sign`'s step 1 comment)
+   thus appears twice, with the rationale comment split across the two sites.
+
+### Proposal
+
+1. **Make `fromCurve` the complete "curve → signing context" factory** so `sign`
+   reads everything it needs from one place and never re-reaches into `c`.
+
+   Rather than just swapping `all(q)` for `fromCurve(c)` and *still* hand-pulling
+   the curve pieces, give `fromCurve` a **composite** result that holds the
+   `q`-only RFC6979 helpers as a named field alongside the curve-derived inputs
+   `sign` uses. Per review, prefer **composition over intersection/deriving** (no
+   `&`) and embed the RFC6979 record as a field. Note `sign` reaches into the curve
+   for three things — `div` via `nf`, `g`, and `mul` (`c.mul(k)(g)`):
+
+   ```ts
+   export type Signer = {
+       readonly rfc6979: Rfc6979   // the q-only conversions — was `All`
+       readonly nf: Curve['nf']    // gives div, and q via nf.p
+       readonly mul: Curve['mul']
+       readonly g: Curve['g']
+   }
+   export const fromCurve = (c: Curve): Signer =>
+       ({ rfc6979: all(c.nf.p), nf: c.nf, mul: c.mul, g: c.g })
+   ```
+
+   (Review also noted `All` deserves a clearer name. Renaming `All` → `Rfc6979`
+   and using that as the field type is suggested; the rename is optional polish and
+   can be split out if it churns proofs/imports.)
+
+   Then `sign` reads from `fromCurve(c)` and passes the embedded record straight to
+   `computeKFromDigest`, the private step behind `computeK`:
+
+   ```ts
+   const { rfc6979, nf: { div }, mul, g } = fromCurve(c)
+   const { q, bits2int } = rfc6979
+   ...
+   const k = computeKFromDigest(rfc6979)(hf)(x)(hm)  // the RFC6979 record unchanged, and the digest `hm = H(m)` sign already has
+   const rxy = mul(k)(g)
+   ```
+
+   #### Why composition (and why the curve pieces don't go on the RFC6979 record)
+
+   Composition keeps the RFC6979 record **completely unchanged**, which matters
+   because it is constructed and consumed on its own, with no curve in sight:
+
+   - **`all` is called with a bare subgroup order.** `all(q: bigint)` derives the
+     RFC6979 helpers from `q` alone, and is invoked that way both conceptually and
+     in practice — `fjs/crypto/sign/proof.f.mjs` calls it with small literal
+     orders and with `q`. None of those callers has an `nf`/`g`/`mul` to supply.
+     So the curve pieces live on `Signer`, not on the RFC6979 record.
+   - **`mul` isn't on `nf` anyway.** `mul` is a field of `Curve`
+     (`fjs/crypto/secp/types.ts`, `mul: Fold<bigint, Point>`), not of the
+     prime field `nf` — so `nf` + `g` alone wouldn't cover `sign`'s `c.mul(k)(g)`.
+
+   `Signer` is therefore a plain record composing the unchanged RFC6979 helpers
+   with `nf`/`mul`/`g`, and `computeK` continues to take just the RFC6979 record.
+
+2. Add a named `bits2intModQ: (b: Vec) => bigint` to the RFC6979 record
+   (`= b => bits2int(b) % q`), define `bits2octets = b => int2octets(bits2intModQ(b))`
+   in terms of it, and use `rfc6979.bits2intModQ(hm)` in `sign`. The single comment
+   about the conditional-subtraction reduction then has one home.
+
+Part 1 is the separation-of-concerns fix: `fromCurve` already exists but is both
+bypassed by `sign` and too thin to fully serve it; part 2 is a small DRY win
+co-locating the RFC rationale.
+
+### Tasks
+
+- [ ] `fromCurve` returns a composite `Signer = { rfc6979, nf, mul, g }` (no `&`);
+      `all` stays the unchanged `q`-only RFC6979 factory `computeK` uses
+- [ ] `sign` reads only from `fromCurve(c)` — no direct `c.nf`/`c.mul`/`c.g` access
+- [ ] add `bits2intModQ` to the RFC6979 record; express `bits2octets` and `sign`'s `h` through it
+- [ ] (optional) rename `All` → `Rfc6979` for clarity; split out if it churns proofs/imports
+- [ ] confirm `proof.f.mjs` still covers all of `all`/`fromCurve`/`sign`
+
+### Related
+
+- `fjs/crypto/sign/module.f.mjs` — `all`, `fromCurve`, `sign`.
+- [variadic-concat-to-bit-vec](./variadic-concat-to-bit-vec.md) — the other
+  cleanup in the same module.

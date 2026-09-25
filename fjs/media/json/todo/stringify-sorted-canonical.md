@@ -11,26 +11,28 @@ re-named at every use site instead of existing once under one name.
 
 Source modules:
 
-- `fjs/protocol/mcp/stdio/module.f.mjs:53` — `const stringifyJson = stringify(sort)`
+- `fjs/protocol/mcp/stdio/module.f.mjs` — `const stringifyJson = stringify(sort)`
+- `fjs/media/revision`, `fjs/media/lock` and `fjs/media/note` — each module's
+  `encodeText = stringify(sort)`, which
+  [json-dialect-factory](../../todo/json-dialect-factory.md) would collapse
+  into one factory
 
-(`fjs/fsc/module.f.mjs` was a second site; the compiler's `.json` output no
+(`fjs/fsc/module.f.mjs` was another site; the compiler's `.json` output no
 longer sorts, since key order is part of the value it writes, so it is gone.)
 
 Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 `stringifyJson`):
 
-- `fjs/types/btree/proof.f.mjs:14`, `fjs/types/btree/find/proof.f.mjs:13`,
-  `fjs/types/btree/set/proof.f.mjs:16`, `fjs/types/btree/remove/proof.f.mjs:17`
-- `fjs/types/array/proof.f.mjs:6`, `fjs/types/byte_set/proof.f.mjs:10`,
-  `fjs/types/range_map/proof.f.mjs:15`, `fjs/types/sorted_list/proof.f.mjs:12`,
-  `fjs/types/sorted_set/proof.f.mjs:12`, `fjs/types/list/proof.f.mjs:11`
-- `fjs/text/ascii/proof.f.mjs:6`, `fjs/text/utf8/proof.f.mjs:8`,
-  `fjs/text/utf16/proof.f.mjs:18`
-- `fjs/media/json/parser/proof.f.mjs:16`, `fjs/protocol/mcp/stdio/proof.f.mjs:20`
+- `fjs/types/btree` and its `find`, `set` and `remove` proofs
+- the proofs of `fjs/types/array`, `fjs/types/byte_set`, `fjs/types/range_map`,
+  `fjs/types/sorted_list`, `fjs/types/sorted_set` and `fjs/types/list`
+- the proofs of `fjs/text/ascii`, `fjs/text/utf8` and `fjs/text/utf16`
+- the proofs of `fjs/media/json/extended`, `fjs/media/revision`,
+  `fjs/media/lock` and `fjs/protocol/mcp/stdio`, and `fjs/media/json/demo.f.mjs`
 - `fjs/fsc/parser/proof.f.mjs`
 
 Each site is one line, so no single site is a problem — the issue is that
-the canonical-serialization idiom has ~20 different local names and no
+the canonical-serialization idiom has a crowd of different local names and no
 single discoverable definition. Readers meeting `jsonStr` in one proof and
 `str` in another must expand each alias to see they are the same thing, and
 a future change to the canonical form (e.g. a different key ordering) has
@@ -57,9 +59,10 @@ applications once.
 
 - [ ] Add `stringifySorted` to `fjs/media/json/module.f.mjs` with proof
       coverage in `fjs/media/json/proof.f.mjs` (which itself calls
-      `stringify(sort)` seven times today).
-- [ ] Migrate the one source-module site (`fjs/protocol/mcp/stdio/module.f.mjs`),
-      then the proof files.
+      `stringify(sort)` several times).
+- [ ] Migrate the source-module sites — `fjs/protocol/mcp/stdio/module.f.mjs`,
+      and the three dialects' `encodeText` through json-dialect-factory's kit
+      if it lands first — then the proof files.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related

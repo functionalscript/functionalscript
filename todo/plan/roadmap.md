@@ -25,7 +25,8 @@
 **Layer 1 — Base (done)**
 - `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.mjs` ✓
 - stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.mjs` ✓
-- `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.mjs` ✓
+- `fjs mcp` CLI command registered in `fjs/module.f.mjs`, running
+  `casMcpServer` from `fjs/mcp/module.f.mjs` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
 **Layer 2 — Content encoding (done)**
@@ -98,15 +99,22 @@ See [architecture.md §Human-readable paths](./architecture.md).
 ## Future — FunctionalScript compiler via fjs/ebnf
 
 **Current state:**
-- `fjs/ebnf/` — grammar front end and LL(1) backend exist; no FunctionalScript grammar written yet
-- `fjs/fsc/` — full data pipeline (tokenizer → parser → AST → evaluator) for `const`, `import`, objects, arrays; **functions not yet supported**
-- `nanvm-lib` (Rust) — type system implemented (primitives, arrays, objects, bigints); **no interpreter, no execution loop**
+- `fjs/ebnf/` — grammar front end and LL(1) backend; the FunctionalScript grammar
+  is written, in [`fjs/fsc/parser/grammar`](../../fjs/fsc/parser/grammar/module.f.mjs),
+  and read by `fjs/ebnf/ll1`
+- `fjs/fsc/` — tokenizer → parser → AST → EDAG for `const`, `import`, objects,
+  arrays, operators and functions, capturing ones included
+- Rust code generator ✓ — `fjs compile <module> <output>.rs` emits a Rust module
+  calling the `nanvm-lib` API (`fjs/fsc/rust`, `fjs/edag/rust`), built and run
+  by the `nanvm-harness` fixtures
+- `nanvm-lib` (Rust) — type system and operators implemented; **no interpreter**
 
 **Remaining work:**
-1. Function support in `fjs/fsc/`
-2. FunctionalScript grammar in `fjs/ebnf/` (single source for parser + generated language spec)
-3. Rust code generator (FJS) — compiles FJS modules into Rust code calling the `nanvm-lib` API;
-   the MVP pipeline, the compiler-bootstrap vehicle, and the AOT backend
+1. ~~Function support in `fjs/fsc/`~~ — done.
+2. ~~FunctionalScript grammar~~ — done; generating the language spec from it
+   remains.
+3. ~~Rust code generator (FJS)~~ — done: the MVP pipeline, the
+   compiler-bootstrap vehicle, and the AOT backend
    (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
 4. `Function` constructor + interpreter in `nanvm-lib` — executes the EDAG as data
    (see [`spec/todo/serialization.md`](../../spec/todo/serialization.md));
@@ -183,8 +191,8 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | HTTP transport | `fjs/effects/node/` effects ✓ | `httpTransport` wrapper only |
 | Signed directories | — | Directory block type + path resolver |
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
-| Compiler (parsing) | `fjs/fsc/` data pipeline ✓, `fjs/ebnf/` framework ✓ | Function support, FS grammar |
-| Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
+| Compiler (parsing) | `fjs/fsc/` pipeline with functions ✓, FS grammar on `fjs/ebnf/` ✓ | Language spec generated from the grammar |
+| Compiler (codegen) | Rust code generator (`fjs compile … .rs`) ✓ | `Function` constructor + interpreter in `nanvm-lib` |
 | Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FS |

@@ -89,7 +89,7 @@ lookup is duplicated.
 
 ### Related
 
-- [packfiles.md](./packfiles.md) — its decoder names a type from a numeric
+- [`fjs/git/pack`](../pack/module.f.mjs) — its decoder names a type from a numeric
   code rather than from the name's bytes, so it is not a consumer of this; see
   above.
 - [positional-headers.md](./positional-headers.md) — discusses `tag`'s

@@ -25,6 +25,15 @@ The examples were left because they do not all want the same treatment, and
 deciding per site is a judgement about what each passage is for — which is
 this issue.
 
+Two more node kinds have the same split, and the inventory below originally
+missed them. The comma is `[',', exps]` and the function
+`['=>', length, frame, body]` in the schema (`comma` and `func` in
+`fjs/edag/module.f.mjs`). The discussion's normative places — the
+structural-operations table, the Baseline definition and subject 8's
+resolution — now write `[",", [...node, node]]` and
+`["=>", length, frame, body]`, but its worked examples still spell the comma
+flat and the function with three elements.
+
 The risk is mild but real: someone reading a worked example rather than the
 table copies a shape validation rejects. Nothing is wrong in the code, and
 `fjs/edag/README.md` is correct throughout, which is why this is P4 rather
@@ -40,12 +49,12 @@ become `["{}", []]`:
 
 |Section|What it shows|
 |-|-|
-|Baseline: an expression DAG with anchored evaluation|`["[]", x, x]` vs `["[]", ["{}"], ["{}"]]`, and the `export default` code block below it|
+|Baseline: an expression DAG with anchored evaluation|`["[]", x, x]` vs `["[]", ["{}"], ["{}"]]`, and the `export default` code block below it, including its flat `[",", …]`|
 |The core invariant|the same sharing pair; `["()", f, ["[]", a, b]]`|
-|Other operations|the `["=>", ["[]", ["self"]], …]` and `["()", …, ["[]", …]]` frame examples|
+|Other operations|the `["=>", ["[]", ["self"]], …]` and `["()", …, ["[]", …]]` frame examples, and "Frame construction mirrors a call: `["=>", frame, body]`" — three elements where the schema has four; the `if` lowering pair's `[",", ["?:", …], v]`|
 |4. Object constructor: ordered entries|the integer-key ordering caveat, `["{}", [":", "2", a], [":", "1", b]]`|
 |9. Canonical graph serialization and hashing|the sharing pair again|
-|10. Free variables|`["()", ["self"], ["[]"]]`|
+|10. Free variables|`["()", ["self"], ["[]"]]`; "`["=>", frame, body]` evaluates its `frame` operand first" — three elements|
 |12. `toString(f)`|the sharing pair again|
 
 The sharing pair (`["[]", x, x]` against `["[]", ["{}"], ["{}"]]`) recurs in
@@ -101,5 +110,5 @@ every edit above it, a section name does not.
   rather than a variadic tail" gives the reason the shape is what it is.
 - [`edag-stage1-discussion.md`](./edag-stage1-discussion.md) — the document
   this corrects.
-- [`edag-spec.md`](./edag-spec.md) — where subjects are distilled once decided;
-  it should not inherit the flat spelling.
+- [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — the schema of record,
+  where subjects are distilled once decided.

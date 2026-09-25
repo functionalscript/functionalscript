@@ -28,8 +28,9 @@ look settled:
 | `p = '.'` | `EEXIST` | `EEXIST` |
 | `p = 'missing/..'` | **`EEXIST`** | **`ENOENT`** |
 
-The first two are carved out explicitly, as `statOp` carves out its own — an
-empty path names nothing and `.` is the root, and `parse` collapses both to no
+The first two are told apart explicitly — `''` by `emptyPathIsAbsent`, the
+helper `statOp` and `mkdir` share, because an empty path names nothing, and `.`
+by `exclusiveOp` answering for the root — since `parse` collapses both to no
 segments. The third is indistinguishable from `.` until the walk is physical, so
 it answers as the root does and is this issue's to fix, not theirs. It used to be
 `invalid path` for all three.
@@ -58,9 +59,10 @@ Check what depends on the current behaviour first: `fjs/cas`'s staging paths and
 - [ ] `ENOTDIR` for a component that is a file, distinct from `ENOENT`.
 - [ ] Re-run the suite for proofs that pass a `..` path and relied on the
       lexical answer.
-- [ ] Once the walk is physical, drop `statOp`'s and `exclusive`'s `path === ''`
-      carve-outs only if the descent answers `ENOENT` for it — `''` and `.` still
-      differ, so the carve-out may have to stay whatever `..` does.
+- [ ] Once the walk is physical, drop `emptyPathIsAbsent` (wrapping `statOp`,
+      `exclusive` and `mkdir`) only if the descent answers `ENOENT` for `''` —
+      `''` and `.` still differ, so the carve-out may have to stay whatever `..`
+      does.
 
 ### Related
 

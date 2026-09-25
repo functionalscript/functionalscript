@@ -7,7 +7,7 @@
 
 `vm/impls/from.rs` is the grab-bag of `From` impls for the `Unpacked`/`Any`
 wrapping conversions, but two of its impls are string-domain logic — UTF-16
-encode/decode between `String<A>` and Rust strings (`from.rs:27-40`):
+encode/decode between `String<A>` and Rust strings:
 
 ```rust
 impl<A: IVm> From<&str> for String<A> {
@@ -31,7 +31,7 @@ single consumer is enough justification per AGENTS.md.
 
 ### Proposal
 
-Move both impls (and `From<&str> for Any<A>` at `from.rs:20-25`, which is
+Move both impls (and `From<&str> for Any<A>` in the same file, which is
 just `String::from` + `to_any`, if it reads better next to them) into a new
 `vm/string/from.rs` (or fold into `to_string.rs`). `impls/from.rs` then
 holds only `Unpacked`/`Any` variant wrapping — the set

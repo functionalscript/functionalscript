@@ -63,6 +63,8 @@ Open design points:
 ### Related
 
 - [66g-cas-verify-command](66g-cas-verify-command.md) — batch scrub for the same invariant
+- [`fjs/cas/plan/scrub.md`](../plan/scrub.md) — "Two intensities": this is its
+  verify-on-read, which the plan also allows to be sampled rather than per call
 - [command-architecture](command-architecture.md) — decides which transports expose this
 - [fjs/cli options-edsl](../../cli/todo/options-edsl.md) — the declarative `--verify` flag
 - PR [#1277](https://github.com/functionalscript/functionalscript/pull/1277) (closed) —
