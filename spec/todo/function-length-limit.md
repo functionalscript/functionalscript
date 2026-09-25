@@ -62,7 +62,9 @@ a valid graph.
 valid JavaScript and not FunctionalScript. The subset still holds — every
 FunctionalScript program stays a JavaScript program — but a port of such code
 has to regroup its parameters. It is a breaking change for any EDAG or source
-that uses more than 16, and none in this repository does.
+that uses more than 16. In this repository the one such source is the factory
+table itself, which `fjs/fsc/parameters`' `generatedTable` proof compiles, and
+it shrinks to the limit with the rest of this change.
 
 **Where it is refused.** Over-limit length is a binding error: analysis's
 `bindingError` names it, so every writer returns it as an error Result, as
@@ -90,8 +92,26 @@ EDAG".
 - [ ] `fjs/edag/rust`: the `u32` refusal and its `lengthLimit` proof give way
       to the language limit.
 - [ ] [`spec/README.md`](../README.md#functions) states the limit where it
-      describes `f.length`; [3120](./3120-parameters.md)'s "without imposing
-      a language-level arity limit" follows.
+      describes `f.length`, in place of "larger lengths remain valid for
+      compilation and source output".
+- [ ] [3120](./3120-parameters.md) drops every obligation that keeps arity
+      unbounded — the plan separates language validity from executor
+      capacity throughout, and this proposal merges them:
+      - *Implementation status* and *Proposal*: "valid source and EDAG remain
+        independent of that capacity", "without imposing a language-level
+        arity limit", and the costs paragraph's otherwise-valid functions
+        beyond the table;
+      - *Source serialization boundary*: "must not inherit that table's
+        limit" — the writer inherits the language's, which the table equals;
+      - *Executor capacity and migration*: "no shared language-level maximum
+        arity", `16` as "only a candidate … not an approved language limit",
+        and the example of a first uncovered arity that still round-trips;
+      - *Tasks*: the approval task's "without imposing a language cap", the
+        validation task's "a count beyond a factory table is not a validation
+        error", and the open task proving that the first uncovered arity
+        round-trips through source and EDAG. Under the limit no valid arity
+        is uncovered; that task becomes the proof that 17 is refused at
+        every entry point, which the tasks above already list.
 
 ### Related
 
