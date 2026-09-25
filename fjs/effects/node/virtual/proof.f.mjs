@@ -1,6 +1,6 @@
 /**
  * @import { Dir, State } from './types.ts'
- * @import { IncomingMessage, NodeOp, RequestListener } from '../types.ts'
+ * @import { IncomingMessage, NodeOp, RequestListener, ServerResponse } from '../types.ts'
  * @import { Effect } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
  * @import { Key } from '../../memory/types.ts'
@@ -8,13 +8,22 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { resolveFileModule, access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, writeExclusive, createServer, forever, listen, readWhole, notAFileCode, notAFileMessage, mkdir } from '../module.f.mjs'
-import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
+import { empty, length, maxLengthBytes, msb, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, nodeProgramOptions, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
 import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
+
+/**
+ * A recorded response body as text, its chunks joined: a body is however many
+ * `Vec`s the answer takes, and a listener that writes one is the ordinary case
+ * rather than the shape of the type.
+ *
+ * @type {(r: ServerResponse) => string}
+ */
+const responseText = r => utf8ToString(r.body.reduce((v, chunk) => msb.concat(v)(chunk), empty))
 
 /**
  * Asserts that a channel error is a host failure carrying `code` — the
@@ -954,7 +963,7 @@ export const proof = {
             const get = url => ({ method: 'GET', url, headers: {}, body: empty })
             /** @type {RequestListener<never>} */
             const listener = ({ url }) =>
-                pureOk({ status: 200, headers: {}, body: utf8(`echo ${url}`) })
+                pureOk({ status: 200, headers: {}, body: [utf8(`echo ${url}`)] })
             const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
             /** @type {State} */
             const state = { ...emptyState, requests: [get('/a'), get('/b')] }
@@ -964,14 +973,14 @@ export const proof = {
             // The queue is emptied, so a second `listen` cannot answer the same
             // request twice.
             assertEq(s.requests.length, 0)
-            assertEq(s.responses.map(r => utf8ToString(r.body)).join(', '), 'echo /a, echo /b')
+            assertEq(s.responses.map(responseText).join(', '), 'echo /a, echo /b')
         },
         // Two servers in one program are two servers here, as they are on a
         // host: `listen` answers with the listener its *handle* carries, not
         // with whichever was created last.
         dispatchesThroughTheHandle: () => {
             /** @type {(name: string) => RequestListener<never>} */
-            const named = name => () => pureOk({ status: 200, headers: {}, body: utf8(name) })
+            const named = name => () => pureOk({ status: 200, headers: {}, body: [utf8(name)] })
             // Flat, because the third link needs the *first* one's value: a
             // history carries `a` forward instead of a nested continuation
             // closing over it.
@@ -985,13 +994,13 @@ export const proof = {
             }
             const [s, result] = virtual(state)(first)
             assert(result[0] === 'ok', result)
-            assertEq(utf8ToString(s.responses[0].body), 'a')
+            assertEq(responseText(s.responses[0]), 'a')
         },
         // A port a host would refuse is refused here, or a program that cannot
         // run anywhere could still be proven.
         badPort: () => {
             /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const listener = () => pureOk({ status: 200, headers: {}, body: [] })
             /** @type {(port: number) => void} */
             const rejects = port => {
                 const e = step(createServer(listener), server => listen(server, port, '127.0.0.1'))
@@ -1014,7 +1023,7 @@ export const proof = {
         // both get one, so refusing the second would reject a program that runs.
         ephemeralPorts: () => {
             /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const listener = () => pureOk({ status: 200, headers: {}, body: [] })
             const first = history(createServer(listener))
             const second = historyStep(first, () => createServer(listener))
             const bound = historyStep(second, b => listen(b, 0, '127.0.0.1'))
@@ -1028,7 +1037,7 @@ export const proof = {
         // failure must not look correct against this runner.
         addressInUse: () => {
             /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const listener = () => pureOk({ status: 200, headers: {}, body: [] })
             const first = history(createServer(listener))
             const second = historyStep(first, () => createServer(listener))
             // `historyStep` spreads the history over its continuation, newest
@@ -1046,7 +1055,7 @@ export const proof = {
         // Darwin with Node 23.11.0, where the second bind is `EADDRINUSE`.
         addressInUseIgnoresCase: () => {
             /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const listener = () => pureOk({ status: 200, headers: {}, body: [] })
             const first = history(createServer(listener))
             const second = historyStep(first, () => createServer(listener))
             const bound = historyStep(second, b => listen(b, 8080, 'LOCALHOST'))
@@ -1065,7 +1074,7 @@ export const proof = {
         // interface for it — so both runners refuse it rather than forward it.
         emptyHostRefused: () => {
             /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const listener = () => pureOk({ status: 200, headers: {}, body: [] })
             const created = history(createServer(listener))
             const e = step(created, ([server]) => listen(server, 8080, ''))
             const [s, result] = virtual(emptyState)(e)
@@ -1083,7 +1092,7 @@ export const proof = {
         // to agree, and the Node runner asks this before it touches the socket.
         emptyHostBeatsAlreadyListening: () => {
             /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const listener = () => pureOk({ status: 200, headers: {}, body: [] })
             const created = history(createServer(listener))
             const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
             const e = step(bound, ([, server]) => listen(server, 9090, ''))
@@ -1093,7 +1102,7 @@ export const proof = {
         },
         alreadyListening: () => {
             /** @type {RequestListener<never>} */
-            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const listener = () => pureOk({ status: 200, headers: {}, body: [] })
             /** @type {(second: number) => IoChannel} */
             const again = second => {
                 const created = history(createServer(listener))

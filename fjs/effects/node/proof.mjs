@@ -11,24 +11,28 @@
  *
  * @import { NodeProgram, NodeOp } from './types.ts'
  * @import { Effect, IoChannel } from '../types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
+import http from 'node:http'
 import zlib from 'node:zlib'
 import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { resultMapStep } from '../module.f.mjs'
-import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { pureOk, resultMapStep, step } from '../module.f.mjs'
+import { byteLength, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { asBase } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
-import { inflate, inflateTrailingCode, resolveFileModule, writeExclusive } from './module.f.mjs'
+import { createServer, inflate, inflateTrailingCode, listen, readWhole, resolveFileModule, writeExclusive } from './module.f.mjs'
 import { runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
@@ -114,6 +118,120 @@ const withFixtures = check => withTemporary('fjs-module-url-', async temporary =
     // identities use its canonical location, independently of this loader.
     await check(pathToFileURL(`${await realpath(path)}${sep}`))
 })
+
+/**
+ * Bytes whose pattern does not repeat on a chunk boundary. {@link bytes} steps
+ * by seven and so repeats every 256, and a `Vec` is 131,072 bytes — a multiple
+ * of 256 — so a chunk list joined *out of order* compares equal to one in order
+ * and a proof over it watches only the length. A prime modulus leaves no such
+ * alignment: every chunk boundary falls somewhere new in the cycle.
+ *
+ * @type {(n: number) => Uint8Array}
+ */
+const unalignedBytes = n => Uint8Array.from({ length: n }, (_, i) => i % 251)
+
+/** Every byte a chunk list holds, in order.
+ *
+ * @type {(chunks: readonly Vec[]) => readonly number[]}
+ */
+const chunkBytes = chunks => chunks.flatMap(v => toArray(u8ListMsb(v)))
+
+/**
+ * Asserts that two byte sequences are the same, by length and then by the first
+ * byte that differs.
+ *
+ * Not `assertStructurallySame` on the two arrays: a body here runs past a
+ * hundred thousand bytes, and a failure that prints both of them names nothing a
+ * reader can act on, where an index names where the bytes went wrong.
+ *
+ * @type {(actual: readonly number[], expected: readonly number[]) => void}
+ */
+const assertSameBytes = (actual, expected) => {
+    assertEq(actual.length, expected.length)
+    assertEq(actual.findIndex((b, i) => b !== expected[i]), -1)
+}
+
+/** How many bytes a chunk list holds.
+ *
+ * @type {(chunks: readonly Vec[]) => bigint}
+ */
+const chunkLength = chunks => chunks.reduce((n, v) => n + byteLength(v), 0n)
+
+/** The address every proof here binds, for the reason `Listen` takes one. */
+const loopback = '127.0.0.1'
+
+/**
+ * What a `method` request to a server the runner built came back with: the
+ * status, the headers, and the bytes that reached the socket.
+ *
+ * **The server is closed by this function and not by the program**, because
+ * there is no operation that closes one: a `NodeProgram` answers an exit code,
+ * so the handle is taken out of it here and unwrapped to the `http.Server`
+ * underneath. That reach-through is why this proof lives in the impure shell
+ * beside the runner rather than in a `.f.mjs`.
+ *
+ * Port `0` asks the host for a free one — a fixed port makes a proof fail when
+ * something else on the machine happens to hold it. `fjs web` refusing `0` is
+ * its own command-line policy and not this operation's.
+ *
+ * @type {(chunks: readonly Vec[], method: string) => Promise<{ readonly status: number, readonly length: string, readonly body: Uint8Array }>}
+ */
+const answeredOverASocket = async (chunks, method) => {
+    /** @type {(server: import('node:http').Server) => void} */
+    let created = () => { }
+    /** @type {Promise<import('node:http').Server>} */
+    const held = new Promise(resolve => { created = resolve })
+    /** @type {NodeProgram} */
+    const program = () => resultMapStep(
+        step(
+            createServer(() => pureOk({
+                status: 200,
+                headers: { 'content-length': `${chunkLength(chunks)}` },
+                body: chunks,
+            })),
+            server => {
+                // The one cast, and the boundary the runner itself crosses the
+                // same way: a `Server` is a `Nominal` over the host's own
+                // object, and `asBase` is how the runner reads it back.
+                created(/** @type {import('node:http').Server} */ (asBase(server)))
+                return listen(server, 0, loopback)
+            }),
+        r => r[0] === 'ok' ? ok(0) : error(1))
+    assertEq(await runEffect(program), 0)
+    const server = await held
+    try {
+        const address = server.address()
+        assert(address !== null && typeof address !== 'string', address)
+        return await new Promise((resolve, reject) => {
+            const request = http.request(
+                { host: loopback, port: address.port, method, path: '/' },
+                response => {
+                    /** @type {Uint8Array[]} */
+                    const parts = []
+                    response.on('data', part => { parts.push(part) })
+                    response.on('end', () => resolve({
+                        status: response.statusCode ?? 0,
+                        length: `${response.headers['content-length']}`,
+                        body: Buffer.concat(parts),
+                    }))
+                })
+            request.on('error', reject)
+            request.end()
+        })
+    } finally {
+        await new Promise(resolve => { server.close(() => resolve(undefined)) })
+    }
+}
+
+/**
+ * Whether this run is the one whose host behaviour the HTTP proofs below are
+ * about. They bind a real socket and read what Node does with a body it was
+ * given; Bun and Deno answer the same operations through their own `node:http`,
+ * which is a separate claim and not this runner's.
+ *
+ * @type {() => boolean}
+ */
+const isNode = () => !('Bun' in globalThis) && !('Deno' in globalThis)
 
 const expectedValue = [[42], [42], [42], [42]]
 const expectedSharing = [true, true, true]
@@ -303,5 +421,52 @@ export const proof = {
             await hostCheck(writeExclusive(dangling, toVec(payload(300))), refusedTaken)
             assert(!(await readdir(root)).includes('absent'))
         }),
+    },
+    readWhole: {
+        // A file larger than one `Vec` comes back as more than one chunk, in
+        // order and byte for byte — the property the accumulator inside the
+        // operation has to keep whichever way it collects. Nothing else proves
+        // the chunking against a real file: the virtual runner hands back the
+        // chunk list a fixture was written as, so a fixture cannot be wrong
+        // about the boundaries the way an accumulator can.
+        pastOneVec: () => withTemporary('fjs-read-whole-', async root => {
+            const path = join(root, 'large.bin')
+            const content = unalignedBytes(Number(maxLengthBytes) + 1024)
+            await writeFile(path, content)
+            await hostCheck(readWhole(path), result => {
+                const chunks = unwrap(result)
+                assert(chunks.length > 1, chunks.length)
+                assertEq(chunkLength(chunks), BigInt(content.length))
+                assertSameBytes(chunkBytes(chunks), [...content])
+            })
+        }),
+    },
+    createServer: {
+        // The runner writes a chunk list a chunk at a time, so a body of more
+        // than one `Vec` reaches the client whole — the half of
+        // [#1819](https://github.com/functionalscript/functionalscript/issues/1819)
+        // that is the runner's rather than `fjs/web`'s.
+        writesEveryChunk: async () => {
+            if (!isNode()) { return }
+            const chunks = [toVec(payload(1)), toVec(payload(2)), toVec(payload(3))]
+            const answer = await answeredOverASocket(chunks, 'GET')
+            assertEq(answer.status, 200)
+            assertEq(answer.length, `${chunkLength(chunks)}`)
+            assertSameBytes([...answer.body], chunkBytes(chunks))
+        },
+        // **Node is the party that drops a `HEAD` body**, and it goes on being
+        // that party across as many writes as the body has: the runner offers
+        // every chunk and the client receives none of them, while the
+        // `Content-Length` the listener declared still arrives — which is the
+        // one thing a `HEAD` is asked for. `fjs/web` answers a `HEAD` exactly
+        // like a `GET` because of this.
+        headCarriesNoBody: async () => {
+            if (!isNode()) { return }
+            const chunks = [toVec(payload(4)), toVec(payload(5)), toVec(payload(6))]
+            const answer = await answeredOverASocket(chunks, 'HEAD')
+            assertEq(answer.status, 200)
+            assertEq(answer.length, `${chunkLength(chunks)}`)
+            assertEq(answer.body.length, 0)
+        },
     },
 }

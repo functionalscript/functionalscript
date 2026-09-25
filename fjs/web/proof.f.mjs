@@ -10,7 +10,8 @@ import { emptyState, nodeProgramOptions, virtual } from '../effects/node/virtual
 import { nodeCommands } from '../effects/node/module.f.mjs'
 import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
-import { empty, length, vec } from '../types/bit_vec/module.f.mjs'
+import { empty, length, u8ListMsb, u8ListToVecMsb } from '../types/bit_vec/module.f.mjs'
+import { toArray } from '../types/list/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { main, resolve, respond } from './module.f.mjs'
 
@@ -46,8 +47,34 @@ const answer = root => (method, url) =>
 
 const answerSite = answer(site)
 
-/** @type {(r: ServerResponse) => string} */
-const body = r => utf8ToString(r.body)
+/** Every byte a response body carries, its chunks joined.
+ *
+ * @type {(r: ServerResponse) => readonly number[]}
+ */
+const bodyBytes = r => r.body.flatMap(v => toArray(u8ListMsb(v)))
+
+/**
+ * Asserts that a response carries exactly `expected`, by length and then by the
+ * first byte that differs.
+ *
+ * Not `assertStructurallySame` on the two arrays: the bodies here run past a
+ * hundred thousand bytes, and a failure that prints both of them names nothing a
+ * reader can act on, where an index names where the body went wrong.
+ *
+ * @type {(r: ServerResponse, expected: readonly number[]) => void}
+ */
+const assertBody = (r, expected) => {
+    const actual = bodyBytes(r)
+    assertEq(actual.length, expected.length)
+    assertEq(actual.findIndex((b, i) => b !== expected[i]), -1)
+}
+
+/** A response body as text. Not for a body past the `Vec` cap — that is what
+ * {@link bodyBytes} is for, since no single `Vec` can hold one.
+ *
+ * @type {(r: ServerResponse) => string}
+ */
+const body = r => utf8ToString(u8ListToVecMsb(bodyBytes(r)))
 
 /** @type {(r: ServerResponse) => string} */
 const contentType = ({ headers }) => `${headers['content-type']}`
@@ -55,14 +82,27 @@ const contentType = ({ headers }) => `${headers['content-type']}`
 /** @type {(r: ServerResponse) => string} */
 const contentLength = ({ headers }) => `${headers['content-length']}`
 
-// A file one byte past what a single `Vec` holds, built as chunks of a
-// kibibyte: `stat` sums the chunk sizes, so the size is reached without
-// materializing the bytes.
-/** @type {Vec} */
-const kib = vec(8192n)(0n)
+/** A kibibyte of bytes counting up from `n`, so no two chunks hold the same
+ * bytes and a dropped, doubled or reordered one is visible.
+ *
+ * @type {(n: number) => Vec}
+ */
+const countingKib = n => u8ListToVecMsb(Array.from({ length: 1024 }, (_, i) => n + i & 0xFF))
+
+/** A file larger than one `Vec`, as the chunks one `readWhole` answers — a
+ * kibibyte each here rather than the 128 KiB a host would give, because the
+ * count and the boundaries are what a served body has to keep, and the fixture
+ * is the chunk list itself.
+ *
+ * @type {readonly Vec[]}
+ */
+const largeChunks = Array.from({ length: 129 }, (_, n) => countingKib(n))
+
+/** @type {readonly number[]} */
+const largeBytes = largeChunks.flatMap(v => toArray(u8ListMsb(v)))
 
 /** @type {Dir} */
-const hugeRoot = { 'huge.bin': Array.from({ length: 129 }, () => kib) }
+const largeRoot = { 'large.bin': largeChunks }
 
 export const proof = {
     resolve: {
@@ -298,12 +338,29 @@ export const proof = {
             assertEq(r.status, 404)
             assertEq(body(r), 'not found\n')
         },
-        // The size is read before the bytes are, so a file too large for one
-        // `Vec` is refused rather than truncated.
-        tooLarge: () => {
-            const r = answer(hugeRoot)('GET', '/huge.bin')
-            assertEq(r.status, 413)
-            assertEq(body(r), 'file is 132096 bytes; this server cannot answer with more than 131072\n')
+        // The claim [#1819](https://github.com/functionalscript/functionalscript/issues/1819)
+        // makes: a file larger than one `Vec` is served whole. Byte for byte
+        // and in order, so a dropped, doubled or reordered chunk fails here
+        // rather than arriving as a shorter right answer.
+        large: () => {
+            const r = answer(largeRoot)('GET', '/large.bin')
+            assertEq(r.status, 200)
+            assertBody(r, largeBytes)
+            // Summed from the chunks that were read, so the header and the body
+            // cannot disagree.
+            assertEq(contentLength(r), `${largeBytes.length}`)
+            // And it took more than one chunk to carry: a proof that passes on
+            // a single-`Vec` body says nothing about the cap this lifts.
+            assert(r.body.length > 1, r.body.length)
+        },
+        // A `HEAD` is answered exactly like a `GET` here too, chunks included —
+        // the client learns the size it asked for, and dropping the bytes is
+        // the host's job (`../effects/node/proof.mjs`).
+        headLarge: () => {
+            const r = answer(largeRoot)('HEAD', '/large.bin')
+            assertEq(r.status, 200)
+            assertEq(contentLength(r), `${largeBytes.length}`)
+            assertBody(r, largeBytes)
         },
         // An entry that exists and is not a regular file is answered as absent
         // — and, crucially, is never read: a FIFO would block the read forever.
