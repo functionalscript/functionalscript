@@ -231,12 +231,13 @@ const readIndices = value => {
 }
 
 /**
- * The members of `value` that `declared` does not name — every one the
+ * The members of `value` that `declared` does not admit — every one the
  * schema's `rest` has to answer for, as `[key, value]` pairs.
  *
- * `declared` is a container schema's own key list, so for a struct these are
- * its undeclared own keys, and for a tuple they are the positions past the
- * prefix together with every own key that is no position at all.
+ * `declared` tests membership in a container schema's own keys, so for a
+ * struct these are its undeclared own keys, and for a tuple they are the
+ * positions past the prefix together with every own key that is no position
+ * at all.
  *
  * **A tuple's positions are read, not enumerated.** `length` is what says how
  * far an array reaches, and every own index below it is a member the `rest`
