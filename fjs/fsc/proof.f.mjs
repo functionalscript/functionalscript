@@ -259,10 +259,11 @@ export const proof = {
         assert(compileSource(source)('parameters.edag.data.mjs').includes('["=>",3,null,'))
         const written = compileSource(source)('parameters.f.mjs')
         assertEq(parse('parameters.f.mjs')(written)[0], 'ok')
-        const parameters = Array.from({ length: 33 }, (_, i) => `a${i}`).join(',')
-        const large = `export default (${parameters},...x)=>x;`
-        assert(compileSource(large)('large.edag.data.mjs').includes('["=>",33,null,'))
-        assertEq(parse('large.f.mjs')(compileSource(large)('large.f.mjs'))[0], 'ok')
+        /** @type {(length: number) => string} */
+        const large = length => `export default (${Array.from({ length }, (_, i) => `a${i},`).join('')}...x)=>x;`
+        assert(compileSource(large(16))('large.edag.data.mjs').includes('["=>",16,null,'))
+        assertEq(parse('large.f.mjs')(compileSource(large(16))('large.f.mjs'))[0], 'ok')
+        assert(moduleRefused(large(17)).includes('more than 16 fixed parameters'))
     },
     namedExports: {
         values: () => {

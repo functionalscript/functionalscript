@@ -64,6 +64,11 @@ export const proof = {
             ['=>',1,null,['arg',Infinity]], ['=>',1,null,['args']],
             ['=>',1,null,['=>',0,['[]',[['arg',0],['rest']]],['arg',0]]],
         ])) { assert(bindingError(analysis(e)) !== null, e) }
+        // a function's `length` is at most 16, nested or not
+        assertEq(bindingError(analysis(['=>',16,null,['arg',15]])), null)
+        for (const e of /** @type {readonly Exp[]} */ ([
+            ['=>',17,null,1], ['=>',2 ** 32,null,1], ['=>',0,null,['=>',17,null,1]],
+        ])) { assertEq(bindingError(analysis(e)), 'a function length above 16') }
         assertEq(bindingError(analysis(['=>',1,['[]',[['args']]],['arg',0]])), null)
         assertEq(bindingError(analysis(['=>',1,null,['=>',0,['[]',[['arg',0],['rest']]],['rest']]])), null)
     },

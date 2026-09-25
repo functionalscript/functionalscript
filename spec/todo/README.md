@@ -115,8 +115,7 @@ information — see [serialization](./serialization.md) and
    fixed `arg`/`rest` EDAG bindings and the callable factories have landed;
    what remains is the P1 default-text renderer, since a factory callable's
    `String` still shows its wrapper, and the plan's unticked proofs
-   ([function-length-limit](./function-length-limit.md) proposes at most 16
-   fixed parameters)
+   (at most 16 fixed parameters: [functions](../README.md#functions))
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
@@ -146,8 +145,8 @@ information — see [serialization](./serialization.md) and
    ([io-effects](./io-effects.md)).
 5. [ ] [class](./3390-class.md)
 6. [ ] [arity and complete arguments](./arity-complete-arguments.md) — an
-   alternative for arbitrary length/full-argument construction, including
-   the `withLength` pattern; not a prerequisite for named and rest parameters.
+   alternative for arbitrary length/full-argument construction; not a
+   prerequisite for named and rest parameters.
 
 ### 3.4. Syntactic Sugar
 
