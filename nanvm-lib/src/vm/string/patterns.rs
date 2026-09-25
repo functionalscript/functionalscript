@@ -64,7 +64,7 @@ fn substitution<A: IVm>(
     while i < t.len() {
         let special = t[i] == u16::from(b'$')
             && t.get(i + 1)
-                .is_some_and(|&c| [b'$', b'&', b'`', b'\''].map(u16::from).contains(&c));
+                .is_some_and(|&c| (*b"$&`'").map(u16::from).contains(&c));
         if !special {
             out.push(t[i]);
             i += 1;
