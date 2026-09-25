@@ -37,16 +37,18 @@ exercises all of its exports along all code paths — partial coverage of new co
 is not acceptable. If a line or branch genuinely cannot be reached, restructure
 the code so it isn't there rather than leaving it uncovered.
 
-An implementation is `module.f.mjs` and its proof is `proof.f.mjs`. Stage 1 of
-the TypeScript-to-JavaScript migration is complete: no authored implementation or
-proof `.f.ts` remains, so write both files as JavaScript with JSDoc. Authored
-`types.ts` companions may remain permanently and hold the type-level API.
+An implementation is `module.f.mjs`, or `module.f.js` once the compiler
+accepts it (stage 2, [`fjs/fsc/README.md`](./fsc/README.md)), and its proof is
+`proof.f.mjs` either way. Stage 1 of the TypeScript-to-JavaScript migration is
+complete: no authored implementation or proof `.f.ts` remains, so write both
+files as JavaScript with JSDoc. Authored `types.ts` companions may remain
+permanently and hold the type-level API.
 
 Proof discovery and coverage follow the same extension: `shouldLoad` in
 [`fjs/dev/module.f.mjs`](./dev/module.f.mjs) matches authored
 FunctionalScript source, and both `npm run cov` and `deno task cov` include
-`module.f.mjs` and `module.f.js`. Ordinary (non-FunctionalScript) `.mjs` files stay opt-in through
-the `proof.mjs` filename convention.
+`module.f.mjs` and `module.f.js`. Ordinary (non-FunctionalScript) `.mjs` files
+stay opt-in through the `proof.mjs` filename convention.
 
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target FunctionalScript modules, `.f.mjs` or `.f.js`. A
