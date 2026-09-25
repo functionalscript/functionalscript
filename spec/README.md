@@ -335,8 +335,8 @@ subset it keeps to.
 
 This table is about the *language* — what `fjs compile` reads and writes. The
 repository's own authored FunctionalScript is spelled `.f.mjs` instead, and its
-type-level APIs live in authored `types.ts`; `.f.js` is reserved there for the
-stage-2 marker, meaning a module the parser/compiler in the same revision
+type-level APIs live in authored `types.ts`; `.f.js` there is the stage-2
+marker, meaning a module the parser/compiler in the same revision
 accepts. Neither spelling changes what the language is: a `.f.mjs` is the same
 graph of values a `.f.js` is. The repository extension contract is
 [`fjs/fsc/README.md`](../fjs/fsc/README.md).
