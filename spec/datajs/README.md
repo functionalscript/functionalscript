@@ -71,12 +71,13 @@ exactly one byte sequence.
 
 ## Status
 
-**This document specifies a target, not the current implementation.** The
-`;` this format requires after every statement is what the compiler's
-parser requires too, so a document parses today — `NaN` and the infinities
-included, measured against
-[`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
-which closed the reader-side gap this paragraph used to name. Both surfaces of
+**The codec implements this document.** The
+[conformance matrix](./vectors/matrix.md) awaits nothing for the reader, the
+serializer or normalization. The reader is
+[`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs), and
+the `;` this format requires after every statement is what the compiler's
+parser requires too, so a document parses there as well — `NaN` and the
+infinities included. Both surfaces of
 [§Encoding](#encoding) exist, on the codec's public
 [`module.f.mjs`](../../fjs/media/datajs/module.f.mjs): `tryParse` takes the
 document as code units, and `tryParseBytes` takes it as bytes — refusing what
@@ -89,11 +90,10 @@ writes [normalized form](#normalized-form), and `fjs compile` writes through
 it; the older `fjs/djs` serializer, whose `const c0` output was not a document
 of this format at all, is retired.
 
-Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for
-the data subset the compiler accepts **today**, which is wider than DataJS:
-it has `import`, comments, identifier keys and trailing commas. This
-document specifies **DataJS**, the narrow interchange format.
-"DJS" survives only as an informal abbreviation of DataJS.
+This document specifies **DataJS**, the narrow interchange format; the
+language [`spec/README.md`](../README.md) specifies is wider, with `import`,
+comments, identifier keys and trailing commas. "DJS" survives only as an
+informal abbreviation of DataJS.
 
 ## Principles
 

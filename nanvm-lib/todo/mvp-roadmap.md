@@ -5,14 +5,16 @@
 
 ### Problem
 
-The primary focus is to get to MVP ASAP.
+The MVP is reached, as
+[fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) records. The
+remaining tasks here, P2 and below, and the self-hosting milestone are
+post-MVP.
 
 The MVP — `fjs compile` emitting Rust that calls the `nanvm-lib` API, built and
 run by a harness crate with cargo — is defined and tracked in
 [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md): the export-object
 module contract, the named-module acceptance example, the `.rs` output target
-and the remaining
-[harness export selection](../../nanvm-harness/todo/select-module-export.md).
+and harness export selection.
 This file records the design decided around that pipeline and the work after
 it, toward the self-hosted `nanvm` crate
 ([console-program](./console-program.md)).
@@ -287,7 +289,7 @@ tracked in [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#tasks).
       [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/README.md) and implements the
       source subset used by the walking skeleton. This does not mark the
       full language grammar complete. Named-import parsing is also
-      implemented; harness export selection is the remaining harness work.
+      implemented, and harness export selection completed the harness side.
       There is no separate unspecified parser gate.
 
 #### P2

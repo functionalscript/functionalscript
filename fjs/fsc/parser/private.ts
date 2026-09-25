@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for the DJS parser: the token stream the
+ * Implementation-private types for the module parser: the token stream the
  * grammar reads, the positions a reader inspects, and the state of the
  * resolution. The nodes the rewrite set builds are public, in
  * `./types.ts`, since the set is.

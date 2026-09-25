@@ -1602,7 +1602,7 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token')
         },
         // A literal control character inside a string is not valid JSON
-        // syntax (RFC 8259 §7), and DJS string literals are JSON strings.
+        // syntax (RFC 8259 §7), and double-quoted string literals are JSON strings.
         () => {
             const tokenList = tokenizeString('export default "\t"')
             const obj = parseFromTokens(tokenList)
