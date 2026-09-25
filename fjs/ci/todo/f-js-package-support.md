@@ -106,10 +106,14 @@ that keep those true, plus four gaps the list below did not name:
   edited later, into something the compiler refuses, and every check would
   stay green. The measured module compiles to `.rs`; its JSON target refuses
   it only because a function has no JSON.
-- **Proofs stay `.f.mjs` for now.** A proof needs `throw` or a block body,
-  which the compiler does not accept yet, so a `module.f.js` pairs with a
-  `proof.f.mjs` until it does. `fjs test` already discovers `proof.f.js`,
-  so nothing blocks renaming a proof later.
+- **Proofs stay `.f.mjs` for now.** Block bodies compile (`const` and
+  `return`), but the `if` and `throw` statements do not: each is refused at
+  its first token. A proof fails by throwing, directly or through
+  [`fjs/asserts`](../../asserts/module.f.mjs), whose module throws, so a
+  `proof.f.js` would import a module the compiler refuses, against the
+  dependency-closed rule above. Until `throw` compiles, a `module.f.js`
+  pairs with a `proof.f.mjs`. `fjs test` already discovers `proof.f.js`, so
+  nothing else blocks renaming a proof later.
 - **`package-check` never imports anything.** The job type-checks every
   declaration the tarball ships, so a packed `.f.d.ts` is checked, but no
   consumer module imports a runtime module or uses a declared type. The
@@ -141,17 +145,26 @@ that keep those true, plus four gaps the list below did not name:
       ([AGENTS.md §7](../../../AGENTS.md#7-continuous-integration)).
 - [ ] Update package/contributor documentation for the stage-2 authored
       `.f.js` meaning: the `.f.js` row of [`fjs/fsc/README.md`](../../fsc/README.md)'s
-      extension table, including that proofs stay `.f.mjs` for now.
+      extension table, including why a proof stays `.f.mjs` until `throw`
+      compiles.
 
-**Open question: a synthetic fixture, or the first real rename?** A
-synthetic `module.f.js` ships in the npm package as a module nobody uses,
-and exists only to be checked. The alternative is to make the fixture the
-first real stage-2 rename: a small, dependency-closed repository module the
-compiler already accepts, renamed from `.f.mjs` to `.f.js`. That proves the
-same things on real code and removes the "first rename" step from
-[`fjs-nanvm-integration`](../../../todo/fjs-nanvm-integration.md#tasks), at
-the cost of breaking that module's import path for npm consumers, which a
-`**BREAKING CHANGES:**` declaration would have to say.
+**Open question: a synthetic fixture, or the first real rename?** As
+written, the fixture is synthetic: the acceptance criteria below and
+[`fjs-nanvm-integration`](../../../todo/fjs-nanvm-integration.md#tasks) both
+block the first real `.f.mjs` -> `.f.js` rename on this task completing, and
+give the rename a task of its own there. A synthetic `module.f.js` ships in
+the npm package as a module nobody uses, and exists only to be checked.
+
+The alternative is to make the fixture the first real rename: a small,
+dependency-closed repository module the compiler already accepts. It proves
+the same things on real code, at the cost of breaking that module's import
+path for npm consumers, which a `**BREAKING CHANGES:**` declaration would
+have to say. Choosing it changes the gate, not just the fixture, so it is
+the task owner's decision and lands as a change to this file first: the
+acceptance criterion becomes "the first rename is this task's last step,
+after the coverage, compiler-acceptance and `package-check` steps", and the
+rename task in `fjs-nanvm-integration` moves here. Until that decision is
+recorded, implement the synthetic fixture.
 
 ### Acceptance criteria
 
