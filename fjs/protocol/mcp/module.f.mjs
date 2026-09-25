@@ -150,6 +150,12 @@ export const toolsCallResult = open(/** @type {const} */ ({
  * arguments (typed as `Ts<T>`) to the handler. This eliminates manual validation
  * boilerplate and type assertions.
  *
+ * The schema is read here, once, not at the first `tools/call`: whatever it
+ * names must already be initialized, as FunctionalScript's declare-before-use
+ * rule already guarantees ([spec](../../../spec/README.md)). Called from plain
+ * JavaScript with a thunk over a later `const`, it throws when the entry is
+ * built rather than when the tool is first called.
+ *
  * @template {Type} const T
  * @template {Operation} O
  * @param {string} name - The tool name (used in `tools/call` requests)
@@ -238,6 +244,9 @@ export const toolResultStep = (e, text, errorText) => resultMapStep(
  * declarative registry, eliminating boilerplate. The `toolsList` handler converts
  * entries into MCP `Tool` descriptors, and `toolsCall` dispatches by name and
  * delegates to the appropriate handler.
+ *
+ * The descriptors are built here, once, not per `tools/list` — so each entry's
+ * schema is walked now, under the same precondition as {@link toolEntry}.
  *
  * @template {Operation} O
  * @param {readonly ToolEntry<O>[]} registry - Array of tool entries
