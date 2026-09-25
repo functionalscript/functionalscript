@@ -37,6 +37,14 @@ export const proof = {
             './src/gen.operators.rs',
         ].join(','))
     },
+    // A scan root under a `gen.*` directory: only the path below the root
+    // counts, so its handwritten files are not taken.
+    rootUnderGenerated: () => {
+        /** @type {Dir} */
+        const nested = { 'gen.workspace': { 'repo': { 'main.rs': [], 'gen.x.md': [], 'src': { 'a.rs': [] } } } }
+        const [, result] = virtual({ ...emptyState, root: nested })(generatedFiles('gen.workspace/repo'))
+        assertEq(unwrap(result).join(','), 'gen.workspace/repo/gen.x.md')
+    },
     clean: () => {
         const [state, result] = virtual({ ...emptyState, root })(clean('.'))
         assertEq(result[0], 'ok')
