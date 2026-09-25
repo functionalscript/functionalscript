@@ -185,7 +185,8 @@ projects, whose contract is only `cov` and `gen`.
 **A file or directory whose name starts with `gen.` is generated**, and so is
 everything inside a `gen.*` directory. Never edit one by hand — change its
 generator — and never give a handwritten file that name: `gen:clean` deletes
-it. The dot matters: `generate/` and `generated-*.md` are handwritten.
+it. The dot matters: `generated-*.md` and `generic-operation-signatures.md`
+are handwritten.
 
 - The prefix leaves the suffix alone (`gen.matrix.md`, `gen.operators.rs`), so
   every tool that picks files by suffix works unchanged. A generated

@@ -39,9 +39,7 @@ by `src/lib.rs`, so they were neither drift-checked nor built.
       are generated from `fixtures/*.mjs` by `npm run gen`, and how a fixture
       is added
 - [x] Wire `fixtures/function.mjs` and `rest-function.mjs` into `gen` and
-      `src/lib.rs` — decided in
-      [generated-file-conventions](../../todo/generated-file-conventions.md)
-      (blocker 3)
+      `src/lib.rs`, so the drift check covers them (#2305)
 
 ### Related
 
