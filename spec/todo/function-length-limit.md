@@ -8,7 +8,7 @@
 A function's fixed parameter count — its `length`, `['=>', length, frame,
 body]` in the EDAG — has no limit in the language. The
 [parameter plan](./3120-parameters.md) chose that on purpose: the JavaScript
-executor's factory table ([`fjs/edag/callable`](../../fjs/edag/callable/README.md))
+executor's factory table ([`fjs/types/function/length`](../../fjs/types/function/length/README.md))
 covers lengths 0 through 32, and a larger length stays valid for compilation
 and source output.
 
@@ -63,8 +63,7 @@ valid JavaScript and not FunctionalScript. The subset still holds — every
 FunctionalScript program stays a JavaScript program — but a port of such code
 has to regroup its parameters. It is a breaking change for any EDAG or source
 that uses more than 16. In this repository the one such source is the factory
-table itself, which `fjs/fsc/parameters`' `factoryTable` proof compiles, and
-it shrinks to the limit with the rest of this change.
+table itself, and it shrinks to the limit with the rest of this change.
 
 **Where it is refused.** Over-limit length is a binding error: analysis's
 `bindingError` names it, so every writer returns it as an error Result, as
@@ -88,10 +87,8 @@ EDAG".
       graph, without allocating the parameter names; length 16 round-trips.
 - [ ] The arrow factory table covers lengths 0 through 16, and its README
       and module comment stop calling the capacity "not a language or EDAG
-      limit" and "an executor resource limit". The table is written by hand,
-      not generated, once
-      [move-to-types-function](../../fjs/edag/callable/todo/move-to-types-function.md)
-      lands; whichever of the two lands second does the trim. The executor
+      limit" and "an executor resource limit". The table is written by hand
+      in `fjs/types/function/length`. The executor
       refusals past the table — `callable`'s `uncovered` proof and
       `fjs/fsc/parameters`' `throw.capacity` — become refusals of invalid
       metadata, since no valid length is past it.

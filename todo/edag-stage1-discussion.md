@@ -1132,7 +1132,7 @@ EDAG-derived default-text rule is still required: use the shared renderer
 or explicitly refuse unsupported observations before exposing wrapper text
 ([default-text boundary](../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)).
 
-Pre-generated factories can materialize these functions without the
+Hand-written factories can materialize these functions without the
 [length pattern](../spec/todo/arity-complete-arguments.md) for arity within
 an executor's table capacity. That capacity limits materialization, not valid
 source or EDAG: source writers emit the declared parameter list directly.

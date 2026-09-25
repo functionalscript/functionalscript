@@ -104,13 +104,18 @@ wrapper text satisfy the contract. This documentation correction changes no
 runtime behavior; the `Function` checklist remains open until semantic
 rendering and its conversion paths are proved, not merely dispatched.
 
-`Number`'s `toString` with a radix is a separate stub, and today
-it is a stub in full: the entry reads no arguments, so `(255).toString(16)`
-answers `"255"` and `(1.5).toString(2)` answers `"1.5"`. The plan, the
-radix task below, is a radix for integers and for bigints, and a throw for
-a non-integer with a radix other than ten, which the specification leaves
-implementation-approximated, with the corpus pinning integers and radix
-ten alone.
+`Number`'s and `BigInt`'s `toString` with a radix is not written yet, and
+the entry, `to_string` in `vm/lambda/method.rs`, refuses one: on a number or
+a bigint it throws for any radix but an absent one, `undefined` and `10`, so
+`(255).toString(16)` fails where JavaScript answers `"ff"`. Reading the radix
+as ten, as the entry did before, answered `"255"` — a different successful
+value, which the [principles](../../spec/README.md#principles) forbid;
+refusing is missing support, which they allow
+([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+The plan for the radix itself, the radix task below, is a radix for integers and for bigints,
+and a throw for a non-integer with a radix other than ten, which the
+specification leaves implementation-approximated, with the corpus pinning
+integers and radix ten alone.
 
 **`toString` is mostly written.** `Any::to_string`, the `String(x)`
 conversion in `vm/string_coercion.rs`, answers what `x.toString()` answers
@@ -135,9 +140,12 @@ Infrastructure:
       every other name from the receiver type's own table, `array` the
       first.
 - [ ] The generated completeness test over `allowedCalls`.
-- [ ] `toString` reads its arguments: a radix for `Number` and `BigInt`.
-      Today the arguments are not read, so `(255).toString(16)` answers
-      `"255"` — a stub with this as its TODO.
+- [x] `toString` on a `Number` or a `BigInt` throws for any radix argument
+      but `undefined` and `10`, pinned by `to_string_radix` in
+      `vm/lambda/method.rs`, so no module gets `"255"` for
+      `(255).toString(16)` while the radix is written.
+- [ ] `toString` applies a radix for `Number` and `BigInt`, with corpus
+      cases, lifting the refusal above.
 - [ ] Corpus cases for every entry, run on the host engine and as
       generated Rust. Use the adopted EDAG-rendering contract as the oracle
       for default function text; native wrapper text is not that oracle.
