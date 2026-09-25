@@ -60,7 +60,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { isIndex } from '../callable/module.f.mjs'
+import { isIndex } from '../../types/function/length/module.f.mjs'
 import { mapSet } from '../../types/map/module.f.mjs'
 
 /** @type {_State} */

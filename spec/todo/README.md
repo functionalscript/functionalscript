@@ -83,7 +83,20 @@ TypeScript, or today's `import type`/`export type` spellings, becomes JavaScript
 
 1. [ ] [shorthand](./2440-shorthand.md),
 2. [ ] [destructuring](./2450-destructuring.md),
-3. [ ] [js-string-literals](./2460-js-string-literals.md).
+3. [ ] [js-string-literals](./2460-js-string-literals.md),
+4. [ ] number spellings beyond JSON's — `0x10`, `0o7`, `0b1`, `.5`, `1.`,
+   `1_000` ([numbers](../README.md#numbers)); `.5` lands with
+   [`?.` before a digit](../../fjs/js/tokenizer/todo/optional-chain-before-digit.md),
+5. [ ] names beyond ASCII — Unicode identifier characters and `\u` escapes
+   in a name, `const é = 1` ([identifiers](../README.md#identifiers)),
+6. [ ] the rest of JavaScript's trivia — VT, FF, NBSP and the other `Zs`,
+   U+FEFF (a leading BOM too), U+2028/U+2029 outside a string, a leading
+   hashbang line — each recognized, or its refusal justified as
+   [DESIGN.md §12](../../doc/DESIGN.md#12-preserve-harmless-javascript-conventions)
+   asks ([whitespace](../README.md#whitespace-and-line-terminators)),
+7. [ ] import attribute spellings — a string key, `with { "type": "json" }`,
+   a trailing comma and an empty `with {}`
+   ([importing](../README.md#importing-other-modules)).
 
 ## 3. FJS
 
