@@ -27,7 +27,7 @@ stem `gen` is reserved: a handwritten `gen.sh` or `gen.f.mjs` is not allowed.
 
 | Situation | Convention | Example |
 | --- | --- | --- |
-| Generated file | `gen.` prefix, suffix untouched | `gen.matrix.md`, `gen.operators.rs`, `gen.types.ts` |
+| Generated file | `gen.` prefix, suffix untouched | `gen.matrix.md`, `gen.methods.rs`, `gen.types.ts` |
 | Generated FunctionalScript module | `gen.{name}/` directory with the usual names | `…/gen.{name}/module.f.mjs`, `…/gen.{name}/proof.f.mjs` |
 | Whole directory of outputs | `gen.{name}/` | `nanvm-harness/gen.fixtures/*.rs` |
 | Path fixed by another tool | Keep the path; list it as an exception | `.github/workflows/npm-publish.yml` |
@@ -195,7 +195,7 @@ Deleting all `gen.*` paths and regenerating fails today, for these reasons:
 | Output | New path | Notes |
 | --- | --- | --- |
 | ~~`spec/datajs/vectors/matrix.md`~~ | `spec/datajs/vectors/gen.matrix.md` | Done |
-| ~~`nanvm-lib/tests/test/generated.rs`~~ | `nanvm-lib/tests/test/gen.operators.rs` | Done: `#[path]` on `mod generated;` |
+| ~~`nanvm-lib/tests/test/generated.rs`~~ | `nanvm-lib/tests/test/gen.corpus/` | Done: `#[path]` on `mod generated;`, one file per group since the corpus outgrew one |
 | `nanvm-harness/fixtures/*.rs` | `nanvm-harness/gen.fixtures/*.rs` | One `#[path]` inline module `fixtures` replaces the per-file `#[path]` lines; each `compile` output in `package.json` `gen` moves |
 
 A scratch rename of the Rust outputs passed `cargo test`, `cargo fmt -- --check`

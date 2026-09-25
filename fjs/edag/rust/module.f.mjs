@@ -3,7 +3,7 @@
  *
  * Shared by two generators that print the same node shapes for two different
  * purposes: [`../../nanvm/rust/module.f.mjs`](../../nanvm/rust/module.f.mjs)
- * prints the operator conformance corpus as `nanvm-lib/tests/test/gen.operators.rs`,
+ * prints the operator conformance corpus as `nanvm-lib/tests/test/gen.corpus/`,
  * and [`../../fsc/rust/module.f.mjs`](../../fsc/rust/module.f.mjs) prints a
  * compiled module's EDAG as the `.rs` output of `fjs compile`. Both need the
  * same literal rendering, the same operator tables, and the same binding

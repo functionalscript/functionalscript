@@ -198,6 +198,44 @@ mod tests {
         assert_eq!(arr.dot("at".into()).end_call(no_args), Ok(1.0.to_any()));
     }
 
+    /// A receiver of each type the completeness table names.
+    fn receiver(type_: &str) -> Any<A> {
+        match type_ {
+            "object" => [].to_object().to_any(),
+            "array" => [].to_array().to_any(),
+            "string" => "".into(),
+            "number" => 0.0.to_any(),
+            "boolean" => true.to_any(),
+            "bigint" => BigInt::<A>::from(0i64).to_any(),
+            "function" => A::static_function(|_, _| Ok(1.0.to_any()), 0, [].to_array()).to_any(),
+            _ => panic!("no receiver of type {type_}"),
+        }
+    }
+
+    /// The table matches `allowedCalls` and `prohibitedCalls`, both ways:
+    /// every answered pair has an entry, no pending pair has one yet, so
+    /// landing a built-in fails here until its pair leaves the pending list
+    /// in `fjs/nanvm/methods`, and no prohibited pair has one ever.
+    #[test]
+    fn completeness() {
+        use super::super::methods_table::{ANSWERED, PENDING, PROHIBITED};
+        let has = |(type_, name): &(&str, &str)| {
+            super::method::<A>(&receiver(type_), &(*name).into()).is_some()
+        };
+        for pair in ANSWERED {
+            assert!(has(pair), "{pair:?} is answered but has no entry");
+        }
+        for pair in PENDING {
+            assert!(
+                !has(pair),
+                "{pair:?} has an entry: remove it from the pending list"
+            );
+        }
+        for pair in PROHIBITED {
+            assert!(!has(pair), "{pair:?} is prohibited but has an entry");
+        }
+    }
+
     /// A name is a method of its receiver's type alone: `at` is an
     /// array's, not an object's or a number's, and a key that is no name
     /// is nobody's.
