@@ -156,7 +156,8 @@ impl<A: IVm> PartialEq for RunError<A> {
 /// `export` is looked up among the object's own properties by presence,
 /// not by value: an export holding `undefined` is found, and reading it
 /// then fails as [`JsonError::Undefined`]. `default` is one name among
-/// them, with no fallback to it.
+/// them, with no fallback to it: a module without one answers
+/// `NoExport("default")` for it.
 ///
 /// A call converts a clone of the selected value with
 /// [`Function::try_from`], whose own error is a fresh `TypeError`, so that
