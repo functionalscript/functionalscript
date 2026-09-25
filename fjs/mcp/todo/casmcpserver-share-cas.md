@@ -40,7 +40,16 @@ store.
 ### Proposal
 
 `casToolRegistry(cas)(cacheKey)` to mirror `evoToolRegistry`, with one
-`const cas = fileCas(sha256)(home)` at the composition root.
+`const cas = fileCas(sha256)(home)` at the composition root, threaded through
+`casMcpHandlers`, which takes the built store instead of `home`:
+
+```js
+export const casMcpHandlers = cas => cacheKey =>
+    fromRegistry([...casToolRegistry(cas)(cacheKey), ...evoToolRegistry(evo(cas)(cacheKey))])
+```
+
+`casToolRegistry` uses `home` only to build that store, so nothing else it
+does needs the path.
 
 Parameterize the root by its consumer and export it once — **written flat**
 with `history`/`historyStep`, not by extracting today's nesting verbatim
@@ -49,10 +58,11 @@ both keys, which is exactly what `history`/`historyStep` exist for:
 
 ```js
 export const _casMcpSession = home => transport => {
-    const cacheKeyEffect = history(initEvo(fileCas(sha256)(home)))
+    const cas = fileCas(sha256)(home)
+    const cacheKeyEffect = history(initEvo(cas))
     const keys = historyStep(cacheKeyEffect, () => create(uninitializedState))
     return step(keys, ([sessionKey, cacheKey]) =>
-        transport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)))
+        transport(mcpStep(casConfig)(casMcpHandlers(cas)(cacheKey))(sessionKey)))
 }
 
 export const casMcpServer = home => _casMcpSession(home)(stdioTransport)
@@ -70,8 +80,9 @@ the two suffices for both consumers, or the channel type generalizes).
 
 ### Tasks
 
-- [ ] Inject a built `Cas` into `casToolRegistry`; construct `fileCas` once at
-      the root.
+- [ ] Inject a built `Cas` into `casToolRegistry` and `casMcpHandlers`;
+      construct `fileCas` once at the root and pass that one instance to
+      `initEvo`, `casToolRegistry` and `evo`.
 - [ ] Export `_casMcpSession`, written flat with `historyStep`; express
       `casMcpServer` and both proof helpers through it.
 - [ ] `tsc`, `fjs t`.

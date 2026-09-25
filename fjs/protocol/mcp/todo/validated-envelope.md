@@ -96,7 +96,7 @@ place them per §3.3 when implementing.
    failure and forwards the decoded value to a success continuation:
 
    ```ts
-   const validated = <const T extends Type>(id: Id, schema: T, params: Unknown) =>
+   const validated = <const T extends Type>(id: Id, schema: T, params: Unknown | undefined) =>
        <O extends Operation>(onOk: (value: Ts<T>) => Effect<MemOp | O, Response | null, never>) => {
            const [t, pr] = parse(schema)(params)
            return t === 'error'
@@ -105,7 +105,15 @@ place them per §3.3 when implementing.
        }
    ```
 
-   Two things this signature has to get right, both easy to lose. `O` is
+   `params` is `Unknown | undefined` because that is what `decodeRequest`
+   hands over: JSON-RPC makes `params` optional, and `mcpStep` passes it to
+   `parse` as it arrives, so the schema itself decides what an absent `params`
+   means (`_noParams` accepts it; `initializeParams` and `toolsCallParams`
+   refuse it as `invalidParams`). The helper does not normalize. The one method
+   that treats absence as an empty object, `tools/list`, does so at its call
+   site, below, where the difference stays visible.
+
+   Two more things this signature has to get right, both easy to lose. `O` is
    quantified on the *returned* continuation, not alongside `T`: putting it on
    the outer call would instantiate it before `onOk` is seen — the same trap as
    `T` below. And the error channel is spelled `never` explicitly, because
@@ -136,7 +144,7 @@ place them per §3.3 when implementing.
 
    ```ts
    const toolMethod = (capabilities: ServerCapabilities, id: Id) =>
-       <const T extends Type, O extends Operation>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
+       <const T extends Type, O extends Operation>(schema: T, params: Unknown | undefined, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
            capabilities.tools === undefined
                ? pureOk(errorResponseOf(id)(methodNotFound))
                : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(successResponseOf(id)(r))))
