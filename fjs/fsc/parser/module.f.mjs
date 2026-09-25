@@ -13,7 +13,7 @@
  * per value — a primitive, a reference by the token that spells it, a
  * container of nodes — and a record per statement, and the names are
  * resolved where the statements are read, after the grammar has matched
- * the whole module. Each `import` binds its name, each `const` resolves its
+ * the whole module. Each `import` binds its local names, each `const` resolves its
  * value against the names bound so far and then binds its own — so
  * `const a = a` is `const not found`, as it is a reference before its
  * declaration in JavaScript. Export names select those bindings into the
@@ -50,7 +50,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstAccess, AstArgs, AstArray, AstBinary, AstBitnot, AstCall, AstConditional, AstConst, AstFrameRef, AstFunction, AstNeg, AstImport, AstMember, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { BinaryTag } from '../ast/types.ts'
- * @import { Const, Container, Entry, Import, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
+ * @import { Const, Container, Entry, Import, ImportBinding, Module, ModuleConst, Node, Out, ParseError } from './types.ts'
  * @import { Body, Group, Items, Member, Parenthesized, Unary, UnaryOperand, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _AccessFrame, _AccessNode, _AttributeNode, _BaseNode, _BodyFrame, _CallBranch, _CallFrame, _CircuitNode, _ConditionalFrame, _ConditionalNode, _ContainerFrame, _Env, _Frame, _Ref, _Scope, _KeyBranch, _Leaf, _ListNode, _OptionalList, _ParameterNode, _PowTailNode, _Stack, _State, _TailRound, _TokenStream } from './private.ts'
@@ -66,7 +66,7 @@ import { prohibitedCalls, prototypeNames } from '../../js/prototype/module.f.mjs
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
 import {
-    body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importStatement, member, members, symbolOf,
+    body, callArguments, constStatement, djsModule, eagerTail, exportStatement, importBinding, importBindings, importStatement, namedImports, member, members, symbolOf,
     unary, unaryOperand, value, values,
 } from './grammar/module.f.mjs'
 
@@ -681,9 +681,53 @@ const attributeOf = node => {
     return [tokenAt(unmapped(round[4])[1]), tokenAt(round[8])]
 }
 
+/** @type {(node: _Leaf) => ImportBinding} */
+const importBindingAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'importBinding')
+    return out.binding
+}
+
+/** @type {(node: _Leaf) => List<ImportBinding>} */
+const importBindingsAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'importBindings')
+    return out.items
+}
+
+const importBindingsOf = listOf(importBindingAt, importBindingsAt)
+const importItems = optionalItems(importBindingsAt)
+
+/** @type {(node: Children<typeof importBinding, DjsTokenWithMetadata, Out>) => Meta<Out>} */
+const toImportBinding = ([name, , alias]) => {
+    const exported = tokenAt(unmapped(name)[1])
+    const rounds = unmapped(alias)
+    const local = rounds.length === 0 ? exported : tokenAt(unmapped(unmapped(rounds[0])[2])[1])
+    return symbol({ id: 'importBinding', binding: { name: nameOf(exported), local } })
+}
+
+/** @type {(node: _ListNode) => Meta<Out>} */
+const toImportBindings = node => symbol({ id: 'importBindings', items: importBindingsOf(node) })
+
+/** @type {(node: Children<typeof namedImports, DjsTokenWithMetadata, Out>) => readonly ImportBinding[]} */
+const namedBindings = ([, , bindings]) => toArray(importItems(bindings))
+
 /** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toImport = ([, , name, , , , module, , attribute]) =>
-    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)), attribute: attributeOf(attribute) } })
+const toImport = ([, , clause, , , module, , attribute]) => {
+    const [kind, branch] = unmapped(clause)
+    /** @type {readonly ImportBinding[]} */
+    let bindings
+    if (kind === 'named') { bindings = namedBindings(unmapped(branch)) }
+    else {
+        const [name, , more] = unmapped(branch)
+        const rounds = unmapped(more)
+        bindings = [
+            { name: 'default', local: tokenAt(unmapped(name)[1]) },
+            ...(rounds.length === 0 ? [] : namedBindings(unmapped(unmapped(rounds[0])[2]))),
+        ]
+    }
+    return symbol({ id: 'import', statement: { bindings, module: textOf(tokenAt(module)), attribute: attributeOf(attribute) } })
+}
 
 /** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([, , name, , , , v]) =>
@@ -756,6 +800,8 @@ export const mappings = [
     map(callArguments, toValues),
     map(member, toMember),
     map(members, toMembers),
+    map(importBinding, toImportBinding),
+    map(importBindings, toImportBindings),
     map(importStatement, toImport),
     map(constStatement, toConst),
     map(exportStatement, toExport),
@@ -843,7 +889,7 @@ const unknownType = foldError('unknown import type')
  * the one value it reads, `json`; any other key or value is refused where
  * it stands.
  *
- * @type {(statement: Import) => Result<AstImport, ParseError>}
+ * @type {(statement: Import) => Result<Omit<AstImport, 'name'>, ParseError>}
  */
 const imported = ({ module, attribute }) => {
     if (attribute === null) { return ok({ specifier: module, json: false }) }
@@ -1338,7 +1384,7 @@ const bindable = env => name => {
 const extended = env => (word, ref) => setReplace(word)(ref)(env)
 
 /**
- * The statements of a module, in order: each `import` binds its name to
+ * The statements of a module, in order: each imported binding names
  * the next argument, each `const` resolves its value against the names
  * bound so far — itself not among them, so a `cref` always names an earlier
  * entry — and then binds its name. The default export is resolved against
@@ -1357,12 +1403,21 @@ const foldModule = ({ imports, consts, exported }) => {
     /** @type {readonly AstMember[]} */
     let exports = []
     for (const statement of imports) {
-        const [tag, word] = bindable(env)(statement.name)
-        if (tag === 'error') { return error(word) }
+        let index = modules.length
+        for (const { local } of statement.bindings) {
+            const [tag, word] = bindable(env)(local)
+            if (tag === 'error') { return error(word) }
+            env = extended(env)(word, ['aref', index])
+            index += 1
+        }
         const [read, record] = imported(statement)
         if (read === 'error') { return error(record) }
-        env = extended(env)(word, ['aref', modules.length])
-        modules = [...modules, record]
+        modules = [
+            ...modules,
+            ...(statement.bindings.length === 0
+                ? [{ ...record, name: null }]
+                : statement.bindings.map(({ name }) => ({ ...record, name }))),
+        ]
     }
     for (const { declaration: { name, value: node }, exported: named } of consts) {
         // the name first: a statement wrong in both halves answers for the

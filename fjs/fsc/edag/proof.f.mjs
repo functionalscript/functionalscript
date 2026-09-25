@@ -10,6 +10,8 @@
  */
 
 import { memo } from '../../edag/memo/module.f.mjs'
+import { vm } from '../../edag/amnesia/module.f.mjs'
+import { tryModuleStringify } from '../serializer/module.f.mjs'
 import { analysis } from '../../edag/analysis/module.f.mjs'
 import { _defaultExport, resolve, unresolved } from './module.f.mjs'
 import { _graphOf, _shapeOf, _walk, demo } from './demo.f.mjs'
@@ -125,6 +127,76 @@ const lowered = entry => _defaultExport(unresolved([[], [entry, ['object', [['de
 const execute = graph => memo(analysis(graph))({ frame: null, args: [] })
 
 export const proof = {
+    namedImports: {
+        unresolved: () => {
+            const graph = compile('import {x as y} from "./dep"; export default y;')
+            expectEdag(graph.edag, ['.', ['.', ['args'], 0], 'x'])
+            expectEdag(compile('import {} from "./dep"; export default 1;').edag, [',', [['.', ['args'], 0], 1]])
+        },
+        execution: () => {
+            for (const [source, expected, refusal] of /** @type {const} */ ([
+                ['import {add as sum} from "./dep"; export const main=()=>sum(20,22);', [20,22], 'a () node'],
+                ['import d,{add as sum,default as e} from "./dep"; export const main=()=>sum(d,e);', [7,7], 'a () node'],
+                ['import {add} from "./dep"; const f=(...a)=>(...b)=>add(a[0],b[0]); export const main=()=>f(20)(22);', [20,22], 'a () node'],
+                ['import {u} from "./dep"; export const main=()=>u;', undefined, null],
+                ['import {} from "./dep"; export const main=()=>3;', 3, null],
+                ['import {default as n} from "./data.json" with {type:"json"}; export const main=()=>n;', 5, null],
+            ])) {
+                const root = {
+                    main: file(source), dep: file('export const add=(...args)=>args; export const u=undefined; export default 7;'),
+                    'data.json': file('5'),
+                }
+                const graph = unwrap(linked(root)('main'))
+                const printed = tryModuleStringify(graph)
+                if (refusal !== null) { assertStructurallySame(printed, ['error', refusal]) }
+                const modules = refusal === null ? [graph, unresolved(unwrap(parse('')(unwrap(printed)))).edag] : [graph]
+                for (const module of modules) {
+                    /** @type {Exp} */
+                    const invoked = ['()', ['.', module, 'main'], ['[]', []]]
+                    assertStructurallySame(execute(invoked), expected)
+                    assertStructurallySame(vm({ frame: null, args: [] })(invoked), expected)
+                }
+            }
+        },
+        acceptance: () => {
+            const graph = unwrap(linked({
+                main: file('import {add as sum} from "./math"; export const main=()=>sum(20,22);'),
+                math: file('export const add=(...args)=>args[0]+args[1];'),
+            })('main'))
+            /** @type {Exp} */
+            const invoked = ['()', ['.', graph, 'main'], ['[]', []]]
+            assertEq(execute(invoked), 42)
+            assertEq(vm({ frame: null, args: [] })(invoked), 42)
+            // Arithmetic serialization remains a separate unsupported form.
+            assertStructurallySame(tryModuleStringify(graph), ['error', 'a + node'])
+        },
+        identity: () => {
+            const root = {
+                main: file('import d,{x,x as y} from "./dep"; import {a} from "./left"; import {b} from "./right"; export const direct=[d,x,y,a,b]; export const captured=()=>x;'),
+                left: file('import {x} from "./dep"; export const a=x;'),
+                right: file('import {x as y} from "./dep"; export const b=y;'),
+                dep: file('export const x=[]; export default x;'),
+            }
+            const graph = unwrap(linked(root)('main'))
+            const roundTrip = unresolved(unwrap(parse('')(unwrap(tryModuleStringify(graph))))).edag
+            for (const module of [graph, roundTrip]) {
+                const result = /** @type {{direct: readonly unknown[], captured: () => unknown}} */ (execute(module))
+                assert(result.direct.every(value => value === result.direct[0]))
+                assert(result.captured() === result.direct[0])
+            }
+        },
+        cycles: () => {
+            assertEq(linkRefusal({ main: file('import {a as b} from "./main"; export const a=1;') })('main'), 'circular dependency at no position')
+            assertEq(linkRefusal({ main: file('import {} from "./main"; export const a=1;') })('main'), 'circular dependency at no position')
+        },
+        throw: {
+            unusedNamed: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
+            empty: () => execute(unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('const bad=null.x; export const a=1;') })('main'))),
+            selected: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export default a;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
+            captured: () => execute(unwrap(linked({ main: file('import {a} from "./dep"; export const f=()=>a;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
+            emptyAmnesia: () => vm({ frame: null, args: [] })(unwrap(linked({ main: file('import {} from "./dep"; export default 1;'), dep: file('export const a=1; export const bad=null.x;') })('main'))),
+        },
+    },
     namedExports: {
         sharing: () => {
             const source = 'export const z=[]; export const a=z; export default a;'
@@ -223,7 +295,7 @@ export const proof = {
     // two members, and the import is a property of the arguments.
     example: () => {
         const { imports, edag } = compile('import a from "./a.f.js"; const x = [a, 1]; export default { x: x, y: x };')
-        assertStructurallySame(imports, [{ specifier: './a.f.js', json: false }])
+        assertStructurallySame(imports, [{ specifier: './a.f.js', json: false, name: 'default' }])
         expectEdag(edag, ['{}', [[':', 'x', ['[]', [['.', ['.', ['args'], 0], 'default'], 1]]], [':', 'y', ['[]', [['.', ['.', ['args'], 0], 'default'], 1]]]]])
         assert(edag instanceof Array && edag[0] === '{}', edag)
         const [x, y] = edag[1]
@@ -307,7 +379,7 @@ export const proof = {
     // parameter node however many references reach it
     parameters: () => {
         const { imports, edag } = compile('import a from "./a.f.js"; import b from "./b.f.js"; export default [b, a, b];')
-        assertStructurallySame(imports, [{ specifier: './a.f.js', json: false }, { specifier: './b.f.js', json: false }])
+        assertStructurallySame(imports, [{ specifier: './a.f.js', json: false, name: 'default' }, { specifier: './b.f.js', json: false, name: 'default' }])
         expectEdag(edag, ['[]', [['.', ['.', ['args'], 1], 'default'], ['.', ['.', ['args'], 0], 'default'], ['.', ['.', ['args'], 1], 'default']]])
         assert(edag instanceof Array && edag[0] === '[]' && edag[1][0] === edag[1][2], edag)
     },

@@ -37,8 +37,11 @@ export type _Source = {
     readonly json: boolean
 }
 
-/** A module result and its selected default, each with its own sharing facts. */
+/** A resolved import retains the selected export separately from module identity. */
+export type _ImportSource = _Source & { readonly name: string | null }
+
+/** A module result and its selected exports, each with its own sharing facts. */
 export type ModuleDenotation = {
     readonly exports: Denotation
-    readonly default: Denotation | null
+    readonly bindings: readonly (readonly [string, Denotation])[]
 }

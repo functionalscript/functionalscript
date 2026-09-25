@@ -37,6 +37,10 @@ pub mod method;
 pub mod missing;
 #[path = "../fixtures/named.rs"]
 pub mod named;
+#[path = "../fixtures/named-imports.rs"]
+pub mod named_imports;
+#[path = "../fixtures/named-imports-throws.rs"]
+pub mod named_imports_throws;
 #[path = "../fixtures/nested.rs"]
 pub mod nested;
 #[path = "../fixtures/not-a-function.rs"]
@@ -139,13 +143,14 @@ pub fn run<A: IVm>(
 mod tests {
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, IVm, Nullish, ToAny},
+        vm::{Any, Array, IVm, Nullish, ToAny},
     };
 
     use crate::{
         RunError, arity, array, at, boolean, call, calls, closure, escapes, function_scope, lazy,
-        length, method, missing, named, nested, not_a_function, nullish, number, object, operators,
-        property, rest, run, sharing, string, throws, to_string,
+        length, method, missing, named, named_imports, named_imports_throws, nested,
+        not_a_function, nullish, number, object, operators, property, rest, run, sharing, string,
+        throws, to_string,
     };
 
     #[test]
@@ -272,6 +277,20 @@ mod tests {
             Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
         );
         assert_eq!(run::<Naive>(named::module), Ok("[5]".into()));
+    }
+
+    #[test]
+    fn named_imports_and_captures() {
+        let exports = named_imports::module::<Naive>().unwrap();
+        let main = exports.clone().dot("main".into()).end().unwrap();
+        let result = main.call(Array::default().to_any()).unwrap();
+        assert_eq!(result.to_json(), Ok("42".into()));
+        let checks = exports.dot("checks".into()).end().unwrap();
+        assert_eq!(
+            checks.to_json(),
+            Ok("[true,true,true,true,true,true]".into())
+        );
+        assert!(named_imports_throws::module::<Naive>().is_err());
     }
 
     #[test]
