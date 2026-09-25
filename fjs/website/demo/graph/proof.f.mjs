@@ -325,6 +325,63 @@ export const proof = {
             assert(!html.includes('casing'), html)
         },
         /**
+         * **An inline value is a cell, not a box.** Its port grows a 20px
+         * cell under the label, holding the value, and the node a row to
+         * match; no line is drawn and no rank is spent. A value wider
+         * than its label widens its port.
+         */
+        inlineValue: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '[ ]', rank: 0 }],
+                edges: [{ from: 0, to: { inline: '"hello"' }, label: '0' }],
+            }))
+            assert(html.includes('<rect x="10" y="10" width="61" height="66" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="36" width="61" height="40" data-graph-port="">'), html)
+            assert(html.includes('<rect x="10" y="56" width="61" height="20" data-graph-value="">'), html)
+            assert(html.includes('<text x="40.5" y="66" text-anchor="middle" data-graph-label="">&quot;hello&quot;<'), html)
+            assert(!html.includes('data-graph-edge=""'), html)
+            assert(html.includes('viewBox="0 0 81 86"'), html)
+        },
+        /**
+         * **Beside an inline value, an edge still leaves from the node's
+         * bottom**: its port spans the value row too. And a node with
+         * ports is as tall as its row, so a shorter neighbour's edge does
+         * not cut across the taller one's lower part — the crossing an
+         * earlier version drew.
+         */
+        inlineBesideAnEdge: () => {
+            /** @type {Graph} */
+            const g = {
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'wide', rank: 1 },
+                    { id: 2, kind: 'a', label: 'narrow', rank: 1 },
+                    { id: 3, kind: 'leaf', label: 'x', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'a' },
+                    { from: 0, to: 2, label: 'b' },
+                    { from: 1, to: { inline: '1' }, label: 'v' },
+                    { from: 1, to: 3, label: 'e' },
+                    { from: 2, to: 3, label: 'f' },
+                ],
+            }
+            const html = htmlToString(graphSvg(g))
+            assert(html.includes('<rect x="10" y="96" width="50" height="66" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="74" y="96" width="58" height="66" rx="4" data-graph-node=""'), html)
+            assert(html.includes('d="M47.5,162 '), html)
+            assert(html.includes('d="M103,162 '), html)
+            assertEq(_crossings(g), 0)
+        },
+        // A marked edge to an inline value marks its value cell.
+        marksAnInlineValue: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'a', label: '&&', rank: 0 }],
+                edges: [{ from: 0, to: { inline: '1' }, label: 'right', kind: 'lazy' }],
+            }))
+            assert(html.includes('data-graph-value="" data-graph-edge-kind="lazy"'), html)
+        },
+        /**
          * **An edge that names a node the graph does not have is refused**,
          * at either end. Drawn anyway, one from a missing node had no port
          * to leave from and vanished from a picture that looked complete —

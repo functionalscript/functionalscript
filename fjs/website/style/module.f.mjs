@@ -212,7 +212,9 @@ svg text { font: inherit }
    cell per edge holding that edge's label, and the edge leaves from the
    bottom of its cell — so a label always sits in the box it names rather
    than over a line. A port is a thinner, unfilled cell inside the node's
-   own border. No edge crosses a box — the layout routes one that skips a
+   own border. A primitive — a number, null, undefined — is no node of its
+   own: its value draws in a cell of the port that holds it, under the
+   port's label, and no line leaves for it. No edge crosses a box — the layout routes one that skips a
    rank down a lane of its own — so a line needs no casing to stand out
    from a border it passes. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
@@ -222,6 +224,7 @@ svg text { font: inherit }
 [data-graph-edge] { fill: none; stroke: var(--muted); stroke-width: 1.5 }
 [data-graph-edge-kind="lazy"] { stroke-dasharray: 5 3 }
 [data-graph-port] { fill: none; stroke: var(--muted); stroke-width: 1 }
+[data-graph-value] { fill: none; stroke: var(--muted); stroke-width: 1 }
 [data-graph-edge-label] { dominant-baseline: middle; fill: var(--muted); font-size: .7rem }
 [data-graph-arrow] { fill: var(--muted) }
 `

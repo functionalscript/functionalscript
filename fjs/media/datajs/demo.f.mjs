@@ -10,9 +10,11 @@
  * this demo draws exactly what [the specification](../../../spec/datajs/README.md)
  * says every document denotes: a directed acyclic graph.
  *
- * **A container gets one node per distinct reference; a leaf gets one node
- * per occurrence** — "primitive sharing is not [written]", in the
- * specification's own words. Reference identity, checked with `Object.is`,
+ * **A container gets one node per distinct reference; a leaf gets no node
+ * at all** — "primitive sharing is not [written]", in the specification's
+ * own words, so a leaf is drawn inline, in the port of the container that
+ * holds it. Only a document that is a leaf and nothing else draws one as a
+ * node, having no container to sit in. Reference identity, checked with `Object.is`,
  * is what a parsed value already carries: this walk reads it rather than
  * reconstructing it.
  *
@@ -53,6 +55,9 @@ const findRef = state => ref => {
     return found === undefined ? null : found[1]
 }
 
+/** @type {(value: Unknown) => value is Primitive} */
+const isPrimitive = value => value === null || typeof value !== 'object'
+
 /**
  * `value`'s node id, and the state with `value` and everything under it
  * added — or just the state, when `value` is a reference already walked.
@@ -65,10 +70,10 @@ const findRef = state => ref => {
  * @type {(state: _State) => (value: Unknown) => { readonly id: number, readonly state: _State }}
  */
 const walk = state => value => {
-    if (value === null || typeof value !== 'object') {
+    if (isPrimitive(value)) {
         const id = state.next
         /** @type {Node} */
-        const node = { id, kind: 'leaf', label: concat(leafSerialize(/** @type {Primitive} */ (value))) }
+        const node = { id, kind: 'leaf', label: concat(leafSerialize(value)) }
         return { id, state: { ...state, next: id + 1, nodes: [...state.nodes, node] } }
     }
     const existing = findRef(state)(value)
@@ -90,6 +95,9 @@ const walk = state => value => {
     const walkEntries = entries => entries.reduce(
         /** @type {(acc: _State, entry: readonly [string, Unknown]) => _State} */
         (acc, [label, item]) => {
+            if (isPrimitive(item)) {
+                return { ...acc, edges: [...acc.edges, { from: id, to: { inline: concat(leafSerialize(item)) }, label }] }
+            }
             const step = walk(acc)(item)
             return { ...step.state, edges: [...step.state.edges, { from: id, to: step.id, label }] }
         },

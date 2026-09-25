@@ -1074,9 +1074,10 @@ export const proof = {
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator
-        // hollow, a constant dashed, a terminal filled. `undefined` is among
-        // the constants rather than drawn as the zero-operand operator its
-        // `Op0Id` grouping would otherwise make it, and the terminals are
+        // hollow, a constant inline in its user's port, a terminal filled.
+        // `undefined` is among the constants rather than drawn as the
+        // zero-operand operator its `Op0Id` grouping would otherwise make
+        // it, and the terminals are
         // two rather than one shared because a node belongs to one scope —
         // the module's `args`, which its import reaches, and the function's
         // own. The `=>` names its operands `frame` and `body`, which is what
@@ -1086,7 +1087,10 @@ export const proof = {
             assertEq(html.split('data-graph-kind="terminal"').length - 1, 2)
             assertEq(html.split('>args<').length - 1, 1)
             assertEq(html.split('>rest<').length - 1, 1)
-            assert(html.includes('>undefined<'), html)
+            assert(html.includes('data-graph-label="">undefined<'), html)
+            assertEq(html.split('data-graph-kind="leaf"').length - 1, 0)
+            // `1`, `2`, `3`, `4`, `null` and `undefined`, each in a cell.
+            assertEq(html.split('data-graph-value=""').length - 1, 6)
             assert(html.includes('>frame<'), html)
             assert(html.includes('>body<'), html)
         },
@@ -1138,6 +1142,17 @@ export const proof = {
             assert(html.includes('>()<'), html)
             assert(html.includes('>.x<'), html)
             assert(html.includes('>===<'), html)
+        },
+        // A constant with no user to sit in — the whole export — is still
+        // drawn, as a leaf node of its own; `undefined` too, though it is
+        // an operator rather than a primitive.
+        leafRoot: () => {
+            for (const [src, label] of [['export default 1;', '1'], ['export default undefined;', 'undefined']]) {
+                const html = htmlToString(demo.view(src))
+                assert(html.includes(`data-graph-kind="leaf"`), html)
+                assert(html.includes(`>${label}<`), html)
+                assert(!html.includes('data-graph-value'), html)
+            }
         },
         // A bigint leaf carries its own suffix into the label rather than
         // being coerced like every other leaf `String(exp)` already covers.

@@ -34,6 +34,9 @@ export type Ranked = Node & { readonly rank: number }
  * absent where a demo draws one kind of edge. `"lazy"` draws dashed by the
  * site's stylesheet; any other value, and none, draws solid.
  *
+ * **An edge ends at a node, or at an {@link Inline} value** drawn in its
+ * port, under the label, rather than as a node of its own.
+ *
  * **An edge's kind is about the edge, not about what it points at.** The
  * EDAG demo marks an operand a node may never evaluate — `&&`'s right, an
  * arm of `?:` — and the same node reached from an eager position elsewhere
@@ -41,10 +44,19 @@ export type Ranked = Node & { readonly rank: number }
  */
 export type Edge = {
     readonly from: number
-    readonly to: number
+    readonly to: number | Inline
     readonly label: string
     readonly kind?: string | undefined
 }
+
+/**
+ * A value too simple to be a node of its own — a number, `null`,
+ * `undefined` — drawn inside its source's port, under the edge's label.
+ * An inline value has no identity, so it is never shared, never ranked and
+ * no line is drawn to it: a demo that wants a value shared, or reached by
+ * more than one edge, gives it a node instead.
+ */
+export type Inline = { readonly inline: string }
 
 /** A graph `graphSvg` (`./module.f.mjs`) can draw: every node ranked, every edge named. */
 export type Graph = {

@@ -24,6 +24,11 @@
  * shapes, and this demo does not walk it: a node it cannot describe is shown
  * as itself, not silently dropped or wrongly drawn.
  *
+ * **A constant draws inside the node that uses it.** A number, a string,
+ * `null` or `undefined` is not a node of its own but a value in its user's
+ * port, under the operand's role. Only an expression that is a constant
+ * and nothing else draws one as a node, having no user to sit in.
+ *
  * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
  * establish their right operand only where the left has not already
  * decided the answer, `?:` establishes exactly one arm, and `=>` builds a
@@ -215,6 +220,17 @@ export const _shapeOf = exp => {
     return null
 }
 
+/**
+ * `exp`'s text, when it is a constant the drawing puts inline in its user's
+ * port — a primitive, or the `undefined` operator — and `null` otherwise.
+ *
+ * @type {(exp: Exp) => string | null}
+ */
+const inlineOf = exp =>
+    exp === null || typeof exp !== 'object' ? concat(leafSerialize(exp))
+        : exp[0] === 'undefined' ? 'undefined'
+            : null
+
 /** @type {(state: _State) => (ref: object) => number | null} */
 const findRef = state => ref => {
     const found = state.refs.find(([r]) => is(r, ref))
@@ -252,6 +268,10 @@ export const _walk = state => exp => {
     /** @type {_State} */
     const withNode = { refs: [...state.refs, ref], nodes: [...state.nodes, node], edges: state.edges, next: id + 1 }
     const final = (shape?.children ?? []).reduce((acc, [label, child, kind]) => {
+        const inline = inlineOf(child)
+        if (inline !== null) {
+            return { ...acc, edges: [...acc.edges, { from: id, to: { inline }, label, kind }] }
+        }
         const step = _walk(acc)(child)
         return {
             ...step.state,
@@ -287,14 +307,15 @@ export const _graphOf = text => {
  *
  * It carries one of every look the drawing has, too, so that what the
  * three mean is on screen before a reader has typed anything. The numbers
- * and `undefined` are constants, dashed. The two `args` are filled
+ * and `undefined` are constants, drawn inside the ports that use them. The
+ * two `args` are filled
  * terminals — a value arriving from outside a scope rather than computed
  * from operands below — and there are two of them because a node belongs
  * to one scope: the module's, which its import reaches through
  * `.default` on argument 0, and the function's own, fresh for that
  * body. That those two look identical and are still not shared is `a`'s
  * lesson from the other side: sharing is reference identity, never
- * resemblance. The function's `frame` edge ends at `null` because it
+ * resemblance. The function's `frame` port holds `null` because it
  * captures nothing, and its `body` edge is broken because
  * building the function does not run it.
  *
