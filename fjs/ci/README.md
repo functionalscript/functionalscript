@@ -278,7 +278,7 @@ and `gen`. A typical FunctionalScript project can define them like this:
 {
   "scripts": {
     "test": "tsc && fjs test",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-include=**/module.f.js",
     "gen": "fjs ci"
   }
 }
