@@ -3,76 +3,49 @@
 //! of its exports, read or call it, and print the result as JSON.
 //!
 //! `fjs compile <module> <output>.rs` (the Rust code generator) compiles
-//! each of `fixtures/*.mjs` into a sibling `fixtures/*.rs`, committed and
+//! each of `fixtures/*.mjs` into `gen.fixtures/*.rs`, named after its Rust
+//! module (`function-scope.mjs` becomes `function_scope.rs`), committed and
 //! drift-checked by `npm run gen` (see `../../fjs/ci/README.md`) the same way
-//! `nanvm-lib/tests/test/gen.operators.rs` is. The modules below pull those
-//! generated files in via `#[path]`, since they live beside the FJS source
-//! they were compiled from rather than under `src/`.
+//! `nanvm-lib/tests/test/gen.operators.rs` is. [`fixtures`] pulls them in
+//! with one `#[path]`: a `gen.` name is never a Rust identifier.
 
-#[path = "../fixtures/arity.rs"]
-pub mod arity;
-#[path = "../fixtures/array.rs"]
-pub mod array;
-#[path = "../fixtures/at.rs"]
-pub mod at;
-#[path = "../fixtures/boolean.rs"]
-pub mod boolean;
-#[path = "../fixtures/call.rs"]
-pub mod call;
-#[path = "../fixtures/calls.rs"]
-pub mod calls;
-#[path = "../fixtures/closure.rs"]
-pub mod closure;
-#[path = "../fixtures/escapes.rs"]
-pub mod escapes;
-#[path = "../fixtures/exports.rs"]
-pub mod exports;
-#[path = "../fixtures/function.rs"]
-pub mod function;
-#[path = "../fixtures/function-scope.rs"]
-pub mod function_scope;
-#[path = "../fixtures/lazy.rs"]
-pub mod lazy;
-#[path = "../fixtures/length.rs"]
-pub mod length;
-#[path = "../fixtures/method.rs"]
-pub mod method;
-#[path = "../fixtures/missing.rs"]
-pub mod missing;
-#[path = "../fixtures/named.rs"]
-pub mod named;
-#[path = "../fixtures/named-imports.rs"]
-pub mod named_imports;
-#[path = "../fixtures/named-imports-throws.rs"]
-pub mod named_imports_throws;
-#[path = "../fixtures/nested.rs"]
-pub mod nested;
-#[path = "../fixtures/not-a-function.rs"]
-pub mod not_a_function;
-#[path = "../fixtures/nullish.rs"]
-pub mod nullish;
-#[path = "../fixtures/number.rs"]
-pub mod number;
-#[path = "../fixtures/object.rs"]
-pub mod object;
-#[path = "../fixtures/operators.rs"]
-pub mod operators;
-#[path = "../fixtures/parameters.rs"]
-pub mod parameters;
-#[path = "../fixtures/property.rs"]
-pub mod property;
-#[path = "../fixtures/rest.rs"]
-pub mod rest;
-#[path = "../fixtures/rest-function.rs"]
-pub mod rest_function;
-#[path = "../fixtures/sharing.rs"]
-pub mod sharing;
-#[path = "../fixtures/string.rs"]
-pub mod string;
-#[path = "../fixtures/throws.rs"]
-pub mod throws;
-#[path = "../fixtures/to-string.rs"]
-pub mod to_string;
+/// The compiled fixtures, `gen.fixtures/*.rs`. One `#[path]` names the
+/// directory; each module inside it resolves by its own name.
+#[path = "../gen.fixtures"]
+pub mod fixtures {
+    pub mod arity;
+    pub mod array;
+    pub mod at;
+    pub mod boolean;
+    pub mod call;
+    pub mod calls;
+    pub mod closure;
+    pub mod escapes;
+    pub mod exports;
+    pub mod function;
+    pub mod function_scope;
+    pub mod lazy;
+    pub mod length;
+    pub mod method;
+    pub mod missing;
+    pub mod named;
+    pub mod named_imports;
+    pub mod named_imports_throws;
+    pub mod nested;
+    pub mod not_a_function;
+    pub mod nullish;
+    pub mod number;
+    pub mod object;
+    pub mod operators;
+    pub mod parameters;
+    pub mod property;
+    pub mod rest;
+    pub mod rest_function;
+    pub mod sharing;
+    pub mod string;
+    pub mod throws;
+    pub mod to_string;
+}
 
 use core::fmt::{self, Debug, Display, Formatter};
 
@@ -200,10 +173,14 @@ mod tests {
     };
 
     use crate::{
-        Action, RunError, arity, array, at, boolean, call, calls, closure, escapes, exports,
-        function, function_scope, lazy, length, method, missing, named, named_imports,
-        named_imports_throws, nested, not_a_function, nullish, number, object, operators, property,
-        rest, rest_function, run, sharing, string, throws, to_string,
+        Action, RunError,
+        fixtures::{
+            arity, array, at, boolean, call, calls, closure, escapes, exports, function,
+            function_scope, lazy, length, method, missing, named, named_imports,
+            named_imports_throws, nested, not_a_function, nullish, number, object, operators,
+            parameters, property, rest, rest_function, sharing, string, throws, to_string,
+        },
+        run,
     };
 
     #[test]
@@ -343,7 +320,7 @@ mod tests {
     #[test]
     fn named_and_rest_parameters() {
         assert_eq!(
-            run::<Naive>(super::parameters::module, "default", Action::Read),
+            run::<Naive>(parameters::module, "default", Action::Read),
             Ok("[3,[1,2,3,[4,5]],true,true,true,1,1,[1,[2,3],4,[5],[2,3],[5]],true,true,true,true]".into())
         );
     }
