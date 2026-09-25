@@ -1,5 +1,5 @@
 /**
- * Types for the DJS transpiler.
+ * Types for the module transpiler.
  *
  * @module
  */
@@ -9,7 +9,7 @@ import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 
 /**
- * State threaded through the recursive transpilation of a DJS module graph.
+ * State threaded through the recursive transpilation of a module graph.
  *
  * - `complete`: modules that have been fully parsed and evaluated, keyed by identity.
  * - `stack`: module identities currently being resolved (used to detect circular dependencies).

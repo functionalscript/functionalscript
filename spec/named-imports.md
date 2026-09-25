@@ -32,7 +32,7 @@ remain unsupported.
 
 Before this implementation, `export const`, named-only modules and the complete
 module export object already worked, but the parser accepted only default
-imports. FJS source could not consume a dependency's named exports using its
+imports. FunctionalScript source could not consume a dependency's named exports using its
 ordinary JavaScript imports. This blocked the
 [named-module MVP example](../todo/fjs-nanvm-integration.md#named-module-acceptance).
 
