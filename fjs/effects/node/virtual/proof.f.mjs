@@ -476,6 +476,20 @@ export const proof = {
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
     },
+    writeBytesNotWholeBytes: () => {
+        // A `Vec` that is not whole bytes never reaches this runner: `writeBytes`
+        // refuses it in `../module.f.mjs`, as `writeExclusive` does, because the
+        // node runner's `fromVec` would pad the last byte and write a byte the
+        // caller never gave while this one appended the vector as it was. The
+        // offset is the file's size, which the append-only check accepts, so
+        // without the guard this write would succeed.
+        /** @type {Dir} */
+        const root = { 'file': [vec8(0x1n)] }
+        const [state, result] = virtual({ ...emptyState, root })(writeBytes('file', 1, vec(4n)(0b1010n)))
+        assert(result[0] === 'error')
+        assertIoMessage(result[1], 'invalid buffer size')
+        assertStructurallySame(state.root, root)
+    },
     writeBytesNegativeOffset: () => {
         /** @type {Dir} */
         const root = { 'file': [vec8(0x1n)] }
@@ -904,7 +918,7 @@ export const proof = {
             const [state, result] = virtual(emptyState)(e)
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
-            assertEq(state.memoryValues.mem0, 42, state)
+            assertEq(state.memory.values.mem0, 42, state)
         },
         // What makes presence the test rather than the value: a slot holding
         // `undefined` was allocated, and reading one is not the failure below.
