@@ -342,15 +342,23 @@ first and the last of those and reproduced row for row. Three figures below are
 23.11.0's alone and say so where they appear: the short-read one, the
 backpressure one, and the no-body table.
 
-So the size that goes in the header is the bound the reads stop at. `fjs/web`'s
-fold stops at `FileStat.size` rather than at EOF, and what ends the reads short
-of that bound — an *empty* read — fails the cell: the destroy again, and the one
-direction Node would have caught anyway. Short of the **bound**, not short of
+So on the held-handle route the size that goes in the header is the bound the
+reads stop at. `fjs/web`'s fold stops at `FileStat.size` rather than at EOF, and
+what ends the reads short of that bound — an *empty* read — fails the cell: the
+destroy again, and the one direction Node would have caught anyway. Short of the
+**bound**, not short of
 the **request**: a chunk smaller than what was asked for is not itself the
 failure, and reading it as one would fail every file whose size is not a
 multiple of `chunkBytes`. The bound is a parameter of the moved loop, not a
 second loop: `fjs/cas` does not know a blob's size, keeps reading to the empty
 read, and keeps the chunked framing that goes with it.
+
+**The other route reaches the same guarantee from the other end.** `ReadWhole`
+has no bound to stop at — it reads to EOF by design — so there is no declared
+length for a read to run past: the header is summed from the chunks it already
+answered, and the runner's count below is what checks the pump against it. Both
+routes therefore forbid the overrun measured above; only the held handle does it
+by refusing to read that far, and the 2026-09-22 note records which is which.
 
 **And the runner counts, because that bound is one producer's discipline and
 `ServerResponse<O>` is everyone's.** `fjs/web` can be trusted to stop at
