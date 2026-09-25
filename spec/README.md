@@ -1291,7 +1291,8 @@ scope and language-designer authorization.
 - Local bindings are names under the [rule](#shared-values-constants) a
   `const` follows — `import { a as let }` and `import eval from "./e.f.js"`
   are errors, `import from from "./f.f.js"` is not — and cannot duplicate
-  another import or module constant. Exported names are identifier names;
+  another import or module constant, both being names of the one module
+  function ([a module is a function](#a-module-is-a-function)). Exported names are identifier names;
   reserved words such as `default` require a valid local alias.
 - Every `import` comes before every `const`
   ([module structure](#module-structure)).
@@ -1393,8 +1394,9 @@ written.
   `{ if: 1 }` and `a.default` are a key and an access, as in JavaScript.
 - A name must be declared before it is used. Forward references are not
   recognized yet ([forward-references](./todo/3140-forward-references.md)).
-- Imported and constant names share one namespace: declaring the same name
-  twice is an error.
+- Imported and constant names share one namespace, the module function's
+  ([a module is a function](#a-module-is-a-function)): declaring the same
+  name twice is an error.
 - Every `const` is evaluated as its own statement, whether or not anything
   reads it — a module's when the module loads, a function body's at every
   call ([functions](#functions)) — so its failure is the module's or the
@@ -1568,9 +1570,10 @@ are not supported yet. A newline before `=>` is refused.
   `(() => 1) === (() => 1)` is `false`, as two separately written objects are
   two ([shared values](#shared-values-constants)). Denoting the same function
   is sameness of meaning, not of identity.
-- A body `const` is the body's, and binds as a module's does: it names a
-  value the `return` and the statements after it may use, it may not be
-  written twice, and it is not in its own initializer's scope. It is
+- A body `const` is the body's, and binds as a module's does, a module
+  being a function too ([a module is a function](#a-module-is-a-function)):
+  it names a value the `return` and the statements after it may use, it may
+  not be written twice, and it is not in its own initializer's scope. It is
   evaluated as a module's is, as its own statement, at every call and whether
   or not the `return` reaches it ([shared values](#shared-values-constants)):
   `() => { const x = null.x; return 1; }` loads and throws when called, as in
@@ -1709,6 +1712,24 @@ export default [base, extra];      // optional, at most one, last
 These statement forms are the whole language. A statement begins with `import`,
 `const`, or `export`, and never with a value; more forms land as the language
 grows ([`spec/todo/`](./todo/README.md)).
+
+### A Module Is a Function
+
+A module is one function, and the compiler reads it that way. Its imports are
+its parameters, in source order; its constants are the constants of its body;
+and what it returns is the object of its exports
+([exporting a value](#exporting-a-value)), `export default` being that
+object's `default` member. So a module's imports and constants are one scope,
+as a function's parameters and body constants are: one namespace, each name
+bound once, and a name used only after it is declared.
+
+The EDAG says so directly. Before linking, import `i` of a module is the
+parameter `['.', ['args'], i]` of its graph, and linking binds each parameter
+to the graph of the module that import resolves to — applying the module to
+its imports — so the linked program has no parameter left
+([`fjs/fsc/edag`](../fjs/fsc/edag/module.f.mjs)). Two imports of one module
+identity are one application, shared, as
+[importing](#importing-other-modules) requires.
 
 ## Roadmap
 

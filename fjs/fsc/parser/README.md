@@ -1,6 +1,6 @@
-# DJS Parser
+# Module Parser
 
-Reads a DJS token stream as a FunctionalScript module: `import` statements, then
+Reads the compiler's token stream as a FunctionalScript module: `import` statements, then
 ordinary and exported `const` statements, with an optional final `export default`.
 Every statement ends with `;`, and at least one export is required.
 
@@ -248,7 +248,7 @@ body. The grammar still requires zero or more declarations followed by one
 value-returning statement. This representation change adds no syntax or ASI.
 
 `_parseSyntaxFromTokens` exposes that internal tree for proofs before the
-fold. It does not establish binding validity, JavaScript early errors or FJS
+fold. It does not establish binding validity, JavaScript early errors or FunctionalScript
 admission; `parseFromTokens` remains the checked compilation entry point.
 
 Nothing walks the tree. The machine's own stack is on the heap, so nesting
