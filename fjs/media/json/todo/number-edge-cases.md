@@ -28,6 +28,15 @@ The extended codec's decisions are settled and shipped (below). What remains
 open is the **standard** bigint-free codec, whose serializer still delegates
 finite-number spelling to the host's `JSON.stringify`.
 
+### Settled direction: preserve negative zero
+
+The standard codec must preserve `-0` through serialization and parsing.
+[Preserve negative zero](./preserve-negative-zero.md) owns the implementation
+and regression proofs, including sharing `numberSerialize` with DataJS for
+finite values. The parser already preserves the sign; serialization still
+needs the change. This is a chosen policy, not a claim that it has shipped.
+JSON and DataJS retain their separate non-finite spellings.
+
 ### Settled: extended codec
 
 Implemented in [`../extended/module.f.mjs`](../extended/module.f.mjs) and
@@ -71,12 +80,11 @@ it as a `number` without ever constructing a bigint.
 The ordinary `json.parse` / `json.stringify` codec is specified in
 [standard-parse-serialize.md](./standard-parse-serialize.md). Its parse policy
 is already explicit — every token becomes a `number`, read the way JavaScript
-reads that text, so `1e400` is `Infinity` and `1e-400` is `0`. What is still
-undecided is serialization:
+reads that text, so `1e400` is `Infinity` and `1e-400` is `0`. Negative-zero
+preservation is settled above. What is still undecided is:
 
 - what deterministic valid JSON spelling is used for finite `number` values,
   now that `numberSerialize` still calls the host's `JSON.stringify`;
-- how negative zero is preserved or normalized (`JSON.stringify(-0)` is `0`);
 - how programmatic `NaN` / infinities are handled;
 - whether a parsed `Infinity` is representable in `json.Unknown` at all, or
   should be normalized on the way out.
@@ -87,11 +95,14 @@ or adding a separate compatible API, is deliberately deferred to P5.
 
 ### Tasks
 
-- [ ] Choose the default FunctionalScript standard stringify policy for `-0`,
-      `NaN`, `Infinity`, and `-Infinity`.
+- [ ] Implement the settled [negative-zero preservation](./preserve-negative-zero.md)
+      contract and its shared JSON/DataJS finite formatter.
+- [ ] Choose the default FunctionalScript standard stringify policy for
+      `NaN`, `Infinity`, and `-Infinity`; the negative-zero task leaves their
+      current behavior unchanged.
 - [ ] Define a deterministic finite-number serialization rule sufficient for the
       FunctionalScript standard codec, and stop routing it through the host's
-      `JSON.stringify`.
+      `JSON.stringify` without undoing negative-zero preservation.
 - [ ] Decide how a non-finite `number` parsed from valid text is represented or
       normalized in `json.Unknown`.
 - [ ] Add proof cases for every settled default behavior, including oversized
@@ -101,6 +112,8 @@ or adding a separate compatible API, is deliberately deferred to P5.
 
 ### Related
 
+- [Preserve negative zero](./preserve-negative-zero.md) — the chosen `-0`
+  contract and shared finite-number serialization with DataJS.
 - [`fjs/media/json/README.md`](../README.md) — the shipped codec architecture and
   the settled extended policy.
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the default
