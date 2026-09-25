@@ -108,7 +108,8 @@ see [serialization](./serialization.md).
    fixed parameters)
 3. [ ] [function length pattern](./3130-function-length-pattern.md) — an
    alternative for arbitrary length/full-argument construction, not a
-   prerequisite for the named-and-rest parameter plan
+   prerequisite for the named-and-rest parameter plan; its unrestricted
+   length conflicts with [function-length-limit](./function-length-limit.md)
 4. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))
