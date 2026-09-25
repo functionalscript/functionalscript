@@ -148,10 +148,11 @@ export const proof = {
             assertEq(showRule(int.uint), 'variant zero digits')
             assertEq(showRule(int.digits0), 'repeat 0 Infinity digit')
         },
-        // The carrier is checked where the tag is read: a tag nothing
-        // spells, a field past a fixed arity, or branches that are no
+        // The carrier is checked where the tag is read: no tuple, a tag
+        // nothing spells, a field past a fixed arity, or branches that are no
         // object, are refused rather than dispatched with a part dropped.
         throw: {
+            notATuple: () => showRule(/** @type {DataRule} */ (notARule)),
             unknownTag: () => showRule(/** @type {DataRule} */ (typo)),
             repeatTrailing: () => showRule(/** @type {DataRule} */ (repeatTrailing)),
             variantTrailing: () => showRule(/** @type {DataRule} */ (variantTrailing)),

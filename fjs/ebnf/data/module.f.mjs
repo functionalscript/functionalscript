@@ -46,15 +46,19 @@ const isRecord = v => isObject(v) && getPrototypeOf(v) === objectPrototype
  * rule's payload without its tag.
  *
  * A hand-written or deserialized set is data, so the carrier is checked
- * here, where the tag is read: a tag nothing spells, a fixed-arity tuple
- * with a field past its arity, or a variant whose branches are no object,
- * is refused rather than dispatched with part of it dropped. What the
- * payload holds — boundaries, bounds, names — is `validate`'s.
+ * here, where the tag is read: no tuple, a tag nothing spells, a
+ * fixed-arity tuple with a field past its arity, or a variant whose branches
+ * are no object, is refused rather than dispatched with part of it dropped.
+ * What the payload holds — boundaries, bounds, names — is `validate`'s.
  *
  * @type {<R>(v: RuleVisitor<R>) => (rule: Rule) => R}
  */
 export const matchRule = v => rule => {
-    switch (rule[0]) {
+    // The tag is bound by destructuring, which needs an array; anything else
+    // is refused here rather than failing as not iterable.
+    assert(rule instanceof Array, ['not a rule', rule])
+    const [tag] = rule
+    switch (tag) {
         case 'set': {
             const [, ...s] = rule
             return v.set(s)
@@ -401,10 +405,11 @@ const lowerThunk = (state, hint, fr) => {
     // An info is a tuple; an object spelling one — `{ 0: 'const', 1: c,
     // length: 2 }` — would pass every field read below and is refused first.
     assert(info instanceof Array, ['not a rule', name, info])
-    switch (info[0]) {
+    const [tag, payload] = info
+    switch (tag) {
         case 'const': {
             assert(info.length === 2, ['not a const', name, info])
-            const [next, rule] = lowerBody(registered, name, info[1])
+            const [next, rule] = lowerBody(registered, name, payload)
             return [emit(next, name, rule), name]
         }
         case 'set': {
