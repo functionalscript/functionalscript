@@ -306,6 +306,26 @@ export const _crossings = g => {
             m + placed.nodes.filter(box => _crossesBox(box)(points[i])(b)).length, 0), 0)
 }
 
+/** The corner radius of a node's box. */
+const radius = 4
+
+/**
+ * The id of the clip that keeps a node's cells inside its rounded box.
+ * Square cells drawn over a rounded box poke their corners out past its
+ * bottom ones; clipped to the box's own shape, they round with it. The
+ * box's border is drawn once more over them, so the cells' thinner lines
+ * do not show along its inner half.
+ *
+ * **The id is the box's geometry, not a counter.** Several graphs can
+ * share one page, and ids are page-wide: two clips counted from zero in
+ * two drawings would share an id and one would clip the other's cells to
+ * the wrong box. Named by geometry, two clips that share an id share a
+ * shape too, so whichever one the page finds is right.
+ *
+ * @type {(p: _Positioned) => string}
+ */
+const clipIdOf = p => `graph-clip-${p.x}-${p.y}-${p.width}-${p.height}`
+
 /**
  * The height of a port's label cell: one row for an inline port, whose
  * value sits under it, and the whole of the node's ports for an edge's.
@@ -360,9 +380,10 @@ export const graphSvg = g => {
     /** @type {readonly Element[]} */
     const boxEls = positioned.flatMap(p => [
         /** @type {Element} */ (['rect', {
-            x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: '4',
+            x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
             'data-graph-node': '', 'data-graph-kind': p.kind,
         }]),
+        ...(p.ports.length === 0 ? [] : [/** @type {Element} */ (['g', { 'clip-path': `url(#${clipIdOf(p)})` },
         ...p.ports.map(port => /** @type {Element} */ (['rect', {
             x: String(p.x + port.x), y: String(p.y + headerHeight),
             width: String(port.width), height: String(labelHeightOf(p)(port)),
@@ -376,7 +397,17 @@ export const graphSvg = g => {
             // so its cell carries the kind instead.
             ...(port.edge.kind === undefined ? {} : { 'data-graph-edge-kind': port.edge.kind }),
         }])]),
+        ]),
+        // The node's border again, over its cells: their thinner lines
+        // would otherwise draw over the inner half of it.
+        /** @type {Element} */ (['rect', {
+            x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius),
+            'data-graph-outline': '',
+        }])]),
     ])
+    /** @type {readonly Element[]} */
+    const clipEls = positioned.flatMap(p => p.ports.length === 0 ? [] : [/** @type {Element} */ (['clipPath', { id: clipIdOf(p) },
+        ['rect', { x: String(p.x), y: String(p.y), width: String(p.width), height: String(p.height), rx: String(radius) }]])])
     /** @type {readonly Element[]} */
     const labelEls = positioned.flatMap(p => [
         /** @type {Element} */ (['text', {
@@ -401,7 +432,8 @@ export const graphSvg = g => {
                 id: 'graph-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',
                 markerWidth: '6', markerHeight: '6', orient: 'auto',
             },
-                ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]]],
+                ['path', { d: 'M0,0 L10,5 L0,10 z', 'data-graph-arrow': '' }]],
+            ...clipEls],
         ...boxEls,
         ...edgeEls,
         ...labelEls,

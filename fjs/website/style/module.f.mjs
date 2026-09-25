@@ -212,7 +212,8 @@ svg text { font: inherit }
    cell per edge holding that edge's label, and the edge leaves from the
    bottom of its cell — so a label always sits in the box it names rather
    than over a line. A port is a thinner, unfilled cell inside the node's
-   own border. A primitive — a number, null, undefined — is no node of its
+   own border, clipped to its rounded corners, with the border drawn once
+   more over the cells so it stays one weight all round. A primitive — a number, null, undefined — is no node of its
    own: its value draws in a cell of the port that holds it, under the
    port's label, and no line leaves for it. A value is tinted and a key is
    grey, so the two differ by more than their order in the cell; in a node
@@ -221,6 +222,7 @@ svg text { font: inherit }
    rank down a lane of its own — so a line needs no casing to stand out
    from a border it passes. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
+[data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }
 [data-graph-kind="terminal"] { fill: var(--border) }
 [data-graph-label] { dominant-baseline: middle; fill: var(--text); font-size: .75rem }

@@ -377,6 +377,27 @@ export const proof = {
             assert(html.includes('d="M103,142 L103,162 L35,202"'), html)
             assertEq(_crossings(g), 0)
         },
+        /**
+         * **A node's cells round with its corners.** Square cells over a
+         * rounded box poked out past its bottom corners; they are clipped
+         * to the box's own shape, and its border is drawn again over them
+         * so their thinner lines do not show along it. A node with no
+         * ports has no cells, and needs neither.
+         */
+        cellsRoundWithTheNode: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'leaf', label: '42', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }))
+            assert(html.includes('<clipPath id="graph-clip-10-10-50-46"><rect x="10" y="10" width="50" height="46" rx="4">'), html)
+            assert(html.includes('<g clip-path="url(#graph-clip-10-10-50-46)"><rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
+            assert(html.includes('</g><rect x="10" y="10" width="50" height="46" rx="4" data-graph-outline="">'), html)
+            assertEq(html.split('<clipPath').length - 1, 1)
+            assertEq(html.split('data-graph-outline').length - 1, 1)
+        },
         // A marked edge to an inline value marks its value cell.
         marksAnInlineValue: () => {
             const html = htmlToString(graphSvg({
