@@ -461,7 +461,7 @@ section is its record. What it taught:
   said so from the start, "numbered for reference, not for order", and
   nothing waited on a stage that had not shipped. Two pieces of its layout
   are still open, as ordinary issues rather than stages —
-  [`ebnf/terminal/`](../fjs/ebnf/todo/symbol-domain-owner.md) and
+  [`ebnf/terminal/`](../fjs/ebnf/terminal/todo/ebnf-range-set.md) and
   [`ebnf/unicode/`](../fjs/ebnf/unicode/todo/unicode-rules.md) — and their
   being open did not keep the old module alive.
 

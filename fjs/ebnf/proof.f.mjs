@@ -247,6 +247,10 @@ export const proof = {
         rangeEncodeRejectsFractional: () => rangeEncode(0, 1.5),
         rangeEncodeRejectsUnsafeTop: () =>
             rangeEncode(0, Number.MAX_SAFE_INTEGER),
+        // `-0` is `0` to every comparison, but not canonical: `data` refuses
+        // it three layers down, so the constructor that wrote it refuses it.
+        rangeEncodeRejectsNegativeZeroLow: () => rangeEncode(-0, 1),
+        rangeEncodeRejectsNegativeZeroHigh: () => rangeEncode(0, -0),
         // A repetition bound is a count: `min` a non-negative integer, `max`
         // one too or `Infinity`, and `min <= max`. Each of these would otherwise
         // build a rule that looks ordinary and matches nothing anyone asked
