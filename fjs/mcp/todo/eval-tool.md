@@ -50,7 +50,7 @@ text
        -> _defaultExport          (fsc/edag)
        -> analysis                (edag/analysis)
        -> memo                    (edag/memo)
-       -> JSON)                   (_tryJson in fsc/module.f.mjs)
+       -> JSON)                   (identity-tracking walk, below)
   -> okResult / errorResult       (protocol/mcp)
 ```
 
@@ -103,8 +103,10 @@ description should say so, and the argument should be capped at the same
 A value JSON cannot spell is refused rather than approximated. This covers
 `undefined`, a bigint, `NaN`, the two infinities and a function. The tool
 applies the same rules as `fjs compile`'s `.json` output, so the two agree on
-what JSON means. Reuse `_tryJson` for this, exporting it properly if needed,
-instead of copying it. A module with no `default` export evaluates to
+what JSON means. The tool's JSON step is not `_tryJson` itself, because the
+tool must also refuse sharing that `_tryJson` cannot see (below). It is a walk
+that shares `_tryJson`'s leaf rules, `jsonLeaf`, exported properly if needed,
+not copied. A module with no `default` export evaluates to
 `undefined` and is refused for the same reason.
 
 **`_tryJson` does not refuse a function today.** A function falls through to
