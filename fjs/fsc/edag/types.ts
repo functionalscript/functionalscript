@@ -16,10 +16,12 @@ import type { Edge, Node } from '../../website/demo/graph/types.ts'
 /**
  * A module as an EDAG over its imports: the imports in source order — each
  * its specifier, selected export name and whether it names a JSON module — and the computation
- * of what the module exports, in which import `i` is the parameter
- * `['.', ['args'], i]`. A compiler's structure and no part of EDAG —
- * resolution replaces each parameter with the imported module's own EDAG
- * and the specifiers go with it, so an EDAG never carries one.
+ * of what the module exports, in which import `i` selects its export from
+ * the parameter slot `['.', ['args'], i]` as `['.', ['.', ['args'], i], name]`,
+ * or is the bare slot when its import list is empty. A compiler's structure
+ * and no part of EDAG — resolution replaces each import with the export it
+ * selects from the imported module's own EDAG and the specifiers go with it,
+ * so an EDAG never carries one.
  */
 export type Unresolved = {
     readonly imports: readonly AstImport[]
