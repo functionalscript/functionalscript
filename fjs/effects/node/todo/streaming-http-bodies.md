@@ -86,8 +86,8 @@ handed the widest listener the type says it may be handed and narrows it back
 to its own op-set by a cast it already writes — the virtual one to
 `_VirtualListener`, the Node one to `Erl<NodeOp>` in `answerRequest`. That
 widening is the separate cause
-[generic-operation-payload-erasure](./generic-operation-payload-erasure.md)
-files beside the `Pr` erasure it is named for, asking whether `CreateServer`
+[generic-operation-signatures](../../todo/generic-operation-signatures.md)
+files beside the `Pr` erasure, asking whether `CreateServer`
 can carry the listener's op-set instead. A `List` body neither raises that
 question nor answers it.
 

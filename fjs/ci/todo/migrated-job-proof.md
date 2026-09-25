@@ -28,8 +28,7 @@ is stated twice, as near-identical proof entries:
   extraction (`:7`, `:29`, `:41`, `:49`), with one genuinely Deno-specific
   extra assertion inside `noPublishedPackage` (the dependency-age flag).
 
-With the Nix migration still `wip` ([65z-ci-nix.md](./65z-ci-nix.md),
-[66b-dockerfile-nix-integration.md](./66b-dockerfile-nix-integration.md)),
+With the Nix migration still `wip` ([65z-ci-nix.md](./65z-ci-nix.md)),
 the next migrated job forks a third copy.
 
 ### Proposal
@@ -67,7 +66,8 @@ becomes a single named thing the next job imports instead of re-deriving.
 ### Related
 
 - [65z-ci-nix.md](./65z-ci-nix.md) — the migration producing these jobs.
-- [170-ci-tool-step-builder.md](./170-ci-tool-step-builder.md),
-  [175-ci-setup-tool-factory.md](./175-ci-setup-tool-factory.md) — closed
-  irrelevant; they concerned the step *builders*, which are factored where
-  they share. This is the proof side, which survived that closure.
+- The step *builders* the migrated jobs share are factored where they share —
+  `nixInstall`, `nixSteps` and `nixVersionStep` in
+  [`../nix/module.f.mjs`](../nix/module.f.mjs) — which is why the `toolSteps`
+  and `setupTool` issues were closed. This is the proof side, which survived
+  that closure.

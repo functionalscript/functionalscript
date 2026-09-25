@@ -21,7 +21,7 @@ the name came from its being the *fallible* half — and with the twins gone the
 was neither a collision nor a second module to justify.
 
 The migration is recorded in
-[`./todo/io-effect-migration.md`](./todo/io-effect-migration.md) and is
+[`changelog/0.46.0.md`](../../changelog/0.46.0.md) and is
 complete: every operation declares a `Result` return, every runner answers with
 one, and every consumer composes with `step` / `catchStep` / `resultStep`
 instead of stating a policy per site.
