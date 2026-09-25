@@ -9,10 +9,11 @@
  * runner; compiler traversal and diagnostics are proved synchronously in
  * `fsc/transpiler/proof.f.mjs`.
  *
- * @import { NodeProgram, NodeOp, RequestListener as Erl } from './types.ts'
+ * @import { Handle, NodeProgram, NodeOp, RequestListener as Erl } from './types.ts'
  * @import { Effect, IoChannel } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
@@ -297,6 +298,17 @@ const errorCode = e => {
  * @typedef {{ n: number }} _Counter
  */
 
+/**
+ * What a host answered when asked to open a **directory** — one shape or the
+ * other, never both, and `fjs/web` maps each to the same `404`.
+ *
+ * @typedef {{
+ *   readonly refused: Nullable<IoChannel>,
+ *   readonly stats: Nullable<{ readonly isFile: boolean, readonly isDirectory: boolean }>,
+ *   readonly read: Nullable<Result<Vec, IoChannel>>,
+ * }} _DirectoryAnswer
+ */
+
 /** @type {() => _Counter} */
 const counter = () => ({ n: 0 })
 
@@ -578,6 +590,13 @@ export const proof = {
         // path-taking operation can offer, and it is what lets a response body be
         // read in windows without the windows coming from two files.
         namesAnInode: () => withTemporary('fjs-handle-inode-', async root => {
+            // Replacing a name another handle holds open is what Windows shares
+            // least willingly, and nothing here has measured what it does — the
+            // same reason `writeExclusive.symlink` above guards it. The claim is
+            // modelled on every platform by the virtual runner
+            // (`handles.namesAnInode` in `./virtual/proof.f.mjs`); this is the
+            // descriptor it is modelled after.
+            if (process.platform === 'win32') { return }
             const path = join(root, 'a.bin')
             const other = join(root, 'b.bin')
             await writeFile(path, 'old')
@@ -618,20 +637,50 @@ export const proof = {
             if (process.platform === 'win32') { return }
             assert((readFlags & fsConstants.O_NONBLOCK) !== 0, readFlags)
         },
-        // A directory opens and reads `EISDIR`, which is why `fjs/web` reads the
-        // kind off the `fstat` and never reaches the read for one.
-        aDirectoryOpens: () => withTemporary('fjs-handle-dir-', async root => {
-            await hostCheck(step(open(root), handle =>
-                step(fstat(handle), s => step(close(handle), () => pureOk(s)))),
-                result => assertEq(unwrap(result).isDirectory, true))
-            await hostCheck(step(open(root), handle =>
-                resultStep(pread(handle, 0, 8), r => step(close(handle), () => pureOk(r)))),
-                result => {
-                    const r = unwrap(result)
-                    assert(r[0] === 'error', r)
-                    assert(r[1][0] === 'ioError', r[1])
-                    assertEq(r[1][1].code, 'EISDIR')
-                })
+        // **A directory is never readable as a file, and the two families of host
+        // say so differently.** POSIX opens one and fails the *read* with `EISDIR`,
+        // measured on Darwin with Node 26.8.1; Windows refuses the **open** with
+        // the same code. `fjs/web` maps both to `404` — the `fstat` answers the
+        // first and `openFailure` the second — so what is asserted here is the
+        // property both shapes have to give it, and a third shape (an open that
+        // succeeds and an `fstat` that calls a directory a file) fails.
+        //
+        // Per platform rather than skipped, because a proof that runs nowhere says
+        // nothing about the platform it was skipped on.
+        aDirectoryIsNeverAFile: () => withTemporary('fjs-handle-dir-', async root => {
+            /** @type {(opened: Result<Handle, IoChannel>) => Effect<NodeOp, _DirectoryAnswer, IoChannel>} */
+            const ask = opened => {
+                if (opened[0] === 'error') {
+                    /** @type {Effect<NodeOp, _DirectoryAnswer, IoChannel>} */
+                    const refused = pureOk({ refused: opened[1], stats: null, read: null })
+                    return refused
+                }
+                const handle = opened[1]
+                /** @type {Effect<NodeOp, _DirectoryAnswer, IoChannel>} */
+                const described = step(fstat(handle), stats =>
+                    resultStep(pread(handle, 0, 8), read =>
+                        step(close(handle), () => pureOk({ refused: null, stats, read }))))
+                return described
+            }
+            await hostCheck(resultStep(open(root), ask), result => {
+                const { refused, stats, read } = unwrap(result)
+                if (refused !== null) {
+                    // Windows refuses the open. The code is the one `fjs/web`
+                    // maps, which is what keeps the `404` the same on both
+                    // families of host.
+                    assert(refused[0] === 'ioError', refused)
+                    assertEq(refused[1].code, 'EISDIR')
+                    return
+                }
+                // POSIX opens it and fails the read.
+                assert(stats !== null, stats)
+                assert(read !== null, read)
+                assertEq(stats.isDirectory, true)
+                assertEq(stats.isFile, false)
+                assert(read[0] === 'error', read)
+                assert(read[1][0] === 'ioError', read[1])
+                assertEq(read[1][1].code, 'EISDIR')
+            })
         }),
         // Reading through a handle that was given back is `EBADF`, and a second
         // close is `ok` — the two answers the virtual runner copies, so that a

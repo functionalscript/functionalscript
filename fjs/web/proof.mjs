@@ -64,6 +64,9 @@ const served = 8 * 1024 * 1024 + 1000
  */
 const vast = 128 * 1024 * 1024
 
+/** The header the bound proof reads the declared length out of. */
+const lengthHeader = 'content-length:'
+
 /** The slice the fixture is written in. */
 const slice = 1024 * 1024
 
@@ -263,60 +266,74 @@ export const proof = {
     // guess the design measured going wrong: a length declared ahead of an
     // unbounded read, 131,072 bytes promised from a `stat` and 132,072 sent, under
     // a header nothing can check. The reads stop at the number in the header, so
-    // the client gets the body it was promised and the connection ends cleanly.
+    // the client gets the body it was promised and nothing of what was appended.
     //
     // A fixture cannot state this case — the virtual file system replaces a `Dir`
     // entry, and a handle holds what it opened, so a replacement is invisible
     // rather than longer. Appending to an open file is a thing only a disk does.
     //
-    // Removing the bound is caught here twice over: the reads run past the declared
+    // **The append waits for the headers rather than for a clock**, which is what
+    // makes this a proof of the bound and not of a race: a `Content-Length` in hand
+    // is the `fstat` already taken, so the size the header names was read before
+    // the file grew. A timer could have let the `fstat` see the grown file on a
+    // starved machine, and the proof would then have failed for the wrong reason.
+    //
+    // Removing the bound is caught twice over: the reads run past the declared
     // length, and the runner's own count then refuses the overrunning chunk and
-    // destroys the socket, so the clean end below becomes an `ECONNRESET`.
+    // destroys the socket — so the client is left short of what it was promised.
     boundedByTheFstat: () => withLargeFile(async (root, name, expected) => {
         const answer = await withServer(root, port => within(
             'a body bounded by the fstat',
             60000,
-            /** @type {Promise<{ readonly count: number, readonly digest: number, readonly ending: string }>} */
+            /** @type {Promise<{ readonly count: number, readonly digest: number, readonly length: string }>} */
             (new Promise(resolve => {
                 let count = 0
                 let h = 0
+                let head = true
+                let length = 'undefined'
+                /** @type {Uint8Array[]} */
+                const pending = []
                 const socket = net.connect(port, loopback, () => {
                     socket.write(`GET /${name} HTTP/1.1\r\nHost: ${loopback}\r\n\r\n`)
                 })
-                socket.pause()
                 socket.on('error', () => { })
-                // The pump parks on the socket's buffers well inside 400 ms; the
-                // append then lands on the file the handle is open on.
-                setTimeout(async () => {
+                socket.on('close', () => resolve({ count, digest: h, length }))
+                /** Appends to the file the response is being read from, then lets
+                 * the pump go on. */
+                const grow = async () => {
                     const fh = await open(join(root, name), 'a')
                     try { await fh.write(Uint8Array.from({ length: slice }, () => 0xFF)) }
                     finally { await fh.close() }
-                    // Skip the status line and headers: the body starts after the
-                    // blank line, and the digest is taken over the body alone.
-                    let head = true
-                    /** @type {Uint8Array[]} */
-                    const pending = []
-                    socket.on('data', part => {
-                        const bytes = Buffer.from(part)
-                        if (head) {
-                            pending.push(bytes)
-                            const all = Buffer.concat(pending)
-                            const at = all.indexOf('\r\n\r\n')
-                            if (at < 0) { return }
-                            head = false
-                            const body = all.subarray(at + 4)
-                            count += body.length
-                            h = digest(h, body)
-                            return
-                        }
+                    socket.resume()
+                }
+                socket.on('data', part => {
+                    const bytes = Buffer.from(part)
+                    if (!head) {
                         count += bytes.length
                         h = digest(h, bytes)
-                    })
-                    socket.on('close', () => resolve({ count, digest: h, ending: 'close' }))
-                    socket.resume()
-                }, 400)
+                        return
+                    }
+                    pending.push(bytes)
+                    const all = Buffer.concat(pending)
+                    const at = all.indexOf('\r\n\r\n')
+                    if (at < 0) { return }
+                    head = false
+                    const headers = `${all.subarray(0, at)}`.toLowerCase()
+                    const stated = headers.split('\r\n').find(l => l.startsWith(lengthHeader))
+                    length = stated === undefined ? 'absent' : stated.slice(lengthHeader.length).trim()
+                    const body = all.subarray(at + 4)
+                    count += body.length
+                    h = digest(h, body)
+                    // The headers are in hand, so the `fstat` is taken. Stop
+                    // reading — the pump parks on the socket's buffers with most of
+                    // the file still unread — append, and let it go on.
+                    socket.pause()
+                    grow().catch(() => { })
+                })
             }))))
-        // Exactly what the header promised, and nothing of the appended slice.
+        // The size the `fstat` gave, read before the file grew.
+        assertEq(answer.length, `${served}`)
+        // Exactly that, and nothing of the appended slice.
         assertEq(answer.count, served)
         assertEq(answer.digest, expected)
     }),
