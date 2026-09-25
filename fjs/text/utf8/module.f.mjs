@@ -18,6 +18,7 @@ import {
     errorMask,
     isSupplementaryPlane,
     isValidCodePoint,
+    restart,
 } from '../code_point/module.f.mjs'
 import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { contains } from '../../types/range/module.f.mjs'
@@ -176,11 +177,10 @@ const isLeadByte = contains(leadMin, leadMax)
  *
  * @type {(prefix: readonly CodePoint[]) => (byte: number) => readonly [readonly CodePoint[], Utf8State]}
  */
-const restart = prefix =>
-    byte =>
-        byte < contTag ? [[...prefix, byte], null]
-        : isLeadByte(byte) ? [[...prefix], [byte]]
-        : [[...prefix, byte | errorMask], null]
+const restartUtf8 = restart(byte =>
+    byte < contTag ? [[byte], null]
+    : isLeadByte(byte) ? [[], [byte]]
+    : [[byte | errorMask], null])
 
 /**
  * Converts a Unicode code point to a sequence of UTF-8 bytes.
@@ -283,7 +283,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
     if (!u8(byte)) {
         return [[errorMask], state]
     }
-    if (state === null) return restart([])(byte)
+    if (state === null) return restartUtf8([])(byte)
     if (byte >= contTag && byte < lead2Tag) {
         switch (state.length) {
             case 1: {
@@ -314,7 +314,7 @@ export const utf8ByteToCodePointOp = (byte, state) => {
             }
         }
     }
-    return restart([utf8StateToError(state)])(byte)
+    return restartUtf8([utf8StateToError(state)])(byte)
 }
 
 /**

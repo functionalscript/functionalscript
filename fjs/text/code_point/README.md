@@ -16,6 +16,16 @@ the two hand-written eof ops used to. A codec whose end-of-input step is *not*
 this shape can still pass `decoder` an arbitrary function; `eofFlush` is a
 factory for the common case, not a restriction on the interface.
 
+`restart` shares the first step's fresh-state dispatch with its error recovery.
+Each decoder dispatches a unit from the empty state in two places: the
+`state === null` arm, and recovery, where a pending state the unit refuses is
+flushed as an error unit and the unit is dispatched afresh. The two differ only
+in what goes out ahead of the unit's own output — nothing, or the flushed error
+— so each codec writes its classifier once and calls it as `restart(fresh)([])`
+and `restart(fresh)([error])`. In UTF-16 recovery the fresh dispatch's
+third case, a lone low surrogate, is unreachable — the pair would have been
+accepted — so recovery needs no classifier of its own.
+
 ## Shared code-point predicates
 
 The code-point classification predicates — `isBmpCodePoint`, `isHighSurrogate`,
