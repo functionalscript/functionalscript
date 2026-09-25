@@ -26,7 +26,7 @@
  *
  * **A constant draws inside the node that uses it.** A number, a string,
  * `null` or `undefined` is not a node of its own but a value in its user's
- * port, under the operand's role. Only an expression that is a constant
+ * port, beside the operand's role. Only an expression that is a constant
  * and nothing else draws one as a node, having no user to sit in.
  *
  * **An operand a node may never evaluate draws dashed.** `&&`, `||` and `??`
@@ -310,7 +310,7 @@ export const _graphOf = text => {
  * and `undefined` are constants, drawn inside the ports that use them. The
  * two `args` are filled
  * terminals — a value arriving from outside a scope rather than computed
- * from operands below — and there are two of them because a node belongs
+ * from its operands — and there are two of them because a node belongs
  * to one scope: the module's, which its import reaches through
  * `.default` on argument 0, and the function's own, fresh for that
  * body. That those two look identical and are still not shared is `a`'s

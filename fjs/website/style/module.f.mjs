@@ -208,19 +208,19 @@ svg text { font: inherit }
    its node may never evaluate, and a solid line there would say the value
    is always wanted. A node is drawn once however many edges reach it, so
    the marking has to be on the line rather than on the box.
-   A node with outgoing edges carries a row of ports under its label, one
-   cell per edge holding that edge's label, and the edge leaves from the
-   bottom of its cell — so a label always sits in the box it names rather
-   than over a line. A port is a thinner, unfilled cell inside the node's
-   own border, clipped to its rounded corners, with the border drawn once
-   more over the cells so it stays one weight all round. A primitive — a number, null, undefined — is no node of its
-   own: its value draws in a cell of the port that holds it, under the
-   port's label, and no line leaves for it. A value is tinted and a key is
-   grey, so the two differ by more than their order in the cell; in a node
-   with a value row an edge's port fills both rows, its key centred, so no
-   cell is left empty. No edge crosses a box — the layout routes one that skips a
-   rank down a lane of its own — so a line needs no casing to stand out
-   from a border it passes. */
+   A node with outgoing edges carries a row per port under its label, one
+   per edge holding that edge's label, and the edge leaves from the right
+   end of its row — so a label always sits in the box it names rather than
+   over a line. A port is a thinner, unfilled cell inside the node's own
+   border, clipped to its rounded corners, with the border drawn once more
+   over the cells so it stays one weight all round. A primitive — a
+   number, null, undefined — is no node of its own: its value draws in a
+   cell right of its key, and no line leaves for it. A value is tinted and
+   a key is grey, so the two differ by more than their order in the row;
+   an edge's key fills its whole row, so no cell is left empty. No edge
+   crosses a box — the layout routes one that skips a rank across a lane
+   of its own — so a line needs no casing to stand out from a border it
+   passes. */
 [data-graph-node] { fill: var(--bg); stroke: var(--text); stroke-width: 1.5 }
 [data-graph-outline] { fill: none; stroke: var(--text); stroke-width: 1.5 }
 [data-graph-kind="leaf"] { stroke: var(--muted); stroke-dasharray: 3 2 }

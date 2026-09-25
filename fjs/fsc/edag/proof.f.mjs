@@ -1063,14 +1063,20 @@ export const proof = {
         sharing: () => {
             const html = htmlToString(demo.view(demo.init))
             assertEq(html.split('>+<').length - 1, 1) // one `+` node, however many edges reach it
-            // Every edge ends at its target's top centre, and the `+` label
-            // is centred in a 26px header, so the lines that end 13px above
-            // it are the ones that reach it: `0`, `1`, `a * 3`'s `left` and
-            // `m && a`'s `right`, each from a port of its own.
+            // Every edge ends at its target's left side, level with its
+            // label, so the lines that end at the `+` box's left edge and
+            // the `+` label's height are the ones that reach it: `0`, `1`,
+            // `a * 3`'s `left` and `m && a`'s `right`, each from a port of
+            // its own. The box is the one whose centre is the label's and
+            // whose top is 13px above it, half the 26px header.
             const [before] = html.split('" text-anchor="middle" data-graph-label="">+<')
             const at = before.slice(before.lastIndexOf('<text x="') + '<text x="'.length)
-            const [x, y] = at.split('" y="')
-            assertEq(html.split(`L${x},${Number(y) - 13}" data-graph-edge=""`).length - 1, 4)
+            const [x, y] = at.split('" y="').map(Number)
+            const box = html.split('<rect x="').slice(1)
+                .map(r => r.split('"'))
+                .find(([rx, , ry, , w]) => Number(ry) === y - 13 && Number(rx) + Number(w) / 2 === x)
+            const left = assertNotNullish(box, html)[0]
+            assertEq(html.split(`L${left},${y}" data-graph-edge=""`).length - 1, 4)
         },
         // The same source carries one of every look the drawing has, so a
         // reader meets all three before typing anything: an operator

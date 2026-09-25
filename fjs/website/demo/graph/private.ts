@@ -16,27 +16,32 @@ export type _Out = {
 }
 
 /**
- * One cell of a node's bottom row: the edge that leaves from it, and where
- * the cell sits, `x` measured from the node's own left edge.
+ * One row of a node's ports: the edge that leaves from it, and where the
+ * row sits, `y` measured from the node's own top edge.
  */
 export type _Port = _Out & {
-    readonly x: number
-    readonly width: number
+    readonly y: number
 }
 
-/** A {@link Ranked} node, placed — its own box, and a port per outgoing edge. */
+/**
+ * A {@link Ranked} node, placed — its own box, and a port per outgoing
+ * edge. `keyWidth` is the width of the key column its inline ports share,
+ * the rest of the node being their values'; with no inline port, it is
+ * the node's whole width.
+ */
 export type _Positioned = Ranked & {
     readonly x: number
     readonly y: number
     readonly width: number
     readonly height: number
+    readonly keyWidth: number
     readonly ports: readonly _Port[]
 }
 
 /**
- * One place in a row, before it is laid out: a node, or a lane that an
- * edge skipping this rank passes down through. `key` orders a row's
- * places left to right.
+ * One place in a column, before it is laid out: a node, or a lane that an
+ * edge skipping this rank passes across. `key` orders a column's places
+ * top to bottom.
  */
 export type _Slot = {
     readonly node?: Ranked | undefined
@@ -47,17 +52,17 @@ export type _Slot = {
 }
 
 /**
- * A lane, placed: the vertical an edge runs down through one row it
- * skips, `x` its centre and `top`/`bottom` the row's own. `index` is the
- * edge's, as a port carries it, and `rank` the row's, which together name
- * the lane.
+ * A lane, placed: the horizontal an edge runs across one column it skips,
+ * `y` its centre and `left`/`right` the column's own. `index` is the
+ * edge's, as a port carries it, and `rank` the column's, which together
+ * name the lane.
  */
 export type _Lane = {
     readonly index: number
     readonly rank: number
-    readonly x: number
-    readonly top: number
-    readonly bottom: number
+    readonly y: number
+    readonly left: number
+    readonly right: number
 }
 
 /** A point of an edge's route. */
