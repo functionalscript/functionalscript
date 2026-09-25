@@ -444,12 +444,12 @@ source rest binding in that future case or silently admit initializers now.
       negative zero for both metadata fields without normalizing ordinary
       `-0` argument values. Update schema, lowering, analysis, operations,
       executor contexts and native consumers.
-- [x] Generate and share the factory table; check its capacity at EDAG
-      materialization, separately from syntax and EDAG validation. Keep
-      unsupported new execution paths refused until they preserve length and
-      bindings, without regressing existing calls/returns/exports or blocking
-      source/EDAG outputs that do not use them. Add co-located proofs for the
-      generator and the generated table.
+- [x] Write and share the factory table, covering every length the
+      language admits: EDAG validation refuses a longer one, so
+      materialization has no separate capacity check. Keep unsupported new
+      execution paths refused until they preserve length and bindings,
+      without regressing existing calls/returns/exports. Add co-located
+      proofs for the table.
 - [ ] Specify callable-to-EDAG association and host-conversion coverage, and
       implement the shared default renderer before switching supported
       materialization/export paths to these factories. Preserve existing
