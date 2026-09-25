@@ -1,5 +1,5 @@
 /**
- * Implementation-private types for the DJS AST evaluator.
+ * Implementation-private types for the AST evaluator.
  *
  * @module
  */
