@@ -5,7 +5,7 @@
  * @import { Operation } from '../../effects/types.ts'
  * @import { Effect, NotImplemented } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { Key, MemOp } from '../../effects/memory/types.ts'
+ * @import { Key, MemOp, MemoryState } from '../../effects/memory/types.ts'
  * @import {
  *   ToolsListParams,
  *   ToolsCallParams,
@@ -19,38 +19,15 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
-import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
+import { error, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
 import { string } from '../../rtti/module.f.mjs'
-import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
+import { create, memoryInitial, memoryOperationMap, read } from '../../effects/memory/module.f.mjs'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
     toolResultStep,
 } from './module.f.mjs'
-
-// ── Memory mock ────────────────────────────────────────────────────────────────
-
-/** @type {{
- *   readonly next: number
- *   readonly values: { readonly [key: string]: unknown }
- * }} */
-const initial = { next: 0, values: {} }
-
-/** @type {MemOperationMap<MemOp, typeof initial>} */
-const mock = {
-    memCreate: value => state => {
-        const id = `k${state.next}`
-        /** @type {Key<unknown>} */
-        const key = asNominal(id)
-        return [{ next: state.next + 1, values: { ...state.values, [id]: value } }, ok(key)]
-    },
-    memRead: key => state => [state, ok(state.values[asBase(key)])],
-    memWrite: (key, value) => state => {
-        const id = asBase(key)
-        return [{ ...state, values: { ...state.values, [id]: value } }, ok(undefined)]
-    },
-}
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -79,12 +56,13 @@ const handlers = {
         pureOk({ content: [{ type: 'text', text: 'hello' }] }),
 }
 
-// Run a memory effect against the mock and unwrap what it answered. The
-// channel stays generic because nothing here interprets it: a proof has nobody
-// to report a failure to, so an `error` is a panic and the tests read the `ok`.
+// Run a memory effect against the synchronous interpreter and unwrap what it
+// answered. The channel stays generic because nothing here interprets it: a
+// proof has nobody to report a failure to, so an `error` is a panic and the
+// tests read the `ok`.
 /** @type {<T, E>(effect: Effect<MemOp, T, E>) => T} */
 const runMem = effect =>
-    unwrapResult(run(mock)(initial)(effect)[1])
+    unwrapResult(run(memoryOperationMap)(memoryInitial)(effect)[1])
 
 // TypeScript infers O = Operation (the upper bound) rather than O = never when
 // O flows through McpHandlers<never>, so we cast the widened type down to MemOp.
@@ -244,15 +222,15 @@ const initMsg = initMsgFor('2024-11-05')
 const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
 /** A memory handler that answers as a runner with no such operation. */
-const memNotImplemented = () => (/** @type {typeof initial} */ state) =>
+const memNotImplemented = () => (/** @type {MemoryState} */ state) =>
     /** @type {const} */ ([state, error(['notImplemented', 'memRead'])])
 
-// Runs one step against a memory mock with `overrides` applied, from a session
-// slot created before them so the slot itself always exists.
-/** @type {(overrides: Partial<MemOperationMap<MemOp, typeof initial>>) => (msg: Unknown) => unknown} */
+// Runs one step against the memory interpreter with `overrides` applied, from a
+// session slot created before them so the slot itself always exists.
+/** @type {(overrides: Partial<MemOperationMap<MemOp, MemoryState>>) => (msg: Unknown) => unknown} */
 const failingStep = overrides => msg => {
-    const [state, key] = run(mock)(initial)(create(uninitializedState))
-    const runner = run(/** @type {MemOperationMap<MemOp, typeof initial>} */ ({ ...mock, ...overrides }))
+    const [state, key] = run(memoryOperationMap)(memoryInitial)(create(uninitializedState))
+    const runner = run(/** @type {MemOperationMap<MemOp, MemoryState>} */ ({ ...memoryOperationMap, ...overrides }))
     // A `Handle` answers `Effect<…, Response | null, never>`, so the payload
     // the runner hands back is the `ok` around the response and the unwrap is
     // total — the failures these tests inject are the ones `mcpStep` itself
