@@ -82,16 +82,11 @@ EDAG".
 - [ ] `fjs/fsc/serializer`: all four entry points return the error Result
       for `['=>', 2 ** 32, null, 1]`, top-level and nested in a function
       graph, without allocating the parameter names; length 16 round-trips.
-- [ ] `fjs/edag/callable`: `table.f.mjs` is written once, by hand, for
-      lengths 0 through 16, and `callable/generate` is deleted with its step
-      in `npm run gen`. The table exists because a function's `length` comes
-      only from a written parameter list — FunctionalScript has no
-      `defineProperty`, `eval` or `Function` to set it otherwise — and with
-      the length fixed by the language there is nothing left to generate.
-      `fjs/fsc/parameters`' `generatedTable` proof, which compiles the
-      generator's text, compiles the hand-written table instead, and the
-      callable README stops calling the capacity "not a language or EDAG
-      limit".
+- [ ] The arrow factory table covers lengths 0 through 16, and its README
+      stops calling the capacity "not a language or EDAG limit". The table is
+      written by hand, not generated, once
+      [move-to-types-function](../../fjs/edag/callable/todo/move-to-types-function.md)
+      lands; whichever of the two lands second does the trim.
 - [ ] `fjs/edag/rust`: the `u32` refusal and its `lengthLimit` proof give way
       to the language limit.
 - [ ] [`spec/README.md`](../README.md#functions) states the limit where it
