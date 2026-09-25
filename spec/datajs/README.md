@@ -72,7 +72,7 @@ exactly one byte sequence.
 ## Status
 
 **The codec implements this document.** The
-[conformance matrix](./vectors/matrix.md) awaits nothing for the reader, the
+[conformance matrix](./vectors/gen.matrix.md) awaits nothing for the reader, the
 serializer or normalization. The reader is
 [`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs), and
 the `;` this format requires after every statement is what the compiler's
