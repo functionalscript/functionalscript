@@ -62,13 +62,18 @@ is a trade rather than a removal.** [`ReadWhole`](../types.ts) was added on
 2026-09-14 (`11e3533f`), after this section was written. It answers a list of
 `Vec`s from **one `open`**, so the chunks it produces are one file's and the
 per-chunk splice the paragraph above describes cannot happen — and it is
-implemented in both runners and consumed by seven `fjs/git` modules, so it is a
-proven operation and not a sketch. Its own docstring states the property this
+implemented in both runners and read through `readWholeBytes` by `fjs/git`'s
+[`packstore`](../../../git/packstore/module.f.mjs) and
+[`refstore`](../../../git/refstore/module.f.mjs), so it is a proven operation
+and not a sketch. Its own docstring states the property this
 section needs: *"The chunks are one open's, which is why this is not a fold
 over `readBytes`. That operation resolves the path per call, so reading a file
 in windows can straddle two files."*
 
-What it costs is laziness. The three routes to a body are distinct and none
+What it costs is laziness, and with it a length declared before the read: the
+operation takes no bound and reads to the end rather than to the `stat` size, so
+a `Content-Length` on this route is summed from the chunks it answered instead of
+declared ahead of them. The three routes to a body are distinct and none
 dominates:
 
 | | one inode | lazy |
@@ -777,9 +782,15 @@ answering `413` is a listener with a size policy of its own — correctly.
       the virtual file system, as the chunk source `fjs/web` reads through, with
       its open handles visible to a proof so an unreleased one fails a test.
       This is the route that makes a large body lazy as well as safe.
-- [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` and the
-      reads bounded by it from one `open`, which is `ReadWhole` today and the
-      held handle once the task above lands, whatever is held given back through
+- [ ] Stage 1: serve files past the cap in `fjs/web` — the body read from one
+      `open`, and a `Content-Length` the reads cannot overrun. The two routes
+      reach that differently, and only one of them has a bound to be given.
+      `ReadWhole` takes none and reads to the end rather than to the `stat` size
+      ([`../types.ts`](../types.ts)), so it materializes the chunks first and the
+      header is their summed length; a size declared ahead of it would be the
+      guess "What the bound holds" measured going wrong on a file that grew. The
+      held handle, once the task above lands, declares the `fstat` size and
+      bounds the reads by it. Then whatever is held given back through
       `release`, `tooLarge` and its `413` row deleted,
       the `isFile` guard kept, and
       [`../../../web/README.md`](../../../web/README.md) corrected with them:
