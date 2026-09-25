@@ -1,5 +1,5 @@
 /**
- * The DJS module reader: the rewrite set that folds the tree of the grammar
+ * The module reader: the rewrite set that folds the tree of the grammar
  * in `./grammar` into a module as the LL(1) backend builds it, and
  * {@link parseFromTokens}, the reader over a token stream.
  *

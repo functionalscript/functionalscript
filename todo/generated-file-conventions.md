@@ -42,9 +42,10 @@ here earlier:
   ([`shouldLoad`](../fjs/dev/module.f.mjs)).
 - **Suffixes stay intact,** so every tool that selects files by suffix — the
   proof runner, coverage, `tsc`, npm `files`, `fjs compile` — works unchanged.
-- **The dot matters.** `gen*` would match the handwritten generator
-  `fjs/edag/callable/generate/` and several `todo/generated-*.md` files; the
-  cleanup below would delete them. No tracked path starts with `gen.` today.
+- **The dot matters.** `gen*` would match handwritten files such as
+  `todo/generated-*.md`, `generate-website.md` and
+  `generic-operation-signatures.md`, and any future `generator/` or
+  `generic/` directory; the cleanup below would delete them. No tracked path starts with `gen.` today.
 - **Not a bare `gen/`.** Rust edition 2024, which both crates use, reserves
   `gen`: `mod gen;` is a parse error.
 
@@ -69,7 +70,7 @@ shebang.
   its proof at `gen.{name}/proof.f.mjs`. Coverage includes every
   `**/module.f.mjs` (`package.json` `cov`), so a generated module is held to
   100% coverage like any other. No generated FunctionalScript module remains
-  once the callable table is handwritten (blocker 1), so how such a module is
+  now that the callable table is handwritten (blocker 1), so how such a module is
   proven — a generated proof checks the generator against itself — is decided
   when the first one appears.
 - **Rust.** A dotted name is never an identifier, so `#[path]` cannot be
@@ -77,9 +78,10 @@ shebang.
   loaded through `#[path]` resolves its children in that directory.
   `nanvm-harness/src/lib.rs` writes
   `#[path = "../gen.fixtures"] pub mod fixtures { pub mod arity; … }`, and
-  the children need no attribute. Keep generated modules out of
-  `cargo fmt -- --check` with `#[rustfmt::skip]` on the `mod` declaration —
-  stable rustfmt has no glob to skip them. A dotted name cannot
+  the children need no attribute. Whether generated Rust is kept out of
+  `cargo fmt -- --check`, and how, is
+  [generated-rust-module-rustfmt-skip](../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)'s
+  open question; this convention leaves formatting as it is. A dotted name cannot
   be a Cargo target root: `tests/gen.foo.rs` fails with `invalid character
   '.' in crate name`, but only under `cargo test` or
   `cargo clippy --all-targets`. Give such a target an explicit
@@ -124,10 +126,15 @@ the script each project owns.
 
 1. Establish the pinned runtime before anything is deleted — `./nix/run`,
    which the cleanup does not touch.
-2. Delete every `gen.*` file and directory in the project, tracked, untracked
-   and ignored, leaving the directories empty (`rm` removes files only, and
-   git sees no empty directory). Skip dot-names such as `.git`, `node_modules` and `target`, which can contain
-   third-party `gen.*` names. The deletion is `npm run gen:clean`:
+2. Delete every file that is a `gen.*` path or lies inside one, tracked,
+   untracked and ignored. Directories stay, emptied: the effects layer's `rm`
+   removes files only, and git records no empty directory, so an emptied
+   `gen.fixtures/` is invisible to the comparison and `fjs compile` writes
+   into it again (blocker 2). A recursive `rm` effect — which
+   [65z-ci-nix](../fjs/ci/todo/65z-ci-nix.md) also waits on — would let the
+   directories go too, but nothing here needs it. Skip dot-names such as
+   `.git`, `node_modules` and `target`, which can contain third-party `gen.*`
+   names. The deletion is `npm run gen:clean`:
    [`fjs/dev/clean`](../fjs/dev/clean/module.f.mjs), on the tree walker it
    shares with proof discovery,
    run with `fjs r` like the generators, and using the same
@@ -155,20 +162,20 @@ the root `nix/run` and `nix/flake.nix` the step runs through. Tracked in
 
 Deleting all `gen.*` paths and regenerating fails today, for these reasons:
 
-1. **The CLI imports a generated module.** Every `npm run gen` step runs
-   `fjs/module.mjs`, which imports
-   `fjs/module.f.mjs → fsc → fsc/edag → edag/analysis → edag/callable →
-   edag/callable/table.f.mjs`. With `table.f.mjs` deleted,
-   `node ./fjs/module.mjs r ./fjs/edag/callable/generate/module.f.mjs` fails
-   with `ERR_MODULE_NOT_FOUND`. Rule: no generator's import closure — the
-   runner included — may contain a generated path. **Decided:** the table
-   stops being generated. It is checked in as handwritten source and
-   `fjs/edag/callable/generate` is deleted, as
-   [move-to-types-function](../fjs/edag/callable/todo/move-to-types-function.md)
-   already proposes; that issue keeps the move to `fjs/types/function`.
-2. **`fjs compile` does not create its output directory.** Writing into a
-   deleted `gen.fixtures/` fails with `ENOENT`. **Decided:** it creates the
-   directory, as the other generators already do.
+1. **The CLI imported a generated module.** Every `npm run gen` step runs
+   `fjs/module.mjs`, which imported the generated callable table through
+   `fsc → fsc/edag → edag/analysis → edag/callable`; with the table deleted,
+   the table's own generator failed with `ERR_MODULE_NOT_FOUND`. Rule: no
+   generator's import closure — the runner included — may contain a generated
+   path. **Done** by #2294: the table is handwritten in
+   [`fjs/types/function/length`](../fjs/types/function/length/module.f.mjs)
+   and its generator is gone.
+2. **`fjs compile` does not create its output directory.** Compiling into a
+   directory that does not exist fails with `ENOENT`. The cleanup leaves
+   `gen.fixtures/` in place, emptied, so the drift check itself never meets
+   this; a new `gen.*` output directory, or one removed by hand, does.
+   **Decided:** it creates the directory, as the other generators already do,
+   so every generated directory is reproducible from nothing.
 3. **Two tracked fixtures have no generator.**
    `nanvm-harness/fixtures/function.rs` and `rest-function.rs` are not written
    by `npm run gen` and are not built. **Decided:** wire them into `gen` and
@@ -205,10 +212,13 @@ removes the old path's `.gitattributes` line.
 
 One pull request each, stacked in this order:
 
-- [x] Hand-write the callable table and delete its generator (blocker 1).
+- [x] Hand-write the callable table and delete its generator (blocker 1) —
+      #2294.
 - [x] Add the two `.gitattributes` lines and the fixed-path exceptions,
       document the rule in AGENTS.md and CONTRIBUTING.md, and rename
-      `matrix.md` and `generated.rs`.
+      `matrix.md` and `generated.rs`. The rule names
+      `nanvm-harness/fixtures/*.rs` as its one pending exception, which the
+      fixtures task below removes.
 - [x] Wire `function` and `rest-function` into `gen` and `src/lib.rs`
       (blocker 3).
 - [x] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
@@ -229,4 +239,4 @@ One pull request each, stacked in this order:
 - [Nix integration](../fjs/ci/todo/65z-ci-nix.md) — existing stale-directory task;
   use the shared cleanup convention when implementing it.
 - [rustfmt skip for generated Rust](../nanvm-lib/todo/generated-rust-module-rustfmt-skip.md)
-  — the `#[rustfmt::skip]` on the `mod` declaration.
+  — owns the formatting policy for generated Rust, which this leaves open.
