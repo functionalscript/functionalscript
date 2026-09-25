@@ -27,6 +27,7 @@
 import { f64Bits, i64Literal, stringLiteral } from '../../media/rust/module.f.mjs'
 import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { lazyOp2Id } from '../module.f.mjs'
+import { maxLength } from '../../types/function/length/module.f.mjs'
 
 /**
  * The `nanvm-lib` expression each unary operation prints as.
@@ -606,9 +607,10 @@ const printer = nested => shared => root => {
                 : f(last(e))
         }
         if (id === '=>') {
-            // IStaticFunction::static_function stores length as u32. Larger
-            // EDAG arities are valid, but this target cannot represent them.
-            if (a > 0xffff_ffff) { return error(['function length exceeds Rust u32 capacity', a]) }
+            // A fragment has no complete graph for `bindingError`, so the
+            // language's limit is checked here too; IStaticFunction's u32
+            // holds every length it admits.
+            if (a > maxLength) { return error([`a function length above ${maxLength}`, a]) }
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
