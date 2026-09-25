@@ -42,14 +42,15 @@ The pipeline reuses what exists and adds no second front end or interpreter:
 
 ```text
 text
-  -> parse                    (fsc/transpiler: parse(path)(text))
-  -> refuse any import
-  -> unresolved(module).edag  (fsc/edag)
-  -> _defaultExport           (fsc/edag)
-  -> analysis                 (edag/analysis)
-  -> memo under catch_        (edag/memo, effects/common)
-  -> JSON                     (_tryJson in fsc/module.f.mjs)
-  -> okResult / errorResult   (protocol/mcp)
+  -> catch_(() =>                 (effects/common)
+       parse                      (fsc/transpiler: parse(path)(text))
+       -> refuse any import
+       -> unresolved(module).edag (fsc/edag)
+       -> _defaultExport          (fsc/edag)
+       -> analysis                (edag/analysis)
+       -> memo                    (edag/memo)
+       -> JSON)                   (_tryJson in fsc/module.f.mjs)
+  -> okResult / errorResult       (protocol/mcp)
 ```
 
 A prototype confirmed the path from parsing through `memo`: `parse`, then
@@ -68,16 +69,29 @@ local file. Supporting imports later needs a resolution that stays inside that
 invariant, such as modules named by CAS hash. It is not a matter of reusing
 `resolve` in [`fjs/fsc/edag`](../../fsc/edag/module.f.mjs).
 
-**A module that parses can still fail when it runs.** `export default null.x;`
-parses and lowers, and then `memo` throws the host's `TypeError`. A call that
-recurses without end overflows the stack the same way. A plain `.f.mjs`
-function cannot turn that throw into a result, and an uncaught throw would end
-the server, not just the call. So `memo` runs as a thunk under `catch_` from
-[`fjs/effects/common`](../../effects/common/module.f.mjs). That is the host
-boundary `fjs/emergent_testing` already uses for user code. It returns
-`ok(value)` or `error(thrown)`, and the error becomes an `errorResult`. The
-server's operation set, `Read | Write | MemOp | FileCasOperation` on
-`casMcpServer`, gains `Catch`. The Node runner already implements `Catch`.
+**A module can throw anywhere after `text`, not only when it runs.**
+`export default null.x;` parses and lowers, and then `memo` throws the host's
+`TypeError`. A call that recurses without end overflows the stack the same way.
+Deep nesting overflows it before anything runs. A prototype at `4b25fe2` fed
+`export default [[…]];` with nested arrays: about a thousand levels, some
+2 KiB of text, threw `RangeError` in `analysis`, and a few thousand threw it in
+the lowering. `parse` handled every depth tried. So the 128 KiB cap below does
+not prevent it. A plain `.f.mjs` function cannot turn a throw into a result,
+and an uncaught throw would end the server, not just the call. So the whole
+text-to-JSON function runs as one thunk under `catch_` from
+[`fjs/effects/common`](../../effects/common/module.f.mjs), not `memo` alone.
+That is the host boundary `fjs/emergent_testing` already uses for user code.
+It returns `ok(value)` or `error(thrown)`, and the error becomes an
+`errorResult`. A parse error, an import and a JSON refusal come back inside
+`ok` as the function's own `Result`. The server's operation set,
+`Read | Write | MemOp | FileCasOperation` on `casMcpServer`, gains `Catch`. The
+Node runner already implements `Catch`.
+
+Catching the overflow refuses deep input. It does not remove the depth limit.
+[`bound-edag-interpreter-resources.md`](../../fsc/todo/bound-edag-interpreter-resources.md)
+makes validation and interpretation iterative. It does not name the lowering in
+`fjs/fsc/edag` or `analysis`, and both recurse on nesting depth too. Until they
+are iterative, `catch_` is the tool's whole answer to depth.
 
 Bounding time and memory is a separate task,
 [`bound-edag-interpreter-resources.md`](../../fsc/todo/bound-edag-interpreter-resources.md).
@@ -127,16 +141,17 @@ reads `<eval>:line:column - error: …`, formatted by `_errorLocation` in
 ### Tasks
 
 - [ ] Add the text-to-value function to `fjs/fsc`: parse, refuse imports,
-      lower, select the default, analyse, and run `memo` under `catch_`. Prove
-      it with 100% coverage.
+      lower, select the default, analyse, and run `memo`. Prove it with 100%
+      coverage. The tool runs it, JSON step included, under one `catch_`.
 - [ ] Add a `'function'` case to `jsonLeaf` that refuses a function, and prove
       it through `_tryJson`.
 - [ ] Add the `fjs/mcp/eval` registry with the `fjs_eval` `toolEntry`, and
       compose it in `casMcpHandlers`. Add `Catch` to the server's operations.
 - [ ] Prove the cases: `export default 2 + 2;` returns `4`; an object and an
       array return as JSON; a module with an import is refused; a parse error
-      is reported at `<eval>:line:column`; `export default null.x;` returns an
-      error result and the server keeps serving; `undefined`, a bigint and
+      is reported at `<eval>:line:column`; `export default null.x;` and an
+      array nested a few thousand levels deep each return an error result and
+      the server keeps serving; `undefined`, a bigint and
       `export default x => x;` are refused.
 - [ ] Add the tool to the tool tables in [`../README.md`](../README.md) and in
       [`fjs/mcp/module.f.mjs`](../module.f.mjs)'s JSDoc.
