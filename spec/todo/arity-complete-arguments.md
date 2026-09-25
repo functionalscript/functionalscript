@@ -95,6 +95,9 @@ omitted ones are the native ones.
 
 ### Related
 
+- [function-length-limit](./function-length-limit.md) — proposes at most 16
+  fixed parameters, which the pattern's unrestricted `length` conflicts with;
+  the open question is recorded there.
 - [Review finding](https://github.com/functionalscript/functionalscript/pull/2133#discussion_r4054015547)
   — the complete-list writer obstruction that motivated the earlier task.
 - [Serialization](./serialization.md#function-text-and-serialization) —

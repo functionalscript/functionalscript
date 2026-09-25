@@ -1218,8 +1218,9 @@ these rules bind it.
   asserts to validate untrusted input — a function handling an HTTP
   request must not guard the request with asserts, or any user can crash
   the program (a DoS vector). Untrusted-input validation is an ordinary,
-  *expected* outcome and belongs in values (`Result` / `Nullable`,
-  [`fjs/types/result`](../fjs/types/result/module.f.mjs)); an
+  *expected* outcome and belongs in values
+  ([`Result`](../fjs/types/result/module.f.mjs) /
+  [`Nullable`](../fjs/types/nullable/module.f.mjs)); an
   assert firing means the program itself is wrong — a breach of an
   internal API contract. The opaque-error contract (A4) enforces this
   discipline by construction: an error carries no information, so an

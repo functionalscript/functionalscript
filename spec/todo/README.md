@@ -106,6 +106,8 @@ see [serialization](./serialization.md).
    fixed `arg`/`rest` EDAG bindings and the callable factories have landed;
    what remains is the P1 default-text renderer, since a factory callable's
    `String` still shows its wrapper, and the plan's unticked proofs
+   ([function-length-limit](./function-length-limit.md) proposes at most 16
+   fixed parameters)
 3. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))

@@ -9,9 +9,10 @@ Untagged template literals: backtick-delimited strings with `${expression}`
 substitutions, the `` \` `` and `\${` escapes, and literal line terminators
 normalized to `\n`.
 
-A substitution embeds a full expression, so this is an FJS-level feature, not
-the lexical sugar that [js-string-literals](./2460-js-string-literals.md)
-describes — which is why that document excludes it.
+A substitution embeds a full expression ([Operators](../README.md#operators)),
+so this is an FJS-level feature, not the lexical sugar that
+[js-string-literals](./2460-js-string-literals.md) describes — which is why
+that document excludes it.
 
 ## Semantics
 
