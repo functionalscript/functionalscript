@@ -8,9 +8,8 @@
 Generated files were mixed with handwritten sources, and their names did not
 distinguish them. The `gen.` rule and its `.gitattributes` markings have
 landed: `git check-attr linguist-generated` reports `true` for every `gen.*`
-output, for the fixed-path workflows and Nix files, and for
-`nanvm-harness/fixtures/*.rs`. Those fixtures are the one output still beside
-its sources without the prefix, until they move to `gen.fixtures/`.
+output — the harness fixtures now in `nanvm-harness/gen.fixtures/` included —
+and for the fixed-path workflows and Nix files.
 
 CI runs `npm run gen` over the checkout and then compares. An output its
 generator stopped writing survives, and a generator can silently depend on a
