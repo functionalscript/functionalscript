@@ -6,7 +6,7 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { empty, length, maxLengthBytes, u8ListMsb, vec } from '../../types/bit_vec/module.f.mjs'
 import { cycle, take, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
-import { hexText, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
+import { hexText, isOidOf, of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
@@ -47,6 +47,20 @@ export const proof = {
         const sha1 = '0123456789abcdef'.repeat(2) + 'fedcba98'
         const i = tryFromHex(latin1(sha1))
         assertEq(i !== null && String.fromCharCode(...toArray(toHex(i))), sha1)
+    },
+    // An id is of a width when it is exactly that many whole bytes: not a
+    // byte fewer or more, and not the same bytes a bit short or a bit over.
+    isOidOf: () => {
+        const sha1 = isOidOf(20)
+        const sha256 = isOidOf(32)
+        assertEq(sha1(vec(160n)(0n)), true)
+        assertEq(sha256(vec(256n)(0n)), true)
+        assertEq(sha1(vec(256n)(0n)), false)
+        assertEq(sha256(vec(160n)(0n)), false)
+        assertEq(sha1(vec(152n)(0n)), false)
+        assertEq(sha1(vec(159n)(0n)), false)
+        assertEq(sha1(vec(161n)(0n)), false)
+        assertEq(sha1(empty), false)
     },
     // At a width: the id of that width reads, any other is refused, and
     // what is no hex at all is refused as before.
