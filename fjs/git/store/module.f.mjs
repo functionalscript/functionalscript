@@ -177,7 +177,7 @@ const untilNul = entry => {
  * its first character — so there is no reading of it to copy, and this takes the
  * quoted path alone. A store named only by that mangled second entry is one this
  * does not reach; see
- * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
+ * [`todo/alternates-line-quirks.md`](./todo/alternates-line-quirks.md).
  *
  * **A path ends at its first `NUL`**, which is why {@link untilNul} runs last and
  * a line left with nothing is skipped like an empty one. That is not this
@@ -239,7 +239,7 @@ const octalAt = (line, i) => {
  * the host writes back as the two UTF-8 bytes of it — a different directory than
  * Git looks in. That one is not answerable in this layer, where every path is a
  * string, and is [`todo/byte-paths.md`](../todo/byte-paths.md)'s to fix and
- * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md)'s to
+ * [`todo/alternates-line-quirks.md`](./todo/alternates-line-quirks.md)'s to
  * record. A `\000` is different: it decodes to a `\u0000` here and the path
  * ends there, which {@link untilNul} does and which agrees with Git.
  *
@@ -291,7 +291,7 @@ const unquoted = line => {
  * nobody writes by hand. Both are ordinary paths now that simply are not found,
  * which is a miss and never a wrong object, since the id is checked against
  * whatever answers. What is left of them is
- * [`todo/alternates-line-quirks.md`](../todo/alternates-line-quirks.md).
+ * [`todo/alternates-line-quirks.md`](./todo/alternates-line-quirks.md).
  *
  * A third shape *was* on that list and is not any more: a `NUL` inside a path,
  * where the entry would have reached the host whole and been turned down before

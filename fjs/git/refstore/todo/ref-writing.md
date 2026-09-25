@@ -5,9 +5,9 @@
 
 ### Problem
 
-Reading refs is done: [`fjs/git/ref`](../ref/module.f.mjs) reads the three
+Reading refs is done: [`fjs/git/ref`](../../ref/module.f.mjs) reads the three
 files as the grammars they are, and
-[`fjs/git/refstore`](../refstore/module.f.mjs) finds and opens them, answering
+[`fjs/git/refstore`](../module.f.mjs) finds and opens them, answering
 every ref a repository holds and the id one name resolves to.
 
 Writing one has started. `tryWrite` writes the loose file under Git's own
@@ -21,7 +21,7 @@ it, and renames it over `refs/heads/x`, so a concurrent writer fails to create
 the lock rather than interleaving. The rename is the atomic step, and the lock
 file is why `fjs/git/refstore`'s walk skips a name ending in `.lock`: such a
 file is a write in progress and not a ref.
-[`refstore`](../refstore/module.f.mjs)'s `tryWrite` does that, in five
+[`refstore`](../module.f.mjs)'s `tryWrite` does that, in five
 effects — `packed-refs`, a `stat` of the ref's own path, the directories above
 the file, the exclusive write of the id's hex digits and an LF, the rename — and
 gives the lock back where a
@@ -201,7 +201,7 @@ Two other bounds are not this one and are worth keeping apart. `nameText`
 refuses a name past `maxLengthBytes` because there is no string to build a path
 from at all — a crash before that guard, recorded above — and the virtual runner
 enforces *neither* limit, which is
-[`fjs/effects/node/virtual/todo/no-name-length-limit.md`](../../effects/node/virtual/todo/no-name-length-limit.md).
+[`fjs/effects/node/virtual/todo/no-name-length-limit.md`](../../../effects/node/virtual/todo/no-name-length-limit.md).
 
 **The lock protects against a concurrent writer, not against a process that can
 write in the ref's directory**, and two review rounds found the same window from
@@ -242,7 +242,7 @@ through a planted link to somewhere else in the filesystem, which is the propert
 that would make this more than a namespace the attacker could already edit.
 
 Deferring rather than fixing is deliberate and is *not* silence in
-[DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)'s sense:
+[DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)'s sense:
 each operation did what it promised, and what changed is the filesystem under it,
 not the answer given. A read-back-and-compare after the rename was considered and
 rejected — it cannot prevent the publication it would detect, it races on its own,
@@ -279,23 +279,12 @@ Deleting a ref is the harder half, because a name can be in two files: the
 loose file must go *and* the `packed-refs` line with it, or the packed line
 reappears as the ref. Git rewrites `packed-refs` under its own lock for that.
 
-**The reflog is retention with a clock on it.** `logs/refs/heads/x` records
-where a ref has pointed, and Git keeps an object an entry names until that entry
-expires — `gc.reflogExpire` defaults to 90 days and
-`gc.reflogExpireUnreachable` to 30. Measured on Git 2.43.0: a commit left only
-in the reflog by `git reset --hard HEAD~1` survives `git gc --prune=now`, and is
-gone after `git reflog expire --expire=now --expire-unreachable=now --all` and
-another `gc --prune=now`.
-
-An earlier revision of this file said the opposite — "the reflog is not
-retention", reasoning from expiry to irrelevance — and the measurement above is
-the case that breaks it. What follows for a writer is not that its entries are
-not roots, but that they are roots that stop being ones on a clock this side does
-not control: appending to a reflog does not make an object safe to depend on, and
-deleting a ref does not make its objects collectable while the reflog still names
-them. [`refstore`](../refstore/module.f.mjs)'s `tryRoots` answers refs only, and
-that is now what its doc says; reading the reflog for the roots it holds is
-[`refstore/todo/reflog-roots.md`](../refstore/todo/reflog-roots.md).
+**The reflog is retention with a clock on it** — the measurement is in
+[reflog-roots.md](./reflog-roots.md), which also owns reading the reflog for the
+roots it holds. What follows for a writer is that its entries are roots that
+stop being ones on a clock this side does not control: appending to a reflog
+does not make an object safe to depend on, and deleting a ref does not make its
+objects collectable while the reflog still names them.
 
 ### Where the writer is narrower than `git update-ref`
 
@@ -311,7 +300,7 @@ nonexistent object`, and a file holding such an id makes `show-ref` answer
 `bad ref`, `for-each-ref` and `rev-list --all` exit 128, and `fsck` report
 `invalid sha1 pointer`. So the check is worth having, and it makes a writer of
 refs a reader of objects: the id would have to be looked up through
-[`fjs/git/store`](../store/module.f.mjs), which nothing in `refstore` imports
+[`fjs/git/store`](../../store/module.f.mjs), which nothing in `refstore` imports
 today. A caller that wrote the object knows it is there, which is why this is
 deferred rather than done with the write.
 
@@ -369,7 +358,7 @@ fix.
 `core.logAllRefUpdates` — measured, `logs/refs/heads/master` gains a line on
 each update in a non-bare repository. A ref with no reflog is ordinary (every
 `refs/tags/*` has none), so this loses nothing a reader depends on; what it
-loses is the extra retention the paragraph above describes.
+loses is the extra retention a reflog entry gives.
 
 **It does not rewrite `packed-refs`.** A packed line of the same name is
 shadowed by the new loose file, which is what Git leaves too — measured, an
@@ -394,14 +383,9 @@ should say which, and then this becomes a parameter rather than a refusal.
 
 ### The bound this is under
 
-[git-name-resolution](../../../todo/git-name-resolution.md) makes Git refs
-retention roots and nothing else: a ref keeps commits reachable so Git does
-not prune them, and a ref's *name* carries no DISOT meaning — not a name, not
-an identity, not authority, not a signal of rename or archive, not a way to
-choose among heads. DISOT semantics come from `.disot.*` files, authority and
-timestamp evidence, and ancestry.
-
-A writer is where that bound is easiest to break, because choosing what to
+A Git ref is a retention root and nothing else, and its name carries no DISOT
+meaning — the rule is
+[git-name-resolution](../../../../todo/git-name-resolution.md)'s. A writer is where that bound is easiest to break, because choosing what to
 call a ref looks like naming something. It is not: a ref written here exists
 to stop `git gc` collecting an object, and a writer that encodes anything
 else in the name has moved DISOT semantics into Git's namespace.
@@ -450,17 +434,17 @@ else in the name has moved DISOT semantics into Git's namespace.
 
 ### Related
 
-- [git-name-resolution](../../../todo/git-name-resolution.md) — the rule
+- [git-name-resolution](../../../../todo/git-name-resolution.md) — the rule
   above, and why a ref is only a retention root.
-- [`fjs/git/refstore`](../refstore/module.f.mjs) — both halves: the reading
+- [`fjs/git/refstore`](../module.f.mjs) — both halves: the reading
   one, and `tryWrite` with the measurements behind every refusal.
-- [`fjs/git/refname`](../refname/module.f.mjs) — `lockSuffix`, and why no ref
+- [`fjs/git/refname`](../../refname/module.f.mjs) — `lockSuffix`, and why no ref
   is ever named by a writer's lock file.
-- [`fjs/git/ref`](../ref/module.f.mjs) — the file grammars a writer must
+- [`fjs/git/ref`](../../ref/module.f.mjs) — the file grammars a writer must
   produce, measured against Git.
-- [`fjs/git/store`](../store/module.f.mjs) — from an id to the object a ref
+- [`fjs/git/store`](../../store/module.f.mjs) — from an id to the object a ref
   keeps, and what an object-existence check would have to read.
-- [`fjs/effects/node/virtual`](../../effects/node/virtual/module.f.mjs) —
+- [`fjs/effects/node/virtual`](../../../effects/node/virtual/module.f.mjs) —
   `mkdirOp`, the virtual `mkdir` this write no longer reaches, which now refuses
   a file in its path with the host's `ENOTDIR` or `EEXIST` rather than replacing
   it with a directory.

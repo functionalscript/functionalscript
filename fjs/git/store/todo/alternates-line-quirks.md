@@ -42,7 +42,7 @@ writes it back as the two UTF-8 bytes `c3 bf` — a different directory. The sam
 holds for a file whose own bytes are not UTF-8, where the decoder answers `ÿ`
 for a lone `0xFF` rather than failing.
 
-This is [byte-paths.md](./byte-paths.md)'s subject and is fixed there, not here:
+This is [byte-paths.md](../../todo/byte-paths.md)'s subject and is fixed there, not here:
 the paths have to be byte lists at the effects boundary before this reader can
 do anything about it.
 
@@ -73,7 +73,7 @@ that one was not, which is why it was fixed instead of listed.
   prints `error: object directory … does not exist; check
   .git/objects/info/alternates` and carries on; the effects here have a channel
   for failure and none for a remark, so this carries on silently. That question
-  is bigger than alternates and is noted in [byte-paths.md](./byte-paths.md)
+  is bigger than alternates and is noted in [byte-paths.md](../../todo/byte-paths.md)
   too.
 
 ### Tasks
@@ -89,8 +89,8 @@ that one was not, which is why it was fixed instead of listed.
 
 ### Related
 
-- [`fjs/git/store`](../store/module.f.mjs) — owns where a store looks, so this
+- [`fjs/git/store`](../module.f.mjs) — owns where a store looks, so this
   issue owns only the two lines it looks at differently: `alternatesIn` and its
   note on why neither is refused, and `untilNul` for the shape that was a third.
-- [byte-paths.md](./byte-paths.md) — owns what a path can spell, and where the
+- [byte-paths.md](../../todo/byte-paths.md) — owns what a path can spell, and where the
   `NUL` cut belongs once one is a byte list.

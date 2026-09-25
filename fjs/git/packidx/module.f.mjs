@@ -435,7 +435,7 @@ const nextStep = offset => (best, v) =>
  * A scan and not a search: `offsets` runs parallel to `ids` and so is in id
  * order, not in pack order. One pass per entry read, which a delta chain pays
  * per link. The alternative is a table in pack order, which is what Git's own
- * reverse index is and what [packfiles.md](../todo/packfiles.md) leaves out of
+ * reverse index is and what [`fjs/git/README.md`](../README.md) leaves out of
  * this reader: building one costs a sort of the whole index per read unless it
  * is kept, and keeping it is a second shape {@link Idx} does not have.
  *

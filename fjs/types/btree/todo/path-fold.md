@@ -1,16 +1,18 @@
-## 193. `btree`: a shared `Path` fold engine for `set` and `remove` (investigate)
+## A shared `Path` fold for `set` and `remove` (investigate)
 
 **Priority:** P3
 **Status:** open
 
+### Problem
+
 `btree/set` and `btree/remove` both finish the same way: walk the `find` result's
 `tail` (a `Path<T>`) with `fold`, rebuilding each parent branch bottom-up by
 dispatching on the child-slot index `i ∈ {0, 2, 4}`, then collapse a single-child
-root.
+root with `collapseRoot`.
 
 ```js
-// fjs/types/btree/set/module.f.mjs:24
-/** @type {<T>(i: PathItem<T>) => (a: _Branch1To3<T>) => _Branch1To3<T>} */
+// fjs/types/btree/set/module.f.mjs — reduceOp
+/** @type {<T>(i: PathItem<T>) => (a: Branch1<T> | Branch3<T>) => Branch1<T> | Branch3<T>} */
 const reduceOp = ([i, x]) => a => {
     switch (i) {
         case 0: { /* rebuild left  */ }
@@ -20,12 +22,11 @@ const reduceOp = ([i, x]) => a => {
 }
 const reduceBranch = fold(reduceOp)
 // …
-const r = reduceBranch(f())(tail)        // :107
-return r.length === 1 ? r[0] : r          // :108  (root collapse, see i179)
+return collapseRoot(reduceBranch(f())(tail))
 ```
 
 ```js
-// fjs/types/btree/remove/module.f.mjs:108
+// fjs/types/btree/remove/module.f.mjs — reduceX
 /** @type {<A, T>(ms: FixedArray<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {
     const [m0, m2] = ms
@@ -35,10 +36,9 @@ const reduceX = ms => ([i, n]) => a => {
         case 4: { return [n[0], n[1], ...m2(a)([n[2], n[3], n[4]])] }
     }
 }
-const reduce = fold(reduceX([reduceValue0, reduceValue2]))   // :124
+const reduce = fold(reduceX([reduceValue0, reduceValue2]))
 // …
-const result = reduce(initReduce(tf)(first))(tt)             // :137
-return result.length === 1 ? result[0] : result              // :138  (root collapse)
+return collapseRoot(reduce(initReduce(tf)(first))(tt))
 ```
 
 Both are `fold(<rebuild parent at PathItem index i ∈ {0,2,4}>)` over `Path<T>`,
@@ -57,8 +57,8 @@ const foldPath = <A, T>(at0: …, at2: …, at4: …) => (seed: A) => (path: Pat
 ```
 
 `set` supplies its insert/merge handlers; `remove` supplies its `Merge`-based
-ones. The single-child root collapse at the end is the separate
-i179 `collapseRoot`.
+ones. The single-child root collapse at the end is already shared:
+`collapseRoot` in `btree/types`.
 
 ### Why this qualifies
 
@@ -68,21 +68,23 @@ i179 `collapseRoot`.
 
 ### Caveats — why this is "investigate", not a mechanical edit
 
-- The accumulator types differ: `set` threads `_Branch1To3<T>`; `remove` threads
-  `_Branch<T>` and additionally splits the `Branch5` case
-  (`[...ra([n0,n1,n2]), n3, n4]`, `remove:115`). The `case 4` handling also differs
-  subtly between the two.
+- The accumulator types differ: `set` threads `Branch1<T> | Branch3<T>`;
+  `remove` threads `_Branch<T>` and additionally splits the `Branch5` case
+  (`[...ra([n0,n1,n2]), n3, n4]`, in `reduceX`'s `f`). The `case 4` handling
+  also differs subtly between the two.
 - A premature unification could obscure both algorithms. The right move is to
   first confirm the two handler signatures can be expressed over one
   `PathItem`-indexed interface without `as` casts, then extract.
-- Lower confidence than the other entries in this batch — file as a design
+- Lower confidence than a mechanical cleanup — file as a design
   investigation.
 
 ### Related
 
-- i179 (retired; shipped as [`collapseRoot`](../btree/types/module.f.mjs) in
+- i179 (retired; shipped as [`collapseRoot`](../types/module.f.mjs) in
   `btree/types`, imported by `btree/set` and `btree/remove`) — the single-child
   root collapse, the tail of both functions this issue folds together.
-- [uncurry-accumulator-types](../function/todo/uncurry-accumulator-types.md)
+- [uncurry-accumulator-types](../../function/todo/uncurry-accumulator-types.md)
   (the retired `i164`, still open under a slug) — uncurrying these same `fold`
   accumulators; complementary to extracting the fold itself.
+- [66F-btree-remove-mirror-merge](./66f-btree-remove-mirror-merge.md) — the
+  orthogonal, *within-`remove`* left/right mirror collapse.

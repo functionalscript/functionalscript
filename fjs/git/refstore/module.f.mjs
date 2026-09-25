@@ -198,7 +198,7 @@
  *
  * Deleting one is the harder half and is not here: a name can be in a loose file
  * *and* a `packed-refs` line, so the loose file must go and the line with it or
- * the line comes back as the ref. [`../todo/ref-writing.md`](../todo/ref-writing.md)
+ * the line comes back as the ref. [`./todo/ref-writing.md`](./todo/ref-writing.md)
  * has both, and the reflog.
  *
  * @module
@@ -1846,7 +1846,7 @@ const unspellableNameMessage = name => `${nameForMessage(name)} is no path this 
  * ([`todo/git-name-resolution.md`](../../../todo/git-name-resolution.md)), and
  * the roots {@link tryRoots} walks are the names under `refs/` plus the one
  * `HEAD` this writer will not touch. What a caller that wants one would need is
- * in [`../todo/ref-writing.md`](../todo/ref-writing.md).
+ * in [`./todo/ref-writing.md`](./todo/ref-writing.md).
  */
 export const outsideRefsCode = /** @type {const} */ ('ERR_OUTSIDE_REFS')
 
@@ -1920,7 +1920,7 @@ const prefixCollision = (packed, name) => packed.find(e => {
  *   refused here where `git update-ref` removes it and publishes the ref**,
  *   which is narrower than Git and is the one refusal of these that a caller
  *   could reasonably want gone —
- *   [`../todo/ref-writing.md`](../todo/ref-writing.md) has the measurements and
+ *   [`./todo/ref-writing.md`](./todo/ref-writing.md) has the measurements and
  *   what removing it needs;
  * - a **loose file** where a parent directory must go, which the *same* `stat`
  *   answers `ENOTDIR` for, since the ref's own path leads through that file.
@@ -1943,7 +1943,7 @@ const prefixCollision = (packed, name) => packed.find(e => {
  *
  * Every measurement behind the four paragraphs above, the interleaving table for
  * the race, and which of them have fixtures and which rest on a node measurement
- * alone: [`../todo/ref-writing.md`](../todo/ref-writing.md).
+ * alone: [`./todo/ref-writing.md`](./todo/ref-writing.md).
  */
 export const refPrefixCode = /** @type {const} */ ('ERR_REF_PREFIX')
 
@@ -2062,7 +2062,7 @@ const collided = (packed, name, dense) => {
  * file it writes directly is one Git reads. The damage is bounded to `refs/` by
  * the `rename` replacing a symlink rather than following it. The measurements,
  * and what an operation that closed it would have to be:
- * [`../todo/ref-writing.md`](../todo/ref-writing.md).
+ * [`./todo/ref-writing.md`](./todo/ref-writing.md).
  *
  * Every measurement behind all of this, what each divergence would cost to
  * close, and which claims have fixtures and which rest on a measurement alone:

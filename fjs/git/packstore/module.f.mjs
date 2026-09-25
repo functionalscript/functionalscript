@@ -71,7 +71,7 @@
  * Git refuses, which is the shape [`fjs/git/pack`](../pack/module.f.mjs)'s delta
  * floor was added to stop. What is left of the question is a choice about being
  * deliberately more capable rather than a gap, and
- * [packfiles.md](../todo/packfiles.md) carries it as an open decision.
+ * [thin-pack-base.md](./todo/thin-pack-base.md) carries it as an open decision.
  *
  * **`null` is absence and an error is corruption.** No pack in the directory
  * holds the id is `null`, which is what lets

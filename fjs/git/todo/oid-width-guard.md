@@ -41,10 +41,10 @@ const oidBits: (oidBytes: OidBytes) => bigint
 const isOidOf: (oidBytes: OidBytes) => (id: Vec) => boolean
 ```
 
-`tryFromHexOf` uses `isOidOf` internally; `store.tryRead` and `walk.peel`
-bind `isOidOf(oidBytes)` once and assert on it, keeping their shared
-message in one place; `tree`'s serializer asserts through the same
-predicate instead of reaching for `bitLength`.
+`tryFromHexOf` uses `isOidOf` internally; `store.tryRead`, `walk.peel` and
+the other asserting sites bind `isOidOf(oidBytes)` once and assert on it,
+keeping their shared message in one place; `tree`'s serializer asserts
+through the same predicate instead of reaching for `bitLength`.
 
 **The spelling half of this is done.** `const hex = id =>
 codePointListToString(toHex(id))`, written out in `fjs/git/store` and
@@ -55,13 +55,17 @@ use it, and a new caller takes it rather than writing the line again —
 including `fjs/git/pack`'s proof, which carried a byte-identical copy of the
 helper under the name `hex` and now imports `hexText` instead. What is left of
 this issue is the width, which is the harder half and the reason it was filed:
-an `Oid`'s width is still re-derived at six sites, enumerated from the tree
-rather than counted from memory —
-[`oid:64`](../oid/module.f.mjs), [`walk:171`](../walk/module.f.mjs),
-[`store:178`](../store/module.f.mjs), [`tree:263`](../tree/module.f.mjs),
-[`packidx:402`](../packidx/module.f.mjs) and
-[`packstore:544`](../packstore/module.f.mjs), each spelling
-`BigInt(oidBytes) * 8n` for itself.
+an `Oid`'s width is still re-derived at several sites, each spelling
+`BigInt(oidBytes) * 8n` for itself —
+[`oid`](../oid/module.f.mjs)'s `tryFromHexOf`,
+[`walk`](../walk/module.f.mjs)'s `peel`,
+[`store`](../store/module.f.mjs)'s `readIn` and `tryRead`,
+[`tree`](../tree/module.f.mjs)'s `entryBytes`,
+[`packidx`](../packidx/module.f.mjs)'s `offsetOf`,
+[`packstore`](../packstore/module.f.mjs)'s `tryRead`, and
+[`refstore`](../refstore/module.f.mjs)'s `tryWrite`, which refuses rather than
+asserts. Enumerate them from the tree when the change is made rather than
+trusting this list.
 
 Other proofs spell their own variants of the same call — a name and an id
 (`ref`), an index's ids and its pack checksum (`packidx`), the id of what a read
@@ -73,8 +77,10 @@ helper, so they are not part of this.
 - [x] A hex spelling beside `toHex` in `fjs/git/oid`, with a proof — landed as
       `hexText`, and its importers take it.
 - [ ] Export `oidBits`/`isOidOf` from `fjs/git/oid/module.f.mjs` with proofs.
-- [ ] Use them in `oid.tryFromHexOf`, `store.tryRead`, `walk.peel`, and
-      `tree`'s entry serializer.
+- [ ] Use them at every site above: `oid.tryFromHexOf`, `walk.peel`,
+      `store.readIn` and `store.tryRead`, `tree`'s `entryBytes`,
+      `packidx.offsetOf`, `packstore.tryRead`, and `refstore.tryWrite`'s
+      refusal.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

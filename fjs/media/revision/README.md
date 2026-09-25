@@ -305,7 +305,7 @@ FunctionalScript** — a good default, not a requirement, and not universal:
 embedded JSON tag at all, so they keep the ordinary
 [fjs/media/type](../type/) detection path and surface their dialect name out
 of band (see
-[fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
+[fjs/media/README.md](../README.md#dialects)
 for the dialect naming rule and fall-back chains). The key is spelled
 `dialect` — one vocabulary for both the embedded tag and the out-of-band
 field — and deliberately not `mimeType` (a common response-envelope field

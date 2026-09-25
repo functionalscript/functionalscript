@@ -1,4 +1,4 @@
-## 66B-sorted-list-cmp-reduce-factory. `sorted_list`: share the compare-and-select reduce shape
+## Share the compare-and-select reduce shape
 
 **Priority:** P5
 **Status:** open
@@ -10,19 +10,19 @@ for `genericMerge` that are identical except for the value they place in the
 first tuple slot:
 
 ```js
-// :85-94
+// cmpReduce
 const cmpReduce =
     /**
      * @template T
      * @param {Cmp<T>} cmp
-     * @returns {_CmpReduceOp<T>}
+     * @returns {ReduceOp<T, null>}
      */
     cmp => () => a => b => {
         const sign = cmp(a)(b)
         return [sign === 1 ? b : a, sign, null]
     }
 
-// :101-110
+// intersectReduce
 const intersectReduce =
     /**
      * @template T
@@ -81,5 +81,6 @@ which is also a way this kind of issue resolves.)
 
 ### Related
 
-- i180-sorted-set-intersect-symmetry —
-  adjacent sorted-collection merge/intersect cleanup.
+- [uncurry-accumulator-types](../../function/todo/uncurry-accumulator-types.md)
+  — proposes uncurrying `ReduceOp` itself, which would change the shape both
+  reducers and `cmpReduceBy` are written in; land them in either order.

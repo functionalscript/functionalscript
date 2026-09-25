@@ -56,7 +56,7 @@ should not import; where the two can share one is part of the change.
 
 - [byte-aligned-vec.md](./byte-aligned-vec.md) — the byte-aligned type these
   constructors would build.
-- [`../../../todo/unguarded-numeric-domains.md`](../../../todo/unguarded-numeric-domains.md)
+- [`fjs/text/todo/non-integer-code-points.md`](../../../text/todo/non-integer-code-points.md)
   — the same silent answer for non-integers; this is the integer half.
 - [`fjs/ebnf/byte`](../../../ebnf/byte/module.f.mjs) — `isByte` and
   `byteArray`.

@@ -1,7 +1,8 @@
 ## name-too-long-status. A path the file system cannot hold answers `500`
 
 **Priority:** P4
-**Status:** open
+**Status:** blocked
+**Blocked by:** [no-name-length-limit](../../effects/node/virtual/todo/no-name-length-limit.md)
 
 ### Problem
 
@@ -30,13 +31,15 @@ The obstacle is proving it. The virtual file system has no name-length limit, so
 the branch would be one nothing can reach, which the coverage gate rejects and
 `fjs/AGENTS.md` §1.2 says to restructure away rather than leave uncovered. So the
 fix is really two: give the virtual file system the limit a host has, and then
-map the error. That is a change to the runner's contract — every operation on a
-too-long name starts failing — and belongs in its own pull request.
+map the error. The first is a change to the runner's contract — every operation
+on a too-long name starts failing — and is
+[no-name-length-limit](../../effects/node/virtual/todo/no-name-length-limit.md),
+in its own pull request.
 
 ### Tasks
 
-- [ ] Give the virtual file system a name-length limit, reporting `ENAMETOOLONG`.
-- [ ] Answer `404` for it in `fjs/web`, with the proof that limit makes possible.
+- [ ] Answer `404` for `ENAMETOOLONG` in `fjs/web`, with the proof the virtual
+      file system's limit makes possible.
 
 ### Related
 

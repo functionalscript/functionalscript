@@ -493,7 +493,7 @@ const runNodeEffect = asyncRun({
         // Not in a `finally`: a failure to close must not replace the write's,
         // which is the one a caller can act on. If the close itself fails the
         // file is left behind, which is a stale lock on a filesystem already
-        // failing — recorded in `fjs/git/todo/ref-writing.md`.
+        // failing — recorded in `fjs/git/refstore/todo/ref-writing.md`.
         await fh.close()
         if (failure !== null) {
             await rm(path, { force: true })
