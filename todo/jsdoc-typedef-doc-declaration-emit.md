@@ -1,21 +1,23 @@
 ## JSDoc `@typedef` documentation is dropped by tsgo declaration emit
 
 > Authored `.mjs` no longer carries file-scope `@typedef`s (root
-> [`AGENTS.md`](../../AGENTS.md), [`fjs/AGENTS.md`](../../fjs/AGENTS.md) §3.2),
+> [`AGENTS.md`](../AGENTS.md), [`fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2),
 > so no authored typedef documentation reaches declaration emit any more; this
 > upstream behavior matters again only if that rule is ever relaxed.
 
 **Priority:** P5
-**Status:** blocked
+**Status:** open
 
-### Trigger
+### What it waits on once filed
 
-The pinned `typescript` in
-[`fjs/ci/config/module.f.mjs`](../../fjs/ci/config/module.f.mjs) — the
+The first task, filing the upstream issue below, is ours and can be done now,
+so this issue is open rather than in `todo/blocked/`. Once it is filed, what
+remains waits on a third party and the file moves there with this as its
+**Trigger**: the pinned `typescript` in
+[`fjs/ci/config/module.f.mjs`](../fjs/ci/config/module.f.mjs) — the
 compiler this repository type-checks with; it is not a dependency — reaches a
 [microsoft/typescript-go](https://github.com/microsoft/typescript-go/issues)
-release that fixes the upstream issue below. Filing that issue is this
-repository's own first task, not part of the trigger. Until then, substantial
+release that fixes the upstream issue below. Until then, substantial
 documented type APIs live in `types.ts`, whose declaration comments emit
 through the normal TypeScript pipeline.
 
@@ -213,7 +215,7 @@ Body:
 
 ### Related
 
-- [`../../fjs/AGENTS.md`](../../fjs/AGENTS.md) §3.2 — private-type placement;
+- [`../../fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2 — private-type placement;
   superseded the wait-for-`@internal` strategy.
 - [microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
   [microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
