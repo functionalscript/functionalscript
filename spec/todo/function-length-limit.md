@@ -80,20 +80,39 @@ EDAG".
 - [ ] `fjs/edag/analysis`: a function length above 16 is a binding error,
       with a proof at 16 (accepted) and 17 (refused).
 - [ ] `fjs/fsc/parser`: a parameter list with more than 16 fixed names is
-      refused, naming the limit, with a proof.
+      refused, naming the limit, with a proof. `fjs/fsc/parameters`'
+      `capacity` proof, which compiles one parameter past the table and
+      expects it to round-trip, becomes that refusal.
 - [ ] `fjs/fsc/serializer`: all four entry points return the error Result
       for `['=>', 2 ** 32, null, 1]`, top-level and nested in a function
       graph, without allocating the parameter names; length 16 round-trips.
 - [ ] The arrow factory table covers lengths 0 through 16, and its README
-      stops calling the capacity "not a language or EDAG limit". The table is
-      written by hand, not generated, once
+      and module comment stop calling the capacity "not a language or EDAG
+      limit" and "an executor resource limit". The table is written by hand,
+      not generated, once
       [move-to-types-function](../../fjs/edag/callable/todo/move-to-types-function.md)
-      lands; whichever of the two lands second does the trim.
-- [ ] `fjs/edag/rust`: the `u32` refusal and its `lengthLimit` proof give way
-      to the language limit.
+      lands; whichever of the two lands second does the trim. The executor
+      refusals past the table — `callable`'s `uncovered` proof and
+      `fjs/fsc/parameters`' `throw.capacity` — become refusals of invalid
+      metadata, since no valid length is past it.
+- [ ] Rust: the `u32` refusal gives way to the language limit in both
+      `fjs/edag/rust` (its `lengthLimit` proof) and `fjs/fsc/rust` (its
+      refusals of `2 ** 32`, direct, nested and through `generate`, and its
+      acceptance of `0xffff_ffff`). `fjs/fsc/rust`'s
+      `fixedAndCapturedBindings` proof writes `['=>', 33, null, ['arg', 32]]`
+      as valid; it moves to 16 and 15, and 17 is refused.
+- [ ] NaNVM: [callable-function-objects](../../nanvm-lib/todo/callable-function-objects.md)
+      states length 33 valid "independently of the JavaScript factory table's
+      capacity", and its Stage 6 task keeps native capacity separate from
+      the table. Both follow the language limit. `IStaticFunction` keeps its
+      `u32` length: it holds every valid length, so nothing in Rust changes.
 - [ ] [`spec/README.md`](../README.md#functions) states the limit where it
       describes `f.length`, in place of "larger lengths remain valid for
-      compilation and source output".
+      compilation and source output". The same claim goes from
+      [`fjs/edag/README.md`](../../fjs/edag/README.md) ("it does not bound
+      valid EDAG or source output") and
+      [interpret-edag](../../fjs/fsc/todo/interpret-edag.md) ("that executor
+      capacity does not limit valid EDAG metadata or source compilation").
 - [ ] [3120](./3120-parameters.md) drops every obligation that keeps arity
       unbounded — the plan separates language validity from executor
       capacity throughout, and this proposal merges them:
