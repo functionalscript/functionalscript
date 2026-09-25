@@ -158,18 +158,25 @@ export const toolsCallResult = open(/** @type {const} */ ({
  * @param {(args: Ts<T>) => Effect<O, ToolsCallResult, never>} handle - Handler receiving validated arguments of type `Ts<inputRtti>`
  * @returns {ToolEntry<O>} A `ToolEntry` ready to be added to a registry
  */
-export const toolEntry = (name, description, inputRtti, handle) => ({
-    name,
-    description,
-    inputRtti,
-    /** @type {(a: Unknown) => Effect<O, ToolsCallResult, never>} */
-    handle: a => {
-        const [t, r] = parse(/** @type {any} */ (inputRtti))(a)
-        return t === 'error'
-            ? pureOk(errorResult(`invalid arguments: ${r.message}`))
-            : handle(/** @type {Ts<T>} */ (r))
+export const toolEntry = (name, description, inputRtti, handle) => {
+    // Depends on the schema alone, so it is built once per entry rather than
+    // once per `tools/call`. The `any` keeps `tsc` from instantiating `Ts<T>`
+    // for an unbound `T`, which is excessively deep (TS2589) at the `handle`
+    // call below; the cast there restores the type the schema promises.
+    const parseArgs = parse(/** @type {any} */ (inputRtti))
+    return {
+        name,
+        description,
+        inputRtti,
+        /** @type {(a: Unknown) => Effect<O, ToolsCallResult, never>} */
+        handle: a => {
+            const [t, r] = parseArgs(a)
+            return t === 'error'
+                ? pureOk(errorResult(`invalid arguments: ${r.message}`))
+                : handle(/** @type {Ts<T>} */ (r))
+        }
     }
-})
+}
 
 /**
  * Helper to create a successful single-text-block tool result.
@@ -236,23 +243,25 @@ export const toolResultStep = (e, text, errorText) => resultMapStep(
  * @param {readonly ToolEntry<O>[]} registry - Array of tool entries
  * @returns {McpHandlers<O>} Complete `McpHandlers` ready for use with `mcpStep`
  */
-export const fromRegistry = registry => ({
-    toolsList: () => {
-        /** @type {Tool[]} */
-        const tools = registry.map(entry => ({
-            name: entry.name,
-            description: entry.description,
-            inputSchema: toJsonSchema(entry.inputRtti),
-        }))
-        return pureOk({ tools })
-    },
-    toolsCall: ({ name, arguments: args }) => {
-        const entry = registry.find(e => e.name === name)
-        return entry === undefined
-            ? pureOk(errorResult(`unknown tool: ${name}`))
-            : entry.handle(args === undefined ? {} : args)
-    },
-})
+export const fromRegistry = registry => {
+    // Depends on the registry alone, so it is built once rather than once per
+    // `tools/list`.
+    /** @type {Tool[]} */
+    const tools = registry.map(({ name, description, inputRtti }) => ({
+        name,
+        description,
+        inputSchema: toJsonSchema(inputRtti),
+    }))
+    return {
+        toolsList: () => pureOk({ tools }),
+        toolsCall: ({ name, arguments: args }) => {
+            const entry = registry.find(e => e.name === name)
+            return entry === undefined
+                ? pureOk(errorResult(`unknown tool: ${name}`))
+                : entry.handle(args === undefined ? {} : args)
+        },
+    }
+}
 
 // ── Lifecycle / capability state machine ───────────────────────────────────────
 
