@@ -55,7 +55,8 @@ what a grammar can and cannot do for the formats.
   ascend answers wrongly instead of failing.
 - [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
   the effects: `tryRoots` for every one of them, `tryResolve` for a name
-  in hand, and `tryWrite` to put one at an id — the loose file, through the
+  in hand; and [`refstore/write/`](refstore/write/module.f.mjs), the writers
+  over the same name rules: `tryWrite` to put one at an id — the loose file, through the
   `.lock` name Git takes, created and filled in **one** exclusive open so no
   second writer and no symlink can reach the pathname in between, and reading
   `packed-refs` and `stat`ting the ref's own path first for the collision no
@@ -443,8 +444,9 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 - **Appending to the reflog**:
   [`refstore/todo/ref-writing.md`](refstore/todo/ref-writing.md). Reading the refs is done, and
   so are writing and deleting one — [`ref/`](ref/module.f.mjs) for the file
-  grammars and [`refstore/`](refstore/module.f.mjs)'s `tryRoots`, `tryResolve`,
-  `tryWrite` and `tryDelete` over the effects. Every way the two writers are
+  grammars, [`refstore/`](refstore/module.f.mjs)'s `tryRoots` and `tryResolve`,
+  and [`refstore/write/`](refstore/write/module.f.mjs)'s `tryWrite` and
+  `tryDelete` over the effects. Every way the two writers are
   narrower than `git update-ref` — no check that the object is there or, under
   `refs/heads/`, that it is a commit, no `core.sharedRepository` mode, no reflog
   line, no dereference of a symbolic ref at the name, a name outside `refs/`

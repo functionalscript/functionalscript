@@ -31,7 +31,8 @@ ref names too long to convert to a `Vec`. That one is fixed in
 [`fjs/git/refstore`](../../../../git/refstore/module.f.mjs), whose `nameText`
 now answers `null` past `maxLengthBytes` — but the bound it enforces is the *bit
 vector's*, 131,072 bytes, not the host's 255, so a `refstore` proof can still
-write a ref whose name no host could hold. `writeNameTooLong`'s control is
+write a ref whose name no host could hold. `writeNameTooLong`'s control, in
+[`fjs/git/refstore/write`](../../../../git/refstore/write/proof.f.mjs), is
 exactly that write, and it says so.
 
 This is the same shape as the three `parse` issues — a state provable here that
