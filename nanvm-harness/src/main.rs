@@ -12,7 +12,7 @@
 //! would need a text form `nanvm-lib` cannot read; a CLI is its own task
 //! once a use for it exists.
 
-use nanvm_harness::{Action, number, run};
+use nanvm_harness::{Action, fixtures::number, run};
 use nanvm_lib::naive::Naive;
 
 fn main() {
