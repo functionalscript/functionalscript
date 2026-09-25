@@ -2,14 +2,17 @@
 
 **Priority:** P2
 **Status:** blocked
-**Blocked by:** the first successful compilation of an existing dependency-free
-`.f.mjs` module in the [compiler-compatibility migration](../../../todo/fjs-nanvm-integration.md).
+**Blocked by:** the first authored `.f.js`: the package fixture that
+[`.f.js` package support](../../ci/todo/f-js-package-support.md) adds, or the
+first rename in the [compiler-compatibility migration](../../../todo/fjs-nanvm-integration.md)
+if that lands first.
 
 ### Problem
 
-The `.f.js` extension promises that FSC accepts the source. After the first
-real module can be compiled and renamed, that promise needs a repeatable check
-for all discovered `.f.js` files.
+The `.f.js` extension promises that FSC accepts the source. Once the first
+authored `.f.js` exists, that promise needs a repeatable check for all
+discovered `.f.js` files: `tsc` accepts source FSC refuses (a missing
+terminating `;`, for one), so nothing else would catch it.
 
 ### Tasks
 

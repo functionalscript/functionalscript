@@ -251,7 +251,7 @@ export const proof = {
      * inspects a plain object — so a base this printer can prove is one of
      * these prints the call rather than refusing it: `[1].length`, `"ab"[0]`,
      * `true.x` (`undefined`, since a boolean has no own properties at all)
-     * are accepted DJS, per `fjs/fsc/README.md`.
+     * are accepted, per `spec/README.md`'s Property Access.
      */
     dotOnNonObjectLiteral: () => {
         assertEq(

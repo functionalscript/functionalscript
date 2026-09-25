@@ -3,7 +3,7 @@
  *
  * FunctionalScript is a strict subset of JavaScript: any FunctionalScript
  * program must run the same on JavaScript. Every consumer that decides
- * whether a name is a keyword — the JavaScript and DJS tokenizers, printers
+ * whether a name is a keyword — the JavaScript and module tokenizers, printers
  * that emit identifiers — derives its set from this module instead of
  * keeping a copy, so the sets cannot drift apart.
  *

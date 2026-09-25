@@ -1,14 +1,15 @@
 ## Limit a function's `length` to 16
 
 **Priority:** P2
-**Status:** open — proposal, awaiting the language designer's recorded approval
+**Status:** open — approved by the language designer, `sergey-shandar`
+([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299))
 
 ### Problem
 
 A function's fixed parameter count — its `length`, `['=>', length, frame,
 body]` in the EDAG — has no limit in the language. The
 [parameter plan](./3120-parameters.md) chose that on purpose: the JavaScript
-executor's factory table ([`fjs/edag/callable`](../../fjs/edag/callable/README.md))
+executor's factory table ([`fjs/types/function/length`](../../fjs/types/function/length/README.md))
 covers lengths 0 through 32, and a larger length stays valid for compilation
 and source output.
 
@@ -63,19 +64,18 @@ valid JavaScript and not FunctionalScript. The subset still holds — every
 FunctionalScript program stays a JavaScript program — but a port of such code
 has to regroup its parameters. It is a breaking change for any EDAG or source
 that uses more than 16. In this repository the one such source is the factory
-table itself, which `fjs/fsc/parameters`' `factoryTable` proof compiles, and
-it shrinks to the limit with the rest of this change.
+table itself, and it shrinks to the limit with the rest of this change.
 
 **Where it is refused.** Over-limit length is a binding error: analysis's
 `bindingError` names it, so every writer returns it as an error Result, as
-the Rust writer already does for its own bound. Open question: whether the
-malformed-metadata cases `isIndex` asserts today — negative, fractional,
-`-0` — move with it from a throw to the same error, or stay asserted as "no
-EDAG".
+the Rust writer already does for its own bound. The malformed-metadata cases
+`isIndex` asserts today — negative, fractional, `-0` — stay asserted: they are
+not EDAG at all, a different fault from a well-formed length the language
+refuses, and no compiler produces them (decided by the language designer).
 
 ### Tasks
 
-- [ ] Record the language designer's approval here
+- [x] Record the language designer's approval here
       ([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
 - [ ] `fjs/edag/analysis`: a function length above 16 is a binding error,
       with a proof at 16 (accepted) and 17 (refused).
@@ -88,10 +88,8 @@ EDAG".
       graph, without allocating the parameter names; length 16 round-trips.
 - [ ] The arrow factory table covers lengths 0 through 16, and its README
       and module comment stop calling the capacity "not a language or EDAG
-      limit" and "an executor resource limit". The table is written by hand,
-      not generated, once
-      [move-to-types-function](../../fjs/edag/callable/todo/move-to-types-function.md)
-      lands; whichever of the two lands second does the trim. The executor
+      limit" and "an executor resource limit". The table is written by hand
+      in `fjs/types/function/length`. The executor
       refusals past the table — `callable`'s `uncovered` proof and
       `fjs/fsc/parameters`' `throw.capacity` — become refusals of invalid
       metadata, since no valid length is past it.
@@ -136,17 +134,44 @@ EDAG".
       opposite: "no restrictions on `length`", a count "whatever JavaScript
       accepts", refused only as an executor's own limit. Its count is an
       expression evaluated when the function is built, so the limit cannot
-      be checked at compile time there. Open question, for the language
-      designer: retire the pattern, or keep it with `withLength` refusing a count
-      above 16 at run time as the language's refusal rather than an
-      executor's.
+      be checked at compile time there. Decided by the language designer:
+      the pattern is retired. The fixed/rest plan is what shipped, and the
+      pattern is an unimplemented alternative that contradicts the language;
+      its section in
+      [arity-complete-arguments](./arity-complete-arguments.md) is removed,
+      and git history keeps it. Every reference to it is reconciled in the
+      same change, pointing at its last text at a fixed commit and saying it
+      is retired, so no surviving todo directs a reader to it as a proposal
+      or through a broken anchor. The references are what a search for
+      `withLength`, `2213` and "length pattern" finds:
+      - `arity-complete-arguments.md` itself: "the length pattern below",
+        and its Related entries on `withLength`;
+      - [3120](./3120-parameters.md): "the `withLength` pattern may still be
+        unnecessary for arity" and "its candidate `withLength` length
+        pattern";
+      - [`spec/todo/README.md`](./README.md): the arity-and-complete-arguments
+        entry, "including the `withLength` pattern";
+      - [`todo/new-array-out-of-subset.md`](../../todo/new-array-out-of-subset.md):
+        its Related entry on the pattern;
+      - [`nanvm-lib/todo/callable-function-objects.md`](../../nanvm-lib/todo/callable-function-objects.md):
+        "the proposed `withLength` pattern for arity";
+      - [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md):
+        "the function length pattern proposed in #2213", the admitted-pattern
+        option's "the way #2213 proposes one for a function's `length`",
+        and its Related link to the section's anchor;
+      - [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md):
+        "without the length pattern", and the sentence after it, "That
+        capacity limits materialization, not valid source or EDAG", which
+        the limit contradicts: a length above 16 is invalid EDAG, and the
+        table covers every valid one.
 
 ### Related
 
 - [3120 — named and rest parameters](./3120-parameters.md) — the plan that
   left the length unbounded, and the factory table this shrinks.
-- [`withLength` pattern](./arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) — the
-  alternative that leaves `length` unrestricted (formerly 3130).
+- [`withLength` pattern](./arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern)
+  — the alternative that leaves `length` unrestricted (formerly 3130),
+  retired by this change.
 - [PR #2237 review](https://github.com/functionalscript/functionalscript/pull/2237#discussion_r4097887854)
   — the source writer's crash, first tracked as a writer-only issue and
   folded in here.

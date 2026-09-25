@@ -1,5 +1,5 @@
 /**
- * DJS transpiler for transforming parsed trees into JavaScript output.
+ * Module transpiler for transforming parsed trees into JavaScript output.
  *
  * @module
  *
@@ -28,17 +28,38 @@ import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { _own, sharing, values } from '../ast/module.f.mjs'
 import { catchStep, foldStep, history, historyStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
-import { errorMessage, readUtf8File, resolveFileModule } from '../../effects/node/module.f.mjs'
+import { errorMessage, readFile, resolveFileModule } from '../../effects/node/module.f.mjs'
+import { fromVec } from '../../text/utf8/module.f.mjs'
 
 /**
  * Reads a file, reporting any failure as the one `ParseError` a caller can act
  * on, naming the file. Both readers want this and neither wants the node
  * channel's vocabulary.
  *
- * @type {(path: string) => <O extends Operation>(e: Effect<O, string, IoChannel>) => Effect<O, string, ParseError>}
+ * @type {(path: string) => <O extends Operation, T>(e: Effect<O, T, IoChannel>) => Effect<O, T, ParseError>}
  */
 const notFound = path => e =>
     catchStep(e, () => pureError({ message: 'file not found', metadata: null, path }))
+
+/**
+ * Reads a source — a module, a JSON import or a `.json` input — as UTF-8
+ * text, refusing bytes that are not correct UTF-8 rather than decoding them:
+ * a lenient decoder turns a raw `FF` in a string into U+00FF where a
+ * JavaScript host reads U+FFFD, a different successful value (DESIGN.md §10).
+ * `fromVec` is the checked decoder, answering `null` for a malformed,
+ * overlong or surrogate sequence. The check lives here, not in
+ * `readUtf8File`, whose other callers take any failed read as absence.
+ *
+ * @type {(path: string) => Effect<ReadFile, string, ParseError>}
+ */
+const readSource = path => step(
+    notFound(path)(readFile(path)),
+    bytes => {
+        const text = fromVec(bytes)
+        return text === null
+            ? pureError({ message: 'not UTF-8 text', metadata: null, path })
+            : pureOk(text)
+    })
 
 /** @type {(context: ParseContext) => (id: string) => ModuleDenotation} */
 const mapDjs = context => id => {
@@ -85,7 +106,7 @@ export const parse = path => text => parseFromTokens(tokenize(stringToList(text)
  *
  * @type {(path: string) => Effect<ReadFile, AstModule, ParseError>}
  */
-export const _parseModule = path => step(notFound(path)(readUtf8File(path)), text => pure(parse(path)(text)))
+export const _parseModule = path => step(readSource(path), text => pure(parse(path)(text)))
 
 /**
  * Resolve a root filesystem name or an admitted source import through its host.
@@ -264,7 +285,7 @@ const transpileModule = source => mapStep(
  * @type {(path: string) => Effect<ReadFile, JsonUnknown, ParseError>}
  */
 export const _parseJson = path => step(
-    notFound(path)(readUtf8File(path)),
+    readSource(path),
     text => {
         const json = jsonParse(text)
         return pure(json[0] === 'error' ? error({ message: json[1], metadata: null, path }) : json)

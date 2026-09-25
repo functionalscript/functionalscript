@@ -83,7 +83,8 @@ proof is the thing this repository does not ship.
 - [ ] Drop the `git update-index --chmod=+x` note from `writeJob`'s docstring,
       `nix/README.md` and this file's siblings once it is untrue
 - [ ] Then let `npm run gen:clean` delete the fixed-path outputs as well —
-      the workflows and `nix/*/flake.nix` and `run`, keeping the root
+      the workflows, `nix/*/flake.nix` and `run`, and `nix/lock-update.sh`,
+      keeping the root
       `nix/run` and `nix/flake.nix` the step runs through — so an obsolete
       Nix job directory fails the drift check
       ([CONTRIBUTING.md](../../../CONTRIBUTING.md#naming-generated-files)).

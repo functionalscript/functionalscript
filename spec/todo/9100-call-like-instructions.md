@@ -258,7 +258,7 @@ For `(a, b, ...rest) => [a, b, rest]`, `L = 2`:
 
 The full-tail array cannot replace the fixed bindings, and positive arity is
 not permission to discard the tail. This same binding rule is what the
-pre-generated JavaScript factories supply to the evaluator as `(fixed, rest)`;
+hand-written JavaScript factories supply to the evaluator as `(fixed, rest)`;
 the bytecode backend does not need those factories or inherit their capacity.
 
 ### 6.2. Calls into non-variadic functions

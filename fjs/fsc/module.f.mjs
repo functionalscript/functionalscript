@@ -345,7 +345,8 @@ const outputDirectory = outputFileName => {
  * directory that does not exist yet — a deleted `gen.*` directory, say.
  *
  * Returns the process exit code: `0` once the output file is written, `1` on
- * every failure — too few arguments, an output extension naming no language,
+ * every failure — any argument count but two, an output extension naming no
+ * language,
  * a missing input file, a parse error, a `.json` output asked of a value
  * JSON cannot spell, a `.js` output asked of a graph the writer has no
  * spelling for, an EDAG asked of a program whose export does not reach every
@@ -359,7 +360,10 @@ const outputDirectory = outputFileName => {
  */
 export const compile = args => {
     if (args.length < 2) {
-        return errorExit('Error: Requires 2 or more arguments')
+        return errorExit('Error: Requires 2 arguments: fjs compile <input> <output>')
+    }
+    if (args.length > 2) {
+        return errorExit(`Error: unexpected argument ${args[2]}: fjs compile <input> <output>`)
     }
     const inputFileName = args[0]
     const outputFileName = args[1]
