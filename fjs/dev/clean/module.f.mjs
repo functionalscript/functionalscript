@@ -2,7 +2,7 @@
  * `npm run gen:clean`: deletes every generated file — a file whose name starts
  * with `gen.`, and every file inside a directory whose name does — so the drift
  * check regenerates from nothing and a stale output shows up as a deletion
- * ([generated-file-conventions](../../../todo/generated-file-conventions.md)).
+ * ([CONTRIBUTING.md](../../../CONTRIBUTING.md#naming-generated-files)).
  *
  * Directories stay, emptied: `rm` removes files only, and git tracks no empty
  * directory, so the drift check cannot see one. Dot-names (`.git` among them),

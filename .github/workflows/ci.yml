@@ -431,6 +431,9 @@
           "run": "./nix/run npm pack"
         },
         {
+          "run": "./nix/run npm run gen:clean"
+        },
+        {
           "run": "./nix/run npm run gen"
         },
         {

@@ -16,7 +16,7 @@ module, its proof and an `npm run gen` step existed for a table of short lines
 that never changes on its own: its capacity is a constant, and
 [function-length-limit](../../../../spec/todo/function-length-limit.md) proposes
 fixing that constant in the language. The table is now written by hand —
-[generated-file-conventions](../../../../todo/generated-file-conventions.md)
+the drift check ([CONTRIBUTING.md](../../../../CONTRIBUTING.md#regenerating-after-a-source-change))
 needs the CLI, which imports it, to run with every generated file deleted.
 
 **It is not about the EDAG.** A factory takes a `(fixed, rest) => …` body

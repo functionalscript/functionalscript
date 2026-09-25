@@ -169,17 +169,44 @@ npm run gen
 
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
 Nix flakes, `fjs/nanvm`'s Rust test data. It needs nothing beyond Node, runs on
-Windows, and never touches a lockfile of any kind — CI's drift check runs the
-same command and fails if the committed tree no longer matches its output.
+Windows, and never touches a lockfile of any kind.
 
-A file or directory whose name starts with `gen.` is generated — everything
-inside a `gen.*` directory too — so never edit one by hand, and never name a
-handwritten file that way. `.gitattributes` marks them, plus the few outputs at
-a path another tool fixes (the two workflows and the Nix files). The rule and
-its reasons: [todo/generated-file-conventions.md](./todo/generated-file-conventions.md).
+CI's drift check runs `npm run gen:clean`, then `npm run gen`, then
+`git add -A && git diff --cached --exit-code`. `gen:clean` deletes every
+generated output first, so regeneration starts from nothing: an output no
+generator writes any more shows up as a deletion, and a generator that needs
+a previous output — its own or another's — fails. Run the same three commands
+to see what CI will.
 
-`npm run gen:clean` deletes every `gen.*` output, so `npm run gen:clean && npm
-run gen` regenerates from nothing: a stale output then shows up as a deletion.
+#### Naming generated files
+
+**A file or directory whose name starts with `gen.` is generated**, and so is
+everything inside a `gen.*` directory. Never edit one by hand — change its
+generator — and never give a handwritten file that name: `gen:clean` deletes
+it. The dot matters: `generate/` and `generated-*.md` are handwritten.
+
+- The prefix leaves the suffix alone (`gen.matrix.md`, `gen.operators.rs`), so
+  every tool that picks files by suffix works unchanged. A generated
+  FunctionalScript module is `gen.{name}/module.f.mjs`, held to the same proof
+  coverage as any other.
+- A `gen.` name is never a Rust identifier: load a generated file or directory
+  with one `#[path]`, as `nanvm-harness/src/lib.rs` does for
+  `gen.fixtures/`. A dotted name cannot be a Cargo target root.
+- A committed output must not use a name `.gitignore` hides (`*.d.ts`,
+  `*.d.mts`, `index.html`, `_*`), or the drift check cannot see it.
+- A generator creates its output directory, and imports nothing generated —
+  the `fjs` CLI that runs it included.
+- `gen:clean` walks the tree with the same test, skipping dot-names,
+  `node_modules` and `target`. It removes files only; the emptied directories
+  are invisible to git.
+
+`.gitattributes` marks the `gen.*` names with two lines — an attribute on a
+directory does not reach the files inside it — and lists the outputs whose path
+another tool fixes, which keep their names and are not deleted by `gen:clean`:
+the two workflows (npm trusted publishing is bound to `npm-publish.yml`'s exact
+name) and the generated files in `nix/` (Nix needs `flake.nix`, and every CI
+step enters the shell through `./nix/run`). Lockfiles are not generated
+outputs: `npm run lock-update` refreshes them, not `gen`.
 
 ### Updating dependencies
 
