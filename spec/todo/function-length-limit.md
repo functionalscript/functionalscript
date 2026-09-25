@@ -142,7 +142,8 @@ refuses, and no compiler produces them (decided by the language designer).
       and git history keeps it. Every reference to it is reconciled in the
       same change, pointing at its last text at a fixed commit and saying it
       is retired, so no surviving todo directs a reader to it as a proposal
-      or through a broken anchor:
+      or through a broken anchor. The references are what a search for
+      `withLength`, `2213` and "length pattern" finds:
       - `arity-complete-arguments.md` itself: "the length pattern below",
         and its Related entries on `withLength`;
       - [3120](./3120-parameters.md): "the `withLength` pattern may still be
@@ -155,7 +156,11 @@ refuses, and no compiler produces them (decided by the language designer).
       - [`nanvm-lib/todo/callable-function-objects.md`](../../nanvm-lib/todo/callable-function-objects.md):
         "the proposed `withLength` pattern for arity";
       - [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md):
-        its link to the section's anchor.
+        "the function length pattern proposed in #2213", the admitted-pattern
+        option's "the way #2213 proposes one for a function's `length`",
+        and its Related link to the section's anchor;
+      - [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md):
+        "without the length pattern".
 
 ### Related
 
