@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** open — approved by the language designer, `sergey-shandar`
-(approval link pending; recorded on the pull request that adds this line)
+([approval](https://github.com/functionalscript/functionalscript/pull/2295#issuecomment-5831266299))
 
 ### Problem
 
@@ -75,7 +75,7 @@ refuses, and no compiler produces them (decided by the language designer).
 
 ### Tasks
 
-- [ ] Record the language designer's approval here
+- [x] Record the language designer's approval here
       ([DESIGN.md §12](../../doc/DESIGN.md#new-language-features-start-with-a-todo)).
 - [ ] `fjs/edag/analysis`: a function length above 16 is a binding error,
       with a proof at 16 (accepted) and 17 (refused).
@@ -160,7 +160,10 @@ refuses, and no compiler produces them (decided by the language designer).
         option's "the way #2213 proposes one for a function's `length`",
         and its Related link to the section's anchor;
       - [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md):
-        "without the length pattern".
+        "without the length pattern", and the sentence after it, "That
+        capacity limits materialization, not valid source or EDAG", which
+        the limit contradicts: a length above 16 is invalid EDAG, and the
+        table covers every valid one.
 
 ### Related
 
