@@ -8,12 +8,10 @@
 3. `--fjs` (default behavior): deduplication of the same objects.
 4. `--ca`: content-addressable deduplication.
 
-### Tasks
-
-- [ ] Until the flags exist, refuse arguments `compile` does not understand.
-      `compile` in [`../module.f.mjs`](../module.f.mjs) checks only for fewer
-      than two arguments and drops the rest, so at `36c8d4a`
-      `fjs compile in.f.js out.json --tree --bogus` exits `0` as if `--tree`
-      were honored
-      ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
-      A third argument should be an error that names it.
+Until a flag exists, `compile` in [`../module.f.mjs`](../module.f.mjs)
+refuses every argument after the output, naming the first
+(`unexpected argument --tree`), so a flag it does not read never succeeds as
+if honored
+([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+Adding one means `compile` parses its flags explicitly and still refuses one
+it does not know.
