@@ -1,6 +1,6 @@
 #![doc = include_str!("README.md")]
 
-use crate::vm::{Any, BigInt, IVm, Number, String, ToAny};
+use crate::vm::{Any, BigInt, IVm, Number, String, ToAny, ToString};
 
 /// An `Any` holding the string `v`.
 pub fn string_any<A: IVm>(v: &str) -> Any<A> {
@@ -10,6 +10,17 @@ pub fn string_any<A: IVm>(v: &str) -> Any<A> {
 /// An object property key.
 pub fn string_key<A: IVm>(v: &str) -> String<A> {
     v.into()
+}
+
+/// An `Any` holding the string of UTF-16 code units `v`: the spelling of a
+/// string no `&str` can hold, one with a lone surrogate.
+pub fn string_any_utf16<A: IVm>(v: &[u16]) -> Any<A> {
+    string_key_utf16::<A>(v).to_any()
+}
+
+/// An object property key of UTF-16 code units, for the same reason.
+pub fn string_key_utf16<A: IVm>(v: &[u16]) -> String<A> {
+    v.iter().copied().to_string()
 }
 
 /// An `Any` holding the bigint `v`.
@@ -42,7 +53,7 @@ pub fn strict_ne<A: IVm>(a: Any<A>, b: Any<A>) -> Result<Any<A>, Any<A>> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{naive::Naive, vm::Unpacked};
+    use crate::{common::sized_index::SizedIndex, naive::Naive, vm::Unpacked};
 
     #[test]
     fn strings() {
@@ -82,5 +93,16 @@ mod test {
         assert_eq!(strict_eq(nan(), nan()), Ok(false.to_any()));
         assert_eq!(strict_ne(nan(), nan()), Ok(true.to_any()));
         assert_eq!(strict_eq(one(), string_any("1")), Ok(false.to_any()));
+    }
+
+    /// A string of code units holds what no `&str` can, a lone surrogate,
+    /// and agrees with the `&str` spelling where both exist.
+    #[test]
+    fn strings_of_code_units() {
+        let lone = string_key_utf16::<Naive>(&[0x61, 0xd800]);
+        assert_eq!(lone.length(), 2);
+        assert_eq!(lone[1], 0xd800);
+        assert_eq!(string_any_utf16::<Naive>(&[0x61, 0x62]), string_any("ab"));
+        assert_eq!(string_key_utf16::<Naive>(&[]), string_key(""));
     }
 }
