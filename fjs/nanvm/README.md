@@ -119,12 +119,13 @@ there are:
 { method: 'at', cases: [...] },                    // the receiver, then the arguments
 ```
 
-Four things a literal cannot express are written as thunks — a function in the
+Five things a literal cannot express are written as thunks — a function in the
 data is always a *description*, never a value that happens to be a function:
 
 | Thunk | Means |
 |---|---|
 | `functionValue` | a function value, lowered to `() => undefined` (no operator here inspects which one) |
+| `callback(name)` | a function with a body, one of `callbacks` — `args`, `(...a) => a`, answers what it was given — for the member functions that call one, such as `map` |
 | `ref(name)` | one of `data.shared`'s values, so the *same* object reaches every `ref` to that name |
 | `throws` | the case must throw; valid only as `expected` |
 | `unreached` | an operand the operation must not establish, lowered to `1n / 0n`, which throws if it is; for the lazy positions of `&&`/`||`/`??`/`?:` |

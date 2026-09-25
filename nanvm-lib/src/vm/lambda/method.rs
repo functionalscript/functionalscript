@@ -1,6 +1,9 @@
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{Any, Array, IVm, Nullish, Number, ToAny, ToArray, Unpacked},
+    vm::{
+        Any, Array, Function, IVm, Nullish, Number, ToAny, ToArray, Unpacked,
+        array::callback::callback,
+    },
 };
 
 /// A built-in member function: the receiver and the arguments, already the
@@ -30,14 +33,24 @@ pub(crate) fn method<A: IVm>(receiver: &Any<A>, key: &Any<A>) -> Option<Method<A
 
 /// `Array.prototype`'s.
 fn array<A: IVm>(key: &Any<A>) -> Option<Method<A>> {
-    let table: [(&str, Method<A>); 10] = [
+    let table: [(&str, Method<A>); 20] = [
         ("at", array_at),
         ("concat", array_concat),
+        ("every", array_every),
+        ("filter", array_filter),
+        ("find", array_find),
+        ("findIndex", array_find_index),
+        ("findLast", array_find_last),
+        ("findLastIndex", array_find_last_index),
         ("includes", array_includes),
         ("indexOf", array_index_of),
         ("join", array_join),
         ("lastIndexOf", array_last_index_of),
+        ("map", array_map),
+        ("reduce", array_reduce),
+        ("reduceRight", array_reduce_right),
         ("slice", array_slice),
+        ("some", array_some),
         ("toReversed", array_to_reversed),
         ("toSpliced", array_to_spliced),
         ("with", array_with),
@@ -155,6 +168,78 @@ fn array_to_spliced<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, 
 fn array_with<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
     let a = Array::try_from(receiver)?;
     Ok(a.with(argument(&args, 0), argument(&args, 1))?.to_any())
+}
+
+/// The receiver and the callback of an iteration or a fold, the callback
+/// checked before anything is visited (`vm/array/callback.rs`). A second
+/// argument, `thisArg`, is never read: no function here reads `this`.
+fn with_callback<A: IVm>(
+    receiver: Any<A>,
+    args: &Array<A>,
+) -> Result<(Array<A>, Function<A>), Any<A>> {
+    Ok((Array::try_from(receiver)?, callback(argument(args, 0))?))
+}
+
+/// `Array.prototype.every`, `vm/array/every.rs`.
+fn array_every<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(a.every(&f)?.to_any())
+}
+
+/// `Array.prototype.some`, `vm/array/some.rs`.
+fn array_some<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(a.some(&f)?.to_any())
+}
+
+/// `Array.prototype.find`, `vm/array/find.rs`.
+fn array_find<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    a.find(&f)
+}
+
+/// `Array.prototype.findLast`, `vm/array/find.rs`.
+fn array_find_last<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    a.find_last(&f)
+}
+
+/// `Array.prototype.findIndex`, `vm/array/find_index.rs`.
+fn array_find_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(position(a.find_index(&f)?))
+}
+
+/// `Array.prototype.findLastIndex`, `vm/array/find_last_index.rs`.
+fn array_find_last_index<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(position(a.find_last_index(&f)?))
+}
+
+/// `Array.prototype.map`, `vm/array/map.rs`.
+fn array_map<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(a.map(&f)?.to_any())
+}
+
+/// `Array.prototype.filter`, `vm/array/filter.rs`.
+fn array_filter<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    Ok(a.filter(&f)?.to_any())
+}
+
+/// `Array.prototype.reduce`, `vm/array/reduce.rs`: the initial value read
+/// only when passed, since `[].reduce(f)` throws where
+/// `[].reduce(f, undefined)` answers `undefined`.
+fn array_reduce<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    a.reduce(&f, present(&args, 1))
+}
+
+/// `Array.prototype.reduceRight`, `vm/array/reduce.rs`.
+fn array_reduce_right<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    let (a, f) = with_callback(receiver, &args)?;
+    a.reduce_right(&f, present(&args, 1))
 }
 
 /// `Array.prototype.join`, `vm/array/join.rs`: the separator `","` when
@@ -349,7 +434,7 @@ mod tests {
         assert!(super::method::<A>(&arr, &"at".into()).is_some());
         assert!(super::method::<A>(&object, &"at".into()).is_none());
         assert!(super::method::<A>(&1.0.to_any(), &"at".into()).is_none());
-        assert!(super::method::<A>(&arr, &"map".into()).is_none());
+        assert!(super::method::<A>(&arr, &"push".into()).is_none());
         assert!(super::method::<A>(&arr, &0.0.to_any()).is_none());
     }
 }
