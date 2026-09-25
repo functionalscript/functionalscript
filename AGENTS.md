@@ -4,7 +4,7 @@ This repository is a monorepo with two code bases:
 
 | Directory    | Language                                | Notes                                       |
 | ------------ | --------------------------------------- | ------------------------------------------- |
-| `fjs/`       | FunctionalScript (`.f.mjs`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
+| `fjs/`       | FunctionalScript (`.f.mjs`, `.f.js`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
 | `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
@@ -115,17 +115,19 @@ dependency-update procedure: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## 3. FunctionalScript and TypeScript (`fjs/`)
 
-Business logic under `fjs/` belongs in FunctionalScript: write it in `.f.mjs`.
-Use plain `.mjs` only where code must perform effects or depend on host JavaScript
-behavior; effect implementations, platform adapters, runners, test harnesses,
-and host-specific proofs are examples, not a closed list of exceptions. Keep
-such `.mjs` files thin: isolate the impure or host-specific boundary there and
-move business logic into `.f.mjs`. Existing `.mjs` files that violate this rule
-are migration debt, not precedent: find or file a co-located `todo/` to extract
-the business logic as soon as possible.
+Business logic under `fjs/` belongs in FunctionalScript: write it in `.f.mjs`,
+or `.f.js` once the current compiler accepts it. Use plain `.mjs` only where code
+must perform effects or depend on host JavaScript behavior; effect
+implementations, platform adapters, runners, test harnesses, and host-specific
+proofs are examples, not a closed list of exceptions. Keep such `.mjs` files
+thin: isolate the impure or host-specific boundary there and move business logic
+into FunctionalScript. Existing `.mjs` files that violate this rule are
+migration debt, not precedent: find or file a co-located `todo/` to extract the
+business logic as soon as possible.
 
-Every new `.f.mjs` module ships a co-located `proof.f.mjs` with **100% proof
-coverage** — every export called, every line executed, every branch taken.
+Every new `.f.mjs` or `.f.js` module ships a co-located `proof.f.mjs` with
+**100% proof coverage** — every export called, every line executed, every branch
+taken.
 Values are immutable (no in-place mutation, no `.push`/`Map#set`/index
 assignment), there is no `try`/`catch` and no regular expressions, and types are
 written in JSDoc with a sibling `types.ts` for a type-level API. No authored

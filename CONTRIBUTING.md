@@ -144,12 +144,13 @@ consumers — for example after changing `prepack`, `files`, or anything that
 affects emitted declarations — follow
 [`fjs/ci/packed-consumer-validation.md`](./fjs/ci/packed-consumer-validation.md).
 
-New `.f.mjs` modules need a co-located proof with 100% proof coverage — see
-[fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage). Authored
-FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is accompanied by a
-`proof.f.mjs`, and a separately useful type-level API may live in a sibling
-`types.ts`. Current FunctionalScript compiler support is not required for either
-file.
+New `.f.mjs` and `.f.js` modules need a co-located proof with 100% proof
+coverage — see [fjs/AGENTS.md §1](./fjs/AGENTS.md#1-testing-and-proof-coverage).
+Authored FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is
+accompanied by a `proof.f.mjs`, and a separately useful type-level API may live
+in a sibling `types.ts`. Current FunctionalScript compiler support is not
+required for either file; a `module.f.js` is the one that promises it, and keeps
+a `proof.f.mjs` too.
 
 `types.ts` and an optional sibling `private.ts` are the only authored
 TypeScript in the repository, and both are permanent rather than migration debt

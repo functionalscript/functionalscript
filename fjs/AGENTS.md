@@ -5,6 +5,12 @@ type-only TypeScript (`types.ts`) beside it. Repository-wide rules live in the
 root [AGENTS.md](../AGENTS.md), and the design principles both code bases follow
 live in [DESIGN.md](../doc/DESIGN.md).
 
+Authored FunctionalScript has two extensions: `.f.mjs`, and `.f.js` for source
+the current compiler accepts ([`fsc/README.md`](./fsc/README.md) defines
+both). Every rule below stated for `.f.mjs` applies to `.f.js` alike; the one
+difference, that a proof stays `proof.f.mjs`, is in
+[§1.2](#12-proof-coverage-is-mandatory).
+
 ## Contents
 
 1. [Testing and proof coverage](#1-testing-and-proof-coverage)
