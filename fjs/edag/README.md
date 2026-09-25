@@ -414,9 +414,12 @@ need it.
 ## Design
 
 The semantics and operation vocabulary are decided subject by subject in
-[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md); the module
-boundary and the plan for generating the Rust types from this schema live in
-[edag-spec.md](../../todo/edag-spec.md). Both predate [Chains](#chains) above
-and describe the chain nodes as one call tag carrying a flat `lambdas` array
-of steps; that array is gone, and this file is the record for what replaced
-it and why.
+[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md). The module
+boundary is the one stated at the top of this file: the compiler's temporary
+`Unresolved { imports, edag }` wrapper, module resolution and serialization
+stay in `fjs/fsc`, since import paths are not part of an EDAG. Generating the
+Rust types and validation from this schema is
+[rust-schema-codegen.md](./todo/rust-schema-codegen.md). The discussion
+predates [Chains](#chains) above and describes the chain nodes as one call tag
+carrying a flat `lambdas` array of steps; that array is gone, and this file is
+the record for what replaced it and why.

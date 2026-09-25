@@ -25,6 +25,8 @@ pub mod calls;
 pub mod closure;
 #[path = "../fixtures/escapes.rs"]
 pub mod escapes;
+#[path = "../fixtures/exports.rs"]
+pub mod exports;
 #[path = "../fixtures/function-scope.rs"]
 pub mod function_scope;
 #[path = "../fixtures/lazy.rs"]
@@ -145,14 +147,14 @@ pub fn run<A: IVm>(
 mod tests {
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, Array, IVm, Nullish, ToAny},
+        vm::{Any, Array, Function, IVm, JsonError, Nullish, Object, ToAny, ToArray},
     };
 
     use crate::{
-        RunError, arity, array, at, boolean, call, calls, closure, escapes, function_scope, lazy,
-        length, method, missing, named, named_imports, named_imports_throws, nested,
-        not_a_function, nullish, number, object, operators, property, rest, run, sharing, string,
-        throws, to_string,
+        RunError, arity, array, at, boolean, call, calls, closure, escapes, exports,
+        function_scope, lazy, length, method, missing, named, named_imports, named_imports_throws,
+        nested, not_a_function, nullish, number, object, operators, property, rest, run, sharing,
+        string, throws, to_string,
     };
 
     #[test]
@@ -301,6 +303,71 @@ mod tests {
             Ok("[true,true,true,true,true,true]".into())
         );
         assert!(named_imports_throws::module::<Naive>().is_err());
+    }
+
+    /// One export of a module, looked up the way the harness's export
+    /// selection (`../todo/select-module-export.md`) decides `NoExport`: by
+    /// own-property presence, so `None` is an absent export and a present
+    /// `undefined` is `Some`.
+    fn export<A: IVm>(module: fn() -> Result<Any<A>, Any<A>>, name: &str) -> Option<Any<A>> {
+        Object::try_from(module().expect("the module evaluates"))
+            .expect("a compiled module returns its export object")
+            .own_property(&name.into())
+    }
+
+    /// `exports.mjs` against each outcome export selection tells apart,
+    /// through the operations it is made of. Evaluating the module succeeds
+    /// although `fails` throws when called: loading a module calls none of
+    /// its exports.
+    #[test]
+    fn export_selection() {
+        let select = |name| export::<Naive>(exports::module, name);
+        // A value, and a call with supplied arguments.
+        assert_eq!(select("answer").unwrap().to_json(), Ok("[42]".into()));
+        let add = Function::try_from(select("add").unwrap()).unwrap();
+        let args = [20.0.to_any(), 22.0.to_any()].to_array();
+        assert_eq!(add.call(args).unwrap().to_json(), Ok("42".into()));
+        // Absent versus a present `undefined`, which then has no JSON.
+        assert_eq!(select("missing"), None);
+        let nothing = select("nothing").unwrap();
+        assert_eq!(nothing, Nullish::Undefined.to_any());
+        assert_eq!(nothing.to_json(), Err(JsonError::Undefined));
+        // A named-only module has no `default` to fall back on.
+        assert_eq!(select("default"), None);
+        // Calling a value that is not a function, and a call that throws.
+        assert!(Function::try_from(select("answer").unwrap()).is_err());
+        let fails = Function::try_from(select("fails").unwrap()).unwrap();
+        assert!(fails.call(Array::default()).is_err());
+        // Reading a function does not call it: read, `fails` is the
+        // function JSON refuses, not the throw a call gives.
+        assert_eq!(select("fails").unwrap().to_json(), Err(JsonError::Function));
+        assert_eq!(select("add").unwrap().to_json(), Err(JsonError::Function));
+    }
+
+    /// Selection from a default-only and from a mixed module: `default` is
+    /// one name among the exports, and selecting it leaves the others in
+    /// place.
+    #[test]
+    fn default_is_one_export() {
+        assert_eq!(
+            export::<Naive>(number::module, "default")
+                .unwrap()
+                .to_json(),
+            Ok("42".into())
+        );
+        assert_eq!(export::<Naive>(number::module, "z"), None);
+        let module = named::module::<Naive>().unwrap();
+        let exports = Object::try_from(module.clone()).unwrap();
+        let default = exports.own_property(&"default".into()).unwrap();
+        assert_eq!(default.to_json(), Ok("[5]".into()));
+        assert_eq!(
+            exports.own_property(&"z".into()).unwrap().to_json(),
+            Ok("[5]".into())
+        );
+        assert_eq!(
+            module.to_json(),
+            Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
+        );
     }
 
     #[test]

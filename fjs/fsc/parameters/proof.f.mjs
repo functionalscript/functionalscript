@@ -82,8 +82,8 @@ export const proof = {
         }
     },
     factoryTable: () => {
-        // The table's first entries, spelled as `table.f.mjs` spells them; `lengthLimit` covers its width.
-        const table = unresolved(unwrap(parse('table.f.mjs')([
+        // The table's first entries, spelled as `fjs/types/function/length` spells them; `lengthLimit` covers its width.
+        const table = unresolved(unwrap(parse('factories.f.mjs')([
             'export const factories = [',
             '    g => (...rest) => g([], rest),',
             '    g => (a0, ...rest) => g([a0], rest),',

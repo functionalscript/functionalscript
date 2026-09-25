@@ -65,8 +65,8 @@ generic form costs — the factory can accept per-domain overrides or
 
 ### Tasks
 
-- [ ] Add `fjs/types/bit_set/module.f.mjs` (+ `proof.f.mjs`, register in
-      `deno.json` exports) with the parameterized algebra.
+- [ ] Add `fjs/types/bit_set/module.f.mjs` (+ `proof.f.mjs`) with the
+      parameterized algebra.
 - [ ] Rewrite `byte_set` and `nibble_set` as instantiations, preserving
       their public APIs and JSDoc (including nibble_set's
       "prefer byte_set / JSON-serializable" guidance).

@@ -32,78 +32,24 @@
 |Comma      |`,`      |1          |
 |Type       |`typeof` |EDAG only  |
 
-**Stage A is in the language**: arithmetic (`+ - * / % **`), strict
-comparison (`=== !== > >= < <=`), and bitwise (`& | ^ ~ << >> >>>`) —
-every operator above but unary `-` is new, `-` itself now dual-arity, told
-from the prefix by the number of operands rather than by a tag of its own,
-exactly as the EDAG's `op12Id` already reads it. `==`/`!=` stay refused.
+**Stages A and B are in the language** — every row marked **done** — and
+the [specification](../README.md#operators) is the one place their syntax,
+precedence and associativity, the `-`/`~`-before-`**` refusal, the
+function-operand rule and each output's handling of an operator are stated.
+The lazy operators and the conditional are the EDAG's own nodes — `op2` for
+`&&`, `||` and `??`, `op3` for `?:` — whose laziness the EDAG states
+positionally; what the front end adds is the anchoring rule below, the
+eager/lazy split `anchors` in [`fjs/fsc/ast`](../../fjs/fsc/ast/module.f.mjs)
+reads by. The remaining priority-1 rows are `!`, which the paragraph on
+`typeof` below leaves open with it, and the comma, which generalizes that
+anchoring rule.
 
-**Stage B is in the language**: the lazy operators `&&`, `||`, `??` and the
-conditional `?:`, above Stage A's top, `bitwiseOr` — `&&` below `||`, `??`
-a chain of its own that mixes with neither at one nesting (`a ?? b || c`
-and `a && b ?? c` are syntax errors here as in JavaScript, and `(a ?? b) ||
-c` the one spelling of that reading), and the conditional above all three,
-its arms whole values so that it nests to the right. Each is the EDAG's own
-node — `op2` for the three, `op3` for `?:` — whose laziness the EDAG already
-states positionally; what the front end adds is the anchoring rule below,
-the eager/lazy split `anchors` in
-[`fjs/fsc/ast`](../../fjs/fsc/ast/module.f.mjs) reads by. The remaining
-priority-1 rows are `!`, which the paragraph on `typeof` below leaves open
-with it, and the comma, which waits on the conditional being the ladder's
-top and generalizes that anchoring rule.
-
-The front end reads every one and computes none of them: the grammar builds
-`[tag, left, right]` (`[tag, operand]` for `~`, `['?:', c, t, e]` for the
-conditional), and the lowering carries that straight to the EDAG's own
-`op2`/`op12`/`op1`/`op3` shape, which already admits every one of these
-tags. Unary `-` alone still folds over a numeric literal — exact, total
-arithmetic, so the graph holds the leaf rather than a node — and nothing
-else does: `+` alone would need `ToPrimitive` to decide number or string,
-and folding the rest while leaving `+` a node draws an inconsistent line the
-front end refuses to draw. The `.json` and DataJS outputs answer `an
-operator has no value` for all twenty-three — the twenty-one binary tags,
-unary `~`, and the conditional — the same refusal a function or a call
-already earns — a value for them is the EDAG's question, once an
-interpreter is written for it
-([`fjs/fsc/todo/interpret-edag.md`](../../fjs/fsc/todo/interpret-edag.md)).
-
-Precedence follows JavaScript's own order, arithmetic above comparison above
-bitwise above `&&` above `||`, the conditional last. `-`/`~` immediately
-before `**` are refused, exactly as in JavaScript: `-2 ** 2` and `~2 ** 2`
-are syntax errors, at any depth of `-`/`~` nesting, and parentheses are
-the only way to write either reading — `(-2) ** 2` raises the negation,
-`-(2 ** 2)` negates the power. A function is no operand of any of these,
-unparenthesized: `(...a) => body` reads everything to its right as `body`,
-so `1 * (...a) => 2` is refused exactly where `-(...a) => 1` already is,
-and an extra pair of parentheses is what turns a function into an ordinary
-operand, as it always was for `-`. A conditional's arm is a whole value,
-so a function stands there bare, its body ending where `:` cannot continue
-it — `a ? () => 1 : 2` reads as JavaScript reads it.
-
-**Unary `-` is in the language.** It is the first operator, and the one the
-front end needed first: the tokenizer used to fold a `-` into the number,
-bigint or `Infinity` after it, which made `-1 .x` an access on `-1` where
-JavaScript reads `-(1 .x)`, and `-1()` a call on `-1` where JavaScript calls
-`1`. Both were refused rather than answered wrongly; reading the `-` as the
-prefix it is retired both refusals and the fold with them.
-
-The shape the rest can follow, and the line it draws. The grammar reads the
-operator and computes nothing, so `-1` is `['-', 1]` in the parser's tree.
-The **lowering** folds that one case: negating a numeric literal is exact
-arithmetic — total, and answered without knowing anything else about the
-program — so the graph holds the number. A `-` over anything else stays a
-node, because folding one would mean saying what a string or a container
-converts to, which is `ToPrimitive`'s and depends on what the value holds.
-Every fold this table adds should be held to that line: fold what is exact,
-leave what needs an assumption to the readers that want a value.
-
-Two consequences. `export default -1;` compiles to `.rs` because the
-printer meets the leaf, where a negation of anything else is refused —
-`Neg for Any<A>` answers `Result<Any<A>, Any<A>>` and a generated module's
-`Any<A>` has nowhere to put the `Err`, so what that side wants is a shape
-for a throwing operation. And the `.json` and DataJS outputs compute a
-value for the negations that survive: the five primitive types convert, and
-a container is refused rather than guessed at.
+The line every fold this table adds is held to: unary `-` folds over a
+numeric literal, since negating one is exact, total arithmetic, and nothing
+else folds — `+` alone would need `ToPrimitive` to decide number or string,
+and folding the rest while leaving `+` a node draws an inconsistent line.
+Fold what is exact; leave what needs an assumption to the readers that want
+a value.
 
 An index is not an expression: it is a constant key, a string or a number,
 so a negative key is written as the string it names, `a["-1"]`.

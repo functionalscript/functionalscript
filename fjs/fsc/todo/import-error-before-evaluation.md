@@ -1,9 +1,9 @@
-# Report missing imports before dependency evaluation
+## Report missing imports before dependency evaluation
 
 **Priority:** P2
 **Status:** open
 
-## Problem
+### Problem
 
 The value transpiler evaluates a dependency before checking its selected
 export. The EDAG linker can inspect the export table without evaluating the
@@ -39,14 +39,14 @@ The earlier-import fix in
 checks a selection before loading the next dependency. It does not move that
 check ahead of the selected dependency's own evaluation.
 
-## Expected behavior
+### Proposal
 
 All output formats should report the missing selected export for the example,
 before running the failing initializer. Validation must use export presence,
 so an existing export with value `undefined` stays valid. Valid unused imports
 and empty import lists must still retain required evaluation and failures.
 
-## Tasks
+### Tasks
 
 - [ ] Separate export validation from dependency value evaluation, preserving
       module identity, cached selections, attributes and cycle refusal.
@@ -55,7 +55,7 @@ and empty import lists must still retain required evaluation and failures.
 - [ ] Preserve the existing earlier-import diagnostic-ordering proofs and
       evaluation failures of valid unused bindings and empty lists.
 
-## Related
+### Related
 
 - [one-module-resolution-walk](./one-module-resolution-walk.md) — consolidation
   must retain selected names and binding tables; shared traversal alone does

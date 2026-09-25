@@ -1,7 +1,10 @@
 ## Preserve module-resolution semantics
 
 **Priority:** P1
-**Status:** open; remaining verification is limited to the current path-import subset
+**Status:** done — kept as the record; cited by `spec/README.md`,
+`spec/named-imports.md` and the
+[compatibility epic](../../../todo/fjs-javascript-compatibility.md) for the
+host boundary and specifier contract below
 
 ### Problem
 
@@ -171,8 +174,10 @@ falls back to interpreting an unsupported host's specifiers as paths.
 - [x] Compare Node adapter identities with native ESM for escaped filenames,
       equivalent spellings and diamond sharing. Prove both compiler paths'
       identity handling separately through synchronous effect hosts.
-- [ ] Check warm/cold caches and repeated imports against the current identity
-      rules. Run the repository's required compiler, test and coverage checks.
+
+Repeated and diamond imports are pinned by the identity proofs above. The
+warm/cold check belongs to the cache, which does not exist yet: it is the
+warm/cold task of [cache-compiled-modules](./cache-compiled-modules.md).
 
 The optional query/fragment and absolute `file:` import extensions have been
 removed. They are not pending P1 work. The P1 requirement is preserving JavaScript

@@ -1,7 +1,13 @@
 ## Audit: inline `/** @type {T} */ (v)` casts
 
 **Priority:** P2
-**Status:** implemented — 273 of 357 removed or converted; 84 remain, each with a reason below
+**Status:** done — kept as the record; cited by [eslint.md](./eslint.md),
+[strict-static-analysis.md](./strict-static-analysis.md),
+[tsconfig-strict-flags.md](./tsconfig-strict-flags.md),
+[rtti-type-system.md](./rtti-type-system.md),
+[`spec/todo/3360-type-annotations.md`](../spec/todo/3360-type-annotations.md)
+and the per-site follow-ups in `fjs/effects` and `fjs/rtti` todos. The audit
+removed or converted 273 of 357 casts; 84 remain, each with a reason below.
 
 ### Problem
 
@@ -128,9 +134,10 @@ syntax. They are deliberately left rather than rewritten.
 
 ### Follow-ups
 
-- [strict-static-analysis.md](./strict-static-analysis.md) — its proposed
-  declaration-emit check is no longer hypothetical: it is what caught the four
-  API regressions above, and it belongs in CI.
+- [strict-static-analysis.md](./strict-static-analysis.md) — comparing emitted
+  declarations is no longer hypothetical: it is what caught the four API
+  regressions above. A CI check of them needs a tool that parses what it
+  checks, not a text pattern ([AGENTS.md §6](../AGENTS.md#6-external-tools)).
 - [eslint.md](./eslint.md) — nothing stops these from becoming 357 again, and
   11 new ones already arrived from `main` mid-cleanup.
   `no-unnecessary-type-assertion` would have found most of the first 182
@@ -151,14 +158,14 @@ syntax. They are deliberately left rather than rewritten.
 ### Remaining sites
 
 This table is an audit snapshot, and its counts above are derived from it, so
-rows are kept as they were recorded even when the code has since moved. The
-nine `fjs/rtti/validate/` rows describe a module that has been deleted —
-`parse` is now the only schema-form reader — so those nine sites no longer
-exist. Two more have since moved: `fjs/cas/evo/module.f.mjs:466`'s cast went
-with the flattening of `Evo.add`'s nested `Result`, and
-`fjs/cas/module.f.mjs:348` now reads `Effect<Rm, Vec, IoChannel>` — the same
+rows are kept as they were recorded even when the code has since moved. Its
+line numbers and counts were taken on the audit's branch, before `05601a5`,
+and are not re-measured; read against a later tree, a line number locates
+nothing. Two rows have since moved: the `fjs/cas/evo/module.f.mjs` cast went
+with the flattening of `Evo.add`'s nested `Result`, and the
+`fjs/cas/module.f.mjs` one now reads `Effect<Rm, Vec, IoChannel>` — the same
 type, spelled through the three-parameter `Effect`. And the
-`fjs/fsc/proof.f.mjs:21` row names a file that has since been replaced: the
+`fjs/fsc/proof.f.mjs` row names a file that has since been replaced: the
 range-map lexer stub it audited was deleted when the front end moved into
 `fjs/fsc`, and the `proof.f.mjs` at that path today is the compiler's,
 moved from `fjs/djs`, whose casts this table never recorded. The three

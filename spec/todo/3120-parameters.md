@@ -1,35 +1,42 @@
 ## Named and rest parameters
 
-**Priority:** P2
-**Status:** implementation in progress, stacked on #2220
+**Priority:** P1
+**Status:** open
 
-### Implementation status (September 24, 2026)
+### Implementation status
 
+Fixed and rest parameters shipped: the plan in
+[#2220](https://github.com/functionalscript/functionalscript/pull/2220) and
+the implementation in
+[#2237](https://github.com/functionalscript/functionalscript/pull/2237).
 The user requested: “Implement named/required parameters as we described on
 top of PR 2220. `fjs compile` should support the syntax `(a, b, c, ...x) => ...`”.
 They also explicitly directed runtime construction through the pre-generated
-`g => (a0, ...rest) => g([a0], rest)` factory table. This authorizes the
+`g => (a0, ...rest) => g([a0], rest)` factory table. This authorized the
 fixed/rest implementation; it does not resolve the default-text choices below.
 
 Parsing, binding, fixed/rest EDAG, the shared factory table, both JavaScript
-executors, source output and Rust output are implemented. A function's `length` is
-at most 16, the language's limit
-([functions](../README.md#functions)), and the JavaScript table
-covers every valid length.
+executors, source output and Rust output are implemented, and the accepted
+syntax is in the [specification](../README.md#functions). A function's `length`
+is at most 16, the language's limit, and the JavaScript table covers every
+valid length.
 The old three-element function tuple is a breaking format change: recompile
 source, or migrate zero-arity function-owned `args` to `rest`, retaining module
 import bindings.
 
-**Remaining integration gate:** the required shared default renderer and
-callable/graph association are not implemented. Native conversion of a returned
-factory arrow still reveals wrapper source. Keep this implementation in draft
-until the rendering contract and mechanism are resolved; the tasks below remain
-open for that work. No claim is made that factory construction alone satisfies
-this requirement or that all of this TODO is complete.
+**What remains:** the required shared default renderer and the callable/graph
+association are not implemented. Native conversion of a factory arrow still
+reveals wrapper source — at `36c8d4a`, amnesia's `vm` evaluating
+`['=>', 1, null, ['arg', 0]]` gives a callable whose `String` is
+`(a0, ...rest) => g([a0], rest)`. That is the P1 violation below. The
+unticked tasks track it, together with the language-design approval record,
+the module-import preservation proofs and the executor-capacity proofs.
+No claim is made that factory construction alone satisfies this requirement.
 
-The unchanged `fjs/types/range/module.f.mjs` compilation candidate still fails
-at EOF because it omits statement semicolons. Named-parameter examples with the
-compiler's current statement termination syntax compile successfully.
+The unchanged `fjs/types/range/module.f.mjs` compilation candidate now parses
+its parameters and stops at the first statement that omits its `;`: the
+`export` after `contains`. Named-parameter examples with the compiler's
+current statement termination syntax compile successfully.
 
 The remaining sections retain the design and its unfinished obligations.
 
@@ -403,7 +410,7 @@ this contract; refuse such input rather than claim a lossless migration.
 Reconcile pending design documents in this proposal, before implementation:
 [stage-1 subjects 2 and 7](../../todo/edag-stage1-discussion.md#2-arguments-reference),
 the [native callable plan](../../nanvm-lib/todo/callable-function-objects.md),
-the [capturing-function compiler plan](../../fjs/fsc/todo/compile-capturing-functions-to-rust.md#remaining-gaps)
+which also covers captured frames in Rust,
 and the [function-frame plan](./3111-function-frame.md) follow this
 `length` / `arg` / `rest` contract, not a count-only extension of complete
 `['args']`. This addresses the
@@ -413,9 +420,9 @@ Their current-format and historical descriptions remain explicitly labeled.
 
 Current EDAG/schema documentation and executable consumers now use the
 fixed/rest format. Module-import `args` semantics remain unchanged. The
-[complete-arguments alternative](./arity-complete-arguments.md) and
-[length-pattern alternative](https://github.com/functionalscript/functionalscript/blob/b676ed68885930e507f7c57ecd89ccc4446fa581/spec/todo/3130-function-length-pattern.md), now retired, are not
-prerequisites for this proposal's arity construction. The default-text
+[complete-arguments alternative](./arity-complete-arguments.md) is not a
+prerequisite for this proposal's arity construction, and its `withLength`
+length pattern is retired. The default-text
 obligation above remains regardless of which construction technique is used.
 
 If default parameters are added later, JavaScript's `length` stops before the

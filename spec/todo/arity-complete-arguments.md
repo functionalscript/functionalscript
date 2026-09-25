@@ -30,7 +30,7 @@ four elements do not make the complete-arguments interpretation valid.
 A named-plus-rest arrow cannot recover that complete list: rebuilding
 `[a, b, ...rest]` pads omitted fixed positions with `undefined`. That is a
 problem for this stronger contract, not for the implemented parameter-binding contract.
-The [length-pattern proposal](https://github.com/functionalscript/functionalscript/blob/b676ed68885930e507f7c57ecd89ccc4446fa581/spec/todo/3130-function-length-pattern.md) was one
+The [`withLength` pattern](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) was one
 possible mechanism for the stronger contract; it is retired, and the language
 limits `length` to 16.
 
@@ -48,7 +48,14 @@ limits `length` to 16.
 
 ### Related
 
+- [Functions](../README.md#functions) — a function has at most 16 fixed
+  parameters, which retired the `withLength` pattern's unrestricted `length`.
 - [Review finding](https://github.com/functionalscript/functionalscript/pull/2133#discussion_r4054015547)
   — the complete-list writer obstruction that motivated the earlier task.
 - [Serialization](./serialization.md#function-text-and-serialization) —
   callable serialization and default function text have separate open questions.
+- [Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md),
+  [built-in](./2360-built-in.md) — how a complete source pattern is
+  recognized; `defineProperty` stays prohibited outside one.
+- [new-array-out-of-subset](../../todo/new-array-out-of-subset.md) —
+  `tupleRebuild`'s `defineProperty`.

@@ -73,30 +73,13 @@ prerequisite below.
 Stage 1 — removing authored TypeScript — is complete and is no longer a
 blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
 finished; the extension contract it established lives in
-[`fjs/fsc/README.md`](../fjs/fsc/README.md).
-
-The initial compiler walking skeleton does not require repository source
-migration and may use a small synthetic JavaScript fixture. The extension-based
-compiler-compatibility migration of existing repository modules is separate and
-cannot begin while authored TypeScript remains.
-
-Stage 1 first converts the repository gradually and dependency-first:
-
-```text
-module.ts   -> module.mjs
-module.f.ts -> module.f.mjs
-```
-
-During stage 1, `.f.mjs` means authored FunctionalScript-intent JavaScript; it
-does not promise current compiler support. The stage also removes the
-TypeScript-to-JavaScript emit path after the last TypeScript source is gone
-(done in [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-`prepack` emits declarations only, then re-checks against them without
-emitting), cleans obsolete generated `.js`, and removes the
-blanket `**/*.js` ignore so `.js` becomes authorable and trackable again (done
-in [#1545](https://github.com/functionalscript/functionalscript/pull/1545); the
-rule guarded only stale artifacts once nothing generated `.js`, and `**/*.js`
-deliberately stays in `package.json`'s `files`).
+[`fjs/fsc/README.md`](../fjs/fsc/README.md), which also records what stage 1
+removed along the way — the TypeScript-to-JavaScript emit path
+([#1520](https://github.com/functionalscript/functionalscript/pull/1520)) and
+the blanket `**/*.js` ignore
+([#1545](https://github.com/functionalscript/functionalscript/pull/1545)).
+`.f.mjs` means authored FunctionalScript-intent JavaScript; it does not
+promise current compiler support.
 
 Before stage 2 renames any repository source, complete the focused
 [`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) prerequisite.
@@ -196,13 +179,14 @@ via the `Function` constructor — no rustc at the user's run time.
   — **blocked-by prerequisite** before the first stage-2 rename.
 - [`fjs/fsc/README.md`](../fjs/fsc/README.md) — the extension contract, and the
   stage-1/stage-2 boundary this migration starts from.
-- [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — MVP
-  definition and task list.
+- [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
+  design decided around the MVP pipeline and the post-MVP tasks; this file
+  holds the MVP definition and its tasks.
 - [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —
   the self-hosted `nanvm` crate (post-MVP).
 - [authored `.mjs` package support](../fjs/ci/todo/f-mjs-package-support.md) —
   stage-1 validation, declaration, and package prerequisite.
 - [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — broader
   package-publishing roadmap.
-- [edag-spec](./edag-spec.md) — the schema of the code-describing `Any`; the
-  `Function` constructor contract.
+- [`fjs/edag`](../fjs/edag/README.md) — the schema of the code-describing
+  `Any`; the `Function` constructor contract.

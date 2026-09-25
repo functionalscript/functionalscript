@@ -5,8 +5,8 @@
 
 ### Problem
 
-`IContainer`'s default bodies hand-roll indexed loops
-(`src/vm/internal/icontainer.rs:40-49, 52-61`):
+`IContainer`'s default `items_eq` (`src/vm/internal/icontainer.rs`)
+hand-rolls an indexed loop:
 
 ```rust
 for i in 0..len {
@@ -14,18 +14,18 @@ for i in 0..len {
 }
 ```
 
-`items_eq` is `Iter::eq_by_` (`src/common/iter.rs:44-60`) re-implemented —
-and `eq_by_`'s only consumer in the whole repo is `tests/test/main.rs:121`,
-so the crate's own container equality does not use the crate's own equality
+`items_eq` is `Iter::eq_by_` (`src/common/iter.rs`) re-implemented — and at
+`36c8d4a` `eq_by_` has no consumer in the crate or its tests at all, so the
+crate's own container equality does not use the crate's own equality
 combinator.
 
 The blocker is structural: `SizedIndex::index_iter`
-(`src/common/sized_index.rs:17-22`) takes `self` by value and requires
+(`src/common/sized_index.rs`) takes `self` by value and requires
 `Self: Sized`, while `IContainer::items()` returns `&Self::Items` with
 `Items: ?Sized`. The one iteration abstraction the crate has is unreachable
 from the one accessor that returns items, so every consumer falls back to
-`0..len` indexing: `icontainer.rs:40`, `container_fmt.rs:11`,
-`function/debug.rs:11, 19`, `bigint/debug.rs:18-22`.
+`0..len` indexing: `items_eq`, `ContainerFmt::container_fmt`, and
+`Debug for BigInt`.
 
 ### Proposal
 
@@ -43,5 +43,5 @@ loops become `for item in items.index_iter()`. Also the missing piece that unblo
 
 ### Related
 
-- [debug-delimited-fmt-helper](debug-delimited-fmt-helper.md) — the two
-  `Debug` sites; this issue removes the indexing they were forced into
+- [debug-delimited-fmt-helper](debug-delimited-fmt-helper.md) — the
+  `Debug` site; this issue removes the indexing it was forced into

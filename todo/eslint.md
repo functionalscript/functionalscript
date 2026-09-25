@@ -14,9 +14,10 @@ Three concrete gaps:
 1. **Inline `/** @type {T} */ (expr)` casts.** AGENTS.md asks for an annotated
    declaration, `@satisfies`, or `assert*` instead. TypeScript has no option to
    ban `as` or its JSDoc equivalent, so the count only moves when a human
-   notices. [inline-type-casts.md](./inline-type-casts.md) found 357 of them,
-   208 of which need no cast at all. Without a check they creep back after the
-   cleanup.
+   notices. [inline-type-casts.md](./inline-type-casts.md) audited every one:
+   most were redundant or convertible and are gone, and each that remains
+   carries a reason. Without a check they creep back — several arrived on
+   `main` during the cleanup itself.
 
 2. **Misspelled JSDoc tags are silently ignored.** This compiles clean:
 
@@ -40,7 +41,7 @@ Three concrete gaps:
 ### ESLint is the near-term answer
 
 `eslint` + `typescript-eslint` gives `no-unnecessary-type-assertion` — which
-would have found most of the audit's 181-cast "remove" bucket on its own —
+would have found most of the casts the audit deleted as redundant on its own —
 plus `no-unnecessary-condition`, `no-explicit-any`,
 `consistent-type-assertions`, and a plugin surface for the three rules above.
 
@@ -103,14 +104,18 @@ on the compiler. They are worth writing now.
    predicate — since they are what AGENTS.md already forbids and nothing checks.
 4. Add it to the generated workflow via `fjs/ci/` (not to `ci.yml` directly),
    next to `tsc` and `fjs test`.
-5. Gate the cast rule behind an allowlist or a warning level until
-   [inline-type-casts.md](./inline-type-casts.md) is worked through, so the
-   cleanup and the enforcement can land independently.
+5. Gate the cast rule behind an allowlist of the casts
+   [inline-type-casts.md](./inline-type-casts.md) keeps, each with its
+   recorded reason. That audit also found removals `tsc` accepted and review
+   showed wrong, so the allowlist matters as much as the rule.
 
 ### Related
 
-- [inline-type-casts.md](./inline-type-casts.md) — the 357 sites this would keep
-  from regressing.
+- [inline-type-casts.md](./inline-type-casts.md) — the audited casts this would
+  keep from regressing.
+- [eslint-config-jessie](https://github.com/Agoric/eslint-config-jessie) — an
+  ESLint configuration for Jessie, a hardened JavaScript subset; an option to
+  investigate as a starting rule set.
 - [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) — what `tsc` *can*
   enforce, and at what cost.
 - [strict-static-analysis.md](./strict-static-analysis.md) — the umbrella: every
