@@ -1,11 +1,9 @@
 ## Lint authored `.f.js` files with FSC
 
 **Priority:** P2
-**Status:** blocked
-**Blocked by:** the first authored `.f.js`: the package fixture that
-[`.f.js` package support](../../ci/todo/f-js-package-support.md) adds, or the
-first rename in the [compiler-compatibility migration](../../../todo/fjs-nanvm-integration.md)
-if that lands first.
+**Status:** open — the first authored `.f.js` exists: the package fixture
+[`fjs/ci/package/fixture/module.f.js`](../../ci/package/fixture/module.f.js)
+that [`.f.js` package support](../../ci/todo/f-js-package-support.md) added.
 
 ### Problem
 
