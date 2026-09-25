@@ -527,14 +527,22 @@ const fill = async (fh, buffer, position) => {
     return buffer.subarray(0, taken)
 }
 
+const { O_RDONLY, O_NONBLOCK = 0 } = fs.constants
+
 /**
  * The flags a {@link Handle} is opened with — see the `open` handler for why the
  * second one is the operation rather than a detail of it. Windows has no
  * `O_NONBLOCK`, so the default leaves the open exactly as it was there.
+ *
+ * **Exported for one proof, which says why it has to be.** What the flag does
+ * needs a FIFO, and nothing in `fs` makes one; `./proof.mjs`
+ * (`open.asksForANonBlockingOpen`) therefore checks that the open asks for it,
+ * which is enough to turn dropping it into a red test rather than a silent
+ * change. Nothing else reads this.
+ *
+ * @type {number}
  */
-const { O_RDONLY, O_NONBLOCK = 0 } = fs.constants
-
-const readFlags = O_RDONLY | O_NONBLOCK
+export const readFlags = O_RDONLY | O_NONBLOCK
 
 /**
  * What a `Handle` holds here: the host's own open file. The same reach-through the

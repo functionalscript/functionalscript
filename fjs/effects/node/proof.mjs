@@ -18,9 +18,9 @@
 
 import http from 'node:http'
 import net from 'node:net'
+import { constants as fsConstants } from 'node:fs'
 import process from 'node:process'
 import zlib from 'node:zlib'
-import { execFileSync } from 'node:child_process'
 import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
@@ -42,7 +42,7 @@ import {
     inflateTrailingCode, listen, open, pread, readWhole, rename, resolveFileModule,
     unframedBodyMessage, writeExclusive,
 } from './module.f.mjs'
-import { runEffect } from './module.mjs'
+import { readFlags, runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
 const exitCode = runEffect
@@ -592,30 +592,32 @@ export const proof = {
             // resolved to rather than the one the name holds.
             assertEq(`${await readFile(path)}`, 'new')
         }),
-        // **The non-blocking open is the operation.** A plain read-only open of a
-        // FIFO with no writer never returns — it left the process unable to exit
-        // at all — so the kind could not be asked of a descriptor at all without
-        // this. With it the open answers at once, `fstat` says the entry is no
-        // regular file, and `fjs/web` turns that into its `404`.
+        // **The open does not wait for a writer, and this is the weakest proof in
+        // this file — deliberately.** It asserts the flag the runner asks for,
+        // not what the flag does, and the reason is worth stating rather than
+        // hiding: the behaviour needs a FIFO, `fs` offers no operation that makes
+        // one, and calling `mkfifo` would be this repository's code calling an
+        // external tool, which [AGENTS.md §6](../../../AGENTS.md#6-external-tools)
+        // does not allow without approval first.
         //
-        // The deadline is what makes this a proof rather than a hang: without the
-        // flag it is this timeout that fires.
+        // What the flag does was measured by hand on Darwin with Node 26.8.1 and
+        // is recorded where the decision is: `Open` in [`./types.ts`](./types.ts).
+        // A plain read-only open of a writerless FIFO never returned and left the
+        // process unable to exit at all, holding its thread-pool slot for as long
+        // as it lived; `O_RDONLY | O_NONBLOCK` answered in nought milliseconds and
+        // the `fstat` said `isFile: false`. Bun 1.4.2 and Deno 2.8.3 answered the
+        // same.
         //
-        // `mkfifo` is a shell command because `fs` has no operation that makes
-        // one; Windows has neither, and the flag is a no-op there.
-        doesNotWaitForAWriter: () => withTemporary('fjs-handle-fifo-', async root => {
+        // So this line is here for one reason: it turns dropping the flag from an
+        // invisible change into a red test. The `fstat`-through-a-descriptor half
+        // of the same guard *is* proven by behaviour, on a directory, below.
+        //
+        // Windows has no `O_NONBLOCK` and no FIFO an `open` reaches, so the runner
+        // asks for `0` there and the open is the one it always had.
+        asksForANonBlockingOpen: () => {
             if (process.platform === 'win32') { return }
-            const path = join(root, 'pipe')
-            execFileSync('mkfifo', [path])
-            await within('open of a writerless FIFO', 4000, hostCheck(
-                step(open(path), handle =>
-                    step(fstat(handle), s => step(close(handle), () => pureOk(s)))),
-                result => {
-                    const s = unwrap(result)
-                    assertEq(s.isFile, false)
-                    assertEq(s.isDirectory, false)
-                }))
-        }),
+            assert((readFlags & fsConstants.O_NONBLOCK) !== 0, readFlags)
+        },
         // A directory opens and reads `EISDIR`, which is why `fjs/web` reads the
         // kind off the `fstat` and never reaches the read for one.
         aDirectoryOpens: () => withTemporary('fjs-handle-dir-', async root => {

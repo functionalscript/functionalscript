@@ -892,6 +892,18 @@ differed would have become a per-runtime assertion rather than a skip: a proof t
 runs nowhere says nothing about the runtime it was skipped on, which is how those
 two proofs came to cover one host out of three.
 
+**One decision here has no proof of its behaviour, and it is worth naming.** The
+non-blocking open is measured — by hand, in the row above and in `Open`
+([`../types.ts`](../types.ts)) — and not proven, because what it does needs a
+FIFO: nothing in `Fs` or in `node:fs` makes one, and calling `mkfifo` would be
+this repository's code calling an external tool, which
+[AGENTS.md §6](../../../../AGENTS.md#6-external-tools) does not allow without
+approval first. So [`../proof.mjs`](../proof.mjs) asserts the flag the open asks
+for rather than the behaviour it buys, and says so where it does it. What would
+replace that is either approval for a `mkfifo` fixture in the proof or an
+operation in `Fs` that makes one; the other half of the same guard — that the kind
+is read off the descriptor — *is* proven by behaviour, on a directory.
+
 Two properties the design states are **not** in the table, because no proof leans
 on them across runtimes: that Node sends the body of a `205` — which is why
 `carriesNoBody`'s set is the host's and not the RFC's — and the framing table's
