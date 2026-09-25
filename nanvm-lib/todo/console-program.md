@@ -46,3 +46,14 @@ loading it proves little. The entry point is the module's `export default`:
 after parsing and compiling the module, the VM evaluates the default export,
 if any; if it is a function, the VM runs it; the result is printed to stdout
 as JSON.
+
+**Open question:** that entry point conflicts with the shipped `fjs run`,
+which runs a module's exported `main` as a `NodeProgram`
+([`fjs/module.f.mjs`](../../fjs/module.f.mjs)) and refuses a module without
+one, and with
+[harness export selection](../../nanvm-harness/todo/select-module-export.md),
+under which no export name is mandatory and exported functions are never
+invoked just because the module was loaded. Whether the native CLI mirrors
+`fjs run`, keeps the default-export rule above, or offers both is undecided;
+[fs-vm-load-save](./fs-vm-load-save.md)'s Execute step depends on the
+answer.

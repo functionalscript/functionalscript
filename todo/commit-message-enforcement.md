@@ -1,17 +1,25 @@
 ## Enforce the commit-message standard before merge
 
 **Priority:** P3
-**Status:** open — the format is adopted, in
-[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages), so this is no longer
-waiting on it; the linter enforces that documented rule. The gap between
-adoption and enforcement is deliberate trial time, so let the format run by
-hand on real pull requests first: whatever it gets wrong is fixed while a fix is
-still a documentation edit rather than a linter change plus a rule migration.
+**Status:** open
 
 ### Problem
 
+The format is adopted, in
+[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages), so this issue no longer
+waits on it; the linter enforces that documented rule. The gap between adoption
+and enforcement is deliberate trial time, so let the format run by hand on real
+pull requests first: whatever it gets wrong is fixed while a fix is still a
+documentation edit rather than a linter change plus a rule migration.
+
 The format is a convention: nothing stops a pull request with a malformed title
-or a malformed `Changelog:` section from merging.
+or a malformed `Changelog:` section from merging. And by hand it is not
+holding. At `36c8d4a`, seven of the nine merges on `main` from
+[#2268](https://github.com/functionalscript/functionalscript/pull/2268) to
+[#2276](https://github.com/functionalscript/functionalscript/pull/2276) carry
+no `<topic>:` title — "Refactor id prefix-tag scheme into reusable factory",
+"Extract empty path handling into reusable helper" and so on; only #2272 and
+#2275 follow the format.
 
 One failure in that set costs more than the rest. Since the changelog is
 collected at release time ([changelog/RELEASE.md](../changelog/RELEASE.md)), the
@@ -57,8 +65,9 @@ narrow the hole, and neither closes it:
    measuring before anyone builds this.
 
    **Both instruments fail on the only real window.** Of the thirteen breaks
-   declared in `changelog/unreleased/`, nine are also declared somewhere in their
-   merge body — in three different shapes:
+   that were declared in `changelog/unreleased/` — a directory that no longer
+   exists, since a pull request adds no changelog file — nine were also
+   declared somewhere in their merge body, in three different shapes:
 
    | shape | pull requests |
    | --- | --- |

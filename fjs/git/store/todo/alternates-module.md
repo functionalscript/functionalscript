@@ -18,7 +18,7 @@ finding but evidence that "decode a Git-quoted string" recurs and has no
 module, and that in `store`'s case it sits between `objectsDir` and the
 hash check.
 
-Both of this file's issues, [alternates-line-quirks](../../todo/alternates-line-quirks.md)
+Both of this file's issues, [alternates-line-quirks](./alternates-line-quirks.md)
 and [byte-paths](../../todo/byte-paths.md), are about the decoder alone;
 each points at a region of a file rather than at a module.
 
@@ -41,7 +41,7 @@ measurement table already in its doc, with no filesystem.
 
 ### Related
 
-- [`../../todo/alternates-line-quirks.md`](../../todo/alternates-line-quirks.md) —
+- [alternates-line-quirks.md](./alternates-line-quirks.md) —
   what the decoder answers; entirely about the code this moves.
 - [`fjs/path`](../../../path/module.f.mjs) — owns the drive predicates the
   rooted-entry test reads.

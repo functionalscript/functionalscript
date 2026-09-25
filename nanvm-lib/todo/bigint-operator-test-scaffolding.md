@@ -9,19 +9,19 @@ Every bigint operator file redeclares the same inline unit-test scaffolding
 in `nanvm-lib/src/vm/bigint/`:
 
 - `type T = BigInt<Naive>` + `fn int(value: i64) -> T { value.into() }` —
-  duplicated in `add.rs:19-23`, `sub.rs:19-23`, `mul.rs:53-57`.
+  duplicated in the `tests` modules of `add.rs`, `sub.rs` and `mul.rs`.
 - `type T` + `fn pos(items: Vec<u64>) -> T` / `fn neg(items: Vec<u64>) -> T`
-  (both `T::unchecked_new(...)`) — duplicated in `shl.rs:68-79` and
-  `shr.rs:45-57`.
-- `mod.rs:229` uses a parallel `type TestBigInt = BigInt<Naive>`, and
-  `cmp.rs:31` declares the same `type TestBigInt = BigInt<Naive>` with the
+  (both `T::unchecked_new(...)`) — duplicated in the `tests` modules of
+  `shl.rs` and `shr.rs`.
+- `mod.rs`'s `tests` module uses a parallel `type TestBigInt = BigInt<Naive>`,
+  and `cmp.rs`'s declares the same `type TestBigInt = BigInt<Naive>` with the
   same `.into()` construction pattern in its tests.
 
 The identical comment
 `// TODO: The unit tests should not use \`naive\` or other VM implementations.
 //       We should move these tests into integration tests.` is itself
-copy-pasted at `add.rs:13`, `sub.rs:13`, `mul.rs:47` (and as
-`// TODO: move these tests to integration tests.` at `mod.rs:221`) — a
+copy-pasted above the `tests` modules of `add.rs`, `sub.rs` and `mul.rs` (and
+as `// TODO: move these tests to integration tests.` in `mod.rs`) — a
 known-but-unfiled task living as four comment clones.
 
 ### Proposal
@@ -33,7 +33,7 @@ TODO comment clones collapse to one at the shared module.
 The copy-pasted TODO's wish — move these tests to integration tests
 (`nanvm-lib/tests/`) — cannot simply own these helpers: integration tests
 compile as an external crate, and `pos`/`neg` are built on
-`BigInt::unchecked_new`, which is private (`nanvm-lib/src/vm/bigint/mod.rs:51`)
+`BigInt::unchecked_new`, which is private (`nanvm-lib/src/vm/bigint/mod.rs`)
 — deliberately, since it can construct non-normalized values. Moving the
 `unchecked_new`-based tests out therefore requires either widening that
 constructor's visibility just for tests (a bad trade) or rebuilding the raw

@@ -6,16 +6,17 @@
 ### Problem
 
 A `cas_get` that finds a blob carries that blob's absolute path on the
-server's filesystem. `../cas/module.f.mjs:222` computes it before the read
+server's filesystem. The `cas_get` handler in `../cas/module.f.mjs` computes it
+before the read
 
 ```js
 const uri = c.url(key)
 ```
 
-and it is in the metadata object on both paths (`:231`, `:271`) and in the
-oversized-blob error text (`:257`). `FileCas.url` (`../../cas/module.f.mjs:303`)
+and it is in the metadata object (`toMeta`) on both content paths and in the
+oversized-blob error text. `FileCas.url` (`fileCas` in `../../cas/module.f.mjs`)
 is `join(path, toPath(hash))`, `path` is `NodeProgramOptions.home` — `fjs mcp`'s
-handler is `({ home }) => exitStep(casMcpServer(home))` (`../../module.f.mjs:49`)
+handler in `../../module.f.mjs` is `({ home }) => exitStep(casMcpServer(home))`
 and the Node runner fills it from `os.homedir()`. Verified by execution against
 `2e9ad76f`:
 
@@ -27,14 +28,14 @@ So the field is not a URI in the `scheme:` sense at all — it is a host path, a
 it names the account the server runs under.
 
 **Precisely which calls emit it**, since the priority rests on this: a
-successful lookup does, in both content shapes (`:231`, `:271`), and so does the
-oversized-blob refusal (`:257`). The two failure paths do **not** — an invalid
-cBase32 hash is rejected at `:219-220` before `uri` is computed, and a well-formed
-hash with no blob behind it answers `no such hash` at `:226-227`. So a client learns
+successful lookup does, in both content shapes, and so does the oversized-blob
+refusal. The two failure paths do **not** — an invalid cBase32 hash is rejected
+before `uri` is computed, and a well-formed hash with no blob behind it answers
+`no such hash`. So a client learns
 the path by naming a hash that exists, not by calling the tool at all.
 
 That narrows the wording and not the exposure: `cas_list` answers *"All stored
-content hashes (cBase32), one per line"* (`../cas/module.f.mjs:295-303`) to any
+content hashes (cBase32), one per line"* (its entry in `../cas/module.f.mjs`) to any
 client that can call `cas_get`, and `cas_add` returns the hash of whatever the
 client just stored. A caller who wants the path is one call away from a hash
 that produces it, and needs no prior knowledge of the store. **P2 stands.**
@@ -42,8 +43,9 @@ that produces it, and needs no prior knowledge of the store. **P2 stands.**
 This is deliberate, which is why it wants a decision rather than a fix.
 `README.md`'s store-location section states it outright — "the `uri` field
 returned by `cas_get` contains the full absolute path to the blob file" — and
-[cas-get-mcp-resource-response.md](./cas-get-mcp-resource-response.md) chose the
-name so the tool view and the future `resources/read` view share a vocabulary.
+its `cas_get` section chose the name so the tool view and the future
+`resources/read` view share a vocabulary ([remote-url.md](./remote-url.md) is
+that future view).
 The intent is a *resource* URI; the current value is a placeholder standing in
 for one.
 
@@ -55,7 +57,7 @@ Three things sharpen it:
   memory-backed contexts such as tests". That resolver was real:
   `casMcpHandlers` took an optional `toUrl` from
   [#1102](https://github.com/functionalscript/functionalscript/pull/1102)
-  (`../../../changelog/0.31.0.md:5-7`), and `deb4f122`
+  ([`changelog/0.31.0.md`](../../../changelog/0.31.0.md)), and `deb4f122`
   ([#1159](https://github.com/functionalscript/functionalscript/pull/1159))
   removed it — *"remove toUrl"* is one of that commit's own lines — making
   `url` a required member of `FileCas` and the field unconditional. The README
@@ -64,9 +66,10 @@ Three things sharpen it:
   has been carried through two moves since (`#1316`, `#1401`) without being
   re-read; the field it names became `uri` in
   [#1248](https://github.com/functionalscript/functionalscript/pull/1248)
-  (`../../../changelog/0.37.0.md:12-15`). No changelog entry records the
+  ([`changelog/0.37.0.md`](../../../changelog/0.37.0.md)). No changelog entry records the
   removal, which is part of why the sentence outlived it. Today the field is
-  unconditional in tests too — `../cas/proof.f.mjs:119` asserts it present.
+  unconditional in tests too — `../cas/proof.f.mjs`'s metadata schema declares
+  `uri` a required string.
 - **It sits against this module's own stated boundary.** README's design
   invariant is that the server never opens a client-named local path — every
   path it touches is self-derived. That invariant is about what the server
@@ -134,8 +137,7 @@ Pick one; each is a different answer to "what is `uri` *for*".
    "URL translation function instead of returning a URL from `FileCas`" — and a
    local stdio server may supply an absolute-path resolver deliberately.
    *Cost:* the largest change, and it makes `uri` optional in a shape
-   [cas-get-mcp-resource-response.md](./cas-get-mcp-resource-response.md) is
-   trying to make resource-like. It is also the only option that keeps the
+   [remote-url.md](./remote-url.md) is trying to make resource-like. It is also the only option that keeps the
    absolute path available to the local case that wants it while removing it
    from the default.
 
@@ -144,8 +146,8 @@ always present and never a host path, option 3 makes it absent unless a server
 opts in. Option 3 is the one [remote-url.md](./remote-url.md) points at from the
 other direction, and it is the only one that keeps the absolute path reachable
 for a local caller that wants it — but it is also the only one that leaves
-`uri` optional, which is a cost for
-[cas-get-mcp-resource-response.md](./cas-get-mcp-resource-response.md). The
+`uri` optional, which is a cost for the resource view
+[remote-url.md](./remote-url.md) plans. The
 choice is the maintainer's; this issue's job is to make it an informed one.
 
 Whatever is chosen, `README.md`'s two statements about `uri` have to end up
@@ -167,7 +169,7 @@ agreeing with the code — today they contradict each other.
 
 - [remote-url.md](./remote-url.md) — the URL-translation function; this issue is
   the reason to settle it before a remote transport, not with it.
-- [cas-get-mcp-resource-response.md](./cas-get-mcp-resource-response.md) — chose
-  the `uri` name and its intended relation to `resources/read`.
-- `../README.md` — the store-location section and the design invariant.
-- `../cas/module.f.mjs:222,231,257,271` — the four sites that carry the value.
+- `../README.md` — the store-location section, the `cas_get` section that
+  chose the `uri` name, and the design invariant.
+- `../cas/module.f.mjs` — the `cas_get` handler and `toMeta`, which carry the
+  value.

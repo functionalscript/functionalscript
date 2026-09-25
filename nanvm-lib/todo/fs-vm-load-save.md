@@ -10,3 +10,5 @@ Sketch / document errors, exceptions, and execution scheme. The host environment
 - **Save** — takes the successful result of Load. Corresponds to code/data transformations other than execution (e.g. bundling). Partially successful Save results may be useful similarly to partially successful Load results.
 
 Open question: does a proper FS system provide user code means to handle errors, e.g. an exception handling mechanism similar to JS's?
+
+Open question: which export Execute calls — the default export, or the exported `main` `fjs run` runs — is undecided; see [console-program](./console-program.md).

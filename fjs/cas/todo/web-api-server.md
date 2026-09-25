@@ -57,7 +57,7 @@ should cover at least:
 - the hash list (`list`) as a page of links;
 - a blob page (`get`): metadata (size, detected media type) plus a rendered
   view of the content — images inline, text as text, JSON syntax-highlighted
-  ([fjs/media/json-html](../../media/html/todo/665-json-html.md) is the
+  ([fjs/media/json-html](../../media/json/todo/665-json-html.md) is the
   building block for that), binaries as a download link;
 - recognized dialects rendered with their structure: a
   `vnd.fjs.revision` blob (`fjs/media/revision/`) should show its `subject`,
@@ -89,7 +89,7 @@ HTML form is an exposure-matrix decision for
 - [command-architecture](./command-architecture.md) — prerequisite design.
 - [`fjs/cas/evo`](../evo/) — already floats an HTTP(S) server and its auth
   question.
-- [fjs/media/json-html](../../media/html/todo/665-json-html.md) — JSON →
+- [fjs/media/json-html](../../media/json/todo/665-json-html.md) — JSON →
   syntax-highlighted HTML rendering for the blob page.
 - `fjs/media/revision/` — dialect whose blobs the browser should render as a
   navigable DAG.

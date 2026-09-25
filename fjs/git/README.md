@@ -120,7 +120,7 @@ what a grammar can and cannot do for the formats.
   and the mangled second entry Git makes of text after a closing quote — and
   each is read as an ordinary path that is not found rather than refused, since
   a miss loses one borrowing where a refusal loses the whole store
-  ([`todo/alternates-line-quirks.md`](todo/alternates-line-quirks.md)). `objectsDirs` answers that list
+  ([`store/todo/alternates-line-quirks.md`](store/todo/alternates-line-quirks.md)). `objectsDirs` answers that list
   and `readIn` reads over it, so a caller reading many objects resolves the
   borrowings once instead of per object.
 - [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
@@ -434,11 +434,11 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   and the one whose base was loose *and* in a second pack beside it exited 128.
   Resolving it through the whole store would read a pack every Git calls
   broken, so whether to be deliberately more capable is a decision rather than
-  work: [`todo/packfiles.md`](todo/packfiles.md). Multi-pack indexes, bitmaps
+  work: [`packstore/todo/thin-pack-base.md`](packstore/todo/thin-pack-base.md). Multi-pack indexes, bitmaps
   and the reverse index are not needed to read an object and are not here
   either.
 - **Deleting a ref**, and the reflog:
-  [`todo/ref-writing.md`](todo/ref-writing.md). Reading the refs is done, and
+  [`refstore/todo/ref-writing.md`](refstore/todo/ref-writing.md). Reading the refs is done, and
   so is writing one — [`ref/`](ref/module.f.mjs) for the file grammars and
   [`refstore/`](refstore/module.f.mjs)'s `tryRoots`, `tryResolve` and
   `tryWrite` over the effects. A delete is the harder half of a write, because

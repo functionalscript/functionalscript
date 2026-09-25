@@ -5,17 +5,9 @@
 
 ### Problem
 
-`fjs/dev/module.f.mjs` exports two test helpers:
-
-```ts
-export const assert: (v: boolean, msg?: unknown) => asserts v =
-    (v, msg = 'assertion failed') => { if (!v) throw msg }
-
-export const assertEq = <T>(a: T, b: T): void => assert(a === b, [a, b])
-```
-
-…but the codebase's `proof.f.mjs` files mostly do not use them. The
-prevailing pattern is hand-rolled per-line:
+`fjs/asserts/module.f.mjs` exports two test helpers, `assert` and `assertEq`,
+and [`fjs/AGENTS.md`](../../AGENTS.md) §1.3 asks proofs to use them — but some
+`proof.f.mjs` files still hand-roll the check per line:
 
 ```ts
 if (result !== '[1,20,300]') { throw result }
@@ -23,25 +15,23 @@ if (cmp('apple')('banana') !== -1) { throw 3 }
 if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
 ```
 
-Counts in the current tree (re-verified 2026-08-14):
+Counts at `36c8d4a`:
 
-- 76 `if (...) { throw ... }` lines remain across `**/proof.f.mjs` — down
-  from 425 when the hand-written JS scanner's proof and the JSON
-  tokenizer's went and the JS tokenizer's moved proof was converted, which
-  took 349 of them, but still the manual pattern.
-- 152 of 162 tracked `proof.f.mjs` files now import `assertEq` — adoption
-  is well underway (re-measured at the same change, over `fjs/`, `spec/`
-  and `todo/`). The 10 remaining holdouts:
+- 66 one-line `if (...) { throw ... }` sites remain across `**/proof.f.mjs` —
+  down from 425 when the hand-written JS scanner's proof and the JSON
+  tokenizer's went and the JS tokenizer's moved proof was converted.
+- 174 of 185 tracked `proof.f.mjs` files use `assertEq`. The 11 holdouts:
   `fjs/basen/base128/proof.f.mjs`, `fjs/ebnf/proof.f.mjs`,
+  `fjs/ebnf/lib/markdown/proof.f.mjs`,
   `fjs/git/refname/proof.f.mjs`, `fjs/media/json/number/proof.f.mjs`,
   `fjs/rtti/proof.f.mjs`, `fjs/website/browser-source/proof.f.mjs`,
   `fjs/types/nominal/proof.f.mjs`,
   `fjs/types/object/structurally_same/proof.f.mjs`,
   `fjs/types/range_set/proof.f.mjs`, `todo/proof.f.mjs`.
 - A number of files already using `assertEq` still carry leftover
-  manual `if (...) { throw ... }` sites alongside it (the 76 count
-  above is not confined to the 10 holdout files) — full adoption within
-  an already-migrated file is still incomplete in places.
+  manual `if (...) { throw ... }` sites alongside it (the count above is not
+  confined to the holdout files) — full adoption within an already-migrated
+  file is still incomplete in places.
 
 The mechanical translation is one-to-one:
 
@@ -62,7 +52,7 @@ A migration that proceeds folder-by-folder, not all at once:
 1. **Pilot** — pick one moderately-sized `proof.f.mjs` (e.g.
    `fjs/types/string/proof.f.mjs` or `fjs/types/array/proof.f.mjs`) and
    rewrite every `if (x !== expected) { throw x }` to `assertEq(x, expected)`.
-2. **Validate** — run `tsc`, `npm test`, and `npm run fst` from
+2. **Validate** — run `tsc` and `fjs test` from
    that folder. Confirm test output is at least as useful on
    intentional failures (intentionally break one assertion to read
    the failure message).
@@ -73,7 +63,7 @@ A migration that proceeds folder-by-folder, not all at once:
 Optional second helper for the remaining shapes:
 
 ```ts
-// fjs/dev/module.f.mjs — adds nothing if you also have `assertEq`,
+// fjs/asserts/module.f.mjs — adds nothing if you also have `assertEq`,
 // but makes intent obvious at the call site for non-`===` comparisons.
 export const assertNot = (a: unknown, b: unknown): void => assert(a !== b, ['equal', a, b])
 ```
@@ -86,9 +76,9 @@ it's by far the most common and the lowest-judgement case.
 
 ### Why this qualifies
 
-- **DRY at extreme volume.** Even after 152 of 162 files adopted
-  `assertEq`, 76 spellings of the same three-token conditional throw
-  remain. Continuing adoption (both in the 10 holdout files and the
+- **DRY at extreme volume.** Even after most proof files adopted
+  `assertEq`, dozens of spellings of the same three-token conditional throw
+  remain. Continuing adoption (both in the holdout files and the
   leftover manual sites within already-migrated files) keeps deleting
   redundant patterns in favour of a single call.
 - **Failure-message quality goes up.** `throw [a, b]` always includes
@@ -118,18 +108,12 @@ it's by far the most common and the lowest-judgement case.
   (`if (result !== '[1,20,300]') { throw result }`). That stays
   exactly the same: `assertEq(result, '[1,20,300]')`. Don't be
   tempted to add deep-equal support — see `i65X-async-test-functions`
-  (retired, resolved: the `Await` effect at `fjs/effects/node/types.ts:306`)
+  (retired, resolved: the `Await` effect in `fjs/effects/node/types.ts`)
   and AGENTS.md: keep helpers minimal until a second consumer needs
   more.
-- **Import edge.** `proof.f.mjs` files in `fjs/types/` currently avoid
-  importing from `fjs/dev/module.f.mjs` (only `fjs/types/patricia_trie/proof.f.mjs`
-  pulls `assert` from there today). Verify there is no module-cycle
-  problem before mass-importing from `fjs/dev` into the `fjs/types`
-  subtree. If there is, hoist `assert`/`assertEq` into a small
-  `fjs/types/proof/module.f.mjs` (or co-located leaf) that `fjs/dev` can
-  re-export. The 109 existing `assertEq` consumers across the tree are a
-  good existence proof that the import edge works from outside
-  `fjs/types`.
+- **Import edge.** No longer a question: the helpers live in
+  `fjs/asserts/module.f.mjs`, which `fjs/types` proofs already import from, so
+  converting a holdout adds no new module edge.
 - **Land in small PRs.** AGENTS.md asks for "one feature/improvement
   with minimal code changes" per PR; a single PR rewriting hundreds of
   lines is not in the spirit of that rule even if each diff is
@@ -157,8 +141,8 @@ it's by far the most common and the lowest-judgement case.
   story above is intentionally smaller and orthogonal; it does not
   touch the `Reporter`/`TestEntry`/`testAll` path. Both halves of the async
   gap closed: the `registerModule` path gained the `Await` operation
-  (`fjs/effects/node/types.ts:306`, threaded through `Test`'s signature at
-  `:340`), and the `sandbox` path was split out as `i65X-sandbox-async`, which
+  (`Await` in `fjs/effects/node/types.ts`, threaded through `Test`'s
+  signature), and the `sandbox` path was split out as `i65X-sandbox-async`, which
   its own retired file records as done.
 - i183 — scenario-style tests
   for the test framework itself. If `assertEq` adoption surfaces a

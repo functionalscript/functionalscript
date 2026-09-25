@@ -11,7 +11,8 @@ reading half is done: `parseNative` is gone and every call site goes through
 the total, `Result`-returning `parse`. The writing half is still mostly the
 host's:
 
-- **115 call sites call `JSON.stringify` directly** — and one of them is
+- **Module after module calls `JSON.stringify` directly** — at `36c8d4a`,
+  about fifty lines under `fjs/` — and one of them is
   `fjs/media/json/serializer/module.f.mjs`, so the FunctionalScript serializer
   itself still bottoms out in the host. `numberSerialize` is `JSON.stringify`
   with a different name, and `fjs/media/datajs/serializer`'s `_numberSerialize`
@@ -21,7 +22,7 @@ host's:
 
 Three reasons to finish the job:
 
-1. **Two shapes for one concept.** `AGENTS.md` §5.2 treats keeping an old API
+1. **Two shapes for one concept.** [DESIGN.md §2](../../../../doc/DESIGN.md#2-the-api-is-the-most-important-part-of-quality) treats keeping an old API
    next to the new one as a last resort — "in practice, the old one never
    leaves." That is what happened on the reading side until `parseNative` was
    deleted, and it is what the write side still looks like.
@@ -34,16 +35,19 @@ Three reasons to finish the job:
    `serialize`'s two leaves are the only thing between this module and being
    self-hosted end to end.
 
-#### `JSON.stringify` — 115 sites in six shapes
+#### `JSON.stringify` in six shapes
 
-| Shape | Sites | Where | Replacement |
-| --- | --- | --- | --- |
-| **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.mjs` | FunctionalScript number formatting — blocks everything below |
-| Expected-output comparison | 20 | `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/fsc/tokenizer/proof.f.mjs` (8), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` — 53 more went with the classical `fjs/bnf` proofs | `stringify(identity)` |
-| Assertion messages | 33 | `fjs/fsc/tokenizer/proof.f.mjs` (31), `fjs/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/fsc`'s `_stringifyTree` |
-| Source-text quoting | 5 | `fjs/emergent_testing/module.f.mjs:282,303,318`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
-| JSON line framing | 2 | `fjs/emergent_testing/proof.f.mjs:47`, `fjs/mcp/proof.f.mjs:128` | `stringify(identity)` |
-| Pretty-printed file output | 1 | `fjs/ci/module.f.mjs:83` | needs indentation support, which `serialize` does not have |
+The modules below are representative, not a census; re-run the search when a
+phase starts.
+
+| Shape | Where | Replacement |
+| --- | --- | --- |
+| **Leaf serializer** | `fjs/media/json/serializer`'s `numberSerialize` | FunctionalScript number formatting — blocks everything below |
+| Expected-output comparison | the proofs of `fjs/media/json/serializer`, `fjs/js/tokenizer`, `fjs/rtti/data`, `fjs/rtti/ts`, `fjs/text/code_point`; `fjs/media/revision` and `fjs/media/lock` build test input with it | `stringify(identity)` |
+| Assertion messages | `fjs/rtti/ts`'s proof; `fjs/media/datajs/vectors` and its `matrix` quote values in their reports | pass the value, or `fjs/fsc`'s `_stringifyTree` |
+| Source-text quoting | `fjs/emergent_testing/module.f.mjs`, `fjs/types/ts/module.f.mjs`, `fjs/edag/rust/module.f.mjs` | `stringSerialize` — already designed in `fjs/types/ts/todo/66c-emit-literals-via-owner-modules.md` |
+| JSON line framing | `fjs/emergent_testing/proof.f.mjs`'s `writeEvent`, `fjs/mcp/proof.f.mjs`, `fjs/ci/package`'s `tsconfig.json` line | `stringify(identity)` |
+| Pretty-printed file output | `fjs/ci/module.f.mjs`'s `workflowText` | needs indentation support, which `serialize` does not have |
 
 Three semantic differences to respect while migrating, none of them blocking:
 
@@ -54,9 +58,9 @@ Three semantic differences to respect while migrating, none of them blocking:
 - **`undefined` and `bigint`.** Native drops `undefined` object fields, turns
   them into `null` inside arrays, and throws on `bigint`. `serialize` takes
   `Unknown`, which excludes `undefined` outright, and `definedEntries` does the
-  dropping — so `fjs/protocol/mcp/stdio/proof.f.mjs:119`'s omission test keeps
-  its meaning. `bigint` values (the DJS token payloads behind the 31 message
-  sites) need `fjs/fsc`'s `_stringifyTree`, which already handles them.
+  dropping — so `fjs/protocol/mcp/stdio/proof.f.mjs`'s omission test keeps
+  its meaning. `bigint` values (token payloads, for one) need `fjs/fsc`'s
+  `_stringifyTree`, which already handles them.
 - **Types.** `serialize` demands `Unknown`; the proof sites pass domain types
   (`dm`, `mr`, `emptyTags`). Confirm each is structurally assignable rather
   than reaching for `as` — where it isn't, that is a finding about the domain
@@ -65,7 +69,9 @@ Three semantic differences to respect while migrating, none of them blocking:
 ### Proposal
 
 Four phases. They are separable and each is a complete change on its own, so
-they should ship as separate PRs (§8.1); phases 1 and 2 gate the migration.
+they should ship as separate PRs
+([AGENTS.md §5](../../../../AGENTS.md#5-pull-requests-and-releases)); phases 1
+and 2 gate the migration.
 
 **1. `stringSerialize` in FunctionalScript — done in
 [#1438](https://github.com/functionalscript/functionalscript/pull/1438).**
@@ -92,7 +98,8 @@ Two things that fell out of it, worth knowing before phase 2:
 **2. `numberSerialize` in FunctionalScript — its own issue.** This is the one
 genuinely hard piece: `JSON.stringify(x)` on a finite number is ECMAScript
 `Number::toString`, i.e. the *shortest decimal that round-trips* — a numeric
-algorithm (Steele & White / Grisu / Ryū), not a JSON concern. Per §5.1 it
+algorithm (Steele & White / Grisu / Ryū), not a JSON concern. Per the
+[placement rule](../../../../todo/README.md#local-todo-directories-preferred) it
 belongs in its own `todo/` file next to the numeric code (`fjs/types/bigfloat`
 already has `decToBin` and is the natural home) rather than folded in here.
 Two details for whoever takes it: the shortest-round-trip contract is the whole
@@ -102,18 +109,18 @@ and the non-finite cases differ between the two host entry points —
 `NaN`/`Infinity`, so the replacement must keep the `JSON.stringify` behavior
 today's callers see.
 
-**3. Migrate the 117 write sites** by the shape table above, once 1 and 2 land.
+**3. Migrate the write sites** by the shape table above, once 1 and 2 land.
 The source-text-quoting row is already designed in
-`fjs/fsc/todo/66c-emit-literals-via-owner-modules.md` — route those through it
+`fjs/types/ts/todo/66c-emit-literals-via-owner-modules.md` — route those through it
 instead of duplicating the decision. The assertion-message row is the cheapest:
-§3.4 says a thrown payload is read only by a human after something already went
-wrong, so most of those 33 sites can pass the value itself — but note that the
-reporter renders a failure payload with `String(v)`
-(`fjs/emergent_testing/module.f.mjs:346`), so passing a raw object degrades the
-message. Either serialize with `fjs/fsc`'s `_stringifyTree` (it handles the
+[`fjs/AGENTS.md` §1.5](../../../AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key)
+says a thrown payload is read only by a human after something already went
+wrong, so most of those sites can pass the value itself — but note that the
+reporter in `fjs/emergent_testing/module.f.mjs` renders a failure payload with
+`String(v)`, so passing a raw object degrades the message. Either serialize with `fjs/fsc`'s `_stringifyTree` (it handles the
 `bigint` token payloads) or improve the reporter's rendering first.
 
-**4. Indentation for `fjs/ci/module.f.mjs:83`**, the only site asking for
+**4. Indentation for `fjs/ci/module.f.mjs`'s `workflowText`**, the only site asking for
 something `serialize` cannot do (`JSON.stringify(gha, null, '  ')`). Add an
 indenting variant to `fjs/media/json/serializer` — the natural shape is
 `serialize` parameterized by an indent unit, with today's behavior as the
@@ -143,7 +150,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   leaf `JSON.stringify` phases 1 and 2 replace; only `numberSerialize` is left.
 - [`fjs/text/utf16/module.f.mjs`](../../../text/utf16/module.f.mjs) — where the
   escaping reads code points, and where phase 1 added `codePointToString`.
-- [`fjs/fsc/todo/66c-emit-literals-via-owner-modules.md`](../../../fsc/todo/66c-emit-literals-via-owner-modules.md)
+- [`fjs/types/ts/todo/66c-emit-literals-via-owner-modules.md`](../../../types/ts/todo/66c-emit-literals-via-owner-modules.md)
   — already owns the source-text-quoting sites (`fjs/types/ts`,
   `fjs/emergent_testing`); phase 3 defers to it rather than re-deciding.
 - [`fjs/types/object/structurally_same/README.md`](../../../types/object/structurally_same/README.md)

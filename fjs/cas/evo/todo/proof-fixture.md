@@ -5,10 +5,9 @@
 
 ### Problem
 
-The three-line Evo setup preamble is repeated ~50 times across two proof
-files — 44 `fileCas(sha256)(home)` occurrences in `fjs/cas/evo/proof.f.mjs`
-(e.g. `:69`, `:74`, `:81`, …) and 10 in `fjs/mcp/evo/proof.f.mjs` (e.g.
-`:57-59`, `:71-73`, …):
+The three-line Evo setup preamble is repeated dozens of times across two proof
+files — most of them in `fjs/cas/evo/proof.f.mjs`, about ten in
+`fjs/mcp/evo/proof.f.mjs`:
 
 ```js
 const c = fileCas(sha256)(home)
@@ -17,7 +16,7 @@ const e = evo(c)(cacheKey)
 ```
 
 `fjs/cas/evo/proof.f.mjs` additionally defines three reusable `Cas` stubs —
-`writeFailingCas` (`:35`), `readFailingCas` (`:45`), `fixedCas` (`:56`) — that
+`writeFailingCas`, `readFailingCas`, `fixedCas` — that
 `fjs/mcp/evo/proof.f.mjs` cannot reach, so any new Evo-over-MCP failure-path
 test would re-derive them.
 

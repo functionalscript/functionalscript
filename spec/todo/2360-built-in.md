@@ -16,6 +16,13 @@ None of these names may be *bound* by a module either, or admitting one
 later would change what a module already means:
 [`2365-global-names.md`](./2365-global-names.md), which lands first.
 
+A ticked box below marks a name the language is to admit, not one it admits
+today. Only `Infinity`, `NaN` and `undefined` are implemented, as reserved
+words ([numbers](../README.md#numbers)); every other global is refused as an
+unbound name (`const not found`), so `export default isFinite(1);` does not
+compile yet. An unticked box is a name not yet decided, or, where it says
+so, never admitted.
+
 ### Value Properties
 
 - [x] `Infinity`
@@ -202,7 +209,7 @@ https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 |`decodeURIComponent()`   |no         |
 |`encodeURI()`            |no         |
 |`encodeURIComponent()`   |no         |
-|`eval()`                 |no         |
+|`eval()`                 |runs source; never admitted|
 |`isFinite()`             |no         |
 |`isNaN()`                |no         |
 |`parseFloat()`           |no         |

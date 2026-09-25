@@ -12,33 +12,33 @@ factory:
 
 | `validate` | `parse` | substantive difference |
 |---|---|---|
-| `containerValidate` (`../validate/module.f.mjs:131`) | `containerParse` (`../parse/module.f.mjs:261`) | per-item wrap, `noAccumulate` vs `consEntry`, `ok(value)` vs `ok(rebuild(…))` |
-| `constContainerValidate` (`:200`) | `constContainerParse` (`:325`) | item lambda (`ok(true)` vs `ok([p[1]])`), finish (`ok(value)` vs `rebuild` + `omittedStillAbsent`) |
-| `restContainerValidate` (`:328`) | `restContainerParse` (`:420`) | same two |
-| `restValidate` (`:393`), `orValidate` (`:398`), the visitor (`:407`) | `restParse` (`:491`), `orParse` (`:497`), the visitor (`:536`) | the recursive entry point's name |
+| `containerValidate` | `containerParse` | per-item wrap, `noAccumulate` vs `consEntry`, `ok(value)` vs `ok(rebuild(…))` |
+| `constContainerValidate` | `constContainerParse` | item lambda (`ok(true)` vs `ok([p[1]])`), finish (`ok(value)` vs `rebuild` + `omittedStillAbsent`) |
+| `restContainerValidate` | `restContainerParse` | same two |
+| `restValidate`, `orValidate`, the visitor | `restParse`, `orParse`, the visitor | the recursive entry point's name |
 
 The uniform-container factory, diffed, differs in three lines
-(`../validate/module.f.mjs:153-159` vs `../parse/module.f.mjs:284-286`);
+(inside `containerValidate` vs `containerParse`);
 everything around them is line for line the same. Smaller pieces are
 copy-pasted outright:
 
-- `noAccumulate` — `../validate/module.f.mjs:108`,
-  `../parse/module.f.mjs:302`, and a third copy in
-  `../data/module.f.mjs:1172` whose comment still says `` `validate` ``.
+- `noAccumulate` — in `../validate/module.f.mjs`,
+  `../parse/module.f.mjs`, and a third copy in
+  `../data/module.f.mjs` whose comment still says `` `validate` ``.
 - The array kind's empty-rest length bound, twice each:
-  `../validate/module.f.mjs:167-168` ≡ `../parse/module.f.mjs:295-296`
+  `arrayValidate` ≡ `arrayParse`
   (identical cast-justification comment included) and
-  `../validate/module.f.mjs:382` ≡ `../parse/module.f.mjs:480`.
+  `restTupleValidate` ≡ `restTupleParse`.
 
 The cost is not just size. The read **order** is the load-bearing part: it is
 what keeps an `or` of two arities linear instead of exponential, and what
 makes the three readers agree on every acceptance question. Crucially there
 are **two** orders, one per shape, and they are not interchangeable:
 
-- the *const-container* pair (`:200` / `:325`) settles the shape first —
+- the *const-container* pair settles the shape first —
   `fits` bound, absence pass, `hasUndeclaredMember` — and only then reads the
   members;
-- the *rest-container* pair (`:328` / `:420`) reads the declared members
+- the *rest-container* pair reads the declared members
   **first** (deciding absence inline as it goes), then computes
   `undeclaredMembers`, then applies `fits` or the `rest` check.
 
@@ -49,9 +49,10 @@ copy of each order, not one order for both.
 Both orders are currently pinned by the proof tables in
 `../validate/proof.f.mjs` rather than by construction, so any change must land
 identically in both readers, and the design commentary already shows the
-drift: `../parse/module.f.mjs:347-358` is a stub pointing at
-`../validate/module.f.mjs`'s 50-line rationale, `../common/module.f.mjs:5-8`
-names `parse` and `data` as the consumers while `../common/types.ts:2` says
+drift: `constContainerParse`'s comments are stubs pointing at
+`constContainerValidate`'s long rationale in `../validate/module.f.mjs`, and
+`../common/module.f.mjs`'s header names `parse` and `data` as the consumers
+while `../common/types.ts`'s says
 "`validate`, `parse`".
 
 Two sibling issues used to point at this duplication and now record it as
@@ -87,7 +88,7 @@ inherit it.
 
 The array length-bound builders **stay out of `common`**. They are written in
 terms of `emptyRest`, which lives in `../data/module.f.mjs`, and
-`../data/module.f.mjs:29` already imports `eachEntry`, `undeclaredMembers`
+`../data/module.f.mjs` already imports `eachEntry`, `undeclaredMembers`
 and friends from `../common/module.f.mjs` — so hoisting them would make the
 shared kernel import its own consumer and close a `common` ↔ `data` runtime
 cycle. They are already passed in as the `fits`/`restFits` parameter, which
@@ -114,8 +115,8 @@ of this issue.
 - [ ] Give each new `common` export its own entry in
       `../common/proof.f.mjs`. That file already imports and calls every
       export it covers (`eachEntry`, `structSchemaEntries`,
-      `tupleSchemaEntries`, `undeclaredMembers` at `:6`), and
-      `fjs/AGENTS.md:25-34` asks the same of a new one: the three skeletons
+      `tupleSchemaEntries`, `undeclaredMembers`), and
+      `fjs/AGENTS.md` §1.2 asks the same of a new one: the three skeletons
       and the hoisted `noAccumulate` are newly published callables, so being
       exercised only through `validate` and `parse` would leave the exported
       names themselves uncalled.
@@ -127,7 +128,7 @@ of this issue.
       `emptyRest`-based length bounds in the readers, passed in as
       `fits`/`restFits` — `common` must not import `data`.
 - [ ] Consolidate the read-order commentary on the shared skeleton; fix
-      `../common/types.ts:2` vs `../common/module.f.mjs:5-8` to name the same
+      `../common/types.ts`'s header vs `../common/module.f.mjs`'s to name the same
       consumer set.
 - [ ] `tsc`, `fjs t`; the acceptance tables in `../validate/proof.f.mjs`
       pass unchanged.
