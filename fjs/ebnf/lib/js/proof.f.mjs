@@ -102,6 +102,8 @@ export const proof = {
         string: () => {
             assertStructurallySame(read('"a\\n\\u0041"x'), ['string', '"a\\n\\u0041"', 11])
             assertStructurallySame(read('"é😀"'), ['string', '"é😀"', 4])
+            assertStructurallySame(read("'a\\'\"b'x"), ['string', "'a\\'\"b'", 7])
+            assertStructurallySame(read("''"), ['string', "''", 2])
         },
         id: () => {
             assertStructurallySame(read('abc$_9 '), ['id', 'abc$_9', 6])
@@ -180,6 +182,10 @@ export const proof = {
         assertStructurallySame(parseToken(cps('1e')), ['error', 2])
         assertStructurallySame(parseToken(cps('"abc')), ['error', 4])
         assertStructurallySame(parseToken(cps('"\\x"')), ['error', 2])
+        // `\'` is the single-quoted string's, not JSON's
+        assertStructurallySame(parseToken(cps('"\\\'"')), ['error', 2])
+        assertStructurallySame(parseToken(cps("'\\x'")), ['error', 2])
+        assertStructurallySame(parseToken(cps("'abc")), ['error', 4])
     },
     throw: {
         wholeFile: () => parser(repeatFrom0(token)),

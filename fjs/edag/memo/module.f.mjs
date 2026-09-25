@@ -32,6 +32,8 @@
  * @import { Invocation } from './types.ts'
  */
 
+import { assert } from '../../asserts/module.f.mjs'
+import { bindingError } from '../analysis/module.f.mjs'
 import { operation } from '../operations/module.f.mjs'
 
 /**
@@ -61,9 +63,9 @@ const slot = f => {
  * every slot of the body empty. A primitive body is its value and opens
  * no invocation, since it names no entry and no scope holds it.
  *
- * @type {(a: Analysis, s: number) => (frame: unknown, args: readonly unknown[]) => (i: number) => unknown}
+ * @type {(a: Analysis, s: number) => (frame: unknown, args: readonly unknown[], fixed?: readonly unknown[], rest?: readonly unknown[]) => (i: number) => unknown}
  */
-const invocation = (a, s) => (frame, args) => {
+const invocation = (a, s) => (frame, args, fixed, rest) => {
     const { nodes, scope, shared } = a
     /** @type {(i: number) => unknown} */
     const compute = i => run(nodes[i])
@@ -76,14 +78,18 @@ const invocation = (a, s) => (frame, args) => {
     const run = operation({
         frame,
         args,
+        fixed,
+        rest,
         operand: v => v instanceof Array ? entry(v[1]) : v,
-        invoke: (frame, args, body) => body instanceof Array ? invocation(a, scope[body[1]])(frame, args)(body[1]) : body,
+        invoke: (frame, fixed, rest, body) => body instanceof Array ? invocation(a, scope[body[1]])(frame, [], fixed, rest)(body[1]) : body,
     })
     return entry
 }
 
 /** The program's value: its root, a primitive as it stands, an entry in the module's invocation. @type {(a: Analysis) => (i: Invocation) => unknown} */
 export const memo = a => ({ frame, args }) => {
+    const problem = bindingError(a)
+    assert(problem === null, problem)
     const { root } = a
     return root instanceof Array ? invocation(a, -1)(frame, args)(root[1]) : root
 }

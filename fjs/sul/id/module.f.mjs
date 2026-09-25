@@ -54,12 +54,22 @@ assertEq(iv.length, 8)
 export const level3Id =
     asNominal
 
-const rawPrefixOffset = 0xFEn
+/**
+ * A tag class of ids: the ids whose topmost set bit is exactly at `offset`.
+ * It is the *topmost* bit, not merely a set bit, which is what makes `isRaw`
+ * false for a hash id even though bit `0xFE` of a hash may be set.
+ *
+ * @type {(offset: bigint) => { readonly prefix: bigint, readonly is: (v: Id) => boolean }}
+ */
+const prefixTag = offset => ({
+    prefix: 1n << offset,
+    is: v => asBase(v) >> offset === 1n,
+})
 
-const rawPrefix = 1n << rawPrefixOffset
+const rawTag = prefixTag(0xFEn)
 
 assertEq(
-    rawPrefix,
+    rawTag.prefix,
 //    0                 1                 2                 3
 //    01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF
     0x40000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000n
@@ -76,37 +86,33 @@ const rawLenMax = 0xFDn
  */
 export const rawId = symbol => {
     const { length, uint } = unpack(symbol)
-    return asNominal(rawPrefix | uint | (1n << length))
+    return asNominal(rawTag.prefix | uint | (1n << length))
 }
 
 /** @type {(v: Id) => boolean} */
-export const isRaw = v =>
-    asBase(v) >> rawPrefixOffset === 1n
+export const isRaw = rawTag.is
 
 /** @type {(a: Id) => Vec} */
 const toRaw = a => {
     if (!isRaw(a)) {
         return literal3ToVec(asBase(a))
     }
-    const raw = asBase(a) ^ rawPrefix
+    const raw = asBase(a) ^ rawTag.prefix
     const len = log2(raw)
     return vec(len)(raw ^ (1n << len))
 }
 
-const hashPrefixOffset = 0xFFn
-
-const hashPrefix = 1n << hashPrefixOffset
+const hashTag = prefixTag(0xFFn)
 
 assertEq(
-    hashPrefix,
+    hashTag.prefix,
 //    0                 1                 2                 3
 //    01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF_01234567_89ABCDEF
     0x80000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000n
 )
 
 /** @type {(v: Id) => boolean} */
-export const isHash = v =>
-    asBase(v) >> hashPrefixOffset === 1n
+export const isHash = hashTag.is
 
 /**
  * Note: we don't need to remove the prefix bits from the hash because
@@ -116,7 +122,7 @@ export const isHash = v =>
  * @returns {Id}
  */
 export const hashId = hash =>
-    asNominal(hashPrefix | hash)
+    asNominal(hashTag.prefix | hash)
 
 const hash2 = base32.compress(iv)
 

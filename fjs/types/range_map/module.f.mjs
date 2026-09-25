@@ -39,7 +39,7 @@
  * @import { Nullable } from '../nullable/types.ts'
  * @import { Equal } from '../function/operator/types.ts'
  * @import { Range } from '../range/types.ts'
- * @import { Entry, Properties, RangeMapArray, RangeMapOp, RangeMerge, } from './types.ts'
+ * @import { Properties, RangeEntry, RangeMapArray, RangeMapOp, RangeMerge } from './types.ts'
  */
 
 import { genericMerge } from '../sorted_list/module.f.mjs'
@@ -51,7 +51,7 @@ const reduceOp =
     /**
      * @template T
      * @param {Properties<T>} p
-     * @returns {ReduceOp<Entry<T>, Nullable<Entry<T>>>}
+     * @returns {ReduceOp<RangeEntry<T>, Nullable<RangeEntry<T>>>}
      */
     ({ union, equal }) => state => ([aItem, aMax]) => ([bItem, bMax]) => {
         const sign = cmp(aMax)(bMax)
@@ -65,7 +65,7 @@ const tailReduce =
     /**
      * @template T
      * @param {Equal<T>} equal
-     * @returns {TailReduce<Entry<T>, Nullable<Entry<T>>>}
+     * @returns {TailReduce<RangeEntry<T>, Nullable<RangeEntry<T>>>}
      */
     equal => state => tail => {
         if (state === null) { return tail }

@@ -9,9 +9,7 @@ Generated modules already return the complete export object.
 [`run`](../src/lib.rs) selects its `default` property and passes it directly
 to JSON conversion. A named-only module cannot select an entry this way,
 and a function-valued export is refused by JSON conversion without being called.
-The MVP plans describe that invocation as if it existed;
-[#2245](https://github.com/functionalscript/functionalscript/pull/2245)
-corrects them.
+The MVP plans previously described that invocation as if it existed.
 
 ### Proposal
 
@@ -29,8 +27,8 @@ the harness consumer, not the EDAG module contract.
 
 Keep `fjs compile` as a compiler that emits Rust; it does not run cargo.
 This task can be implemented against `main` with empty/rest-only functions.
-Named imports are needed for the cross-module acceptance example, not for
-export selection itself.
+Named imports and the cross-module compiler acceptance fixture are implemented;
+the fixture currently selects and calls its export directly through the VM API.
 
 ### API
 
@@ -177,12 +175,10 @@ Default-only modules are the existing fixtures. The mixed case is
       non-callable invocation; module/call failures; and non-JSON results.
       Prove that exported functions are not called during module evaluation
       or value selection and that selecting one retains other exports.
-- [ ] With named imports
-      ([#2248](https://github.com/functionalscript/functionalscript/pull/2248)),
-      compile the two-module MVP acceptance example
-      ([#2245](https://github.com/functionalscript/functionalscript/pull/2245)),
-      build it with cargo, select and call `main`, and check `42` against
-      native JavaScript and both JavaScript EDAG evaluators.
+- [ ] Run the implemented [MVP example](../../todo/fjs-nanvm-integration.md#named-module-acceptance)
+      through the new harness API, selecting and calling `main` to obtain `42`.
+      The compiler fixture already checks this through the VM API, native
+      JavaScript and both JavaScript EDAG evaluators.
 - [ ] Update the harness documentation and integration checklist when the
       behavior is implemented.
 

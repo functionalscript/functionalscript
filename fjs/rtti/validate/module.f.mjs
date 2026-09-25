@@ -91,6 +91,7 @@ import {
     hasUndeclaredMember,
     isArray,
     isObject,
+    noDeclared,
     orVisit,
     primitive0Validate,
     structSchemaEntries,
@@ -103,10 +104,6 @@ import { emptyRest } from '../data/module.f.mjs'
 
 /** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
 const noAccumulate = () => undefined
-
-/** A uniform container declares no member by name, so every one is undeclared. */
-/** @type {readonly string[]} */
-const noDeclared = []
 
 /**
  * Builds a validator for `array` or `record` schemas.
@@ -325,6 +322,7 @@ const restContainerValidate =
         // Depend on the schema alone, so they are computed once per schema.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
+        const isDeclared = declaredTest(declared)
         const fits = restFits(rtti, r)
         return value => {
             if (!isContainer(value)) {
@@ -343,7 +341,7 @@ const restContainerValidate =
                 noAccumulate,
             )
             if (d[0] === 'error') { return d }
-            const extra = undeclaredMembers(declared, value)
+            const extra = undeclaredMembers(isDeclared, value)
             if (extra.length === 0) {
                 if (!fits(value, declared.length)) {
                     return verror('unexpected value')

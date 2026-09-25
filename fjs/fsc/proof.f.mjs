@@ -253,6 +253,16 @@ const roundTripCorpus = [
 ]
 
 export const proof = {
+    namedRestOutput: () => {
+        const source = 'export default (a,b,c,...x)=>[a,b,c,x];'
+        assert(compileSource(source)('parameters.edag.data.mjs').includes('["=>",3,null,'))
+        const written = compileSource(source)('parameters.f.mjs')
+        assertEq(parse('parameters.f.mjs')(written)[0], 'ok')
+        const parameters = Array.from({ length: 33 }, (_, i) => `a${i}`).join(',')
+        const large = `export default (${parameters},...x)=>x;`
+        assert(compileSource(large)('large.edag.data.mjs').includes('["=>",33,null,'))
+        assertEq(parse('large.f.mjs')(compileSource(large)('large.f.mjs'))[0], 'ok')
+    },
     namedExports: {
         values: () => {
             assertEq(compileSource('export const a=5; export default 7;')('output.json'), '7')
@@ -366,7 +376,7 @@ export const proof = {
             assertEq(compileSource('export default [1];')('x.data.js'), 'export default [1];')
             assertEq(compileSource('export default [1];')('x.js'), 'export default [1];')
             assertEq(compileSource('export default (...a) => a;')('x.js'), 'export default (...$a)=>$a;')
-            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,["args"]]]]];')
+            assertEq(compileSource('export default (...a) => a;')('x.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["rest"]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
         },
         // Any other JavaScript name is FunctionalScript: `.f.js` says which
@@ -540,10 +550,10 @@ export const proof = {
         // the value outputs refuse a module holding one, since a value has
         // no function in it
         func: () => {
-            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,["args"]]]]];')
-            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["args"];export default ["{}",[[":","default",["=>",null,["[]",[$0,$0]]]]]];')
-            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",null,["args"]],["=>",null,["args"]]]]]]];')
-            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",null,1],["{}",[[":","default",2]]]]];')
+            assertEq(compileSource('export default (...a) => a;')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,["rest"]]]]];')
+            assertEq(compileSource('export default (...a) => [a, a];')('output.edag.data.js'), 'const $0=["rest"];export default ["{}",[[":","default",["=>",0,null,["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default [(...a) => a, (...a) => a];')('output.edag.data.js'), 'export default ["{}",[[":","default",["[]",[["=>",0,null,["rest"]],["=>",0,null,["rest"]]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default 2;')('output.edag.data.js'), 'export default [",",[["=>",0,null,1],["{}",[[":","default",2]]]]];')
             assertEq(moduleRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
             assertEq(moduleRefused('const f = (...a) => 1; export default 2;'), 'input.f.js - error: a function has no value')
             assertEq(jsonRefused('export default (...a) => a;'), 'input.f.js - error: a function has no value')
@@ -553,8 +563,8 @@ export const proof = {
         // anchored by a comma inside the body — the first comma the
         // compiler emits anywhere but a module's root.
         bodyConst: () => {
-            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",null,["[]",[$0,$0]]]]]];')
-            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",null,[",",[["[]",[]],1]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = [1]; return [x, x]; };')('output.edag.data.js'), 'const $0=["[]",[1]];export default ["{}",[[":","default",["=>",0,null,["[]",[$0,$0]]]]]];')
+            assertEq(compileSource('export default (...a) => { const x = []; return 1; };')('output.edag.data.js'), 'export default ["{}",[[":","default",["=>",0,null,[",",[["[]",[]],1]]]]]];')
             // the value outputs refuse the module for its function, as ever
             assertEq(moduleRefused('export default (...a) => { const x = 1; return x; };'), 'input.f.js - error: a function has no value')
             // and the FunctionalScript output writes the body back as a
@@ -580,7 +590,7 @@ export const proof = {
         // remaining Stage 2 task of
         // `fjs/fsc/todo/compile-modules-to-edag.md`.
         call: () => {
-            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",null,1],["[]",[1]]]]]];')
+            assertEq(compileSource('const f = (...a) => 1; export default f(1);')('output.edag.data.js'), 'export default ["{}",[[":","default",["()",["=>",0,null,1],["[]",[1]]]]]];')
             assertEq(compileSource('const o = { b: 1 }; export default o.b(2);')('output.edag.data.js'), 'export default ["{}",[[":","default",[".",["{}",[[":","b",1]]],"b",["|()",["[]",[2]]]]]]];')
             // a member function `fjs/js/prototype`'s `allowedCalls` names is
             // a method call like any other, where the same name is refused
@@ -763,14 +773,16 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             // the body binds it once and each thunk clones it
             assertStructurallySame(body('export default (...a) => true ? a : a;'), [
                 '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let c0 = || Ok(args.clone().to_any());',
+                '        let rest = args.clone().into_iter().to_array();',
+                '        let c0 = || Ok(rest.clone().to_any());',
                 '        Any::conditional(true.to_any(), c0, c0)',
                 '    }, 0, Array::default()).to_any();',
                 '    Ok([(string_key("default"), c0)].to_object().to_any())',
             ])
             assertStructurallySame(body('export default (...a) => true ? [a] : [a, a];'), [
                 '    let c0: Any<A> = A::static_function(|_self, args| {',
-                '        let c0: Any<A> = args.clone().to_any();',
+                '        let rest = args.clone().into_iter().to_array();',
+                '        let c0: Any<A> = rest.clone().to_any();',
                 '        let c1 = || Ok([c0.clone()].to_array().to_any());',
                 '        let c2 = || Ok([c0.clone(), c0.clone()].to_array().to_any());',
                 '        Any::conditional(true.to_any(), c1, c2)',
@@ -1365,6 +1377,36 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.data.js'], undefined)
+        },
+    },
+    // A string may be written between single quotes, with JSON's escapes
+    // and `\'` (`spec/todo/2460-js-string-literals.md`). The quote is a
+    // spelling: every output is what the double-quoted module compiles to,
+    // each writing the value in its own canonical form.
+    singleQuotes: {
+        valuesAndKeys: () => {
+            const single = "export default { 'k': ['a\"b', 'it\\'s', '\\u0041\\n'] };"
+            const double = 'export default { "k": ["a\\"b", "it\'s", "\\u0041\\n"] };'
+            for (const output of ['output.data.js', 'output.js', 'output.json', 'output.rs']) {
+                assertEq(compileSource(single)(output), compileSource(double)(output), output)
+            }
+        },
+        importPath: () => {
+            /** @type {(source: string) => string} */
+            const compiled = source => {
+                const root = { 'input.f.js': [utf8(source)], 'm.f.js': [utf8('export default [1];')] }
+                const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.data.js']))
+                assertEq(exitCode(code), 0, state.stderr)
+                return readOutput(state.root, 'output.data.js')
+            }
+            assertEq(compiled("import m from './m.f.js'; export default [m];"), compiled('import m from "./m.f.js"; export default [m];'))
+        },
+        // what JSON refuses stays refused: `\'` is not JSON's, so a
+        // double-quoted string may not hold it, and JavaScript's other
+        // escapes are not this language's in either quote
+        refused: () => {
+            assertEq(moduleRefused('export default "\\\'";'), 'input.f.js:1:16-21 - error: unexpected token')
+            assertEq(moduleRefused("export default '\\x41';"), 'input.f.js:1:16-23 - error: unexpected token')
         },
     },
 }

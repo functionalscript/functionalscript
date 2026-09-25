@@ -9,6 +9,15 @@ remaining gaps.
 the Rust printer `fjs/edag/rust/module.f.mjs`, and the fixture
 `nanvm-harness/fixtures/closure.mjs`.
 
+**Format boundary:** "What shipped" records the original zero-arity
+`['=>', frame, body]` / `['args']` format. It is not the target argument
+model for named parameters. The implemented
+[named-and-rest plan](../../../spec/todo/3120-parameters.md) owns the
+coordinated `length` / `['arg', N]` / `['rest']` migration described under
+Remaining gaps. The printer now passes the fixed count to `static_function`,
+reads fixed values by index with `undefined` fallback and constructs rest once
+per call. The earlier zero-arity examples below are historical.
+
 ## What shipped
 
 A function body that reads a name bound outside it — a module `const`, an
@@ -102,12 +111,14 @@ body has already read from outside.
 
 ## Remaining gaps
 
-1. **Named parameters and arity.** `x => …` and `(a, b) => …` are not
-   recognized yet (`unexpected token`), and `length` is always `0`.
-   [#2200](https://github.com/functionalscript/functionalscript/pull/2200)
-   adds them with the declared count in the function node,
-   `['=>', count, frame, body]`, and passes that count as `static_function`'s
-   length. Nothing here changes until it lands.
+1. **Named parameters and arity — implemented.** The compiler now accepts
+   `x => ...` and `(a, b, ...rest) => ...`. The fixed/rest contract is
+   `['=>', length, frame, body]`, constant `['arg', N]` and per-invocation
+   `['rest']`, including captured fixed/rest values. The native fixture
+   `nanvm-harness/fixtures/parameters.mjs` covers length, omissions, extras
+   and rest/capture identity. The default-text obligations remain open in
+   [the parameter plan](../../../spec/todo/3120-parameters.md).
+
 2. **Recursion.** A function that names itself is refused (`const not found`):
    its `const` is not bound in its own initializer, and there is no `self` to
    read in its place. Whether a direct self-call gets a special Rust path or

@@ -99,6 +99,10 @@ export const proof = {
         empty: () => {
             assertStructurallySame(boundaries(set('')), [])
         },
+        // A well-formed surrogate pair is one astral symbol, not two units.
+        astral: () => {
+            assertStructurallySame(boundaries(set('😀')), [0x1F600, 0x1F601])
+        },
     },
     union: {
         // Union of disjoint ranges keeps both runs.
@@ -216,6 +220,13 @@ export const proof = {
         literalsRejectsNone: () => literals([]),
         literalsRejectsEmptyWord: () => literals(['a', '']),
         literalsRejectsRepeated: () => literals(['a', 'b', 'a']),
+        // A lone surrogate is no code point: encoded as one, it would be a
+        // negative symbol, outside the domain and beyond even EOF's `-1`.
+        literalsRejectsLoneSurrogate: () => literals(['a', 'b\uD800']),
+        setRejectsLoneHigh: () => set('\uD800'),
+        setRejectsLoneLow: () => set('a\uDC00'),
+        rangeRejectsLoneHigh: () => range('\uD800a'),
+        rangeRejectsLoneLow: () => range('a\uDC00'),
         // `range` takes exactly two symbols: one is not a range, and three is
         // not one either.
         rangeRejectsOne: () => range('a'),
@@ -236,6 +247,10 @@ export const proof = {
         rangeEncodeRejectsFractional: () => rangeEncode(0, 1.5),
         rangeEncodeRejectsUnsafeTop: () =>
             rangeEncode(0, Number.MAX_SAFE_INTEGER),
+        // `-0` is `0` to every comparison, but not canonical: `data` refuses
+        // it three layers down, so the constructor that wrote it refuses it.
+        rangeEncodeRejectsNegativeZeroLow: () => rangeEncode(-0, 1),
+        rangeEncodeRejectsNegativeZeroHigh: () => rangeEncode(0, -0),
         // A repetition bound is a count: `min` a non-negative integer, `max`
         // one too or `Infinity`, and `min <= max`. Each of these would otherwise
         // build a rule that looks ordinary and matches nothing anyone asked
