@@ -1490,8 +1490,9 @@ are not supported yet. A newline before `=>` is refused.
   function.
 - `f.length` is the number of fixed parameters, including unused ones. Rest
   adds zero. The JavaScript evaluators materialize lengths 0 through 32 via
-  generated arrow factories; larger lengths remain valid for compilation and
-  source output, but those evaluators refuse to materialize them.
+  [hand-written arrow factories](../fjs/types/function/length/README.md);
+  larger lengths remain valid for compilation and source output, but those
+  evaluators refuse to materialize them.
 - A name the body reads from a scope around it — a `const`, an import, an
   enclosing function's parameter or an enclosing body's `const` — is a
   **capture**, as a JavaScript closure's is. The function's frame is the
