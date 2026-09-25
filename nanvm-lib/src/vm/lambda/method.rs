@@ -50,9 +50,27 @@ fn argument<A: IVm>(args: &Array<A>, i: u32) -> Any<A> {
 /// which answers what the method answers for a number, a boolean, a
 /// bigint, a string, an object and an array. Two things it does not do yet,
 /// both tracked in `member-functions.md`: a function answers the placeholder
-/// the conversion answers, not its source, and the arguments are not read,
-/// so a radix is not applied.
-fn to_string<A: IVm>(receiver: Any<A>, _args: Array<A>) -> Result<Any<A>, Any<A>> {
+/// the conversion answers, not its source, and a radix is not applied.
+///
+/// So a number or a bigint given a radix other than the default — absent,
+/// `undefined` or `10` — throws rather than answers in radix ten:
+/// `(255).toString(16)` is `"ff"` in JavaScript, and `"255"` would be a
+/// different successful value (DESIGN.md §10). Every other type's
+/// `toString` ignores its arguments, as JavaScript's does.
+fn to_string<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> {
+    if matches!(
+        Unpacked::from(receiver.clone()),
+        Unpacked::Number(_) | Unpacked::BigInt(_)
+    ) {
+        let default_radix = match Unpacked::from(argument(&args, 0)) {
+            Unpacked::Nullish(Nullish::Undefined) => true,
+            Unpacked::Number(radix) => f64::from(radix) == 10.0,
+            _ => false,
+        };
+        if !default_radix {
+            return Err("RangeError: a toString radix other than 10 is not supported yet".into());
+        }
+    }
     receiver.to_string().map(|s| s.to_any())
 }
 
@@ -66,10 +84,44 @@ fn array_at<A: IVm>(receiver: Any<A>, args: Array<A>) -> Result<Any<A>, Any<A>> 
 mod tests {
     use crate::{
         naive::Naive,
-        vm::{Any, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
+        vm::{Any, BigInt, IStaticFunction, Nullish, ToAny, ToArray, ToObject},
     };
 
     type A = Naive;
+
+    fn to_string_with(receiver: Any<A>, radix: Any<A>) -> Result<Any<A>, Any<A>> {
+        receiver
+            .dot("toString".into())
+            .end_call(|| Ok([radix].to_array().to_any()))
+    }
+
+    /// A radix on a number or a bigint: the default reads as radix ten, any
+    /// other throws until radixes land, rather than answer in radix ten
+    /// (`member-functions.md`). Other types ignore the argument.
+    #[test]
+    fn to_string_radix() {
+        let refused = Err("RangeError: a toString radix other than 10 is not supported yet".into());
+        let n = || 255.0.to_any();
+        let b = || BigInt::<A>::from(255i64).to_any();
+        assert_eq!(to_string_with(n(), 10.0.to_any()), Ok("255".into()));
+        assert_eq!(
+            to_string_with(n(), Nullish::Undefined.to_any()),
+            Ok("255".into())
+        );
+        assert_eq!(to_string_with(n(), 16.0.to_any()), refused);
+        assert_eq!(to_string_with(n(), 2.0.to_any()), refused);
+        assert_eq!(to_string_with(b(), 10.0.to_any()), Ok("255".into()));
+        assert_eq!(to_string_with(b(), 16.0.to_any()), refused);
+        assert_eq!(to_string(b()), Ok("255".into()));
+        assert_eq!(
+            to_string_with([1.0.to_any()].to_array().to_any(), 16.0.to_any()),
+            Ok("1".into())
+        );
+        assert_eq!(
+            to_string_with(true.to_any(), 16.0.to_any()),
+            Ok("true".into())
+        );
+    }
 
     fn no_args() -> Result<Any<A>, Any<A>> {
         Ok([].to_array().to_any())
