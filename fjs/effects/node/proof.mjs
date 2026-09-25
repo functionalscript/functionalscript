@@ -9,29 +9,39 @@
  * runner; compiler traversal and diagnostics are proved synchronously in
  * `fsc/transpiler/proof.f.mjs`.
  *
- * @import { NodeProgram, NodeOp } from './types.ts'
+ * @import { NodeProgram, NodeOp, RequestListener as Erl } from './types.ts'
  * @import { Effect, IoChannel } from '../types.ts'
+ * @import { List } from '../list/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
 import http from 'node:http'
+import net from 'node:net'
+import process from 'node:process'
 import zlib from 'node:zlib'
+import { execFileSync } from 'node:child_process'
 import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { pureOk, resultMapStep, step } from '../module.f.mjs'
+import { ioError, pureError, pureOk, resultMapStep, resultStep, step } from '../module.f.mjs'
+import { empty as listEnd, nonEmpty } from '../list/module.f.mjs'
 import { byteLength, maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { asBase } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
+import { utf8ToString } from '../../text/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
-import { createServer, inflate, inflateTrailingCode, listen, readWhole, resolveFileModule, writeExclusive } from './module.f.mjs'
+import {
+    awaitIfPromise, catch_, close, createServer, framingHeaderMessage, fstat, inflate,
+    inflateTrailingCode, listen, open, pread, readWhole, rename, resolveFileModule,
+    unframedBodyMessage, writeExclusive,
+} from './module.f.mjs'
 import { runEffect } from './module.mjs'
 
 /** @type {(program: NodeProgram) => Promise<number>} */
@@ -160,22 +170,58 @@ const chunkLength = chunks => chunks.reduce((n, v) => n + byteLength(v), 0n)
 const loopback = '127.0.0.1'
 
 /**
- * What a `method` request to a server the runner built came back with: the
- * status, the headers, and the bytes that reached the socket.
+ * Fails rather than hangs.
+ *
+ * Every proof below is about a pump, and the failure mode a pump has is *not
+ * finishing*: a park nothing releases, a body nobody pulls, a socket that never
+ * closes. A proof that waited for such a thing would stop the whole suite with no
+ * verdict, which is the one outcome worse than a red one. So each of them runs
+ * inside a deadline that rejects, and the message says which wait it was.
+ *
+ * @template T
+ * @param {string} label
+ * @param {number} ms
+ * @param {Promise<T>} p
+ * @returns {Promise<T>}
+ */
+const within = async (label, ms, p) => {
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let timer
+    try {
+        return await Promise.race([
+            p,
+            /** @type {Promise<never>} */ (new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error(`${label}: nothing happened within ${ms} ms`)), ms)
+            })),
+        ])
+    } finally {
+        clearTimeout(timer)
+    }
+}
+
+/**
+ * Runs `listener` behind a real socket, hands `client` the port it bound, and
+ * closes the server afterwards whatever the client did.
  *
  * **The server is closed by this function and not by the program**, because
  * there is no operation that closes one: a `NodeProgram` answers an exit code,
  * so the handle is taken out of it here and unwrapped to the `http.Server`
- * underneath. That reach-through is why this proof lives in the impure shell
+ * underneath. That reach-through is why these proofs live in the impure shell
  * beside the runner rather than in a `.f.mjs`.
  *
  * Port `0` asks the host for a free one — a fixed port makes a proof fail when
  * something else on the machine happens to hold it. `fjs web` refusing `0` is
  * its own command-line policy and not this operation's.
  *
- * @type {(chunks: readonly Vec[], method: string) => Promise<{ readonly status: number, readonly length: string, readonly body: Uint8Array }>}
+ * Connections are destroyed before the close, since half of these proofs leave a
+ * keep-alive socket open on purpose and `server.close` waits for the last one.
+ *
+ * @template T
+ * @param {Erl<NodeOp>} listener
+ * @param {(port: number) => Promise<T>} client
+ * @returns {Promise<T>}
  */
-const answeredOverASocket = async (chunks, method) => {
+const withServer = async (listener, client) => {
     /** @type {(server: import('node:http').Server) => void} */
     let created = () => { }
     /** @type {Promise<import('node:http').Server>} */
@@ -183,11 +229,7 @@ const answeredOverASocket = async (chunks, method) => {
     /** @type {NodeProgram} */
     const program = () => resultMapStep(
         step(
-            createServer(() => pureOk({
-                status: 200,
-                headers: { 'content-length': `${chunkLength(chunks)}` },
-                body: chunks,
-            })),
+            createServer(listener),
             server => {
                 // The one cast, and the boundary the runner itself crosses the
                 // same way: a `Server` is a `Nominal` over the host's own
@@ -201,36 +243,97 @@ const answeredOverASocket = async (chunks, method) => {
     try {
         const address = server.address()
         assert(address !== null && typeof address !== 'string', address)
-        return await new Promise((resolve, reject) => {
-            const request = http.request(
-                { host: loopback, port: address.port, method, path: '/' },
-                response => {
-                    /** @type {Uint8Array[]} */
-                    const parts = []
-                    response.on('data', part => { parts.push(part) })
-                    response.on('end', () => resolve({
-                        status: response.statusCode ?? 0,
-                        length: `${response.headers['content-length']}`,
-                        body: Buffer.concat(parts),
-                    }))
-                })
-            request.on('error', reject)
-            request.end()
-        })
+        return await client(address.port)
     } finally {
+        server.closeAllConnections()
         await new Promise(resolve => { server.close(() => resolve(undefined)) })
     }
 }
 
 /**
- * Whether this run is the one whose host behaviour the HTTP proofs below are
- * about. They bind a real socket and read what Node does with a body it was
- * given; Bun and Deno answer the same operations through their own `node:http`,
- * which is a separate claim and not this runner's.
+ * What one ordinary request came back with: the status, the declared length, and
+ * the bytes that reached the socket — plus how it ended, since half of these
+ * proofs are about a response that ends badly.
  *
- * @type {() => boolean}
+ * @type {(port: number, method: string) => Promise<{ readonly status: number, readonly length: string, readonly body: Uint8Array, readonly ending: string }>}
  */
-const isNode = () => !('Bun' in globalThis) && !('Deno' in globalThis)
+const answered = (port, method) => new Promise((resolve, reject) => {
+    /** @type {Uint8Array[]} */
+    const parts = []
+    /** @type {number} */
+    let status = 0
+    /** @type {string} */
+    let length = 'undefined'
+    /** @type {(ending: string) => void} */
+    const done = ending => resolve({ status, length, body: Buffer.concat(parts), ending })
+    const request = http.request({ host: loopback, port, method, path: '/' }, response => {
+        status = response.statusCode ?? 0
+        length = `${response.headers['content-length']}`
+        response.on('data', part => { parts.push(part) })
+        response.on('end', () => done('end'))
+        response.on('error', e => done(errorCode(e)))
+    })
+    // The agent keeps the connection alive, which is what makes the short-body
+    // case take the idle timeout rather than the close — see `underrunDestroys`.
+    request.on('error', e => (status === 0 ? reject(e) : done(errorCode(e))))
+    request.end()
+})
+
+/** The code a client's failure carries, or its message where the host gave none.
+ *
+ * @type {(e: unknown) => string}
+ */
+const errorCode = e => {
+    const { code, message } = /** @type {{ readonly code?: string, readonly message: string }} */ (e)
+    return code ?? message
+}
+
+/**
+ * A counter a proof reads and an effect writes, which is how a pump's stopping
+ * place is observed from the listener's side rather than from the response's.
+ *
+ * @typedef {{ n: number }} _Counter
+ */
+
+/** @type {() => _Counter} */
+const counter = () => ({ n: 0 })
+
+/**
+ * An effect that counts, and answers the pure end: `release` as a listener would
+ * write it if it had something to give back.
+ *
+ * `catch_` because its thunk runs when the runner dispatches the command rather
+ * than when the effect is built, which is the only lazy impure hook the operation
+ * set offers. This is the impure shell, where such a thing is allowed.
+ *
+ * @type {(count: _Counter) => Effect<NodeOp, null, never>}
+ */
+const counting = count => resultMapStep(catch_(() => { count.n += 1 }), () => ok(null))
+
+/**
+ * A body of `count` chunks, produced **one cell per pull** — each cell is built
+ * inside a command's continuation, so nothing of it exists until the pump asks —
+ * and counting the pulls.
+ *
+ * That count is how these proofs see a bound rather than assert one: a pump parked
+ * on `drain` has pulled a small number of chunks whatever the body's length is,
+ * and a pump that read `res.write`'s answer and pulled anyway would have pulled
+ * all of them.
+ *
+ * @type {(chunk: Uint8Array, count: number, pulls: _Counter) => List<NodeOp, Vec, IoChannel>}
+ */
+const lazyBody = (chunk, count, pulls) => {
+    /** @type {(i: number) => List<NodeOp, Vec, IoChannel>} */
+    const cell = i => step(catch_(() => { pulls.n += 1 }), () =>
+        i === count ? listEnd() : nonEmpty(toVec(chunk), cell(i + 1)))
+    return cell(0)
+}
+
+/** One `Vec`'s worth of bytes, the chunk every pump proof below writes. */
+const oneVec = Number(maxLengthBytes)
+
+/** @type {Uint8Array} */
+const vecChunk = new Uint8Array(oneVec).fill(7)
 
 const expectedValue = [[42], [42], [42], [42]]
 const expectedSharing = [true, true, true]
@@ -440,32 +543,464 @@ export const proof = {
             })
         }),
     },
+    // An open file as a value, asked of the host. The virtual runner models these
+    // and a fixture is a snapshot by construction there, so the claims that make
+    // the model worth trusting are the ones only a descriptor can settle.
+    open: {
+        // **The one-inode claim.** A file renamed over the name a handle was
+        // opened on is still read as the bytes the handle opened, and `fstat`
+        // through it still answers the original size. That is what no
+        // path-taking operation can offer, and it is what lets a response body be
+        // read in windows without the windows coming from two files.
+        namesAnInode: () => withTemporary('fjs-handle-inode-', async root => {
+            const path = join(root, 'a.bin')
+            const other = join(root, 'b.bin')
+            await writeFile(path, 'old')
+            await writeFile(other, 'new')
+            await hostCheck(step(open(path), handle =>
+                step(rename(other, path), () =>
+                    step(fstat(handle), s =>
+                        step(pread(handle, 0, 8), taken =>
+                            step(close(handle), () => pureOk([s.size, utf8ToString(taken)])))))),
+                result => assertStructurallySame(unwrap(result), [3, 'old']))
+            // The rename landed, so the read above answered the entry the open
+            // resolved to rather than the one the name holds.
+            assertEq(`${await readFile(path)}`, 'new')
+        }),
+        // **The non-blocking open is the operation.** A plain read-only open of a
+        // FIFO with no writer never returns — it left the process unable to exit
+        // at all — so the kind could not be asked of a descriptor at all without
+        // this. With it the open answers at once, `fstat` says the entry is no
+        // regular file, and `fjs/web` turns that into its `404`.
+        //
+        // The deadline is what makes this a proof rather than a hang: without the
+        // flag it is this timeout that fires.
+        //
+        // `mkfifo` is a shell command because `fs` has no operation that makes
+        // one; Windows has neither, and the flag is a no-op there.
+        doesNotWaitForAWriter: () => withTemporary('fjs-handle-fifo-', async root => {
+            if (process.platform === 'win32') { return }
+            const path = join(root, 'pipe')
+            execFileSync('mkfifo', [path])
+            await within('open of a writerless FIFO', 4000, hostCheck(
+                step(open(path), handle =>
+                    step(fstat(handle), s => step(close(handle), () => pureOk(s)))),
+                result => {
+                    const s = unwrap(result)
+                    assertEq(s.isFile, false)
+                    assertEq(s.isDirectory, false)
+                }))
+        }),
+        // A directory opens and reads `EISDIR`, which is why `fjs/web` reads the
+        // kind off the `fstat` and never reaches the read for one.
+        aDirectoryOpens: () => withTemporary('fjs-handle-dir-', async root => {
+            await hostCheck(step(open(root), handle =>
+                step(fstat(handle), s => step(close(handle), () => pureOk(s)))),
+                result => assertEq(unwrap(result).isDirectory, true))
+            await hostCheck(step(open(root), handle =>
+                resultStep(pread(handle, 0, 8), r => step(close(handle), () => pureOk(r)))),
+                result => {
+                    const r = unwrap(result)
+                    assert(r[0] === 'error', r)
+                    assert(r[1][0] === 'ioError', r[1])
+                    assertEq(r[1][1].code, 'EISDIR')
+                })
+        }),
+        // Reading through a handle that was given back is `EBADF`, and a second
+        // close is `ok` — the two answers the virtual runner copies, so that a
+        // caller's branch for either is reachable on both.
+        afterClose: () => withTemporary('fjs-handle-closed-', async root => {
+            const path = join(root, 'a.bin')
+            await writeFile(path, 'abc')
+            await hostCheck(step(open(path), handle =>
+                step(close(handle), () =>
+                    resultStep(pread(handle, 0, 1), first =>
+                        resultMapStep(close(handle), again => ok([first, again]))))),
+                result => {
+                    const [first, again] = unwrap(result)
+                    assert(first[0] === 'error', first)
+                    assert(first[1][0] === 'ioError', first[1])
+                    assertEq(first[1][1].code, 'EBADF')
+                    assertEq(again[0], 'ok', again)
+                })
+        }),
+    },
     createServer: {
-        // The runner writes a chunk list a chunk at a time, so a body of more
+        // The runner pulls a chunk list a cell at a time, so a body of more
         // than one `Vec` reaches the client whole — the half of
         // [#1819](https://github.com/functionalscript/functionalscript/issues/1819)
         // that is the runner's rather than `fjs/web`'s.
+        //
+        // **It runs on every runtime**, where it used to run on Node alone. What
+        // it used to claim was that *Node* drops a `HEAD` body, which is a claim
+        // about a host; what it claims now is that the runner writes what it
+        // pulled, which is the same code on all three. Every property the pump
+        // leans on was measured identical across Node 26.8.1, Bun 1.4.2 and Deno
+        // 2.8.3 — see the table in `./todo/streaming-http-bodies.md`.
         writesEveryChunk: async () => {
-            if (!isNode()) { return }
-            const chunks = [toVec(payload(1)), toVec(payload(2)), toVec(payload(3))]
-            const answer = await answeredOverASocket(chunks, 'GET')
+            const pulls = counter()
+            const releases = counter()
+            const answer = await withServer(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': `${3 * oneVec}` },
+                    body: lazyBody(vecChunk, 3, pulls),
+                    release: counting(releases),
+                }),
+                port => within('a three-chunk body', 10000, answered(port, 'GET')))
             assertEq(answer.status, 200)
-            assertEq(answer.length, `${chunkLength(chunks)}`)
-            assertSameBytes([...answer.body], chunkBytes(chunks))
+            assertEq(answer.length, `${3 * oneVec}`)
+            assertEq(answer.ending, 'end')
+            assertEq(answer.body.length, 3 * oneVec)
+            assertEq(answer.body.findIndex(b => b !== 7), -1)
+            // Four pulls: three cells and the end.
+            assertEq(pulls.n, 4)
+            assertEq(releases.n, 1)
         },
-        // **Node is the party that drops a `HEAD` body**, and it goes on being
-        // that party across as many writes as the body has: the runner offers
-        // every chunk and the client receives none of them, while the
-        // `Content-Length` the listener declared still arrives — which is the
-        // one thing a `HEAD` is asked for. `fjs/web` answers a `HEAD` exactly
-        // like a `GET` because of this.
-        headCarriesNoBody: async () => {
-            if (!isNode()) { return }
-            const chunks = [toVec(payload(4)), toVec(payload(5)), toVec(payload(6))]
-            const answer = await answeredOverASocket(chunks, 'HEAD')
+        // **Gate 2: the body is never pulled.** `res.write` on a `HEAD`, a `204`,
+        // a `304` or a `1xx` response does not merely discard the bytes — it
+        // answers `true`, measured on all three runtimes — so the socket stops
+        // being a brake in exactly the cases where there is nothing to brake, and
+        // a method-agnostic pump would read a multi-gigabyte file at the speed of
+        // the disk to send nothing. The runner declines before Node is offered a
+        // byte, and the declared length still arrives, which is the one thing a
+        // `HEAD` is asked for.
+        suppressesABodyNodeWillNotCarry: async () => {
+            const pulls = counter()
+            const releases = counter()
+            const answer = await withServer(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': `${oneVec}` },
+                    body: lazyBody(vecChunk, 1, pulls),
+                    release: counting(releases),
+                }),
+                port => within('a HEAD response', 10000, answered(port, 'HEAD')))
             assertEq(answer.status, 200)
-            assertEq(answer.length, `${chunkLength(chunks)}`)
+            assertEq(answer.length, `${oneVec}`)
             assertEq(answer.body.length, 0)
+            assertEq(answer.ending, 'end')
+            // The producer was never asked, so a multi-gigabyte body costs
+            // nothing here — which the old, method-agnostic runner could not say.
+            assertEq(pulls.n, 0)
+            assertEq(releases.n, 1)
+        },
+        // **The memory bound, proved rather than asserted.** The client asks and
+        // then reads nothing, so the socket is the only thing that can slow the
+        // writes: `res.write` answers `false` on the first 128 KiB — the default
+        // high-water mark being 16 KiB, measured `false` on all three runtimes —
+        // and a pump that pulled anyway would be throttled by the disk rather than
+        // by the client, which is fast enough to be no throttle at all.
+        //
+        // **What makes this a bound is the second body, not the first.** How many
+        // chunks a parked pump has taken is the platform's socket buffers, and a
+        // proof naming a figure would be pinning those. So the same parked client
+        // is offered a body ten times longer, and the claim is that the count does
+        // not follow: the pull count is what the process holds, one `Vec` a pull,
+        // so a count that is the same for 25 MiB and 250 MiB is a footprint that
+        // does not grow with the file. An eager runner answers two hundred and two
+        // thousand.
+        //
+        // And the client's departure is what ends the pump, since `drain` never
+        // comes for a socket that has gone — so `release` runs there too.
+        pullsAtTheSocketsPace: async () => {
+            /** @type {(chunks: number) => Promise<readonly[number, number]>} */
+            const parked = async chunks => {
+                const pulls = counter()
+                const releases = counter()
+                const held = await withServer(
+                    () => pureOk({
+                        status: 200,
+                        headers: { 'content-length': `${chunks * oneVec}` },
+                        body: lazyBody(vecChunk, chunks, pulls),
+                        release: counting(releases),
+                    }),
+                    port => within('a parked pump', 20000, new Promise(resolve => {
+                        const socket = net.connect(port, loopback, () => {
+                            socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n')
+                        })
+                        socket.pause()
+                        socket.on('error', () => { })
+                        // Long enough for a pump that ignored `false` to have read
+                        // every cell: the same body written without pacing took
+                        // milliseconds.
+                        setTimeout(() => {
+                            const taken = pulls.n
+                            socket.destroy()
+                            // Give the recorded `close` its chance to end the
+                            // parked pull, which is the other half of this proof.
+                            const wait = () => releases.n === 1
+                                ? resolve([taken, releases.n])
+                                : setTimeout(wait, 20)
+                            setTimeout(wait, 50)
+                        }, 900)
+                    })))
+                return held
+            }
+            const [small, smallReleases] = await parked(200)
+            const [large, largeReleases] = await parked(2000)
+            // Parked, not finished: an eager pump answers the cell count itself.
+            assert(small > 0 && small < 200, small)
+            // And ten times the body is not ten times the memory. Four chunks of
+            // slack for a machine that drained a little more in the same 900 ms.
+            assert(large <= small + 4, [small, large])
+            // `release` ran on the client's departure, once, on both.
+            assertEq(smallReleases, 1)
+            assertEq(largeReleases, 1)
+        },
+        // **A `close` that fired before the pump existed.** The listener holds
+        // something before it has a status to return — `fjs/web` opens a handle
+        // and `fstat`s it — so a cancelled download arriving a few milliseconds
+        // earlier closes the response while nothing is watching. `drain` does not
+        // come for a socket that has gone and `close` does not come twice, so a
+        // pump that listened for the edge would park for the life of the process,
+        // holding its reads open and never running `release`.
+        //
+        // Recording the closure is what makes this the same case as a client that
+        // leaves mid-body rather than a second policy beside it: the response is
+        // not answered at all, and `release` runs at the moment the listener
+        // returns.
+        releasesAfterACloseThatBeatThePump: async () => {
+            const pulls = counter()
+            const releases = counter()
+            await withServer(
+                // `resultStep`, not `step`: a `RequestListener`'s channel is
+                // `never`, and the wait below can answer `notImplemented` on a
+                // runner without it — which is a response frame like any other.
+                () => resultStep(
+                    // The listener takes its time, as one that opens a file and
+                    // stats it does. `await` is the only operation here that can
+                    // wait for a clock.
+                    awaitIfPromise(new Promise(resolve => setTimeout(resolve, 400))),
+                    () => pureOk({
+                        status: 200,
+                        headers: { 'content-length': `${oneVec}` },
+                        body: lazyBody(vecChunk, 1, pulls),
+                        release: counting(releases),
+                    })),
+                port => within('a request the client abandoned', 10000, new Promise(resolve => {
+                    const socket = net.connect(port, loopback, () => {
+                        socket.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n')
+                    })
+                    socket.on('error', () => { })
+                    // Well before the listener returns.
+                    setTimeout(() => { socket.destroy() }, 60)
+                    const wait = () => releases.n === 1 ? resolve(undefined) : setTimeout(wait, 20)
+                    setTimeout(wait, 100)
+                })))
+            // Nothing was written and nothing was read: a status written to a
+            // client that has gone silently sets `headersSent`, which is the flag
+            // `failSafe` reads to decide a status is no longer available.
+            assertEq(pulls.n, 0)
+            assertEq(releases.n, 1)
+        },
+        // **The count, in the direction the host does catch — eventually, and by
+        // then it has lost two responses.** Measured without the count: a response
+        // declaring 131,072 bytes and writing 1,000 more put all 132,072 on the
+        // wire, `res.write` answered `false` for the surplus exactly as it had for
+        // the chunk before it, and the keep-alive client failed
+        // `HPE_INVALID_CONSTANT` on the **in-flight** response — the surplus parsed
+        // as the following status line, so the request being answered was lost
+        // along with the one after it.
+        //
+        // With the count, a chunk that would carry the body past the declared
+        // length is a failed cell: none of it is written, whole or in part. Writing
+        // its first `bound − written` bytes and ending cleanly is the other choice
+        // and the wrong one, because a body exactly as long as it promised is a
+        // body every client reads as whole.
+        //
+        // Two cases, and they differ in where the bound falls. A length the chunks
+        // reach **exactly** is a complete answer, and the surplus simply never
+        // goes out. A length that falls **inside** a chunk leaves the body short,
+        // over a socket no client can read a whole body from — `ECONNRESET`, so the
+        // client is told rather than misled.
+        overrunDestroys: async () => {
+            /** @type {(declared: number) => Promise<{ readonly body: Uint8Array, readonly ending: string, readonly pulls: number, readonly releases: number }>} */
+            const offering = async declared => {
+                const releases = counter()
+                const pulls = counter()
+                const answer = await withServer(
+                    () => pureOk({
+                        status: 200,
+                        headers: { 'content-length': `${declared}` },
+                        body: lazyBody(vecChunk, 2, pulls),
+                        release: counting(releases),
+                    }),
+                    port => within('an overrunning body', 10000, answered(port, 'GET')))
+                return { body: answer.body, ending: answer.ending, pulls: pulls.n, releases: releases.n }
+            }
+            // The declared length is one chunk, and the producer has two. The
+            // first fills it, the second is refused, and nothing beyond the
+            // promised count reaches the wire.
+            const exact = await offering(oneVec)
+            assertEq(exact.body.length, oneVec)
+            assertEq(exact.ending, 'end')
+            // The second cell was pulled and refused, not left unasked.
+            assertEq(exact.pulls, 2)
+            assertEq(exact.releases, 1)
+            // And a length that falls inside the second chunk: 65,536 of it would
+            // fit, and none of it is written.
+            const inside = await offering(oneVec + oneVec / 2)
+            assertEq(inside.body.length, oneVec)
+            assertEq(inside.ending, 'ECONNRESET')
+            assertEq(inside.releases, 1)
+        },
+        // **And in the direction it does not.** A body that simply stops leaves
+        // nothing for the server side to notice: `res.end()` raises nothing, the
+        // socket goes back into the keep-alive pool, and what tells the client is
+        // the idle timeout — measured at four seconds with no answer at all on
+        // every one of the three runtimes. Destroying tells it at once.
+        underrunDestroys: async () => {
+            const releases = counter()
+            const pulls = counter()
+            const answer = await withServer(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'content-length': `${2 * oneVec}` },
+                    body: lazyBody(vecChunk, 1, pulls),
+                    release: counting(releases),
+                }),
+                port => within('a body that ended early', 10000, answered(port, 'GET')))
+            assertEq(answer.ending, 'ECONNRESET')
+            assertEq(answer.body.length, oneVec)
+            assertEq(releases.n, 1)
+        },
+        // A cell that **fails** after the headers are written destroys too, for
+        // the reason the table in `./todo/streaming-http-bodies.md` gives: under
+        // chunked framing `res.end()` writes the terminating chunk, so a
+        // truncated body arrives as a clean, complete one and no client can tell.
+        failedCellDestroys: async () => {
+            const releases = counter()
+            const answer = await withServer(
+                () => pureOk({
+                    status: 200,
+                    headers: {},
+                    body: nonEmpty(toVec(vecChunk), pureError(ioError({ code: 'EIO', message: 'disk' }))),
+                    release: counting(releases),
+                }),
+                port => within('a failing body', 10000, answered(port, 'GET')))
+            assertEq(answer.ending, 'ECONNRESET')
+            assertEq(answer.body.length, oneVec)
+            assertEq(releases.n, 1)
+        },
+        // A continuation that **throws** is the same lie reached by the other
+        // door: it never reaches the pump's policy, it reaches `failSafe`, whose
+        // `headersSent` branch used to answer `res.end()`. So that branch destroys
+        // too — and `release` has already run by then, because the `finally` that
+        // runs it is inside the `catch` that leads there.
+        throwingCellDestroys: async () => {
+            const releases = counter()
+            const answer = await withServer(
+                () => pureOk({
+                    status: 200,
+                    headers: {},
+                    body: nonEmpty(toVec(vecChunk), () => { throw new Error('thrown from a cell') }),
+                    release: counting(releases),
+                }),
+                port => within('a throwing body', 10000, answered(port, 'GET')))
+            assertEq(answer.ending, 'ECONNRESET')
+            assertEq(answer.body.length, oneVec)
+            assertEq(releases.n, 1)
+        },
+        // **Gate 1**, on the host: a listener that writes a `Transfer-Encoding` is
+        // refused before the headers, with the frame both runners share. Node
+        // takes such a header over its own default and reads it with a regular
+        // expression — `x-chunked` and `chunked, gzip` both make it chunk a body
+        // no client de-chunks — so restating the rule would be wrong in the cases
+        // it was written for.
+        refusesAListenersFraming: async () => {
+            const pulls = counter()
+            const releases = counter()
+            const answer = await withServer(
+                () => pureOk({
+                    status: 200,
+                    headers: { 'transfer-encoding': 'chunked', 'content-length': `${oneVec}` },
+                    body: lazyBody(vecChunk, 1, pulls),
+                    release: counting(releases),
+                }),
+                port => within('a refused framing header', 10000, answered(port, 'GET')))
+            assertEq(answer.status, 500)
+            assertEq(`${Buffer.from(answer.body)}`, `${framingHeaderMessage}\n`)
+            assertEq(pulls.n, 0)
+            assertEq(releases.n, 1)
+        },
+        // **Gate 3, and the gate order, over a raw HTTP/1.0 request** — raw
+        // because Node's own client speaks 1.1 only, and 1.0 is the request whose
+        // `useChunkedEncodingByDefault` is `false` on all three runtimes.
+        //
+        // A body with no `Content-Length` on such a request is delimited by the
+        // connection closing, so a producer that failed mid-body would hand the
+        // client a truncated body byte for byte identical to a whole one. It is
+        // refused rather than answered.
+        //
+        // And a `HEAD` asking for the same thing is **not** refused: gate 2 comes
+        // first, because that refusal exists to stop a truncated body from passing
+        // for a whole one and a body Node drops is never on the wire to be
+        // truncated. The other order answers `500` to a request this server can
+        // satisfy exactly.
+        gateOrderOverAnOldRequest: async () => {
+            const pulls = counter()
+            const releases = counter()
+            /** @type {(method: string) => Promise<string>} */
+            const raw = method => withServer(
+                () => pureOk({
+                    status: 200,
+                    headers: {},
+                    body: lazyBody(vecChunk, 1, pulls),
+                    release: counting(releases),
+                }),
+                port => within(`a raw ${method} over HTTP/1.0`, 10000, new Promise(resolve => {
+                    /** @type {Uint8Array[]} */
+                    const parts = []
+                    const socket = net.connect(port, loopback, () => {
+                        socket.write(`${method} / HTTP/1.0\r\nHost: x\r\n\r\n`)
+                    })
+                    socket.on('data', part => { parts.push(Buffer.from(part)) })
+                    socket.on('error', () => { })
+                    socket.on('close', () => { resolve(`${Buffer.concat(parts)}`) })
+                })))
+            const refused = await raw('GET')
+            assert(refused.startsWith('HTTP/1.1 500 '), refused)
+            assert(refused.endsWith(`${unframedBodyMessage}\n`), refused)
+            // The listener's own body was never pulled.
+            assertEq(pulls.n, 0)
+            assertEq(releases.n, 1)
+            const suppressed = await raw('HEAD')
+            assert(suppressed.startsWith('HTTP/1.1 200 '), suppressed)
+            // No body, and nothing was read to produce one.
+            assertEq(pulls.n, 0)
+            assertEq(releases.n, 2)
+        },
+        // `chunkedResponse` is the host's own answer, and this is what it answers:
+        // `true` for the HTTP/1.1 request a browser sends, `false` for a raw 1.0
+        // one. Measured identical on Node 26.8.1, Bun 1.4.2 and Deno 2.8.3, which
+        // is what makes gate 3 one field read in both runners rather than two
+        // restatements of Node's rule.
+        chunkedResponseIsTheHostsAnswer: async () => {
+            /** @type {boolean[]} */
+            const seen = []
+            await withServer(
+                ({ chunkedResponse }) => {
+                    seen.push(chunkedResponse)
+                    return pureOk({
+                        status: 204,
+                        headers: {},
+                        body: listEnd(),
+                        release: pureOk(null),
+                    })
+                },
+                async port => {
+                    await within('an HTTP/1.1 request', 10000, answered(port, 'GET'))
+                    await within('a raw HTTP/1.0 request', 10000, new Promise(resolve => {
+                        const socket = net.connect(port, loopback, () => {
+                            socket.write('GET / HTTP/1.0\r\nHost: x\r\n\r\n')
+                        })
+                        socket.on('data', () => { })
+                        socket.on('error', () => { })
+                        socket.on('close', () => resolve(undefined))
+                    }))
+                })
+            assertStructurallySame(seen, [true, false])
         },
     },
 }

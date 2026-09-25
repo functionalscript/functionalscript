@@ -21,7 +21,8 @@
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { List as List_ } from '../../types/list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _ReadChunks, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Close, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fstat, Fs, Handle, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, Open, Pread, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, ResolveFileModule, ReadWhole, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteExclusive, WriteFile, _ChunkSource, _FramingHeader, _Gate, _NoBody, _ReadChunks, _Unframed, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -30,6 +31,7 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
 import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
@@ -248,10 +250,12 @@ export const isDirectory = ([tag, payload]) =>
  * @type {CommandSet<NodeOp>}
  */
 const nodeCommandSet = {
-    access: null, all: null, await: null, catch: null, createExclusive: null,
-    createServer: null, exec: null, fetch: null, forever: null,
+    access: null, all: null, await: null, catch: null, close: null,
+    createExclusive: null,
+    createServer: null, exec: null, fetch: null, forever: null, fstat: null,
     import: null, inflate: null, listen: null, memCreate: null, memRead: null,
-    memWrite: null, mkdir: null, now: null, randomInt: null,
+    memWrite: null, mkdir: null, now: null, open: null, pread: null,
+    randomInt: null,
     read: null, readBytes: null, readFile: null, readWhole: null, readdir: null,
     rename: null, resolveFileModule: null, rm: null, sandbox: null, stat: null,
     test: null, write: null, writeBytes: null, writeExclusive: null,
@@ -548,6 +552,210 @@ export const readChunks = (source, bound) => {
         return ioStep(source(offset, Math.min(chunkBytes, remaining)), chunk => cell(chunk, offset))
     }
     return loop(0)
+}
+
+// open, fstat, pread, close
+
+/** @type {Func<Open>} */
+export const open = do_('open')
+
+/** @type {Func<Fstat>} */
+export const fstat = do_('fstat')
+
+/** @type {Func<Pread>} */
+export const pread = do_('pread')
+
+/** @type {Func<Close>} */
+export const close = do_('close')
+
+/**
+ * A {@link _ChunkSource} that reads through one open file, which is what makes a
+ * body both lazy and one inode's.
+ *
+ * `readBytes` is the other source of that shape and it takes a *path*, so a fold
+ * over it resolves the name once per chunk: a served entry replaced mid-response
+ * yields an old prefix joined to a new suffix, under a length that is correct and
+ * an end that is clean, and nothing downstream can tell. `readWhole` binds the
+ * chunks too and spends the laziness to do it. This binds them and keeps it.
+ *
+ * @type {(handle: Handle) => _ChunkSource<Pread>}
+ */
+export const handleSource = handle => (offset, size) => pread(handle, offset, size)
+
+/**
+ * Gives `handle` back, as the `release` a `ServerResponse` carries: the outcome
+ * is discarded because there is nobody left to tell — by the time a runner runs
+ * this the response is either complete or already destroyed, which is the sense
+ * `release`'s `never` channel is declared in.
+ *
+ * @type {(handle: Handle) => Effect<Close, null, never>}
+ */
+export const releaseHandle = handle => resultMapStep(close(handle), () => ok(null))
+
+// Response framing, read by both runners
+
+/**
+ * The value `headers` holds for `name`, or `null` for none — matched the way Node
+ * matches a header name, **case-insensitively**.
+ *
+ * `Headers` is a `StringMap<string>`, so a listener may spell `Content-Length`
+ * any of a dozen ways and Node reads all of them. A runner that compared the key
+ * exactly would find no length on a response that declares one, and then refuse
+ * or mis-frame it.
+ *
+ * `name` is given already lower-cased; every caller here is a literal.
+ *
+ * @type {(headers: Headers, name: string) => Nullable<string>}
+ */
+export const headerValue = (headers, name) => {
+    for (const [k, v] of Object.entries(headers)) {
+        // `?? null` because an index signature admits `undefined`, and a header
+        // present with no value is a header that names nothing.
+        if (k.toLowerCase() === name) { return v ?? null }
+    }
+    return null
+}
+
+/**
+ * The length `headers` declares, or `null` for a response that declares none this
+ * runner can read.
+ *
+ * **A header it cannot read is no declaration**, for either the gate or the
+ * count. A `Content-Length` that is not a non-negative decimal integer describes
+ * nothing a client can check a body against, so treating it as a number would put
+ * the runner's count against a value it invented. Gate 3 then refuses such a
+ * response exactly where it refuses one that declares nothing — and on a request
+ * Node *will* frame chunked, what Node does with the header is Node's, which is
+ * the part this does not decide. Nothing in the tree produces one: `fjs/web`
+ * writes the `fstat` size.
+ *
+ * @type {(headers: Headers) => Nullable<number>}
+ */
+export const declaredLength = headers => {
+    const v = headerValue(headers, 'content-length')
+    if (v === null || !isDigits(v)) { return null }
+    const n = Number(v)
+    return Number.isSafeInteger(n) ? n : null
+}
+
+/** Whether `s` is a non-empty run of decimal digits — no sign, no space, no
+ * exponent, which is the whole of what a `Content-Length` may be.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
+
+/**
+ * Whether Node will carry no body for this response, so the producer is never
+ * pulled at all.
+ *
+ * **The set is the host's, not the RFC's.** Node drops the body of a `HEAD`
+ * response and of a `204`, `304` or `1xx`, and `res.write` on one of those does
+ * not merely discard the bytes — it answers `true`, so the socket stops being a
+ * brake in exactly the cases where there is nothing to brake. A method-agnostic
+ * pump therefore reads a multi-gigabyte file at the speed of the disk to send
+ * nothing. `205` forbids a body too (RFC 9110 §15.3.6) and Node sends one anyway,
+ * so a guard written from the specification would suppress a body the host was
+ * about to send — the same plausible wrong answer, produced by the check meant to
+ * prevent one.
+ *
+ * It is the runner that asks, not the listener: `fjs/web` answers a `HEAD`
+ * exactly like a `GET` and takes its `Content-Length` from the `fstat`, so a
+ * `HEAD` is the common case here and not a corner of one.
+ *
+ * @type {(method: string, status: number) => boolean}
+ */
+export const carriesNoBody = (method, status) =>
+    method === 'HEAD' || status === 204 || status === 304 || (status >= 100 && status <= 199)
+
+/**
+ * What a runner does with a response before it pulls a byte of the body — see
+ * {@link _Gate} for the three gates and why their order is the design's rather
+ * than each runner's.
+ *
+ * @type {(method: string, chunkedResponse: boolean, status: number, headers: Headers) => _Gate}
+ */
+export const responseGate = (method, chunkedResponse, status, headers) => {
+    // The framing header first, because it is the response being malformed
+    // rather than this body being undeliverable.
+    if (headerValue(headers, 'transfer-encoding') !== null) { return framingHeader }
+    // Suppression before the length refusal: that refusal exists to stop a
+    // truncated body from passing for a whole one, and a body Node drops is never
+    // on the wire to be truncated. A `HEAD` or a `304` is a complete answer
+    // whatever framing the body it does not carry would have had, so the other
+    // order answers `500` to a request this server can satisfy exactly.
+    if (carriesNoBody(method, status)) { return noBody }
+    const declared = declaredLength(headers)
+    if (declared === null && !chunkedResponse) { return unframed }
+    return ['pump', declared]
+}
+
+/** @type {_FramingHeader} */
+const framingHeader = ['framingHeader']
+
+/** @type {_NoBody} */
+const noBody = ['noBody']
+
+/** @type {_Unframed} */
+const unframed = ['unframed']
+
+/**
+ * The status a runner refuses a response it cannot frame with, and the two
+ * messages it explains the refusal by. Declared here so that the two runners say
+ * the same thing, as {@link emptyHostError} is, and so a proof asserting one
+ * asserts both.
+ *
+ * `500` rather than `505` for the unframed case: RFC 9110 §15.6.6 names the
+ * request's *major* version, which 1.0 shares with 1.1, and this server answers
+ * HTTP/1.0 perfectly well for a body whose size it knows. It is the pre-headers
+ * case `failSafe` already answers `500` in, reached before rather than after the
+ * fact.
+ *
+ * @type {number}
+ */
+export const refusedStatus = 500
+
+/** @type {string} */
+export const framingHeaderMessage = 'a response may not declare its own transfer encoding'
+
+/** @type {string} */
+export const unframedBodyMessage = 'a body with no content-length cannot be framed for this request'
+
+/**
+ * What a runner answers a {@link _Gate} refusal with.
+ *
+ * @type {(gate: _FramingHeader | _Unframed) => string}
+ */
+export const refusalMessage = ([tag]) =>
+    tag === 'framingHeader' ? framingHeaderMessage : unframedBodyMessage
+
+/**
+ * The runner's own answer, as a response frame — for the cases a listener never
+ * gets to give one, or gave one the runner may not put on a socket.
+ *
+ * **It closes the connection**, which is the difference between refusing a request
+ * and surviving the refusal. The cases that reach it have not read the request to
+ * its end, and on a keep-alive connection Node then waits for the rest of a body
+ * that is never coming: the socket is stuck and the next request on it is never
+ * answered.
+ *
+ * Declared here rather than in a runner because both build it — the Node one puts
+ * it on the socket, the virtual one records it — and a refusal the two spell
+ * differently is a refusal a program cannot be proven against.
+ *
+ * @type {(status: number, message: string) => { readonly status: number, readonly headers: Headers, readonly body: readonly Vec[] }}
+ */
+export const runnerResponse = (status, message) => {
+    const body = utf8(`${message}\n`)
+    return {
+        status,
+        headers: {
+            'content-type': 'text/plain; charset=utf-8',
+            'content-length': `${byteLength(body)}`,
+            connection: 'close',
+        },
+        body: [body],
+    }
 }
 
 // stat

@@ -2,9 +2,15 @@
  * A static file server: `fjs web [root] [port]` maps each request path to a
  * file under `root` and answers with its bytes.
  *
+ * **A response costs one chunk rather than one file.** The body is opened and then
+ * pulled by the runner at the socket's pace, so a file of any size is served with
+ * the bytes held bounded by a chunk of it, and every chunk comes from that one
+ * open — a read that went back to the *name* per chunk could join two entries into
+ * one correctly-sized response.
+ *
  * The module is split so that the decision is pure and the socket handling is a
  * thin shell around it. `resolve` turns a URL into a path and does every check
- * that can be made without touching the disk; `respond` reads the file that
+ * that can be made without touching the disk; `respond` opens the file that
  * path names and builds the response frame, performing IO but no networking;
  * `main` is the only part that creates a server, listens, and blocks. That is
  * why `respond` can be proven end to end against an in-memory file system.
@@ -30,24 +36,25 @@
  * @module
  *
  * @import { Effect } from '../effects/types.ts'
- * @import { FileStat, IoChannel, Program, ReadWhole, ServerResponse, Stat } from '../effects/node/types.ts'
+ * @import { FileStat, Fs, Handle, IoChannel, Program, ServerResponse, Stat } from '../effects/node/types.ts'
+ * @import { List } from '../effects/list/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { Refusal, Resolve, Respond, WebOp } from './types.ts'
  */
 
-import { pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
+import { pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
+import { empty, nonEmpty } from '../effects/list/module.f.mjs'
 import {
-    createServer, errorExit, errorMessage, errorSummary, exitStep, forever, isNotFound, listen, log,
-    maxPort, readWhole, stat,
+    createServer, errorExit, errorMessage, errorSummary, exitStep, forever, fstat, handleSource,
+    isDirectory, isNotFound, listen, log, maxPort, open, readChunks, releaseHandle, stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { byteLength } from '../types/bit_vec/module.f.mjs'
 import { percentDecode } from '../text/percent/module.f.mjs'
-import { toArray } from '../types/list/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 
 // ── Routing ───────────────────────────────────────────────────────────────────
@@ -205,15 +212,8 @@ export const resolve = root => url => {
 // ── Answering ─────────────────────────────────────────────────────────────────
 
 /**
- * An entry that is not a regular file — a FIFO, a device, a socket. It exists,
- * so this is not a missing path, and it is not something this server will read.
- *
- * @type {readonly['notRegular']}
- */
-const notRegular = ['notRegular']
-
-/**
- * A response frame carrying `body`, with its length declared.
+ * A response frame carrying `body`, with `length` declared and `release` stating
+ * what the body holds.
  *
  * `Content-Length` is written here rather than left to the runner, because the
  * runner does not write one: Node sends an unmeasured body with
@@ -221,32 +221,70 @@ const notRegular = ['notRegular']
  * body but keeps these headers — that leaves the client with neither the bytes
  * nor their count, which is the one thing a `HEAD` is asked for.
  *
- * **The number is summed over the chunks that were read, and that is what keeps
- * it honest.** A length taken from an earlier `stat` is a promise about a file
- * the read has not reached yet: the file may have grown, and the client is then
- * handed the count the header named with the rest of the bytes left over, or it
- * may have shrunk, and the count is short of what arrives. Summing what is
- * already in hand cannot be wrong in either direction — there is nothing left to
- * read that could disagree with it.
+ * **The number comes from the `fstat` of the open file, and the reads stop at it.**
+ * A length declared ahead of an *unbounded* read would be a guess about the read:
+ * the entry could grow, and a fold that ends at the empty read would stream the
+ * surplus past the count already promised — measured, 131,072 declared and 132,072
+ * sent, under a header nothing can check. Declaring the size and bounding the reads
+ * by that same number makes the two one measurement. The other direction is the
+ * entry shrinking, and the bound catches that too: a read that ends short of it
+ * fails the cell rather than ending the body early.
  *
- * @type {(status: number) => (contentType: string) => (body: readonly Vec[]) => ServerResponse}
+ * It is not summed over the chunks, which is what the eager route did and what a
+ * lazy body cannot do — finding out costs draining it, which is the thing
+ * streaming exists not to do.
+ *
+ * @type {(status: number, contentType: string, length: number, body: List<Fs, Vec, IoChannel>, release: Effect<Fs, null, never>) => ServerResponse<Fs>}
  */
-const response = status => contentType => body => ({
+const response = (status, contentType, length, body, release) => ({
     status,
     headers: {
         'content-type': contentType,
-        'content-length': `${body.reduce((n, v) => n + byteLength(v), 0n)}`,
+        'content-length': `${length}`,
         // The `Content-Type` above is derived from a file name, and a browser
         // that sniffs past it decides for itself what a served file is — which
         // is the one thing this server has already answered.
         'x-content-type-options': 'nosniff',
     },
     body,
+    release,
 })
 
-/** @type {(status: number) => (message: string) => ServerResponse} */
-const plainText = status => message =>
-    response(status)('text/plain; charset=utf-8')([utf8(`${message}\n`)])
+/**
+ * The `release` of a response that holds nothing: the pure end.
+ *
+ * Every failure frame is one of these, and so is every response built before an
+ * {@link open} succeeded. The field is required rather than optional precisely so
+ * that writing it is a decision — see `ServerResponse` in
+ * [`../effects/node/types.ts`](../effects/node/types.ts).
+ *
+ * @type {Effect<Fs, null, never>}
+ */
+const holdsNothing = pureOk(null)
+
+/** @type {(status: number) => (message: string) => ServerResponse<Fs>} */
+const plainText = status => message => {
+    const text = utf8(`${message}\n`)
+    return response(
+        status,
+        'text/plain; charset=utf-8',
+        Number(byteLength(text)),
+        nonEmpty(text, empty()),
+        holdsNothing)
+}
+
+/**
+ * The same frame, from a response that is still holding an open file: a refusal
+ * decided *after* the {@link open} succeeded owes the handle back exactly as a
+ * served body does.
+ *
+ * This is the leak the `release` field exists to prevent, and it is the common
+ * case rather than the exotic one — a `404` for a FIFO reaches it on every such
+ * request.
+ *
+ * @type {(handle: Handle) => (r: ServerResponse<Fs>) => ServerResponse<Fs>}
+ */
+const holding = handle => r => ({ ...r, release: releaseHandle(handle) })
 
 /** The methods this server answers.
  *
@@ -359,7 +397,7 @@ const isServedHost = host => {
  * does not say what *would* be accepted leaves the client to guess, which is
  * why RFC 9110 requires an origin server to list them here.
  *
- * @type {() => ServerResponse}
+ * @type {() => ServerResponse<Fs>}
  */
 const methodNotAllowed = () => {
     const answer = plainText(405)('only GET and HEAD are supported')
@@ -367,45 +405,54 @@ const methodNotAllowed = () => {
 }
 
 /**
- * Reads `path` whole, but only once `stat` has said it is a regular file.
+ * The response for a file that is **open**: its bytes as a lazy body bounded by the
+ * size the descriptor reports, and the handle owed back either way.
  *
- * **Size is no longer one of the questions.** `readWhole` answers the chunks one
- * open took, each a `Vec` and the file however many of them it takes, so there is
- * no ceiling left for a `stat` to check a file against
- * ([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
+ * **The kind is asked of the descriptor, not of the name.** That is the whole of
+ * what the handle buys, and the `isFile` guard is unchanged in what it decides: a
+ * FIFO, a device or a socket is answered as absent and never read. What changed is
+ * that the entry it answers about is the entry the reads come from. `stat` then
+ * `readWhole` were two operations on a name, so a regular file replaced by a FIFO
+ * in between was answered for something that was gone; `open` then `fstat` is one
+ * name resolution and then a question about what it resolved to. The open does not
+ * wait for a writer, which is what makes that order possible at all — see
+ * `Open` in [`../effects/node/types.ts`](../effects/node/types.ts).
  *
- * **The kind still is, and it is this layer's own answer.** `open` on a FIFO with
- * no writer blocks until one appears, so the read would never return and would
- * hold a thread-pool slot while it waited — a served tree with one FIFO in it,
- * and a handful of requests stall every other response. `readWhole` refuses a
- * non-regular path itself, for that same reason; asking here as well is what
- * gives a client the `404` the response table promises rather than the host's
- * refusal reported as a `500`.
+ * A name that is not a regular file is answered as absent, for the reason a
+ * dot-prefixed one is: what it *is* would be a disclosure of its own.
  *
- * @type {(path: string) => (s: FileStat) => Effect<ReadWhole, readonly Vec[], IoChannel | readonly['notRegular']>}
+ * @type {(path: string) => (handle: Handle) => (s: FileStat) => ServerResponse<Fs>}
  */
-const readRegular = path => ({ isFile }) =>
-    isFile ? readWhole(path) : pureError(notRegular)
+const openResponse = path => handle => ({ isFile, size }) =>
+    isFile
+        ? response(
+            200,
+            detectPath(path),
+            size,
+            readChunks(handleSource(handle), size),
+            releaseHandle(handle))
+        : holding(handle)(plainText(404)('not found'))
 
 /**
- * The response frame for whatever reading `path` produced. This is where the
- * error channel ends: every failure becomes a status code, which is what lets
- * a `RequestListener` declare `never`.
+ * The response frame for a path that could not be opened. This is where the error
+ * channel ends: every failure becomes a status code, which is what lets a
+ * `RequestListener` declare `never`.
  *
- * @type {(path: string) => (r: Result<readonly Vec[], IoChannel | readonly['notRegular']>) => ServerResponse}
+ * **A directory is `404` here and not a host failure.** POSIX opens one
+ * successfully, so on those hosts the `fstat` answers it and this is never reached;
+ * Windows refuses the open with `EISDIR`. Mapping it keeps one request from having
+ * two statuses depending on the host it ran on, which is the defect the `ENOTDIR`
+ * mapping below already exists to prevent.
+ *
+ * @type {(e: IoChannel) => ServerResponse<Fs>}
  */
-const fileResponse = path => r => {
-    if (r[0] === 'ok') { return response(200)(detectPath(path))(r[1]) }
-    const e = r[1]
-    // A name that is not a regular file is answered as absent, for the reason a
-    // dot-prefixed one is: what it *is* would be a disclosure of its own.
-    if (e[0] === 'notRegular') { return plainText(404)('not found') }
-    if (isNotFound(e)) { return plainText(404)('not found') }
-    // `errorSummary`, not `errorMessage`: the host puts the absolute path it
-    // could not read into the message, and a client is not entitled to the
-    // server's filesystem layout.
-    return plainText(500)(errorSummary(e))
-}
+const openFailure = e =>
+    isNotFound(e) || isDirectory(e)
+        ? plainText(404)('not found')
+        // `errorSummary`, not `errorMessage`: the host puts the absolute path it
+        // could not read into the message, and a client is not entitled to the
+        // server's filesystem layout.
+        : plainText(500)(errorSummary(e))
 
 /**
  * What a POSIX host reports for a path that descends through a name which is
@@ -427,9 +474,9 @@ const notDirectory = 'ENOTDIR'
 const isServableRoot = s => s[0] === 'ok' && s[1].isDirectory
 
 /**
- * The response frame for whatever reading `path` produced — {@link fileResponse}
- * for every case but one, and that one is why this is an effect rather than a
- * function.
+ * The response frame for whatever opening `path` produced — {@link openFailure} or
+ * {@link openResponse} for every case but one, and that one is why this is an
+ * effect rather than a function.
  *
  * **`ENOTDIR` is `404`.** A path that descends through a regular file names
  * nothing, which is client-caused in exactly the way a missing name is, so it
@@ -441,24 +488,25 @@ const isServableRoot = s => s[0] === 'ok' && s[1].isDirectory
  *
  * **Unless the root itself is the non-directory**, which is why the answer
  * cannot be read off the error alone. `fjs web README.md` makes *every* request
- * stat a path descending through a file, and answering `404` to all of them
+ * descend through a file, and answering `404` to all of them
  * would tell a visitor the file is missing and the operator nothing at all.
  * {@link main} refuses such a root at startup, but a root replaced while the
  * server runs would otherwise turn one operator mistake into a lie told to
  * every visitor for the life of the process — so the root is re-checked here,
  * and only a root that is still a directory earns the `404`.
  *
- * The re-check costs a `stat` on the `ENOTDIR` path and nothing on any other,
- * and what it leaves is the request-local race
- * [stat-then-read](./todo/stat-then-read.md) already describes: a wrong status
- * in a vanishing window rather than a wrong status forever.
+ * The re-check costs a `stat` on the `ENOTDIR` path and nothing on any other. It
+ * is a `stat` of the **root** rather than of the requested path, which is why it
+ * is not the race the handle closed: what it re-reads is the operator's
+ * configuration, not the entry being served, and it can only turn one `404` into
+ * the `500` an operator needs to see.
  *
- * @type {(root: string) => (path: string) => (r: Result<readonly Vec[], IoChannel | readonly['notRegular']>) => Effect<Stat, ServerResponse, never>}
+ * @type {(root: string) => (e: IoChannel) => Effect<Stat, ServerResponse<Fs>, never>}
  */
-const answer = root => path => r => {
-    const hostAnswer = fileResponse(path)(r)
-    /** @type {Effect<Stat, ServerResponse, never>} */
-    const framed = r[0] === 'error' && r[1][0] === 'ioError' && r[1][1].code === notDirectory
+const answer = root => e => {
+    const hostAnswer = openFailure(e)
+    /** @type {Effect<Stat, ServerResponse<Fs>, never>} */
+    const framed = e[0] === 'ioError' && e[1].code === notDirectory
         ? resultMapStep(stat(served(root)), s =>
             ok(isServableRoot(s) ? plainText(404)('not found') : hostAnswer))
         : pureOk(hostAnswer)
@@ -473,10 +521,13 @@ const answer = root => path => r => {
  * An absolute-form target names its own host, and RFC 9112 §3.2.2 says to
  * believe that over the `Host` header.
  *
- * `HEAD` is answered exactly like `GET`, bytes included: Node drops the body of
- * a `HEAD` response itself and keeps the headers, so the one frame serves both
- * — and because {@link response} states `Content-Length`, a `HEAD` client still
- * learns the size it asked for.
+ * `HEAD` is answered exactly like `GET`, body included: the runner is what declines
+ * to pull a body Node will not carry — gate 2 of
+ * [streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md) — so the
+ * one frame serves both methods, and because {@link response} states
+ * `Content-Length` from the `fstat`, a `HEAD` client still learns the size it asked
+ * for. What the suppression costs is the handle opened for a body nobody pulls,
+ * and `release` is what gives that back.
  *
  * @type {Respond}
  */
@@ -497,11 +548,25 @@ export const respond = root => ({ method, url, headers }) => {
         return pureOk(plainText(status)(message))
     }
     const path = resolved[1]
-    const bytes = step(stat(path), readRegular(path))
-    // `resultStep`, not `resultMapStep`: framing the result is pure for every
-    // case but `ENOTDIR`, which asks the file system one more question — see
-    // {@link answer}.
-    return resultStep(bytes, answer(root)(path))
+    // One `open`, and every question after it is asked of what that open
+    // resolved: the kind, the size the header declares, and the bytes the body
+    // reads. `resultStep`, not `resultMapStep`, because framing an open that
+    // *failed* is pure for every case but `ENOTDIR`, which asks the file system
+    // one more question — see {@link answer}.
+    return resultStep(open(path), r => {
+        // Bound rather than returned inline, for the reason `main` binds its own:
+        // the branches are two different `Effect`s and `step` would infer neither
+        // from the union.
+        /** @type {Effect<Fs, ServerResponse<Fs>, never>} */
+        const framed = r[0] === 'error'
+            ? answer(root)(r[1])
+            : resultMapStep(fstat(r[1]), s => ok(s[0] === 'ok'
+                ? openResponse(path)(r[1])(s[1])
+                // The handle is open and the `fstat` is what failed, so this
+                // frame owes it back like any other.
+                : holding(r[1])(plainText(500)(errorSummary(s[1])))))
+        return framed
+    })
 }
 
 // ── The program ───────────────────────────────────────────────────────────────

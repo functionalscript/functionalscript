@@ -6,11 +6,13 @@
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
  * @import { MemoryState } from '../../memory/types.ts'
- * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server } from '../types.ts'
- * @import { Operation } from '../../types.ts'
+ * @import { Dirent, FileStat, Handle, Headers, IncomingMessage, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server, _Gate } from '../types.ts'
+ * @import { Effect, IoChannel, Operation } from '../../types.ts'
+ * @import { List } from '../../list/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
- * @import { Dir, JsModule, State, _Entity, _VirtualListener, _VirtualServer } from './types.ts'
+ * @import { Nullable } from '../../../types/nullable/types.ts'
+ * @import { Dir, JsModule, Overrun, RecordedResponse, State, Underrun, _Entity, _OpenFile, _VirtualListener, _VirtualServer } from './types.ts'
  */
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
@@ -21,11 +23,11 @@ import { byteLength, empty, length, maxLengthBytes, msb, vec } from '../../../ty
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import {
     badPortCode, badPortMessage, emptyHost, emptyHostError, ioError, isPort, nodeCommands, notAFileCode,
-    notAFileMessage,
+    notAFileMessage, refusalMessage, refusedStatus, responseGate, runnerResponse,
 } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { memoryInitial, memoryOperationMap } from '../../memory/module.f.mjs'
-import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
+import { asBase, asNominal } from '../../../types/nominal/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -40,6 +42,8 @@ export const emptyState = {
     listening: [],
     requests: [],
     responses: [],
+    handles: [],
+    handleNext: 0,
 }
 
 /**
@@ -521,16 +525,21 @@ const rename = (src, dst) => state => {
     return [{ ...state, root: dstRoot }, okVoid]
 }
 
-/** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
-const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
-    const resolved = resolveFile(jsModuleUnsupported('readBytes'))(dir, p)
-    if (resolved[0] === 'error') { return resolved }
+/**
+ * The window `offset`/`size` names of a chunk-list file, or the refusal that says
+ * the window is not one a host would read. Shared by `readBytes`, which resolves a
+ * *name* per call, and by {@link preadOp}, which reads the entity a handle holds —
+ * the window arithmetic is the same question and the difference between the two
+ * operations is entirely which bytes it is asked of.
+ *
+ * @type {(chunks: readonly Vec[], offset: number, size: number) => IoResult<Vec>}
+ */
+const window_ = (chunks, offset, size) => {
     if (!Number.isInteger(offset)) { return fail(`Offset ${offset} is not an integer`) }
     if (!Number.isInteger(size)) { return fail(`Chunk size ${size} is not an integer`) }
     if (offset < 0) { return fail(`Offset ${offset} is negative`) }
     if (size < 0) { return fail(`Chunk size ${size} is negative`) }
     if (BigInt(size) > maxLengthBytes) { return fail(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
-    const chunks = resolved[1]
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
     let result = empty
@@ -547,6 +556,12 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
         toRead -= takeBits
     }
     return ok(result)
+}
+
+/** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
+const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
+    const resolved = resolveFile(jsModuleUnsupported('readBytes'))(dir, p)
+    return resolved[0] === 'error' ? resolved : window_(resolved[1], offset, size)
 })(path)
 
 /** What `stat` answers for a name that exists and is neither a regular file nor
@@ -692,6 +707,144 @@ const statPath = readOperation((dir, path) => {
  */
 const statOp = emptyPathIsAbsent(statPath)
 
+// ── Open files ────────────────────────────────────────────────────────────────
+//
+// A handle is an identifier into {@link State.handles}, and what that entry holds
+// is the entity the name held **when it was opened**. That snapshot is the whole
+// point: a `Dir` entry can be replaced while a program runs, and a reader that
+// went back to the name per chunk could join two files into one correctly-sized
+// body. Reads here cannot, which is what makes the guard provable rather than
+// merely intended.
+
+/**
+ * What the entry `p` names is, for {@link openOp} — the entity itself, since a
+ * handle records what it opened rather than what kind of thing that was.
+ *
+ * It answers where {@link statPath} answers and refuses where that refuses, and
+ * for the same reasons: a directory arrives as an empty remaining path because
+ * `operation` has already descended into it, a name that is absent is `ENOENT`,
+ * and more than one segment left over means the name before them exists with
+ * nothing under it, which POSIX calls `ENOTDIR`. Both were measured through
+ * `open` itself on Darwin with Node 26.8.1 — an absent name is `ENOENT`, a path
+ * through a regular file is `ENOTDIR`, and a directory opens successfully.
+ *
+ * @type {(dir: Dir, path: readonly string[]) => IoResult<_Entity>}
+ */
+const openEntity = (dir, path) => {
+    if (path.length === 0) { return ok(dir) }
+    const entry = entryOf(dir, path[0])
+    if (entry === undefined) { return enoent }
+    if (path.length !== 1) { return enotdir }
+    return ok(entry)
+}
+
+/**
+ * Opens `path`, recording what it held.
+ *
+ * **Nothing here blocks, and on a host that is a flag rather than a fact.** A
+ * plain read-only open of a FIFO with no writer never returns; the node runner
+ * passes `O_NONBLOCK` so that it does, which is what lets a caller ask the
+ * *descriptor* whether it holds a regular file instead of asking the name and
+ * then opening whatever the name has become. This runner has no FIFOs, only a
+ * `JsModule` standing in for one, and it opens like everything else.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<Handle>]}
+ */
+const openOp = emptyPathIsAbsent(path => state => {
+    const [s, resolved] = readOperation(openEntity)(path)(state)
+    if (resolved[0] === 'error') { return [s, resolved] }
+    const id = s.handleNext
+    // Bound and annotated, as `createServer` binds its own: `asNominal` cannot
+    // infer which brand its caller meant.
+    /** @type {Handle} */
+    const handle = asNominal({ id })
+    return [
+        { ...s, handles: [...s.handles, { id, entity: resolved[1] }], handleNext: id + 1 },
+        ok(handle),
+    ]
+})
+
+/**
+ * What a read or an `fstat` through a handle that is no longer open answers, and
+ * it is the host's own code: measured on Darwin with Node 26.8.1, both a `read`
+ * and a `stat` through a closed `FileHandle` fail `EBADF`. A runner answering
+ * anything else would give a caller a branch it cannot reach on the host it ships
+ * against.
+ */
+const ebadf = error(ioError({ code: 'EBADF', message: 'bad file descriptor' }))
+
+/**
+ * The open file `handle` names, or `null` if it names none — it was closed, or it
+ * was never this runner's.
+ *
+ * @type {(state: State, handle: Handle) => Nullable<_OpenFile>}
+ */
+const openFile = (state, handle) => {
+    const { id } = /** @type {{ readonly id: number }} */ (asBase(handle))
+    return state.handles.find(h => h.id === id) ?? null
+}
+
+/**
+ * {@link FileStat} of what a handle holds, which is the same answer
+ * {@link statPath} gives for the same entity — the kinds a caller acts on do not
+ * depend on how it got there.
+ *
+ * **The size is the bound a reader may declare**, because it is the size of the
+ * file the reads will come from: nothing can be substituted under the handle
+ * between this and them.
+ *
+ * @type {(handle: Handle) => (state: State) => readonly [State, IoResult<FileStat>]}
+ */
+const fstatOp = handle => state => {
+    const held = openFile(state, handle)
+    if (held === null) { return [state, ebadf] }
+    const { entity } = held
+    if (isDir(entity)) { return [state, directory] }
+    if (isJsModule(entity)) { return [state, notRegular] }
+    return [state, ok({ size: fileSizeBytes(entity), isFile: true, isDirectory: false })]
+}
+
+/**
+ * The bytes at `offset`, at most `size` of them, from what the handle holds.
+ *
+ * A **directory** handle is `EISDIR`, measured on Darwin with Node 26.8.1 through
+ * a descriptor opened on one: the open succeeds and the read is what fails.
+ *
+ * A **`JsModule`** handle answers nought bytes, which is what the entry stands in
+ * for measured through the same descriptor: a non-blocking read of a writerless
+ * FIFO returned nought bytes rather than failing. It is a value and not a panic
+ * for the reason {@link jsModuleNotAFile} gives — a caller's branch for it is only
+ * reachable if the runner returns it — and under a declared bound `readChunks`
+ * turns it into the failed cell a truncated body deserves.
+ *
+ * @type {(handle: Handle, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]}
+ */
+const preadOp = (handle, offset, size) => state => {
+    const held = openFile(state, handle)
+    if (held === null) { return [state, ebadf] }
+    const { entity } = held
+    if (isDir(entity)) { return [state, error(ioError({ code: 'EISDIR', message: 'illegal operation on a directory' }))] }
+    if (isJsModule(entity)) { return [state, ok(empty)] }
+    return [state, window_(entity, offset, size)]
+}
+
+/**
+ * Gives the open file back.
+ *
+ * **A second close is `ok`**, and that is the host's answer rather than a
+ * convenience here: measured on Darwin with Node 26.8.1, a second
+ * `FileHandle.close()` resolved. It also means a handle this runner never handed
+ * out closes cleanly, which is the same thing a program cannot tell apart.
+ *
+ * @type {(handle: Handle) => (state: State) => readonly [State, IoResult<void>]}
+ */
+const closeOp = handle => state => {
+    const held = openFile(state, handle)
+    return held === null
+        ? [state, okVoid]
+        : [{ ...state, handles: state.handles.filter(h => h !== held) }, okVoid]
+}
+
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 //
 // There are no sockets here, but the two operations that *set up* a server still
@@ -732,13 +885,93 @@ const createServer = listener => state => {
     /** @type {_VirtualServer} */
     const server = { listener: /** @type {_VirtualListener} */ (listener) }
     /** @type {Server} */
-    const handle = asNominalServer(server)
+    const handle = asNominal(server)
     return [state, ok(handle)]
 }
 
 /**
+ * Pulls a response body cell by cell, counting the bytes against `bound`, and
+ * answers what went out together with what stopped it.
+ *
+ * This is the virtual counterpart of the node runner's pump, and it mirrors the
+ * one thing that is not about sockets: the count. `fjs/web` can be trusted to stop
+ * at the size it declared because it writes both the header and the fold; nothing
+ * in `ServerResponse<O>` ties them together, and no other listener is under that
+ * discipline. A `Content-Length` smaller than what the body goes on to produce is
+ * ordinary code, and what it buys on a host is one response's surplus eaten as the
+ * next one's status line.
+ *
+ * What it does **not** mirror is the pace, because there is no socket to take it
+ * from — so every cell is pulled at once here, and a proof about backpressure is a
+ * host proof ([`../proof.mjs`](../proof.mjs)).
+ *
+ * @type {(bound: Nullable<number>) => (state: State, e: List<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]}
+ */
+const pump = bound => {
+    /** @type {(state: State, e: List<NodeOp, Vec, IoChannel>, written: number, body: readonly Vec[]) => readonly [State, readonly Vec[], Nullable<IoChannel | Overrun | Underrun>]} */
+    const loop = (state, e, written, body) => {
+        const [next, cell] = virtual(state)(e)
+        // The cell's own failure, which is the producer's and not the runner's.
+        if (cell[0] === 'error') { return [next, body, cell[1]] }
+        const node = cell[1]
+        if (node === undefined) {
+            // A body that ended before the length it declared is destroyed on a
+            // host exactly as one that would run past it is — see `Underrun`.
+            return [next, body, bound !== null && written !== bound ? /** @type {Underrun} */ (['underrun', bound]) : null]
+        }
+        const got = Number(byteLength(node.first))
+        // None of the chunk is recorded: cutting it to fit would answer a body
+        // exactly as long as it promised, which every client reads as whole.
+        if (bound !== null && written + got > bound) { return [next, body, /** @type {Overrun} */ (['overrun', bound])] }
+        return loop(next, node.tail, written + got, [...body, node.first])
+    }
+    return loop
+}
+
+/**
+ * What the gate decided, as the record of it: the response frame that went out and
+ * what made it incomplete.
+ *
+ * A **suppressed** body holds no chunks and no failure — nothing went out and
+ * nothing went wrong, which is exactly what a `HEAD` or a `204` is. A **refused**
+ * response is the runner's own frame rather than the listener's, as it is on a
+ * socket, since the listener's is the one that may not be sent.
+ *
+ * @type {(gate: _Gate) => (state: State, status: number, headers: Headers, body: List<NodeOp, Vec, IoChannel>) => readonly [State, RecordedResponse]}
+ */
+const recordResponse = gate => (state, status, headers, body) => {
+    if (gate[0] === 'noBody') { return [state, { status, headers, body: [], failure: null }] }
+    if (gate[0] !== 'pump') {
+        return [state, { ...runnerResponse(refusedStatus, refusalMessage(gate)), failure: null }]
+    }
+    const [next, chunks, failure] = pump(gate[1])(state, body, 0, [])
+    return [next, { status, headers, body: chunks, failure }]
+}
+
+/**
+ * Answers one queued request: the listener, then the gates in their stated order,
+ * then the body, then `release` — which runs on **every** one of those paths,
+ * including the two that never pull a byte.
+ *
+ * `RecordedResponse` gains no field saying whether it ran. What a proof asserts is
+ * that {@link State.handles} is empty once the request is over, which is the leak
+ * itself rather than a report of it.
+ *
+ * @type {(listener: _VirtualListener) => (state: State, request: IncomingMessage) => State}
+ */
+const answerRequest = listener => (state, request) => {
+    const [afterListener, answered] = virtual(state)(listener(request))
+    const { status, headers, body, release } = unwrap(answered)
+    const [afterBody, recorded] = recordResponse(
+        responseGate(request.method, request.chunkedResponse, status, headers),
+    )(afterListener, status, headers, body)
+    const [afterRelease] = virtual(afterBody)(release)
+    return { ...afterRelease, responses: [...afterRelease.responses, recorded] }
+}
+
+/**
  * Takes the address, then hands `server`'s listener every queued request in
- * turn, threading the state through each and recording what came back. The
+ * turn, threading the state through each and recording what went out. The
  * queue is emptied, so a second `listen` does not re-deliver.
  *
  * **Binding can fail here, because it can fail on a host.** A port outside
@@ -779,7 +1012,7 @@ const listen = (server, port, host) => state => {
     // listening one, and an already-listening server retried with `''` reported
     // `ERR_SERVER_ALREADY_LISTEN` here against `ERR_INVALID_ARG_VALUE` there.
     if (host === emptyHost) { return [state, error(emptyHostError)] }
-    const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
+    const bound = /** @type {_VirtualServer} */ (asBase(server))
     const { listener } = bound
     // Asked **before** the port, because that is the order Node asks in: a
     // server already listening reports `ERR_SERVER_ALREADY_LISTEN` for `-1`,
@@ -818,9 +1051,9 @@ const listen = (server, port, host) => state => {
     }
     /** @type {State} */
     let s = { ...state, listening: [...state.listening, { address, server: bound }], requests: [] }
+    const answer = answerRequest(listener)
     for (const request of state.requests) {
-        const [next, response] = virtual(s)(listener(request))
-        s = { ...next, responses: [...next.responses, unwrap(response)] }
+        s = answer(s, request)
     }
     return [s, okVoid]
 }
@@ -877,6 +1110,10 @@ const map = {
     writeBytes: writeBytesOp,
     readWhole,
     stat: statOp,
+    open: openOp,
+    fstat: fstatOp,
+    pread: preadOp,
+    close: closeOp,
     createServer,
     listen,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
