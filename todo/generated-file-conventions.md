@@ -118,9 +118,11 @@ At the end of the existing generation-check job:
 
 1. Establish the pinned runtime before anything is deleted.
 2. Delete every `gen.*` file and directory in the project, tracked, untracked
-   and ignored. Skip `.git`, `node_modules` and `target`, which can contain
-   third-party `gen.*` names. The deletion is `npm run gen:clean`: a module in
-   [`fjs/dev`](../fjs/dev/module.f.mjs), next to the tree walker it reuses,
+   and ignored, leaving the directories empty (`rm` removes files only, and
+   git sees no empty directory). Skip dot-names such as `.git`, `node_modules` and `target`, which can contain
+   third-party `gen.*` names. The deletion is `npm run gen:clean`:
+   [`fjs/dev/clean`](../fjs/dev/clean/module.f.mjs), on the tree walker it
+   shares with proof discovery,
    run with `fjs r` like the generators, and using the same
    `startsWith('gen.')` test — not `find`/`rm`
    ([AGENTS.md §6](../AGENTS.md#6-external-tools)) and not a new CLI
@@ -198,7 +200,7 @@ One pull request each, stacked in this order:
       (blocker 3).
 - [x] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
       `fjs compile` creates its output directory (blocker 2).
-- [ ] Add `npm run gen:clean`, skipping `.git`, `node_modules` and `target`.
+- [x] Add `npm run gen:clean`, skipping `.git`, `node_modules` and `target`.
 - [ ] Update the CI generator under `fjs/ci/` to delete, regenerate and
       compare as separate steps; regenerate the workflow. Verify: a clean
       regeneration passes; a stale `gen.*` output fails drift; a new or
