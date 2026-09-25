@@ -123,6 +123,8 @@ const bodyLines = root => {
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
  * printer has no `nanvm-lib` spelling for, or an invalid parameter binding.
+ * Function arities above the target's `u32` maximum are refused, independently
+ * of EDAG validity and the JavaScript executor's factory-table capacity.
  * Unsupported output is a `Result`, as in `fjs/edag/rust`'s `scope`.
  * Analysis preconditions still apply: invalid length metadata or a node
  * shared across invocation scopes panics instead of producing output.

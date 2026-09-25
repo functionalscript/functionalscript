@@ -11,6 +11,7 @@ export const proof = {
     throw: {
         invalidLength: [-0, -1, 0.5, NaN, Infinity].map(length => () => toRust(['=>', length, null, 1])),
         invalidBindingThroughGenerate: () => generate(['=>', 1, null, ['arg', 1]]),
+        unsupportedLengthThroughGenerate: () => generate(['=>', 2 ** 32, null, 1]),
     },
     /**
      * A whole module whose sharing is implicit — two references to the same
@@ -224,6 +225,18 @@ pub fn module<A: IVm>() -> Result<Any<A>, Any<A>> {
 `)
     },
     toRust: {
+        lengthLimit: () => {
+            assertEq(toRust(['=>', 2 ** 32, null, 1])[0], 'error')
+            for (const graph of /** @type {readonly Exp[]} */ ([
+                ['=>', 0, null, ['=>', 2 ** 32, null, 1]],
+                ['=>', 0, ['[]', [['=>', 2 ** 32, null, 1]]], ['frame']],
+                ['?:', true, 1, ['=>', 2 ** 32, null, 1]],
+                ['{}', [[':', 'f', ['=>', 2 ** 32, null, 1]]]],
+            ])) { assertEq(toRust(graph)[0], 'error') }
+            for (const body of /** @type {readonly Exp[]} */ ([1, ['arg', 0xffff_fffe], ['rest']])) {
+                assertEq(toRust(['=>', 0xffff_ffff, null, body])[0], 'ok')
+            }
+        },
         refusedParameterBindings: () => {
             assertStructurallySame(toRust(['=>', 1, null, ['arg', 1]]),
                 ['error', 'no Rust spelling for this module: invalid fixed parameter index or scope: =>,1,,arg,1'])

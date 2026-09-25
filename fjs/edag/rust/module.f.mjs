@@ -606,6 +606,9 @@ const printer = nested => shared => root => {
                 : f(last(e))
         }
         if (id === '=>') {
+            // IStaticFunction::static_function stores length as u32. Larger
+            // EDAG arities are valid, but this target cannot represent them.
+            if (a > 0xffff_ffff) { return error(['function length exceeds Rust u32 capacity', a]) }
             // The corpus's `() => undefined`, which no operator inspects,
             // is the one the harness binds as `function_any`; every other
             // function is a closure, over its frame.
@@ -614,7 +617,7 @@ const printer = nested => shared => root => {
         return bare(/** @type {readonly any[]} */ (e))
     }
     /**
-     * A function, `['=>', frame, body]`, as a function value: a closure
+     * A function, `['=>', length, frame, body]`, as a function value: a closure
      * bound through `IStaticFunction`, the `StaticCode<A>` signature's two
      * parameters, the EDAG's fixed parameter count, and its frame, the
      * `Array<A>` {@link frameExpr} prints in the scope around it. Rest is

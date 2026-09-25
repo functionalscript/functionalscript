@@ -5,15 +5,18 @@
 
 ### Scope: an alternative, not a parameter blocker
 
-The [named-and-rest parameter proposal](./3120-parameters.md) now separates
+The [named-and-rest parameter plan](./3120-parameters.md), implemented in #2237, separates
 `['arg', N]` from `['rest']` and uses pre-generated arrow factories. It does
 not expose the original supplied argument count inside a positive-length
 fixed prefix. This file tracks the stronger, alternative requirement below;
-it is not a prerequisite for implementing that proposal.
+it is not a prerequisite for the fixed/rest implementation.
 
-No representation change has landed merely by updating these TODOs. The
-current zero-arity function format and its `['args']` behavior remain intact
-until the parameter plan's coordinated migration.
+The current function shape is `['=>', length, frame, body]`, with fixed
+`['arg', N]` and per-invocation `['rest']` bindings. The old three-element,
+zero-arity tuple and its function-owned `['args']` are historical. Unresolved
+modules retain their separate ordered import binding under `['args']`;
+function bodies cannot read it. A function's frame belongs to its enclosing
+scope, while only its body opens a new invocation.
 
 ### Problem
 
@@ -21,11 +24,12 @@ The earlier hypothetical format combined positive declared arity with the
 complete supplied argument list. A graph such as
 `['=>', 2, ['[]', []], ['.', ['args'], 'length']]` would need a callable `f`
 with `f.length === 2`, `f() === 0`, `f(undefined) === 1` and `f(1, 2, 3) === 3`.
-This is not a valid example of the new `arg`/`rest` proposal.
+This is invalid under the implemented fixed/rest binding rules; the tuple's
+four elements do not make the complete-arguments interpretation valid.
 
 A named-plus-rest arrow cannot recover that complete list: rebuilding
 `[a, b, ...rest]` pads omitted fixed positions with `undefined`. That is a
-problem for this stronger contract, not for the new parameter-binding contract.
+problem for this stronger contract, not for the implemented parameter-binding contract.
 The [length-pattern proposal](./3130-function-length-pattern.md) is one
 possible mechanism for the stronger contract.
 
