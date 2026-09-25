@@ -3,36 +3,51 @@
 **Priority:** P3
 **Status:** open
 
+### Scope: an alternative, not a parameter blocker
+
+The [named-and-rest parameter plan](./3120-parameters.md), implemented in #2237, separates
+`['arg', N]` from `['rest']` and uses pre-generated arrow factories. It does
+not expose the original supplied argument count inside a positive-length
+fixed prefix. This file tracks the stronger, alternative requirement below;
+it is not a prerequisite for the fixed/rest implementation.
+
+The current function shape is `['=>', length, frame, body]`, with fixed
+`['arg', N]` and per-invocation `['rest']` bindings. The old three-element,
+zero-arity tuple and its function-owned `['args']` are historical. Unresolved
+modules retain their separate ordered import binding under `['args']`;
+function bodies cannot read it. A function's frame belongs to its enclosing
+scope, while only its body opens a new invocation.
+
 ### Problem
 
-The [named-parameter proposal](./3120-parameters.md) preserves declared arity
-but limits source serialization of positive-arity functions to indexed reads
-of declared parameters. Valid EDAGs can also observe the complete actual
-argument list, which those source forms cannot reconstruct.
+The earlier hypothetical format combined positive declared arity with the
+complete supplied argument list. A graph such as
+`['=>', 2, ['[]', []], ['.', ['args'], 'length']]` would need a callable `f`
+with `f.length === 2`, `f() === 0`, `f(undefined) === 1` and `f(1, 2, 3) === 3`.
+This is invalid under the implemented fixed/rest binding rules; the tuple's
+four elements do not make the complete-arguments interpretation valid.
 
-Under the proposed format, `['=>', 2, ['[]', []], ['.', ['args'], 'length']]`
-describes a callable `f` with `f.length === 2`, `f() === 0`, `f(undefined) === 1` and
-`f(1, 2, 3) === 3`. Returning `['args']` or forwarding it must likewise
-preserve omissions and extra arguments.
-
-Mixed rest, `(a, b, ...rest) => …`, preserves declared arity and extra
-arguments, but `[a, b, ...rest]` pads omitted positions with `undefined`.
-It therefore does not solve the complete-argument case by itself. Until
-an approved representation exists, the writer must refuse these graphs
-explicitly; EDAG validation and execution still admit them.
+A named-plus-rest arrow cannot recover that complete list: rebuilding
+`[a, b, ...rest]` pads omitted fixed positions with `undefined`. That is a
+problem for this stronger contract, not for the implemented parameter-binding contract.
+The [length-pattern proposal](./3130-function-length-pattern.md) is one
+possible mechanism for the stronger contract.
 
 ### Tasks
 
-- [ ] Propose a source representation that preserves both declared arity
-  and the complete actual argument list. Explain its benefits, drawbacks
-  and any additional syntax or runtime support it needs.
-- [ ] Obtain language-designer approval before adding source capabilities;
-  update the writer boundary in the parameter plan when support is added.
-- [ ] Prove callable round trips for omitted, explicit `undefined` and
-  extra arguments, including returning and forwarding the argument array.
+- [ ] Revisit only if positive arity plus the complete original supplied list
+      is needed independently of the named-and-rest parameter work. Obtain an
+      explicit language-design decision before restoring that EDAG capability.
+- [ ] If retained, propose a source representation preserving both properties,
+      state its benefits and costs, and reconcile it with the parameter plan;
+      do not silently give `['rest']` or `['arg', N]` different meanings.
+- [ ] Prove omitted, explicit `undefined` and extra-argument round trips for
+      any such extension. Unsupported legacy/proposed graphs must be refused,
+      not normalized and described as lossless.
 
 ### Related
 
-- [Review finding](https://github.com/functionalscript/functionalscript/pull/2133#discussion_r4054015547).
+- [Review finding](https://github.com/functionalscript/functionalscript/pull/2133#discussion_r4054015547)
+  — the complete-list writer obstruction that motivated the earlier task.
 - [Serialization](./serialization.md#function-text-and-serialization) —
   callable serialization and default function text have separate open questions.

@@ -54,7 +54,7 @@ import { mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
 import { keywords } from '../keywords/module.f.mjs'
 import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
-    asterisk, lf,
+    apostrophe, asterisk, lf,
     reverseSolidus,
     hexDigitValue,
     latinSmallLetterU,
@@ -184,17 +184,27 @@ const lex = path => cp => {
  */
 const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
 
+/**
+ * The code point a simple escape denotes: JSON's table, shared with the
+ * JSON serializer, and `\'` above it. `\'` is JavaScript's and not JSON's,
+ * so it is decoded here rather than added to the table, whose encode view
+ * would then write `\'` into JSON.
+ *
+ * @type {(letter: number) => number | null}
+ */
+const simpleEscapeToCodePoint = letter => letter === apostrophe ? apostrophe : escapeToCodePoint(letter)
+
 /** @type {StateScan<number, _StringDecodeState, List<number>>} */
 const stringDecodeScan = (cp, state) => {
     switch (state.kind) {
         case 'escape': {
-            const codePoint = escapeToCodePoint(cp)
+            const codePoint = simpleEscapeToCodePoint(cp)
             // The grammar's `string` rule only ever accepts one of the eight
-            // simple escapes or `u` right after a backslash — any other
-            // character fails to parse before a token reaches this scan at
-            // all, so narrowing to those nine is provable, not merely
-            // assumed. `u` is the one the table does not answer for: the
-            // four hex digits that follow decide its meaning.
+            // simple escapes, `\'` inside single quotes, or `u` right after
+            // a backslash — any other character fails to parse before a
+            // token reaches this scan at all, so narrowing to those ten is
+            // provable, not merely assumed. `u` is the one no table answers
+            // for: the four hex digits that follow decide its meaning.
             assert(codePoint !== null || cp === latinSmallLetterU, cp)
             return codePoint === null
                 ? [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
@@ -209,8 +219,13 @@ const stringDecodeScan = (cp, state) => {
     }
 }
 
-/** @type {(codePoints: readonly number[]) => string} */
-const decodeJsonString = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
+/**
+ * A string token's value: its text between the two quotes, either kind,
+ * with every escape decoded.
+ *
+ * @type {(codePoints: readonly number[]) => string}
+ */
+const decodeString = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
 
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
@@ -225,7 +240,7 @@ const keywordSet = new Set(keywords)
 const toJsToken = ({ kind, text }) => {
     const value = codePointListToString(text)
     switch (kind) {
-        case 'string': { return { kind: 'string', value: decodeJsonString(text) } }
+        case 'string': { return { kind: 'string', value: decodeString(text) } }
         case 'id': { return keywordSet.has(value) ? /** @type {JsToken} */ ({ kind: value }) : { kind: 'id', value } }
         case 'number': {
             return value.endsWith('n') ? { kind: 'bigint', value: BigInt(value.slice(0, -1)) } : { kind: 'number', value }

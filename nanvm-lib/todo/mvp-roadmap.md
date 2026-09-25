@@ -16,8 +16,34 @@ source ──(fjs compile <module> <output>.rs)──> Rust code
        ──(cargo: harness crate + nanvm-lib)──> executable ──(run)──> result
 ```
 
-The harness evaluates the module's `export default` (running it if it is a
-function) and prints the result to stdout as JSON.
+The EDAG module computation returns the complete **export object**. Named
+exports are its properties; `export default` contributes the `default`
+property when present. A named-only module needs no default export. This
+representation already exists on `main`; it is not a pending EDAG change.
+
+For the MVP, the harness must consume that object, select an explicitly requested
+export, and print the selected value or invocation result as JSON.
+[Named imports](../../spec/README.md#importing-other-modules) are implemented
+and proven with a named-only module and its dependency. The remaining MVP work
+is [harness export selection](../../nanvm-harness/todo/select-module-export.md):
+the compiler fixture already selects and invokes `main` through the VM API,
+but the harness API/CLI still needs to expose that operation. The default-export
+walking skeleton below is the starting point, not the complete acceptance test.
+
+The required parser scope is the
+[named-module acceptance example](../../todo/fjs-nanvm-integration.md#named-module-acceptance):
+the existing LL(1) parser already accepts its named exports, empty/rest-only
+functions, calls and arithmetic. Named-import syntax is also implemented.
+Completing the
+whole language grammar or compiling every repository module is not an
+additional MVP gate; further syntax follows the
+[language roadmap](../../spec/todo/README.md).
+
+Source imports are already linked into one EDAG before `toRust` emits a single
+Rust file; see `rustText` in the [compiler](../../fjs/fsc/module.f.mjs) and the
+[import-inlining contract](../../spec/README.md#importing-other-modules).
+Generated source dependencies therefore need no separate Rust `use` or file
+layout convention. The embedding crate chooses where to include that output.
 
 `fjs` never invokes cargo: the npm-shipped tool emits `.rs` files, and
 building/running them is an ordinary cargo workflow. Each ecosystem keeps its
@@ -97,7 +123,7 @@ new CLI surface: the previously proposed `fjs vm build` / `fjs vm run`
 command group is dropped.
 
 One FJS module compiles to one Rust file, and the generated file is a Rust
-**module** — exposing the module's value via the `nanvm-lib` API (e.g.
+**module** — exposing the complete export object via the `nanvm-lib` API (e.g.
 `pub fn module<A: IVm>() -> Result<Any<A>, Any<A>>`, the `Err` a thrown
 value) — not a `main`. A thin, hand-written
 `main` lives in the consumer: the test harness in this repo, the `nanvm`
@@ -210,8 +236,8 @@ byte-exactness, a direct correctness signal; mark the generated paths
 `linguist-generated=true` in `.gitattributes` so the diffs stay collapsed
 by default. The gitignored `_*` convention remains reserved for
 *uncommitted* generated scratch, so the committed generated code lives in a
-normally-named location (its layout is part of the generated-module-imports
-open question below).
+normally-named location chosen by the embedding crate. Each compiler invocation
+produces one Rust file containing the linked source dependency graph.
 
 This reverses the earlier publish-time-generation decision (gitignored
 `_*` output packaged via `Cargo.toml`'s `include`, published with
@@ -291,13 +317,24 @@ as a generic `Any` facility, post-MVP.
       `nanvm-harness` crate below: `npm run gen` compiles the harness's
       fixtures with this generator, and `cargo test` runs the result.
 - [x] **Harness + walking skeleton** — a harness crate (`nanvm-harness`)
-      whose `main` evaluates a generated module's `export default` and
-      prints the result as JSON; the pipeline is wired end-to-end with
+      whose `main` selects a generated module's `default` property and
+      prints that value as JSON; it does not invoke an exported function.
+      The pipeline is wired end-to-end with
       fixtures covering the walking-skeleton subset
       (`nanvm-harness/fixtures/{number,boolean,string,array,object,sharing,property}.mjs`),
       compiled by `fjs compile` into sibling `.rs` files committed and
       drift-checked via `npm run gen`, and proven by `cargo test` in CI. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
+- [ ] **Named-module integration** — finish
+      [harness export selection](../../nanvm-harness/todo/select-module-export.md).
+      [Named imports](../../spec/README.md#importing-other-modules) and the
+      compiler acceptance fixture are implemented: a named-only module imports
+      a named function, and its exported entry function returns `42` in native
+      JavaScript, both EDAG evaluators and generated Rust. The fixture uses
+      explicit VM selection/call operations; the general harness API/CLI is
+      still pending. Keep all exports in the module result; no default-export
+      adapter or named-function-parameter feature is required. See
+      [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md#named-module-acceptance).
 - [x] **Test generation for operators** — one test-data module drives both
       the FJS proof (JS engine reference) and the generated Rust tests, so
       every new operator is tested once, not twice. Doubly important now: the
@@ -311,7 +348,13 @@ as a generic `Any` facility, post-MVP.
       tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../spec/todo/2340-operators.md).
-- [ ] **Parser**, using [`fjs/ebnf/`](../../fjs/ebnf/README.md) (FJS).
+- [x] **LL(1) parser foundation** —
+      [`fjs/fsc/parser`](../../fjs/fsc/parser/README.md) uses
+      [`fjs/ebnf/ll1`](../../fjs/ebnf/ll1/README.md) and implements the
+      source subset used by the walking skeleton. This does not mark the
+      full language grammar complete. Named-import parsing is also
+      implemented; **Named-module integration** above tracks the remaining
+      harness work. There is no separate unspecified parser gate.
 - [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
       First complete the repository TypeScript-to-JavaScript Stage 1 and authored
       `.f.js` package support. Then, as compiler coverage grows, rename eligible
@@ -385,15 +428,11 @@ compiler-compatibility migration rather than a separate rewrite.
    conflicts with "always 8-byte doubles". Do we adopt RFC 8949 §4.2 as-is,
    or define our own profile (e.g. always 64-bit floats)? Belongs to the
    `Any` serialization task (P3).
-2. **Generated module imports.** An FJS module imports other modules. What is
-   the convention for how generated Rust modules reference each other
-   (`use` paths, file/directory layout mirroring the FJS module graph)? And
-   does `fjs compile <input> <output>.rs` emit the transitive closure as
-   multiple files, or is it invoked per module?
-3. **Result printing.** The harness prints the result to stdout as JSON, but
-   a result can be non-JSON (`undefined`, `bigint`, a function). Does the MVP
-   print DJS for those, or report an error?
-4. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
+2. **Result printing beyond JSON.** Keep the harness's explicit JSON refusal
+   for a selected value or call result that JSON cannot represent. Whether to
+   add DJS output later remains open; serializing the entire export object is
+   not a prerequisite for invoking one of its functions.
+3. **Binary name.** The npm tool is `fjs`; the crate is `nanvm`. Should the
    crate's binary also be named `fjs` (same CLI surface, native), or `nanvm`?
 
 ### Related

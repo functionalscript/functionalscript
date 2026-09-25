@@ -44,12 +44,13 @@ at the site's own view, and GitHub can stay as a second link.
   [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s — the grammar's
   general JS stream, which the compiler's tokenizer folds — since the
   grammar replaced the hand-written scanner behind that path.
-- **The grammar must first recognise the sources it will show.** Today its
-  string rule is JSON's, the double quote only, and it has no template
-  literal: `const a = 'x'` and a template literal alike stop the grammar at
-  an `invalid token`. Nearly every authored module uses single quotes, so the
-  views would show nothing or highlight garbage, and the doc extractor would
-  read string contents as declarations. Widening the grammar is the
+- **The grammar must first recognise the sources it will show.** Its string
+  rule reads JSON's string between either quote, but no other JavaScript
+  escape, and it has no template literal: `'\x41'` and a template literal
+  alike stop the grammar at an `invalid token`. Many authored modules use one
+  or the other, so the views would show nothing past them or highlight
+  garbage, and the doc extractor would read string contents as
+  declarations. Widening the grammar is the
   prerequisite, as a PR of its own in `fjs/ebnf/lib/js`, tracked as
   [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md).
   A second lexer, or widening the hand-written scanner instead, is the

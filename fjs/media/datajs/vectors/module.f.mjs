@@ -40,13 +40,13 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
+import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { lowerHexDigitValue } from '../../../text/ascii/module.f.mjs'
+
 const { is, keys } = Object
 
-/** The value of a lowercase hex digit, or `-1` for any other code unit. @type {(unit: number) => number} */
-const hexDigit = unit =>
-    unit >= 0x30 && unit <= 0x39 ? unit - 0x30 :
-    unit >= 0x61 && unit <= 0x66 ? unit - 0x57 :
-    -1
+/** The value of the lowercase hex digit at `i` in `hex`, or `null` for any other code unit. @type {(hex: string) => (i: number) => number | null} */
+const hexDigit = hex => i => lowerHexDigitValue(hex.charCodeAt(i))
 
 /**
  * Whether `hex` is spelled as a byte document is: lowercase pairs separated
@@ -56,8 +56,9 @@ const hexDigit = unit =>
  */
 const isHex = hex => {
     if (hex.length % 3 !== 2) { return false }
+    const digit = hexDigit(hex)
     for (let i = 0; i < hex.length; i += 3) {
-        if (hexDigit(hex.charCodeAt(i)) < 0 || hexDigit(hex.charCodeAt(i + 1)) < 0) { return false }
+        if (digit(i) === null || digit(i + 1) === null) { return false }
         if (i + 2 < hex.length && hex.charCodeAt(i + 2) !== 0x20) { return false }
     }
     return true
@@ -71,10 +72,11 @@ const isHex = hex => {
  *
  * @type {(hex: string) => readonly number[] | null}
  */
-export const bytes = hex =>
-    isHex(hex)
-        ? Array.from({ length: (hex.length + 1) / 3 }, (_, i) => hexDigit(hex.charCodeAt(i * 3)) * 16 + hexDigit(hex.charCodeAt(i * 3 + 1)))
-        : null
+export const bytes = hex => {
+    if (!isHex(hex)) { return null }
+    const digit = hexDigit(hex)
+    return Array.from({ length: (hex.length + 1) / 3 }, (_, i) => assertNotNullish(digit(i * 3)) * 16 + assertNotNullish(digit(i * 3 + 1)))
+}
 
 // typed over the model's own arrays, which are read-only, so that the
 // other branch narrows to the object

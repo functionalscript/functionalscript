@@ -5,11 +5,11 @@
  * @module
  */
 
-import { map } from '../../types/list/module.f.mjs'
+import { fold, map, toArray } from '../../types/list/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { isValidCodePoint } from '../../text/code_point/module.f.mjs'
 import { percentDecode } from '../../text/percent/module.f.mjs'
-import { concat as pathConcat } from '../module.f.mjs'
+import { concat as pathConcat, _dotSegmentFold } from '../module.f.mjs'
 
 /** A literal URL string replaces lone surrogates; percent-encoded bytes stay strict UTF-8. @type {(c: number) => number} */
 const scalarValue = c => isValidCodePoint(c) ? c : 0xfffd
@@ -32,23 +32,22 @@ const importSegment = segment => {
 }
 
 /**
- * Reduce URL dot segments while the other components are still encoded.
+ * A URL-path segment, classified while the other components are still encoded.
  * Only the URL grammar's exact dot spellings are structural; canceled
  * components need not be valid UTF-8 or valid filesystem names. Keep empty
  * components here: in `bad%//../dep`, `..` removes the empty one, not `bad%`.
  *
- * @type {(rooted: boolean) => (segments: readonly string[], segment: string) => readonly string[]}
+ * @type {(segment: string) => 'skip' | 'up' | 'keep'}
  */
-const importDotSegments = rooted => (segments, segment) => {
+const importSegmentKind = segment => {
     switch (segment.toLowerCase()) {
-        case '.': case '%2e': return segments
-        case '..': case '.%2e': case '%2e.': case '%2e%2e':
-            return segments.length !== 0 && segments[segments.length - 1] !== '..'
-                ? segments.slice(0, -1)
-                : rooted ? segments : [...segments, '..']
-        default: return [...segments, segment]
+        case '.': case '%2e': return 'skip'
+        case '..': case '.%2e': case '%2e.': case '%2e%2e': return 'up'
+        default: return 'keep'
     }
 }
+
+const importDotSegments = _dotSegmentFold(importSegmentKind)
 
 /**
  * Resolve an import's URL-path spelling against its importing file, or return
@@ -80,7 +79,7 @@ export const decode = specifier => {
         || specifier.includes('?') || specifier.includes('#')) { return null }
     const rooted = specifier.startsWith('/')
     const raw = specifier.split('/')
-    const components = (rooted ? raw.slice(1) : raw).reduce(importDotSegments(rooted), [])
+    const components = toArray(fold(importDotSegments(rooted))([])(rooted ? raw.slice(1) : raw))
     const segments = components.map(importSegment)
     return segments.every(segment => segment !== null)
         ? `${rooted ? '/' : ''}${segments.join('/')}`

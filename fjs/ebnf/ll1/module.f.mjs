@@ -33,7 +33,7 @@ import { at, definedEntries, definedValues, structurallySame } from '../../types
 import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
-import { emptyTagMap, matchRule, toData, validate } from '../data/module.f.mjs'
+import { _fixpoint, _nullable as nullable, emptyTagMap, matchRule, toData, validate } from '../data/module.f.mjs'
 
 const { keys, fromEntries } = Object
 const { isSafeInteger } = Number
@@ -51,14 +51,6 @@ const eofSymbol = -1
  * @type {(s: number) => boolean}
  */
 const isSymbol = s => isSafeInteger(s) && s >= 0 && !Object.is(s, -0)
-
-/**
- * Whether the rule named `name` can match empty — an own entry only, as in
- * `../data`: a rule may be named `constructor`, and `{}` inherits one.
- *
- * @type {(empty: EmptyTagMap) => (name: string) => boolean}
- */
-const nullable = empty => name => at(name)(empty) !== null
 
 /**
  * The first set of `name`, and the map extended with every rule computed on
@@ -219,12 +211,9 @@ const followMap = (ruleSet, first, nullable, names) => {
             /** @type {(m: FirstMap, entry: readonly [string, RangeSet]) => FirstMap} */
             ((m, [name, symbols]) => ({ ...m, [name]: union(m[name])(symbols) })),
             follow)
-    /** @type {(follow: FirstMap) => FirstMap} */
-    const fixpoint = follow => {
-        const next = step(follow)
-        return structurallySame(next, follow) ? next : fixpoint(next)
-    }
-    return fixpoint(fromEntries(names.map(name => [name, empty])))
+    // `structurallySame`, not `===`: a round rebuilds every set it unions
+    // into, whether or not its contents changed.
+    return _fixpoint(step, structurallySame)(fromEntries(names.map(name => [name, empty])))
 }
 
 /**

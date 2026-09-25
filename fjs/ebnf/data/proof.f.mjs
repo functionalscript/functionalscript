@@ -7,7 +7,7 @@ import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../.
 import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
-import { emptyTagMap, matchRule, toData, validate } from './module.f.mjs'
+import { _fixpoint, codePoints, emptyTagMap, matchRule, toData, validate } from './module.f.mjs'
 
 const { keys } = Object
 const { MAX_SAFE_INTEGER } = Number
@@ -126,6 +126,19 @@ const stringBranch = {
 const refuse = ruleSet => validate({ ...int, ...ruleSet }, 'int')
 
 export const proof = {
+    // One symbol per code point: an astral character is one, not the two
+    // UTF-16 units it occupies. A lone surrogate, high or low, is no code
+    // point and is refused rather than tagged into a negative symbol.
+    codePoints: {
+        text: () => {
+            assertStructurallySame(codePoints(''), [])
+            assertStructurallySame(codePoints('a😀'), [c('a'), 0x1F600])
+        },
+        throw: {
+            loneHigh: () => codePoints('\uD800'),
+            loneLow: () => codePoints('a\uDC00'),
+        },
+    },
     // Each handler receives the payload without its tag.
     matchRule: {
         kinds: () => {
@@ -213,6 +226,20 @@ export const proof = {
                 c: true,
                 self: undefined,
             })
+        },
+    },
+    // A round per step, and no frame per round: a hundred thousand rounds
+    // are a stack overflow as a recursion and nothing as a loop. `same`
+    // decides the last round, so a round that rebuilds an equal array ends
+    // the loop where `===` never would.
+    _fixpoint: {
+        deep: () => {
+            assertEq(_fixpoint((/** @type {number} */ n) => n < 100_000 ? n + 1 : n, (a, b) => a === b)(0), 100_000)
+        },
+        same: () => {
+            /** @type {(a: readonly number[]) => readonly number[]} */
+            const grow = a => a.length < 3 ? [...a, a.length] : [...a]
+            assertStructurallySame(_fixpoint(grow, (a, b) => a.length === b.length)([]), [0, 1, 2])
         },
     },
     validate: {

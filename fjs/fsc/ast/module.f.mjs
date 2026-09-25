@@ -152,7 +152,8 @@ const toDjs = state => ast => {
         case 'array': { return mapOk(arrayOf)(okList(ast[1].map(toDjs(state)))) }
         case 'object': { return mapOk(objectOf)(okList(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
-        case 'args':
+        case 'arg':
+        case 'rest':
         case 'fref': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
         case '-': { return ast.length === 2 ? okThen(negated)(toDjs(state)(ast[1])) : error(noOperatorValue) }
@@ -339,9 +340,10 @@ const refsOfOperand = view => ast => {
         }
         // a function names what it captures, the enclosing scope's own
         // references, which it establishes when it is made
-        case '=>': { return flat((ast[2] ?? []).map(refsOf(view))) }
+        case '=>': { return flat((ast[3] ?? []).map(refsOf(view))) }
         // its arguments and its frame are its own
-        case 'args':
+        case 'arg':
+        case 'rest':
         case 'fref': { return empty }
         default: { return [{ ref: ast, keys: [] }] }
     }
@@ -638,7 +640,7 @@ const moduleGroup = id => `module ${id}`
  */
 const containerNode = (imports, consts) => ({ ref: [kind, i], keys }) => {
     const [group, value] = kind === 'cref' ? [`const ${i}`, consts[i]] : [moduleGroup(imports[i].id), imports[i].value]
-    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' }] : []
+    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' ? i : null }] : []
 }
 
 /**
@@ -706,9 +708,13 @@ const withinPrevious = sorted => (node, i) => {
 export const sharing = body => imports => consts => {
     const nodes = toArray(body.reduceRight(routeEntry, exported(body)).refs).flatMap(containerNode(imports, consts))
     const sorted = nodes.toSorted(byNode)
-    const reached = [...new Map(imports.map(byId)).values()].filter(m => nodes.some(n => n.aref && n.group === moduleGroup(m.id)))
+    const bindings = imports.filter((_, i) => nodes.some(n => n.aref === i))
+    const reached = [...new Map(bindings.map(byId)).values()]
+    // Routes are relative to each selected export. Different roots from one
+    // module may share descendants even when their relative keys differ.
+    const overlapping = bindings.some(m => reached.some(n => m.id === n.id && m.value !== n.value))
     /** @type {readonly string[]} */
     const reaches = [...reached.map(m => m.id), ...reached.flatMap(m => m.reaches)]
-    const shared = sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
+    const shared = overlapping || sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
     return { shared, reaches: shared ? [] : reaches }
 }
