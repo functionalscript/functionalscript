@@ -61,6 +61,9 @@ fjs compile input.f.js output.edag.data.js  # the program's EDAG
 fjs compile input.f.js output.rs            # a generated nanvm-lib module
 ```
 
+Each `.js` name has an `.mjs` twin — `.data.mjs`, `.mjs`, `.edag.data.mjs` —
+for a file that must load as an ES module whatever the package's `"type"` says.
+
 `c` is one array reached twice, so `output.data.js` keeps it shared:
 
 ```js
