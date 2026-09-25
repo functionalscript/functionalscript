@@ -171,12 +171,14 @@ Run this after changing anything a generator reads — `fjs/ci`'s workflows and
 Nix flakes, `fjs/nanvm`'s Rust test data. It needs nothing beyond Node, runs on
 Windows, and never touches a lockfile of any kind.
 
-CI's drift check runs `npm run gen:clean`, then `npm run gen`, then
-`git add -A && git diff --cached --exit-code`. `gen:clean` deletes every
-generated output first, so regeneration starts from nothing: an output no
+`gen` starts by deleting every generated output — the same module as
+`npm run gen:clean` — so regeneration starts from nothing: an output no
 generator writes any more shows up as a deletion, and a generator that needs
-a previous output — its own or another's — fails. Run the same three commands
-to see what CI will.
+a previous output — its own or another's — fails. CI's drift check runs `gen`
+and then `git add -A && git diff --cached --exit-code`; run the same two
+commands to see what CI will. The cleanup lives in `gen` rather than in its
+own CI step because the workflow `fjs ci` generates is shared with downstream
+projects, whose contract is only `cov` and `gen`.
 
 #### Naming generated files
 
@@ -207,6 +209,11 @@ the two workflows (npm trusted publishing is bound to `npm-publish.yml`'s exact
 name) and the generated files in `nix/` (Nix needs `flake.nix`, and every CI
 step enters the shell through `./nix/run`). Lockfiles are not generated
 outputs: `npm run lock-update` refreshes them, not `gen`.
+
+A known gap: because fixed-path outputs are not deleted, an obsolete one — a
+Nix job directory the CI generator stopped writing — survives the drift check.
+Deleting them waits on the generator restoring executable bits
+([generated-run-script-mode](./fjs/ci/todo/generated-run-script-mode.md)).
 
 ### Updating dependencies
 

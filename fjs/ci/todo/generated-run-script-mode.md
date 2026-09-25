@@ -86,11 +86,11 @@ proof is the thing this repository does not ship.
       the workflows and `nix/*/flake.nix` and `run`, keeping the root
       `nix/run` and `nix/flake.nix` the step runs through — so an obsolete
       Nix job directory fails the drift check
-      ([generated-file-conventions](../../../todo/generated-file-conventions.md)).
+      ([CONTRIBUTING.md](../../../CONTRIBUTING.md#naming-generated-files)).
 
 ### Related
 
-- [generated-file-conventions](../../../todo/generated-file-conventions.md) —
+- [Naming generated files](../../../CONTRIBUTING.md#naming-generated-files) —
   the drift check that deletes generated files, blocked on this for the
   fixed-path ones
 - [65Z-ci-nix](65z-ci-nix.md) — owns the generated directory, and requires the

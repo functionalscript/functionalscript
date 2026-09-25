@@ -244,7 +244,6 @@ export const proof = {
         assert(!hasRunInJob('node22', 'fjs test')(gha), 'unexpected published-CLI smoke test in node22')
         assert(!hasRunInJob('node22', 'npm install -g')(gha), 'unexpected global install in node22')
         assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
-        assert(hasRunInJob('node26', 'npm run gen:clean')(gha), 'expected Node 26 generated-file deletion')
         assert(hasRunInJob('node26', 'npm run gen')(gha), 'expected Node 26 workflow regeneration')
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
@@ -582,7 +581,7 @@ export const proof = {
         for (const [version, commands] of /** @type {const} */ ([
             [node.node22, ['npm ci', 'node --test']],
             [node.node24, ['npm ci', 'node --test']],
-            [node.default, ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen:clean', 'npm run gen']],
+            [node.default, ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen']],
         ])) {
             const id = `node${major(version)}`
             // The two older versions run in a flake of their own, because

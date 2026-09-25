@@ -122,12 +122,7 @@ const suiteNixSteps = version => [
  * `npm run gen` and the drift check it feeds run **last**, after every
  * other command. The check compares the working tree against what the generator
  * produces, so putting it at the end makes it the last word: any file an earlier
- * step wrote is in the comparison. `npm run gen:clean` runs just before it and
- * deletes every `gen.*` output, so regeneration starts from nothing: an output
- * no generator writes any more is a deletion in the comparison, and a
- * generator that reads its own previous output fails. The Nix files `./nix/run`
- * needs are fixed-path outputs, not `gen.*`, so the shell survives the
- * deletion. Nothing those steps leave behind is tracked:
+ * step wrote is in the comparison. Nothing those steps leave behind is tracked:
  * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, and
  * `--no-update-lock-file` means Nix leaves nothing at all.
  *
@@ -141,7 +136,7 @@ const node26NixSteps = [
     nodeVersionStep(nixShell, node.default),
     tscVersionStep,
     ...nixSteps(nixShell)(
-        ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen:clean', 'npm run gen']),
+        ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`
