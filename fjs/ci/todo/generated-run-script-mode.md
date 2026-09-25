@@ -82,9 +82,17 @@ proof is the thing this repository does not ship.
       `lock-update.sh` executable
 - [ ] Drop the `git update-index --chmod=+x` note from `writeJob`'s docstring,
       `nix/README.md` and this file's siblings once it is untrue
+- [ ] Then let `npm run gen:clean` delete the fixed-path outputs as well —
+      the workflows and `nix/*/flake.nix` and `run`, keeping the root
+      `nix/run` and `nix/flake.nix` the step runs through — so an obsolete
+      Nix job directory fails the drift check
+      ([generated-file-conventions](../../../todo/generated-file-conventions.md)).
 
 ### Related
 
+- [generated-file-conventions](../../../todo/generated-file-conventions.md) —
+  the drift check that deletes generated files, blocked on this for the
+  fixed-path ones
 - [65Z-ci-nix](65z-ci-nix.md) — owns the generated directory, and requires the
   generator stay Windows-compatible
 - [spidermonkey-test-runner](../../emergent_testing/todo/spidermonkey-test-runner.md)
