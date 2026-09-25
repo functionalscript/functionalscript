@@ -139,7 +139,23 @@ refuses, and no compiler produces them (decided by the language designer).
       pattern is an unimplemented alternative that contradicts the language;
       its section in
       [arity-complete-arguments](./arity-complete-arguments.md) is removed,
-      and git history keeps it.
+      and git history keeps it. Every reference to it is reconciled in the
+      same change, pointing at its last text at a fixed commit and saying it
+      is retired, so no surviving todo directs a reader to it as a proposal
+      or through a broken anchor:
+      - `arity-complete-arguments.md` itself: "the length pattern below",
+        and its Related entries on `withLength`;
+      - [3120](./3120-parameters.md): "the `withLength` pattern may still be
+        unnecessary for arity" and "its candidate `withLength` length
+        pattern";
+      - [`spec/todo/README.md`](./README.md): the arity-and-complete-arguments
+        entry, "including the `withLength` pattern";
+      - [`todo/new-array-out-of-subset.md`](../../todo/new-array-out-of-subset.md):
+        its Related entry on the pattern;
+      - [`nanvm-lib/todo/callable-function-objects.md`](../../nanvm-lib/todo/callable-function-objects.md):
+        "the proposed `withLength` pattern for arity";
+      - [`fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md`](../../fjs/rtti/parse/todo/tuple-rebuild-out-of-subset.md):
+        its link to the section's anchor.
 
 ### Related
 
