@@ -6,7 +6,7 @@ the tail begins at `length`. Each returned arrow has that native `.length`
 without mutation, `eval`, `Function`, dynamic imports or host helpers: a
 function's `length` comes only from a written parameter list.
 
-`table.f.mjs` covers lengths **0 through 32**, inclusive. This is the current
+The `factories` table covers lengths **0 through 32**, inclusive. This is the current
 JavaScript executor capacity, not a language or EDAG limit.
 [function-length-limit](../../../../spec/todo/function-length-limit.md)
 proposes fixing it in the language. An uncovered length fails through the

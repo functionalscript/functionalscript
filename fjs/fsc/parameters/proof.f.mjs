@@ -4,7 +4,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { vm } from '../../edag/amnesia/module.f.mjs'
 import { memo } from '../../edag/memo/module.f.mjs'
-import { factories } from '../../types/function/length/table.f.mjs'
+import { factories } from '../../types/function/length/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -82,8 +82,8 @@ export const proof = {
         }
     },
     factoryTable: () => {
-        // The table's first entries, spelled as `table.f.mjs` spells them; `capacity` covers its width.
-        const table = unresolved(unwrap(parse('table.f.mjs')([
+        // The table's first entries, spelled as `fjs/types/function/length` spells them; `capacity` covers its width.
+        const table = unresolved(unwrap(parse('factories.f.mjs')([
             'export const factories = [',
             '    g => (...rest) => g([], rest),',
             '    g => (a0, ...rest) => g([a0], rest),',
