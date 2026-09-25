@@ -27,6 +27,8 @@ pub mod closure;
 pub mod escapes;
 #[path = "../fixtures/exports.rs"]
 pub mod exports;
+#[path = "../fixtures/function.rs"]
+pub mod function;
 #[path = "../fixtures/function-scope.rs"]
 pub mod function_scope;
 #[path = "../fixtures/lazy.rs"]
@@ -61,6 +63,8 @@ pub mod parameters;
 pub mod property;
 #[path = "../fixtures/rest.rs"]
 pub mod rest;
+#[path = "../fixtures/rest-function.rs"]
+pub mod rest_function;
 #[path = "../fixtures/sharing.rs"]
 pub mod sharing;
 #[path = "../fixtures/string.rs"]
@@ -197,9 +201,9 @@ mod tests {
 
     use crate::{
         Action, RunError, arity, array, at, boolean, call, calls, closure, escapes, exports,
-        function_scope, lazy, length, method, missing, named, named_imports, named_imports_throws,
-        nested, not_a_function, nullish, number, object, operators, property, rest, run, sharing,
-        string, throws, to_string,
+        function, function_scope, lazy, length, method, missing, named, named_imports,
+        named_imports_throws, nested, not_a_function, nullish, number, object, operators, property,
+        rest, rest_function, run, sharing, string, throws, to_string,
     };
 
     #[test]
@@ -318,6 +322,21 @@ mod tests {
         assert_eq!(
             run::<Naive>(function_scope::module, "default", Action::Read),
             Ok("[[1,1],[1,1]]".into())
+        );
+    }
+
+    /// A function as the default export, called rather than read: with no
+    /// arguments, and with a rest parameter that gathers what it is given.
+    #[test]
+    fn function_exports() {
+        assert_eq!(
+            run::<Naive>(function::module, "default", Action::Call(Array::default())),
+            Ok("42".into())
+        );
+        let args = [1.0.to_any(), 2.0.to_any()].to_array();
+        assert_eq!(
+            run::<Naive>(rest_function::module, "default", Action::Call(args)),
+            Ok("[1,2]".into())
         );
     }
 

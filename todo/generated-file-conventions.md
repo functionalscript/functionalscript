@@ -217,7 +217,7 @@ One pull request each, stacked in this order:
       `matrix.md` and `generated.rs`. The rule names
       `nanvm-harness/fixtures/*.rs` as its one pending exception, which the
       fixtures task below removes.
-- [ ] Wire `function` and `rest-function` into `gen` and `src/lib.rs`
+- [x] Wire `function` and `rest-function` into `gen` and `src/lib.rs`
       (blocker 3).
 - [ ] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
       `fjs compile` creates its output directory (blocker 2).
