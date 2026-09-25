@@ -30,8 +30,56 @@ four elements do not make the complete-arguments interpretation valid.
 A named-plus-rest arrow cannot recover that complete list: rebuilding
 `[a, b, ...rest]` pads omitted fixed positions with `undefined`. That is a
 problem for this stronger contract, not for the implemented parameter-binding contract.
-The [length-pattern proposal](./3130-function-length-pattern.md) is one
-possible mechanism for the stronger contract.
+The length pattern below is one possible mechanism for the stronger contract.
+
+### Candidate mechanism: the `withLength` pattern
+
+Proposed in [#2213](https://github.com/functionalscript/functionalscript/pull/2213),
+whose GitHub description reports the language designer's approval of this
+earlier pattern; the file that PR committed still said approval was pending,
+so the attribution is to the PR description only. Its implementations,
+[#2216](https://github.com/functionalscript/functionalscript/pull/2216) and
+[#2217](https://github.com/functionalscript/functionalscript/pull/2217), were
+closed unmerged: the fixed/rest plan replaced them for named-parameter arity.
+The pattern is therefore not an additional runtime mechanism; it stays here
+only as a way to build a callable with an arbitrary `length` that still
+receives the complete original argument list.
+
+Admit one complete source pattern, the way
+[enumerable presence](./2345-has-own-property.md) plans `hasEntity`: the
+`defineProperty` exists only inside the matched definition.
+
+```js
+const withLength = (f, length) =>
+    Object.defineProperty((...args) => f(args), 'length', { value: length })
+```
+
+`withLength(f, n)` hands `f` its complete argument list as one array and
+has `length` `n`. `defineProperty` returns its object, so the pattern is one
+expression, and the matcher admits exactly it: an arrow passing its rest
+parameter to a call of the first parameter, key `'length'`, descriptor
+`{ value: <second parameter> }`, `Object` resolved to the intrinsic. Any
+variation is refused as `defineProperty` is everywhere else. The descriptor
+omits the attributes on purpose: an arrow already owns a `length`, so the
+omitted ones are the native ones.
+
+- **Lowering.** The pattern evaluates its count as an expression when the
+  function is built. That must not be mixed silently with the implemented
+  node's integer `length` metadata and fixed/rest bindings; reconciling the
+  two is the task below.
+- **No restrictions on `length` or `f`.** `withLength` is a value: once it
+  exists, any program can call it with anything, so the pattern restricts
+  neither argument, and a count is whatever JavaScript accepts as a `length`.
+  An executor that cannot represent one refuses it as its own limit.
+- **Function text.** A host function carries the wrapper's source as its
+  text, and every host conversion can reach it. Rendering the graph's text,
+  a second admitted key in the same pattern, is a prerequisite, and the
+  [serialization](./serialization.md#function-text-and-serialization)
+  decisions it depends on are open.
+- **Drawbacks.** The language admits a spelling containing a mutation, pure
+  only because the matcher admits the whole definition. Under an interpreter
+  a positive-arity function is one call frame deeper. It cannot land before
+  the function-text decisions.
 
 ### Tasks
 
@@ -51,3 +99,9 @@ possible mechanism for the stronger contract.
   — the complete-list writer obstruction that motivated the earlier task.
 - [Serialization](./serialization.md#function-text-and-serialization) —
   callable serialization and default function text have separate open questions.
+- [Statement-aware intrinsics](../../fjs/fsc/parser/todo/statement-aware-intrinsics.md),
+  [built-in](./2360-built-in.md) — how a pattern such as `withLength` is
+  recognized; `defineProperty` stays prohibited outside it.
+- [new-array-out-of-subset](../../todo/new-array-out-of-subset.md) —
+  `tupleRebuild`'s `defineProperty`, which the `withLength` pattern does not
+  cover.

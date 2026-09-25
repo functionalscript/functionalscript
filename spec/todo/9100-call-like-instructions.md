@@ -5,12 +5,12 @@
 > functions is the EDAG (see [serialization](./serialization.md)).
 > This document describes a possible internal bytecode design.
 
-**Pending parameter migration:** sections 5 and 6 follow the
-[named-and-rest parameter proposal](./3120-parameters.md):
+**Parameter model:** sections 5 and 6 follow the fixed/rest EDAG that the
+[named-and-rest parameter plan](./3120-parameters.md) shipped in
+[#2237](https://github.com/functionalscript/functionalscript/pull/2237):
 `['=>', length, frame, body]`, `['arg', N]` and `['rest']`. They replace the
-older either-fixed-or-complete-array call-frame sketch, not current runtime
-behavior. The proposal still requires language-design approval and a coordinated
-migration. Bytecode layout is private; it must preserve the EDAG's bindings.
+older either-fixed-or-complete-array call-frame sketch; no bytecode implements
+either yet. Bytecode layout is private; it must preserve the EDAG's bindings.
 
 Call-like bytecode instructions include following groups:
 
@@ -329,9 +329,9 @@ the parser does not need to track temporary values data. Since we use two differ
 argument descriptor locations for locals and for temporary values, various VM / parser
 implementation decisions are possible for the same bytecode specification.
 
-## Parameter-migration tasks
+## Parameter-model tasks
 
-- [ ] After parameter-design approval, lower `length`, fixed `arg` reads and
+- [ ] Lower `length`, fixed `arg` reads and
       the rest binding together in bytecode call metadata and frame setup.
       Do not retain the old either-fixed-or-complete-array convention.
 - [ ] Prove static and dynamic calls against the same cases: zero arity,
@@ -343,9 +343,9 @@ implementation decisions are possible for the same bytecode specification.
       calls using the same supplied array and physical frame reuse.
 - [ ] Test that discarding an unused extra value preserves argument failures,
       and that a rest value used only in nested frame construction is retained.
-- [ ] Migrate current zero-arity `['args']` uses to `['rest']` in their owning
-      scope with the coordinated format change; do not reinterpret old graphs
-      or admit the earlier positive-arity/full-list sketches as this contract.
+      Do not admit the earlier positive-arity/full-list sketches as this
+      contract; the EDAG's own `['args']`-to-`['rest']` migration shipped in
+      [#2237](https://github.com/functionalscript/functionalscript/pull/2237).
 
 ## Related
 
