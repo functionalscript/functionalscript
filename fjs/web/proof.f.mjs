@@ -355,8 +355,9 @@ export const proof = {
         },
         // A file with no bytes is a file, and a chunk list with no chunks is
         // what one open answers for it: `200` with a length of nought, not the
-        // `404` an absent name gets. Reachable now that the body is a list —
-        // one `Vec` was always at least the empty one.
+        // `404` an absent name gets. It used to be one empty `Vec` and is now no
+        // chunks at all, which is the case a length summed over nothing has to
+        // get right.
         empty: () => {
             const r = answer({ 'blank.css': [] })('GET', '/blank.css')
             assertEq(r.status, 200)
