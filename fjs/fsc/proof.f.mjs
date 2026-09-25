@@ -5,7 +5,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
-import { exitCode } from '../effects/node/module.f.mjs'
+import { exitCode, readUtf8File } from '../effects/node/module.f.mjs'
 import { _errorLocation, _tryJson, compile } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { resolve } from './edag/module.f.mjs'
@@ -389,6 +389,14 @@ export const proof = {
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.data.js')
         assertEq(content, 'export default 42;')
+    },
+    // The output's directory is created when it does not exist, however deep.
+    missingDirectory: () => {
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'gen.out/sub/output.data.js']))
+        assertEq(exitCode(code), 0, state.stderr)
+        const [, read] = virtual(state)(readUtf8File('gen.out/sub/output.data.js'))
+        assertStructurallySame(read, ['ok', 'export default 42;'])
     },
     jsonOutput: () => {
         const root = { 'input.f.js': [utf8('export default 42;')] }
