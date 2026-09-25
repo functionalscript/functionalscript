@@ -396,6 +396,19 @@ export const proof = {
             const tmp = state.root.tmp
             assert(!(tmp === undefined || Array.isArray(tmp)), tmp)
         },
+        // A `Vec` that is not whole bytes is refused before any runner is
+        // asked: the node one would pad the last byte and write a byte the
+        // caller never gave, and this one would store what no file can hold.
+        // The file it would have replaced is left as it was.
+        notWholeBytes: () => {
+            const root = { hello: [vec8(0x15n)] }
+            const [state, [t, result]] = virtual({ ...emptyState, root })(
+                writeFile('hello', vec(4n)(0b1010n))
+            )
+            assert(t === 'error', result)
+            assertIoMessage(result, 'invalid buffer size')
+            assertStructurallySame(state.root, root)
+        },
     },
     writeUtf8File: () => {
         const [state, [t, result]] = virtual(emptyState)(
@@ -713,9 +726,9 @@ export const proof = {
             assertStructurallySame(file.map(uint), [0x01n, 0x02n])
         },
         invalidBufferSize: () => {
-            // A chunk whose bit length isn't a multiple of 8 trips the
-            // byte-alignment guard before `writeBytes` is ever called, and the
-            // file the good chunk before it went into is removed.
+            // A chunk whose bit length isn't a multiple of 8 is refused by
+            // `writeBytes` before any runner is asked, and the file the good
+            // chunk before it went into is removed.
             /** @type {List<never, Vec, IoChannel>} */
             const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec(4n)(0b1010n), listEmpty()))
             const [state, [t, result]] = virtual(emptyState)(
