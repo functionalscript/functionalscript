@@ -341,18 +341,20 @@ export const proof = {
             await hostCheck(rmdir(join(root, 'absent')), refusedWith('ENOENT'))
         }),
         // A link to a directory is refused and not followed: the link and the
-        // empty directory it names both survive. A directory symlink on Windows
-        // is a junction, whose `rmdir` semantics differ, so this runs where a
-        // plain symbolic link is what gets planted.
+        // directory it names both survive, and so does what is in it. On Windows
+        // the link is a junction, which needs no privilege to create and which
+        // `RemoveDirectoryW` would remove outright — so this is the case that
+        // holds the runner's `lstat` there, and POSIX's own `ENOTDIR` elsewhere.
+        // The target holds a file so that removing the link, not the target, is
+        // the only way the host could answer `ok`.
         symlink: () => withTemporary('fjs-rmdir-link-', async root => {
-            if (process.platform === 'win32') { return }
             const target = join(root, 'target')
-            await mkdir(target)
+            await mkdir(join(target, 'ref'), { recursive: true })
             const link = join(root, 'link')
-            await symlink(target, link)
+            await symlink(target, link, process.platform === 'win32' ? 'junction' : 'dir')
             await hostCheck(rmdir(link), refusedWith('ENOTDIR'))
             assert((await lstat(link)).isSymbolicLink())
-            assert((await lstat(target)).isDirectory())
+            assert((await readdir(target)).includes('ref'))
         }),
     },
 }

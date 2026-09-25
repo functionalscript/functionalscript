@@ -143,6 +143,11 @@ export type Rm = readonly['rm', (path: string) => IoResult<void>]
  * so it cannot take anything with it. Nothing is followed: a symbolic link, to a
  * directory or not, is `ENOTDIR`, as is a file. An absent name is `ENOENT`.
  *
+ * `ENOTDIR` for a link holds on every host, and on Windows the runner has to make
+ * it hold: there a junction or a directory symlink is removed by the host's own
+ * `rmdir` whatever its target holds, so the node runner refuses a link before it
+ * asks.
+ *
  * **A custom runner must implement it**: `NodeOperationMap` and
  * `CommandSet<NodeOp>` are both checked for *completeness*, so annotating
  * either without a handler does not compile, and an exhaustive `switch` over
