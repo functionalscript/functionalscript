@@ -1489,10 +1489,12 @@ are not supported yet. A newline before `=>` is refused.
   `(...let) => 1` are refused, while `(from, then) => [from, then]` is a
   function.
 - `f.length` is the number of fixed parameters, including unused ones. Rest
-  adds zero. The JavaScript evaluators materialize lengths 0 through 32 via
-  [hand-written arrow factories](../fjs/types/function/length/README.md);
-  larger lengths remain valid for compilation and source output, but those
-  evaluators refuse to materialize them.
+  adds zero. A function has **at most 16** fixed parameters: a 17th is a
+  compile error, and an EDAG function whose `length` is above 16 is refused by
+  every writer. Wider data reads better as an array or an object, and a rest
+  parameter still takes any number of arguments. The JavaScript evaluators
+  materialize every valid length through
+  [hand-written arrow factories](../fjs/types/function/length/README.md).
 - A name the body reads from a scope around it — a `const`, an import, an
   enclosing function's parameter or an enclosing body's `const` — is a
   **capture**, as a JavaScript closure's is. The function's frame is the
