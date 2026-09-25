@@ -26,7 +26,7 @@ request that passes every documented check can still fail CI.
   commands — does not contain it.
 - **Generated Rust.** "`cargo test` — only if you touched Rust" misses Rust
   that `npm run gen` writes from FunctionalScript source: the
-  `nanvm-harness/fixtures/*.rs` modules `fjs/fsc/rust` compiles, and
+  `nanvm-harness/gen.fixtures/*.rs` modules `fjs/fsc/rust` compiles, and
   `nanvm-lib/tests/test/gen.operators.rs` from `fjs/nanvm`. A change to either
   generator changes Rust without touching a `.rs` file by hand.
 - **Which runner.** AGENTS.md's list starts with `fjs test`, and its §2 sets

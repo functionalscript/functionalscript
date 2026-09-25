@@ -461,7 +461,7 @@ The generator and invocation bindings now implement the
 `['arg', N]`, one per-invocation `['rest']`, and recorded `length`. The
 private Rust argument array is transport, not a source-visible complete-list
 operation. The [`parameters` harness fixture](../../nanvm-harness/fixtures/parameters.mjs)
-and its [generated Rust](../../nanvm-harness/fixtures/parameters.rs) cover
+and its [generated Rust](../../nanvm-harness/gen.fixtures/parameters.rs) cover
 omitted, explicit `undefined` and extra arguments, captured fixed/rest values,
 and repeated versus distinct-call rest identity. The
 [Rust module proofs](../../fjs/fsc/rust/proof.f.mjs) cover binding refusals,

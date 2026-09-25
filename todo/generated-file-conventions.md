@@ -8,9 +8,8 @@
 Generated files were mixed with handwritten sources, and their names did not
 distinguish them. The `gen.` rule and its `.gitattributes` markings have
 landed: `git check-attr linguist-generated` reports `true` for every `gen.*`
-output, for the fixed-path workflows and Nix files, and for
-`nanvm-harness/fixtures/*.rs`. Those fixtures are the one output still beside
-its sources without the prefix, until they move to `gen.fixtures/`.
+output — the harness fixtures now in `nanvm-harness/gen.fixtures/` included —
+and for the fixed-path workflows and Nix files.
 
 CI runs `npm run gen` over the checkout and then compares. An output its
 generator stopped writing survives, and a generator can silently depend on a
@@ -196,7 +195,7 @@ Deleting all `gen.*` paths and regenerating fails today, for these reasons:
 | --- | --- | --- |
 | ~~`spec/datajs/vectors/matrix.md`~~ | `spec/datajs/vectors/gen.matrix.md` | Done |
 | ~~`nanvm-lib/tests/test/generated.rs`~~ | `nanvm-lib/tests/test/gen.operators.rs` | Done: `#[path]` on `mod generated;` |
-| `nanvm-harness/fixtures/*.rs` | `nanvm-harness/gen.fixtures/*.rs` | One `#[path]` inline module `fixtures` replaces the per-file `#[path]` lines; each `compile` output in `package.json` `gen` moves |
+| ~~`nanvm-harness/fixtures/*.rs`~~ | `nanvm-harness/gen.fixtures/*.rs` | Done: one `#[path]` inline module `fixtures` replaces the per-file `#[path]` lines; each output is named after its Rust module (`function_scope.rs`) |
 
 A scratch rename of the Rust outputs passed `cargo test`, `cargo fmt -- --check`
 and `cargo clippy --all-targets -- -D warnings`. The `.gitattributes` lines
@@ -217,9 +216,9 @@ One pull request each, stacked in this order:
       `matrix.md` and `generated.rs`. The rule names
       `nanvm-harness/fixtures/*.rs` as its one pending exception, which the
       fixtures task below removes.
-- [ ] Wire `function` and `rest-function` into `gen` and `src/lib.rs`
+- [x] Wire `function` and `rest-function` into `gen` and `src/lib.rs`
       (blocker 3).
-- [ ] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
+- [x] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
       `fjs compile` creates its output directory (blocker 2).
 - [ ] Add `npm run gen:clean`, skipping `.git`, `node_modules` and `target`.
 - [ ] Make `gen` run the cleanup first; the generated workflow is unchanged.
