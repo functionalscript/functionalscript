@@ -170,7 +170,7 @@ export const emptyTagMap = ruleSet => _fixpoint(emptyTagStep(ruleSet), sameTags(
  * EOF `null`, since a `DataRule` reserves every number for an ordinary
  * symbol; below the front end it is this.
  */
-export const eofSymbol = -1
+export const eofSymbol = /** @type {const} */ (-1)
 
 /** EOF, the one set with a negative boundary. */
 const eofSet = /** @type {const} */ ([eofSymbol, eofSymbol + 1])
