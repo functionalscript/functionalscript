@@ -215,7 +215,7 @@ Body:
 
 ### Related
 
-- [`../../fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2 — private-type placement;
+- [`fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2 — private-type placement;
   superseded the wait-for-`@internal` strategy.
 - [microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
   [microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
