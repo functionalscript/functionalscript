@@ -26,8 +26,8 @@ import { toRust } from './rust/module.f.mjs'
 import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { tryStringify as fjsStringify, tryModuleStringify } from './serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
-import { empty, flat, map } from '../types/list/module.f.mjs'
-import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
+import { flat, map } from '../types/list/module.f.mjs'
+import { error, mapOk, ok, okList } from '../types/result/module.f.mjs'
 import { concat } from '../types/string/module.f.mjs'
 import { serialize as bigintSerialize } from '../types/bigint/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
@@ -99,21 +99,6 @@ const jsonLeaf = value => {
     }
 }
 
-/** @type {(list: List<List<string>>) => (chunk: List<string>) => List<List<string>>} */
-const append = list => chunk => ({ head: list, tail: [chunk] })
-
-/** @type {(acc: Result<List<List<string>>, string>, item: Result<List<string>, string>) => Result<List<List<string>>, string>} */
-const collect = (acc, item) => okThen(
-    /** @type {(list: List<List<string>>) => Result<List<List<string>>, string>} */
-    (list => mapOk(append(list))(item))
-)(acc)
-
-/** @type {Result<List<List<string>>, string>} */
-const none = ok(empty)
-
-/** The chunks of every item, or the first refusal among them. @type {(items: readonly Result<List<string>, string>[]) => Result<List<List<string>>, string>} */
-const all = items => items.reduce(collect, none)
-
 /** @type {(member: readonly [string, Unknown]) => Result<List<string>, string>} */
 const jsonMember = ([key, value]) => mapOk(
     /** @type {(chunks: List<string>) => List<string>} */
@@ -132,8 +117,8 @@ const jsonMember = ([key, value]) => mapOk(
 const jsonValue = value => {
     if (value === null || typeof value !== 'object') { return jsonLeaf(value) }
     return value instanceof Array
-        ? mapOk(arrayWrap)(all(value.map(jsonValue)))
-        : mapOk(objectWrap)(all(entries(value).map(jsonMember)))
+        ? mapOk(arrayWrap)(okList(value.map(jsonValue)))
+        : mapOk(objectWrap)(okList(entries(value).map(jsonMember)))
 }
 
 /**

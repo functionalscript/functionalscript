@@ -12,7 +12,7 @@ import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { AstArgs, AstConst, AstModuleRef, BinaryTag } from '../ast/types.ts'
+import type { AstConst, AstFrameRef, AstModuleRef, AstRest, BinaryTag } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { Block, Container, Node, Out, ParseError } from './types.ts'
 
@@ -93,6 +93,9 @@ export type _ListNode = readonly [
  */
 export type _ParameterNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown]>]>
 
+/** The node of one named parameter after the first, `id t`: the name's token one level in, under the alternative its word matched, as a `const`'s name is. */
+export type _NameNode = Unmapped<readonly [Unmapped<readonly [unknown, _Leaf]>, unknown]>
+
 /** The node of one access, `[tag, branch]`: the branch holds the key's token at its third position, under the name's own alternative for `.name`. */
 export type _AccessNode = Unmapped<readonly [string, unknown]>
 
@@ -119,8 +122,35 @@ export type _CallBranch = Unmapped<readonly [_Leaf, unknown, _OptionalList, ...u
  */
 export type _AttributeNode = Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, unknown, unknown, Unmapped<readonly [unknown, _Leaf]>, unknown, unknown, unknown, _Leaf, ...unknown[]]>]>
 
-/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's arguments. */
-export type _Env = OrderedMap<AstModuleRef | AstArgs>
+/** A named parameter, `i` of the function whose body names it: what the body reads it as, the `i`th argument. */
+export type _Parameter = readonly ['arg', number]
+
+/** The names bound so far, each to the reference that names it: a module's import or entry, or a function's rest array or one of its fixed parameters. */
+export type _Env = OrderedMap<AstModuleRef | AstRest | _Parameter>
+
+/** What a name resolves to where it is written: a name bound in its own scope, or a slot of the function's frame. */
+export type _Ref = AstModuleRef | AstRest | _Parameter | AstFrameRef
+
+/**
+ * The scope a node is resolved in: the names it binds itself, and — in a
+ * function's body — what the body has captured so far from the scope
+ * around it, `outer`, each the reference that names the value there, in
+ * the order the body first named them, and the words it read from there,
+ * which a `const` of the body may not then bind. The module's own scope
+ * has no `outer` and captures nothing.
+ *
+ * The captures grow while the body is resolved, and so do those of every
+ * function around it that a capture passes through, so the whole chain is
+ * the state, rebuilt where a capture lands.
+ */
+export type _Scope = {
+    readonly names: _Env
+    /** The `length` of the function whose body this is: its named parameters counted, `0` for a rest parameter, none, or the module. */
+    readonly count: number
+    readonly captures: readonly _Ref[]
+    readonly read: readonly string[]
+    readonly outer: _Scope | null
+}
 
 
 /**
@@ -156,14 +186,17 @@ export type _AccessFrame = {
     readonly method: boolean
 }
 
-/** A function whose body is being evaluated: the names bound outside it, to return to. */
+/**
+ * A function whose body is being evaluated. It carries nothing: the scope
+ * around the body is the body's scope's `outer`, which the body's captures
+ * update, and one is enough to tell the frame from the others.
+ */
 export type _FunctionFrame = {
-    readonly outer: _Env
+    readonly function: true
 }
 
 /**
- * A function whose block body is being evaluated: the names bound outside
- * it, as {@link _FunctionFrame} holds them, and the statements to work
+ * A function whose block body is being evaluated: the statements to work
  * through — `statements[index]` is the statement being evaluated and `word`
  * the name it binds, taken before its value was entered so that a statement
  * wrong in both halves answers for the half a reader meets first; `done`
@@ -173,7 +206,6 @@ export type _FunctionFrame = {
  * from the final return value, where `word` names nothing.
  */
 export type _BodyFrame = {
-    readonly outer: _Env
     readonly statements: Block[1]
     readonly index: number
     readonly word: string
@@ -228,5 +260,5 @@ export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
 /** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */
 export type _Step = readonly ['enter', Node] | Result<AstConst, ParseError>
 
-/** The frames suspended, the names bound where the node being evaluated stands, and what to do next. */
-export type _State = readonly [stack: _Stack, env: _Env, step: _Step]
+/** The frames suspended, the scope the node being evaluated stands in, and what to do next. */
+export type _State = readonly [stack: _Stack, scope: _Scope, step: _Step]

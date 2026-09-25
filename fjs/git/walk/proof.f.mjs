@@ -10,7 +10,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { ioError, pureOk } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
@@ -25,8 +25,6 @@ const dir = /** @type {const} */ ('repo')
 const of20 = of(20)
 
 const at = objectPath(dir)
-
-const toVec = u8ListToVec(msb)
 
 /** @type {(mode: string, name: string, oid: Oid) => TreeEntry} */
 const entry = (m, name, oid) => ({ mode: latin1(m), name: latin1(name), oid })
@@ -252,7 +250,7 @@ const noFile = path => ioError({ code: 'ENOENT', message: `no such file: ${path}
 const host = {
     readFile: path => log => {
         const f = files[path]
-        return [[...log, path], f === undefined ? error(noFile(path)) : ok(toVec(f))]
+        return [[...log, path], f === undefined ? error(noFile(path)) : ok(u8ListToVecMsb(f))]
     },
     readdir: path => log => [log, error(noFile(path))],
     stat: path => log => [log, error(noFile(path))],

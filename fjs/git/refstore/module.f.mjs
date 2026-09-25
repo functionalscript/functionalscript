@@ -220,15 +220,11 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { hexText } from '../oid/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
-import { hasRefComponents, isWholeName, lockSuffix } from '../refname/module.f.mjs'
-
-const toBytes = u8List(msb)
-
-const toVec = u8ListToVec(msb)
+import { hasRefComponents, isWholeName, lockSuffix, sameBytes } from '../refname/module.f.mjs'
 
 /**
  * A ref name as the bytes Git stores it as, from the text a path is.
@@ -248,7 +244,7 @@ const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
  * One code unit per byte, which is **not** a decoding and never becomes a path —
  * {@link nameText} is the decoding, and it is UTF-8. This is only an injective
  * encoding: two names give the same key exactly when they are the same bytes, so
- * a `Map` or a `Set` over it answers what {@link sameName} answers, in one
+ * a `Map` or a `Set` over it answers what {@link sameBytes} answers, in one
  * lookup rather than a pass per name.
  *
  * That matters at the size a repository reaches. Comparing every packed line
@@ -260,13 +256,6 @@ const nameBytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
  * @type {(name: Bytes) => string}
  */
 const nameKey = name => codePointListToString(toArray(name))
-
-/** @type {(a: Bytes, b: Bytes) => boolean} */
-const sameName = (a, b) => {
-    const x = toArray(a)
-    const y = toArray(b)
-    return x.length === y.length && x.every((v, i) => y[i] === v)
-}
 
 /**
  * The bytes of a file, or `null` where there is no loose *file* at that name.
@@ -305,7 +294,7 @@ const sameName = (a, b) => {
  */
 const tryBytes = path =>
     catchStep(
-        mapStep(readFile(path), toBytes),
+        mapStep(readFile(path), u8ListMsb),
         e => isNotFound(e) || isDirectory(e) ? pureOk(null) : pureError(e))
 
 /**
@@ -400,7 +389,7 @@ const special = /** @type {readonly string[]} */ (['FETCH_HEAD', 'MERGE_HEAD'])
  * @type {(packed: readonly PackedRef[], name: Bytes) => Nullable<Oid>}
  */
 const packedId = (packed, name) => {
-    const hits = packed.filter(e => sameName(e.name, name))
+    const hits = packed.filter(e => sameBytes(e.name)(name))
     return hits.length === 0 ? null : hits[hits.length - 1].id
 }
 
@@ -579,7 +568,7 @@ const targetAllowed = (text, r) =>
  * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) has the rest.
  *
  * **A name past `maxLengthBytes` is `null` too**, and the check has to come
- * before the conversion: `Bytes` is unbounded and `u8ListToVec` asserts, so one
+ * before the conversion: `Bytes` is unbounded and `u8ListToVecMsb` asserts, so one
  * byte over escaped both {@link tryWrite} and {@link tryResolve} as a bare
  * `'assertion failed'` rather than as an answer — measured, at 131,073 bytes.
  * Found by review of
@@ -599,7 +588,7 @@ const targetAllowed = (text, r) =>
  * @type {(name: readonly number[]) => Nullable<string>}
  */
 const nameText = name =>
-    name.length > Number(maxLengthBytes) ? null : fromVec(toVec(name))
+    name.length > Number(maxLengthBytes) ? null : fromVec(u8ListToVecMsb(name))
 
 /**
  * A chain that has its answer: the id, and no lookups left to spend and no name
@@ -1050,7 +1039,7 @@ const readAsRef = (readRef, name, item, found) => {
     // that is what shadows the packed line
     const names = concat(found.names)([name])
     const add = refOf(found, name, names)
-    return mapStep(mapStep(readFile(item.path), toBytes), bytes => {
+    return mapStep(mapStep(readFile(item.path), u8ListMsb), bytes => {
         const r = readRef(bytes)
         return walked(r === null ? null : add(r), null)
     })
@@ -1244,8 +1233,8 @@ const packedDisagreement = packed => {
  * @type {(headFound: _Found, packed: readonly PackedRef[]) => boolean}
  */
 const packedHeadCollision = (headFound, packed) =>
-    toArray(headFound.names).some(n => sameName(n, headName))
-    && packed.some(p => sameName(p.name, headName))
+    toArray(headFound.names).some(n => sameBytes(n)(headName))
+    && packed.some(p => sameBytes(p.name)(headName))
 
 /**
  * The roots the walk found, then the packed lines nothing hides.

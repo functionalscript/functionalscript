@@ -1,31 +1,13 @@
 use core::ops::Div;
 
-use super::DIVISION_BY_ZERO;
-use crate::{
-    sign::Sign,
-    vm::{Any, BigInt, IVm},
-};
+use crate::vm::{Any, BigInt, IVm};
 
 impl<A: IVm> Div for BigInt<A> {
     type Output = Result<Self, Any<A>>;
 
-    /// Truncates toward zero, matching Rust's own integer division; the
-    /// result is negative iff exactly one operand is.
+    /// The quotient of [`BigInt::div_mod`].
     fn div(self, rhs: Self) -> Self::Output {
-        if rhs.is_zero() {
-            return Err(DIVISION_BY_ZERO.into());
-        }
-        let sign = if self.sign() == rhs.sign() {
-            Sign::Positive
-        } else {
-            Sign::Negative
-        };
-        let (quotient, _) = self.abs_divmod_vec(rhs);
-        Ok(if quotient.is_empty() {
-            Self::default()
-        } else {
-            Self::unchecked_new(sign, quotient)
-        })
+        self.div_mod(rhs).map(|(quotient, _)| quotient)
     }
 }
 

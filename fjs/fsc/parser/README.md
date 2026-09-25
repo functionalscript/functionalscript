@@ -16,15 +16,20 @@ symbols here.
 
 ```
 module ::= t import* const* export eof
-import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+clause ::= named | id t [ ',' t named ]
+named  ::= '{' t [ items(binding) ] '}' t
+binding ::= id t [ 'as' t id t ]
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
 value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | id t | array | object) access* powTail tail
-         | '(' t (func | group tail)
+         | (primitive t | array | object) access* powTail tail
+         | id s arrowOrRest
+         | '(' t (func | value afterValue)
 body   ::= '-' t unaryOperand tail | '~' t unaryOperand tail
-         | (primitive t | id t | array) access* powTail tail
-         | '(' t (func | group tail) | block
+         | (primitive t | array) access* powTail tail
+         | id s arrowOrRest
+         | '(' t (func | value afterValue) | block
 unary  ::= '-' t unaryOperand | '~' t unaryOperand
          | (primitive t | id t | array | object) access* powTail
          | '(' t group
@@ -33,6 +38,9 @@ unaryOperand ::= '-' t unaryOperand | '~' t unaryOperand
          | '(' t groupOperand
 block  ::= '{' t const* 'return' s value ';' t '}' t
 func   ::= [ '...' t id t ] ')' s '=>' t body
+afterValue ::= ',' t [ names ] ')' s '=>' t body | ')' s arrowOrRest
+arrowOrRest ::= '=>' t body | [ nl t ] access* powTail tail
+names  ::= '...' t id t | id t [ ',' t [ names ] ]
 group  ::= value ')' t access* powTail
 groupOperand ::= value ')' t access*
 powTail ::= [ '**' t unary ]
@@ -62,14 +70,14 @@ s      ::= (ws | comment)*
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input.
 
-A `(` opens two things, so `paren` takes the `(` and `func` and `group` part
-at the symbol after it: `...` against a value's first set, which no `...`
-is in. That is how a function and a group live in one grammar without
-looking past the `)` — where JavaScript itself has to look, and where
-parenthesized parameters will
-([`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md)).
-It is also why `(a) => 1` fails at the `=>` rather than at the name: `(a)`
-is a group, and nothing may follow a value there.
+A `(` opens an empty/rest-only function or a shared expression/parameter
+prefix. `afterValue` factors the comma and closing parenthesis; `arrowOrRest`
+then selects the arrow or the ordinary expression continuation. The binding
+pass requires a name where that prefix becomes a parameter, rejecting
+`(a + b) => 1` while preserving `(a + b)`. Bare `a => a` uses the same arrow
+continuation. A final rest name is allowed after fixed names; it cannot be
+followed by another parameter or a comma. The grammar preserves the no-newline
+rule before `=>`, including comment trivia.
 
 A `-` or a `~` takes the group under its `(` and not `paren`, the two
 differing by the function: `-(...a) => 1` is a syntax error in JavaScript
@@ -171,15 +179,15 @@ the fold's:
   member: a broken JavaScript program is a broken FunctionalScript program;
 - an import attribute other than `type: "json"`, the one JavaScript defines,
   read from the key's and the value's words;
-- a reference in a function's body to a name bound outside it — a `const`, an
-  import, or an enclosing function's parameter — which is a capture, and a
-  function has no frame to capture with yet. The body is resolved against its
-  own names alone — its parameter, and the `const`s it declares before the
-  `return` — so the check is which map the name is found in;
 - a body `const` that takes a name the body already binds, its parameter
-  included, which is a duplicate as a module's is. A name the *module* binds
-  is not: the body cannot reach the module's scope at all, so that name was
-  unreachable rather than hidden;
+  included, which is a duplicate as a module's is. A name a scope *around*
+  the body binds is not: the body's `const` shadows it, as in JavaScript —
+  unless the body has already read that name from outside, before the
+  `const` or in its own initializer, which is `capture shadowed`: not a
+  rule of the language but a forward reference inside a body, not yet
+  supported
+  ([`todo/body-const-forward-reference.md`](todo/body-const-forward-reference.md)),
+  refused because JavaScript would read the body's `const` there;
 - a bare or string `__proto__` key, which JavaScript reads as an instruction to
   replace the prototype. The computed spelling `{ ["__proto__"]: v }` denotes an
   ordinary property and is accepted, so this is not a lexical rule either;
@@ -203,6 +211,17 @@ the fold's:
 The fold is where a symbol table already exists, because turning an identifier
 into `['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar
 to approximate these.
+
+A reference in a function's body to a name bound outside it — a `const`, an
+import, an enclosing function's parameter or an enclosing body's `const` —
+is a **capture**. The body is resolved against its own names first — its
+parameter, and the `const`s it declares before the reference — and then
+against each scope around it, innermost first; a name found outside becomes
+a capture, one per binding in first-use order, which the function node
+lists as its third element and the body reads as `['fref', i]`. The frame
+is the lowering's: it gives each distinct captured value one slot, so two
+bindings of one value share one. A function nested in another captures through it, so the
+middle function takes the capture too.
 
 A `const`'s value is resolved *before* its own name is bound, so `const a = a;`
 is `const not found` — a reference to a name before its declaration, as it is
@@ -250,9 +269,9 @@ public types in `./types.ts`, as the rewrite set is.
 
 ## Required keywords are terminals of their own
 
-The tokenizer emits `import`, `const`, `export`, `default`, `from`, `with` and
-`return` as `id` tokens carrying the word in `value`. An alphabet keyed on a
-token's *kind* would give all seven the symbol of any other identifier, and the
+The tokenizer emits `import`, `const`, `export`, `default`, `from`, `with`, `return` and
+`as` as `id` tokens carrying the word in `value`. An alphabet keyed on a
+token's *kind* would give them all the symbol of any other identifier, and the
 grammar could not tell `export default` from two arbitrary names — module
 framing would be inexpressible, and so would a block body's `return`.
 

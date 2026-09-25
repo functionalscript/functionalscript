@@ -7,7 +7,7 @@
  *
  * @import { Exp } from '../../edag/types.ts'
  * @import { AstBinary, AstBitnot, AstBody, AstConditional, AstConst, AstImport, AstMember, AstModule, AstNeg } from '../ast/types.ts'
- * @import { _Source } from '../transpiler/types.ts'
+ * @import { _ImportSource, _Source } from '../transpiler/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile, ResolveFileModule } from '../../effects/node/types.ts'
@@ -18,7 +18,8 @@
  */
 
 import { anchors } from '../ast/module.f.mjs'
-import { _attributeError, _importSources, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
+import { analysis } from '../../edag/analysis/module.f.mjs'
+import { _attributeError, _importSources, _missingExport, _rootSource, _parseJson, _parseModule } from '../transpiler/module.f.mjs'
 import { foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { at, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { drop, includes } from '../../types/list/module.f.mjs'
@@ -31,7 +32,7 @@ const args = /** @type {const} */ (['args'])
  * `undefined` is tagged in an EDAG, because a bare one is a missing tuple
  * position.
  *
- * A node per occurrence, as a body's `args` is, and for the same reason: a
+ * A node per occurrence, as a body's `rest` is, and for the same reason: a
  * node belongs to one scope. As a module-level constant this was one node
  * for every `undefined` in a module, so
  * `export default [undefined, (...a) => undefined];` — ordinary source the
@@ -49,7 +50,7 @@ const args = /** @type {const} */ (['args'])
 const undefinedNode = () => ['undefined']
 
 /** Import `i` as the module's EDAG sees it: a property of the arguments. @type {(imported: AstImport, i: number) => Exp} */
-const parameter = (_, i) => ['.', ['.', args, i], 'default']
+const parameter = ({ name }, i) => name === null ? ['.', args, i] : ['.', ['.', args, i], name]
 
 /** @type {(lower: (ast: AstConst) => Exp) => (member: AstMember) => readonly [':', string, Exp]} */
 const property = lower => ([key, value]) => [':', key, lower(value)]
@@ -87,6 +88,60 @@ const call = nodes => (callee, args) => {
 }
 
 /**
+ * A function's EDAG, `['=>', length, frame, body]`, in the scope `nodes` names: its
+ * captures lowered here, each to the node the enclosing scope has for it,
+ * and its body a scope of its own over them.
+ *
+ * The frame holds each distinct node among them once, in the order the body
+ * first names them — two bindings reaching one node, a `const` and its
+ * alias, are one value and so one slot, and so are two nodes the EDAG
+ * analysis merges, `o[0]` read by two `const`s ({@link slotKeys}) — and a
+ * capture whose node is a
+ * primitive is no slot at all: the primitive is written into the body where
+ * the capture is read, as it is wherever a `const` holding one is read,
+ * since it has nothing to share and nothing to compute. A function whose
+ * frame is left with nothing has a `null` one.
+ *
+ * Inside the body a slot is one node, `['.', ['frame'], i]`, however many
+ * references reach it, over one `['frame']` for the body — the node
+ * `rest` is, for the rest arguments.
+ *
+ * @type {(nodes: _Nodes) => (length: number, body: AstBody, captures: readonly AstConst[]) => Exp}
+ */
+const fn = nodes => (length, body, captures) => {
+    const outer = captures.map(lower(nodes))
+    const candidates = outer.filter(n => n instanceof Array)
+    const keys = slotKeys(candidates)
+    /** Each candidate's first twin: the candidate whose slot it reads. */
+    const firsts = keys.map(k => keys.indexOf(k))
+    const slots = candidates.filter((_, i) => firsts[i] === i)
+    /** @type {Exp} */
+    const frameNode = ['frame']
+    /** @type {readonly Exp[]} */
+    const reads = slots.map((_, i) => ['.', frameNode, i])
+    /** @type {(n: typeof candidates[number]) => Exp} */
+    const read = n => reads[slots.indexOf(candidates[firsts[candidates.indexOf(n)]])]
+    const inner = outer.map(n => n instanceof Array ? read(n) : n)
+    return ['=>', length, slots.length === 0 ? null : ['[]', slots], scope(body, inner)]
+}
+
+/**
+ * Which of `nodes` are one value: the entry the EDAG analysis gives each —
+ * one entry for one node reached twice, and for two nodes it merges, a
+ * read spelled the same over the same inputs — so that a frame holds no two
+ * slots a writer or an executor would see as one. The analysis owns that
+ * rule, so it is asked rather than restated; a lone node is its own.
+ *
+ * @type {(nodes: readonly Exp[]) => readonly unknown[]}
+ */
+const slotKeys = nodes => {
+    if (nodes.length < 2) { return nodes }
+    const { root, nodes: table } = analysis(['[]', /** @type {readonly Exp[]} */ (nodes)])
+    const items = /** @type {readonly (readonly [string, number])[]} */ (table[/** @type {readonly [string, number]} */ (root)[1]][1])
+    return items.map(([, i]) => i)
+}
+
+/**
  * One entry's EDAG, its own operator/negation/bitwise-not chain excepted —
  * every other node, lowered exactly as {@link lower} always did, recursing
  * back into {@link lower} itself for whatever it holds: a container, a
@@ -107,8 +162,10 @@ const lowerLeaf = nodes => ast => {
         case 'object': { return ['{}', ast[1].map(property(lower(nodes)))] }
         // a function's body is a scope of its own: it names its arguments,
         // one node however many references reach them, and nothing outside
-        case '=>': { return ['=>', null, scope(ast[1])] }
-        case 'args': { return nodes.args }
+        case '=>': { return fn(nodes)(ast[1], ast[2], ast[3] ?? []) }
+        case 'arg': { return ['arg', ast[1]] }
+        case 'rest': { return nodes.args }
+        case 'fref': { return nodes.frame[ast[1]] }
         case '()': { return call(nodes)(ast[1], ast[2]) }
         // the EDAG's own form already, its key a constant the parser admitted
         default: { return ['.', lower(nodes)(ast[1]), ast[2]] }
@@ -234,25 +291,25 @@ const lower = nodes => root => {
  * arguments node that body names: a fresh one per function, since a node
  * belongs to one scope and two bodies naming one `['args']` is no EDAG.
  *
- * @type {(parameters: readonly Exp[], args: Exp) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]}
+ * @type {(parameters: readonly Exp[], args: Exp, frame: readonly Exp[]) => (consts: readonly Exp[], ast: AstConst) => readonly Exp[]}
  */
-const entry = (parameters, args) => (consts, ast) => [...consts, lower({ parameters, consts, args })(ast)]
+const entry = (parameters, args, frame) => (consts, ast) => [...consts, lower({ parameters, consts, args, frame })(ast)]
 
 /**
  * A body as one node: its entries lowered in order, each `cref` taking the
- * node of the entry it names, and the last entry's node the value — with
- * what that value does not reach anchored by the comma, as a module's
- * unreached entries are.
+ * node of the entry it names, each `fref` the node `frame` has for its
+ * slot, and the last entry's node the value — with what that value does
+ * not reach anchored by the comma, as a module's unreached entries are.
  *
  * A module and a function body are the same shape and the same rule, and
  * `anchors` reads a body out of a module, so the body is handed over as one
  * that imports nothing: a function names no import, a reference out of it
- * being a capture the parser refused.
+ * being a capture, read through its frame.
  *
- * @type {(body: AstBody) => Exp}
+ * @type {(body: AstBody, frame: readonly Exp[]) => Exp}
  */
-const scope = body => {
-    const nodes = body.reduce(entry([], ['args']), [])
+const scope = (body, frame) => {
+    const nodes = body.reduce(entry([], ['rest'], frame), [])
     const value = nodes[nodes.length - 1]
     const { consts } = anchors([[], body])([])
     return consts.length === 0 ? value : [',', [...consts.map(i => nodes[i]), value]]
@@ -279,7 +336,7 @@ const scope = body => {
  * @type {(imports: readonly Exp[]) => (module: AstModule) => Exp}
  */
 const lowered = imports => module => {
-    const nodes = module[1].reduce(entry(imports, args), [])
+    const nodes = module[1].reduce(entry(imports, args, []), [])
     const exported = nodes[nodes.length - 1]
     const { consts, imports: unbound } = anchors(module)(imports)
     return unbound.length === 0 && consts.length === 0
@@ -359,7 +416,11 @@ const jsonEdag = value => {
  * @type {(id: string) => (context: _Link) => (edag: Exp) => readonly [_Link, _Resolved]}
  */
 const completed = id => context => edag => {
-    const resolved = { exports: edag, default: _moduleExports(edag).some(([, key]) => key === 'default') ? _defaultExport(edag) : undefined }
+    /** @type {_Resolved} */
+    const resolved = {
+        exports: edag,
+        bindings: _moduleExports(edag).map(([, key]) => [key, key === 'default' ? _defaultExport(edag) : ['.', edag, key]]),
+    }
     return [{
         complete: setReplace(id)(resolved)(context.complete),
         stack: drop(1)(context.stack),
@@ -369,11 +430,13 @@ const completed = id => context => edag => {
 /** @type {(id: string) => (context: _Link) => (value: JsonUnknown) => readonly [_Link, _Resolved]} */
 const completedJson = id => context => value => completed(id)(context)(['{}', [[':', 'default', jsonEdag(value)]]])
 
-/** One import resolved, with a default export required even if its binding is unused. @type {(source: _Source) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
-const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) =>
-    resolved.default === undefined
-        ? pureError({ message: 'module has no default export', metadata: null, path: source.path })
-        : pureOk({ context: linked, bound: [...bound, resolved.default] }))
+/** Require the selected export even if its binding is unused. @type {(source: _ImportSource) => (binding: _Binding) => Effect<ReadFile | ResolveFileModule, _Binding, ParseError>} */
+const linkImport = source => ({ context, bound }) => step(link(source)(context), ([linked, resolved]) => {
+    const selected = source.name === null ? resolved.exports : resolved.bindings.find(([key]) => key === source.name)?.[1]
+    return selected === undefined
+        ? pureError(_missingExport(source))
+        : pureOk({ context: linked, bound: [...bound, selected] })
+})
 
 /**
  * A parsed module linked: its imports resolved in source order, each to its

@@ -21,6 +21,8 @@ pub mod boolean;
 pub mod call;
 #[path = "../fixtures/calls.rs"]
 pub mod calls;
+#[path = "../fixtures/closure.rs"]
+pub mod closure;
 #[path = "../fixtures/escapes.rs"]
 pub mod escapes;
 #[path = "../fixtures/function-scope.rs"]
@@ -35,6 +37,10 @@ pub mod method;
 pub mod missing;
 #[path = "../fixtures/named.rs"]
 pub mod named;
+#[path = "../fixtures/named-imports.rs"]
+pub mod named_imports;
+#[path = "../fixtures/named-imports-throws.rs"]
+pub mod named_imports_throws;
 #[path = "../fixtures/nested.rs"]
 pub mod nested;
 #[path = "../fixtures/not-a-function.rs"]
@@ -47,6 +53,8 @@ pub mod number;
 pub mod object;
 #[path = "../fixtures/operators.rs"]
 pub mod operators;
+#[path = "../fixtures/parameters.rs"]
+pub mod parameters;
 #[path = "../fixtures/property.rs"]
 pub mod property;
 #[path = "../fixtures/rest.rs"]
@@ -137,13 +145,14 @@ pub fn run<A: IVm>(
 mod tests {
     use nanvm_lib::{
         naive::Naive,
-        vm::{Any, IVm, Nullish, ToAny},
+        vm::{Any, Array, IVm, Nullish, ToAny},
     };
 
     use crate::{
-        RunError, arity, array, at, boolean, call, calls, escapes, function_scope, lazy, length,
-        method, missing, named, nested, not_a_function, nullish, number, object, operators,
-        property, rest, run, sharing, string, throws, to_string,
+        RunError, arity, array, at, boolean, call, calls, closure, escapes, function_scope, lazy,
+        length, method, missing, named, named_imports, named_imports_throws, nested,
+        not_a_function, nullish, number, object, operators, property, rest, run, sharing, string,
+        throws, to_string,
     };
 
     #[test]
@@ -234,6 +243,26 @@ mod tests {
         );
     }
 
+    #[test]
+    fn named_and_rest_parameters() {
+        assert_eq!(
+            run::<Naive>(super::parameters::module),
+            Ok("[3,[1,2,3,[4,5]],true,true,true,1,1,[1,[2,3],4,[5],[2,3],[5]],true,true,true,true]".into())
+        );
+    }
+
+    /// Closures, end to end: a function's frame is the values its body
+    /// names from outside, built where the function is made and read
+    /// through `A::frame` — an enclosing function's arguments, a module
+    /// `const`, and a capture through a parent's own frame.
+    #[test]
+    fn closures() {
+        assert_eq!(
+            run::<Naive>(closure::module),
+            Ok("[3,15,[1,2,3,1],42]".into())
+        );
+    }
+
     /// A read past the arguments supplied answers `undefined` — which has
     /// no JSON, so the value is checked as it is — and calling what is not
     /// a function throws.
@@ -258,6 +287,20 @@ mod tests {
             Ok(r#"{"a":[5],"default":[5],"z":[5]}"#.into())
         );
         assert_eq!(run::<Naive>(named::module), Ok("[5]".into()));
+    }
+
+    #[test]
+    fn named_imports_and_captures() {
+        let exports = named_imports::module::<Naive>().unwrap();
+        let main = exports.clone().dot("main".into()).end().unwrap();
+        let result = main.call(Array::default().to_any()).unwrap();
+        assert_eq!(result.to_json(), Ok("42".into()));
+        let checks = exports.dot("checks".into()).end().unwrap();
+        assert_eq!(
+            checks.to_json(),
+            Ok("[true,true,true,true,true,true]".into())
+        );
+        assert!(named_imports_throws::module::<Naive>().is_err());
     }
 
     #[test]

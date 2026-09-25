@@ -28,14 +28,14 @@ import { utf8, utf8ToString } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { concat } from '../../types/list/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { byteLength, bytesIn, isWholeBytes, isWholeBytesIn, length, maxLengthBytes, u8ListMsb } from '../../types/bit_vec/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../list/module.f.mjs'
 import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
-    mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+    catchStep, mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
@@ -107,6 +107,44 @@ export const emptyHostError = ioError({
     code: emptyHostCode,
     message: emptyHostMessage,
 })
+
+/**
+ * The largest port a number names: ports are 16 bits wide.
+ *
+ * @type {number}
+ */
+export const maxPort = 0xffff
+
+/**
+ * Whether `port` is one a host would accept: an integer in `0`–{@link maxPort},
+ * where `0` asks for an ephemeral one. Node throws {@link badPortCode} for
+ * anything else, and a runner that accepted `-1` or `NaN` would let a program
+ * be proven that cannot run.
+ *
+ * @type {(port: number) => boolean}
+ */
+export const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
+
+/**
+ * Node's code for a port {@link isPort} refuses.
+ *
+ * Unlike {@link emptyHostCode}, this refusal is Node's own: the Node runner
+ * forwards the port and Node throws it, so only a runner without a socket
+ * has to restate it.
+ *
+ * @type {string}
+ */
+export const badPortCode = 'ERR_SOCKET_BAD_PORT'
+
+/**
+ * Node's message for {@link badPortCode}, byte-for-byte, type included: a runner
+ * that claims to report failures in the shape the host reports them makes a
+ * claim that is not true with a message that is nearly right.
+ *
+ * @type {(port: number) => string}
+ */
+export const badPortMessage = port =>
+    `options.port should be >= 0 and < 65536. Received type number (${port}).`
 
 /**
  * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
@@ -301,6 +339,13 @@ export const readBytes = do_('readBytes')
 const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
 
 /**
+ * The refusal of a `Vec` that is not whole bytes, where bytes are what a host
+ * is handed: {@link inflate}, {@link writeExclusive} and {@link writeFromStream}
+ * each refuse one with it.
+ */
+const invalidBufferSize = pureError(ioError({ message: 'invalid buffer size' }))
+
+/**
  * Inflates a zlib stream. The stream is bytes, so a `Vec` that is not
  * whole bytes is refused here as `invalid buffer size`, before any host
  * sees it, as {@link writeFromStream} refuses one: a host's conversion
@@ -309,9 +354,7 @@ const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
  * @type {Func<Inflate>}
  */
 export const inflate = data =>
-    (length(data) & 0b111n) !== 0n
-        ? pureError(ioError({ message: 'invalid buffer size' }))
-        : inflateOp(data)
+    isWholeBytes(data) ? inflateOp(data) : invalidBufferSize
 
 /**
  * The code an {@link Inflate} refuses bytes after the end of the stream
@@ -364,9 +407,7 @@ const writeExclusiveOp = /** @type {Func<WriteExclusive>} */ (do_('writeExclusiv
  * @type {Func<WriteExclusive>}
  */
 export const writeExclusive = (path, data) =>
-    (length(data) & 0b111n) !== 0n
-        ? pureError(ioError({ message: 'invalid buffer size' }))
-        : writeExclusiveOp(path, data)
+    isWholeBytes(data) ? writeExclusiveOp(path, data) : invalidBufferSize
 
 /**
  * Creates `path` and writes `content` to it as UTF-8 bytes, through one open,
@@ -392,27 +433,43 @@ const writeLoop = path => {
                 return pureOk(undefined)
             }
             const { first: v, tail } = node
-            const lenV = length(v)
-            if ((lenV & 0b111n) !== 0n) {
-                return pureError(ioError({ message: 'invalid buffer size' }))
+            if (!isWholeBytes(v)) {
+                return invalidBufferSize
             }
             return ioStep(
                 writeBytes(path, offset, v),
-                () => f(offset + Number(lenV >> 3n), tail))
+                () => f(offset + Number(byteLength(v)), tail))
         })
     return f
 }
 
 /**
+ * Creates `path` and writes the byte stream `e` to it, chunk by chunk.
+ *
+ * **It fails closed.** Once `path` exists, any failure — of the stream itself,
+ * of a chunk that is not whole bytes, of a `writeBytes` — removes it before
+ * the error is returned, so a failed write leaves no partial file behind for
+ * a later reader to mistake for the whole. The removal's own outcome is
+ * discarded, as `fjs/cas`'s staging cleanup discards it: the write's error is
+ * what the caller needs to hear, and a failed `rm` has no better answer.
+ *
+ * The removal names `path`, as every `writeBytes` before it does, so a file
+ * put there by someone else mid-write is written into and then removed —
+ * [write-from-stream-private-name.md](./todo/write-from-stream-private-name.md).
+ *
  * @template {Operation} O
  * @param {string} path
  * @param {List<O, Vec, IoChannel>} e
- * @returns {Effect<O | WriteBytes | CreateExclusive, void, IoChannel>}
+ * @returns {Effect<O | WriteBytes | CreateExclusive | Rm, void, IoChannel>}
  */
-export const writeFromStream = (path, e) =>
-    ioStep(
-        createExclusive(path),
-        () => writeLoop(path)(0, e))
+export const writeFromStream = (path, e) => {
+    // Only what runs after `createExclusive` is cleaned up after: an `EEXIST`
+    // is someone else's file, and removing it would be the failure's doing.
+    const written = catchStep(
+        writeLoop(path)(0, e),
+        err => resultStep(rm(path), () => pureError(err)))
+    return ioStep(createExclusive(path), () => written)
+}
 
 /** One chunk's worth of bytes: the `Vec` cap, which is what a chunk may not exceed. */
 const chunkBytes = Number(maxLengthBytes)
@@ -445,13 +502,13 @@ export const readChunks = (source, bound) => {
     const cell = (chunk, offset) => {
         const bits = length(chunk)
         // A chunk that is not whole bytes is refused rather than rounded down.
-        // `_ChunkSource`'s type permits one, and `>> 3n` would report a 1-bit
+        // `_ChunkSource`'s type permits one, and `bytesIn` would report a 1-bit
         // chunk as nought — an EOF the source never signalled, with the bits
         // thrown away. That is DESIGN §10's plausible wrong value.
-        if (bits % 8n !== 0n) {
+        if (!isWholeBytesIn(bits)) {
             return pureError(ioError({ message: `chunk at ${offset} is ${bits} bits, not whole bytes` }))
         }
-        const got = Number(bits >> 3n)
+        const got = Number(bytesIn(bits))
         // An empty read ends an unbounded stream. Under a bound it is a file
         // that shrank mid-read: a truncated body under a declared length, so
         // it fails the cell instead of ending the stream short.
@@ -544,7 +601,7 @@ export const notAFileMessage = path => `${path} is not a regular file`
 export const readWholeBytes = path => ioMapStep(
     readWhole(path),
     chunks => chunks.reduce(
-        (bytes, v) => concat(bytes)(u8List(msb)(v)),
+        (bytes, v) => concat(bytes)(u8ListMsb(v)),
         /** @type {List_<number>} */ (null)))
 
 // createServer

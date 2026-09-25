@@ -20,7 +20,7 @@ a value kind means editing the variant and the switch, and forgetting the
 switch is found at the type level only through that indirection. The
 grammar already demonstrates the right pattern next door:
 `_tokenKindNames` and `_framingKeywords` are single lists pinned to the
-type level by `Assert<Equal<...>>` in its proof.
+type level by `Assert<Equal<...>>` in its `types.ts`.
 
 ### Proposal
 
@@ -48,6 +48,7 @@ export const _valueKinds = /** @type {const} */ ([
 
 ### Related
 
-- [../../tokenizer/todo/djs-token-kind-owner.md](../../tokenizer/todo/djs-token-kind-owner.md)
-  — the same disease one layer down: the full `DjsToken` kind vocabulary
-  restated in `mapDjsToken`.
+- `_djsTokenKinds` in [`../../tokenizer/module.f.mjs`](../../tokenizer/module.f.mjs)
+  — the same cure one layer down: the full `DjsToken` kind vocabulary as
+  one list pinned to the union, which `mapDjsToken` tests membership in
+  and `_tokenKindNames` derives from.

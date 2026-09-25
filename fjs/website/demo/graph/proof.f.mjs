@@ -1,6 +1,38 @@
-import { ranked, graphSvg } from './module.f.mjs'
+/**
+ * @import { Graph } from './types.ts'
+ */
+
+import { _crossesBox, _crossings, ranked, graphSvg } from './module.f.mjs'
 import { htmlToString } from '../../../media/html/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+
+/**
+ * Every drawn edge's `d`, in document order. Each piece of the SVG before
+ * an edge's marker attribute ends with that edge's path data.
+ *
+ * @type {(html: string) => readonly string[]}
+ */
+const routes = html => html.split('" data-graph-edge=""').slice(0, -1)
+    .map(before => before.slice(before.lastIndexOf('d="') + 'd="'.length))
+
+/**
+ * Three ranks, one node each, and an edge `r` from the root that skips the
+ * middle one — the smallest graph that needs a lane.
+ *
+ * @type {Graph}
+ */
+const skipLevel = {
+    nodes: [
+        { id: 0, kind: 'a', label: '{ }', rank: 0 },
+        { id: 1, kind: 'a', label: '{ }', rank: 1 },
+        { id: 2, kind: 'a', label: '[ ]', rank: 2 },
+    ],
+    edges: [
+        { from: 0, to: 1, label: 'p' },
+        { from: 1, to: 2, label: 'y' },
+        { from: 0, to: 2, label: 'r' },
+    ],
+}
 
 export const proof = {
     ranked: {
@@ -57,10 +89,63 @@ export const proof = {
             assert(html.includes('>42<'), html)
             assert(html.includes('>x<'), html)
         },
-        // Two edges with the same endpoints draw as one line, merged labels —
-        // drawn separately, the second would land exactly on the first and
-        // hide it.
-        mergesParallelEdges: () => {
+        /**
+         * **An edge's label sits in a port of its own node**, not on the
+         * line: the node is a header over a row of cells, one per outgoing
+         * edge, and the edge leaves from the bottom of its cell. Pinned by
+         * the exact geometry — a 50px node at (10,10), a 26px header over a
+         * 20px port, so the port's label is centred at y=46 and the line
+         * starts at the node's bottom, y=56.
+         */
+        labelInAPort: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'leaf', label: '42', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }))
+            assert(html.includes('<rect x="10" y="10" width="50" height="46" rx="4" data-graph-node=""'), html)
+            assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
+            assert(html.includes('<text x="35" y="46" text-anchor="middle" data-graph-edge-label="">x<'), html)
+            assert(html.includes('d="M35,56 L35,96"'), html)
+        },
+        /**
+         * **Nodes are found by id, not by position.** A `Graph` does not
+         * promise its nodes in id order. Given the child first, the port
+         * still hangs on the root and the edge still points down from it;
+         * given the skip-level graph backwards, `r` still gets its lane.
+         * Either way the drawing is the one the id-ordered graph draws.
+         */
+        nodesOutOfIdOrder: () => {
+            const edges = [{ from: 0, to: 1, label: 'x' }]
+            const root = { id: 0, kind: 'a', label: 'root', rank: 0 }
+            const child = { id: 1, kind: 'leaf', label: '42', rank: 1 }
+            const html = htmlToString(graphSvg({ nodes: [child, root], edges }))
+            assert(html.includes('<rect x="10" y="36" width="50" height="20" data-graph-port="">'), html)
+            assert(html.includes('d="M35,56 L35,96"'), html)
+            assertEq(html, htmlToString(graphSvg({ nodes: [root, child], edges })))
+            assertEq(
+                htmlToString(graphSvg({ ...skipLevel, nodes: skipLevel.nodes.toReversed() })),
+                htmlToString(graphSvg(skipLevel)))
+        },
+        // A node with no outgoing edge has no ports, and keeps the header's
+        // height alone — a leaf is the size it always was.
+        noPortsWithoutEdges: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [{ id: 0, kind: 'leaf', label: '42', rank: 0 }],
+                edges: [],
+            }))
+            assert(!html.includes('data-graph-port'), html)
+            assert(html.includes('height="26" rx="4"'), html)
+        },
+        /**
+         * **Two edges to one node are two ports and two lines**, each its
+         * own label. From one shared point they would land on one curve,
+         * which an earlier version merged into a single line labelled
+         * `a, b`; from a cell each, they start apart and need nothing.
+         */
+        parallelEdgesAreTwoPorts: () => {
             const html = htmlToString(graphSvg({
                 nodes: [
                     { id: 0, kind: 'container', label: 'root', rank: 0 },
@@ -71,60 +156,195 @@ export const proof = {
                     { from: 0, to: 1, label: 'b' },
                 ],
             }))
-            assertEq(html.split('data-graph-edge=""').length - 1, 1)
-            assert(html.includes('>a, b<'), html)
+            assertEq(html.split('data-graph-port=""').length - 1, 2)
+            assertEq(html.split('data-graph-edge=""').length - 1, 2)
+            assert(html.includes('data-graph-edge-label="">a<'), html)
+            assert(html.includes('data-graph-edge-label="">b<'), html)
+            assert(!html.includes('>a, b<'), html)
+            // Each from the middle of its own 25px cell.
+            assert(html.includes('d="M22.5,56 '), html)
+            assert(html.includes('d="M47.5,56 '), html)
         },
         /**
-         * **A skip-level edge bows; a one-rank edge stays straight** —
-         * asserted by the exact control point, since the layout is pure
-         * arithmetic over the input. Three single-node rows at 50px wide
-         * center every node at x=35; y is `margin + rank*(nodeHeight+rowGap)`
-         * = 10, 76, 142.
+         * **A node is as wide as its label or its ports, whichever is
+         * wider.** Six one-digit ports at their 24px minimum outgrow a
+         * 50px label; the cells lie end to end from the node's left edge.
          */
-        bowsASkipLevelEdge: () => {
+        portsWidenTheNode: () => {
             const html = htmlToString(graphSvg({
                 nodes: [
-                    { id: 0, kind: 'a', label: '{ }', rank: 0 },
-                    { id: 1, kind: 'a', label: '{ }', rank: 1 },
-                    { id: 2, kind: 'a', label: '[ ]', rank: 2 },
+                    { id: 0, kind: 'a', label: '[]', rank: 0 },
+                    { id: 1, kind: 'leaf', label: '1', rank: 1 },
                 ],
-                edges: [
-                    { from: 0, to: 1, label: 'p' },
-                    { from: 1, to: 2, label: 'y' },
-                    { from: 0, to: 2, label: 'r' },
-                ],
+                edges: [0, 1, 2, 3, 4, 5].map(i => ({ from: 0, to: 1, label: `${i}` })),
             }))
-            assert(html.includes('d="M35,36 Q59,89 35,142"'), html) // r: rank diff 2, bows
-            assert(html.includes('d="M35,36 Q35,56 35,76"'), html) // p: rank diff 1, straight
+            assert(html.includes('<rect x="10" y="10" width="144" height="46"'), html)
+            assert(html.includes('<rect x="130" y="36" width="24" height="20" data-graph-port="">'), html)
         },
         /**
-         * **Boxes, then edges, then the node labels** — the document order
-         * an SVG paints in. The same three ranks as above: `r` skips rank 1,
-         * so it crosses that row, and the node there hid a quarter of it
-         * while the boxes drew last. The labels still draw after the edges,
-         * which is what the old order was protecting.
-         *
-         * Each edge is cased, and the casing carries its line's own curve —
-         * a casing on a straight path under a bowed one would leave the bow
-         * uncased, which is the half that crosses anything.
+         * **An edge that skips a rank runs down a lane of its own** —
+         * asserted by the exact route, since the layout is pure arithmetic
+         * over the input. `r` skips rank 1, so that row gets a 10px lane
+         * placed just after `r`'s source, centred at x=15, and the node
+         * there moves right to x=34. The row is 46px tall, so the lane
+         * spans y=96 to 142 and `r` runs straight down it; `p` and `y`,
+         * one rank each, are single segments across a gap.
+         */
+        laneForASkipLevelEdge: () => {
+            const html = htmlToString(graphSvg(skipLevel))
+            assert(html.includes('d="M47.5,56 L15,96 L15,142 L35,182"'), html) // r: through its lane
+            assert(html.includes('d="M22.5,56 L59,96"'), html) // p: one rank, one segment
+            assert(html.includes('d="M59,142 L35,182"'), html) // y: one rank, one segment
+            assert(html.includes('<rect x="34" y="96" width="50" height="46"'), html)
+            // The lane is part of the drawing's width, not just the nodes.
+            assert(html.includes('viewBox="0 0 94 218"'), html)
+        },
+        /**
+         * **No edge crosses a box** — the claim the lanes exist for,
+         * counted rather than eyeballed. A lane-less layout drew `r` from
+         * the root straight to rank 2, through the node on rank 1.
+         */
+        noEdgeCrossesABox: () => {
+            assertEq(_crossings(skipLevel), 0)
+            // Two skip-level edges from one source to one target take two
+            // lanes, one each, and still cross nothing.
+            assertEq(_crossings({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'mid', rank: 1 },
+                    { id: 2, kind: 'leaf', label: 'deep', rank: 2 },
+                ],
+                edges: [
+                    { from: 0, to: 2, label: 'a' },
+                    { from: 0, to: 1, label: 'b' },
+                    { from: 1, to: 2, label: 'c' },
+                    { from: 0, to: 2, label: 'd', kind: 'lazy' },
+                ],
+            }), 0)
+        },
+        /**
+         * **The crossing check itself can tell a crossing from a touch**,
+         * or the zero above would say nothing: a line through a box
+         * crosses it; one that only starts or ends on its border, or runs
+         * beside it, does not.
+         */
+        crossesBox: () => {
+            const box = { id: 0, kind: 'a', label: 'x', rank: 0, x: 10, y: 10, width: 50, height: 26, ports: [] }
+            assert(_crossesBox(box)([35, 0])([35, 50])) // straight through
+            assert(_crossesBox(box)([0, 0])([70, 50])) // diagonally through
+            assert(!_crossesBox(box)([35, 36])([35, 80])) // leaves its bottom border
+            assert(!_crossesBox(box)([35, 0])([35, 10])) // ends on its top border
+            assert(!_crossesBox(box)([5, 0])([5, 50])) // beside it
+            assert(!_crossesBox(box)([0, 0])([70, 0])) // above it
+        },
+        /**
+         * **A marked edge carries its kind to the line, not to the box.**
+         * A demo marks an edge its node may never follow; the node is drawn
+         * once however many edges reach it, so the mark cannot live there.
+         */
+        marksAnEdge: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x', kind: 'lazy' }],
+            }))
+            assert(html.includes('data-graph-edge-kind="lazy"'), html)
+        },
+        // An edge a demo does not mark says nothing, rather than saying
+        // "ordinary" in an attribute every graph would then carry.
+        anUnmarkedEdgeSaysNothing: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'leaf', rank: 1 },
+                ],
+                edges: [{ from: 0, to: 1, label: 'x' }],
+            }))
+            assert(!html.includes('data-graph-edge-kind'), html)
+        },
+        /**
+         * **Two positions of different kinds stay two marked lines** —
+         * `a && a`, both operands one node. Each leaves its own port, so
+         * the marked one is marked and the other is not, and neither label
+         * is folded into the other.
+         */
+        keepsKindsApart: () => {
+            const html = htmlToString(graphSvg({
+                nodes: [
+                    { id: 0, kind: 'a', label: 'root', rank: 0 },
+                    { id: 1, kind: 'a', label: 'shared', rank: 1 },
+                ],
+                edges: [
+                    { from: 0, to: 1, label: 'left' },
+                    { from: 0, to: 1, label: 'right', kind: 'lazy' },
+                ],
+            }))
+            assertEq(html.split('data-graph-edge=""').length - 1, 2)
+            assertEq(html.split('data-graph-edge-kind="lazy"').length - 1, 1)
+            assert(!html.includes('>left, right<'), html)
+            // Each from a port of its own: two different lines, not one
+            // line drawn twice.
+            assertEq(new Set(routes(html)).size, 2)
+        },
+        /**
+         * **An edge is its place in the list, not its object.** The same
+         * `Edge` object listed twice is two edges, two ports and two
+         * lanes. A lane found by object would belong to both, and each
+         * route would run down one lane, back up and down the other; found
+         * by position, each runs down its own — the drawing two separate
+         * but equal objects give.
+         */
+        sharedEdgeObject: () => {
+            const nodes = [
+                { id: 0, kind: 'a', label: 'root', rank: 0 },
+                { id: 1, kind: 'a', label: 'mid', rank: 1 },
+                { id: 2, kind: 'leaf', label: 'deep', rank: 2 },
+            ]
+            const e = { from: 0, to: 2, label: 'e' }
+            const middle = [{ from: 0, to: 1, label: 'm' }, { from: 1, to: 2, label: 'x' }]
+            const html = htmlToString(graphSvg({ nodes, edges: [e, ...middle, e] }))
+            assert(html.includes('d="M22,56 L15,96 L15,142 L35,182"'), html)
+            assert(html.includes('d="M70,56 L39,96 L39,142 L35,182"'), html)
+            assertEq(html, htmlToString(graphSvg({ nodes, edges: [{ ...e }, ...middle, { ...e }] })))
+        },
+        /**
+         * **Boxes, then edges, then the labels** — the document order
+         * an SVG paints in, so a line draws over the border it meets and
+         * every label draws over any line. No edge carries a casing: with
+         * no box crossed, it would only notch the borders an edge meets.
          */
         layersBoxesThenEdgesThenLabels: () => {
-            const html = htmlToString(graphSvg({
-                nodes: [
-                    { id: 0, kind: 'a', label: '{ }', rank: 0 },
-                    { id: 1, kind: 'a', label: '{ }', rank: 1 },
-                    { id: 2, kind: 'a', label: '[ ]', rank: 2 },
-                ],
-                edges: [
-                    { from: 0, to: 1, label: 'p' },
-                    { from: 1, to: 2, label: 'y' },
-                    { from: 0, to: 2, label: 'r' },
-                ],
-            }))
-            assert(html.indexOf('<rect') < html.indexOf('data-graph-edge-casing'), html)
-            assert(html.indexOf('data-graph-edge-casing') < html.indexOf('data-graph-label'), html)
-            assertEq(html.split('data-graph-edge-casing').length - 1, 3)
-            assert(html.includes('d="M35,36 Q59,89 35,142" data-graph-edge-casing'), html)
+            const html = htmlToString(graphSvg(skipLevel))
+            assert(html.lastIndexOf('<rect') < html.indexOf('data-graph-edge=""'), html)
+            assert(html.lastIndexOf('data-graph-edge=""') < html.indexOf('data-graph-label'), html)
+            // A port's label is text too, and draws over the edges with
+            // the node labels.
+            assert(html.lastIndexOf('data-graph-edge=""') < html.indexOf('data-graph-edge-label'), html)
+            assert(!html.includes('casing'), html)
+        },
+        /**
+         * **An edge that names a node the graph does not have is refused**,
+         * at either end. Drawn anyway, one from a missing node had no port
+         * to leave from and vanished from a picture that looked complete —
+         * a plausible wrong answer where the input was simply wrong.
+         */
+        throw: {
+            fromAMissingNode: () => graphSvg({
+                nodes: skipLevel.nodes,
+                edges: [...skipLevel.edges, { from: 9, to: 1, label: 'ghost' }],
+            }),
+            toAMissingNode: () => graphSvg({
+                nodes: skipLevel.nodes,
+                edges: [...skipLevel.edges, { from: 0, to: 9, label: 'ghost' }],
+            }),
+            // The crossing count lays the graph out the same way, and
+            // refuses the same input.
+            crossings: () => _crossings({
+                nodes: skipLevel.nodes,
+                edges: [{ from: 9, to: 1, label: 'ghost' }],
+            }),
         },
     },
 }

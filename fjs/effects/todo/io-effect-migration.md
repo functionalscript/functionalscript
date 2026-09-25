@@ -490,9 +490,10 @@ Effect<O, T, E = NotImplemented>   // the Pure | Do representation, channel incl
       **Six of them also point at `okStep` as an existing export**
       (`effect-list-fold`, `fold-stream-combinator`, `map-step-combinator`,
       `step-continuation-operation-union`, `../node/todo/ornotfound-combinator`,
-      `../../cas/todo/write-closed-helpers`), which is a dangling reference
-      rather than a stale name: it is gone, not renamed, so each of those needs
-      a decision about what the proposal meant rather than a substitution.
+      `../../cas/todo/write-closed-helpers`, since deleted), which is a
+      dangling reference rather than a stale name: it is gone, not renamed, so
+      each of those needs a decision about what the proposal meant rather than
+      a substitution.
 
       Done. The dangling ones all meant the same thing — the `Result`
       short-circuit — and it still exists: it is what the Io `step` *is*, not

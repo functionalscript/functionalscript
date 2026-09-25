@@ -10,9 +10,9 @@
  * @import { _Node, _OperandStack, _Reach, _Ref, _Routes, _RunState, _View } from './private.ts'
  */
 
-import { concat, empty, flat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
+import { concat, empty, flat, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
-import { error, mapOk, ok, okThen } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, okList, okThen } from '../../types/result/module.f.mjs'
 import { cmp as stringCmp } from '../../types/string/module.f.mjs'
 import { at as routesAt, empty as noRoutes, setReplace } from '../../types/ordered_map/module.f.mjs'
 
@@ -47,27 +47,6 @@ export const _own = (base, key) => {
 const ownProperty = key => base => base === null || base === undefined
     ? error(`cannot read property "${key}" of ${base}`)
     : ok(_own(base, key))
-
-/** @type {<T>(list: List<T>) => (value: T) => List<T>} */
-const appended = list => value => ({ head: list, tail: [value] })
-
-/**
- * The list so far with one more result's value, or the first failure.
- *
- * @template T
- * @param {Result<T, string>} item
- * @returns {(acc: Result<List<T>, string>) => Result<List<T>, string>}
- */
-const collect = item => okThen(
-    /** @type {(list: List<T>) => Result<List<T>, string>} */
-    (list => mapOk(appended(list))(item))
-)
-
-/** @type {Result<List<Unknown>, string>} */
-const noValues = ok(empty)
-
-/** @type {Result<List<readonly [string, Unknown]>, string>} */
-const noMembers = ok(empty)
 
 /** @type {(key: string) => (value: Unknown) => readonly [string, Unknown]} */
 const keyed = key => value => [key, value]
@@ -170,10 +149,12 @@ const toDjs = state => ast => {
     switch (ast[0]) {
         case 'aref': { return ok(state.args[ast[1]]) }
         case 'cref': { return ok(last(null)(take(ast[1] + 1)(state.consts))) }
-        case 'array': { return mapOk(arrayOf)(fold(collect)(noValues)(ast[1].map(toDjs(state)))) }
-        case 'object': { return mapOk(objectOf)(fold(collect)(noMembers)(ast[1].map(memberValue(toDjs(state))))) }
+        case 'array': { return mapOk(arrayOf)(okList(ast[1].map(toDjs(state)))) }
+        case 'object': { return mapOk(objectOf)(okList(ast[1].map(memberValue(toDjs(state))))) }
         case '=>':
-        case 'args': { return error(noFunctionValue) }
+        case 'arg':
+        case 'rest':
+        case 'fref': { return error(noFunctionValue) }
         case '()': { return error(noCallValue) }
         case '-': { return ast.length === 2 ? okThen(negated)(toDjs(state)(ast[1])) : error(noOperatorValue) }
         case '~':
@@ -357,9 +338,13 @@ const refsOfOperand = view => ast => {
                 ? map(deeper(`${read[2]}`))(refsOf(view)(read[1]))
                 : refsOf(view)(read)
         }
-        // a function names nothing outside itself, and its arguments are its own
-        case '=>':
-        case 'args': { return empty }
+        // a function names what it captures, the enclosing scope's own
+        // references, which it establishes when it is made
+        case '=>': { return flat((ast[3] ?? []).map(refsOf(view))) }
+        // its arguments and its frame are its own
+        case 'arg':
+        case 'rest':
+        case 'fref': { return empty }
         default: { return [{ ref: ast, keys: [] }] }
     }
 }
@@ -655,7 +640,7 @@ const moduleGroup = id => `module ${id}`
  */
 const containerNode = (imports, consts) => ({ ref: [kind, i], keys }) => {
     const [group, value] = kind === 'cref' ? [`const ${i}`, consts[i]] : [moduleGroup(imports[i].id), imports[i].value]
-    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' }] : []
+    return isContainer(valueAt(keys)(value)) ? [{ group, keys, aref: kind === 'aref' ? i : null }] : []
 }
 
 /**
@@ -723,9 +708,13 @@ const withinPrevious = sorted => (node, i) => {
 export const sharing = body => imports => consts => {
     const nodes = toArray(body.reduceRight(routeEntry, exported(body)).refs).flatMap(containerNode(imports, consts))
     const sorted = nodes.toSorted(byNode)
-    const reached = [...new Map(imports.map(byId)).values()].filter(m => nodes.some(n => n.aref && n.group === moduleGroup(m.id)))
+    const bindings = imports.filter((_, i) => nodes.some(n => n.aref === i))
+    const reached = [...new Map(bindings.map(byId)).values()]
+    // Routes are relative to each selected export. Different roots from one
+    // module may share descendants even when their relative keys differ.
+    const overlapping = bindings.some(m => reached.some(n => m.id === n.id && m.value !== n.value))
     /** @type {readonly string[]} */
     const reaches = [...reached.map(m => m.id), ...reached.flatMap(m => m.reaches)]
-    const shared = sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
+    const shared = overlapping || sorted.some(withinPrevious(sorted)) || repeats(reaches) || reached.some(m => m.shared)
     return { shared, reaches: shared ? [] : reaches }
 }

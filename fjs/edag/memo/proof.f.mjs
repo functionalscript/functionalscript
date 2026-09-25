@@ -9,6 +9,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { vm } from '../amnesia/module.f.mjs'
 import { analysis } from '../analysis/module.f.mjs'
+import { lazyOp2Id } from '../module.f.mjs'
 import { memo } from './module.f.mjs'
 
 const context = { frame: { x: 1 }, args: [10, 20] }
@@ -71,12 +72,29 @@ export const proof = {
         // A step past a failed guard is not taken, so its operand is not demanded.
         eq(['?.', null, 'f', ['|()', boom]], undefined)
     },
+    /**
+     * **`lazyOp2Id` is held to this table's behaviour, not to its text.**
+     * The vocabulary is named once in `../module.f.mjs` because a reader of
+     * a graph, a printer of `.rs` and this executor all need the same three
+     * tags; a second list is the one that drifts. So every tag it names is
+     * shown here to leave its right operand undemanded given a left that
+     * decides the answer, and a tag from each other corner of `op2` is shown
+     * to force it — under `throw` below, since forcing it throws.
+     */
+    lazyVocabulary: () => {
+        // The left that short-circuits, per operator.
+        const deciding = { '&&': false, '||': true, '??': 0 }
+        for (const tag of lazyOp2Id) {
+            const left = deciding[tag]
+            assertEq(run([tag, left, boom]), left)
+        }
+    },
     // A body's slots are per call: a constructor inside is fresh per call
     // and one within a call, and a body's `args` and `frame` are its own.
     body: () => {
         /** @type {Exp} */
         const inner = ['[]', []]
-        const f = callable(run(['=>', ['[]', [5]], ['[]', [inner, inner, ['args'], ['frame']]]]))
+        const f = callable(run(['=>', 0, ['[]', [5]], ['[]', [inner, inner, ['rest'], ['frame']]]]))
         const first = array(f(1))
         const second = array(f(2))
         assert(first[0] === first[1])
@@ -85,13 +103,13 @@ export const proof = {
         assertStructurallySame(first[3], [5])
         // A body inside a body, each its own scope: the inner closure's
         // constructor is fresh per inner call, whichever outer call made it.
-        const g = callable(run(['=>', null, ['=>', null, ['[]', [inner, inner]]]]))
+        const g = callable(run(['=>', 0, null, ['=>', 0, null, ['[]', [inner, inner]]]]))
         const h = callable(g())
         const x = array(h())
         assert(x[0] === x[1] && x[0] !== array(h())[0])
         // A primitive body is its value and opens no invocation, as a
         // primitive program is its value: no slot is built for either.
-        assertEq(callable(run(['=>', null, 5]))(), 5)
+        assertEq(callable(run(['=>', 0, null, 5]))(), 5)
         eq(5, 5)
     },
     // Wherever sharing does not decide the value, the answer is amnesia's:
@@ -105,14 +123,19 @@ export const proof = {
         agrees(['own', ['{}', [[':', 'k', 9]]], 'k'])
         agrees([',', [1, ['!', 0]]])
         agrees(['?.', ['undefined'], 'x', ['|.', 'y']])
-        agrees(['()', ['=>', null, ['.', ['args'], 0]], ['[]', [7]]])
+        agrees(['()', ['=>', 0, null, ['.', ['rest'], 0]], ['[]', [7]]])
         agrees(['.', ['[]', [42]], 'at', ['|?.()', ['[]', [0]], ['|.', 'toFixed', ['|()', ['[]', [1]]]]]])
-        agrees(['?.()', ['=>', null, ['{}', [[':', 'y', 3]]]], ['[]', []], ['|.', 'y']])
+        agrees(['?.()', ['=>', 0, null, ['{}', [[':', 'y', 3]]]], ['[]', []], ['|.', 'y']])
         agrees(['typeof', ['&&', 1, 'a']])
     },
     throw: {
         // Amnesia's throws are this executor's: a demanded lazy operand that throws, throws.
         forced: () => run(['&&', true, boom]),
         nullishBase: () => run(['.', ['undefined'], 'x']),
+        // Outside `lazyOp2Id`, the right operand is forced: comparison,
+        // arithmetic and bitwise, one from each other corner of `op2`.
+        eagerComparison: () => run(['===', 1, boom]),
+        eagerArithmetic: () => run(['*', 1, boom]),
+        eagerBitwise: () => run(['&', 1, boom]),
     },
 }

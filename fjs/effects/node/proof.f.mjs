@@ -8,11 +8,11 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { empty, isVec, length, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
-import { mapStep, pureOk, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
+import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
+import { badPortCode, badPortMessage, both, errorMessage, errorSummary, exitStep, fetch, inflate, inflateTrailingMessage, ioError, isNotFound, isPort, maxPort, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan, readWholeBytes, readChunks } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -54,7 +54,7 @@ const assertOk = (r, expected) => {
 
 /** `n` zero bytes as a `Vec`.
  * @type {(n: number) => Vec} */
-const bytes = n => u8ListToVec(msb)(Array.from({ length: n }, () => 0))
+const bytes = n => u8ListToVecMsb(Array.from({ length: n }, () => 0))
 
 /** Runs an effect against the empty virtual file system.
  * @type {<T>(e: Effect<NodeOp, T, IoChannel>) => readonly [unknown, Result<T, IoChannel>]} */
@@ -76,7 +76,7 @@ const drain = (source, bound) => {
     /** @type {(l: any, acc: readonly number[]) => any} */
     const loop = (l, acc) => ioStep(l, cell => cell === undefined
         ? pureOk(acc)
-        : loop(cell.tail, [...acc, Number(length(cell.first) >> 3n)]))
+        : loop(cell.tail, [...acc, Number(byteLength(cell.first))]))
     return run(loop(readChunks(source, bound), []))[1]
 }
 
@@ -90,6 +90,29 @@ const lengths = (source, bound) => {
 
 
 export const proof = {
+    isPort: {
+        // Both ends are ports: `0` asks for an ephemeral one.
+        inRange: () => {
+            assert(isPort(0))
+            assert(isPort(8080))
+            assert(isPort(maxPort))
+        },
+        outOfRange: () => {
+            assert(!isPort(-1))
+            assert(!isPort(maxPort + 1))
+        },
+        notInteger: () => {
+            assert(!isPort(1.5))
+            assert(!isPort(NaN))
+            assert(!isPort(Infinity))
+        },
+    },
+    // Node's own words, byte-for-byte, as the virtual runner reports them.
+    badPort: () => {
+        assertEq(badPortCode, 'ERR_SOCKET_BAD_PORT')
+        assertEq(badPortMessage(-1), 'options.port should be >= 0 and < 65536. Received type number (-1).')
+        assertEq(badPortMessage(NaN), 'options.port should be >= 0 and < 65536. Received type number (NaN).')
+    },
     isNotFound: {
         enoent: () => {
             assert(isNotFound(ioError({ code: 'ENOENT', message: 'no such file or directory' })))
@@ -550,20 +573,20 @@ export const proof = {
                 /** @type {readonly Vec[]} */ ([]),
                 [vec8(0x2An)],
                 [vec8(0x01n), vec8(0x02n)],
-                [u8ListToVec(msb)([1, 2, 3]), u8ListToVec(msb)([4, 5])],
+                [u8ListToVecMsb([1, 2, 3]), u8ListToVecMsb([4, 5])],
             ]) {
                 const [, [t, result]] = virtual({ ...emptyState, root: { file: chunks } })(
                     readWholeBytes('file'))
                 assert(t === 'ok', result)
                 assertStructurallySame(
                     toArray(/** @type {List_<number>} */ (result)),
-                    chunks.flatMap(v => toArray(u8List(msb)(v))))
+                    chunks.flatMap(v => toArray(u8ListMsb(v))))
             }
         },
         // A whole file is not bounded by a `Vec`, which is the reason the
         // operation answers chunks: `readFile` refuses the same fixture.
         pastTheVecCap: () => {
-            const big = Array.from({ length: 3 }, () => u8ListToVec(msb)(Array.from(
+            const big = Array.from({ length: 3 }, () => u8ListToVecMsb(Array.from(
                 { length: Number(maxLengthBytes) },
                 (_, i) => i % 251)))
             const root = { file: big }
@@ -651,7 +674,7 @@ export const proof = {
             assertEq(result[0], 'error')
         },
         aChunkThatIsNotWholeBytesIsRefused: () => {
-            // The return type permits one, and `>> 3n` would report a 1-bit
+            // The return type permits one, and `bytesIn` would report a 1-bit
             // chunk as nought — an end-of-stream the source never signalled,
             // with the bits discarded.
             /** @type {_ChunkSource<never>} */
@@ -680,16 +703,37 @@ export const proof = {
             const file = state.root.hello
             assert(!(!Array.isArray(file) || uint(file[0]) !== 0x2An), file)
         },
+        writesEveryChunk: () => {
+            /** @type {List<never, Vec, IoChannel>} */
+            const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec8(0x02n), listEmpty()))
+            const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
+            assert(t === 'ok', result)
+            const file = state.root.hello
+            assert(Array.isArray(file), file)
+            assertStructurallySame(file.map(uint), [0x01n, 0x02n])
+        },
         invalidBufferSize: () => {
             // A chunk whose bit length isn't a multiple of 8 trips the
-            // byte-alignment guard before `writeBytes` is ever called.
+            // byte-alignment guard before `writeBytes` is ever called, and the
+            // file the good chunk before it went into is removed.
             /** @type {List<never, Vec, IoChannel>} */
-            const chunks = listNonEmpty(vec(4n)(0b1010n), listEmpty())
-            const [_, [t, result]] = virtual(emptyState)(
+            const chunks = listNonEmpty(vec8(0x01n), listNonEmpty(vec(4n)(0b1010n), listEmpty()))
+            const [state, [t, result]] = virtual(emptyState)(
                 writeFromStream('hello', chunks)
             )
             assert(t === 'error', result)
             assertIoMessage(result, 'invalid buffer size')
+            assert(state.root.hello === undefined, state.root)
+        },
+        streamFails: () => {
+            // The stream itself fails after one chunk is written: the error is
+            // the stream's, and the partial file is gone.
+            /** @type {List<never, Vec, IoChannel>} */
+            const chunks = listNonEmpty(vec8(0x01n), pureError(ioError({ message: 'stream failed' })))
+            const [state, [t, result]] = virtual(emptyState)(writeFromStream('hello', chunks))
+            assert(t === 'error', result)
+            assertIoMessage(result, 'stream failed')
+            assert(state.root.hello === undefined, state.root)
         },
     },
 }

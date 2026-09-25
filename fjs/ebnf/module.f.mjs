@@ -16,27 +16,16 @@
 
 import { assert } from "../asserts/module.f.mjs"
 import { unmapped } from "./ast/module.f.mjs"
-import { codePointListToString, stringToCodePointList } from "../text/utf16/module.f.mjs"
+import { codePoints, isRepeatBounds, isSymbol } from "./data/module.f.mjs"
+import { codePointListToString } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
-import { toArray } from "../types/list/module.f.mjs"
 import { definedEntries } from "../types/object/module.f.mjs"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.mjs"
 
-const { isSafeInteger } = Number
 const { fromEntries } = Object
 
 const isFixedArray2 =
     isFixedArray(2)
-
-/**
- * An ordinary symbol is a non-negative safe integer. The ceiling is
- * arithmetic rather than alphabetic: `b + 1` below is exact only for safe
- * integers — `2 ** 53 + 1` is `2 ** 53` — so a boundary outside that range
- * would name a different range than the one asked for.
- *
- * @type {(a: number) => boolean}
- */
-const isSymbol = a => isSafeInteger(a) && a >= 0
 
 /**
  * The range `rangeEncode` and `range` both return: one function, so the
@@ -54,12 +43,13 @@ const rangeInfo = (a, b) => {
 /**
  * Encodes a two-symbol string into a terminal range.
  *
- * @throws If `ab` does not contain exactly two unicode code points.
+ * @throws If `ab` does not contain exactly two unicode code points, or holds
+ * a lone surrogate.
  *
  * @type {<const S extends string>(ab: S) => Set<readonly ['range', S]>}
  */
 export const range = ab => {
-    const a = toArray(stringToCodePointList(ab))
+    const a = codePoints(ab)
     assert(isFixedArray2(a))
     return rangeInfo(...a)
 }
@@ -98,8 +88,15 @@ const unionX = f => v => {
 
 const setUnionX = unionX(b => fromRange([b, b + 1]))
 
-/** @type {<const S extends string>(a: S) => Set<readonly ['set', S]>} */
-export const set = a => setUnionX(toArray(stringToCodePointList(a)))
+/**
+ * The set of the code points of `a`.
+ *
+ * @throws If `a` holds a lone surrogate: it is no code point, and encoded
+ * as one it would be a symbol outside the domain.
+ *
+ * @type {<const S extends string>(a: S) => Set<readonly ['set', S]>}
+ */
+export const set = a => setUnionX(codePoints(a))
 
 const infoUnionX = unionX(rangeSet)
 
@@ -116,6 +113,23 @@ export const remove = (a, b) => {
         ...intersection(rangeSet(a))(complement(rangeSet(b)))])
     return () => r
 }
+
+/**
+ * The repetition every repetition constructor returns: one function, so the
+ * bounds are checked once, at the call that wrote them rather than wherever
+ * the grammar is first consumed. Bounds outside `isRepeatBounds`' domain
+ * would build a rule that looks ordinary and matches nothing anyone asked
+ * for.
+ *
+ * @type {<A extends number, B extends number>(a: A, b: B) =>
+ *  <const R extends Rule>(rule: R) =>
+ *  Repeat<A, B, R>}
+ */
+const repeatInfo = (a, b) => {
+    assert(isRepeatBounds(a, b))
+    return rule => () => ['repeat', a, b, rule]
+}
+
 /**
  * `min..max` copies of a rule. A bound is spelled or refused: a literal
  * type says which bound is meant, where `number` — the type `Infinity` has,
@@ -129,8 +143,7 @@ export const remove = (a, b) => {
  *  <const R extends Rule>(rule: R) =>
  *  Repeat<A, B, R>}
  */
-export const repeat =
-    (a, b) => rule => () => ['repeat', a, b, rule]
+export const repeat = repeatInfo
 
 /**
  * `n` or more copies of a rule: the one repetition whose `max` is
@@ -140,7 +153,7 @@ export const repeat =
  *  <const R extends Rule>(rule: R) =>
  *  RepeatFrom<N, R>}
  */
-export const repeatFrom = n => rule => () => ['repeat', n, Infinity, rule]
+export const repeatFrom = n => repeatInfo(n, Infinity)
 
 export const repeatFrom0 = repeatFrom(0)
 export const repeatFrom1 = repeatFrom(1)
@@ -149,10 +162,10 @@ export const repeatFrom1 = repeatFrom(1)
  * @type {<const N extends number>(n: number extends N ? never : N) =>
  *  <const R extends Rule>(rule: R) => Times<N, R>}
  */
-export const times = n => rule => () => ['repeat', n, n, rule]
+export const times = n => repeatInfo(n, n)
 
 /** @type {<const R extends Rule>(rule: R) => Option<R>} */
-export const option = rule => () => ['repeat', 0, 1, rule]
+export const option = repeatInfo(0, 1)
 
 /**
  * A list of `r`s separated by `s`, optional as a whole so that an empty
@@ -235,8 +248,8 @@ const node = words => {
  * `fjs/media/json/parser` does.
  *
  * @throws On no words, on an empty word — a rule that may match nothing
- * decides nothing, and a token is never empty — and on a word spelled
- * twice.
+ * decides nothing, and a token is never empty — on a word spelled twice,
+ * and on a word holding a lone surrogate.
  *
  * @type {(words: readonly string[]) => Rule}
  */
@@ -244,7 +257,7 @@ export const literals = words => {
     assert(words.length !== 0)
     assert(words.every(w => w !== ''))
     assert(new Set(words).size === words.length)
-    return node(words.map(w => toArray(stringToCodePointList(w))))
+    return node(words.map(codePoints))
 }
 
 /**

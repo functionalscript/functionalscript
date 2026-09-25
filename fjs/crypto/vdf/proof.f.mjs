@@ -55,6 +55,12 @@ export const proof = {
             const y = evalVdf(-1n)(sampleX)
             assertEq(y, null)
         },
+        aboveP: () => {
+            const y0 = evalVdf(0n)(smallX + p)
+            assertEq(y0, smallX, [y0, smallX])
+            const y = evalVdf(4n)(smallX + p)
+            assertEq(y, y4, [y, y4])
+        },
     },
     verify: {
         steps100: () => {

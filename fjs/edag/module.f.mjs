@@ -54,6 +54,8 @@ import {
  *  typeof op2,
  *  typeof op1,
  *  typeof op0,
+ *  typeof func,
+ *  typeof arg,
  * ]}
  */
 export const _exp = () => (['or',
@@ -70,10 +72,22 @@ export const _exp = () => (['or',
     op2,
     op1,
     op0,
+    func,
+    arg,
 ])
 
 /** @type {Phantom<typeof _exp, Exp>} */
 export const exp = _exp
+
+/**
+ * A function's fixed parameter count, enclosing-scope frame and invocation
+ * body. Length is integer metadata, not an expression operand; negative zero
+ * is invalid. Analysis and operations check the metadata, while this schema
+ * checks tuple shape. Only the body opens a new scope.
+ */
+export const func = /** @type {const} */ (['=>', number, exp, exp])
+/** A constant fixed-position read; its index must be canonical and below the owning length. */
+export const arg = /** @type {const} */ (['arg', number])
 
 // Primitive
 
@@ -459,13 +473,12 @@ export const comma = /** @type {const} */ ([',', exps])
 
 /**
  * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
- * zero, one, or two — not by any semantic category. `undefined`/`args`/
- * `frame` all take zero `exp` operands after the tag, so all three are
- * `op0`, regardless of what each individually means: the `undefined` value,
- * the arguments array, and the captured-consts frame — the way `args` is
- * for the arguments.
+ * zero, one, or two. `undefined`, module imports (`args`), captured values
+ * (`frame`) and invocation rest (`rest`) have no expression operands.
+ * Functions and fixed reads have separate tuples because their metadata is
+ * not an expression operand.
  */
-export const op0Id = or('undefined', 'args', 'frame')
+export const op0Id = or('undefined', 'args', 'frame', 'rest')
 
 export const op0 = /** @type {const} */ ([op0Id])
 
@@ -488,14 +501,24 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
 // Binary Operations
 
 /**
- * `=>` builds a function from a frame and a body: the frame operand is one
- * node evaluated in the enclosing scope, while the body is the inner
- * function's graph — deferred, never established when the closure is built,
- * only on each call, against that function's own `args`/`frame`. Calling one
- * is not here: `()` is `['()', exp, exp]` and so *is* binary in operand
- * count, but it is a chain node rather than an operation — the whole point of
- * the chain vocabulary is that a call's receiver comes from the node holding
- * it, which no `op2` id has anywhere to put. `own` is exactly
+ * The `op2` tags whose **right operand is lazy**: established only where
+ * the left has not already decided the answer.
+ *
+ * **Named once, because two readers have to agree.** The operations table
+ * implements exactly these three with `o2lazy`
+ * ([`./operations/module.f.mjs`](./operations/module.f.mjs)) — the rest with
+ * `o2`, which forces the thunk — and anything that *draws* or *compiles* a
+ * graph has to know the same three. A second list somewhere else would be
+ * a second implementation, and the one that drifts is the one nobody runs.
+ * `lazyVocabulary` in [`./memo/proof.f.mjs`](./memo/proof.f.mjs) holds
+ * this list to the table's behaviour rather than to its text. It walks the
+ * list, so it catches a tag wrongly added and not one wrongly removed; a
+ * removed tag fails the `op2`, Rust printer and demo proofs instead.
+ */
+export const lazyOp2Id = /** @type {const} */ (['&&', '||', '??'])
+
+/**
+ * `own` is exactly
  * `Object.getOwnPropertyDescriptor(object, key)?.value` — no
  * getter invocation, no prototype chain — where the key operand must
  * evaluate to a string: a runtime-value constraint the shape-only schema
@@ -514,11 +537,11 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
  * here: each is also a unary operator, so both are `op12` below.
  */
 export const op2Id = or(
-    '=>', 'own', 'is',
+    'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
-    '&&', '||', '??'
+    ...lazyOp2Id
 )
 
 export const op2 = /** @type {const} */ ([op2Id, exp, exp])

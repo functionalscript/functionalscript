@@ -26,6 +26,7 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
+import { digitsValue, isCanonicalDigits, isDigit } from '../../text/ascii/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 
@@ -59,16 +60,7 @@ export const ident = /** @type {const} */ ([name, '<', email, '>', ' ', time, ' 
 
 const parse = byteParser(ident)
 
-/**
- * Whether a digit string is canonical decimal — no leading zero ahead of
- * another digit — so that what is read is what {@link write} spells.
- *
- * @type {(digits: readonly number[]) => boolean}
- */
-const canonical = digits => digits.length === 1 || digits[0] !== 0x30
-
-/** @type {(digits: readonly number[]) => bigint} */
-const decimal = digits => digits.reduce((n, d) => n * 10n + BigInt(d - 0x30), 0n)
+const decimal = digitsValue(10n)
 
 /**
  * The latest time an ident may hold, `INT64_MAX` seconds: Git reads a
@@ -98,13 +90,14 @@ export const tryRead = value => {
     const digits = symbolsOf(t)
     // The digits are judged before they are folded: a run of a hundred
     // thousand is refused for its spelling or its length, never folded
-    // into the number it would be.
-    const timely = canonical(digits) && digits.length <= maxTimeDigits && decimal(digits) <= maxTime
-    return spaced.length !== 0 && spaced[spaced.length - 1] === sp && timely
+    // into the number it would be. Canonical, so that what is read is what
+    // `write` spells.
+    const time = isCanonicalDigits(digits) && digits.length <= maxTimeDigits ? decimal(digits) : null
+    return spaced.length !== 0 && spaced[spaced.length - 1] === sp && time !== null && time <= maxTime
         ? {
             name: spaced.slice(0, -1),
             email: symbolsOf(e),
-            time: decimal(digits),
+            time,
             tz: codePointListToString([sign.symbol, ...symbolsOf(z)]),
         }
         : null
@@ -117,7 +110,7 @@ export const tryRead = value => {
  */
 const isZone = tz => {
     const c = ascii(tz)
-    return c.length === 5 && (c[0] === 0x2B || c[0] === 0x2D) && c.slice(1).every(d => d >= 0x30 && d <= 0x39)
+    return c.length === 5 && (c[0] === 0x2B || c[0] === 0x2D) && c.slice(1).every(isDigit)
 }
 
 /**

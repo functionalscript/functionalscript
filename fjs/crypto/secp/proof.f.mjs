@@ -65,15 +65,20 @@ export const proof = {
         /** @type {Init} */
         const curveParams = {
             p: 23n,
-            a: [0n, 1n],
-            g: [1n, 1n],
-            n: 19n
+            c: [4n, 1n],
+            g: [0n, 2n],
+            n: 29n
         }
         const c = curve(curveParams)
         // Access curve operations
-        const point = c.add([1n, 1n])([2n, 5n]); // Add two points
-        const negPoint = c.neg([1n, 1n]); // Negate a point
-        const mulPoint = c.mul(3n)([1n, 1n]); // Multiply a point by 3
+        const point = c.add([0n, 2n])([1n, 11n])
+        const negPoint = c.neg([0n, 2n])
+        const mulPoint = c.mul(3n)([0n, 2n])
+        const identity = c.mul(29n)(c.g)
+        assert(eq(point)([11n, 14n]))
+        assert(eq(negPoint)([0n, 21n]))
+        assert(eq(mulPoint)([11n, 9n]))
+        assertEq(identity, null)
     },
     test: () => {
         /** @type {(c: Curve) => void} */

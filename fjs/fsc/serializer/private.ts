@@ -22,14 +22,19 @@ export type _Hoisted = readonly ['entry', number] | readonly ['leaf', number | b
  * that cannot collide with an exported binding.
  *
  * A function body starts a list of its own, since it reads only its own
- * names — a reference out of a body is a capture.
+ * names — a reference out of a body reads its frame.
  */
 export type _Names = readonly (readonly [_Hoisted | null, string])[]
 
-/** The table being written, and the hoisted values named so far in the scope being written. */
+/**
+ * The table being written, the hoisted values named so far in the scope
+ * being written, and the names its frame's slots read as — none at the
+ * module level.
+ */
 export type _Scope = {
     readonly a: Analysis
     readonly names: _Names
+    readonly frame: readonly string[]
 }
 
 /** A statement and the names it left behind. */

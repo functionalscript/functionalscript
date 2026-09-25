@@ -215,7 +215,7 @@ that is what every grammar in the tree uses today.
 
 The generic `complement` is over the whole number line, which no grammar ever
 means. The terminal domain is a set value, `[0]`, owned by `fjs/ebnf/terminal/`
-([symbol-domain-owner](../../todo/symbol-domain-owner.md)),
+(the tasks below),
 and the lowering intersects every set with it: that clips a `-Infinity` a generic
 complement produced back to `0`, drops EOF and anything below it, and so
 restores canonicity before the IR. It also requires every boundary to be a
@@ -310,7 +310,9 @@ justification is the API and the AST, which is where
       pair or a larger end; `eof` as `[-1, 0]`; the domain `[0]`;
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
       `Infinity`). No integer range-set module: these arithmetic facts are
-      the whole difference.
+      the whole difference. The symbol predicate `isSymbol` and EOF's
+      number `eofSymbol` already have one owner, `../../data`, which the
+      front end and `../../ll1` import; they move here with the rest.
 - [x] Settle the IR carrier together with ebnf-front-end's Problem 1 —
       settled in [`../../data`](../../data/README.md), the
       `data/` issue, before any backend touches a set: a tagged tuple for
@@ -355,11 +357,8 @@ justification is the API and the AST, which is where
   own the alphabet-scoped `not`.
 - [terminal-range-representation](./terminal-range-representation.md) — the
   bigint domain; the toggle list is the representation it was looking for.
-- [symbol-domain-owner](../../todo/symbol-domain-owner.md) — the
-  `ebnf/terminal/` module, which owns the domain set `[0]`, `eof` and the
-  integer helpers. The migration this landed under is
-  [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)'s worked
-  example.
+- [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) —
+  the migration that reserved `ebnf/terminal/`, its worked example.
 - rule-visitor (retired; shipped as `matchRule` in
   [`../../data`](../../data/module.f.mjs)) — discriminates the data
   `Rule`, so it waited on the same IR carrier decision and landed with it.

@@ -23,10 +23,11 @@
  * @import { TreeEntry } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
-import { length as bitLength, msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { digit0, digitsValue } from '../../text/ascii/module.f.mjs'
+import { length as bitLength, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 
@@ -44,20 +45,11 @@ const modeDigits = repeatFrom1(octalDigit)
 
 const nameBytes = repeatFrom1(not(set('\0')))
 
-const toVec = u8ListToVec(msb)
-
-const toBytes = u8List(msb)
-
 /**
- * Whether a list of digits spells a mode the grammar reads: one or more
- * octal digits.
- *
- * @type {(digits: readonly number[]) => boolean}
+ * The number a list of digits spells, exactly, or `null` where it is not a
+ * mode the grammar reads: one or more octal digits.
  */
-const isMode = digits => digits.length !== 0 && digits.every(d => d >= 0x30 && d <= 0x37)
-
-/** The number octal digits spell, exactly. @type {(digits: readonly number[]) => bigint} */
-const octal = digits => digits.reduce((n, d) => n * 8n + BigInt(d - 0x30), 0n)
+const octal = digitsValue(8n)
 
 /**
  * The bits of a mode Git keeps: it folds the digits into an `unsigned
@@ -72,7 +64,10 @@ const modeBits = 0xFFFFFFFFn
  *
  * @type {(digits: readonly number[]) => Nullable<number>}
  */
-const tryMode = digits => isMode(digits) ? Number(octal(digits) & modeBits) : null
+const tryMode = digits => {
+    const n = octal(digits)
+    return n === null ? null : Number(n & modeBits)
+}
 
 /**
  * The mode of an entry as the number its digits spell: `100644` is the
@@ -91,19 +86,22 @@ export const mode = e => {
     return m
 }
 
+/** The mode an octal spelling of this module's own names. @type {(s: string) => number} */
+const octalMode = s => Number(assertNotNullish(octal(ascii(s)), s))
+
 /**
  * The modes Git writes, by their canonical spelling: a file, an executable,
  * a symbolic link, a submodule, and a subtree — five digits, not six.
  */
-const modes = ['100644', '100755', '120000', '160000', '40000'].map(s => Number(octal(ascii(s))))
+const modes = ['100644', '100755', '120000', '160000', '40000'].map(octalMode)
 
-const subtree = Number(octal(ascii('40000')))
+const subtree = octalMode('40000')
 
 /**
  * The bits of a mode that say what kind of entry it is, POSIX's `S_IFMT`,
  * which is all Git asks of a mode before it descends.
  */
-const modeKind = Number(octal(ascii('170000')))
+const modeKind = octalMode('170000')
 
 /**
  * Whether an entry names a subtree: a walk descends through this entry and
@@ -164,7 +162,7 @@ export const tryRead = oidBytes => {
         return entries.map(([m, , n, , id]) => ({
             mode: symbolsOf(m),
             name: symbolsOf(n),
-            oid: toVec(symbolsOf(id)),
+            oid: u8ListToVecMsb(symbolsOf(id)),
         }))
     }
 }
@@ -201,7 +199,7 @@ const problem = e => {
     const digits = byteArray(e.mode)
     const name = byteArray(e.name)
     const m = tryMode(digits)
-    return digits.length > 1 && digits[0] === 0x30 ? 'zero-padded mode'
+    return digits.length > 1 && digits[0] === digit0 ? 'zero-padded mode'
         : m === null || !modes.includes(m) ? 'unknown mode'
         : name.length === 0 ? 'empty name'
         : name.includes(slash) ? 'slash in name'
@@ -258,10 +256,10 @@ export const validate = entries => {
 const entryBytes = oidBytes => e => {
     const digits = byteArray(e.mode)
     const name = byteArray(e.name)
-    assert(isMode(digits), ['not a mode', digits])
+    assert(octal(digits) !== null, ['not a mode', digits])
     assert(name.length !== 0 && !name.includes(nul), ['not a name', name])
     assert(bitLength(e.oid) === BigInt(oidBytes) * 8n, ['not an id', e.oid])
-    return flat([digits, [sp], name, [nul], toBytes(e.oid)])
+    return flat([digits, [sp], name, [nul], u8ListMsb(e.oid)])
 }
 
 /**

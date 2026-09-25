@@ -17,14 +17,12 @@ import { run as mockRun } from '../../effects/mock/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { maxLengthBytes, msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { badNameCode, badPackedCode, headKindCode, idWidthCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, outsideRefsCode, packedHeadCode, packedTwiceCode, refPrefixCode, tryResolve, tryRoots, tryWrite, unspellableNameCode, zeroIdCode } from './module.f.mjs'
-
-const toVec = u8ListToVec(msb)
 
 /**
  * A main worktree's two directories, which are one directory: what a caller
@@ -52,7 +50,7 @@ const t = /** @type {const} */ ('a48bd2c1bb20c1a3457dfa663047827f1e48ad4e')
 const wide = /** @type {const} */ (`${a}${b.slice(0, 24)}`)
 
 /** @type {(s: string) => readonly Vec[]} */
-const file = s => [toVec(latin1(s))]
+const file = s => [u8ListToVecMsb(latin1(s))]
 
 /** A ref file as Git writes one: the id and an LF. */
 const ref = /** @type {(hex: string) => readonly Vec[]} */ (hex => file(`${hex}\n`))
@@ -126,7 +124,7 @@ const writeRefusal = r => {
  * @type {(r: Root) => readonly [string, string]}
  */
 const seen = r => {
-    const n = fromVec(toVec(r.name))
+    const n = fromVec(u8ListToVecMsb(r.name))
     assert(n !== null, r.name)
     return [n, codePointListToString(toHex(r.id))]
 }
@@ -282,7 +280,7 @@ const kindHost = (entry, answer) => ({
         // the link's target is a ref file, which is what makes `alias` a root and
         // what a read of the FIFO would never get back to
         path === 'refs/heads/master' || path === `refs/heads/${entry}`
-            ? ok(toVec(latin1(`${a}\n`)))
+            ? ok(u8ListToVecMsb(latin1(`${a}\n`)))
             : error(ioError({ code: 'ENOENT', message: path })),
     ],
     readdir: path => log => [
@@ -326,7 +324,7 @@ const linkedHeadHost = bytes => headIsFile => ({
     readFile: path => state => [
         state,
         path === 'HEAD' || path === 'ORIG_HEAD'
-            ? ok(toVec(bytes))
+            ? ok(u8ListToVecMsb(bytes))
             : error(ioError({ code: 'ENOENT', message: path })),
     ],
     readWhole: missing,
@@ -380,7 +378,7 @@ const readsADirectoryHost = (packed, statted) => ({
     readFile: path => log => [
         [...log, `readFile ${path}`],
         path === 'refs/heads'
-            ? ok(toVec(latin1('master\n')))
+            ? ok(u8ListToVecMsb(latin1('master\n')))
             : error(ioError({ code: 'ENOENT', message: path })),
     ],
     readdir: missing,
@@ -388,7 +386,7 @@ const readsADirectoryHost = (packed, statted) => ({
     readWhole: path => log => [
         [...log, `readWhole ${path}`],
         path === packedRefs
-            ? ok([toVec(packed)])
+            ? ok([u8ListToVecMsb(packed)])
             : error(ioError({ code: 'ENOENT', message: path })),
     ],
 })
@@ -459,7 +457,7 @@ export const proof = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
                 path === 'refs/heads/master'
-                    ? ok(toVec(latin1(`${a}\n`)))
+                    ? ok(u8ListToVecMsb(latin1(`${a}\n`)))
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
             readdir: path => log => [
@@ -503,9 +501,9 @@ export const proof = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
                 path === 'refs/heads/master'
-                    ? ok(toVec(latin1(`${a}\n`)))
+                    ? ok(u8ListToVecMsb(latin1(`${a}\n`)))
                     : path === 'refs/heads/sym'
-                        ? ok(toVec(latin1('ref: refs/heads/master\n')))
+                        ? ok(u8ListToVecMsb(latin1('ref: refs/heads/master\n')))
                         : error(ioError({ code: 'ENOENT', message: path })),
             ],
             readdir: path => log => [
@@ -535,15 +533,15 @@ export const proof = {
             readFile: path => log2 => [
                 [...log2, `readFile ${path}`],
                 path === 'refs/heads/sym'
-                    ? ok(toVec(latin1('ref: refs/heads/gone\n')))
+                    ? ok(u8ListToVecMsb(latin1('ref: refs/heads/gone\n')))
                     : path === 'refs/heads/master'
-                        ? ok(toVec(latin1(`${a}\n`)))
+                        ? ok(u8ListToVecMsb(latin1(`${a}\n`)))
                         : error(ioError({ code: 'ENOENT', message: path })),
             ],
             readWhole: path => log2 => [
                 [...log2, `readWhole ${path}`],
                 path === packedRefs
-                    ? ok([toVec(latin1(`${b} refs/heads/other\n`))])
+                    ? ok([u8ListToVecMsb(latin1(`${b} refs/heads/other\n`))])
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
@@ -636,7 +634,7 @@ export const proof = {
             readFile: path => state => [
                 state,
                 path === 'refs/heads/master'
-                    ? ok(toVec(latin1(`${a}\n`)))
+                    ? ok(u8ListToVecMsb(latin1(`${a}\n`)))
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
             readWhole: () => state => [state, error(denied)],
@@ -686,7 +684,7 @@ export const proof = {
                 path === packedRefs
                     // before the walk it holds nothing; after it, the ref that
                     // was loose when this began
-                    ? ok(log.includes('readdir refs/heads') ? [toVec(packedNow)] : [])
+                    ? ok(log.includes('readdir refs/heads') ? [u8ListToVecMsb(packedNow)] : [])
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
@@ -709,7 +707,7 @@ export const proof = {
             readWhole: path => log2 => [
                 [...log2, `readWhole ${path}`],
                 path === packedRefs
-                    ? ok(log2.includes('readFile refs/heads/x') ? [toVec(packedNow)] : [])
+                    ? ok(log2.includes('readFile refs/heads/x') ? [u8ListToVecMsb(packedNow)] : [])
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
@@ -730,7 +728,7 @@ export const proof = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
                 path === 'refs/heads/sym'
-                    ? ok(toVec(latin1('ref: refs/heads/master\n')))
+                    ? ok(u8ListToVecMsb(latin1('ref: refs/heads/master\n')))
                     // an absent `HEAD` is an answer, so the only refusals this
                     // host has are the ones a chain that read on would hit
                     : path === 'HEAD'
@@ -749,7 +747,7 @@ export const proof = {
             // the malformed file, as the chunks one open answered
             readWhole: path => log => [
                 [...log, `readWhole ${path}`],
-                path === packedRefs ? ok([toVec(badPacked)]) : error(denied),
+                path === packedRefs ? ok([u8ListToVecMsb(badPacked)]) : error(denied),
             ],
         }
         const [log, r] = mockRun(host)(/** @type {readonly string[]} */ ([]))(tryRoots(one(''), 20))
@@ -976,7 +974,7 @@ export const proof = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
                 path === 'repo/refs/heads/master' || path === 'repo/refs/bisect/shared-only'
-                    ? ok(toVec(latin1(`${a}\n`)))
+                    ? ok(u8ListToVecMsb(latin1(`${a}\n`)))
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
             readdir: path => log => [
@@ -1017,7 +1015,7 @@ export const proof = {
             readFile: path => log => [
                 [...log, `readFile ${path}`],
                 path === 'wt/refs/bisect/bad'
-                    ? ok(toVec(latin1(`${b}\n`)))
+                    ? ok(u8ListToVecMsb(latin1(`${b}\n`)))
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
             readdir: path => log => [
@@ -1254,7 +1252,7 @@ export const proof = {
                 path === packedRefs
                     ? ok(Array.from(
                         { length: Math.ceil(text.length / chunk) },
-                        (_, k) => toVec(text.slice(k * chunk, (k + 1) * chunk))))
+                        (_, k) => u8ListToVecMsb(text.slice(k * chunk, (k + 1) * chunk))))
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
@@ -1335,7 +1333,7 @@ export const proof = {
                 path === 'refs/heads'
                     ? error(ioError({ code: 'EISDIR', message: path }))
                     : path === 'refs/heads/master'
-                        ? ok(toVec(latin1(`${a}\n`)))
+                        ? ok(u8ListToVecMsb(latin1(`${a}\n`)))
                         : error(ioError({ code: 'ENOENT', message: path })),
             ],
             readdir: path => state => [
@@ -1350,7 +1348,7 @@ export const proof = {
             readWhole: path => state => [
                 state,
                 path === packedRefs
-                    ? ok([toVec(packed)])
+                    ? ok([u8ListToVecMsb(packed)])
                     : error(ioError({ code: 'ENOENT', message: path })),
             ],
         }
@@ -1886,8 +1884,9 @@ export const proof = {
     // `'refs/heads/a' exists; cannot create 'refs/heads/a/b'`.
     //
     // The ref is still there afterwards, which is the point: nothing is created,
-    // and the `mkdir` that would replace the file with a directory on this runner
-    // (`../../effects/node/virtual/todo/mkdir-over-a-file.md`) is never reached.
+    // and the `mkdir` is never reached. (It would refuse too — this runner's
+    // `mkdirOp` answers the host's `ENOTDIR` for a file in the path — but the
+    // refusal here is the `stat`'s, before any lock is taken.)
     writeLooseIsAFile: () => {
         /** @type {Dir} */
         const root = { refs: { heads: { a: ref(b) } } }
@@ -1996,7 +1995,7 @@ export const proof = {
         assertStructurallySame(fs, root)
     },
     // A name too long to be a `Vec` at all. `Bytes` is unbounded and
-    // `u8ListToVec` asserts past `maxLengthBytes`, so before `nameText` checked
+    // `u8ListToVecMsb` asserts past `maxLengthBytes`, so before `nameText` checked
     // the length this escaped as a bare `'assertion failed'` — not an `IoChannel`
     // refusal, not even an `Effect`. Found by review; the bound below is one byte
     // over, and the control is one byte under it, which answers normally.

@@ -6,7 +6,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { msb, u8ListToVec, vec8, repeat, empty } from '../../types/bit_vec/module.f.mjs'
+import { u8ListToVecMsb, vec8, repeat, empty } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.mjs'
 import { pureError } from '../../effects/module.f.mjs'
@@ -17,7 +17,7 @@ import { detect, detectPath, detectStream, detectVec } from './module.f.mjs'
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.
 /** @type {(...b: readonly number[]) => Vec} */
-const bytes = (...b) => u8ListToVec(msb)(b)
+const bytes = (...b) => u8ListToVecMsb(b)
 
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 
