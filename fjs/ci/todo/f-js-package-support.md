@@ -76,7 +76,7 @@ Measured at `9169616` with the pinned `tsc` 7.0.2, by adding a throwaway
 
 ```js
 /** @type {(a: number) => (b: number) => number} */
-export const add = a => b => a + b
+export const add = a => b => a + b;
 ```
 
 The first three tasks below already hold, with no configuration change:
@@ -105,7 +105,9 @@ that keep those true, plus four gaps the list below did not name:
   but nothing compiles authored `.f.js`: a module could be renamed, or
   edited later, into something the compiler refuses, and every check would
   stay green. The measured module compiles to `.rs`; its JSON target refuses
-  it only because a function has no JSON.
+  it only because a function has no JSON. The compiler requires the
+  terminating `;` (without it, `unexpected end`), which `tsc` does not, so
+  the gate below is what catches a module written only for `tsc`.
 - **Proofs stay `.f.mjs` for now.** Block bodies compile (`const` and
   `return`), but the `if` and `throw` statements do not: each is refused at
   its first token. A proof fails by throwing, directly or through
