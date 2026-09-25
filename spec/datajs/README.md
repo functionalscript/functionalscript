@@ -766,7 +766,7 @@ An implementation states which roles it provides, and is judged only on those.
 The machine-readable form of this section is the **conformance corpus**,
 [`spec/datajs/vectors`](./vectors/README.md): one directory per set, the schema
 and the rules the sets are derived by in its README, and
-[`matrix.md`](./vectors/matrix.md) — generated, so it is current or the build is
+[`gen.matrix.md`](./vectors/gen.matrix.md) — generated, so it is current or the build is
 red — showing every class **the corpus carries** against the three roles, with a
 reason in words for every cell a role owes nothing to. Its rows come from the
 vectors, so it answers "is every class covered in every role it belongs to" and

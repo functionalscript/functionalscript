@@ -98,6 +98,12 @@ deviating silently is not
 code plus its proof, run `npm run gen` after changing source, run the check
 set above, and delete the `todo/` issue file the PR fixes, if there is one.
 
+A file or directory whose name starts with `gen.` is generated, and so is
+everything inside a `gen.*` directory: change its generator, never the output,
+and never give a handwritten file that name. The few outputs whose path another
+tool fixes are listed in `.gitattributes`
+([CONTRIBUTING.md](./CONTRIBUTING.md#regenerating-after-a-source-change)).
+
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md). How one session takes
 one task from its `todo/` to the last pull request merged — a stack of small

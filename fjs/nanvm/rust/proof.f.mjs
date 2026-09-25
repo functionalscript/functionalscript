@@ -103,7 +103,7 @@ pub fn all<A: IStaticFunction>() {
 export const proof = {
     path: () => {
         assertEq(directory, 'nanvm-lib/tests/test')
-        assertEq(path, 'nanvm-lib/tests/test/generated.rs')
+        assertEq(path, 'nanvm-lib/tests/test/gen.operators.rs')
     },
     valueExpr: () => {
         assertEq(valueExpr(null), 'Nullish::Null.to_any()')

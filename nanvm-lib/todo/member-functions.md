@@ -68,7 +68,7 @@ tables must agree, or a name compiles and throws. One test walks
 `allowedCalls` against the per-type prototype lists and asserts every
 type-and-name pair has an entry — the lists live in FunctionalScript, so
 the pairs reach Rust as a generated table, the way the operator corpus
-reaches `nanvm-lib/tests/test/generated.rs` through `npm run gen`. Until
+reaches `nanvm-lib/tests/test/gen.operators.rs` through `npm run gen`. Until
 that test passes, this file is the checklist, and a pair is checked here
 in the pull request that lands it. Each entry's behavior is pinned against
 the JavaScript oracle as the operators are: the shared corpus drives both

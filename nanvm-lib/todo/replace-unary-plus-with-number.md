@@ -81,7 +81,7 @@ counterpart, and the corpus has no `Number` group to prove one against.
 - `fjs/nanvm/rust/module.f.mjs`'s `op1Rust` and `rustName` tables gain the new Rust
   method and its generated function name; `fjs/nanvm/rust/proof.f.mjs`'s pinned
   expected-output strings follow.
-- Regenerate `nanvm-lib/tests/test/generated.rs` via `npm run gen` rather than
+- Regenerate `nanvm-lib/tests/test/gen.operators.rs` via `npm run gen` rather than
   hand-editing it. The new cases land with a `rust` reason until the coercion exists,
   which is what keeps this issue's Rust half and corpus half independently mergeable.
 
@@ -94,7 +94,7 @@ counterpart, and the corpus has no `Number` group to prove one against.
       `jsOnly.throw.unusedOperation` to `own`, the key that keeps having none.
 - [ ] `fjs/nanvm/rust/module.f.mjs` and `fjs/nanvm/rust/proof.f.mjs`: the emitted Rust
       call, its function name, and the pinned expected snippets.
-- [ ] `npm run gen` to regenerate `nanvm-lib/tests/test/generated.rs`.
+- [ ] `npm run gen` to regenerate `nanvm-lib/tests/test/gen.operators.rs`.
 - [ ] `nanvm-lib/README.md`: a `Number` row in the operator table.
 - [ ] `tsc`, `fjs test`, `npm run gen` (no diff), `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.

@@ -17,7 +17,7 @@ consumers read the expression rather than each reading the case its own way.
 ```text
                               ┌─> proof.f.mjs ──────────────────────────> a JS engine
 module.f.mjs ──> an EDAG exp ─┤     (amnesia)
- (data + the     per case     └─> rust/module.f.mjs ──> generated.rs ──> nanvm-lib
+ (data + the     per case     └─> rust/module.f.mjs ──> gen.operators.rs ──> nanvm-lib
   lowering)                          (print)             (generated)
 ```
 
@@ -128,7 +128,7 @@ outcome and not the program, so it is never part of the case's expression.
    generated file keeps it as a commented-out `TODO`, and the JavaScript proof
    keeps running it.
 
-Never edit `nanvm-lib/tests/test/generated.rs`: CI regenerates it on every pull
+Never edit `nanvm-lib/tests/test/gen.operators.rs`: CI regenerates it on every pull
 request and fails if the committed copy differs (see
 [`fjs/ci/README.md`](../ci/README.md)).
 

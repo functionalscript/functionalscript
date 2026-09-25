@@ -9,7 +9,8 @@ Generated files are mixed with handwritten sources, and their names do not
 distinguish them. Most are not marked anywhere: `git check-attr` reports
 `linguist-generated` unspecified for `spec/datajs/vectors/matrix.md`, `nix/flake.nix`, `nix/run`, and both workflow
 files. Only `nanvm-lib/tests/test/generated.rs` and
-`nanvm-harness/fixtures/*.rs` are marked in `.gitattributes`.
+`nanvm-harness/fixtures/*.rs` are marked in `.gitattributes`. (The rule and
+these markings have since landed; the tasks below track the rest.)
 
 CI runs `npm run gen` over the checkout and then compares. An output its
 generator stopped writing survives, and a generator can silently depend on a
@@ -173,8 +174,8 @@ Deleting all `gen.*` paths and regenerating fails today, for these reasons:
 
 | Output | New path | Notes |
 | --- | --- | --- |
-| `spec/datajs/vectors/matrix.md` | `spec/datajs/vectors/gen.matrix.md` | |
-| `nanvm-lib/tests/test/generated.rs` | `nanvm-lib/tests/test/gen.operators.rs` | `#[path]` on `mod generated;` |
+| ~~`spec/datajs/vectors/matrix.md`~~ | `spec/datajs/vectors/gen.matrix.md` | Done |
+| ~~`nanvm-lib/tests/test/generated.rs`~~ | `nanvm-lib/tests/test/gen.operators.rs` | Done: `#[path]` on `mod generated;` |
 | `nanvm-harness/fixtures/*.rs` | `nanvm-harness/gen.fixtures/*.rs` | One `#[path]` inline module `fixtures` replaces 30 `#[path]` lines; 30 `compile` outputs in `package.json` `gen` |
 
 A scratch rename of the Rust outputs passed `cargo test`, `cargo fmt -- --check`
@@ -190,7 +191,7 @@ removes the old path's `.gitattributes` line.
 One pull request each, stacked in this order:
 
 - [x] Hand-write the callable table and delete its generator (blocker 1).
-- [ ] Add the two `.gitattributes` lines and the fixed-path exceptions,
+- [x] Add the two `.gitattributes` lines and the fixed-path exceptions,
       document the rule in AGENTS.md and CONTRIBUTING.md, and rename
       `matrix.md` and `generated.rs`.
 - [ ] Wire `function` and `rest-function` into `gen` and `src/lib.rs`

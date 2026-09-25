@@ -4,7 +4,7 @@
  * The data described here is the single source of truth for operator
  * behaviour: [`proof.f.mjs`](./proof.f.mjs) runs it against a standard
  * JavaScript engine, and [`rust/module.f.mjs`](./rust/module.f.mjs) prints it
- * as the Rust tests in [`test/generated.rs`](./test/generated.rs).
+ * as the Rust tests in [`test/gen.operators.rs`](./test/gen.operators.rs).
  *
  * Operation identity and operand contract are **not** defined here: they come
  * from [`fjs/edag`](../edag/README.md), the data model of record, through

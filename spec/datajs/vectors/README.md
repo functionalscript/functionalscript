@@ -184,7 +184,7 @@ serializer emits is a valid document, so the accept grammar binds it.
 
 ## The class-by-role matrix
 
-[`matrix.md`](./matrix.md) is generated from the sets by `npm run gen`, so
+[`gen.matrix.md`](./gen.matrix.md) is generated from the sets by `npm run gen`, so
 it is current or the build is red. Rows are the classes, columns the three
 roles a conforming implementation may have — reader, serializer,
 normalize, since conformance is per role and a serializer-only
