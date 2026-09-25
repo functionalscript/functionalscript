@@ -294,7 +294,7 @@ randomness and external mutation.
       [representation examples](../spec/todo/1015-undefined-property-vm-layer.md)
       with complete proposed patterns or explicitly labeled JavaScript-only
       oracles. Execution/optimization and regression work remains below.
-- [ ] **P1:** implement the linked module-resolution correction and its real
+- [x] **P1:** implement the linked module-resolution correction and its real
       FJS/native-ESM escaped-filename regression.
 - [ ] **P1:** compare the operator grammar's refusals with a native
       JavaScript engine's syntax and early errors, and extend that gate to

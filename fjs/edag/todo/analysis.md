@@ -1,7 +1,9 @@
 ## EDAG analysis: the nodes to memoize, as one table for a writer and a VM
 
 **Priority:** P2
-**Status:** open
+**Status:** done — kept as the record; cited by
+[`../execution-models.md`](../execution-models.md) and
+[interpret-edag](../../fsc/todo/interpret-edag.md) for the design below
 
 ### Problem
 
@@ -204,7 +206,7 @@ value outputs keep the sweep until they run the EDAG.
       is the integration task of
       [`interpret-edag.md`](../../fsc/todo/interpret-edag.md), which carries the
       `[cfg.x, cfg.x]` JSON-refusal pin.
-- [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
+- [x] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related
 

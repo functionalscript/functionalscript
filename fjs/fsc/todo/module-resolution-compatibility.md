@@ -1,7 +1,10 @@
 ## Preserve module-resolution semantics
 
 **Priority:** P1
-**Status:** open; remaining verification is limited to the current path-import subset
+**Status:** done — kept as the record; cited by `spec/README.md`,
+`spec/named-imports.md` and the
+[compatibility epic](../../../todo/fjs-javascript-compatibility.md) for the
+host boundary and specifier contract below
 
 ### Problem
 
