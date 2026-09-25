@@ -234,8 +234,9 @@ status-only tombstone.
 
 Kept as the record: a resolved issue stays **only** when live documents cite it
 for something no surviving file says — a migration's staged rationale, a
-decision's alternatives. Say so in its `**Status:**` and name what cites it, so
-a reader can tell it from an open task at a glance. This is the narrow
+decision's alternatives. Say so in its `**Status:**` — `done — kept as the
+record; cited by …` — and name what cites it, so a reader can tell it from an
+open task at a glance. This is the narrow
 exception, not a way to keep finished work around: if the rationale can move
 into a `README.md` or JSDoc, move it and delete the file.
 
@@ -259,6 +260,7 @@ into a `README.md` or JSDoc, move it and delete the file.
 | `on-hold` | Intentionally deferred |
 | `irrelevant` | Superseded or obsolete |
 | `won't fix` | Deliberately will not be implemented |
+| `done` | Resolved, and kept only as a record live documents cite (see above) |
 
 ## Language Specification
 

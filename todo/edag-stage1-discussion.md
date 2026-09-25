@@ -4,8 +4,9 @@
 **Status:** open — working document for designing the stage 1 function
 EDAG (expression DAG — see the core invariant).
 Each subject below is resolved separately; once all are **decided**, the
-result is distilled into a concrete design in [edag-spec.md](./edag-spec.md)
-and this document is deleted.
+result is distilled into [`fjs/edag/README.md`](../fjs/edag/README.md) — the
+schema of record is [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and
+this document is deleted.
 
 The concrete DJS rollout is tracked in
 [`compile-modules-to-edag.md`](../fjs/fsc/todo/compile-modules-to-edag.md):
@@ -45,7 +46,7 @@ A function body is a **single operation node** — the root of the
 expression DAG. Non-resulting computations (asserts — fail-fast
 guards, A4) are merged into the graph by the **`","` operation**:
 
-- `[",", ...asserts, result]` establishes **all** of its operands
+- `[",", [...asserts, result]]` establishes **all** of its operands
   (subject 8) and takes the value of the **last** one — it *is* the JS
   comma operator, `(a, b) → b`. The assert operands' values are
   discarded — they exist for their throw-potential only — and are
@@ -259,8 +260,8 @@ schema is free to change independently of both.
 |`["own", object, key]`|— internal only|later|no standalone source spelling; runtime-entry API and semantic migration belong to [entry](../fjs/edag/todo/entry.md)|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
-|`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
+|`[",", [...node, node]]`|`(a, b)`|later|membership without order (subject 8); the operands are one operand, an array, as for `"[]"`|
+|`["=>", length, frame, body]`|`(…) => …`|2|function; `length` is integer metadata (subject 7); `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope was narrower and only emitted/accepted a placeholder for it; the compiler now emits an array of captured values, `null` where there is none ([functions](../spec/README.md#functions))|
 
 `["{}", [...entry]]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries.
@@ -952,15 +953,22 @@ already follow —
 
 #### 5. Validation
 
-**Status:** open (list agreed in direction, details when the RTTI schema
-is written)
+**Status:** open (list agreed in direction). The RTTI schema is written —
+[`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) — and checks shape only:
+constants, the single-node body, unknown tags, entry forms and the form of a
+property operand. The rest of the list is not checked today
+([Caveats](../fjs/edag/README.md#caveats)): the property operand does not yet
+exclude the prohibited names, acyclicity and the `"=>"` scope rule go
+unchecked, and the `","` well-formedness rule is left to the emitter.
+Whether that `","` rule belongs to validation, as this list says, or stays
+the emitter's, as the README says, is open.
 
 The EDAG is the `Function` constructor's public input and will see shapes
 the FJS compiler would never emit. To validate:
 
-- constants: function values in constant position are a validation error
-  (until a `["=>", ...]` node exists,
-  [functions](../spec/README.md#functions));
+- constants: function values in constant position are a validation error —
+  a function is a `"=>"` node, never a constant
+  ([functions](../spec/README.md#functions));
 - the body: a single operation node;
 - `","` (when introduced): at least two operands — a single-operand
   `","` is the identity and non-canonical; an assert operand reachable
@@ -1125,7 +1133,7 @@ or explicitly refuse unsupported observations before exposing wrapper text
 ([default-text boundary](../spec/todo/3120-parameters.md#default-function-text-render-or-refuse)).
 
 Pre-generated factories can materialize these functions without the
-[length pattern](../spec/todo/3130-function-length-pattern.md) for arity within
+[length pattern](../spec/todo/arity-complete-arguments.md) for arity within
 an executor's table capacity. That capacity limits materialization, not valid
 source or EDAG: source writers emit the declared parameter list directly.
 
@@ -1134,7 +1142,7 @@ source or EDAG: source writers emit the declared parameter list directly.
 **Status:** decided (revised: the merge is the `","` operation)
 
 **Resolution: non-resulting computations are merged into the graph by
-the `","` operation — `[",", ...asserts, result]`, the JS comma
+the `","` operation — `[",", [...asserts, result]]`, the JS comma
 operator — which guarantees *membership*, not order.** Introduced in
 `fjs/fsc/edag` after Stage 1, for what a module's export does not reach;
 these rules bind it.
@@ -1211,7 +1219,7 @@ these rules bind it.
   request must not guard the request with asserts, or any user can crash
   the program (a DoS vector). Untrusted-input validation is an ordinary,
   *expected* outcome and belongs in values (`Result` / `Nullable`,
-  [044-error-handling-pattern](./044-error-handling-pattern.md)); an
+  [`fjs/types/result`](../fjs/types/result/module.f.mjs)); an
   assert firing means the program itself is wrong — a breach of an
   internal API contract. The opaque-error contract (A4) enforces this
   discipline by construction: an error carries no information, so an
@@ -1332,8 +1340,9 @@ would capture `x` while `x` is still being constructed, a cycle in the
 *value* graph. It needs the group mechanism from subject 9 (or passing
 the partner as an argument), not just relaxed ordering.
 
-The EDAG's only leaves are constants and `["args"]`. Nothing references a
-name the function did not compute itself:
+The EDAG's only leaves are constants and bindings — `["arg", N]`, `["rest"]`
+and `["frame"]` in a function, the import `["args"]` in a module (subject 2).
+Nothing references a name the function did not compute itself:
 
 - a module-level `const` or `import` the body uses
   ([const](../spec/README.md#shared-values-constants),

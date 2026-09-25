@@ -1,4 +1,4 @@
-## camel-case-proof-keys. 41 `proof` test keys are snake_case
+## Rename snake_case proof keys to camelCase
 
 **Priority:** P4
 **Status:** open
@@ -7,13 +7,14 @@
 
 A `proof` object's keys are the test names the runner prints
 (`proof.historyStep.overDo()`), and the repository writes identifiers in
-camelCase everywhere else. 41 keys across 5 files are snake_case instead:
+camelCase everywhere else. At `36c8d4a`, thirty-nine keys across five files
+are snake_case instead:
 
 | file | count |
 | --- | --- |
-| `fjs/sul/id/proof.f.mjs` | 18 |
-| `fjs/sul/level/hash/proof.f.mjs` | 11 |
-| `fjs/sul/proof.f.mjs` | 5 |
+| `fjs/sul/id/proof.f.mjs` | 19 |
+| `fjs/sul/level/hash/proof.f.mjs` | 9 |
+| `fjs/sul/proof.f.mjs` | 4 |
 | `fjs/types/bit_vec/proof.f.mjs` | 4 |
 | `fjs/types/prime_field/proof.f.mjs` | 3 |
 

@@ -652,7 +652,7 @@ The standing objection to types-as-values is cost: TypeScript erases its types,
 and a type that is an ordinary value looks like one more thing to ship. It does
 not apply here, and answering it needs no erasure rule.
 
-A FunctionalScript module compiles to an [EDAG](./edag-spec.md), and source is
+A FunctionalScript module compiles to an [EDAG](../fjs/edag/README.md), and source is
 serialized back **out of the graph**, by reference count, emitting only what is
 reachable —
 [`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs)
@@ -745,8 +745,8 @@ execution, where importing the RTTI module is an ordinary run-time import. And
 it says nothing about `.mjs`, which is ordinary JavaScript held to ordinary
 bundler rules.
 
-There is a pleasing closure here: `fjs/edag/` owns "the RTTI schema used to
-define those types" ([edag-spec](./edag-spec.md)), so the graph that decides
+There is a pleasing closure here: `fjs/edag/` defines the EDAG as an RTTI
+schema ([`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs)), so the graph that decides
 what ships is itself described by the type system whose cost it decides.
 
 ### Editor support is part of the work, not an extra
@@ -847,17 +847,21 @@ so that issue's open question is answered yes by this stage.
 
 **The numbers are labels, not a schedule.** They were assigned as this document
 grew and have been renumbered twice; the gates below are the real order, and at
-least one stage — 12 — has to land near the front. Renumbering again would
+least one stage — 12 — had to land near the front; its legality half has.
+Renumbering again would
 churn every reference in and out of this file for no gain, so the dependencies
 are stated instead:
 
-- **12 before 4.** Anchoring gates the first stage that *consumes* an
+- **12 and 4.** Anchoring concerns the first stage that *consumes* an
   annotation, not the one that recognizes it. Stage 3 adds a compile-time
-  reference in parser output and changes nothing about the runtime graph;
-  the rejection bites when that reference is erased while lowering to EDAG,
-  leaving the binding unreachable from the root. So stage 3 is free to proceed,
-  and stage 4 onward is not. It is numbered 12 of 13 and needed near the
-  front.
+  reference in parser output and changes nothing about the runtime graph.
+  When stage 4 erases that reference while lowering to EDAG, the binding is
+  left unreachable from the root — and the compiler already anchors such a
+  binding with `','` rather than rejecting it (`anchors` in
+  [`fjs/fsc/ast`](../fjs/fsc/ast/module.f.mjs)), so 12's legality half has
+  landed and does not block stage 4. What 12 still owns is the totality
+  exemption, which decides whether such a binding is evaluated or dropped;
+  whether stage 4 waits on it for cost is open.
 - **1's renderer half** can start today; its declaration-emission half needs a
   schema for every export, so it waits for stage 6 or an explicit manifest.
 - **3 onward** are gated on the compiler; **4 onward** additionally on
@@ -1742,21 +1746,34 @@ splits around inference, so the runnable order is 668's representation half
 
 **Design background:**
 
-- [141](../fjs/types/todo/141-universal-rtti-type-system.md) — the earlier, more abstract form of this idea:
-  a `TypeSystem<T>` interface with `equal`/`subset`, and a parser recognizing
-  `Ts<typeof t>`. `subset` shipped in
-  [`rtti/data`](../fjs/rtti/data/module.f.mjs); the parser half is this
-  epic.
+- i141 (retired; folded into this epic) — the earlier, more abstract form of
+  this idea: a `TypeSystem<T>` interface a user implements for their own data
+  type, and a parser that recognizes only a few constructions, the type always
+  spelled through one marker so other tools can find the system behind it:
+
+  ```ts
+  type TypeSystem<T> = (a: T) => {
+      equal: (b: T) => boolean
+      subset: (sub: T) => boolean
+  }
+  // Other parsers detect `typeof S`; TypeScript sees only `T`.
+  type Info<T, S extends TypeSystem<S>> = T
+  type Ts<T> = Info<Map<T>, typeof system>
+  ```
+
+  `subset` shipped in [`rtti/data`](../fjs/rtti/data/module.f.mjs); the
+  parser half is this epic.
 - [types-for-fs.md](./types-for-fs.md) — why TypeScript's own type system is not
   the target: it cannot analyze mutable types soundly, which is the argument
   commitment 3 turns around. It also already sketches `const x = //: RTTI-TYPE`
   under "Benefits" — the annotation form of this epic, proposed there first.
 - [new-pl.md § Type System](./new-pl.md#type-system) — the same idea one level
   out: type checking as an opt-in library rather than a language feature.
-- [edag-spec.md](./edag-spec.md) — already specifies the EDAG with RTTI and
-  *plans* a Rust generator from it — the issue is `Status: open` with none of
-  its eight tasks done, one being "Implement a Rust code generator from RTTI
-  schemas" — and the same schemas would feed both. It is also the mechanism
+- [`fjs/edag`](../fjs/edag/README.md) — already specifies the EDAG with RTTI
+  ([`module.f.mjs`](../fjs/edag/module.f.mjs) is the schema of record), and a
+  Rust generator from that schema is
+  [rust-schema-codegen](../fjs/edag/todo/rust-schema-codegen.md), still
+  open; the same schemas would feed both. The EDAG is also the mechanism
   behind the cost discussion: source is serialized out of the graph, so an
   unreferenced node is not emitted. **Not the same as free** — see
   [What a compile-time-only type costs](#what-a-compile-time-only-type-costs),

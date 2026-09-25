@@ -5,17 +5,19 @@
 > so no authored typedef documentation reaches declaration emit any more; this
 > upstream behavior matters again only if that rule is ever relaxed.
 
-**Priority:** P2
+**Priority:** P5
 **Status:** blocked
 
 ### Trigger
 
-The upstream issue below is filed at
-[microsoft/typescript-go](https://github.com/microsoft/typescript-go/issues),
-fixed, and a TypeScript release containing the fix is picked up by this
-repository's `devDependencies`. Until then, substantial documented type APIs
-live in `types.ts`, whose declaration comments emit through the normal
-TypeScript pipeline.
+The pinned `typescript` in
+[`fjs/ci/config/module.f.mjs`](../../fjs/ci/config/module.f.mjs) — the
+compiler this repository type-checks with; it is not a dependency — reaches a
+[microsoft/typescript-go](https://github.com/microsoft/typescript-go/issues)
+release that fixes the upstream issue below. Filing that issue is this
+repository's own first task, not part of the trigger. Until then, substantial
+documented type APIs live in `types.ts`, whose declaration comments emit
+through the normal TypeScript pipeline.
 
 ### Problem
 
@@ -28,9 +30,9 @@ to `types.ts`, which is the workaround, not the fix). As of
 repository's exposure is limited to future code: the last three documented
 public typedefs authored in `.mjs` (`ParseContext`/`djsResult` in
 `fjs/fsc/transpiler`, `Step` in `fjs/protocol/mcp/stdio`) moved to sibling
-`types.ts` files, and a sweep measures zero remaining. Implementation-local
-`_`-prefixed typedefs keep their (fewer) doc comments in `.mjs` and are still
-subject to the bug.
+`types.ts` files, and a sweep measures zero remaining. File-scope `_`-prefixed
+typedefs have since gone from authored `.mjs` too; only function-local
+typedefs remain there.
 
 Measured with the minimal reproduction below, the loss is *shape-dependent*,
 which the earlier record did not know:

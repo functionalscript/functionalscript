@@ -6,13 +6,13 @@
 ### Problem
 
 A function's EDAG is a **DAG whose sharing is semantic**
-([edag-stage1-discussion](./edag-stage1-discussion.md), subject 1): a
+([edag-stage1-discussion](../../../todo/edag-stage1-discussion.md), subject 1): a
 node referenced twice is evaluated once, and `[x, x]` is a different
 function from `[{}, {}]`. Every textual view hides exactly that:
 
 - source text — the sharing shows only as `const` bindings, and two
   functions that read identically can differ in which nodes are shared;
-- JSON — expands sharing entirely ([spec/README.md](../spec/README.md)),
+- JSON — expands sharing entirely ([spec/README.md](../../../spec/README.md)),
   so it cannot even represent the graph;
 - DJS — preserves sharing, but a reader must reconstruct the graph
   mentally from the `const` names.
@@ -25,6 +25,12 @@ hash differently* all want the graph itself.
 A pure function from an EDAG value to a graph description — data in,
 text out, no side effects, so it is ordinary FunctionalScript and can
 eventually be part of the self-hosted toolchain.
+
+A layered node-and-edge renderer already exists:
+[`fjs/website/demo/graph`](../../website/demo/graph/module.f.mjs) ranks a
+graph by longest path, draws a shared node once, and routes rank-skipping
+edges through lanes, as Graphviz's `dot` does. Reuse it — export what this
+needs from it — rather than writing a second layout.
 
 Output formats worth supporting:
 
@@ -49,10 +55,11 @@ What the rendering must show, beyond a plain tree:
 
 ### Current fixed/rest format
 
-The compiler and evaluators implement the fixed/rest format in #2237. The old
+The compiler and evaluators implement the fixed/rest format in
+[#2237](https://github.com/functionalscript/functionalscript/pull/2237). The old
 three-element function tuple and function-owned `['args']` are historical;
 they are not an alternative schema for this visualizer. Follow the
-[named-and-rest parameter plan](../spec/todo/3120-parameters.md#edag-fixed-prefix-and-rest)
+[named-and-rest parameter plan](../../../spec/todo/3120-parameters.md#edag-fixed-prefix-and-rest)
 for the current format. This TODO's Mermaid/DOT rendering and proof requirements
 remain open; the format's implementation does not complete this visualizer task.
 
@@ -86,8 +93,10 @@ refused explicitly, not silently omitted or reinterpreted as old tuples.
 
 ### Related
 
-- [edag-spec](./edag-spec.md) — the RTTI schema of the format.
-- [edag-stage1-discussion](./edag-stage1-discussion.md) — the format
+- [`../module.f.mjs`](../module.f.mjs) — the RTTI schema of the format.
+- [edag-stage1-discussion](../../../todo/edag-stage1-discussion.md) — the format
   being visualized, and where its semantics are worked out.
+- [`fjs/website/demo/graph`](../../website/demo/graph/module.f.mjs) — the
+  layered node-and-edge renderer to reuse.
 - `toString(f)` is the *text* counterpart of the same data; the two
   together cover both audiences.

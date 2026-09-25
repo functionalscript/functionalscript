@@ -147,7 +147,7 @@ Python's convenience trades away exactly the precision guarantee that motivates 
 
 This `2`/`2.0` split doesn't have to wait for a new PL. [fjs/media/json/extended](../fjs/media/json/extended/module.f.mjs) implements the same convention — a dot-free numeric literal is `bigint`, a literal with a `.` (or exponent) is `number` — as a JSON-*compatible* codec, and independently lands on the same Python precedent (CPython's `json` scanner uses the identical `frac`/`exp`-presence test to choose `int` vs `float`). It's a concrete, buildable-now instance of this section's idea, scoped to serialization rather than the full language.
 
-[todo/blocked/integer-as-bigint.md](./blocked/integer-as-bigint.md) tracks the ECMAScript-level version of this same idea (`123` becoming the language's own default integer type) — blocked because ECMAScript is unlikely to ever make `bigint` the primary numeric type for compatibility reasons. This section is the escape hatch: a new PL isn't bound by that compatibility constraint, so it doesn't have to wait.
+The ECMAScript-level version of this same idea — `123` becoming the language's own default integer type — is not coming: ECMAScript is unlikely ever to make `bigint` the primary numeric type, for compatibility reasons, and FunctionalScript stays a JavaScript subset. This section is the escape hatch: a new PL isn't bound by that compatibility constraint, so it doesn't have to wait.
 
 #### UTF8 String
 
@@ -178,9 +178,9 @@ const x = { 11: 11, 2: 2, a: 3, b: 5 } // { '11': 11, '2': 2, a: 3, b: 5 }
 const y = { 2: 2, b: 5, a: 3, 11: 11 } // { '11': 11, '2': 2, a: 3, b: 5 }
 ```
 
-Note: JS already sorts integer-like keys numerically before string keys, so the output above matches current JS behavior. In the new PL the same result would be produced by pure lexicographic order (`'11' < '2' < 'a' < 'b'`), which happens to agree here. The key difference is that JS's numeric-key special-casing is eliminated — the rule is simply: sort by string comparison.
+Note: this is not JS behavior. JS puts integer-like keys first in numeric order and keeps every other key in insertion order, so `x` is `{ '2': 2, '11': 11, a: 3, b: 5 }` and `y` is `{ '2': 2, '11': 11, b: 5, a: 3 }`. Pure lexicographic order puts `'11'` before `'2'` and makes both the same. The key difference is that JS's numeric-key special-casing and its dependence on insertion order are both eliminated — the rule is simply: sort by string comparison.
 
-See [todo/blocked/lexicographic-integer-keys.md](./blocked/lexicographic-integer-keys.md) — blocked on ECMAScript, which is unlikely to ever drop the numeric-key special-casing for compatibility reasons; a new PL adopts pure lexicographic order directly instead.
+ECMAScript is unlikely ever to drop the numeric-key special-casing, for compatibility reasons, and FunctionalScript keeps JavaScript's own-property order ([spec/README.md](../spec/README.md)); a new PL adopts pure lexicographic order directly instead.
 
 #### Assigning
 

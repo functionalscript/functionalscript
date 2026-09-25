@@ -10,10 +10,16 @@ hard error), per the
 [removal RFC](https://github.com/bytecodealliance/rfcs/blob/main/accepted/wasmtime-remove-wasi-threads.md):
 the wasi-threads proposal is architecturally dead-ended, the supporting
 `wasi-common` crate was unmaintained, and Wasmtime's shared-memory
-implementation was unsound. CI therefore runs the `wasm32-wasip1-threads`
-tests under Wasmer only (`.cargo/config.wasmer.toml`); Wasmtime still lints
-the target via Clippy, which needs no runner. The runner×target matrix has
-lost the Wasmtime×threads cell.
+implementation was unsound. CI runs the `wasm32-wasip1-threads` tests under
+Wasmer only (`.cargo/config.wasmer.toml`); Wasmtime still lints the target via
+Clippy, which needs no runner. The runner×target matrix has lost the
+Wasmtime×threads cell.
+
+The Wasmtime CI runs is the one the pinned Nixpkgs snapshot provides —
+`wasmtime` in [`fjs/ci/config/module.f.mjs`](../../fjs/ci/config/module.f.mjs),
+45.0.2 at `36c8d4a` — which predates the removal. So the cell was dropped
+ahead of the snapshot reaching 47, not forced by the version CI runs today.
+Whether to restore it until that bump is open.
 
 ### Trigger
 
