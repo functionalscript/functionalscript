@@ -25,9 +25,10 @@ No document grants that exception.
 it as the one shipped `new Array` in the tree. The function length pattern
 proposed in
 [#2213](https://github.com/functionalscript/functionalscript/pull/2213),
-which would admit one construction-time `defineProperty` as a complete
-matched pattern, says in as many words that it does not cover this one;
-nothing here depends on that proposal's fate.
+which would have admitted one construction-time `defineProperty` as a
+complete matched pattern, said in as many words that it did not cover this
+one; it is [retired](https://github.com/functionalscript/functionalscript/blob/245649cdeeb0fb6318004ee273121143273262db/spec/todo/arity-complete-arguments.md#candidate-mechanism-the-withlength-pattern) since the language limited `length` to 16, and
+nothing here depended on its fate.
 
 Two texts are already out of step with the code and go with whatever fix is
 chosen:
@@ -117,9 +118,9 @@ alone does not stand in for that approval.
   hole is undefined behaviour, not a wrong answer. Choosing it means
   saying so where the readers' contract is written.
 - **Keep hole preservation through an admitted pattern**, if the language
-  ever admits a construction-time idiom for arrays the way #2213 proposes
-  one for a function's `length`. Nothing proposes that today, and it would
-  reopen the question the first idea answers.
+  ever admits a construction-time idiom for arrays the way the retired
+  #2213 pattern proposed one for a function's `length`. Nothing proposes
+  that today, and it would reopen the question the first idea answers.
 
 ### Tasks
 
