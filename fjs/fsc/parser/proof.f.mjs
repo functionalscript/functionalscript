@@ -46,6 +46,48 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
 export const proof = {
+    namedImports: {
+        bindings: () => {
+            const source = 'import d, { x, x as y, default as z, as as from, } from "./dep"; export default [d,x,y,z,from];'
+            const module = unwrap(parseFromTokens(tokenizeString(source)))
+            assertStructurallySame(module[0], ['default', 'x', 'x', 'default', 'as'].map(name => ({ specifier: './dep', json: false, name })))
+            assertStructurallySame(unwrap(run(module[1])([1, 2, 2, 1, 3])), { default: [1, 2, 2, 1, 3] })
+            const syntax = unwrap(_parseSyntaxFromTokens(tokenizeString(source)))
+            assertStructurallySame(syntax.imports[0].bindings.map(({ name, local }) => [name, local.token]), [
+                ['default', { kind: 'id', value: 'd' }], ['x', { kind: 'id', value: 'x' }],
+                ['x', { kind: 'id', value: 'y' }], ['default', { kind: 'id', value: 'z' }],
+                ['as', { kind: 'id', value: 'from' }],
+            ])
+        },
+        empty: () => {
+            const module = unwrap(parseFromTokens(tokenizeString('import {} from "./dep"; import d, {} from "./dep"; export default d;')))
+            assertStructurallySame(module[0].map(({ name }) => name), [null, 'default'])
+            assertStructurallySame(unwrap(run(module[1])([{}, 7])), { default: 7 })
+        },
+        json: () => {
+            const module = unwrap(parseFromTokens(tokenizeString('import {default as data} from "./data.json" with {type:"json"}; export default data;')))
+            assertStructurallySame(module[0], [{ specifier: './data.json', json: true, name: 'default' }])
+        },
+        errors: () => {
+            for (const source of [
+                'import {x,x} from "./d";', 'import {x as a,y as a} from "./d";',
+                'import a,{x as a} from "./d";', 'import {x} from "./d"; const x=1;',
+                'import {x} from "./d"; import x from "./e";',
+                'import {x as class} from "./d";', 'import {default} from "./d";',
+                'import {x as undefined} from "./d";', 'import {x as NaN} from "./d";',
+                'import {x as} from "./d";', 'import {x,,y} from "./d";',
+                'import {,} from "./d";', 'import {x y} from "./d";',
+                'import {"x" as y} from "./d";', 'import * as ns from "./d";',
+                'import d, from "./d";', 'import "./d";',
+                'import {x} from "./d" with {wrong:"json"};',
+                'import {x} from "./d" with {type:"text"};',
+            ]) { assertEq(parseFromTokens(tokenizeString(`${source} export default 1;`))[0], 'error', source) }
+            const duplicate = parseFromTokens(tokenizeString('import {x,\nx as x} from "./d"; export default 1;'))
+            assert(duplicate[0] === 'error')
+            assertEq(duplicate[1].metadata?.line, 2)
+            assertEq(duplicate[1].metadata?.column, 6)
+        },
+    },
     namedExports: {
         results: () => {
             for (const [source, expected] of /** @type {const} */ ([
@@ -190,9 +232,9 @@ export const proof = {
                 ["export default {[\"__proto__\"]: 1};", "[[],[[\"object\",[[\"default\",[\"object\",[[\"__proto__\",1]]]]]]]]"],
                 ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
                 ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"object\",[[\"default\",[\"array\",[[\"cref\",0],[\"cref\",1]]]]]]]]"],
-                ["import x from \"m\";\nexport default x;", "[[{\"json\":false,\"specifier\":\"m\"}],[[\"object\",[[\"default\",[\"aref\",0]]]]]]"],
-                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[{\"json\":false,\"specifier\":\"m\"}],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[{\"json\":false,\"specifier\":\"m\"},{\"json\":false,\"specifier\":\"n\"}],[[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"aref\",1]]]]]]]]"],
+                ["import x from \"m\";\nexport default x;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"object\",[[\"default\",[\"aref\",0]]]]]]"],
+                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
+                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"},{\"json\":false,\"name\":\"default\",\"specifier\":\"n\"}],[[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"aref\",1]]]]]]]]"],
                 ["// c\nexport default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
                 ["/* c */ export default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
                 ["\n\n export default 1; \n\n", "[[],[[\"object\",[[\"default\",1]]]]]"],
@@ -206,7 +248,7 @@ export const proof = {
                 ["const a = 1;\nexport default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
                 ["export default 1;", "[[],[[\"object\",[[\"default\",1]]]]]"],
                 ["const a = 1;export default a;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
-                ["import x from \"m\";const a = [x];export default [x,a];", "[[{\"json\":false,\"specifier\":\"m\"}],[[\"array\",[[\"aref\",0]]],[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"cref\",0]]]]]]]]"],
+                ["import x from \"m\";const a = [x];export default [x,a];", "[[{\"json\":false,\"name\":\"default\",\"specifier\":\"m\"}],[[\"array\",[[\"aref\",0]]],[\"object\",[[\"default\",[\"array\",[[\"aref\",0],[\"cref\",0]]]]]]]]"],
                 ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"object\",[[\"default\",[\"cref\",0]]]]]]"],
                 // whitespace may precede the `;`, newlines included — a
                 // newline is trivia, so the value and its terminator may sit
@@ -533,7 +575,7 @@ export const proof = {
             expect('const a = []; export default [a.length, a["length"]];', '[[],[["array",[]],["object",[["default",["array",[[".",["cref",0],"length"],[".",["cref",0],"length"]]]]]]]]')
             // a prototype name is a key like any other: only reading it is refused
             expect('export default { push: 1, toString: 2 };', '[[],[["object",[["default",["object",[["push",1],["toString",2]]]]]]]]')
-            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"specifier":"./m.f.js"}],[["object",[["default",["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]]]]')
+            expect('import m from "./m.f.js"; export default [m.x, { y: m["x"] }];', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[["default",["array",[[".",["aref",0],"x"],["object",[["y",[".",["aref",0],"x"]]]]]]]]]]]')
         },
         // `-1 .x` is `-(1 .x)` in JavaScript, and it is that here: the `-`
         // is a prefix the grammar reads, so the negation stands outside the
@@ -912,7 +954,7 @@ export const proof = {
         json: () => {
             const [tag, value] = parseFromTokens(tokenizeString('import x from "m" with { type: "json" };\nexport default x;'))
             assert(tag === 'ok', tag)
-            assertEq(stringifyDjsModule(value), '[[{"json":true,"specifier":"m"}],[["object",[["default",["aref",0]]]]]]')
+            assertEq(stringifyDjsModule(value), '[[{"json":true,"name":"default","specifier":"m"}],[["object",[["default",["aref",0]]]]]]')
         },
         refused: () => {
             /** @type {(source: string, message: string, column: number) => void} */
@@ -1021,7 +1063,7 @@ export const proof = {
                 assertEq(stringifyDjsModule(value), expected)
             }
             expect('const c = 1; export default (...a) => c;', '[[],[1,["object",[["default",["=>",0,[["fref",0]],[["cref",0]]]]]]]]')
-            expect('import m from "./m.f.js"; export default (...a) => m;', '[[{"json":false,"specifier":"./m.f.js"}],[["object",[["default",["=>",0,[["fref",0]],[["aref",0]]]]]]]]')
+            expect('import m from "./m.f.js"; export default (...a) => m;', '[[{"json":false,"name":"default","specifier":"./m.f.js"}],[["object",[["default",["=>",0,[["fref",0]],[["aref",0]]]]]]]]')
             // through an operator, a conditional's arm and a call, as bare
             expect('const c = 1; export default (...a) => c + a[0];', '[[],[1,["object",[["default",["=>",0,[["+",["fref",0],[".",["rest"],0]]],[["cref",0]]]]]]]]')
             expect('const c = 1; export default (...a) => a ? c : 1;', '[[],[1,["object",[["default",["=>",0,[["?:",["rest"],["fref",0],1]],[["cref",0]]]]]]]]')
@@ -1888,7 +1930,7 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"a.f.js"}],[1,["object",[["default",["array",[["aref",0],["cref",0]]]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"a.f.js"}],[1,["object",[["default",["array",[["aref",0],["cref",0]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('const b = 1; \n import a from "a.f.js"; \n export default [a,b];')
@@ -1999,21 +2041,21 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"test/test.f.mjs"}],[["object",[["default",["aref",0]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[["object",[["default",["aref",0]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"first/test.f.mjs"},{"json":false,"specifier":"second/test.f.mjs"}],[["object",[["default",["array",[["aref",1],["aref",0],["aref",1]]]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"first/test.f.mjs"},{"json":false,"name":"default","specifier":"second/test.f.mjs"}],[["object",[["default",["array",[["aref",1],["aref",0],["aref",1]]]]]]]]')
         },
         () => {
             const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[{"json":false,"specifier":"test/test.f.mjs"}],[null,["object",[["default",["array",[["cref",0],["aref",0],["cref",0]]]]]]]]')
+            assertEq(result, '[[{"json":false,"name":"default","specifier":"test/test.f.mjs"}],[null,["object",[["default",["array",[["cref",0],["aref",0],["cref",0]]]]]]]]')
         },
     ],
     invalidWithArgs:[

@@ -23,10 +23,10 @@ const sharedWithOperator = body => sharing(body)([])(body.map((_, i) => i < body
 const sharingWith = imports => body => sharing(body)(imports)(unwrap(values(body)(imports.map(m => m.value))))
 
 /** @type {import('./types.ts').AstImport} */
-const a = { specifier: './a', json: false }
+const a = { specifier: './a', json: false, name: 'default' }
 
 /** @type {import('./types.ts').AstImport} */
-const b = { specifier: './b', json: false }
+const b = { specifier: './b', json: false, name: 'default' }
 
 /** @type {(module: import('./types.ts').AstModule) => string} */
 const anchorsOf = module => {

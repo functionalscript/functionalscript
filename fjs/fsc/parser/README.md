@@ -16,7 +16,10 @@ symbols here.
 
 ```
 module ::= t import* const* export eof
-import ::= 'import' t id t 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+import ::= 'import' t clause 'from' t string t [ 'with' t '{' t id t ':' t string t '}' t ] ';' t
+clause ::= named | id t [ ',' t named ]
+named  ::= '{' t [ items(binding) ] '}' t
+binding ::= id t [ 'as' t id t ]
 const  ::= 'const' t id t '=' t value ';' t
 export ::= 'export' t ( 'default' t value ';' t | const const* [ export ] )
 value  ::= '-' t unaryOperand tail | '~' t unaryOperand tail
@@ -266,9 +269,9 @@ public types in `./types.ts`, as the rewrite set is.
 
 ## Required keywords are terminals of their own
 
-The tokenizer emits `import`, `const`, `export`, `default`, `from`, `with` and
-`return` as `id` tokens carrying the word in `value`. An alphabet keyed on a
-token's *kind* would give all seven the symbol of any other identifier, and the
+The tokenizer emits `import`, `const`, `export`, `default`, `from`, `with`, `return` and
+`as` as `id` tokens carrying the word in `value`. An alphabet keyed on a
+token's *kind* would give them all the symbol of any other identifier, and the
 grammar could not tell `export default` from two arbitrary names — module
 framing would be inexpressible, and so would a block body's `return`.
 

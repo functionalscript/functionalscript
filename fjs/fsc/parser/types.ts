@@ -113,15 +113,21 @@ export type Entry = {
 }
 
 /**
- * An `import`: the token naming what it binds, the module specifier, and
+ * An `import`: the exported/local binding pairs, the module specifier, and
  * its attribute when it has one — the tokens its key and value are read
  * from, which anchor the error a key or value the language does not know
  * earns.
  */
 export type Import = {
-    readonly name: DjsTokenWithMetadata
+    readonly bindings: readonly ImportBinding[]
     readonly module: string
     readonly attribute: readonly [DjsTokenWithMetadata, DjsTokenWithMetadata] | null
+}
+
+/** The selected export and the token binding its local name. */
+export type ImportBinding = {
+    readonly name: string
+    readonly local: DjsTokenWithMetadata
 }
 
 /** A `const`: the token naming what it binds, and its value. */
@@ -173,6 +179,8 @@ export type Out =
     | { readonly id: 'values', readonly items: List<Node> }
     | { readonly id: 'member', readonly member: Entry }
     | { readonly id: 'members', readonly items: List<Entry> }
+    | { readonly id: 'importBinding', readonly binding: ImportBinding }
+    | { readonly id: 'importBindings', readonly items: List<ImportBinding> }
     | { readonly id: 'import', readonly statement: Import }
     | { readonly id: 'const', readonly statement: Const }
     | { readonly id: 'export', readonly consts: List<ModuleConst>, readonly default: Node | null }

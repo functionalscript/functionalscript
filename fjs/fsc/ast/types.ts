@@ -9,7 +9,7 @@
 import type { Primitive, Unknown } from '../../media/datajs/types.ts'
 
 /**
- * An import as the module records it: the specifier as written, and
+ * An imported binding: the selected export name, the specifier as written, and
  * whether the import carries `with { type: "json" }`, which JavaScript
  * requires of a JSON module and which makes the file a document to read
  * rather than a module to parse.
@@ -17,13 +17,15 @@ import type { Primitive, Unknown } from '../../media/datajs/types.ts'
 export type AstImport = {
     readonly specifier: string
     readonly json: boolean
+    /** The selected export; null evaluates an empty import list without binding a name. */
+    readonly name: string | null
 }
 
 /**
  * A parsed DJS module: its imports, in source order, and its body. The last
  * body entry constructs the object of exports, with its keys in JavaScript namespace order.
  *
- * The import list indexes `['aref', i]`, each a selected default binding.
+ * The import list indexes `['aref', i]`, each a selected export binding.
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
@@ -74,7 +76,7 @@ export type AstArg = readonly ['arg', number]
  * A reference to a value defined outside this `AstConst`.
  *
  * - `['aref', i]` — the `i`-th argument of the body, i.e. the `i`-th imported
- *   module's default export in the enclosing `AstModule`.
+ *   binding's selected export in the enclosing `AstModule`.
  * - `['cref', i]` — the `i`-th entry of the enclosing `AstBody`, which is the
  *   module's body or a function's, whichever the reference is written in.
  *
