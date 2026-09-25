@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 70
+ * data.groups.length // 73
  * ```
  */
 
@@ -2310,6 +2310,89 @@ const splitCases = [
 ]
 
 /**
+ * `Number.prototype.toFixed`: rounded on the double's exact value, the
+ * larger on a tie, so `2.5` is `"3"` and `1.005` — just below its decimal
+ * — is `"1.00"`. The range is checked before the number, so
+ * `Infinity.toFixed(101)` throws.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toFixedCases = [
+    { name: 'half', args: [0.5, 0], expected: '1' },
+    { name: 'twoAndAHalf', args: [2.5, 0], expected: '3' },
+    { name: 'tie', args: [1.25, 1], expected: '1.3' },
+    { name: 'belowTheDecimal', args: [1.005, 2], expected: '1.00' },
+    { name: 'belowTheTie', args: [1.45, 1], expected: '1.4' },
+    { name: 'negative', args: [-1.5, 0], expected: '-2' },
+    { name: 'negativeZero', args: [-0, 2], expected: '0.00' },
+    { name: 'smallNegative', args: [-1e-7, 2], expected: '-0.00' },
+    { name: 'noArgument', args: [1.5], expected: '2' },
+    { name: 'exact', args: [0.1, 25], expected: '0.1000000000000000055511151' },
+    { name: 'large', args: [1e20, 2], expected: '100000000000000000000.00' },
+    { name: 'tooLarge', args: [1e21, 2], expected: '1e+21' },
+    { name: 'tiny', args: [1e-7, 10], expected: '0.0000001000' },
+    { name: 'nan', args: [NaN, 2], expected: 'NaN' },
+    { name: 'infinity', args: [Infinity, 2], expected: 'Infinity' },
+    { name: 'hundred', args: [1, 100], expected: `1.${'0'.repeat(100)}` },
+    { name: 'tooManyDigits', args: [1, 101], expected: throws },
+    { name: 'negativeDigits', args: [1, -1], expected: throws },
+    { name: 'infinityTooManyDigits', args: [Infinity, 101], expected: throws },
+    { name: 'bigint', args: [1, 1n], expected: throws },
+]
+
+/**
+ * `Number.prototype.toExponential`: a digit after the point per count, the
+ * shortest round-tripping digits without one. A non-finite number is its
+ * `ToString` before the range is checked.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toExponentialCases = [
+    { name: 'digits', args: [123456, 2], expected: '1.23e+5' },
+    { name: 'noArgument', args: [123456], expected: '1.23456e+5' },
+    { name: 'zero', args: [0, 2], expected: '0.00e+0' },
+    { name: 'zeroNoArgument', args: [0], expected: '0e+0' },
+    { name: 'tie', args: [1.25, 1], expected: '1.3e+0' },
+    { name: 'negativeSmall', args: [-0.00015, 1], expected: '-1.5e-4' },
+    { name: 'roundsUp', args: [9.99, 1], expected: '1.0e+1' },
+    { name: 'belowAPower', args: [1e23, 20], expected: '9.99999999999999916114e+22' },
+    { name: 'belowAPowerRounded', args: [1e23, 0], expected: '1e+23' },
+    { name: 'subnormal', args: [5e-324, 2], expected: '4.94e-324' },
+    { name: 'subnormalNoArgument', args: [5e-324], expected: '5e-324' },
+    { name: 'largest', args: [1.7976931348623157e308, 3], expected: '1.798e+308' },
+    { name: 'infinityTooManyDigits', args: [Infinity, 101], expected: 'Infinity' },
+    { name: 'tooManyDigits', args: [1, 101], expected: throws },
+    { name: 'bigint', args: [1, 1n], expected: throws },
+]
+
+/**
+ * `Number.prototype.toPrecision`: that many significant digits, with an
+ * exponent below `-6` or at least the precision, plainly otherwise.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toPrecisionCases = [
+    { name: 'plain', args: [123.456, 4], expected: '123.5' },
+    { name: 'small', args: [0.000123, 2], expected: '0.00012' },
+    { name: 'exponent', args: [123456, 2], expected: '1.2e+5' },
+    { name: 'noArgument', args: [1.5], expected: '1.5' },
+    { name: 'zero', args: [0, 3], expected: '0.00' },
+    { name: 'negativeZero', args: [-0, 2], expected: '0.0' },
+    { name: 'tiny', args: [1e-7, 1], expected: '1e-7' },
+    { name: 'smallestPlain', args: [0.000001, 1], expected: '0.000001' },
+    { name: 'roundsUp', args: [99.99, 3], expected: '100' },
+    { name: 'tie', args: [2.5, 1], expected: '3' },
+    { name: 'tieExponent', args: [25, 1], expected: '3e+1' },
+    { name: 'large', args: [1e21, 3], expected: '1.00e+21' },
+    { name: 'largest', args: [1.7976931348623157e308, 2], expected: '1.8e+308' },
+    { name: 'exact', args: [123, 3], expected: '123' },
+    { name: 'nanZero', args: [NaN, 0], expected: 'NaN' },
+    { name: 'zeroPrecision', args: [1, 0], expected: throws },
+    { name: 'tooMany', args: [1, 101], expected: throws },
+    { name: 'bigint', args: [1, 1n], expected: throws },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -2327,8 +2410,22 @@ const toStringCases = [
     { name: 'object', args: [{}], expected: '[object Object]' },
     { name: 'radixTen', args: [255, 10], expected: '255' },
     { name: 'radixUndefined', args: [255, undefined], expected: '255' },
-    { name: 'radix', args: [255, 16], expected: 'ff', rust: 'a radix other than ten is refused' },
-    { name: 'bigintRadix', args: [255n, 16], expected: 'ff', rust: 'a radix other than ten is refused' },
+    { name: 'radix', args: [255, 16], expected: 'ff' },
+    { name: 'radixTwo', args: [-255, 2], expected: '-11111111' },
+    { name: 'radixTruncated', args: [255, 16.9], expected: 'ff' },
+    { name: 'radixString', args: [255, '36'], expected: '73' },
+    { name: 'radixLargeInteger', args: [1e21, 16], expected: '3635c9adc5dea00000' },
+    { name: 'radixNegativeZero', args: [-0, 2], expected: '0' },
+    { name: 'radixNan', args: [NaN, 2], expected: 'NaN' },
+    { name: 'radixInfinity', args: [-Infinity, 16], expected: '-Infinity' },
+    { name: 'radixOne', args: [255, 1], expected: throws },
+    { name: 'radixThirtySeven', args: [255, 37], expected: throws },
+    { name: 'radixOutOfRangeOnNan', args: [NaN, 37], expected: throws },
+    { name: 'radixFraction', args: [0.5, 2], expected: '0.1', rust: 'the digits of a fraction in another radix are the engine\'s' },
+    { name: 'bigintRadix', args: [255n, 16], expected: 'ff' },
+    { name: 'bigintNegativeRadix', args: [-255n, 36], expected: '-73' },
+    { name: 'bigintRadixTen', args: [10n, undefined], expected: '10' },
+    { name: 'bigintRadixOutOfRange', args: [1n, 0], expected: throws },
     { name: 'argumentIgnored', args: [[1], 16], expected: '1' },
     { name: 'null', args: [null], expected: throws },
     { name: 'undefined', args: [undefined], expected: throws },
@@ -2436,6 +2533,9 @@ export const data = {
         { method: 'replace', cases: replaceCases },
         { method: 'replaceAll', cases: replaceAllCases },
         { method: 'split', cases: splitCases },
+        { method: 'toFixed', cases: toFixedCases },
+        { method: 'toExponential', cases: toExponentialCases },
+        { method: 'toPrecision', cases: toPrecisionCases },
         { method: 'toString', cases: toStringCases },
     ],
 }

@@ -119,31 +119,8 @@ pub(crate) fn number_to_string<A: IVm>(v: Number) -> String<A> {
 /// formatter can break it the other way. `round_tie_to_even` below corrects
 /// exactly that case.
 fn js_digits_to_string<A: IVm>(v: f64) -> std::string::String {
-    let sci = format!("{v:e}");
-    let (mantissa, exp) = sci.split_once('e').expect("`{:e}` always has an 'e'");
-    let digits: std::string::String = mantissa.chars().filter(|&c| c != '.').collect();
+    let (digits, n) = shortest_digits::<A>(v);
     let k = digits.len() as i64;
-    let n = exp.parse::<i64>().expect("`{:e}`'s exponent is an integer") + 1;
-
-    let s = digits
-        .parse::<u64>()
-        .expect("`digits` is a run of ASCII decimal characters");
-    let m = n - k;
-    let (mant, exp2) = mantissa_exp2(v);
-    let corrected = round_tie_to_even::<A>(v, mant, exp2, s, m);
-    let (digits, k, n) = if corrected == s {
-        (digits, k, n)
-    } else {
-        // A tie corrected at a power-of-10 boundary (`s` was e.g. `100` and
-        // the even neighbor is `99`, or `999` and it's `1000`) changes the
-        // digit count, so both are recomputed from `m` rather than patched:
-        // `m` — the tie's own position — is unaffected by which of the two
-        // adjacent candidates is chosen, only how many digits spell it.
-        let digits = corrected.to_string();
-        let k = digits.len() as i64;
-        (digits, k, m + k)
-    };
-
     if k <= n && n <= 21 {
         digits + &"0".repeat((n - k) as usize)
     } else if 0 < n && n <= 21 {
@@ -163,6 +140,39 @@ fn js_digits_to_string<A: IVm>(v: f64) -> std::string::String {
     }
 }
 
+/// `Number::toString`'s `digits` and `n` for a finite, positive, nonzero
+/// `v`: the shortest decimal digit string that round-trips to `v`, ties
+/// broken as the specification breaks them, and the position of the point
+/// after the first `n` of them. [`js_digits_to_string`] spells them in one
+/// of its three notations; `toExponential()` with no digit count uses them
+/// as they are.
+pub(crate) fn shortest_digits<A: IVm>(v: f64) -> (std::string::String, i64) {
+    let sci = format!("{v:e}");
+    let (mantissa, exp) = sci.split_once('e').expect("`{:e}` always has an 'e'");
+    let digits: std::string::String = mantissa.chars().filter(|&c| c != '.').collect();
+    let k = digits.len() as i64;
+    let n = exp.parse::<i64>().expect("`{:e}`'s exponent is an integer") + 1;
+
+    let s = digits
+        .parse::<u64>()
+        .expect("`digits` is a run of ASCII decimal characters");
+    let m = n - k;
+    let (mant, exp2) = mantissa_exp2(v);
+    let corrected = round_tie_to_even::<A>(v, mant, exp2, s, m);
+    if corrected == s {
+        (digits, n)
+    } else {
+        // A tie corrected at a power-of-10 boundary (`s` was e.g. `100` and
+        // the even neighbor is `99`, or `999` and it's `1000`) changes the
+        // digit count, so both are recomputed from `m` rather than patched:
+        // `m` — the tie's own position — is unaffected by which of the two
+        // adjacent candidates is chosen, only how many digits spell it.
+        let digits = corrected.to_string();
+        let k = digits.len() as i64;
+        (digits, m + k)
+    }
+}
+
 /// `v`'s exact value as `mantissa * 2^exp2` — the plain IEEE 754 binary64
 /// decomposition (`mantissa` folds in the implicit leading bit for a normal
 /// `v`, and is the raw significand for a subnormal one), used only by
@@ -171,7 +181,7 @@ fn js_digits_to_string<A: IVm>(v: f64) -> std::string::String {
 /// exponent that works, only *a* correct one — but the tie-break comparison
 /// that consumes it is exact either way, so reducing it first would only
 /// spend work without changing the answer.
-fn mantissa_exp2(v: f64) -> (u64, i32) {
+pub(crate) fn mantissa_exp2(v: f64) -> (u64, i32) {
     let bits = v.to_bits();
     let exponent_bits = (bits >> 52) & 0x7ff;
     let mantissa_bits = bits & 0xf_ffff_ffff_ffff;

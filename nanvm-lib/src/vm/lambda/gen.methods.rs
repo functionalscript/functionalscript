@@ -53,6 +53,9 @@ pub const ANSWERED: &[(&str, &str)] = &[
     ("string", "trim"),
     ("string", "trimEnd"),
     ("string", "trimStart"),
+    ("number", "toExponential"),
+    ("number", "toFixed"),
+    ("number", "toPrecision"),
     ("number", "toString"),
     ("boolean", "toString"),
     ("bigint", "toString"),
@@ -62,9 +65,6 @@ pub const ANSWERED: &[(&str, &str)] = &[
 /// Allowed, and not answered yet: `method` has no entry.
 #[rustfmt::skip]
 pub const PENDING: &[(&str, &str)] = &[
-    ("number", "toExponential"),
-    ("number", "toFixed"),
-    ("number", "toPrecision"),
 ];
 
 /// Refused by the compiler: `method` never has an entry.
