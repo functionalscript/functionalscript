@@ -3,6 +3,14 @@
 **Priority:** P2
 **Status:** open
 
+**Function support:** the initial rest-only, non-capturing rollout is historical.
+The compiler now supports fixed/rest parameters and captures; #2237 uses
+`['=>', length, frame, body]`, fixed `['arg', N]` reads and `['rest']`, following
+the [parameter plan](../../../spec/todo/3120-parameters.md). The remaining
+module-resolution and integration tasks below do not restore the old function
+tuple or require rejecting supported captures. Default function-text rendering
+remains open in the parameter plan.
+
 ### Problem
 
 The current DJS transpiler couples two separate operations:
@@ -43,7 +51,7 @@ rules are developed in
 method-access safety is owned by
 [`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md), source
 functions are in the language
-([functions](../../../spec/README.md#functions)) and later captures are tracked by
+([functions](../../../spec/README.md#functions)) and capture semantics are tracked by
 [`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md), and VM-internal
 call lowering belongs to
 [`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
@@ -249,13 +257,14 @@ array order remains significant: position `i` in `imports` corresponds to import
 parameter `i` in the EDAG.
 
 **Import binding is scope-aware.** At module scope, `['args']` is the import-parameter
-array described above. A nested `['=>', frame, body]` introduces a new function scope,
-where `['args']` means that function invocation's arguments instead. Module linking must
-therefore never descend into a nested function `body` while substituting module import
-parameters. The `frame` operand belongs to the enclosing scope and may be traversed
-there; Stage 2 uses the placeholder `null` for it anyway. Import reachability checks
-must use the same scope boundary so function-local `['args']` nodes cannot be mistaken
-for module import parameters.
+array described above. In `['=>', length, frame, body]`, only `body` opens a new
+invocation scope: it reads fixed positions through `['arg', N]` and its tail through
+`['rest']`. Function-local `['args']` is invalid. Module linking must not substitute
+import parameters inside that body. The `frame` operand belongs to the enclosing
+scope, so linking must still reach import reads used to construct a captured frame.
+Nested frame expressions can instead capture their enclosing function's fixed/rest
+bindings. Import reachability checks use the same ownership; `length` is metadata,
+not an expression to traverse.
 
 One link operation must memoize resolved modules by the **resolved module
 identity** supplied by that contract, not by their loading path or source hash.
@@ -285,43 +294,42 @@ source module
 The resulting EDAG contains the complete compiled program and no unresolved module
 paths or temporary unresolved metadata.
 
-### Stage 2: functions and calls, without frames
+### Stage 2: functions and calls
 
-After unresolved modules can be represented as EDAG, add functions and calls.
+**Current status:** function creation, ordinary/method calls and capture lowering are
+implemented. The original Stage 2 admitted only non-capturing rest-only arrows with a
+`null` frame. That rollout restriction is historical; it is not the current parser
+or interpreter contract. Fixed-only and mixed fixed/rest syntax is implemented in
+#2237, with defaults and destructuring left to separate work.
 
-Introduce the function operation into EDAG:
-
-```js
-['=>', frame, body]
-```
-
-**Stage 2 does not implement frames/captures.** This is a restriction on *this task's*
-compiler and interpreter, not on the EDAG schema: `frame` is a general `exp` in
-`fjs/edag/module.f.mjs`, and `['frame']` is already a validated node there, ahead of
-any consumer using either. Something not implemented in a parser or interpreter doesn't
-mean it's absent from the EDAG definition — the schema is free to change independently
-of what a given task supports. Stage 2's parser only ever emits a placeholder frame and
-its interpreter (`interpret-edag.md`) only ever accepts that placeholder; source
-functions that capture values from an enclosing function/module scope are outside this
-stage. For the initial canonical form, a function is therefore represented with the
-placeholder frame, for example:
+The current function operation is:
 
 ```js
-['=>', null, body]
+['=>', length, frame, body]
 ```
 
-Then introduce the initial non-capturing arrow-function form into the parser:
+`length` is canonical nonnegative integer metadata: zero must be positive zero.
+`['arg', N]` reads a fixed position with canonical integer `0 <= N < length`;
+a missing supplied value is `undefined`. `['rest']` is the one array of arguments
+after the fixed prefix for that invocation, including an empty tail. Repeated reads
+reuse that array. Module-import `['args']` remains separate.
+
+For example, these non-capturing functions have a `null` frame:
 
 ```js
-(...a) => exp
+const restOnly = ['=>', 0, null, ['rest']] // (...a) => a
+const fixedAndRest = ['=>', 2, null, ['[]', [['arg', 0], ['arg', 1], ['rest']]]] // (a, b, ...tail) => [a, b, tail]
 ```
 
-The parser/compiler must reject a Stage 2 function whose body requires a captured outer
-value rather than silently sharing an outer EDAG node into the nested body. Full frame
-semantics remain owned by
+`frame` remains a general expression in the schema. The compiler constructs captured
+values in the enclosing scope and the body reads them through `['frame']`; it does
+not share an enclosing operation node directly into the body's scope. Capture
+lowering and its proofs are in [`../edag`](../edag/module.f.mjs) and
+[`../edag/proof.f.mjs`](../edag/proof.f.mjs) (`captures`), with fixed/rest captures in
+[`../parameters/proof.f.mjs`](../parameters/proof.f.mjs). Frame semantics remain owned by
 [`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md).
 
-Also introduce call operations into EDAG:
+Calls keep their existing array-valued argument operand:
 
 ```js
 ['()', object, args]                       // f(...args)
@@ -349,11 +357,11 @@ VM-specific lowering of these call forms is separate work in
 This stage is intentionally after Stage 1: property access is the minimum operation
 needed for unresolved-module parameter access, while function creation and calls extend
 the set of source modules that can be represented after that basic module pipeline is
-in place. Frame/capture support is a later extension.
+in place. Capture support subsequently extended that initial rollout.
 
 ### EDAG forms used by these stages
 
-The staged work builds on the basic structural forms already being defined for EDAG:
+The current compiler uses these structural forms for the staged work:
 
 - primitive constants directly: `null`, boolean, number, string, `bigint`
   (`undefined` is `['undefined']`, not a bare constant — see
@@ -362,13 +370,14 @@ The staged work builds on the basic structural forms already being defined for E
   `[':', key, value]` and **`key` is a string constant** in this task, matching what
   the current DJS parser produces;
 - array constructors: `['[]', [...node]]`;
-- the argument array: `['args']`;
+- the unresolved module's ordered import array: `['args']`;
+- function invocation bindings: fixed `['arg', N]` and the per-invocation `['rest']`;
 - Stage 1 property access: `['.', object, property]`, with the restricted
   property operands described above — the absent fourth operand is the continuation,
   and leaving it out says the receiver this access produced is dropped;
-- Stage 2 non-capturing functions: `['=>', null, body]` (`frame` is a general `exp` in
-  the schema; `null` is what *this task's* parser and interpreter are scoped to, not a
-  schema-level restriction);
+- functions: `['=>', length, frame, body]`, using `null` when no frame is needed;
+  captured-frame expressions belong to the enclosing scope and `['frame']` reads
+  their value inside the body;
 - Stage 2 calls: `['()', callee, args]` for an ordinary call, and
   `['.', object, property, ['|()', args]]` for a method call, with the property
   operand using the same restriction as `.`;
@@ -379,8 +388,8 @@ A function body is its own EDAG scope. Validation must reject an operation-node 
 that is shared across a function boundary (for example, the same constructor node used
 both outside a function and as a node in its body). Otherwise per-invocation evaluation
 could give one semantic node multiple runtime values. Normal sharing remains valid
-inside one function body. Stage 2's compiler should naturally produce disjoint body
-graphs; validation must enforce the same rule for arbitrary public EDAG input.
+inside one function body. Capture lowering preserves that separation through frame
+values; validation must enforce the same rule for arbitrary public EDAG input.
 
 The object constructor is an ordered operation rather than a plain EDAG object. This
 preserves source property order and leaves room for future entry forms such as object
@@ -405,10 +414,10 @@ non-content-addressed one (which never does), so it isn't a validation rule at a
 Sharing of the descriptor's `key` and `value` EDAG nodes remains normal semantic EDAG
 sharing.
 
-Do **not** add unrelated EDAG operations in these stages: arithmetic/logical operators,
-comma, loops, `throw`, object spread, frame access/captures, `own`, or other later
-operations remain outside this task unless they become necessary for the staged parser
-work above.
+The original two-stage scope did not include later operator and capture work.
+That historical boundary is not a current admission rule: comma anchoring and
+capture lowering are already used above. Separate language/operator tasks continue
+to own their extensions; this TODO does not authorize unrelated additions.
 
 ### Number parsing and serialization
 
@@ -601,7 +610,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       reference is lowered, so no substitution descends into anything; a
       function body, when there is one, is lowered by the same rule.
 - [x] Apply the same function-scope boundary to module-import reachability checks so
-      nested function-local `['args']` nodes are never interpreted as import parameters.
+      nested fixed/rest bindings are never interpreted as import parameters, while
+      enclosing-scope import reads in captured frames remain reachable.
       Done by construction: reachability is read from the syntax (`unreached`), where
       an import is an `aref`, never from `['args']` nodes.
 - [x] Add per-link memoization for repeated/diamond imports, pinned by
@@ -623,22 +633,21 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 2
 
-- [x] `['=>', frame, body]` is in the EDAG validation/type schema (`fjs/edag/`), with
-      `frame` a general `exp` there and `['frame']` itself a separate validated node —
-      neither restricted to Stage 2's scope.
-- [x] Stage 2's own parser is narrower than the schema: it emits only the placeholder
-      `null` for `frame`, and never `['frame']` or other captured-variable access. Done
-      in [`fjs/fsc/edag`](../edag/module.f.mjs); the interpreter is `interpret-edag.md`'s.
-- [x] Introduce parser support for the initial non-capturing `(...a) => exp` function
-      form; reject functions that require captures. Done: `func` in the grammar, the
-      body a value less the object; a reference to a name bound outside the body is
-      `capture not supported` at the reference, pinned by `func` in
-      [`fjs/fsc/parser/proof.f.mjs`](../parser/proof.f.mjs).
+- [x] Use the current `['=>', length, frame, body]` schema, with `frame` a general
+      `exp`, `['frame']` a separate node, and fixed/rest invocation bindings.
+      Metadata and binding validation are owned by
+      [`fjs/edag/analysis`](../../edag/analysis/module.f.mjs).
+- [x] Lower both non-capturing functions (`null` frame) and captured values through
+      enclosing-scope frame expressions. The original null-only restriction is
+      superseded by `captures` in [`../edag/proof.f.mjs`](../edag/proof.f.mjs).
+- [x] Parse empty, rest-only, fixed-only and mixed fixed/rest arrows. The original
+      rest-only rollout is superseded by #2237; syntax, missing values, captures and
+      rest identity are pinned in [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
 - [x] Validate that a nested function body is a disjoint EDAG scope: operation nodes
       must not be shared across a function boundary, while sharing within the body is
-      preserved. Done by construction: a body names its arguments, one node per
-      function, and nothing outside, so no module node is lowered into it; pinned by
-      `func` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
+      preserved. Done by construction: a body names its own fixed/rest bindings and
+      frame slots rather than enclosing operation nodes; pinned by `func` and
+      `captures` in [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs).
 - [x] `['()', callee, args]` and the `['|()', args]` step a `.` node carries for
       a method call are in the EDAG validation/type schema (`fjs/edag/`), shape only —
       the property-operand restriction below is this stage's own work.
@@ -676,9 +685,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       to keep for the non-optional spellings while it splits the optional ones.
 - [x] Add a scope-aware linking proof such as
       `import y from './y.f.js'; export default [y, (...x) => x]`: resolving `y` must not
-      rewrite the nested function body's `['args']`. Done, in `func` of
-      [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs); that calling it returns its
-      argument waits on the interpreter.
+      rewrite the nested function body's `['rest']`. Done, in `func` of
+      [`fjs/fsc/edag/proof.f.mjs`](../edag/proof.f.mjs); `importsAndCaptures` in
+      [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs) also executes linked
+      fixed/rest closures under Amnesia and memo.
 - [ ] Add a validation proof that reusing one operation node both outside and inside a
       nested function body is rejected.
 
@@ -781,6 +791,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`spec/README.md`](../../../spec/README.md#functions) — source-level
   function support, which is in the language.
 - [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md) —
-  later captured-frame design; Stage 2 here remains non-capturing.
+  captured-frame semantics; the original non-capturing Stage 2 restriction is historical.
+- [`spec/todo/3120-parameters.md`](../../../spec/todo/3120-parameters.md) —
+  implemented fixed/rest bindings and the remaining migration/default-text work.
 - [`spec/todo/9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md)
   — VM-internal call lowering, separate from stable EDAG call syntax.

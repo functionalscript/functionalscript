@@ -9,7 +9,7 @@
 import type { Primitive, Unknown } from '../../media/datajs/types.ts'
 
 /**
- * An import as the module records it: the specifier as written, and
+ * An imported binding: the selected export name, the specifier as written, and
  * whether the import carries `with { type: "json" }`, which JavaScript
  * requires of a JSON module and which makes the file a document to read
  * rather than a module to parse.
@@ -17,18 +17,20 @@ import type { Primitive, Unknown } from '../../media/datajs/types.ts'
 export type AstImport = {
     readonly specifier: string
     readonly json: boolean
+    /** The selected export; null evaluates an empty import list without binding a name. */
+    readonly name: string | null
 }
 
 /**
  * A parsed DJS module: its imports, in source order, and its body. The last
  * body entry constructs the object of exports, with its keys in JavaScript namespace order.
  *
- * The import list indexes `['aref', i]`, each a selected default binding.
+ * The import list indexes `['aref', i]`, each a selected export binding.
  */
 export type AstModule = readonly [readonly AstImport[], AstBody]
 
-/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a function's arguments, or a slot of its frame. */
-export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstArgs|AstFrameRef
+/** A value in a module body: a primitive, a reference, an array, an object, a property access, a call, a negation, a bitwise not, a binary operator, a conditional, a function, a fixed parameter, a rest array, or a slot of its frame. */
+export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCall|AstNeg|AstBitnot|AstBinary|AstConditional|AstFunction|AstRest|AstArg|AstFrameRef
 
 /**
  * A function: `(...a) => { const x = …; return v; }`, an {@link AstBody}
@@ -37,14 +39,15 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCa
  * `(...a) => v` is the same function as `(...a) => { return v; }`, so it is
  * the one-entry body `[v]`.
  *
- * {@link AstArgs} is the arguments array. A name the body reads from the
- * scopes around it is a **capture**: the function's third element lists
+ * {@link AstRest} is the rest array. A name the body reads from the
+ * scopes around it is a **capture**: the function's fourth element lists
  * them, each once, in the order the body first names them, each the
  * enclosing scope's own reference — a `cref` or `aref` of the module, a
- * `cref` of an enclosing body, its `args`, or a slot of *its* frame, since
+ * `cref` of an enclosing body, its fixed/rest binding, or a slot of *its* frame, since
  * a nested function captures through its parent — and the body names
  * capture `i` as {@link AstFrameRef} `['fref', i]`. A function that
- * captures nothing has no third element. The EDAG's `['=>', frame, body]`,
+ * captures nothing has no fourth element. The second element is the fixed
+ * parameter count. The EDAG's `['=>', length, frame, body]`,
  * its frame the array of the captured values less the primitives — `lower`
  * writes a primitive into the body — and its body a comma where an entry is
  * unreached, as a module's is.
@@ -54,7 +57,7 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject|AstAccess|AstCa
  * not rejected — `lower` gives it no node, as it gives none to a `cref`
  * past the entry holding it.
  */
-export type AstFunction = readonly ['=>', AstBody] | readonly ['=>', AstBody, readonly AstConst[]]
+export type AstFunction = readonly ['=>', number, AstBody] | readonly ['=>', number, AstBody, readonly AstConst[]]
 
 /**
  * Slot `i` of the frame of the function whose body holds it: the value its
@@ -63,14 +66,17 @@ export type AstFunction = readonly ['=>', AstBody] | readonly ['=>', AstBody, re
  */
 export type AstFrameRef = readonly ['fref', number]
 
-/** The arguments array of the function whose body holds it — the rest parameter, whatever it is named. The EDAG's `['args']`. */
-export type AstArgs = readonly ['args']
+/** The rest array after the function's fixed prefix, whatever the source name. The EDAG's `['rest']`. */
+export type AstRest = readonly ['rest']
+
+/** A fixed parameter of the owning function. */
+export type AstArg = readonly ['arg', number]
 
 /**
  * A reference to a value defined outside this `AstConst`.
  *
  * - `['aref', i]` — the `i`-th argument of the body, i.e. the `i`-th imported
- *   module's default export in the enclosing `AstModule`.
+ *   binding's selected export in the enclosing `AstModule`.
  * - `['cref', i]` — the `i`-th entry of the enclosing `AstBody`, which is the
  *   module's body or a function's, whichever the reference is written in.
  *

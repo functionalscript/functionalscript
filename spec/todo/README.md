@@ -101,11 +101,12 @@ see [serialization](./serialization.md).
    `(...a) => { return expression; }` and `() => expression`, capturing
    what its body names from the scopes around it
    ([functions](../README.md#functions))
-2. [ ] [parameters](./3120-parameters.md) — bare `a => …` and parenthesized
-   named lists, with declared arity preserved
-3. [ ] [function length pattern](./3130-function-length-pattern.md) — a
-   proposed, unapproved spelling that would build a function of a given
-   `length` in FunctionalScript
+2. [ ] [named and rest parameters](./3120-parameters.md) — `a => …` and
+   `(a, b, c, ...args) => …`; fixed `arg`/`rest` EDAG bindings and
+   pre-generated callable factories preserving declared arity
+3. [ ] [function length pattern](./3130-function-length-pattern.md) — an
+   alternative for arbitrary length/full-argument construction, not a
+   prerequisite for the named-and-rest parameter plan
 4. [x] body-const — a function body takes `const` statements before its
    `return`, and the writer spells them
    ([functions](../README.md#functions))

@@ -24,6 +24,7 @@
  */
 
 import { error, mapOk, unwrap } from '../../types/result/module.f.mjs'
+import { analysis, bindingError } from '../../edag/analysis/module.f.mjs'
 import { holdsFunction, indent, readsArgs, readsFrame, scope } from '../../edag/rust/module.f.mjs'
 import { withoutStringLiterals } from '../../media/rust/module.f.mjs'
 
@@ -98,24 +99,35 @@ const importsFor = (text, bound) => [...new Set([
  * The module's scope, one line per temporary and its `Ok(…)` —
  * `fjs/edag/rust`'s {@link scope}, which also prints every function's body
  * the module holds, each a scope of its own inside its closure — or the
- * refusal. A module has no arguments and no frame, so an `['args']` or
+ * refusal. Validate bindings against their owning functions before printing:
+ * a fixed read cannot reach past its owner's length, and a closure's frame
+ * belongs to the enclosing scope. The fragment printer cannot perform that
+ * check without the complete graph. A module has no arguments and no frame,
+ * so an `['args']` or
  * `['frame']` node in its own scope — a function body's node, which the lowering
  * never puts here, handed in directly — is refused rather than printed as
  * a name nothing binds.
  *
  * @type {(root: Exp) => Result<readonly string[], readonly unknown[]>}
  */
-const bodyLines = root => readsArgs(root)
+const bodyLines = root => {
+    const problem = bindingError(analysis(root))
+    return problem !== null ? error([problem, root])
+    : readsArgs(root)
     ? error(['no Rust for `args` in a module\'s own scope; a module has no arguments', root])
     : readsFrame(root)
     ? error(['no Rust for `frame` in a module\'s own scope; a module has no frame', root])
     : mapOk((/** @type {readonly string[]} */ lines) => lines.map(l => `${indent}${l}`))(scope(root))
+}
 
 /**
  * The EDAG as a generated Rust module, or the refusal: a node shape this
- * printer has no `nanvm-lib` spelling for. Never throws — see
- * `fjs/edag/rust/module.f.mjs`'s `scope` for why a gap here is a `Result`
- * and not a thrown value.
+ * printer has no `nanvm-lib` spelling for, or an invalid parameter binding.
+ * Function arities above the target's `u32` maximum are refused, independently
+ * of EDAG validity and the JavaScript executor's factory-table capacity.
+ * Unsupported output is a `Result`, as in `fjs/edag/rust`'s `scope`.
+ * Analysis preconditions still apply: invalid length metadata or a node
+ * shared across invocation scopes panics instead of producing output.
  *
  * `pub fn module` carries `#[rustfmt::skip]`, the same as every function
  * [`fjs/nanvm/rust`](../../nanvm/rust/module.f.mjs) emits: the layout is
@@ -171,10 +183,8 @@ const reasonText = reason => reason.map(String).join(': ')
  * `nanvm-lib` spelling for, reported the same way a `.json` output's refusal
  * is — against the output rather than the input, since the module compiled
  * without complaint. Built directly from {@link generateResult}'s own
- * `Result`, so this module never throws and never needs to catch anything:
- * no `try`/`catch`, and no dependency on a `.mjs` host boundary to supply
- * one, since there is nothing here for FunctionalScript itself to recover
- * from.
+ * `Result`; invalid EDAG preconditions still panic as documented above.
+ * No `try`/`catch` or host adapter is needed to report unsupported output.
  *
  * @type {(root: Exp) => Result<string, string>}
  */

@@ -22,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { resultMapStep } from '../module.f.mjs'
-import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
@@ -211,7 +211,7 @@ export const proof = {
             /** @type {NodeProgram} */
             const program = () => resultMapStep(inflate(toVec(deflated(data))), r => {
                 if (r[0] === 'error') { return error(1) }
-                const out = toArray(u8List(msb)(r[1]))
+                const out = toArray(u8ListMsb(r[1]))
                 return out.length === data.length && out.every((b, i) => b === data[i]) ? ok(0) : error(2)
             })
             assertEq(await exitCode(program), 0)
@@ -223,9 +223,9 @@ export const proof = {
         gitWrote: async () => {
             const envelope = toArray(writeEnvelope('tag', tagPayload))
             /** @type {NodeProgram} */
-            const program = () => resultMapStep(inflate(u8ListToVec(msb)(tagLoose)), r => {
+            const program = () => resultMapStep(inflate(u8ListToVecMsb(tagLoose)), r => {
                 if (r[0] === 'error') { return error(1) }
-                const out = toArray(u8List(msb)(r[1]))
+                const out = toArray(u8ListMsb(r[1]))
                 return out.length === envelope.length && out.every((b, i) => b === envelope[i]) ? ok(0) : error(2)
             })
             assertEq(await exitCode(program), 0)

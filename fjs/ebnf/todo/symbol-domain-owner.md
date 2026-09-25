@@ -75,8 +75,8 @@ strictest existing copy) with the other two importing it.
   blocked on `terminal/`.
 - [DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) — the
   migration that reserved the module.
-- [malformed-utf16-symbols.md](./malformed-utf16-symbols.md) — adds a
-  front-end domain check; built on the shared predicate it strengthens one
-  owner instead of adding a fifth copy. The front end's `repeat` already
-  does: it asserts `data`'s `isRepeatBounds`, which is built on `data`'s
-  `isSymbol`.
+- The front end's text constructors (`set`, `range`, `literals`) and the
+  byte alphabet's `ascii` refuse malformed UTF-16 through `data`'s exported
+  `codePoints` — one owner, not a copy per constructor. The front end's
+  `repeat` does the same with bounds: it asserts `data`'s `isRepeatBounds`,
+  which is built on `data`'s `isSymbol`.

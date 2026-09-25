@@ -1,9 +1,12 @@
 ## Interpret a compiled EDAG directly
 
 **Priority:** P3
-**Status:** open
+**Status:** open — baseline memo executor implemented; public entry validation
+and value-producing API integration remain tasks below.
 
-**Blocked by:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
+**Compiler dependency:** [`compile-modules-to-edag.md`](./compile-modules-to-edag.md)
+provides the linked graphs. Its initial rest-only, non-capturing Stage 2 is
+historical; the interpreter follows the current fixed/rest and capture contract.
 
 ### Goal
 
@@ -19,8 +22,11 @@ memory, and hostile-depth hardening are separate work in
 
 ### Proposal
 
-Implement a small FunctionalScript EDAG interpreter for the EDAG forms supported by
-the staged compiler work.
+The baseline interpreter is [`fjs/edag/memo`](../../edag/memo/module.f.mjs), using
+the shared [`operations`](../../edag/operations/module.f.mjs) and
+[`analysis`](../../edag/analysis/module.f.mjs) table. The requirements below govern
+its remaining entry-point and integration work, not a second interpreter for an
+older function representation.
 
 Conceptually:
 
@@ -49,17 +55,31 @@ identity is the same. For example, two calls to `x => [x]` with `1` and `2` must
 reuse the first call's `[1]`. Sharing of a body node remains memoized within each
 individual invocation.
 
-As the compiler lands the staged operators, the direct interpreter should support the
-same EDAG forms: Stage 1 adds `.` property access with no continuation; Stage 2
-adds non-capturing `=>`, the ordinary call `['()', callee, args]`, and the method call
-— a `.` node whose continuation is `['|()', args]`, which is what carries the
-`this` binding.
+The interpreter supports the compiler's current forms: `.` property access with no
+continuation, `['=>', length, frame, body]`, the ordinary call `['()', callee, args]`,
+and the method call — a `.` node whose continuation is `['|()', args]`, which carries
+the `this` binding.
 
-Stage 2 deliberately has **no frame support** — a restriction on *this interpreter*, not
-on the EDAG schema: `fjs/edag/module.f.mjs` already validates `frame` as a general `exp`
-and `['frame']` as its own node, ahead of any interpreter using either. This interpreter
-accepts only the placeholder `null` for `frame` and does not evaluate `['frame']`.
-Captured closures are deferred to later work.
+`length` is canonical nonnegative integer metadata; zero must be positive zero.
+Fixed reads use `['arg', N]` with canonical integer `0 <= N < length`, and missing
+fixed values read as `undefined`. `['rest']` returns one tail array per invocation;
+repeated reads and captures retain that array's identity. Module-import `['args']`
+is a separate binding and is invalid in a function body. This is the implemented
+contract in #2237's [parameter plan](../../../spec/todo/3120-parameters.md).
+
+The original null-frame-only Stage 2 restriction is superseded. Creating a closure
+evaluates its `frame` expression in the enclosing invocation; the body reads that
+captured value through `['frame']` in its own invocation. The schema permits a general
+frame expression, and the compiler uses `null` when no frame is needed. Fixed values
+and rest arrays captured by nested functions use the same frame mechanism.
+
+Pre-generated arrow factories adapt host calls to the evaluator's `(fixed, rest)`
+bindings, preserving declared JavaScript `length` without runtime code generation.
+The current table covers lengths 0–32 and refuses larger arities at materialization;
+that executor capacity does not limit valid EDAG metadata or source compilation.
+The parameter plan's default-function-text gate remains open: these callables still
+expose wrapper source on native conversion. Interpreter integration must not claim
+that rendering or callable/EDAG association is complete.
 
 A function body is a separate EDAG scope. Validation before interpretation must reject
 operation-node identities shared across function boundaries; otherwise a single
@@ -90,8 +110,8 @@ all but `length` — since such a graph is not one the compiler emits.
 ### Existing value-producing API integration
 
 The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
-the current value-producing DJS transpiler/CLI. Once this interpreter is available,
-migrate the existing value-producing path to use EDAG internally:
+the current value-producing DJS transpiler/CLI. The remaining integration step is to
+migrate that value-producing path to use EDAG internally:
 
 ```text
 source modules
@@ -107,7 +127,8 @@ This integration must preserve the
 [compile API boundary](./compile-modules-to-edag.md#existing-compile-api-boundary)
 as updated by [#2129](https://github.com/functionalscript/functionalscript/pull/2129).
 `transpile` returns a `Denotation` whose `value` is the complete module export
-object, currently `{ default: value }`, with sharing metadata alongside it.
+object, with named properties and `default` when present, and sharing metadata
+alongside it.
 The `.data.js` and `.json` outputs serialize `result.default`. A direct `.json`
 root remains a document and bypasses wrapping and projection. FunctionalScript
 output rewrites the linked EDAG without evaluating the module, emitting its
@@ -123,21 +144,28 @@ hardening TODO after the baseline interpreter exists.
 
 ### Tasks
 
-- [ ] Implement a FunctionalScript interpreter for the compiler-supported EDAG subset.
-- [ ] Validate the final EDAG before interpretation.
-- [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
+- [x] Provide the baseline memo executor in [`../../edag/memo`](../../edag/memo/module.f.mjs).
+- [ ] Complete public final-EDAG entry validation before interpretation. Existing
+      analysis and `bindingError` checks do not close every validation task below.
+- [x] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
-- [ ] Support Stage 1 `['.', object, property]` property access.
-- [ ] Support Stage 2 `['=>', null, body]`, `['()', callee, args]` for an ordinary
+- [x] Support `['.', object, property]` property access.
+- [x] Support `['=>', length, frame, body]`, `['()', callee, args]` for an ordinary
       call, and `['.', object, property, ['|()', args]]` for a method call —
-      the step is what supplies the `this` binding — when those operators land.
-- [ ] Do **not** implement `['frame']` or non-empty closure frames in Stage 2.
-- [ ] Memoize results by EDAG node identity within one evaluation context so shared
+      the step supplies the `this` binding. Function bodies use fixed `['arg', N]`
+      and per-invocation `['rest']`, not module-import `['args']`.
+- [x] Evaluate frames in the enclosing scope and make their captured values available
+      through `['frame']` in each body invocation. The old null-only restriction is
+      historical; capture and fixed/rest identity proofs are in
+      [`../parameters/proof.f.mjs`](../parameters/proof.f.mjs).
+- [x] Memoize results by EDAG node identity within one evaluation context so shared
       constructors preserve reference identity.
-- [ ] Start a fresh body-node memoization context for every function invocation; do
+- [x] Start a fresh body-node memoization context for every function invocation; do
       not reuse memoized body results across different argument contexts.
-- [ ] Reject EDAGs that share an operation node across a function boundary; keep body
-      graphs disjoint while allowing sharing inside one body.
+      Pinned by `body` in [`../../edag/memo/proof.f.mjs`](../../edag/memo/proof.f.mjs).
+- [ ] Carry analysis's rejection of operation nodes shared across function boundaries
+      into the public validation entry; keep body graphs disjoint while allowing
+      sharing inside one body.
 - [ ] Reject a key that is a prohibited name, by the parser's two lists, in
       `validate`. A chain carries a key at its node — `.` or `?.` — and at each
       `|.` step, and every key is classified by what follows it: a call step,
@@ -194,5 +222,5 @@ hardening TODO after the baseline interpreter exists.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   adds deterministic resource and host-stack hardening after this baseline exists.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) — records
-  the alternative strategy of compiling EDAG to an executable function and its later
-  open questions around nested functions/frames.
+  callable/EDAG association; default function-text work remains open in the
+  [parameter plan](../../../spec/todo/3120-parameters.md).

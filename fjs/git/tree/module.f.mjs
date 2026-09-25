@@ -26,7 +26,7 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
-import { length as bitLength, msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { length as bitLength, u8ListMsb, u8ListToVecMsb, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 
@@ -43,10 +43,6 @@ const octalDigit = range('07')
 const modeDigits = repeatFrom1(octalDigit)
 
 const nameBytes = repeatFrom1(not(set('\0')))
-
-const toVec = u8ListToVec(msb)
-
-const toBytes = u8List(msb)
 
 /**
  * Whether a list of digits spells a mode the grammar reads: one or more
@@ -164,7 +160,7 @@ export const tryRead = oidBytes => {
         return entries.map(([m, , n, , id]) => ({
             mode: symbolsOf(m),
             name: symbolsOf(n),
-            oid: toVec(symbolsOf(id)),
+            oid: u8ListToVecMsb(symbolsOf(id)),
         }))
     }
 }
@@ -261,7 +257,7 @@ const entryBytes = oidBytes => e => {
     assert(isMode(digits), ['not a mode', digits])
     assert(name.length !== 0 && !name.includes(nul), ['not a name', name])
     assert(bitLength(e.oid) === BigInt(oidBytes) * 8n, ['not an id', e.oid])
-    return flat([digits, [sp], name, [nul], toBytes(e.oid)])
+    return flat([digits, [sp], name, [nul], u8ListMsb(e.oid)])
 }
 
 /**

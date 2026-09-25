@@ -59,7 +59,11 @@ export type StringMap<T> = OptionalMap<string, T>
 
 type _StringMapIsOptional = Assert<Equal<StringMap<bigint>, { readonly [k in string]?: bigint }>>
 
-export type Entry<T> = readonly[string, T]
+/**
+ * A string-keyed entry. `ordered_map` owns it — an `OrderedMap<T>` is a tree of
+ * them — and this module's entry conversions are built on `ordered_map`.
+ */
+export type { Entry } from '../ordered_map/types.ts'
 
 /**
  * A set of objects with a single key.

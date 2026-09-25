@@ -15,16 +15,12 @@ import { ioError } from '../../effects/module.f.mjs'
 import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { nodeCommands, notAFileCode, notAFileMessage } from '../../effects/node/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, u8ListMsb, u8ListToVecMsb } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { digestOf, of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { hexBytes, latin1, packMixed, packMixedIdx } from '../testlib.f.mjs'
 import { packEntryCode, packFileCode, packIdxCode, packsIn, tryRead } from './module.f.mjs'
-
-const toVec = u8ListToVec(msb)
-
-const toBytes = u8List(msb)
 
 /** How many bytes of a file one chunk of a `readWhole` carries at most. */
 const chunkBytes = Number(maxLengthBytes)
@@ -38,7 +34,7 @@ const chunkBytes = Number(maxLengthBytes)
  */
 const chunked = b => Array.from(
     { length: Math.max(1, Math.ceil(b.length / chunkBytes)) },
-    (_, k) => toVec(b.slice(k * chunkBytes, (k + 1) * chunkBytes)))
+    (_, k) => u8ListToVecMsb(b.slice(k * chunkBytes, (k + 1) * chunkBytes)))
 
 /** How wide an id is in every fixture here, and so how long each checksum is. */
 const width = /** @type {const} */ (20)
@@ -51,7 +47,7 @@ const id = hex => {
 }
 
 /** @type {(oid: Oid) => readonly number[]} */
-const idBytes = oid => toArray(toBytes(oid))
+const idBytes = oid => toArray(u8ListMsb(oid))
 
 /** @type {(a: readonly number[], b: readonly number[]) => boolean} */
 const same = (a, b) => a.length === b.length && a.every((v, i) => b[i] === v)
@@ -210,7 +206,7 @@ const hostOf = (dir, files, inflate) => ({
     ],
     readFile: path => log => {
         const b = files(path)
-        return [[...log, `readFile ${path}`], b === null ? error(notFound(path)) : ok(toVec(b))]
+        return [[...log, `readFile ${path}`], b === null ? error(notFound(path)) : ok(u8ListToVecMsb(b))]
     },
     stat: path => log => {
         const b = files(path)
@@ -225,7 +221,7 @@ const hostOf = (dir, files, inflate) => ({
         const b = files(path)
         return [
             [...log, `readBytes ${path} ${at} ${size}`],
-            b === null ? error(notFound(path)) : ok(toVec(b.slice(at, at + size))),
+            b === null ? error(notFound(path)) : ok(u8ListToVecMsb(b.slice(at, at + size))),
         ]
     },
     readWhole: path => log => {
@@ -236,8 +232,8 @@ const hostOf = (dir, files, inflate) => ({
         ]
     },
     inflate: v => log => {
-        const b = inflate(toArray(toBytes(v)))
-        return [[...log, 'inflate'], b === null ? error(notZlib) : ok(toVec(b))]
+        const b = inflate(toArray(u8ListMsb(v)))
+        return [[...log, 'inflate'], b === null ? error(notZlib) : ok(u8ListToVecMsb(b))]
     },
 })
 

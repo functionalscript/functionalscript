@@ -28,7 +28,7 @@ would put back the concurrency the proof runners
 
 ### Where it goes
 
-`utf8ToString` is `codePointListToString(toCodePointList(u8List(msb)(msbV)))`:
+`utf8ToString` is `codePointListToString(toCodePointList(u8ListMsb(msbV)))`:
 a bit vector becomes a lazy byte list, the bytes become a code-point list
 through a state machine one byte at a time, and the code points become a string.
 Every byte of a 30 KB module travels that path as an individual `List` cell and

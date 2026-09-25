@@ -8,7 +8,7 @@
  * @import { MemOperationMap } from "../mock/types.ts"
  */
 
-import { byteLength, empty, isVec, maxLengthBytes, msb, u8List, u8ListToVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
+import { byteLength, empty, isVec, maxLengthBytes, u8ListMsb, u8ListToVecMsb, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, pureError, pureOk, step as ioStep } from "../module.f.mjs"
@@ -54,7 +54,7 @@ const assertOk = (r, expected) => {
 
 /** `n` zero bytes as a `Vec`.
  * @type {(n: number) => Vec} */
-const bytes = n => u8ListToVec(msb)(Array.from({ length: n }, () => 0))
+const bytes = n => u8ListToVecMsb(Array.from({ length: n }, () => 0))
 
 /** Runs an effect against the empty virtual file system.
  * @type {<T>(e: Effect<NodeOp, T, IoChannel>) => readonly [unknown, Result<T, IoChannel>]} */
@@ -573,20 +573,20 @@ export const proof = {
                 /** @type {readonly Vec[]} */ ([]),
                 [vec8(0x2An)],
                 [vec8(0x01n), vec8(0x02n)],
-                [u8ListToVec(msb)([1, 2, 3]), u8ListToVec(msb)([4, 5])],
+                [u8ListToVecMsb([1, 2, 3]), u8ListToVecMsb([4, 5])],
             ]) {
                 const [, [t, result]] = virtual({ ...emptyState, root: { file: chunks } })(
                     readWholeBytes('file'))
                 assert(t === 'ok', result)
                 assertStructurallySame(
                     toArray(/** @type {List_<number>} */ (result)),
-                    chunks.flatMap(v => toArray(u8List(msb)(v))))
+                    chunks.flatMap(v => toArray(u8ListMsb(v))))
             }
         },
         // A whole file is not bounded by a `Vec`, which is the reason the
         // operation answers chunks: `readFile` refuses the same fixture.
         pastTheVecCap: () => {
-            const big = Array.from({ length: 3 }, () => u8ListToVec(msb)(Array.from(
+            const big = Array.from({ length: 3 }, () => u8ListToVecMsb(Array.from(
                 { length: Number(maxLengthBytes) },
                 (_, i) => i % 251)))
             const root = { file: big }

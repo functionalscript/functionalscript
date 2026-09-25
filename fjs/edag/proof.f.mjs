@@ -103,14 +103,14 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame', 'rest'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
-    '=>', 'own', 'is',
+    'own', 'is',
     '===', '!==', '>', '>=', '<', '<=',
     '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
@@ -136,6 +136,16 @@ const op3Ids = /** @type {const} */ (['?:'])
 const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
+    parameters: () => {
+        assertOk(v(['=>', 3, null, ['[]', [['arg', 0], ['rest']]]]))
+        assertOk(v(['arg', 0]))
+        assertNoMatch(v(['=>', null, 1]))
+        assertNoMatch(v(['=>', ['+', 1, 2], null, 1]))
+        assertNoMatch(v(['=>', 0, null, 1, 2]))
+        assertNoMatch(v(['arg', ['+', 0, 1]]))
+        assertNoMatch(v(['arg']))
+        assertNoMatch(v(['arg', 0, 1]))
+    },
     primitive: {
         ok: () => {
             assertOk(v(null))

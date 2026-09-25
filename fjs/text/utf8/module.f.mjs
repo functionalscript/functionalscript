@@ -19,7 +19,7 @@ import {
     isSupplementaryPlane,
     isValidCodePoint,
 } from '../code_point/module.f.mjs'
-import { msb, u8List, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
+import { u8ListMsb, isWholeBytes } from '../../types/bit_vec/module.f.mjs'
 import { contains } from '../../types/range/module.f.mjs'
 import { codePointListToString } from '../utf16/module.f.mjs'
 
@@ -345,7 +345,7 @@ export const toCodePointList =
  */
 export const fromVec = v => {
     if (!isWholeBytes(v)) { return null }
-    const arr = toArray(toCodePointList(u8List(msb)(v)))
+    const arr = toArray(toCodePointList(u8ListMsb(v)))
     for (const cp of arr) {
         if (!isValidCodePoint(cp)) { return null }
     }
