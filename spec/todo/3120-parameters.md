@@ -58,12 +58,12 @@ limitation. The review stays open until the conversion paths are fixed.
 
 An operations-table guard cannot cover conversions performed by a consumer
 of an exported arrow. A side table associating functions with EDAGs cannot
-by itself change those host conversions either. The current generated arrows
+by itself change those host conversions either. The current factory arrows
 inherit native function conversion and have no renderer hook. This is also
 why rejecting callable exports or replacing only the `String` operation is
 not a fix.
 
-**Proposal requiring approval:** extend each generated factory with a renderer
+**Proposal requiring approval:** extend each factory with a renderer
 callback and admit only the complete fresh-arrow construction pattern:
 
 ```js
@@ -122,7 +122,7 @@ to indexed reads of the existing `['args']` would therefore change results.
 
 Parse fixed named parameters and an optional final rest parameter. Represent
 fixed values and the rest array separately in EDAG, and instantiate real
-callables through pre-generated arrow factories. No mutation, prototype
+callables through hand-written arrow factories. No mutation, prototype
 change, host helper, effect or recognized `defineProperty` pattern is needed
 for arity within the table-backed evaluator's documented range. The factories
 do not by themselves satisfy the default function-text contract; the rendering
@@ -267,7 +267,8 @@ binding. No module-loading protocol or replacement import opcode is proposed.
 
 ### Instantiating functions from EDAG
 
-Generate factories for lengths `0` through an executor-specific limit `T`.
+Write factories by hand for lengths `0` through an executor-specific limit `T`
+([`fjs/types/function/length`](../../fjs/types/function/length/README.md)).
 This is a materialization resource limit, not a language or EDAG arity cap.
 The beginning of the table is:
 
@@ -310,10 +311,10 @@ passing `(fixed, rest)` avoids reconstructing that intermediate list.
 
 Each factory has a statically spelled parameter list, but table selection can
 use the length read dynamically from an EDAG. This does not require making
-`length` an expression operand of `=>`. Generate source at build time, never
-through runtime `eval`, `Function`, dynamic import or property mutation.
-The pipeline proof compiles this generated table through `fjs compile`'s
-parser and lowering, and executes it under both JavaScript evaluators.
+`length` an expression operand of `=>`. The table is checked-in source, never
+built through runtime `eval`, `Function`, dynamic import or property mutation.
+The pipeline proof compiles the table's first entries through `fjs compile`'s
+parser and lowering, and executes them under both JavaScript evaluators.
 
 Share the table through the EDAG operations used by Amnesia and the memo
 executor, rather than duplicating it per VM. Native backends may initialize
@@ -405,7 +406,7 @@ a source/EDAG output path must not invoke that evaluator merely to reject a
 larger arity. Report resource refusal through the existing failure contract,
 without adding a source-visible exception type or changing argument values.
 The table does not limit supplied argument count or rest-array length. Native
-backends may have different capacities; enlarging the generated table does
+backends may have different capacities; enlarging the table does
 not change the language or the meaning or encoding of an existing EDAG.
 
 For example, with a test table ending at length `2`,
@@ -462,12 +463,14 @@ source rest binding in that future case or silently admit initializers now.
       negative zero for both metadata fields without normalizing ordinary
       `-0` argument values. Update schema, lowering, analysis, operations,
       executor contexts and native consumers.
-- [x] Generate and share the factory table; check its capacity at EDAG
+- [x] Write and share the factory table, by hand in
+      [`fjs/types/function/length`](../../fjs/types/function/length/README.md)
+      (generated at first); check its capacity at EDAG
       materialization, separately from syntax and EDAG validation. Keep
       unsupported new execution paths refused until they preserve length and
       bindings, without regressing existing calls/returns/exports or blocking
       source/EDAG outputs that do not use them. Add co-located proofs for the
-      generator and the generated table.
+      table.
 - [ ] Specify callable-to-EDAG association and host-conversion coverage, and
       implement the shared default renderer before switching supported
       materialization/export paths to these factories. Preserve existing

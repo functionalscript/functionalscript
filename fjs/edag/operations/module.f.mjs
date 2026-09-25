@@ -19,7 +19,7 @@
  * @import { Evaluator, Operations } from './types.ts'
  */
 
-import { callable, isIndex } from '../callable/module.f.mjs'
+import { callable, isIndex } from '../../types/function/length/module.f.mjs'
 
 import { assert } from '../../asserts/module.f.mjs'
 

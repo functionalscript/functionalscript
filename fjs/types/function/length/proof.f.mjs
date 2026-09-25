@@ -1,8 +1,7 @@
 /** @import { Body } from './types.ts' */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { callable, isIndex } from './module.f.mjs'
-import { factories } from './table.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { callable, factories, isIndex } from './module.f.mjs'
 
 /** @type {Body} */
 const pair = (fixed, rest) => [fixed, rest]
