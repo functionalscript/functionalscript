@@ -108,7 +108,7 @@ directory as `issues/NNN-{slug}.md`. Four searches, in order of yield:
    streaming decoder factory both codecs already share", which is `decoder` in
    `fjs/text/code_point/` almost verbatim.
 4. **A zero-padded filename in the *current* tree.** `i37` is
-   `037-language-design-map.md`, headed `# 37.`; matching the identifier's
+   `037-language-design-map.md`, headed `## 37.`; matching the identifier's
    digits against the filename's exactly will miss it.
 
 Three outcomes are worth distinguishing once you have the file. The issue may
@@ -144,7 +144,7 @@ Those two targets are written as they would appear **from this file**, in
 `todo/`. Re-base them against the file you are editing rather than copying them
 across — a file in `fjs/types/todo/` reaches the same module as
 `../bit_vec/module.f.mjs`. Relative paths surviving a move without being
-re-based is what put 105 broken links in this tree.
+re-based is what once put over a hundred broken links in this tree.
 
 ## Blocked by third parties
 
@@ -172,8 +172,8 @@ named exception, not a change to where other internally blocked tasks belong.
 Keep the same structure within `todo/{slug-kebab}.md` files.
 
 Issue headings should be short and direct — describe the action or the thing,
-not the full context. Prefer `# Read large files` over
-`# The problem with reading big files caused by bit vector limitation`.
+not the full context. Prefer `## Read large files` over
+`## The problem with reading big files caused by bit vector limitation`.
 A short heading is easier to scan, link to, and reference from other files.
 
 **Describe meaning, not statistics.** An issue says what is wrong and
@@ -234,12 +234,11 @@ status-only tombstone.
 
 Kept as the record: a resolved issue stays **only** when live documents cite it
 for something no surviving file says — a migration's staged rationale, a
-decision's alternatives. Say so in its `**Status:**` and name what cites it, so
-a reader can tell it from an open task at a glance;
-[`fjs/effects/todo/io-effect-migration.md`](../fjs/effects/todo/io-effect-migration.md)
-is the worked example. This is the narrow exception, not a way to keep finished
-work around: if the rationale can move into a `README.md` or JSDoc, move it and
-delete the file.
+decision's alternatives. Say so in its `**Status:**` — `done — kept as the
+record; cited by …` — and name what cites it, so a reader can tell it from an
+open task at a glance. This is the narrow
+exception, not a way to keep finished work around: if the rationale can move
+into a `README.md` or JSDoc, move it and delete the file.
 
 ## Priority scale
 
@@ -261,6 +260,7 @@ delete the file.
 | `on-hold` | Intentionally deferred |
 | `irrelevant` | Superseded or obsolete |
 | `won't fix` | Deliberately will not be implemented |
+| `done` | Resolved, and kept only as a record live documents cite (see above) |
 
 ## Language Specification
 

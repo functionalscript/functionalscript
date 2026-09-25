@@ -94,7 +94,7 @@ is speculative generality.
 
 ### Related
 
-- [`../node/module.f.mjs`](../node/module.f.mjs) — `node26Steps`, the job in
+- [`../node/module.f.mjs`](../node/module.f.mjs) — `node26NixSteps`, the job in
   question.
 - [`../module.f.mjs`](../module.f.mjs) — `ci(setup)` and `canonicalJobs`, where
   the jobs are assembled and `nodeExtra` stops short.

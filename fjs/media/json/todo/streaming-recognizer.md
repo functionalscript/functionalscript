@@ -1,271 +1,93 @@
 ## streaming-recognizer. A payload-free, O(depth) JSON validity recognizer
 
 **Priority:** P3
-**Status:** open — the design below is written against a reader that no
-longer exists; rebase it on the grammar before starting.
-
-> **The seam this design is built on no longer exists.** It reuses the
-> hand-written `Scan<S>` scanners that the JSON reader's rewrite (over the
-> grammar, done) used to promise, and
-> that design was implemented, reverted
-> ([#1895](https://github.com/functionalscript/functionalscript/pull/1895)) and
-> replaced by a reader generated from JSON's EBNF grammar. Nothing exports
-> `Scan<S>`, and nothing will.
->
-> **Do not start the tasks below.** The `U16` signature, the scanner-transition
-> factoring and the "one state machine serves both instantiations" plan are all
-> statements about the withdrawn scanner. What survives is the *requirement* —
-> answer "is this a valid JSON document?" in O(depth) without building the
-> value — and the depth-cap design, which is about the container stack rather
-> than the lexer.
->
-> Rebasing it means asking what a grammar-driven reader offers instead: a
-> recognizer is a parse that discards its mapping, so this may reduce to running
-> the existing grammar with no value-building map, which is closer to free than
-> the factoring below. That is the question to answer before writing any code
-> here.
+**Status:** open
 
 ### Problem
 
-`fjs/media/json` can turn a stream into a value (`tokenize` → `parse`), but it has no
-way to answer the cheaper question *"is this stream a valid JSON document?"*
-without paying to build the value. Two independent costs make the existing
-pipeline unfit as a validity check for a size-independent streaming consumer:
+`fjs/media/json` can turn text into a value (`parse`), but it has no way to
+answer the cheaper question *"is this a valid JSON document?"* without paying
+to build the value. `parse` in
+[`../parser/module.f.mjs`](../parser/module.f.mjs) folds the grammar's
+mappings into a whole `ParseUnknown` value — O(n) memory in the document size —
+and its string mappings build each string's text, so even a caller that
+discards the value has paid O(token length) for a single huge string. The
+[`../../../ebnf/ll1`](../../../ebnf/ll1/README.md) parser it runs on also takes
+the whole input as one array, so nothing here streams.
 
-1. **The parser builds the whole value.** `parse`
-   (`fjs/media/json/parser/module.f.mjs:232-238`) accumulates objects/arrays in
-   `top`/`stack`, i.e. O(n) memory in the document size — even when the caller
-   only wants a yes/no verdict.
+The immediate driver is `fjs/media/type`
+([detect-json](../../type/todo/detect-json.md)): its `detectStream` classifier
+is deliberately O(1)-space over blobs larger than one `Vec`, and it wants to
+fold JSON validity in alongside its UTF-8 and magic-byte factors. It cannot
+adopt anything that is O(n) or O(token length). More broadly, a
+validate-without-materialize primitive is generally useful (size checks,
+guards, streaming ingestion) and belongs in `fjs/media/json`, not hand-rolled in
+each consumer.
 
-2. **The reader materializes token payloads.** The grammar's reader takes a
-   token's text as a slice of the input and decodes a string over it
-   (`lex` and `decodeJsonString` in `fjs/js/tokenizer`), and JSON's own
-   `parse` folds the string rule to its value. A single huge token — e.g.
-   `{"x":"⟨1 MB⟩"}` or one very long number — allocates O(token length) even
-   before the parser runs. So a recognizer built by discarding only the parser's
-   values still buffers whole tokens.
-
-The immediate driver is `fjs/media/type` (`fjs/media/type/todo/detect-json.md`): its
-`detectStream` classifier is deliberately O(1)-space over blobs larger than one
-`Vec`, and it wants to fold JSON validity in alongside its UTF-8 / magic-byte
-factors. It cannot adopt anything that is O(n) or O(token length). More broadly,
-a validate-without-materialize primitive is generally useful (size checks,
-guards, streaming ingestion) and belongs in `fjs/media/json`, not hand-rolled in each
-consumer.
+An earlier design here factored a withdrawn hand-written `Scan<S>` scanner
+over its builders, per UTF-16 code unit; that reader was reverted in
+[#1895](https://github.com/functionalscript/functionalscript/pull/1895) and
+replaced by the grammar, so none of that design survives. What survives is the
+requirement and the depth-cap contract below.
 
 ### Proposal
 
-Add a streaming JSON **recognizer** to `fjs/media/json`: a per-**code-unit** fold
-that accepts/rejects a document using only a bounded bracket stack, buffering
-neither values nor token payloads.
+**A recognizer is a parse that discards its mapping.** Run JSON's own grammar,
+[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs), with no
+value-building mapping, so the recognizer and `parse` share one description of
+"valid JSON" by construction. That is
+[recognizer-backend](../../../ebnf/todo/recognizer-backend.md)'s AST-less LL(1)
+recognizer applied to one grammar; streaming input needs the one-symbol-at-a-time
+parser of [043-stateful-parser](../../../ebnf/todo/043-stateful-parser.md).
+Whether that is enough — in particular, whether a string rule read with no
+mapping holds anything per character — is the question to answer before
+writing code here.
 
-```ts
-export type JsonRecognizerState = ...     // scanner sub-state × parser control × depth stack
-export const recognizerInit: JsonRecognizerState  // uncapped
-export const tryRecognizerInitCapped = (maxDepth: number): Nullable<JsonRecognizerState>
-export const recognizerStep = (s: JsonRecognizerState, u: U16): JsonRecognizerState
-export const recognizerAccepts = (s: JsonRecognizerState): boolean   // complete valid document at EOF?
-```
+**The depth cap is opt-in and chosen at init.** It bounds the stack for a
+consumer that needs a DoS guard, and it is the one place the recognizer may
+disagree with `parse`, which stays uncapped.
 
-**The cap is chosen at init, and it needs an entry point.** An earlier draft
-exported `recognizerInit` alone and described the max-depth cap only in prose,
-which left the one consumer that explicitly wants a DoS guard unable to ask for
-one without building state this module does not expose — review found it.
-`tryRecognizerInitCapped` is the whole of the configuration surface: the cap
-belongs to the initial state rather than to `recognizerStep`, because a fold
-operator that carries a limit alongside the accumulator would have to re-read
-it on every code unit, and because `recognizerAccepts` then needs nothing new —
-an over-cap document is already rejected in the state it returns.
-`recognizerInit` stays as the uncapped default so the common case costs no
-argument.
+- **What it counts:** the greatest number of containers open **at once**. A
+  document with no container has depth 0 — a cap of `0` accepts `1` and `"a"`
+  and rejects `[]` — and `[]` has depth 1. A cap of `n` accepts a document with
+  exactly `n` open containers and rejects one with `n + 1`.
+- **What may be passed:** a finite non-negative integer. `-0` is `0`. Every
+  other `number` — `-1`, `1.5`, `NaN`, `Infinity` — is refused, because each
+  has a plausible reading another implementation would pick (rounding, rejecting
+  everything, or silently uncapping).
+- **How it refuses:** the capped entry point returns `null` for an invalid cap
+  and is named `try…` for it, per [REVIEW.md](../../../../doc/REVIEW.md). A
+  permanently rejecting state would be indistinguishable from invalid content,
+  and a MIME detector fed one would report every valid JSON blob as
+  `text/plain`.
 
-**What `maxDepth` counts**, because a number without a counting rule is not a
-contract: it is the greatest number of containers open **at once**, so a
-document is accepted when its deepest point has at most `maxDepth` of them
-open and rejected at `maxDepth + 1`. A document with no container has depth 0
-— `tryRecognizerInitCapped(0)` accepts `1` and `"a"` and rejects `[]` — and `[]`
-has depth 1. Equivalently the cap bounds the bracket stack's length, which is
-the thing being bounded and the reason to state it this way round rather than
-counting nesting *levels* from 1. Review found the number specified and the
-rule it counts by left open, in the same paragraph that argues an unspecified
-limit makes two implementations disagree about the same bytes; an off-by-one
-here is exactly that disagreement, one level down.
-
-**And what may be passed**, which the round after that one asked: `maxDepth` is
-a **finite non-negative integer**, and every other `number` — `-1`, `1.5`,
-`NaN`, `Infinity` — is refused. Refused rather than left open, because each has
-a plausible reading that a different implementation would pick: round `1.5`,
-compare `-1` directly and reject everything, or honour `Infinity` and silently
-return the uncapped recognizer, which defeats the guard the argument was passed
-to install.
-
-**Refused means `null`, not a rejecting state**, and the first answer here was
-wrong. This paragraph used to say that the initializer stays total and
-an invalid cap yields a state that is already rejecting — "loud", it claimed,
-because nothing parses. Review refused that and was right: loud *to whom?* A
-permanently rejecting state is indistinguishable from a genuinely invalid
-document, so the caller cannot tell a bad configuration from bad content, and
-the one consumer — a MIME detector — would report `text/plain` for every valid
-JSON blob it is ever given, forever, with no signal anywhere. That is a
-plausible wrong verdict where a refusal was wanted, which is the exact failure
-this design's own corpus work exists to catch. The alternative was written down
-in this same paragraph and dismissed for a bad reason: that a `Result` would
-put a wrapper on the common path for the sake of a caller error, which is a
-cost-of-typing argument answering a correctness question.
-
-So the signature is `(maxDepth: number) => Nullable<JsonRecognizerState>`,
-`null` for a cap outside the finite non-negative integers — **and the name
-carries the refusal**, which review had to point out after the first version of
-this paragraph kept the plain one. `doc/REVIEW.md` splits the two cases: an
-unsupported input a caller may legitimately supply is rejected by a `try*`
-returning `Nullable<T>`, and one that violates a precondition is panicked on. A
-runtime-computed cap is the first case, so this is `tryRecognizerInitCapped`.
-The name is not decoration: `recognizerInitCapped` reads as though a state
-always comes back, which invites the caller to paper over the `null` with a
-fallback — and the first draft of this change did exactly that in the detector,
-one file away. `recognizerInit` is
-untouched, so the uncapped common path costs nothing and only the configured
-path pays; a caller passing a literal, as `fjs/media/type` does with `64`,
-discharges the `null` once at its call site. Still no exception, since this
-module has none to throw — but a refusal the type system makes the caller
-look at, rather than a verdict it cannot distinguish from data. The check
-belongs at init, where it runs once, and leaves `recognizerStep` with nothing
-to test. `-0` is `0`: it is a finite integer and
-`-0 >= 0`, so it needs no rule of its own. The checklist and the value-free-parsing bullet below kept describing
-the cap as an unnamed knob for two commits after the export appeared — the same
-stale-cross-reference shape this PR has now recorded fourteen times, here in its
-prose-against-its-own-checklist form, and inside the one file whose export list
-is the thing being lagged.
-
-**A code unit, not a code point**, and it is `(state, unit)` rather than a
-`Fold` — see the note at the end of this section before wiring it into one.
-The reason for the unit is the seam this design reuses. The withdrawn scanner design typed the
-scanners as `Scan<S>` over `U16 | null`, so a caller holding one value for a
-raw astral character such as U+1F600 has nothing it can pass: the scalar is two
-units, and expanding it is the caller's job under either spelling. Taking
-`U16` here makes the reuse literal rather than requiring an adapter that
-re-splits what the caller just joined, and it matches what JSON strings are —
-code-unit sequences, which is why a lone surrogate is a string this format can
-carry. Review caught the two designs disagreeing at that seam; the earlier
-`cp: number` predates the scanner's type.
-
-**`recognizerStep` is not a `Fold`**, and a caller folding a run of units has
-to adapt it. `Fold<I, O>` is `(input) => (acc) => acc` — input-first and
-curried — against this signature's state-first, uncurried `(state, unit)`, so
-the two disagree on both axes; the first consumer got this wrong the moment it
-was written. Left as it is on purpose for now: currying data parameters is the
-footgun [uncurry-accumulator-types](../../../types/function/todo/uncurry-accumulator-types.md)
-exists to remove, and its proposed `(input, acc) => acc` would still want the
-unit first, so **whether this signature becomes `(unit, state)` is a decision
-for whoever builds it**, not one to make silently in a design under review.
-Either way the adapter at a call site is one line.
-
-**One grammar → one state machine → two builders.** The architecture is not
-"two implementations kept equivalent by tests": there is a single grammar
-description, it drives a single state machine, and that machine is
-parameterized over a *builder*. `parse` is the machine instantiated with the
-value-building builder; the recognizer is the **same machine** instantiated
-with a no-op builder. Maximize shared code: the recognizer must not
-re-implement any transition the parser already encodes, and `parse` itself
-must be refactored to run on the shared machine — not left as a parallel copy
-next to it. A standalone recognizer that re-derives the grammar is explicitly
-out of scope, even if a test corpus shows it equivalent.
-
-Concretely, reuse the existing grammar rather than writing a fourth JSON
-parser; drop only the accumulation. Where the bullets below say `fjs/js`, read
-[`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs): the string and
-number rules are JSON's own now, which is a better fit for this design, not a
-worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar.
-The JSON tokenizer the bullets once expected to read is retired.
-
-- **Payload-free scanning.** Reuse the tokenizer's *transition structure*
-  (range-map dispatch, escape / `\uXXXX` / surrogate handling, number-shape DFA)
-  but replace payload accumulation with recognition: strings and numbers need a
-  small fixed-size sub-state (in-string / in-escape / hex-digit index; number
-  phase int/frac/exp), not a growing `value`. The scanner emits *token
-  boundaries and kinds*, not token text. The cleanest route is to factor the
-  `fjs/js` string/number ops over their "builder" so the recognizer instantiates
-  them with a no-op builder (O(1) per token), the same way the value-free parser
-  drops object/array construction — one grammar, two builders.
-
-- **Value-free parsing.** Drive `fjs/media/json/parser`'s per-token control machine
-  (`foldOp` — `fjs/media/json/parser/module.f.mjs:205-224`) with a no-op value builder,
-  keeping only `status` + a bracket stack. Space is **O(nesting depth)** — already
-  strictly better than `parse`'s O(n) value. An **optional** max-depth cap lets a
-  consumer that needs a DoS guard bound the stack and reject deeper input; it
-  enters through `tryRecognizerInitCapped`, with `recognizerInit` the uncapped
-  default. The cap is opt-in precisely because it is the one behavior
-  where the recognizer would otherwise have to diverge from `parse` (see below);
-  leaving it off keeps them equivalent.
-
-- **Strictness.** Honor RFC 8259 at scan time. The raw-control-in-string
-  rejection already lives in the grammar's `character` rule
-  (`fjs/ebnf/lib/json`), so the recognizer inherits it for free by running
-  that grammar rather than re-deriving the check.
-
-Because the recognizer and the value-building `parse` run on the same state
-machine over the same grammar, they cannot diverge **by construction** — the
-point is one description of "valid JSON", read either into a value or into a
-boolean. The equivalence proof below is then a regression check on the shared
-machine, not the mechanism holding two implementations together. Correctness
-property, scoped to make it actually hold:
-
-- **With the depth cap disabled** (the default), `recognizerAccepts(s)` ⟺
-  `parse(...)[0] === 'ok'` for **every** input — both share the shared
-  tokenizer's strict-control rejection, so raw controls are not a divergence
-  either. This is the equivalence proof.
-- **With a finite cap**, agreement is scoped to inputs within the limit: a valid
-  document nesting deeper than the cap is deliberately rejected even though
-  `parse` (uncapped) accepts it. That is the intended DoS guard, not a bug —
-  covered by a separate "over-cap document rejected" test, not by the equivalence
-  proof. (`parse` is intentionally left uncapped; if a depth bound is ever wanted
-  there too, that is its own change, not this recognizer's contract.)
+**Correctness property.** With the cap disabled, the recognizer accepts exactly
+the documents `parse` returns `ok` for. With a finite cap, agreement holds for
+inputs within the limit; an over-cap document is rejected by design.
 
 ### Tasks
 
-**Blocked, and the first three are written against the withdrawn scanner** —
-see the note at the top. Rebase them on the grammar-driven reader before
-starting; do not follow them as they stand.
-
-- [ ] Factor the `fjs/js` string/number token ops and the `fjs/media/json` parser fold
-      over their builders so one state machine serves both instantiations — the
-      no-op builder yields the payload-free / value-free recognizer.
-- [ ] Refactor `parse` to run on the shared, builder-parameterized machine (the
-      value-building instantiation), so parser and recognizer use one state
-      machine and one grammar — no parallel copy of the transitions survives.
-- [ ] Implement `recognizerInit` / `tryRecognizerInitCapped` / `recognizerStep` /
-      `recognizerAccepts` with an O(depth) bracket stack. The max-depth cap is
-      **optional** and enters through `tryRecognizerInitCapped`; `recognizerInit` is
-      the uncapped default. Enforce RFC 8259 string-control strictness at scan
-      time. `recognizerStep` takes a **`U16`**, matching the scanners it reuses —
-      a code point would not be passable to them.
-- [ ] Proof (cap disabled): `recognizerAccepts` agrees with `parse` `ok`/`error`
-      across the existing parser test corpus; add large-single-token cases (huge
-      string, long number) asserting bounded auxiliary space (no payload buffer).
-- [ ] Proof (invalid cap): `tryRecognizerInitCapped` returns **`null`** for each
-      of `-1`, `1.5`, `NaN` and `Infinity`. That is the whole assertion, and it
-      is the second version of this proof: the first said each invalid cap
-      yields a permanently rejecting state, which is a claim about a *verdict*
-      rather than a refusal, and could only be tested by feeding documents
-      through — a test the uncapped initial state also passes at init, since no
-      complete document has arrived. Both the design and its proof were wrong
-      in the same direction, and asserting `null` cannot be satisfied by an
-      implementation that quietly rejects everything.
-      `tryRecognizerInitCapped(-0)` returns a **state**, not `null` — `-0` is a
-      finite integer with `-0 >= 0` — and its proof is the ordinary boundary
-      one for a cap of zero: `1` accepted, `[]` rejected.
-- [ ] Proof (cap enabled): **both sides of the boundary**, since "deeper is
-      rejected" alone is passed by an implementation that rejects at the cap
-      too, and by one that rejects everything. For a cap of `n`: a document
-      with exactly `n` open containers is **accepted**, one with `n + 1` is
-      **rejected**. Take that pair on arrays, on objects, and on an alternating
-      mix — a stack may be pushed for one container kind and not the other —
-      and take `tryRecognizerInitCapped(0)`, which accepts a bare scalar and
-      rejects `[]`. The DoS guard, scoped out of the equivalence above.
-- [ ] `tsc` clean; `fjs t` green.
+- [ ] Answer the question above: whether recognizer-backend's AST-less LL(1)
+      recognizer over `fjs/ebnf/lib/json` is the recognizer, or what it lacks.
+- [ ] The uncapped recognizer and the capped `try…` entry point, with the
+      contract above.
+- [ ] Proof (cap disabled): the recognizer agrees with `parse`'s `ok`/`error`
+      across the existing parser corpus; large-single-token cases (a huge
+      string, a long number) hold no payload buffer.
+- [ ] Proof (invalid cap): `null` for each of `-1`, `1.5`, `NaN` and
+      `Infinity`; a state for `-0`, behaving as a cap of `0`.
+- [ ] Proof (cap enabled): both sides of the boundary — `n` open containers
+      accepted, `n + 1` rejected — on arrays, on objects, and on an alternating
+      mix; a cap of `0` accepts a bare scalar and rejects `[]`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 
-- `fjs/media/json/parser/module.f.mjs:205-238` — `foldOp` / `parse`; the control machine to reuse value-free.
-- `fjs/js/tokenizer/module.f.mjs:436-474,550-556` — string/number states that buffer payloads and must gain payload-free variants.
-- `fjs/media/type/todo/detect-json.md` — first consumer; needs O(depth), payload-free validity to keep `detectStream` size-independent.
+- [recognizer-backend](../../../ebnf/todo/recognizer-backend.md) — the AST-less
+  LL(1) recognizer this is an instance of.
+- [043-stateful-parser](../../../ebnf/todo/043-stateful-parser.md) — the
+  streaming input a size-independent consumer needs.
+- [detect-json](../../type/todo/detect-json.md) — first consumer; needs
+  O(depth), payload-free validity to keep `detectStream` size-independent.
+- [`../parser/module.f.mjs`](../parser/module.f.mjs) — `parse`, whose `ok`/`error`
+  the recognizer must agree with.

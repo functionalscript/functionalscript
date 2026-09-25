@@ -8,20 +8,20 @@
 Three hand-rolled "walk two sequences to the longer end" loops, each spelled
 differently:
 
-- `abs_add_vec` (`src/vm/bigint/mod.rs:150-169`) — a `loop` over
+- `abs_add_vec` (`src/vm/bigint/mod.rs`) — a `loop` over
   `(iter_a.next(), iter_b.next())` with a four-arm match;
-- `abs_sub_vec` (`mod.rs:185-205`) — a `for` over `self.index_iter()` with
+- `abs_sub_vec` (same file) — a `for` over `self.index_iter()` with
   `iter_b.next().unwrap_or_default()` inside and a trailing
   `iter_b.next().is_some()` length check;
-- `Iter::eq_by_` (`src/common/iter.rs:49-60`) — the same skeleton with an
+- `Iter::eq_by_` (`src/common/iter.rs`) — the same skeleton with an
   equality payload.
 
-`abs_cmp_vec` (`mod.rs:132-140`) hand-rolls a descending index `while` loop
-using neither `index_iter` nor iterators. `mod.rs:104` even carries the note
+`abs_cmp_vec` (`mod.rs`) hand-rolls a descending index `while` loop
+using neither `index_iter` nor iterators. `mod.rs` even carries the note
 "use .index_iter in abs_* helpers" — recorded, but only partially taken up.
 
-Separately, `Iter::try_reduce` (`iter.rs:17-30`) has zero call sites in
-`src/` or `tests/` — 14 lines of `Result`-threading semantics (including a
+Separately, `Iter::try_reduce` (`iter.rs`) has no call site in
+`src/` or `tests/` — a dozen-odd lines of `Result`-threading semantics (including a
 silent `Ok(default())` on empty) that nothing exercises; §5.4 says extract
 once the second real consumer exists. `common/iter.rs` carries an unused
 combinator while three call sites hand-roll a missing one.

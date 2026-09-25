@@ -288,7 +288,8 @@ on an earlier line than JavaScript counts
 The JSON reader tracks no lines. A malformed `.json` document, the input or an
 import, gives in its message the UTF-16 code-unit offset reading failed at,
 counted from 0 — `/project/e.json - error: unexpected symbol at 19` — or
-`unexpected end` when the text runs out.
+`unexpected end` when the text runs out
+([parse-error-location-format](../fjs/media/json/todo/parse-error-location-format.md)).
 
 `fjs compile` is one of several `fjs` commands; see
 [`fjs/README.md`](../fjs/README.md) for the rest.

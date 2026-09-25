@@ -2,7 +2,7 @@
 
 **Priority:** P5
 **Status:** blocked
-**Blocked by:** [Standard JSON parse/serialize](./standard-parse-serialize.md)
+**Blocked by:** [JSON numeric edge cases](./number-edge-cases.md)
 
 ### Goal
 
@@ -35,8 +35,8 @@ native-parity bug: [preserve-negative-zero](./preserve-negative-zero.md)
 requires the standard codec to keep `-0` through serialization and parsing.
 Do not normalize it to `0` in the default serializer as compatibility work.
 
-Any compatibility implementation must reuse the same tokenizer, lossless
-`NumberToken` structural parse, and recursive serializer. Only materialization,
+Any compatibility implementation must reuse the same grammar reader, its
+lexeme-first `NumberPolicy` seam, and recursive serializer. Only materialization,
 normalization, and numeric formatting policy should differ.
 
 ### Compatibility areas
@@ -70,8 +70,6 @@ not cause additional P3 design work.
 
 - [Preserve negative zero](./preserve-negative-zero.md) — intentional default
   behavior that native-compatibility work must not undo.
-- [Standard JSON parse/serialize](./standard-parse-serialize.md) — P3 default
-  FunctionalScript codec; should not wait for this task.
 - [Standard/extended value transforms](./standard-transform.md) — make gradual
   policy changes easier once the runtime layers exist.
 - [`fjs/media/json/README.md`](../README.md) — the extended codec preserves

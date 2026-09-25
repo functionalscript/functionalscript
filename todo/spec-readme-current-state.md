@@ -20,7 +20,10 @@ docs, [`spec/todo/README.md`](../spec/todo/README.md), which sorts its
 roadmap into a DJS section and an FJS one, and the paragraph of
 [`spec/datajs/README.md`](../spec/datajs/README.md) (Status) that explains
 the two uses of "DJS", which has nothing left to explain once the wider use
-is gone.
+is gone. The same Status section opens by saying the document "specifies a
+target, not the current implementation", while every sentence after it — and
+the conformance matrix, which awaits nothing for the reader, the serializer or
+normalization — says the codec implements it.
 
 And the specification describes a module's scope three times — in Importing,
 Shared Values and Functions — where the compiler reads one thing: a module is
@@ -45,6 +48,8 @@ module, and linking is application.
 - [ ] Rename the DJS and FJS sections of `spec/todo/README.md` and the DJS
       names in `fjs/fsc` docs where they are only names; remove the two-uses
       paragraph from `spec/datajs/README.md`.
+- [ ] `spec/datajs/README.md` Status: drop the "target, not the current
+      implementation" opening, or name what is actually still missing.
 - [ ] Module Structure states that a module is a function, and the scope
       sentences elsewhere point at it.
 - [ ] Broken-link sweep unchanged; `npm run gen` unchanged.

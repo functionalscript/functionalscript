@@ -78,7 +78,6 @@ Replacing the remaining host formatter is separate work in
 
 - [JSON numeric edge cases](./number-edge-cases.md) — this settles negative zero;
   the remaining numeric-policy questions stay there.
-- [Standard JSON parse/serialize](./standard-parse-serialize.md) — standard codec.
 - [Native JSON compatibility](./native-json-compatibility.md) — preservation is a
   deliberate default-policy exception, not a native-parity bug.
 - [`JSON module`](../module.f.mjs) — public codec and signed-lexeme numeric policy.
@@ -86,3 +85,6 @@ Replacing the remaining host formatter is separate work in
   shared finite formatter, with its own non-finite policy.
 - [`DataJS specification`](../../../../spec/datajs/README.md) — existing
   negative-zero and non-finite round-trip requirements.
+- [json-dialect-factory](../../todo/json-dialect-factory.md) — plans to refuse
+  `-0` in dialect values because the serializer loses it today; this change
+  removes that reason.

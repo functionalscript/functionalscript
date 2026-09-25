@@ -9,13 +9,12 @@ Every case in [`fjs/nanvm/`](../README.md) now denotes an EDAG expression:
 `caseExp` in [`module.f.mjs`](../module.f.mjs) derives it, the proof
 validates it against the [`fjs/edag`](../../edag/README.md) schema and
 evaluates it, and [`rust/module.f.mjs`](../rust/module.f.mjs) prints it. That
-makes the corpus the "conformance examples (test vectors) shared by the FJS and
-Rust implementations" that
-[edag-spec](../../../todo/edag-spec.md) asks for — in *authoring*. In
+makes the corpus the conformance examples (test vectors) shared by the FJS and
+Rust implementations of that schema — in *authoring*. In
 *execution* it is not yet: each side still runs the case through its own
 operator, and no executor consumes the expression as a value.
 
-Two things are missing, both waiting on work outside this directory.
+One thing is missing, and it waits on work outside this directory.
 
 **`nanvm-lib` never sees the expression.** The roadmap's interpreter executes
 "the `Any` described by the EDAG spec"
@@ -68,13 +67,14 @@ interpreter. Authoring stays single-source; only the transport is generated.
 Once the deferred `Any`/CBOR serialization exists, the same expressions can
 ship as serialized data instead. Either way this is what keeps the interpreter
 and the generated code in agreement — the point the roadmap's test-generation
-item makes — and the JavaScript side's counterpart is replacing `amnesia`
-with the EDAG interpreter
+item makes — and the JavaScript side's counterpart is running the corpus
+through the EDAG interpreter as well, [`fjs/edag/memo`](../../edag/memo/module.f.mjs)
 ([interpret-edag](../../fsc/todo/interpret-edag.md)), which owes the same
-identity-memoization contract the corpus already relies on. The proof's own
-inline evaluator is already gone: `amnesia` takes the corpus's shared nodes
-as `Context`'s `memo`, so what is left to migrate is the evaluator itself,
-not a second one beside it.
+identity-memoization contract the corpus already relies on. `amnesia` stays
+the oracle ([`../../edag/amnesia/README.md`](../../edag/amnesia/README.md)),
+so memo runs beside it rather than replacing it, the two answers pinned where
+sharing decides them. The proof's own inline evaluator is already gone:
+`amnesia` takes the corpus's shared nodes as `Context`'s `memo`.
 
 ### Tasks
 
@@ -86,13 +86,16 @@ not a second one beside it.
 - [x] Add `&&`, `||`, and `??` groups with their value results.
 - [x] Add non-establishment cases: the `unreached` operand, no throw node
       needed.
-- [ ] Replace `amnesia` with the `interpret-edag` interpreter when it lands,
-      and register the corpus as its test suite.
+- [ ] Run the corpus through `fjs/edag/memo` beside `amnesia`, pinning both
+      answers where sharing decides them, and register the corpus as its test
+      suite.
 - [ ] Extend the printer to construct each case's expression as an `Any` and
       hand it to the `nanvm-lib` interpreter (serialized `Any` once the
       roadmap's post-MVP serialization exists).
-- [ ] Register the corpus as the shared conformance vectors of
-      [edag-spec](../../../todo/edag-spec.md).
+- [ ] Register the corpus as the shared conformance vectors of the
+      [`fjs/edag`](../../edag/README.md) schema, which
+      [rust-schema-codegen](../../edag/todo/rust-schema-codegen.md) proves its
+      generated Rust validation against.
 - [ ] `tsc`, `fjs test`, `npm run gen`, `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
 
@@ -100,8 +103,8 @@ not a second one beside it.
 
 - [`../README.md`](../README.md) — "The operations come from EDAG": what the
   corpus already derives, validates, and shares.
-- [`../../../todo/edag-spec.md`](../../../todo/edag-spec.md) — the shared
-  conformance test vectors this completes.
+- [`../../edag/todo/rust-schema-codegen.md`](../../edag/todo/rust-schema-codegen.md)
+  — the generated Rust side of the schema these vectors check.
 - [`../../../nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)
   — the interpreter and remaining-operators items this feeds.
 - [`../../fsc/todo/interpret-edag.md`](../../fsc/todo/interpret-edag.md) — the

@@ -51,5 +51,6 @@ the fold reads them from there rather than restating them.
 
 ### Related
 
-- [`fjs/fsc/todo/parse-error-location-format.md`](../../../fsc/todo/parse-error-location-format.md)
-  — the other errors whose location `fjs compile` prints wrong.
+- [`fjs/media/json/todo/parse-error-location-format.md`](../../../media/json/todo/parse-error-location-format.md)
+  — the JSON reader's errors, which `fjs compile` prints with an offset
+  rather than a line and column.
