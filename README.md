@@ -36,7 +36,10 @@ or run the CLI without installing it, with `npx functionalscript <command>`.
 
 A FunctionalScript module is already a JavaScript module, so nothing has to be
 compiled to *run* it. `fjs compile` goes the other way: it resolves every
-`import` and writes the module in the language the output name declares.
+`import` and writes the language the output name declares. The value outputs,
+`.json` and `.data.js`, evaluate the module and write the data it exports; the
+graph outputs, `.js`, `.edag.data.js` and `.rs`, write the program itself,
+functions and computations included, without evaluating it.
 
 ```js
 // m.f.js
