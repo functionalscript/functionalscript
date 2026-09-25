@@ -8,6 +8,7 @@
 import type { Vec } from '../../../types/bit_vec/types.ts'
 import type { Effect } from '../../types.ts'
 import type { IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
+import type { MemoryState } from '../../memory/types.ts'
 
 /**
  * In-memory JS module entry. When `import_` is called on the path, the
@@ -81,8 +82,8 @@ export type State = {
         readonly[url: string]: Vec
     }
     readonly epochNs: number
-    readonly memoryNext: number
-    readonly memoryValues: { readonly [key: string]: unknown }
+    /** The slots of `memCreate`, kept by `../../memory`'s interpreter. */
+    readonly memory: MemoryState
     /** Monotonically increasing counter returned by `randomInt`; starts at 0. */
     readonly randomNext: number
     /**
