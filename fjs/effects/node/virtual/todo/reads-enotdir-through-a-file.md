@@ -158,7 +158,7 @@ other.
 Against this runner, `respond`'s `ENOTDIR` comes from `stat`, which models it,
 and never from the read, which does not. On a real host the *read* can produce
 it too — `stat` succeeds, a component is replaced by a file, and the separate
-`readFile` fails `ENOTDIR`, which is exactly the race
+`readWhole` fails `ENOTDIR`, which is exactly the race
 [stat-then-read](../../../../web/todo/stat-then-read.md) documents; that error
 reaches `answer` and takes the same root re-check. So the gap is narrower than
 "callers never see this from a read": **no fixture here can produce `ENOTDIR`
@@ -168,7 +168,7 @@ lost rather than reported differently.
 
 No current plan needs that.
 [stat-then-read](../../../../web/todo/stat-then-read.md) replaces the
-`stat`-then-`readFile` pair with an `open`/`fstat`/bounded-read handle, not
+`stat`-then-`readWhole` pair with an `open`/`fstat`/bounded-read handle, not
 with a bare read, and a root held open would drop the re-check rather than
 depend on it. So this issue does not gate that one; it bounds what a future
 caller can ask a read for.
@@ -218,7 +218,7 @@ Whichever option is chosen, then:
   `ENOTDIR` when one is a file" — so whichever lands second must not contradict
   the first.
 - [stat-then-read](../../../../web/todo/stat-then-read.md) — where `fjs/web`'s
-  `stat`-then-`readFile` pair goes. It does **not** depend on this issue: its
+  `stat`-then-`readWhole` pair goes. It does **not** depend on this issue: its
   proposal is an `open`/`fstat`/bounded-read handle, and a root held open needs
   no `ENOTDIR` re-check at all.
 - [trailing-separator-discarded](./trailing-separator-discarded.md) — the third

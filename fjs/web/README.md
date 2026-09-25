@@ -102,7 +102,6 @@ relative. That is also why the path is built with `join` rather than `concat`.
 | any other method | `405`, with `Allow: GET, HEAD` |
 | a `Host` this server does not answer for | `403` |
 | a path that escapes `root`, or an undecodable URL | `400` |
-| a file larger than one `Vec` | `413` |
 | any other host failure | `500` |
 
 Failures carry a `text/plain` body. A `500` reports the error *kind*
@@ -110,11 +109,22 @@ Failures carry a `text/plain` body. A `500` reports the error *kind*
 the absolute path it could not read — a client is not entitled to the server's
 filesystem layout.
 
-Every response states its `Content-Length`, computed from the body it carries.
-The runner does not: Node sends an unmeasured body with `Transfer-Encoding:
-chunked`. `HEAD` is then answered exactly like `GET`, bytes included — Node drops
-the body of a `HEAD` response itself and keeps these headers, so the one frame
-serves both, and the client still learns the size it asked for.
+Every response states its `Content-Length`, **summed over the chunks the read
+answered** rather than taken from the `stat` that preceded it. That is what keeps
+the number and the bytes from disagreeing: a size read before the bytes are is a
+promise about a file that may have grown or shrunk by the time the read reaches
+it, while a sum of what is already in hand has nothing left to read that could
+contradict it. The runner declares nothing of its own: Node sends an unmeasured
+body with `Transfer-Encoding: chunked`.
+
+`HEAD` is answered exactly like `GET`, bytes included — **Node is still the party
+that drops the body**, and it goes on being that party now that the body arrives
+as several writes rather than one: the runner offers every chunk, the client
+receives none of them, and the headers go out as they stand. So the one frame
+serves both methods and the client learns the size it asked for. Measured against
+the host in [`fjs/effects/node/proof.mjs`](../effects/node/proof.mjs)
+(`createServer`), because a claim about what Node does with a body is a claim only
+the host can settle.
 
 `Content-Type` comes from the file's extension
 ([`fjs/media/type`](../media/type/)'s `detectPath`), never from its bytes.
@@ -132,13 +142,21 @@ extension check is a check on the name as *written*.
 
 ### What is not read at all
 
-`stat` runs before every read, and it answers two questions rather than one: how
-big the entry is, and whether it is a **regular file**. A FIFO, a device or a
-socket is answered `404` and never opened — `open` on a FIFO with no writer
-blocks until one appears, so the read would never return and would hold a
-thread-pool slot while it waited. A served tree with one FIFO in it and a handful
-of requests would stall every other response. Size cannot stand in for the check:
-a FIFO stats as zero bytes and passes every bound.
+`stat` runs before every read, and it asks one question: whether the entry is a
+**regular file**. A FIFO, a device or a socket is answered `404` and never opened
+— `open` on a FIFO with no writer blocks until one appears, so the read would
+never return and would hold a thread-pool slot while it waited. A served tree with
+one FIFO in it and a handful of requests would stall every other response.
+
+It used to ask about the size as well, and that question retired with the
+ceiling: nothing here bounds a file any more. The kind is not the same question
+wearing a different name — a FIFO stats as zero bytes and would have passed every
+bound there ever was.
+
+`readWhole` asks the same thing for itself, and refuses a non-regular path with
+its own error rather than opening one. Asking here as well is what turns that
+refusal into the `404` the table above promises, instead of a host failure
+reported as `500`.
 
 ### A path that descends through a file
 
@@ -192,14 +210,27 @@ without being listable — mode `--x` permits opening a known path under it whil
 be refused at startup. Reading a whole directory only to discard it is the
 smaller objection.
 
-### The size limit
+### There is no size limit, and what replaced it
 
-`readFile` yields a single `Vec`, which caps at 131,072 bytes, and
-`ServerResponse.body` is one `Vec` too. So this version cannot answer with a
-larger file — and it must not answer with part of one, which is why the size is
-read with `stat` **before** the bytes are, and a file over the cap is refused
-with `413`. Serving larger files needs a streaming response body, which is an
-effect-layer change:
+There used to be one, and it was the `Vec`: `readFile` answers a single one,
+which caps at 131,072 bytes, and `ServerResponse.body` was one too, so a larger
+file was refused with `413` rather than truncated. A demo that tried to replace
+`python3 -m http.server` with this command found eleven of the modules its page
+imports over that ceiling and reverted the swap
+([#1819](https://github.com/functionalscript/functionalscript/issues/1819)).
+
+The body is now a **chunk list** — however many `Vec`s the file takes — and it is
+read through `readWhole`, which opens the path once and reads to the end. So the
+response frame can carry any file, and the two things the old refusal was
+protecting are still held: the bytes are one file's, because one open answered
+them all, and the declared length is summed from those same chunks, so it cannot
+promise a count the body does not have.
+
+What it does *not* buy is a memory bound. Every chunk is in hand before the
+status goes out, so serving a one-gigabyte file costs a gigabyte of the server's
+memory for the length of that request — the same thing `readFile` cost, without
+the ceiling that made it unreachable. A body the runner pulls at the socket's
+pace, one chunk at a time, is the rest of
 [streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md).
 
 ### Request targets
@@ -225,15 +256,20 @@ than one `Vec` used to kill the process: the runner buffered it, `listToVec`
 threw at the cap, and the throw landed in an `async` handler whose promise
 nobody awaited. Any client could end the server with one request.
 
-The runner counts as it reads — into an array it mutates, which is the one place
-in this repository where that is the right answer: rebuilding the array per chunk
-copies everything received so far on every chunk, and 20,000 one-byte chunks is
-20 KB of payload and 200 million copies. A cap on payload size is not a cap on
-chunk count, and a request that will be refused must not cost more than one that
-is served. Measured here: 2,794 ms to refuse that request before, 167 ms after,
-and doubling the chunk count now doubles the time instead of quadrupling it —
-again one machine's numbers, with the change in shape rather than the
-milliseconds being what is claimed.
+The runner counts as it reads — into an array it mutates, for a reason that is
+about counts rather than bytes: rebuilding the array per chunk copies everything
+received so far on every chunk, and 20,000 one-byte chunks is 20 KB of payload and
+200 million copies. A cap on payload size is not a cap on chunk count, and a
+request that will be refused must not cost more than one that is served. Measured
+here: 2,794 ms to refuse that request before, 167 ms after, and doubling the chunk
+count now doubles the time instead of quadrupling it — again one machine's
+numbers, with the change in shape rather than the milliseconds being what is
+claimed.
+
+`readWhole` collects its chunks the same way and for the same reason, which is
+what makes this a rule about who owns the count rather than a single exception:
+once a served file can be any size, the number of chunks is whatever a request
+asked for.
 
 Past the cap it answers `413` itself, without calling the listener — there is no
 `IncomingMessage` to build up there, since its `body` is a single `Vec`. It also
@@ -247,8 +283,10 @@ on a keep-alive connection Node would sit waiting for a body that never arrives
 sockets open indefinitely. Draining the rest would be the polite alternative and
 the wrong one: it reads bytes the server has already refused.
 
-All of it goes away with
-[streaming bodies](../effects/node/todo/streaming-http-bodies.md).
+All of it goes away with a streamed *request* body, which is stage 2 of
+[streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md) — the
+response half above has landed and this half has not, so the cap a client runs
+into is the one on what it *sends*.
 
 What is *not* covered: a body that stalls under the cap. The runner reads a body
 to its end before the listener sees it, so a client declaring twenty megabytes
@@ -355,14 +393,16 @@ server cannot support for any resource. That is true of every server the effect
 layer can build: a `RequestListener` maps a request frame to a response frame
 and has no vocabulary for a tunnel.
 
-**The entry checked is not the entry read.** `stat` and `readFile` are two
-operations on a name, so an entry swapped between them answers for something
-that is gone: an oversized file becomes `500` instead of `413`, and a FIFO is
-opened despite the `isFile` guard. Doing it properly means reading through one
-opened handle, and `Fs` offers no handles:
-[stat-then-read](./todo/stat-then-read.md). Whoever can swap an entry inside the
-served tree can already put anything there, so the window costs the *promises*
-in the table above rather than the boundary itself.
+**The entry checked is not the entry read.** `stat` and `readWhole` are two
+operations on a name, so a regular file swapped for a FIFO between them is
+answered for something that is gone. `readWhole` narrows it rather than closing
+it: it `stat`s the path itself before opening, so the swap has to land in the
+window inside that one operation, and what it costs there is the host's own
+`stat`-then-`open` race. What is left is the `404` this table promises arriving as
+a `500` instead. Doing it properly means reading through one opened handle, and
+`Fs` offers no handles: [stat-then-read](./todo/stat-then-read.md). Whoever can
+swap an entry inside the served tree can already put anything there, so the window
+costs the *promises* in the table above rather than the boundary itself.
 
 **Symlinks are followed.** `resolve` decides containment from the URL, which a
 link inside the root can defeat by pointing outside it — the root boundary holds
