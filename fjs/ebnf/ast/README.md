@@ -156,7 +156,7 @@ type parameter, so that what it returns is exactly the `Ast` the caller's
   tree and folds the rewrite set through it.
 - [`../data/README.md`](../data/README.md) — the nodes a backend owes each
   data rule kind, which these rows type.
-- [tokens-with-extra-information](../token_symbol/todo/tokens-with-extra-information.md)
+- [layered-parser](../todo/layered-parser.md)
   — the identifier example, as first filed.
 - [layered-parser](../todo/layered-parser.md) — the pipeline the
   `id` wires.

@@ -66,6 +66,7 @@ Which serialises to:
     <span class="string">"a"</span><span class="symbol">:</span> <span class="number">34.5</span><span class="symbol">,</span>
     <span class="string">"b"</span><span class="symbol">:</span> <span class="bool">true</span><span class="symbol">,</span>
     <span class="string">"c"</span><span class="symbol">:</span> <span class="symbol">[</span><span class="null">null</span><span class="symbol">]</span>
+<span class="symbol">}</span>
 </pre>
 ```
 
@@ -82,8 +83,10 @@ Which serialises to:
 ### Tasks
 
 - [ ] `fjs/media/json/html/module.f.mjs` — `toHtml(value: Unknown): VDom` converter
-- [ ] `proof.f.mjs` covering each value type and a nested example
-- [ ] Register in `deno.json` exports
+- [ ] `proof.f.mjs` covering each value type and a nested example. No
+      `deno.json` `exports` entry: the file has no map today, and
+      [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
+      reserves introducing one for the change that enumerates every module.
 
 ### Related
 

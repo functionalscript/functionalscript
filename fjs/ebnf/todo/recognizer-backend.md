@@ -337,12 +337,15 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [ ] Tokenizer stage needs maximal munch (emit at the longest accepting
       prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
-      of `dispatchMap`, with a clear regularity criterion (self-/tail-recursion
+      of `parserRuleSet`, with a clear regularity criterion (self-/tail-recursion
       only); **throw at build/module-load time** when the grammar is not regular
       (no DFA exists) — do not fall back to another engine
 - [ ] AST-less LL(1) recognizer: derive from [`../ll1`](../ll1/README.md)'s
       machine by dropping node construction and the rewrite set; return
-      accept/reject + final config
+      accept/reject + final config. Over `../lib/json` it is the O(depth)
+      JSON validity check
+      [streaming-recognizer](../../media/json/todo/streaming-recognizer.md)
+      asks for.
 - [ ] Consume binary terminal helpers from [`../byte`](../byte/README.md) for
       byte/hex literals, byte sequences, and byte ranges used by grammars such
       as magic-byte and UTF-8 recognizers; do **not** create a
@@ -361,7 +364,7 @@ Bigger automata are built from BNF pieces in two complementary ways:
   this recognizer work consumes the generic rules they produce.
 - [layered-parser](./layered-parser.md) — same "one BNF engine, multiple layers"
   instinct; the DFA backend is the scanner tier
-- [parser-structure](./parser-structure.md) — the AST-producing backend
+- [`../ll1`](../ll1/README.md) — the AST-producing backend
 - `fjs/rtti` — the type-level sibling of this strategy: types as schema
   values, many artifacts (TS type, validator, parser) derived by function
 - `fjs/media/html` — the markup-level sibling: an embedded DSL of nested element

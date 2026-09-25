@@ -9,8 +9,20 @@ stays what it is: a range set, a list of `number` boundaries
 ([ebnf-range-set](./ebnf-range-set.md)).
 
 An investigation was carried out and closed unimplemented in
-[#1671](https://github.com/functionalscript/functionalscript/pull/1671); start
-from its conclusion rather than from scratch if this revives.
+[#1671](https://github.com/functionalscript/functionalscript/pull/1671). It
+recommended a packed bigint with fixed 257-bit halves and a `value + 1`
+endpoint encoding, and measured it against the classical packed 24-bit
+terminal of the time: slower to decode, and about eight and a half times
+larger serialized. What decided it was not the codec but the classical IR,
+which told its rule kinds apart by JavaScript type alone, so every structural
+range form collided with a sequence, a variant or a repeat and was rejected
+on that ground. That premise went with `fjs/bnf`: every data rule is now a
+tagged tuple and a terminal is `['set', …]` of boundaries
+([`../../data`](../../data/README.md)), so a list of bigint boundaries is a
+structural form without the collision. Which representation to pick is open
+again if this revives; #1671's measurements describe the classical terminal
+and its canonicity argument (fixed width is canonical, a varint pair is not)
+still holds.
 
 ### Problem
 
@@ -19,7 +31,7 @@ boundaries over the safe integers ([ebnf-range-set](./ebnf-range-set.md)),
 and EOF is `-1` in the input, outside the domain of ordinary symbols. The
 classical front end's packed `TerminalRange` — two 24-bit endpoint codes in
 one `number` — went with `fjs/bnf`, and the investigation below was made
-against it; its conclusion about the bigint domain stands.
+against it; its count of the bigint domain stands.
 
 The representation question becomes necessary when ordinary symbols later
 expand to the full uint256 domain:

@@ -738,6 +738,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 ### Related
 
+- [GitHub issue #407](https://github.com/functionalscript/functionalscript/issues/407)
+  — the original "Parser Structure" report: source to an AST, the AST to code
+  and to values. Its API sketches are superseded by the pipeline above.
 - [Module-resolution compatibility](./module-resolution-compatibility.md) —
   P1 owner of shared host resolution, module identity, loading and regressions.
 - [`fjs/fsc/transpiler/module.f.mjs`](../../fsc/transpiler/module.f.mjs) — currently loads imports

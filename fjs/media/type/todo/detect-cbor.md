@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-Detection (this todo) and the CBOR codec itself ([cbor.md](cbor.md), the
+Detection (this todo) and the CBOR codec itself ([cbor.md](../../todo/cbor.md), the
 `fjs/media/cbor` serializer/parser) are two different tasks: tier 1 below needs no
 CBOR machinery at all, while tiers 2–3 consume the codec once it lands.
 
@@ -13,7 +13,7 @@ CBOR (RFC 8949) is the designated binary counterpart of the FS dialect scheme: i
 the only binary JSON-family encoding with both a registered media type
 (`application/cbor`) and a registered structured-syntax suffix (`+cbor`, plus
 `+cbor-seq` for sequences, RFC 8742). The dialect naming rule
-(see [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
+(see [fjs/media/README.md](../../README.md#dialects))
 therefore extends mechanically to a binary encoding: the same encoding-neutral
 dialect name is served as `application/{dialect}+json` when the blob is JSON and
 `application/{dialect}+cbor` when the blob is CBOR — the suffix names the
@@ -25,7 +25,7 @@ The `fjs/media/type` detector knows nothing about CBOR. A CBOR
 blob is binary, so today it falls through to `application/octet-stream`, and a
 dialect-tagged CBOR blob cannot be recognized or served with its derived media
 type the way tagged JSON can (see
-[fjs/media/revision/README.md](../revision/README.md), the tagged-JSON
+[fjs/media/revision/README.md](../../revision/README.md), the tagged-JSON
 detection convention).
 
 ### Proposal
@@ -85,7 +85,7 @@ lengths, keys in deterministic bytewise order) and no tag-55799 wrapper — the
 dialect entry already identifies the blob, and the canonical bytes must not
 fork on an optional prefix. Detection does not depend on entry order, so no
 deviation from §4.2 ordering is needed. The wrapper is an input-side allowance
-for externally produced blobs: the [`fjs/media/cbor` codec](cbor.md) accepts and
+for externally produced blobs: the [`fjs/media/cbor` codec](../../todo/cbor.md) accepts and
 transparently unwraps it, so a self-described dialect blob still
 schema-validates.
 
@@ -96,7 +96,7 @@ detection is false-positive-prone by construction: almost any short byte string
 decodes as *some* valid CBOR item (every byte `0x00`–`0x17` alone is a valid
 unsigned integer). A trustworthy verdict needs a streaming, payload-free CBOR
 recognizer (accept/reject, O(depth), the analog of
-[fjs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md)) plus a
+[fjs/media/json streaming-recognizer](../../json/todo/streaming-recognizer.md)) plus a
 policy gate like detect-json's "object/array top level only" — e.g. accept only a
 single complete map/array item spanning the whole blob. Out of scope for the first
 iteration; without it, untagged CBOR stays `application/octet-stream`, which is
@@ -127,7 +127,7 @@ the honest answer.
 - [ ] Surface the derived type in `cas_get` / resource read alongside the JSON
       path (same rules, different suffix); extend the optional `dialect`
       field/header to CBOR blobs — see
-      [fjs/mcp cas-get-mcp-resource-response](../../mcp/todo/cas-get-mcp-resource-response.md)
+      [fjs/mcp remote-url](../../../mcp/todo/remote-url.md)
 - [ ] Decide per dialect what CBOR-only values (bigint, byte strings, non-string
       keys) are admitted beyond the JSON data model — each dialect's README owns
       this; the JSON-compatible subset is the default
@@ -136,18 +136,18 @@ the honest answer.
 
 ### Related
 
-- [cbor.md](cbor.md) — the `fjs/media/cbor` serializer/parser this detection
+- [cbor.md](../../todo/cbor.md) — the `fjs/media/cbor` serializer/parser this detection
   consumes (tier 2 decodes the dialect entry and validates the map; tier 3 would
   share the codec's grammar payload-free)
-- [fjs/todo group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
+- [fjs/media/README.md](../../README.md#dialects)
   — the dialect naming rule and fall-back chain convention this extends to a
   binary encoding
-- [fjs/media/revision/README.md](../revision/README.md) — the tagged-JSON
+- [fjs/media/revision/README.md](../../revision/README.md) — the tagged-JSON
   detection convention tier 2 mirrors, and the serving rules (allowlist,
   schema validation, size bound) it reuses
-- [fjs/media/type detect-json](../type/todo/detect-json.md) — the JSON refinement of
+- [fjs/media/type detect-json](./detect-json.md) — the JSON refinement of
   the same detector; tier 3 would be its CBOR sibling
-- [fjs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md) —
+- [fjs/media/json streaming-recognizer](../../json/todo/streaming-recognizer.md) —
   the payload-free recognizer pattern a tier-3 CBOR recognizer would follow
 - `fjs/media/type/module.f.mjs` — the magic table (tier 1) and `detectStream` (tiers 2–3)
   this lands in
