@@ -115,12 +115,28 @@ function. So `jsonLeaf` gets a `'function'` case that refuses it
 (`no JSON spelling for a function`), and the default branch is left with `null`
 alone. This is one fix that serves both, not a separate check in the tool.
 
-Every failure is an `errorResult`, a result the client reads, never a transport
-error. Failures are: a parse error, an import, a throw during evaluation, and a
-value JSON cannot spell. A parse error needs a name for its location because
-there is no file. Use a fixed pseudo-path such as `<eval>`, so the message
-reads `<eval>:line:column - error: …`, formatted by `_errorLocation` in
-[`fjs/fsc`](../../fsc/module.f.mjs).
+Every failure the tool can see is an `errorResult`, a result the client reads,
+not a transport error. Those failures are: a parse error, an import, a throw
+during evaluation, and a value JSON cannot spell. A parse error needs a name
+for its location because there is no file. Use a fixed pseudo-path such as
+`<eval>`, so the message reads `<eval>:line:column - error: …`, formatted by
+`_errorLocation` in [`fjs/fsc`](../../fsc/module.f.mjs).
+
+**A result too large to encode is the transport's failure, not the tool's.**
+The input cap does not bound the output. At `940eff9`, a 420-byte module of
+eighteen `const aN = aM + aM;` doublings evaluated to a string whose JSON text
+is 256 KiB. [`stdioTransport`](../../protocol/mcp/stdio/module.f.mjs) answers
+a response line over its 128 KiB `maxLength` with a JSON-RPC `-32603` that
+keeps the request's `id`. The server stays up, but the client gets a transport
+error, not an `errorResult`. That is the outcome every JSON-returning tool has
+today, and [`evo/README.md`](../evo/README.md#errors) already documents it for
+`evo_list` and `evo_revision`. The tool does not try to do better. Whether the
+encoded response fits is known only by encoding it, and the JSON is escaped
+again as MCP text content. A check in the tool would be a prediction from the
+unencoded size, which this codebase does not make. The way to give the client a
+readable message is
+[`stdio-oversize-response-message.md`](../../protocol/mcp/todo/stdio-oversize-response-message.md),
+which fixes it in the transport for every tool at once.
 
 ### Open questions
 
@@ -152,9 +168,12 @@ reads `<eval>:line:column - error: …`, formatted by `_errorLocation` in
       is reported at `<eval>:line:column`; `export default null.x;` and an
       array nested a few thousand levels deep each return an error result and
       the server keeps serving; `undefined`, a bigint and
-      `export default x => x;` are refused.
+      `export default x => x;` are refused; a result whose response overflows
+      `maxLength` gets the transport's `-32603` with the request's `id`, as
+      `cas_get`'s overflow proofs pin.
 - [ ] Add the tool to the tool tables in [`../README.md`](../README.md) and in
-      [`fjs/mcp/module.f.mjs`](../module.f.mjs)'s JSDoc.
+      [`fjs/mcp/module.f.mjs`](../module.f.mjs)'s JSDoc, with the oversize
+      outcome in its error list.
 
 ### Related
 
