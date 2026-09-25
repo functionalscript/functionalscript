@@ -154,7 +154,7 @@ the `10²¹` boundary, both ends of every range, and a bigint argument.
 
 - [x] **Reads.** `at`, `charAt`, `charCodeAt`, `codePointAt`, `isWellFormed`,
       `toWellFormed`.
-- [ ] **Search.** `includes`, `indexOf`, `lastIndexOf`, `startsWith`,
+- [x] **Search.** `includes`, `indexOf`, `lastIndexOf`, `startsWith`,
       `endsWith`.
 - [ ] **Building.** `slice`, `substring`, `concat`, `repeat`, `padStart`,
       `padEnd`, `trim`, `trimStart`, `trimEnd`, with the length limit.

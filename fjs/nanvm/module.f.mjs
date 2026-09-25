@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 58
+ * data.groups.length // 60
  * ```
  */
 
@@ -1625,6 +1625,15 @@ const includesCases = [
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: false },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
+    { name: 'stringFound', args: ['abc', 'bc'], expected: true },
+    { name: 'stringNotFound', args: ['abc', 'cb'], expected: false },
+    { name: 'stringEmpty', args: ['abc', ''], expected: true },
+    { name: 'stringFrom', args: ['abc', 'a', 1], expected: false },
+    { name: 'stringFromNegative', args: ['abc', 'a', -5], expected: true },
+    { name: 'stringNoArgument', args: ['undefined'], expected: true },
+    { name: 'stringNumber', args: ['a1b', 1], expected: true },
+    { name: 'stringObject', args: ['[object Object]', {}], expected: true },
+    { name: 'stringBigintFrom', args: ['abc', 'a', 0n], expected: throws },
 ]
 
 /**
@@ -1649,6 +1658,14 @@ const indexOfCases = [
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
     { name: 'object', args: [{}, 1], expected: throws },
+    { name: 'stringFirst', args: ['abcabc', 'bc'], expected: 1 },
+    { name: 'stringFrom', args: ['abcabc', 'bc', 2], expected: 4 },
+    { name: 'stringNotFound', args: ['abc', 'z'], expected: -1 },
+    { name: 'stringEmpty', args: ['abc', ''], expected: 0 },
+    { name: 'stringEmptyPastTheEnd', args: ['abc', '', 10], expected: 3 },
+    { name: 'stringLonger', args: ['ab', 'abc'], expected: -1 },
+    { name: 'stringLowSurrogate', args: ['\u{1F600}', '\uDE00'], expected: 1 },
+    { name: 'stringBigintFrom', args: ['abc', 'a', 0n], expected: throws },
 ]
 
 /**
@@ -1674,6 +1691,16 @@ const lastIndexOfCases = [
     { name: 'fromInfinity', args: [[1], 1, Infinity], expected: 0 },
     { name: 'emptyBigintFrom', args: [[], 1, 1n], expected: -1 },
     { name: 'bigintFrom', args: [[1], 1, 1n], expected: throws },
+    { name: 'stringLast', args: ['abcabc', 'bc'], expected: 4 },
+    { name: 'stringFrom', args: ['abcabc', 'bc', 3], expected: 1 },
+    { name: 'stringUndefinedIsTheEnd', args: ['aa', 'a', undefined], expected: 1 },
+    { name: 'stringNanIsTheEnd', args: ['aa', 'a', NaN], expected: 1 },
+    { name: 'stringZero', args: ['aa', 'a', 0], expected: 0 },
+    { name: 'stringNegative', args: ['aa', 'a', -1], expected: 0 },
+    { name: 'stringEmpty', args: ['abc', ''], expected: 3 },
+    { name: 'stringNotFound', args: ['abc', 'z'], expected: -1 },
+    { name: 'stringLonger', args: ['ab', 'abc'], expected: -1 },
+    { name: 'stringBigintFrom', args: ['abc', 'a', 0n], expected: throws },
 ]
 
 /**
@@ -2074,6 +2101,44 @@ const toWellFormedCases = [
 ]
 
 /**
+ * `String.prototype.startsWith`: the search string at a position clamped
+ * into the string, `0` when `undefined`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const startsWithCases = [
+    { name: 'prefix', args: ['abc', 'ab'], expected: true },
+    { name: 'notPrefix', args: ['abc', 'bc'], expected: false },
+    { name: 'at', args: ['abc', 'bc', 1], expected: true },
+    { name: 'empty', args: ['abc', ''], expected: true },
+    { name: 'longer', args: ['ab', 'abc'], expected: false },
+    { name: 'negative', args: ['abc', 'a', -1], expected: true },
+    { name: 'pastTheEnd', args: ['abc', '', 9], expected: true },
+    { name: 'noArgument', args: ['undefinedx'], expected: true },
+    { name: 'number', args: ['12', 1], expected: true },
+    { name: 'bigintPosition', args: ['abc', 'a', 0n], expected: throws },
+]
+
+/**
+ * `String.prototype.endsWith`: the search string ending at a position
+ * clamped into the string, the length when `undefined`.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const endsWithCases = [
+    { name: 'suffix', args: ['abc', 'bc'], expected: true },
+    { name: 'notSuffix', args: ['abc', 'ab'], expected: false },
+    { name: 'at', args: ['abc', 'ab', 2], expected: true },
+    { name: 'undefinedEnd', args: ['abc', 'c', undefined], expected: true },
+    { name: 'empty', args: ['abc', ''], expected: true },
+    { name: 'longer', args: ['bc', 'abc'], expected: false },
+    { name: 'pastTheEnd', args: ['abc', 'c', 9], expected: true },
+    { name: 'negative', args: ['abc', '', -1], expected: true },
+    { name: 'zero', args: ['abc', 'a', 0], expected: false },
+    { name: 'bigintEnd', args: ['abc', 'a', 1n], expected: throws },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -2188,6 +2253,8 @@ export const data = {
         { method: 'codePointAt', cases: codePointAtCases },
         { method: 'isWellFormed', cases: isWellFormedCases },
         { method: 'toWellFormed', cases: toWellFormedCases },
+        { method: 'startsWith', cases: startsWithCases },
+        { method: 'endsWith', cases: endsWithCases },
         { method: 'toString', cases: toStringCases },
     ],
 }

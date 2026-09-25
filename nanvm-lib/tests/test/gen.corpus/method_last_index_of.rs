@@ -20,4 +20,14 @@ pub fn run<A: IStaticFunction>() {
     check::<A>("fromInfinity", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("lastIndexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), f64_any(0x7ff0000000000000)].to_array().to_any())), f64_any(0x0000000000000000));
     check::<A>("emptyBigintFrom", Any::dot(Array::default().to_any(), string_any("lastIndexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())), f64_any(0xbff0000000000000));
     check_throws::<A>("bigintFrom", Any::dot([f64_any(0x3ff0000000000000)].to_array().to_any(), string_any("lastIndexOf")).end_call(|| Ok([f64_any(0x3ff0000000000000), bigint_any(1)].to_array().to_any())));
+    check::<A>("stringLast", Any::dot(string_any("abcabc"), string_any("lastIndexOf")).end_call(|| Ok([string_any("bc")].to_array().to_any())), f64_any(0x4010000000000000));
+    check::<A>("stringFrom", Any::dot(string_any("abcabc"), string_any("lastIndexOf")).end_call(|| Ok([string_any("bc"), f64_any(0x4008000000000000)].to_array().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("stringUndefinedIsTheEnd", Any::dot(string_any("aa"), string_any("lastIndexOf")).end_call(|| Ok([string_any("a"), Nullish::Undefined.to_any()].to_array().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("stringNanIsTheEnd", Any::dot(string_any("aa"), string_any("lastIndexOf")).end_call(|| Ok([string_any("a"), f64_any(0x7ff8000000000000)].to_array().to_any())), f64_any(0x3ff0000000000000));
+    check::<A>("stringZero", Any::dot(string_any("aa"), string_any("lastIndexOf")).end_call(|| Ok([string_any("a"), f64_any(0x0000000000000000)].to_array().to_any())), f64_any(0x0000000000000000));
+    check::<A>("stringNegative", Any::dot(string_any("aa"), string_any("lastIndexOf")).end_call(|| Ok([string_any("a"), f64_any(0xbff0000000000000)].to_array().to_any())), f64_any(0x0000000000000000));
+    check::<A>("stringEmpty", Any::dot(string_any("abc"), string_any("lastIndexOf")).end_call(|| Ok([string_any("")].to_array().to_any())), f64_any(0x4008000000000000));
+    check::<A>("stringNotFound", Any::dot(string_any("abc"), string_any("lastIndexOf")).end_call(|| Ok([string_any("z")].to_array().to_any())), f64_any(0xbff0000000000000));
+    check::<A>("stringLonger", Any::dot(string_any("ab"), string_any("lastIndexOf")).end_call(|| Ok([string_any("abc")].to_array().to_any())), f64_any(0xbff0000000000000));
+    check_throws::<A>("stringBigintFrom", Any::dot(string_any("abc"), string_any("lastIndexOf")).end_call(|| Ok([string_any("a"), bigint_any(0)].to_array().to_any())));
 }
