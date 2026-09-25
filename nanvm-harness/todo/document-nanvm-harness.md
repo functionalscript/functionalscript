@@ -38,11 +38,12 @@ by `src/lib.rs`, so they were neither drift-checked nor built.
 - [ ] Add a short `README.md`: what the harness proves, that `fixtures/*.rs`
       are generated from `fixtures/*.mjs` by `npm run gen`, and how a fixture
       is added
-- [x] Wire `fixtures/function.mjs` into `gen` and `src/lib.rs`, or delete it
-      and its `.rs` (with `rest-function.mjs`, both wired in)
+- [x] Wire `fixtures/function.mjs` and `rest-function.mjs` into `gen` and
+      `src/lib.rs` — decided in
+      [generated-file-conventions](../../todo/generated-file-conventions.md)
+      (blocker 3)
 
 ### Related
 
 - [mvp-roadmap](../../nanvm-lib/todo/mvp-roadmap.md) — the plan the harness
   is the walking skeleton of
-- [select-module-export](./select-module-export.md) — this crate's open work

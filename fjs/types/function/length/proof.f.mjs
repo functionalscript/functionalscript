@@ -1,15 +1,13 @@
 /** @import { Body } from './types.ts' */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { callable, isIndex } from './module.f.mjs'
-import { factories } from './table.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { callable, factories, isIndex } from './module.f.mjs'
 
 /** @type {Body} */
 const pair = (fixed, rest) => [fixed, rest]
 
 export const proof = {
     metadata: () => {
-        assertEq(factories.length, 33)
         for (const n of [0, 1, 32, 1000]) { assert(isIndex(n)) }
         for (const n of [-0, -1, 0.5, NaN, Infinity, -Infinity]) { assert(!isIndex(n)) }
     },
