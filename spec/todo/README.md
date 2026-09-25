@@ -138,10 +138,9 @@ see [serialization](./serialization.md).
 
 ### 3.4. Syntactic Sugar
 
-1. [ ] [expression](./3410-expression.md)
-2. [ ] [assignments](./3430-assignments.md)
-3. [ ] [template-literals](./3440-template-literals.md)
-4. [ ] `async`/`await`. Depends on the implementation of promises.
+1. [ ] [assignments](./3430-assignments.md)
+2. [ ] [template-literals](./3440-template-literals.md)
+3. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ### 3.5. Priority 4
 
