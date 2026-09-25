@@ -63,8 +63,7 @@ export const types = [
  */
 export const pending = {
     array: [
-        'every', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex', 'flat', 'flatMap',
-        'map', 'reduce', 'reduceRight', 'some', 'toSorted',
+        'flat', 'flatMap', 'toSorted',
     ],
     string: [
         'at', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'endsWith', 'includes', 'indexOf',

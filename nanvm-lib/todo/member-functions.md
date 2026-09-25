@@ -165,23 +165,23 @@ the landing order are [array-member-functions](./array-member-functions.md):
 - [x] `at` — `vm/array/at.rs`; the index is `Number::to_integer_or_infinity`,
       `ToIntegerOrInfinity` of the argument converted by `ToNumber`.
 - [x] `concat` — `vm/array/concat.rs`
-- [ ] `every`
-- [ ] `filter`
-- [ ] `find`
-- [ ] `findIndex`
-- [ ] `findLast`
-- [ ] `findLastIndex`
+- [x] `every` — `vm/array/every.rs`
+- [x] `filter` — `vm/array/filter.rs`
+- [x] `find` — `vm/array/find.rs`
+- [x] `findIndex` — `vm/array/find_index.rs`
+- [x] `findLast` — `vm/array/find.rs`
+- [x] `findLastIndex` — `vm/array/find_last_index.rs`
 - [ ] `flat`
 - [ ] `flatMap`
 - [x] `includes` — `vm/array/includes.rs`
 - [x] `indexOf` — `vm/array/index_of.rs`
 - [x] `join` — `vm/array/join.rs`
 - [x] `lastIndexOf` — `vm/array/last_index_of.rs`
-- [ ] `map`
-- [ ] `reduce`
-- [ ] `reduceRight`
+- [x] `map` — `vm/array/map.rs`
+- [x] `reduce` — `vm/array/reduce.rs`
+- [x] `reduceRight` — `vm/array/reduce.rs`
 - [x] `slice` — `vm/array/slice.rs`
-- [ ] `some`
+- [x] `some` — `vm/array/some.rs`
 - [x] `toReversed` — `vm/array/to_reversed.rs`
 - [ ] `toSorted`
 - [x] `toSpliced` — `vm/array/to_spliced.rs`

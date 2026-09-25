@@ -383,11 +383,11 @@ and runs the full check set.
 - [x] **Copies.** `slice`, `concat`, `toReversed`, `with`, `toSpliced`, with
       the result-length `RangeError`.
 - [x] **`join`.** `arr_to_string` becomes `Array::join` with `","`.
-- [ ] **Iteration.** `every`, `some`, `find`, `findIndex`, `findLast`,
+- [x] **Iteration.** `every`, `some`, `find`, `findIndex`, `findLast`,
       `findLastIndex`, `map`, `filter`, with the callback check ahead of the
       visit and `thisArg` accepted with no effect, and the corpus's callback
       vocabulary.
-- [ ] **Folds.** `reduce`, `reduceRight`.
+- [x] **Folds.** `reduce`, `reduceRight`.
 - [ ] **Flattening.** `flat`, `flatMap`, and the deferred-recursion `todo/`
       above.
 - [ ] **`toSorted`.** The stable merge sort, and the
