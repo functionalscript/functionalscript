@@ -27,6 +27,7 @@ import {
     errorMask,
     isBmpCodePoint,
     isHighSurrogate,
+    restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
 } from '../code_point/module.f.mjs'
@@ -137,6 +138,26 @@ const isInU16Range = contains(0x0000, 0xFFFF)
 const u16 = i => Number.isInteger(i) && isInU16Range(i)
 
 /**
+ * Converts a pending UTF-16 decoding state — an unpaired high surrogate
+ * (0xD800–0xDBFF) left from an earlier input — to an error code.
+ *
+ * @type {(state: number) => CodePoint}
+ */
+const utf16StateToError = state => state | errorMask
+
+/**
+ * Dispatches a fresh-state word, emitting `prefix` ahead of whatever the word
+ * itself produces. Shared by the `state === null` arm and by error recovery
+ * after {@link utf16StateToError}, which differ only in `prefix`.
+ *
+ * @type {(prefix: readonly CodePoint[]) => (word: number) => readonly [readonly CodePoint[], number | null]}
+ */
+const restartUtf16 = restart(word =>
+    isBmpCodePoint(word) ? [[word], null]
+    : isHighSurrogate(word) ? [[], word]
+    : [[word | errorMask], null])
+
+/**
  * A stateful operation that converts a UTF-16 word (U16) to a list of Unicode code points (CodePoint),
  * while maintaining the state of surrogate pair decoding.
  *
@@ -182,28 +203,14 @@ const utf16ByteToCodePointOp = (word, state) => {
         // below tags a real code unit with `| errorMask`.
         return [[errorMask], state]
     }
-    if (state === null) {
-        if (isBmpCodePoint(word)) { return [[word], null] }
-        if (isHighSurrogate(word)) { return [[], word] }
-        return [[word | errorMask], null]
-    }
+    if (state === null) { return restartUtf16([])(word) }
     const codePoint = tryFromSurrogatePair(state, word)
     if (codePoint !== null) { return [[codePoint], null] }
     // `state` is always a high surrogate, so the pair is refused exactly when
-    // `word` is not a low surrogate. `isLowSurrogate`, `isBmpCodePoint`, and
-    // `isHighSurrogate` partition the full `u16` range with no gap, so a
-    // non-BMP `word` here is always a high surrogate.
-    if (isBmpCodePoint(word)) { return [[state | errorMask, word], null] }
-    return [[state | errorMask], word]
+    // `word` is not a low surrogate: a BMP code point or another high
+    // surrogate, both of which the fresh dispatch handles as its own.
+    return restartUtf16([utf16StateToError(state)])(word)
 }
-
-/**
- * Converts a pending UTF-16 decoding state — an unpaired high surrogate
- * (0xD800–0xDBFF) left from an earlier input — to an error code.
- *
- * @type {(state: number) => CodePoint}
- */
-const utf16StateToError = state => state | errorMask
 
 /**
  * Handles the EOF (end-of-file) condition during UTF-16 decoding.

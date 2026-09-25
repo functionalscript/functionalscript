@@ -13,6 +13,7 @@ import {
     isSupplementaryPlane,
     isTextCodePoint,
     isValidCodePoint,
+    restart,
     tryFromSurrogatePair,
     tryToSurrogatePair,
 } from './module.f.mjs'
@@ -25,6 +26,16 @@ import {
 const negate = state => -state
 
 const flush = eofFlush(negate)
+
+/**
+ * A stand-in for a codec's fresh-state dispatch: an even unit is emitted, an
+ * odd one becomes the pending state.
+ *
+ * @type {(unit: number) => readonly [readonly number[], number | null]}
+ */
+const evenOrPending = unit => unit % 2 === 0 ? [[unit], null] : [[], unit]
+
+const dispatch = restart(evenOrPending)
 
 export const proof = {
     eofFlush: [
@@ -41,6 +52,26 @@ export const proof = {
             assertEq(first, -42)
             assertEq(rest.length, 0)
             assertEq(next, null)
+        },
+    ],
+    restart: [
+        // no prefix: exactly the fresh dispatch
+        () => {
+            const [out, next] = dispatch([])(4)
+            assertEq(JSON.stringify(out), '[4]')
+            assertEq(next, null)
+        },
+        // the prefix goes ahead of the unit's own output
+        () => {
+            const [out, next] = dispatch([-1, -2])(4)
+            assertEq(JSON.stringify(out), '[-1,-2,4]')
+            assertEq(next, null)
+        },
+        // the prefix alone when the unit only moves the state
+        () => {
+            const [out, next] = dispatch([-1])(5)
+            assertEq(JSON.stringify(out), '[-1]')
+            assertEq(next, 5)
         },
     ],
     isHighSurrogate: [
