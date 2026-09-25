@@ -607,7 +607,6 @@ it.
 - [`fold-stream-combinator.md`](./fold-stream-combinator.md)
 - [`../node/todo/ornotfound-combinator.md`](../node/todo/ornotfound-combinator.md)
 - [`node-module-layering.md`](./node-module-layering.md)
-- [`../../../todo/044-error-handling-pattern.md`](../../../todo/044-error-handling-pattern.md)
 - `fjs/effects/module.f.mjs` — `match` and `partialMatch`, whose
   missing-handler `assert` Stage 6 reworked into the two-case split. `okStep`
   used to be listed here; Stage 5 inlined it into the Io `step`. The raw `step`

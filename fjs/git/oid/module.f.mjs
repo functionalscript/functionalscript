@@ -49,6 +49,22 @@ export const tryFromHex = hex => {
 }
 
 /**
+ * Whether an id is as wide as a repository's ids: `oidBytes` whole bytes.
+ * The width is bound once, so a reader that asks of every id it is handed
+ * converts it once.
+ *
+ * Every holder of a width asks this — a reader refusing an id of another
+ * repository, a writer refusing to spell one — so it is spelled here, beside
+ * the id, rather than as `BigInt(oidBytes) * 8n` at each of them.
+ *
+ * @type {(oidBytes: OidBytes) => (id: Vec) => boolean}
+ */
+export const isOidOf = oidBytes => {
+    const bits = BigInt(oidBytes) * 8n
+    return id => length(id) === bits
+}
+
+/**
  * {@link tryFromHex} at the repository's width: an id of any other width
  * is refused too, which is the check every header that names an object
  * makes, in a commit's `validate` and a tag's alike.
@@ -57,9 +73,12 @@ export const tryFromHex = hex => {
  *
  * @type {(oidBytes: OidBytes) => (hex: Bytes) => Nullable<Oid>}
  */
-export const tryFromHexOf = oidBytes => hex => {
-    const id = tryFromHex(hex)
-    return id !== null && length(id) === BigInt(oidBytes) * 8n ? id : null
+export const tryFromHexOf = oidBytes => {
+    const isOid = isOidOf(oidBytes)
+    return hex => {
+        const id = tryFromHex(hex)
+        return id !== null && isOid(id) ? id : null
+    }
 }
 
 /**

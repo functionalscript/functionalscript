@@ -124,6 +124,8 @@ replace an existing materialization path.
 This replaces this TODO's earlier positive-arity/full-`['args']` design and
 its restricted writer boundary. The implementation request and its scope are recorded above. The initial
 executor capacity is 32, without imposing a language-level arity limit.
+[function-length-limit](./function-length-limit.md) proposes replacing that
+with a language limit of 16.
 
 **Benefits:** familiar JavaScript syntax, ordinary callable results, and a
 shared argument representation that the compiler, writer and FJS-written

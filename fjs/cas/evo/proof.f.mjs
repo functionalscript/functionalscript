@@ -22,7 +22,7 @@ import { ioError } from '../../effects/node/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { vec, vec8 } from '../../types/bit_vec/module.f.mjs'
+import { vec8 } from '../../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
 import { ok, error, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
@@ -125,8 +125,8 @@ export const proof = {
     },
     decodeRevisionBlobNonUtf8IsNull: () => {
         const c = fileCas(sha256)(home)
-        const oddVec = vec(5n)(0b10101n) // not a whole number of bytes
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(oddVec, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
+        const invalid = vec8(0xFFn) // a byte no UTF-8 sequence contains
+        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(invalid, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, revision] = virtualOk(state1)(decodeRevisionBlob(c)(w[1]))
         assertEq(revision, null)

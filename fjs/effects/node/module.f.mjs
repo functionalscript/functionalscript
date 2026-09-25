@@ -306,10 +306,27 @@ export const readUtf8File = path =>
 /** @type {Func<Readdir>} */
 export const readdir = do_('readdir')
 
+/**
+ * The refusal of a `Vec` that is not whole bytes, where bytes are what a host
+ * is handed: {@link writeFile}, {@link inflate}, {@link writeExclusive} and
+ * {@link writeBytes} each refuse one with it, ahead of the host, whose
+ * conversion would pad the last byte and act on bytes that were never given.
+ */
+const invalidBufferSize = pureError(ioError({ message: 'invalid buffer size' }))
+
 // writeFile
 
-/** @type {Func<WriteFile>} */
-export const writeFile = do_('writeFile')
+const writeFileOp = /** @type {Func<WriteFile>} */ (do_('writeFile'))
+
+/**
+ * Writes `data` to `path`, replacing what it held. A file holds bytes, so a
+ * `Vec` that is not whole bytes is refused here as `invalid buffer size`,
+ * before any host sees it, as {@link writeExclusive} refuses one.
+ *
+ * @type {Func<WriteFile>}
+ */
+export const writeFile = (path, data) =>
+    isWholeBytes(data) ? writeFileOp(path, data) : invalidBufferSize
 
 /**
  * Writes a string to `path` as UTF-8 bytes.
@@ -339,16 +356,9 @@ export const readBytes = do_('readBytes')
 const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
 
 /**
- * The refusal of a `Vec` that is not whole bytes, where bytes are what a host
- * is handed: {@link inflate}, {@link writeExclusive} and {@link writeFromStream}
- * each refuse one with it.
- */
-const invalidBufferSize = pureError(ioError({ message: 'invalid buffer size' }))
-
-/**
  * Inflates a zlib stream. The stream is bytes, so a `Vec` that is not
  * whole bytes is refused here as `invalid buffer size`, before any host
- * sees it, as {@link writeFromStream} refuses one: a host's conversion
+ * sees it, as {@link writeFile} refuses one: a host's conversion
  * would pad the last byte and read a stream that was never given.
  *
  * @type {Func<Inflate>}
@@ -421,8 +431,17 @@ export const writeExclusiveUtf8File = (path, content) =>
 
 // writeBytes
 
-/** @type {Func<WriteBytes>} */
-export const writeBytes = do_('writeBytes')
+const writeBytesOp = /** @type {Func<WriteBytes>} */ (do_('writeBytes'))
+
+/**
+ * Writes `data` into the existing `path` at byte `offset`. A `Vec` that is not
+ * whole bytes is refused here as `invalid buffer size`, before any host sees
+ * it, as {@link writeFile} refuses one.
+ *
+ * @type {Func<WriteBytes>}
+ */
+export const writeBytes = (path, offset, data) =>
+    isWholeBytes(data) ? writeBytesOp(path, offset, data) : invalidBufferSize
 
 /** @type {(path: string) => _WriteLoop} */
 const writeLoop = path => {
@@ -433,9 +452,6 @@ const writeLoop = path => {
                 return pureOk(undefined)
             }
             const { first: v, tail } = node
-            if (!isWholeBytes(v)) {
-                return invalidBufferSize
-            }
             return ioStep(
                 writeBytes(path, offset, v),
                 () => f(offset + Number(byteLength(v)), tail))
