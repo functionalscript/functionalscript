@@ -194,7 +194,7 @@ One pull request each, stacked in this order:
 - [x] Add the two `.gitattributes` lines and the fixed-path exceptions,
       document the rule in AGENTS.md and CONTRIBUTING.md, and rename
       `matrix.md` and `generated.rs`.
-- [ ] Wire `function` and `rest-function` into `gen` and `src/lib.rs`
+- [x] Wire `function` and `rest-function` into `gen` and `src/lib.rs`
       (blocker 3).
 - [ ] Move the fixtures to `nanvm-harness/gen.fixtures/` behind one `#[path]`;
       `fjs compile` creates its output directory (blocker 2).
