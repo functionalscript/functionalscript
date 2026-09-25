@@ -198,10 +198,12 @@ value outputs keep the sweep until they run the EDAG.
       operand is evaluated only when demanded — each beside amnesia's answer
       where sharing does not decide it, and `['===', s, s]` pinned as `true`
       here and `false` in amnesia.
-- [ ] The FunctionalScript writer reads the table for its hoisting; the value
-      outputs run the EDAG through `fjs/edag/memo` and hand the value to the
-      DataJS serializer, whose JSON refusal is pinned on `[cfg.x, cfg.x]` with
-      `x: []` refused and `x: 1` written, as the AST proof pins it today.
+- [x] The FunctionalScript writer reads the table for its hoisting: `analysis`
+      in [`fjs/fsc/serializer`](../../fsc/serializer/module.f.mjs), which hoists
+      from `shared`. The value outputs running the EDAG through `fjs/edag/memo`
+      is the integration task of
+      [`interpret-edag.md`](../../fsc/todo/interpret-edag.md), which carries the
+      `[cfg.x, cfg.x]` JSON-refusal pin.
 - [ ] `tsc`, `fjs test`, `npm run cov` at 100%.
 
 ### Related

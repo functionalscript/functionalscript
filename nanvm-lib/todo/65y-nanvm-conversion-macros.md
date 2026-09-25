@@ -128,7 +128,7 @@ What it costs:
 
 - The two blanket `impl<T: UnpackedVariant>` blocks risk colliding
   with the existing `impl<A: IVm> From<Unpacked<A>> for Any<A>` in
-  `from.rs:5–18`. Verify with `cargo check` that the sealed bound
+  `vm/impls/from.rs`. Verify with `cargo check` that the sealed bound
   keeps coherence happy; if not, fall back to per-type one-line impls
   that call into `UnpackedVariant::wrap` / `unwrap`. The line count
   becomes ~7 lines/type instead of ~14, plus the one-time trait
@@ -232,7 +232,7 @@ rejected.
 
 - **Coherence checks needed for B.** The blanket `From` / `TryFrom`
   impls might collide with the existing
-  `impl<A: IVm> From<Unpacked<A>> for Any<A>` (`from.rs:5–18`) and
+  `impl<A: IVm> From<Unpacked<A>> for Any<A>` (`vm/impls/from.rs`) and
   with any future blanket impls. Sealed traits typically resolve
   this, but verify with `cargo check` before committing.
 - **`Nullish` lacks an `A` parameter.** Both options handle this

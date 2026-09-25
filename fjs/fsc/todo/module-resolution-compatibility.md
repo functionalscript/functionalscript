@@ -171,8 +171,10 @@ falls back to interpreting an unsupported host's specifiers as paths.
 - [x] Compare Node adapter identities with native ESM for escaped filenames,
       equivalent spellings and diamond sharing. Prove both compiler paths'
       identity handling separately through synchronous effect hosts.
-- [ ] Check warm/cold caches and repeated imports against the current identity
-      rules. Run the repository's required compiler, test and coverage checks.
+
+Repeated and diamond imports are pinned by the identity proofs above. The
+warm/cold check belongs to the cache, which does not exist yet: it is the
+warm/cold task of [cache-compiled-modules](./cache-compiled-modules.md).
 
 The optional query/fragment and absolute `file:` import extensions have been
 removed. They are not pending P1 work. The P1 requirement is preserving JavaScript

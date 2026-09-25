@@ -107,10 +107,11 @@ Questions to answer:
    path and source provenance, and flattened references are remapped consistently.
 
 5. **Can the standard JavaScript Source Map format be reused?**
-   Since final EDAGs may be serialized as `.f.js`, a normal source map could map
-   positions in that generated DJS text back to the source modules. Determine whether
-   EDAG-path mappings can be converted to Source Map v3 during serialization, or
-   whether graph-specific metadata is required in addition to a standard source map.
+   Since final EDAGs are serialized as DataJS, `<name>.edag.data.js`, a normal
+   source map could map positions in that generated text back to the source
+   modules. Determine whether EDAG-path mappings can be converted to Source Map v3
+   during serialization, or whether graph-specific metadata is required in
+   addition to a standard source map.
 
 6. **How stable does the mapping need to be?**
    Determine whether source metadata is valid only for one exact EDAG structure or
@@ -119,8 +120,8 @@ Questions to answer:
 
 7. **Where should source-map artifacts live?**
    Coordinate with the final EDAG output, not the temporary unresolved cache. A final
-   `<name>.f.js` could use an adjacent `<name>.f.js.map`, or source maps could live in
-   a separate FunctionalScript-owned directory such as
+   `<name>.edag.data.js` could use an adjacent `<name>.edag.data.js.map`, or source
+   maps could live in a separate FunctionalScript-owned directory such as
    `./.fjs/source-map/`.
 
    The existing `./.fjs/unresolved/{hash}.f.js` path is a cache of temporary
@@ -167,9 +168,9 @@ Questions to answer:
       either representation yet.
 - [ ] Prototype combining/transforming EDAGs while constructing the corresponding new
       source map in parallel and remapping path/index references.
-- [ ] Evaluate standard Source Map v3 against EDAG-path mappings and the final `.f.js`
-      DJS serialization.
-- [ ] Decide whether source-map sidecars are adjacent to final `.f.js` output or live
+- [ ] Evaluate standard Source Map v3 against EDAG-path mappings and the final
+      `.edag.data.js` DataJS serialization.
+- [ ] Decide whether source-map sidecars are adjacent to final `.edag.data.js` output or live
       under a separate FunctionalScript build directory.
 - [ ] Investigate a compatible source-map cache for `Unresolved`; until then, require
       source-map-enabled builds to bypass the `.fjs/unresolved/{hash}.f.js` cache.
@@ -183,11 +184,12 @@ Questions to answer:
 ### Related
 
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — resolves source
-  modules into one final EDAG and serializes it to `.f.js` or JSON when representable.
+  modules into one final EDAG and serializes it as DataJS, `.edag.data.js`; no JSON
+  form of the EDAG is offered.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — caches temporary
   `Unresolved { imports, edag }` values under `.fjs/unresolved/` and currently bypasses
   that cache when source maps are requested.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — EDAG sharing and node-identity semantics.
-- [`../../../todo/edag-spec.md`](../../../todo/edag-spec.md) — future canonical EDAG
-  schema; source metadata must stay outside that canonical value.
+- [`../../edag/README.md`](../../edag/README.md) — the canonical EDAG schema;
+  source metadata must stay outside that canonical value.

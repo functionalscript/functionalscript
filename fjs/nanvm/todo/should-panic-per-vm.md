@@ -1,7 +1,7 @@
 ## A should-panic set: the corpus generated once per VM
 
 **Priority:** P4
-**Status:** open
+**Status:** on-hold
 
 ### Problem
 
@@ -57,8 +57,8 @@ generated file's shape for one VM is not worth the diff to
 - [`../README.md`](../README.md) — the `unreached` operand, the value
   proof this would second.
 - [`corpus-as-conformance-vectors.md`](./corpus-as-conformance-vectors.md)
-  — the corpus's other open shape questions, the eager nested operation
-  among them.
+  — the corpus's other open question, its transport to the `nanvm-lib`
+  interpreter.
 - `nanvm-lib/src/vm/any/{and,or,nullish_coalescing,conditional}.rs` — the
   four signatures, each lazy operand an `impl FnOnce() -> Result<Any<A>,
   Any<A>>`.

@@ -22,7 +22,7 @@ is already a canonical EDAG id (`op1Id` in
 because JS's own unary `+` throws on a `bigint` where `Number(x)` does not.
 
 `nanvm-lib` implements the former and not the latter. `Any::unary_plus()`
-(`nanvm-lib/src/vm/any/mod.rs:73`) is exactly JS unary plus:
+(`nanvm-lib/src/vm/any/mod.rs`) is exactly JS unary plus:
 
 ```rust
 pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
@@ -59,7 +59,7 @@ counterpart, and the corpus has no `Number` group to prove one against.
   an error. This needs a real `BigInt<A> → Number` conversion that doesn't exist anywhere in
   `nanvm-lib/src/vm/bigint/` today.
 - **Do not touch `NumberCoercion`/`to_number()` or `Any::unary_plus`.**
-  `Any::unary_plus`'s own doc comment (`any/mod.rs:67-68`) already says `to_number` is
+  `Any::unary_plus`'s own doc comment already says `to_number` is
   used "for internals in places where ECMAScript's abstract function `ToNumber` is
   needed" — that's the correct algorithm for unary `+` and for the arithmetic
   operators. The two coercions differ only in their `BigInt` arm; keep both,

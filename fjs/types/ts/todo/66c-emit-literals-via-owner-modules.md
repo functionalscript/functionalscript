@@ -11,26 +11,25 @@ rendering is a small, well-defined concern, and the codebase already has a
 natural owner for each kind. But two emitters re-spell the primitive inline
 instead of calling the owner, so the same one-liner exists in several places.
 
-This is the same shape as [i190-text-char-code-boundary](../../text/todo/190-text-code-unit-string-boundary.md)
+This is the same shape as [i190-text-char-code-boundary](../../../text/todo/190-text-code-unit-string-boundary.md)
 ("own the single code-unit ↔ string boundary; N modules reach into the
 `String` built-in directly"), applied to literal rendering.
 
-#### 1. bigint literal `${a}n` — owner exists, one consumer already uses it
+#### 1. bigint literal `${a}n` — owner exists, two consumers already use it
 
-`fjs/types/bigint/module.f.mjs:90` owns the bigint → source-literal renderer and
-exports it:
+`serialize` in [`fjs/types/bigint`](../../bigint/module.f.mjs) owns the
+bigint → source-literal renderer and exports it:
 
-```ts
-// fjs/types/bigint/module.f.mjs:90
-/** A string representation of the bigint (e.g., '123n'). */
-export const serialize = (a: bigint): string => `${a}n`
+```js
+// serialize, fjs/types/bigint/module.f.mjs
+export const serialize = a => `${a}n`
 ```
 
 `fjs/media/datajs/serializer/module.f.mjs` is a good citizen — it imports the
 owner rather than re-spelling the template, and the compiler's proof dump in
 `fjs/fsc/module.f.mjs` does the same:
 
-```ts
+```js
 // fjs/media/datajs/serializer/module.f.mjs
 import { serialize as bigintSerialize } from '../../../types/bigint/module.f.mjs'
 // ...
@@ -40,47 +39,44 @@ case 'bigint': { return [bigintSerialize(value)] }
 But the sibling emitter `fjs/types/ts` re-implements the exact same literal by
 hand:
 
-```ts
-// fjs/types/ts/module.f.mjs:45
+```js
+// primitive, fjs/types/ts/module.f.mjs
 case 'bigint': return `${c}n`
 ```
 
 `fjs/types/ts` currently imports *nothing*, so this is a pure miss: the owner is
-a peer in `fjs/types/` and one consumer (`media/datajs/serializer`) already
-demonstrates the intended import.
+a peer in `fjs/types/` and two consumers already demonstrate the intended import.
 
-#### 2. JS string literal `JSON.stringify(s)` — the operation has a de-facto home
+#### 2. JS string literal — the operation has a home
 
 "Render a string as a double-quoted JS/JSON string literal" is exactly JSON
-string syntax, and `fjs/media/json/serializer` already concentrates it: it aliases the
-built-in privately and wraps it as `stringSerialize`.
+string syntax, and `fjs/media/json/serializer` already concentrates it:
+`stringSerialize` escapes each code point in FunctionalScript, without the
+host's `JSON.stringify`.
 
-```ts
-// fjs/media/json/serializer/module.f.mjs:28
-const jsonStringify = JSON.stringify
-// :33
-export const stringSerialize: (_: string) => List<string> = input => [jsonStringify(input)]
+```js
+// stringSerialize, fjs/media/json/serializer/module.f.mjs
+export const stringSerialize
+    = input => [`"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`]
 ```
 
 `stringSerialize` returns a one-element `List<string>`, so it can't be reused
 where a bare quoted string is needed. As a result, two other modules reach for
 the raw built-in to do the same quoting:
 
-```ts
-// fjs/types/ts/module.f.mjs:36 — struct field key
-structX(fields.map(([k, v]) => `${ro}${JSON.stringify(k)}:${v}`))
-// fjs/types/ts/module.f.mjs:46 — string primitive literal
+```js
+// printer's struct, fjs/types/ts/module.f.mjs — struct field key
+structX(fields.map(([k, v, opt]) => `${ro}${JSON.stringify(k)}${opt === true ? '?' : ''}:${v}`))
+// primitive, fjs/types/ts/module.f.mjs — string primitive literal
 case 'string': return JSON.stringify(c)
 
-// fjs/emergent_testing/module.f.mjs:282 — property access  obj["key"]
+// fmtKey, fjs/emergent_testing/module.f.mjs — property access  obj["key"]
 : `[${JSON.stringify(k)}]`
-// fjs/emergent_testing/module.f.mjs:303 — import("path")
+// fmtImport, fjs/emergent_testing/module.f.mjs — import("path")
 `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
-// fjs/emergent_testing/module.f.mjs:318 — terminal output
-`${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
 ```
 
-All five sites want the identical thing: a valid double-quoted JS string
+All four sites want the identical thing: a valid double-quoted JS string
 literal with correct escaping. The concept is owned by `fjs/media/json/serializer`
 but isn't exposed in a reusable (bare-string) form.
 
@@ -89,7 +85,7 @@ but isn't exposed in a reusable (bare-string) form.
 1. **bigint (do now, unambiguous).** In `fjs/types/ts/module.f.mjs`, import the
    owner and drop the inline template:
 
-   ```ts
+   ```js
    import { serialize as bigintSerialize } from '../bigint/module.f.mjs'
    // ...
    case 'bigint': return bigintSerialize(c)
@@ -101,13 +97,13 @@ but isn't exposed in a reusable (bare-string) form.
 2. **string (do now where layering is clean).** Factor the bare-string renderer
    out of `stringSerialize` in `fjs/media/json/serializer`:
 
-   ```ts
+   ```js
    /** Renders a string as a double-quoted JS/JSON string literal. */
-   export const stringLiteral = (s: string): string => jsonStringify(s)
-   export const stringSerialize: (_: string) => List<string> = input => [stringLiteral(input)]
+   export const stringLiteral = input => `"${concat(map(escapeCodePoint)(stringToCodePointList(input)))}"`
+   export const stringSerialize = input => [stringLiteral(input)]
    ```
 
-   Then route `fjs/emergent_testing`'s three quoting sites through
+   Then route `fjs/emergent_testing`'s two quoting sites through
    `stringLiteral` instead of the built-in. `emergent_testing` is
    application-level, so depending on `fjs/media/json` is clean.
 
@@ -134,8 +130,8 @@ but isn't exposed in a reusable (bare-string) form.
 - [ ] `fjs/media/json/serializer`: export `stringLiteral`; redefine `stringSerialize`
       in terms of it (no behavior change).
 - [ ] `fjs/emergent_testing`: import `stringLiteral` from `fjs/media/json/serializer`;
-      replace the three `JSON.stringify(...)` quoting sites (lines 281, 298,
-      311).
+      replace the two `JSON.stringify(...)` quoting sites, in `fmtKey` and
+      `fmtImport`.
 - [ ] Decide the `types/ts` string-quoting case per the layering note above;
       record the decision in this file before closing.
 - [ ] Run `tsc` and `fjs t`; confirm `fjs/types/ts`, `fjs/media/json/serializer`,
@@ -143,12 +139,14 @@ but isn't exposed in a reusable (bare-string) form.
 
 ### Related
 
-- [i190-text-char-code-boundary](../../text/todo/190-text-code-unit-string-boundary.md) — same
+- [i190-text-char-code-boundary](../../../text/todo/190-text-code-unit-string-boundary.md) — same
   "own the single boundary; stop reaching into the built-in" pattern for the
   char-code ↔ string conversion.
-- [i176-json-file-effects](../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
+- [i176-json-file-effects](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — still open under a new slug — and
-  [i198-utf8-file-effects](../../effects/node/module.f.mjs) — shipped as
+  [i198-utf8-file-effects](../../../effects/node/module.f.mjs) — shipped as
   `readUtf8File`/`writeUtf8File` — a *different* JSON
   concern (whole-value `JSON.stringify(v, null, 2)` → UTF-8 → write), not the
   single-token literal rendering tracked here.
+- [remove-native-json](../../../media/json/todo/remove-native-json.md) — defers
+  its source-text-quoting sites to this issue.
