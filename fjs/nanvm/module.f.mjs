@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 50
+ * data.groups.length // 53
  * ```
  */
 
@@ -1918,6 +1918,79 @@ const reduceRightCases = [
 ]
 
 /**
+ * `Array.prototype.flat`: an element that is an array spliced in, to a
+ * depth — `1` when absent or `undefined`, all the way for `Infinity`, a
+ * copy at `0` or below.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const flatCases = [
+    { name: 'oneLevel', args: [[1, [2, [3, [4]]]]], expected: [1, 2, [3, [4]]] },
+    { name: 'undefinedDepth', args: [[1, [2, [3]]], undefined], expected: [1, 2, [3]] },
+    { name: 'twoLevels', args: [[1, [2, [3, [4]]]], 2], expected: [1, 2, 3, [4]] },
+    { name: 'infinity', args: [[1, [2, [3, [4]]]], Infinity], expected: [1, 2, 3, 4] },
+    { name: 'zero', args: [[1, [2]], 0], expected: [1, [2]] },
+    { name: 'negative', args: [[1, [2]], -1], expected: [1, [2]] },
+    { name: 'truncated', args: [[1, [2, [3]]], 1.9], expected: [1, 2, [3]] },
+    { name: 'string', args: [[1, [2, [3]]], '2'], expected: [1, 2, 3] },
+    { name: 'nullIsZero', args: [[1, [2]], null], expected: [1, [2]] },
+    { name: 'emptyArrays', args: [[[], [[]], 1]], expected: [[], 1] },
+    { name: 'objectWhole', args: [[{ a: [1] }, [{ b: 2 }]]], expected: [{ a: [1] }, { b: 2 }] },
+    { name: 'empty', args: [[]], expected: [] },
+    { name: 'bigint', args: [[1], 1n], expected: throws },
+    { name: 'object', args: [{}], expected: throws },
+]
+
+/**
+ * `Array.prototype.flatMap`: `map`, then one level of `flat` — an answer
+ * that is an array spliced in, its own elements as they are.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const flatMapCases = [
+    { name: 'oneLevelOnly', args: [[1, 2], callback('pair')], expected: [1, [1], 2, [2]] },
+    { name: 'notArrays', args: [[1, 2], callback('double')], expected: [2, 4] },
+    { name: 'arguments', args: [[10], callback('args')], expected: [10, 0, [10]] },
+    { name: 'emptyAnswer', args: [[[], [1]], callback('first')], expected: [1] },
+    { name: 'empty', args: [[], callback('pair')], expected: [] },
+    { name: 'throw', args: [[{}, null], callback('prop')], expected: throws },
+    ...callbackChecks('flatMap', [1]),
+]
+
+/**
+ * `Array.prototype.toSorted`: a stable sort into a new array, `undefined`
+ * elements last and never compared. With no comparator elements compare as
+ * strings, so `10` sorts before `9`; a comparator must be a function or
+ * `undefined`, `null` included in what it must not be. A comparator's
+ * answer is read by `ToNumber`, `NaN` as `0`. Only consistent comparators
+ * are pinned here: ECMAScript leaves the order an inconsistent one gives to
+ * the engine.
+ *
+ * @type {readonly MethodCase[]}
+ */
+const toSortedCases = [
+    { name: 'asStrings', args: [[10, 9, 1]], expected: [1, 10, 9] },
+    { name: 'undefinedComparator', args: [[3, 1, 2], undefined], expected: [1, 2, 3] },
+    { name: 'undefinedLast', args: [[3, undefined, 1, null]], expected: [1, 3, null, undefined] },
+    { name: 'mixed', args: [[true, 'a', 10, 2n, 'B']], expected: [10, 2n, 'B', 'a', true] },
+    { name: 'nested', args: [[[2], [1, 5], [1]]], expected: [[1], [1, 5], [2]] },
+    { name: 'ascending', args: [[10, 9, 1], callback('ascending')], expected: [1, 9, 10] },
+    { name: 'descending', args: [[1, 10, 9], callback('descending')], expected: [10, 9, 1] },
+    { name: 'undefinedNeverCompared', args: [[2, undefined, 1], callback('ascending')], expected: [1, 2, undefined] },
+    { name: 'nanAnswerIsEqual', args: [[3, 1, 2], callback('prop')], expected: [3, 1, 2] },
+    { name: 'empty', args: [[]], expected: [] },
+    { name: 'one', args: [[1], callback('ascending')], expected: [1] },
+    { name: 'nullComparator', args: [[2, 1], null], expected: throws },
+    { name: 'numberComparator', args: [[2, 1], 1], expected: throws },
+    { name: 'emptyNotAFunction', args: [[], 1], expected: throws },
+    { name: 'bigintAnswer', args: [[2n, 1n], callback('first')], expected: throws },
+    // Which of two elements a comparator is handed first is the engine's
+    // choice, so a throwing case throws whichever way round it is called.
+    { name: 'throwingComparator', args: [[null, null], callback('prop')], expected: throws },
+    { name: 'object', args: [{}], expected: throws },
+]
+
+/**
  * `toString()` on every type but a function, whose text is the
  * rendering `nanvm-lib/todo/member-functions.md` tracks (see
  * {@link FunctionValue}). A radix on a number or a bigint is refused by
@@ -2024,6 +2097,9 @@ export const data = {
         { method: 'filter', cases: filterCases },
         { method: 'reduce', cases: reduceCases },
         { method: 'reduceRight', cases: reduceRightCases },
+        { method: 'flat', cases: flatCases },
+        { method: 'flatMap', cases: flatMapCases },
+        { method: 'toSorted', cases: toSortedCases },
         { method: 'toString', cases: toStringCases },
     ],
 }
