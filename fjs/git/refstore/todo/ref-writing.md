@@ -322,8 +322,12 @@ measured, `git update-ref --no-deref -d HEAD` exits 0 having removed `.git/HEAD`
 after which every command answers `not a git repository`; a directory at the
 name's path, or a symlink to one, which Git refuses too (exit 1, `'refs/heads/a/b'
 exists; cannot create 'refs/heads/a'`); a file in the path (`ENOTDIR`); either lock
-held, or a `packed-refs.new` already there (`EEXIST`, and left); a `packed-refs`
-that will not parse; and one that claims `sorted` and is not. That last is
+held, or a `packed-refs.new` already there (`EEXIST`, and left); a loose file
+holding bytes that are no ref, which Git refuses too — measured, with and without
+`--no-deref`, `cannot lock ref … reference broken`, exit 1, nothing changed,
+while a symbolic ref to an absent target or to one outside `refs/` is deleted; a
+`packed-refs` that will not parse; and one that claims `sorted` and is not. That
+last is
 refused because Git bisects it: measured, with `ccc`, `aaa`, `bbb` in that order
 `refs/heads/ccc` does not resolve, and deleting `aa` from `aa`, `zz`, `master`
 made `zz` stop resolving — so a rewrite that keeps such a file's order can lose
@@ -334,6 +338,7 @@ Git a ref the delete was not asked about.
 | state | Git | `tryDelete` |
 | --- | --- | --- |
 | an empty directory at the name's path | removes it, exit 0 | `refPrefixCode` |
+| a refusal after the directories are made | leaves the one it made for the lock | removes the ones it made, and no other |
 | an absent name with a packed ref under it | exit 1, `cannot lock ref` | `false` |
 | the name packed twice | removes one line, exit 0, the ref still resolves | removes both |
 | a `packed-refs` Git did not write | its own header, re-sorted, missing `^` lines read from the object store | the file's own header and order |

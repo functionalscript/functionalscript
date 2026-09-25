@@ -22,7 +22,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
-import { badNameCode, badPackedCode, headKindCode, idWidthCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, outsideRefsCode, packedHeadCode, packedTwiceCode, refPrefixCode, tryDelete, tryResolve, tryRoots, tryWrite, unsortedPackedCode, unspellableNameCode, zeroIdCode } from './module.f.mjs'
+import { badNameCode, badPackedCode, brokenRefCode, headKindCode, idWidthCode, linkedDirCode, lossyNameCode, lossyNameMessage, maxLookups, outsideRefsCode, packedHeadCode, packedTwiceCode, refPrefixCode, tryDelete, tryResolve, tryRoots, tryWrite, unsortedPackedCode, unspellableNameCode, zeroIdCode } from './module.f.mjs'
 
 /**
  * A main worktree's two directories, which are one directory: what a caller
@@ -2468,19 +2468,22 @@ export const proof = {
     },
     // Every effect of a delete, in order, and what a failure of each leaves: which
     // cleanups run, and which removals do not. The host answers `EIO` for the one
-    // line named and `ok` for the rest, and the loose file, the packed line and
-    // the reflog are all there.
+    // line named and `ok` for the rest; `refs` and `refs/heads` are there and
+    // `refs/heads/a` is not, and the loose file, the packed line and the reflog
+    // all are.
     //
-    // Three rules are what this holds:
+    // Four rules are what this holds:
     //
     // - a lock or a staged file is given back only once it was taken — a failure
     //   to take it, whatever the code, removes nothing;
     // - the reflog goes after the loose file, so a delete that fails before that
     //   keeps the history of a ref that still exists;
     // - once the ref is gone, what removing the reflog, a lock or a directory
-    //   answers is dropped, and the delete answers `true`.
+    //   answers is dropped, and the delete answers `true`;
+    // - a refused delete removes the directories it made and no others, and
+    //   nothing below `logs/`, where it made none.
     deleteProtocol: () => {
-        /** @type {(failing: string) => MemOperationMap<Stat | Mkdir | CreateExclusive | ReadWhole | WriteExclusive | Rename | Rm | Rmdir, readonly string[]>} */
+        /** @type {(failing: string) => MemOperationMap<Stat | Mkdir | CreateExclusive | ReadFile | ReadWhole | WriteExclusive | Rename | Rm | Rmdir, readonly string[]>} */
         const host = failing => {
             /** @type {<T>(line: string, value: T) => (log: readonly string[]) => readonly [readonly string[], Result<T, IoChannel>]} */
             const answer = (line, value) => log => [
@@ -2489,8 +2492,11 @@ export const proof = {
             ]
             return {
                 stat: path => answer(`stat ${path}`, kind(true, false)),
-                mkdir: (path, _) => answer(`mkdir ${path}`, undefined),
+                mkdir: (path, _) => path === 'refs' || path === 'refs/heads'
+                    ? log => [[...log, `mkdir ${path}`], error(ioError({ code: 'EEXIST', message: path }))]
+                    : answer(`mkdir ${path}`, undefined),
                 createExclusive: path => answer(`createExclusive ${path}`, undefined),
+                readFile: path => answer(`readFile ${path}`, ref(a)[0]),
                 readWhole: path => answer(`readWhole ${path}`, file(`${a} refs/heads/a/b\n`)),
                 writeExclusive: path => answer(`writeExclusive ${path}`, undefined),
                 rename: (src, dst) => answer(`rename ${src} ${dst}`, undefined),
@@ -2503,9 +2509,12 @@ export const proof = {
             tryDelete(one(''), 20)(latin1('refs/heads/a/b')))
         const all = [
             'stat refs/heads/a/b',
+            'mkdir refs',
+            'mkdir refs/heads',
             'mkdir refs/heads/a',
             'createExclusive refs/heads/a/b.lock',
             'createExclusive packed-refs.lock',
+            'readFile refs/heads/a/b',
             'readWhole packed-refs',
             'writeExclusive packed-refs.new',
             'rename packed-refs.new packed-refs',
@@ -2533,20 +2542,80 @@ export const proof = {
             assertEq(writeRefusal(failR).message, failing)
             assertStructurallySame(failLog, expected)
         }
-        const released = ['rm packed-refs.lock', 'rm refs/heads/a/b.lock', 'rmdir refs/heads/a', 'rmdir logs/refs/heads/a']
+        // Both locks given back, and the one directory this call made removed.
+        const released = ['rm packed-refs.lock', 'rm refs/heads/a/b.lock', 'rmdir refs/heads/a']
         // The loose file will not go: the packed line is gone, the file still
         // decides the name, and the reflog is kept.
-        fails('rm refs/heads/a/b', [...all.slice(0, 8), ...released])
+        fails('rm refs/heads/a/b', [...all.slice(0, 11), ...released])
         // The rename fails: the staged file is given back, and nothing is removed.
-        fails('rename packed-refs.new packed-refs', [...all.slice(0, 7), 'rm packed-refs.new', ...released])
+        fails('rename packed-refs.new packed-refs', [...all.slice(0, 10), 'rm packed-refs.new', ...released])
         // The staged file cannot be made: not this writer's to remove.
-        fails('writeExclusive packed-refs.new', [...all.slice(0, 6), ...released])
-        fails('readWhole packed-refs', [...all.slice(0, 5), ...released])
+        fails('writeExclusive packed-refs.new', [...all.slice(0, 9), ...released])
+        fails('readWhole packed-refs', [...all.slice(0, 8), ...released])
+        fails('readFile refs/heads/a/b', [...all.slice(0, 7), ...released])
         // A lock not taken is not given back.
-        fails('createExclusive packed-refs.lock', [...all.slice(0, 4), ...released.slice(1)])
-        fails('createExclusive refs/heads/a/b.lock', [...all.slice(0, 3), ...released.slice(2)])
-        // Before the directories are made, nothing is pruned either.
-        fails('mkdir refs/heads/a', all.slice(0, 2))
+        fails('createExclusive packed-refs.lock', [...all.slice(0, 6), ...released.slice(1)])
+        fails('createExclusive refs/heads/a/b.lock', [...all.slice(0, 5), ...released.slice(2)])
+        // A `mkdir` that fails: nothing after it, and nothing pruned.
+        fails('mkdir refs/heads/a', all.slice(0, 4))
         fails('stat refs/heads/a/b', all.slice(0, 1))
+    },
+    // A loose file that is no ref refuses the delete, and nothing is removed — not
+    // the file, not its reflog, not the packed line of the same name, which goes
+    // first otherwise. Git refuses the same, measured on 2.43.0 with and without
+    // `--no-deref`: `cannot lock ref … reference broken`, exit 1, nothing changed.
+    deleteBrokenRef: () => {
+        for (const bytes of ['not an id\n', '', `${a.slice(0, 7)}\n`]) {
+            /** @type {Dir} */
+            const root = {
+                'packed-refs': file(`${header}${b} refs/heads/x\n`),
+                refs: { heads: { x: file(bytes) } },
+                logs: { refs: { heads: { x: file('l\n') } } },
+            }
+            const [fs, r] = deleted(root, 'refs/heads/x')
+            const e = writeRefusal(r)
+            assertEq(e.code, brokenRefCode)
+            assertEq(e.message, 'refs/heads/x is no ref')
+            assertStructurallySame(fs, root)
+        }
+        // The controls: a symbolic ref whose target is absent, and one whose target
+        // is outside `refs/`, are refs, and Git deletes both — measured.
+        for (const target of ['refs/heads/nothing', 'a/b']) {
+            const [fs, r] = deleted({ refs: { heads: { s: file(`ref: ${target}\n`) } } }, 'refs/heads/s')
+            assertStructurallySame(r, ok(true))
+            assertStructurallySame(fs, { refs: { heads: {} } })
+        }
+    },
+    // A refused delete leaves the directories as they were: one it made is
+    // removed again, and one that was already there, empty, is kept — both with a
+    // `packed-refs` that will not parse, which is refused under the locks, after
+    // the directories were made. Found by review: pruning by the success rule on
+    // both paths removed the second.
+    //
+    // A delete that happens removes an empty directory that was there before it,
+    // which Git does too, measured on 2.43.0: with `refs/heads/a` and
+    // `logs/refs/heads/a` already there and empty, deleting the packed-only
+    // `refs/heads/a/b` removes both.
+    deleteRefusedKeepsDirectories: () => {
+        const junk = file('this is not a packed-refs file\n')
+        /** @type {Dir} */
+        const kept = { 'packed-refs': junk, refs: { heads: { a: {} } } }
+        const [fs1, r1] = deleted(kept, 'refs/heads/a/b')
+        assertEq(writeRefusal(r1).code, badPackedCode)
+        assertStructurallySame(fs1, kept)
+        /** @type {Dir} */
+        const bare = { 'packed-refs': junk, refs: { heads: {} } }
+        const [fs2, r2] = deleted(bare, 'refs/heads/c/d')
+        assertEq(writeRefusal(r2).code, badPackedCode)
+        assertStructurallySame(fs2, bare)
+        /** @type {Dir} */
+        const empty = {
+            'packed-refs': file(`${header}${a} refs/heads/a/b\n`),
+            refs: { heads: { a: {} } },
+            logs: { refs: { heads: { a: {} } } },
+        }
+        const [fs3, r3] = deleted(empty, 'refs/heads/a/b')
+        assertStructurallySame(r3, ok(true))
+        assertStructurallySame(fs3, { 'packed-refs': file(header), refs: { heads: {} }, logs: { refs: { heads: {} } } })
     },
 }

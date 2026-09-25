@@ -220,7 +220,7 @@
  * @import { _Entry, _Found, _Lookup, _Scope, _Walked } from './private.ts'
  */
 
-import { catchStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultMapStep, resultStep, step, walkStep } from '../../effects/module.f.mjs'
+import { catchStep, finallyStep, foldStep, history, historyStep, ioError, mapStep, pureError, pureOk, resultStep, step, walkStep } from '../../effects/module.f.mjs'
 import { createExclusive, isDirectory, isNotFound, leadsNowhere, mkdir, readFile, readWholeBytes, readdir, rename, rm, rmdir, stat, writeExclusive, writeExclusiveUtf8File } from '../../effects/node/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
@@ -2049,6 +2049,28 @@ export const unsortedPackedCode = /** @type {const} */ ('ERR_UNSORTED_PACKED')
 const unsortedPackedMessage = dirs => `${under(dirs.common, packedRefs)} claims to be sorted and is not`
 
 /**
+ * The code a delete is refused with when the name's loose file is there and holds
+ * bytes that are no ref — no id, no `ref:` line.
+ *
+ * Git refuses the same delete and changes nothing. Measured on 2.43.0, for a file
+ * holding `not an id`, an empty file and seven hex digits alike,
+ * `git update-ref -d refs/heads/x` exits 1 with `cannot lock ref 'refs/heads/x':
+ * unable to resolve reference 'refs/heads/x': reference broken`, and leaves the
+ * file, its reflog and a `packed-refs` line of the same name where they were —
+ * with `--no-deref` too, which is the delete this module does. A symbolic ref
+ * whose target is absent, or outside `refs/`, is a ref and is deleted, measured.
+ *
+ * The readers answer such a name `null` — the file decides it and holds nothing —
+ * so its existence is not evidence a ref was there, and answering `true` for
+ * removing it would claim one was. Asked under both locks and before anything is
+ * removed, since the `packed-refs` line goes first.
+ */
+export const brokenRefCode = /** @type {const} */ ('ERR_BROKEN_REF')
+
+/** @type {(name: Bytes) => string} */
+const brokenRefMessage = name => `${nameForMessage(name)} is no ref`
+
+/**
  * Nothing, or the refusal a packed name colliding with this one is.
  *
  * Its own function because it is a choice and not a link: the packed lines have
@@ -2181,20 +2203,6 @@ export const tryWrite = (dirs, oidBytes) => {
 }
 
 /**
- * `e`, and then `cleanup` whatever `e` answered, keeping `e`'s answer and
- * dropping `cleanup`'s — for the reason {@link givenBack} drops its own: the
- * answer a caller can act on is `e`'s.
- *
- * @template {Operation} O
- * @template T
- * @template {Operation} Q
- * @param {Effect<O, T, IoChannel>} e
- * @param {Effect<Q, unknown, IoChannel>} cleanup
- * @returns {Effect<O | Q, T, IoChannel>}
- */
-const after = (e, cleanup) => resultStep(e, r => resultMapStep(cleanup, () => r))
-
-/**
  * `e` with whatever it answers dropped, for a removal whose failure changes
  * nothing a caller asked about.
  *
@@ -2223,7 +2231,18 @@ const dropped = e => resultStep(e, () => pureOk(undefined))
  * @param {Effect<O, T, IoChannel>} e
  * @returns {Effect<O | CreateExclusive | Rm, T, IoChannel>}
  */
-const holding = (lock, e) => step(createExclusive(lock), () => after(e, rm(lock)))
+const holding = (lock, e) => step(createExclusive(lock), () => finallyStep(e, () => rm(lock)))
+
+/**
+ * The directories a ref named `text` sits in, from the top: `refs`,
+ * `refs/heads`, `refs/heads/a` for `refs/heads/a/b`.
+ *
+ * @type {(text: string) => readonly string[]}
+ */
+const ancestors = text => {
+    const parts = text.split('/')
+    return Array.from({ length: parts.length - 1 }, (_, i) => parts.slice(0, i + 1).join('/'))
+}
 
 /**
  * The directories a delete of `text` may leave empty, deepest first: each one
@@ -2232,15 +2251,14 @@ const holding = (lock, e) => step(createExclusive(lock), () => after(e, rm(lock)
  * Measured on Git 2.43.0: deleting `refs/heads/a/b/c` removes `refs/heads/a/b` and
  * `refs/heads/a`, and deleting the last ref under `refs/remotes/origin` removes
  * that directory while `refs/remotes` stays — as does `refs/heads` with nothing in
- * it. The same holds below `logs/`.
+ * it. The same holds below `logs/`, and for a directory that was empty before the
+ * delete began.
  *
  * @type {(text: string) => readonly string[]}
  */
 const emptiable = text => {
-    const parts = text.split('/')
-    return Array.from(
-        { length: Math.max(0, parts.length - 3) },
-        (_, i) => parts.slice(0, parts.length - 1 - i).join('/'))
+    const below = ancestors(text).slice(2)
+    return below.map((_, i) => below[below.length - 1 - i])
 }
 
 /**
@@ -2255,13 +2273,49 @@ const emptied = paths => dropped(foldStep(
     p => () => rmdir(p)))
 
 /**
- * `e` with the directories above the ref made first and, once `e` is done, the
- * ones it left empty removed — below `refs/` and below `logs/` both.
+ * Whether this call made the directory at `path`: `false` where one was there.
  *
- * Git makes them too, measured: it creates `refs/heads/feat/deep` to hold the
- * lock of a *packed-only* `refs/heads/feat/deep/x`, and removes it again once the
- * delete is done. So a delete here leaves no directory Git would have removed,
- * and none of its own making.
+ * Not `recursive`, which answers `ok` both ways and so cannot say which it was.
+ * A file at the path would be `EEXIST` too, and never reaches this: the `stat`
+ * {@link tryDelete} makes first answers `ENOTDIR` through it.
+ *
+ * @type {(path: string) => Effect<Mkdir, boolean, IoChannel>}
+ */
+const madeHere = path => catchStep(
+    mapStep(mkdir(path), () => true),
+    e => e[0] === 'ioError' && e[1].code === 'EEXIST' ? pureOk(false) : pureError(e))
+
+/**
+ * The directories above the ref, made one at a time from the top, and those this
+ * call made, deepest first.
+ *
+ * @type {(dir: string, text: string) => Effect<Mkdir, readonly string[], IoChannel>}
+ */
+const madeFor = (dir, text) => foldStep(
+    pureOk(ancestors(text).map(d => under(dir, d))),
+    /** @type {readonly string[]} */ ([]),
+    path => made => mapStep(madeHere(path), here => here ? [path, ...made] : made))
+
+/**
+ * `e` with the directories above the ref made first, and removed again once `e`
+ * is done by one of two rules, chosen by how it ended.
+ *
+ * **A delete that happened prunes as Git does**: every directory it left empty
+ * below `refs/<top>/`, and below `logs/` — one that was already empty included,
+ * which Git removes too, measured. Git makes them to hold the lock, measured: it
+ * creates `refs/heads/feat/deep` to lock a *packed-only*
+ * `refs/heads/feat/deep/x`, and removes it once the delete is done.
+ *
+ * **A refused one removes exactly what it made**, so the repository is as it was.
+ * Git does not: measured with `packed-refs.lock` held, it keeps an empty
+ * `refs/heads/a` that was there — as this does — and also leaves the
+ * `refs/heads/c` it made for `refs/heads/c/d`, which this does not. A directory
+ * that was there is never removed on a refusal, which a revision that pruned by
+ * the success rule on both paths did; found by review of
+ * [#2315](https://github.com/functionalscript/functionalscript/pull/2315).
+ *
+ * A `mkdir` that fails part-way leaves the directories made before it: the list
+ * of what was made is the fold's state, and a failed fold has none.
  *
  * @template {Operation} O
  * @template T
@@ -2271,11 +2325,11 @@ const emptied = paths => dropped(foldStep(
  * @returns {Effect<O | Mkdir | Rmdir, T, IoChannel>}
  */
 const within = (dir, text, e) => {
-    const emptiableDirs = emptiable(text)
-    const pruned = after(
-        emptied(emptiableDirs.map(d => under(dir, d))),
-        emptied(emptiableDirs.map(d => under(dir, `logs/${d}`))))
-    return step(mkdir(parentOf(dir, text), { recursive: true }), () => after(e, pruned))
+    const dirs = emptiable(text)
+    const pruned = step(
+        emptied(dirs.map(d => under(dir, d))),
+        () => emptied(dirs.map(d => under(dir, `logs/${d}`))))
+    return step(madeFor(dir, text), made => finallyStep(e, r => r[0] === 'ok' ? pruned : emptied(made)))
 }
 
 /**
@@ -2334,16 +2388,31 @@ const looseRemoved = path => catchStep(
     e => isNotFound(e) ? pureOk(false) : pureError(e))
 
 /**
- * The name taken out, under both locks: its `packed-refs` line, then its loose
- * file, then its reflog — and whether either of the first two was there.
+ * Nothing, or the refusal a loose file holding no ref is: see
+ * {@link brokenRefCode}. Absent is fine, and so is a directory, which
+ * {@link tryDelete} has refused already.
  *
- * The file is read here, under `packed-refs.lock`, and not before: a read made
- * before the lock was taken is one another writer may have replaced since.
- *
- * @type {(dirs: Dirs, without: (input: Bytes) => PackedWithout, path: string, log: string) => Effect<ReadWhole | WriteExclusive | Rename | Rm, boolean, IoChannel>}
+ * @type {(readRef: (bytes: Bytes) => Nullable<Ref>, name: Bytes, path: string) => Effect<ReadFile, void, IoChannel>}
  */
-const removed = (dirs, without, path, log) => {
-    const read = tryWholeBytes(under(dirs.common, packedRefs))
+const intact = (readRef, name, path) => step(
+    tryBytes(path),
+    bytes => bytes !== null && readRef(bytes) === null
+        ? pureError(ioError({ code: brokenRefCode, message: brokenRefMessage(name) }))
+        : pureOk(undefined))
+
+/**
+ * The name taken out, under both locks: its loose file checked, then its
+ * `packed-refs` line, its loose file and its reflog removed — and whether either
+ * file held it.
+ *
+ * Both files are read here, under the locks, and not before: a read made before
+ * a lock was taken is one another writer may have replaced since.
+ *
+ * @type {(dirs: Dirs, name: Bytes, path: string, log: string, readRef: (bytes: Bytes) => Nullable<Ref>, without: (input: Bytes) => PackedWithout) => Effect<ReadFile | ReadWhole | WriteExclusive | Rename | Rm, boolean, IoChannel>}
+ */
+const removed = (dirs, name, path, log, readRef, without) => {
+    const checked = intact(readRef, name, path)
+    const read = step(checked, () => tryWholeBytes(under(dirs.common, packedRefs)))
     const edited = mapStep(read, b => b === null ? /** @type {PackedWithout} */ (['absent']) : without(b))
     const packed = history(step(edited, packedRewritten(dirs)))
     const loose = historyStep(packed, () => looseRemoved(path))
@@ -2366,7 +2435,10 @@ const removed = (dirs, without, path, log) => {
  * and where it names the ref the file without that line is written to
  * `packed-refs.new` and renamed over it; then the loose file goes, the locks are
  * given back, and the directories the name leaves empty are removed. This does
- * the same, in the same order, with the one exception below.
+ * the same, in the same order, with the one exception below — and reads the
+ * loose file first, under both locks, for the refusal Git makes there.
+ * Directories are made one at a time, so that a refused delete can remove exactly
+ * the ones it made; see {@link within}.
  *
  * **The packed line goes before the loose file**, because the loose file shadows
  * it: the other order leaves a moment where the file is gone and the packed
@@ -2396,9 +2468,11 @@ const removed = (dirs, without, path, log) => {
  * `'refs/heads/a/b' exists; cannot create 'refs/heads/a'`, and the same where
  * `refs/heads/a` is a symlink to a directory. A file where one of the name's
  * directories would be is the host's `ENOTDIR`, and a lock another writer holds is
- * the host's `EEXIST`. A `packed-refs` that will not parse is
+ * the host's `EEXIST`. A loose file that holds no ref is {@link brokenRefCode},
+ * as Git refuses it. A `packed-refs` that will not parse is
  * {@link badPackedCode}, and one that claims to be sorted and is not is
- * {@link unsortedPackedCode}.
+ * {@link unsortedPackedCode}. The ones decided under the locks leave no
+ * directory behind that the delete made, and remove none that was there.
  *
  * **Where it differs from `git update-ref -d`**, each measured:
  *
@@ -2418,9 +2492,10 @@ const removed = (dirs, without, path, log) => {
  * The measurements, and what is left to do:
  * [`./todo/ref-writing.md`](./todo/ref-writing.md).
  *
- * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<Stat | Mkdir | CreateExclusive | ReadWhole | WriteExclusive | Rename | Rm | Rmdir, boolean, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<Stat | Mkdir | CreateExclusive | ReadFile | ReadWhole | WriteExclusive | Rename | Rm | Rmdir, boolean, IoChannel>}
  */
 export const tryDelete = (dirs, oidBytes) => {
+    const readRef = tryRef(oidBytes)
     const packedWithout = tryPackedWithout(oidBytes)
     return name => {
         const named = refsText(name)
@@ -2437,7 +2512,7 @@ export const tryDelete = (dirs, oidBytes) => {
         const clear = step(kind, there => there
             ? pureError(ioError({ code: refPrefixCode, message: refIsDirectoryMessage(name, 'delete') }))
             : pureOk(/** @type {void} */ (undefined)))
-        const taken = removed(dirs, packedWithout(name), path, under(dir, `logs/${text}`))
+        const taken = removed(dirs, name, path, under(dir, `logs/${text}`), readRef, packedWithout(name))
         const packedLock = `${under(dirs.common, packedRefs)}${lockSuffix}`
         return step(clear, () => within(dir, text, holding(`${path}${lockSuffix}`, holding(packedLock, taken))))
     }
